@@ -1,5 +1,7 @@
 "use client";
 
+import Topbar from "@/components/Topbar";
+
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -131,12 +133,12 @@ export default function TournamentPage() {
     return (
       <main className="ct-page">
         <div className="ct-container">
-          <div className="ct-topbar">
-            <div className="ct-brand">CT PICKUP</div>
+          <Topbar />
             <div className="ct-nav">
-              <a href="/status">Status</a>
-              <a href="/update">Fix Submission</a>
-            </div>
+            <a href="/status">Status</a>
+            <a href="/help">Help</a>
+            <a href="/update">Fix Submission</a>
+          </div>
           </div>
           <div className="ct-card">
             <div className="ct-title">Tournament</div>
@@ -156,9 +158,10 @@ export default function TournamentPage() {
           <div className="ct-topbar">
             <div className="ct-brand">CT PICKUP</div>
             <div className="ct-nav">
-              <a href="/status">Status</a>
-              <a href="/update">Fix Submission</a>
-            </div>
+            <a href="/status">Status</a>
+            <a href="/help">Help</a>
+            <a href="/update">Fix Submission</a>
+          </div>
           </div>
 
           <div className="ct-card">
@@ -252,6 +255,7 @@ export default function TournamentPage() {
           <div className="ct-brand">CT PICKUP</div>
           <div className="ct-nav">
             <a href="/status">Status</a>
+            <a href="/help">Help</a>
             <a href="/update">Fix Submission</a>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import Topbar from "@/components/Topbar";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
@@ -38,14 +39,7 @@ export default async function StatusPage() {
     return (
       <main className="ct-page">
         <div className="ct-container">
-          <div className="ct-topbar">
-            <div className="ct-brand">CT PICKUP</div>
-            <div className="ct-nav">
-              <a href="/status">Status</a>
-              <a href="/update">Fix Submission</a>
-            </div>
-          </div>
-
+          <Topbar />
           <h1 className="ct-title">Tournament Status</h1>
           <p className="ct-sub">Official source of truth.</p>
 
@@ -63,13 +57,7 @@ export default async function StatusPage() {
   return (
     <main className="ct-page">
       <div className="ct-container">
-        <div className="ct-topbar">
-          <div className="ct-brand">CT PICKUP</div>
-          <div className="ct-nav">
-            <a href="/status">Status</a>
-            <a href="/update">Fix Submission</a>
-          </div>
-        </div>
+        <Topbar />
 
         <h1 className="ct-title">Tournament Status</h1>
         <p className="ct-sub">
@@ -84,29 +72,19 @@ export default async function StatusPage() {
 
           <div className="ct-card">
             <div className="ct-k">Next update by</div>
-            <div className="text-lg font-bold mt-1">
-              {prettyDate(data.next_update_by)}
-            </div>
+            <div className="text-lg font-bold mt-1">{prettyDate(data.next_update_by)}</div>
           </div>
 
           <div className="ct-card">
             <div className="ct-k">Leading options</div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <div
-                className="rounded-xl border p-3"
-                style={{ borderColor: "rgba(255,255,255,0.10)" }}
-              >
+              <div className="rounded-xl border p-3" style={{ borderColor: "rgba(255,255,255,0.10)" }}>
                 <div className="ct-k">Primary</div>
                 <div className="ct-v mt-1">{data.primary_slot ?? "TBD"}</div>
               </div>
-              <div
-                className="rounded-xl border p-3"
-                style={{ borderColor: "rgba(255,255,255,0.10)" }}
-              >
+              <div className="rounded-xl border p-3" style={{ borderColor: "rgba(255,255,255,0.10)" }}>
                 <div className="ct-k">Secondary</div>
-                <div className="ct-v mt-1">
-                  {data.secondary_slot ?? "TBD"}
-                </div>
+                <div className="ct-v mt-1">{data.secondary_slot ?? "TBD"}</div>
               </div>
             </div>
             <div className="ct-foot">We lock a slot when enough players align.</div>
