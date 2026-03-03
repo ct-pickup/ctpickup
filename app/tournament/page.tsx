@@ -127,6 +127,7 @@ export default function TournamentPage() {
 
         <div className="mt-6 flex gap-3 items-center">
           <a className="underline" href="/status">Go to Status</a>
+          <a className="underline" href="/update">Fix / Edit My Submission</a>
           <button
             className="rounded-lg border px-4 py-2"
             onClick={() => setSubmitted(false)}
