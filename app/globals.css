@@ -24,3 +24,156 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+:root{
+  --ct-bg: #1E1D1D;
+  --ct-text: #F1EFF0;
+  --ct-muted: #D8D9DB;
+  --ct-muted2: #D8D6D6;
+
+  --ct-surface: #262525;
+  --ct-hover: #2E2D2D;
+  --ct-border: rgba(255,255,255,0.10);
+  --ct-border2: rgba(255,255,255,0.16);
+  --ct-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+
+/* Page background */
+.ct-page {
+  background: radial-gradient(1200px 600px at 30% 0%, rgba(255,255,255,0.06), transparent 60%),
+              radial-gradient(900px 500px at 80% 40%, rgba(255,255,255,0.05), transparent 65%),
+              linear-gradient(180deg, rgba(0,0,0,0.22), transparent 30%),
+              var(--ct-bg);
+  color: var(--ct-text);
+  min-height: 100vh;
+}
+
+/* Center container */
+.ct-container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* Top sports header */
+.ct-topbar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 18px 0 8px;
+}
+.ct-brand {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-size: 18px;
+}
+.ct-nav {
+  display:flex;
+  gap: 14px;
+  font-size: 14px;
+  color: var(--ct-muted);
+}
+.ct-nav a:hover { color: var(--ct-text); }
+
+/* Card */
+.ct-card {
+  background: var(--ct-surface);
+  border: 1px solid var(--ct-border);
+  border-radius: 16px;
+  box-shadow: var(--ct-shadow);
+  padding: 18px;
+}
+
+/* Big header + microcopy */
+.ct-title {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+.ct-sub {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--ct-muted);
+}
+
+/* Stepper */
+.ct-stepper {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.ct-steplabel { font-size: 13px; color: var(--ct-muted); }
+.ct-bar {
+  flex:1;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  overflow:hidden;
+}
+.ct-bar > div {
+  height:100%;
+  background: rgba(241,239,240,0.85);
+  width: 0%;
+}
+
+/* Inputs */
+.ct-input, .ct-textarea, .ct-select {
+  width: 100%;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--ct-border2);
+  padding: 12px 12px;
+  color: var(--ct-text);
+  outline: none;
+}
+.ct-input::placeholder, .ct-textarea::placeholder { color: rgba(216,217,219,0.65); }
+.ct-input:focus, .ct-textarea:focus, .ct-select:focus {
+  border-color: rgba(241,239,240,0.55);
+}
+
+/* Buttons */
+.ct-btn {
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-weight: 700;
+  border: 1px solid var(--ct-border2);
+  transition: transform 0.04s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.ct-btn:active { transform: translateY(1px); }
+.ct-btn-primary {
+  background: rgba(241,239,240,0.92);
+  color: #1E1D1D;
+  border-color: rgba(241,239,240,0.65);
+}
+.ct-btn-primary:hover { background: rgba(241,239,240,1); }
+.ct-btn-outline {
+  background: transparent;
+  color: var(--ct-text);
+}
+.ct-btn-outline:hover { background: rgba(255,255,255,0.06); }
+.ct-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* “Ticket” receipt box rows */
+.ct-row {
+  display:flex;
+  justify-content:space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.ct-row:last-child { border-bottom: none; }
+.ct-k { color: var(--ct-muted); font-size: 13px; }
+.ct-v { font-weight: 650; font-size: 14px; }
+
+/* Small note */
+.ct-foot {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--ct-muted);
+}

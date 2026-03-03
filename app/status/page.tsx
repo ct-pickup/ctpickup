@@ -36,59 +36,99 @@ export default async function StatusPage() {
 
   if (error || !data) {
     return (
-      <main className="min-h-screen p-6">
-        <h1 className="text-2xl font-semibold">CT Pickup Status</h1>
+      <main className="ct-page">
+        <div className="ct-container">
+          <div className="ct-topbar">
+            <div className="ct-brand">CT PICKUP</div>
+            <div className="ct-nav">
+              <a href="/status">Status</a>
+              <a href="/update">Fix Submission</a>
+            </div>
+          </div>
 
-      <p className="mt-2 text-sm text-gray-600">
-        Need to change your availability?{" "}
-        <a className="underline" href="/update">Fix / Edit My Submission</a>
-      </p>
-        <p className="mt-4 text-red-600">
-          Couldn’t load status yet. Check env vars + Supabase table.
-        </p>
-        <pre className="mt-4 text-sm whitespace-pre-wrap">
-          {String(error?.message)}
-        </pre>
+          <h1 className="ct-title">Tournament Status</h1>
+          <p className="ct-sub">Official source of truth.</p>
+
+          <div className="mt-6 ct-card">
+            <p style={{ color: "var(--ct-muted)" }}>
+              Couldn’t load status yet. Check env vars + Supabase table.
+            </p>
+            <pre className="mt-4 text-sm whitespace-pre-wrap">{String(error?.message)}</pre>
+          </div>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen p-6 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-semibold">CT Pickup Status</h1>
-
-      <div className="mt-6 space-y-3 rounded-xl border p-4">
-        <div>
-          <div className="text-sm text-gray-500">Phase</div>
-          <div className="text-lg">{data.phase}</div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <div className="text-sm text-gray-500">Primary slot</div>
-            <div className="text-base">{data.primary_slot ?? "TBD"}</div>
-          </div>
-          <div>
-            <div className="text-sm text-gray-500">Secondary slot</div>
-            <div className="text-base">{data.secondary_slot ?? "TBD"}</div>
+    <main className="ct-page">
+      <div className="ct-container">
+        <div className="ct-topbar">
+          <div className="ct-brand">CT PICKUP</div>
+          <div className="ct-nav">
+            <a href="/status">Status</a>
+            <a href="/update">Fix Submission</a>
           </div>
         </div>
 
-        <div>
-          <div className="text-sm text-gray-500">Next update by</div>
-          <div className="text-base">{prettyDate(data.next_update_by)}</div>
-        </div>
+        <h1 className="ct-title">Tournament Status</h1>
+        <p className="ct-sub">
+          Official source of truth. Updates live here + IG story.
+        </p>
 
-        <div>
-          <div className="text-sm text-gray-500">Announcement</div>
-          <div className="text-base whitespace-pre-wrap">
-            {data.announcement ?? ""}
+        <div className="mt-6 grid gap-3">
+          <div className="ct-card">
+            <div className="ct-k">Current phase</div>
+            <div className="text-xl font-extrabold mt-1">{data.phase}</div>
           </div>
-        </div>
 
-        <div className="pt-2 text-xs text-gray-500">
-          Last updated: {prettyDate(data.updated_at)}
-          {data.updated_by ? ` by ${data.updated_by}` : ""}
+          <div className="ct-card">
+            <div className="ct-k">Next update by</div>
+            <div className="text-lg font-bold mt-1">
+              {prettyDate(data.next_update_by)}
+            </div>
+          </div>
+
+          <div className="ct-card">
+            <div className="ct-k">Leading options</div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <div
+                className="rounded-xl border p-3"
+                style={{ borderColor: "rgba(255,255,255,0.10)" }}
+              >
+                <div className="ct-k">Primary</div>
+                <div className="ct-v mt-1">{data.primary_slot ?? "TBD"}</div>
+              </div>
+              <div
+                className="rounded-xl border p-3"
+                style={{ borderColor: "rgba(255,255,255,0.10)" }}
+              >
+                <div className="ct-k">Secondary</div>
+                <div className="ct-v mt-1">
+                  {data.secondary_slot ?? "TBD"}
+                </div>
+              </div>
+            </div>
+            <div className="ct-foot">We lock a slot when enough players align.</div>
+          </div>
+
+          <div className="ct-card">
+            <div className="ct-k">Captain notes</div>
+            <div className="mt-2 text-sm" style={{ color: "var(--ct-muted2)" }}>
+              Captains: check deadlines here. Make sure every player submits the form.
+            </div>
+          </div>
+
+          <div className="ct-card">
+            <div className="ct-k">Announcement</div>
+            <div className="mt-2 text-sm whitespace-pre-wrap" style={{ color: "var(--ct-muted2)" }}>
+              {data.announcement ?? ""}
+            </div>
+            <div className="ct-foot">
+              Last updated: {prettyDate(data.updated_at)}
+              {data.updated_by ? ` by ${data.updated_by}` : ""}
+            </div>
+          </div>
         </div>
       </div>
     </main>
