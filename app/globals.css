@@ -177,3 +177,190 @@ body {
   font-size: 12px;
   color: var(--ct-muted);
 }
+
+/* ===== CT PICKUP V2 STYLE OVERRIDES ===== */
+
+body {
+  font-family: var(--font-sora), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* Background = logo image + readable overlays */
+.ct-page {
+  background:
+    radial-gradient(1000px 520px at 30% 0%, rgba(255,255,255,0.06), transparent 60%),
+    linear-gradient(180deg, rgba(0,0,0,0.62), rgba(0,0,0,0.35) 25%, rgba(0,0,0,0.70)),
+    url("/ct-logo-bg.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: var(--ct-bg);
+  color: var(--ct-text);
+  min-height: 100vh;
+}
+
+@media (max-width: 640px) {
+  .ct-page {
+    background:
+      radial-gradient(900px 520px at 50% 0%, rgba(255,255,255,0.05), transparent 60%),
+      linear-gradient(180deg, rgba(0,0,0,0.62), rgba(0,0,0,0.35) 25%, rgba(0,0,0,0.72)),
+      url("/ct-logo-bg-mobile.jpg");
+    background-size: cover;
+    background-position: center;
+  }
+}
+
+/* Typography spec */
+.ct-title {
+  text-transform: uppercase;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+}
+
+.ct-brand {
+  text-transform: uppercase;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+}
+
+/* Nav should feel like SoFive: minimal, uppercase */
+.ct-nav {
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  font-weight: 700;
+}
+
+/* Handle style if/when used */
+.ct-handle {
+  font-weight: 500;
+  text-transform: lowercase;
+  letter-spacing: 0;
+  color: var(--ct-muted);
+}
+
+/* Sticker / pill header */
+.ct-topbar-wrap {
+  position: sticky;
+  top: 14px;
+  z-index: 50;
+}
+
+.ct-sticker {
+  background: rgba(38, 37, 37, 0.88);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  padding: 10px 14px;
+  box-shadow: 0 10px 26px rgba(0,0,0,0.40);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ct-sticker-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ct-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(255,255,255,0.04);
+  color: var(--ct-text);
+}
+.ct-iconbtn:hover { background: rgba(255,255,255,0.07); }
+
+
+/* === SoFive-style capsule header (light) === */
+.ct-topbar-wrap { position: sticky; top: 16px; z-index: 80; }
+
+.ct-sticker{
+  background: rgba(241,239,240,0.92);
+  border: 1px solid rgba(0,0,0,0.10);
+  border-radius: 999px;
+  padding: 10px 14px;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.30);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #1E1D1D;
+}
+
+.ct-brand{ color: #1E1D1D; }
+.ct-nav{ color: rgba(30,29,29,0.70); }
+.ct-nav a:hover{ color: #1E1D1D; }
+
+.ct-iconbtn{
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(0,0,0,0.04);
+  color: #1E1D1D;
+}
+.ct-iconbtn:hover{ background: rgba(0,0,0,0.07); }
+
+
+/* ===== TYPE + SPACING (PIN-MATCH) ===== */
+
+/* Big word / titles */
+.ct-title{
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;         /* slightly less tight for mobile */
+  font-size: clamp(24px, 7.2vw, 44px);
+  line-height: 1.05;
+  white-space: nowrap;             /* stay 1 line on mobile */
+}
+
+/* Brand wordmark in header */
+.ct-brand{
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+/* Spaced-out logo label (ONLY when logo vibe is in use) */
+.ct-spaced{
+  font-weight: 500;                /* Sora Medium */
+  text-transform: uppercase;
+  letter-spacing: 0.65em;          /* ~ +60–70% feel */
+  font-size: clamp(11px, 2.6vw, 14px);
+  color: var(--ct-muted);
+  white-space: nowrap;
+}
+
+/* Handle: Sora Medium, lowercase, normal tracking */
+.ct-handle{
+  font-weight: 500;
+  text-transform: lowercase;
+  letter-spacing: 0;
+  color: var(--ct-muted);
+}
+
+/* Handle row w/ IG icon */
+.ct-handle-row{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ct-ig{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(255,255,255,0.04);
+  color: var(--ct-text);
+}
+
+.ct-ig:hover{
+  background: rgba(255,255,255,0.07);
+}

@@ -8,25 +8,19 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-function KeyIcon() {
+function PersonIcon() {
   return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
-        d="M10.5 13.5a5.5 5.5 0 1 1 3.89-9.39A5.5 5.5 0 0 1 10.5 13.5Z"
+        d="M12 12a4.2 4.2 0 1 0-4.2-4.2A4.2 4.2 0 0 0 12 12Z"
         stroke="currentColor"
         strokeWidth="2"
       />
       <path
-        d="M14.4 9.6 22 17.2v2.3h-2.3l-1.4-1.4-1.4 1.4h-2.3v-2.3l-1.9-1.9"
+        d="M4.5 20.2c1.8-3.8 5.1-5.2 7.5-5.2s5.7 1.4 7.5 5.2"
         stroke="currentColor"
         strokeWidth="2"
-        strokeLinejoin="round"
+        strokeLinecap="round"
       />
     </svg>
   );
@@ -64,20 +58,18 @@ export default function AccountMenu() {
     window.location.href = "/";
   }
 
-  // Tooltip text per your spec
   const tooltip = authed ? "Account" : "Log in";
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button
-        className="ct-btn ct-btn-outline"
-        style={{ padding: "10px 12px", display: "inline-flex", alignItems: "center", gap: 8 }}
+        className="ct-iconbtn"
         title={tooltip}
         aria-label={tooltip}
         onClick={() => setOpen((v) => !v)}
         type="button"
       >
-        <KeyIcon />
+        <PersonIcon />
       </button>
 
       {open ? (
@@ -87,9 +79,9 @@ export default function AccountMenu() {
             position: "absolute",
             right: 0,
             top: "calc(100% + 10px)",
-            width: 200,
+            width: 210,
             padding: 10,
-            zIndex: 50,
+            zIndex: 60,
           }}
         >
           {authed ? (
