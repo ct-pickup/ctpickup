@@ -1,112 +1,46 @@
-import Topbar from "@/components/Topbar";
-import { createClient } from "@supabase/supabase-js";
+import Link from "next/link";
 
-export const dynamic = "force-dynamic";
-
-type StatusRow = {
-  id: number;
-  phase: string;
-  primary_slot: string | null;
-  secondary_slot: string | null;
-  next_update_by: string | null;
-  announcement: string | null;
-  updated_at: string;
-  updated_by: string | null;
-};
-
-function supabasePublic() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, anon, { auth: { persistSession: false } });
-}
-
-function prettyDate(iso: string | null) {
-  if (!iso) return "TBD";
-  const d = new Date(iso);
-  return d.toLocaleString();
-}
-
-export default async function StatusPage() {
-  const supabase = supabasePublic();
-
-  const { data, error } = await supabase
-    .from("status_updates")
-    .select("*")
-    .eq("id", 1)
-    .single<StatusRow>();
-
-  if (error || !data) {
-    return (
-      <main className="ct-page">
-        <div className="ct-container">
-          <Topbar />
-          <h1 className="ct-title">Tournament Status</h1>
-          <p className="ct-sub">Official source of truth.</p>
-
-          <div className="mt-6 ct-card">
-            <p style={{ color: "var(--ct-muted)" }}>
-              Couldn’t load status yet. Check env vars + Supabase table.
-            </p>
-            <pre className="mt-4 text-sm whitespace-pre-wrap">{String(error?.message)}</pre>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
+export default function StatusPage() {
   return (
-    <main className="ct-page">
-      <div className="ct-container">
-        <Topbar />
+    <main className="min-h-screen bg-black text-white">
+      <div className="mx-auto max-w-6xl px-6 py-14 space-y-10">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-semibold uppercase tracking-tight">STATUS</h1>
+          <Link href="/" className="text-sm underline text-white/80">
+            Back
+          </Link>
+        </div>
 
-        <h1 className="ct-title">Tournament Status</h1>
-        <p className="ct-sub">
-          Official source of truth. Updates live here + IG story.
-        </p>
-
-        <div className="mt-6 grid gap-3">
-          <div className="ct-card">
-            <div className="ct-k">Current phase</div>
-            <div className="text-xl font-extrabold mt-1">{data.phase}</div>
-          </div>
-
-          <div className="ct-card">
-            <div className="ct-k">Next update by</div>
-            <div className="text-lg font-bold mt-1">{prettyDate(data.next_update_by)}</div>
-          </div>
-
-          <div className="ct-card">
-            <div className="ct-k">Leading options</div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <div className="rounded-xl border p-3" style={{ borderColor: "rgba(255,255,255,0.10)" }}>
-                <div className="ct-k">Primary</div>
-                <div className="ct-v mt-1">{data.primary_slot ?? "TBD"}</div>
-              </div>
-              <div className="rounded-xl border p-3" style={{ borderColor: "rgba(255,255,255,0.10)" }}>
-                <div className="ct-k">Secondary</div>
-                <div className="ct-v mt-1">{data.secondary_slot ?? "TBD"}</div>
-              </div>
+        <div className="grid gap-6 md:grid-cols-2">
+          <section
+            id="pickup"
+            className="rounded-2xl border border-white/10 bg-white/[0.03] p-8"
+          >
+            <div className="text-sm font-semibold uppercase tracking-wide text-white/80">
+              Pickup Status
             </div>
-            <div className="ct-foot">We lock a slot when enough players align.</div>
-          </div>
+            <div className="mt-4 text-lg font-semibold text-white/90">
+              There are currently no updates.
+            </div>
+            <div className="mt-2 text-sm text-white/60">
+              Updates will be posted here when runs are confirmed or modified.
+            </div>
+          </section>
 
-          <div className="ct-card">
-            <div className="ct-k">Captain notes</div>
-            <div className="mt-2 text-sm" style={{ color: "var(--ct-muted2)" }}>
-              Captains: check deadlines here. Make sure every player submits the form.
+          <section
+            id="tournaments"
+            className="rounded-2xl border border-white/10 bg-white/[0.03] p-8"
+          >
+            <div className="text-sm font-semibold uppercase tracking-wide text-white/80">
+              Public Tournaments Status
             </div>
-          </div>
-
-          <div className="ct-card">
-            <div className="ct-k">Announcement</div>
-            <div className="mt-2 text-sm whitespace-pre-wrap" style={{ color: "var(--ct-muted2)" }}>
-              {data.announcement ?? ""}
+            <div className="mt-4 text-lg font-semibold text-white/90">
+              In progress.
             </div>
-            <div className="ct-foot">
-              Last updated: {prettyDate(data.updated_at)}
-              {data.updated_by ? ` by ${data.updated_by}` : ""}
+            <div className="mt-2 text-sm text-white/60">
+              We are organizing the next tournament. Updates will be posted here first.
             </div>
-          </div>
+          </section>
         </div>
       </div>
     </main>

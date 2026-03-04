@@ -39,6 +39,7 @@ export default function TrainingPage() {
           </p>
         </div>
 
+        {/* PLACE THIS SECTION DIRECTLY BELOW COACHING AND ABOVE THE BUTTON */}
         <div className="space-y-6">
           <div className="space-y-2">
             <h3 className="text-lg font-semibold uppercase">LOCATION</h3>
@@ -66,6 +67,7 @@ export default function TrainingPage() {
           </div>
         </div>
 
+        {/* CTA */}
         <div className="space-y-2">
           <a
             href={mailto}
@@ -74,6 +76,7 @@ export default function TrainingPage() {
             BOOK A SESSION
           </a>
 
+          {/* SoFive-style fallback: small underlined link under the main button */}
           <div>
             <a href={GOOGLE_FORM} target="_blank" rel="noreferrer" className="text-sm underline opacity-90">
               Google Form
@@ -93,12 +96,14 @@ export default function TrainingPage() {
           <p>Pricing varies by coach.</p>
         </div>
 
+        {/* COACH CARDS */}
         <div className="space-y-4">
           <h2 className="text-xl font-semibold uppercase">COACHES</h2>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {coaches.map((c) => (
               <div key={c.name} className="rounded-lg border border-black/10 p-4 space-y-2">
+                {/* photo placeholder */}
                 <div className="h-40 w-full rounded-md bg-black/5" />
 
                 <div className="space-y-1">
@@ -112,6 +117,7 @@ export default function TrainingPage() {
           </div>
         </div>
 
+        {/* optional link to U23 */}
         <div className="pt-6">
           <Link className="underline text-sm" href="/u23">
             U23 SELECT TEAM
