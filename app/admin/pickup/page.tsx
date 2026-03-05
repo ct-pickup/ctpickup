@@ -1,117 +1,108 @@
-"use client";
+import { createClient } from "@supabase/supabase-js";
 
-import { useState } from "react";
+export const dynamic = "force-dynamic";
 
-type EventRow = any;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const adminKey = process.env.ADMIN_DASHBOARD_KEY;
 
-export default function AdminPickupPage() {
-  const [title, setTitle] = useState("CT Pickup Run");
-  const [locName, setLocName] = useState("");
-  const [locAddr, setLocAddr] = useState("");
-  const [aTime, setATime] = useState("");
-  const [bTime, setBTime] = useState("");
-  const [event, setEvent] = useState<EventRow | null>(null);
+function fmtDate(iso?: string) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleString();
+}
 
-  const [waveResult, setWaveResult] = useState<any>(null);
-  const [msg, setMsg] = useState<string | null>(null);
-
-  async function createRun() {
-    setMsg(null);
-    const res = await fetch("/api/admin/pickup/create", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        title,
-        status: "active",
-        time_option_a: aTime,
-        time_option_b: bTime,
-        location_name: locName || null,
-        location_address: locAddr || null,
-      }),
-    });
-
-    const json = await res.json();
-    if (!res.ok) return setMsg(json.error || "Create failed.");
-    setEvent(json.event);
-    setWaveResult(null);
-    setMsg("Created.");
+export default async function AdminPickupPage({
+  searchParams,
+}: {
+  searchParams: { key?: string; tier?: string; status?: string };
+}) {
+  if (adminKey && searchParams.key !== adminKey) {
+    return (
+      <main className="min-h-screen bg-black text-white p-10">
+        <div className="text-xl font-semibold uppercase">Unauthorized</div>
+        <div className="mt-3 text-white/70">
+          Add <span className="text-white">?key=YOUR_ADMIN_DASHBOARD_KEY</span> to the URL.
+        </div>
+      </main>
+    );
   }
 
-  async function invite(wave: "1A" | "1B" | "2") {
-    if (!event?.id) return setMsg("Create a run first.");
-    setMsg(null);
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } });
 
-    const res = await fetch("/api/admin/pickup/invite", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ event_id: event.id, wave }),
-    });
+  let q = supabase
+    .from("pickup_players")
+    .select("created_at, full_name, age, instagram, phone, level, town, tier, status, reliability_score, notes")
+    .order("created_at", { ascending: false })
+    .limit(200);
 
-    const json = await res.json();
-    if (!res.ok) return setMsg(json.error || "Invite failed.");
-    setWaveResult(json);
-    setMsg(`Wave ${wave}: ${json.count} handles.`);
-  }
+  if (searchParams.tier) q = q.eq("tier", searchParams.tier);
+  if (searchParams.status) q = q.eq("status", searchParams.status);
 
-  const runLink = event ? `${window.location.origin}/run/${event.id}` : "";
-  const statusLink = `${window.location.origin}/status`;
+  const { data, error } = await q;
 
   return (
-    <main className="min-h-screen p-6 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-semibold">Admin · Pickup</h1>
-      <p className="mt-2 text-sm text-gray-600">
-        Tip: access this page via <code>/admin/pickup?key=ADMIN_SECRET</code> once to set the cookie.
-      </p>
-
-      <div className="mt-6 rounded-xl border p-4 space-y-3">
-        <div className="font-medium">Create run</div>
-        <input className="w-full rounded-lg border p-3" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
-        <input className="w-full rounded-lg border p-3" value={locName} onChange={(e) => setLocName(e.target.value)} placeholder="Location name" />
-        <input className="w-full rounded-lg border p-3" value={locAddr} onChange={(e) => setLocAddr(e.target.value)} placeholder="Location address" />
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <input className="w-full rounded-lg border p-3" value={aTime} onChange={(e) => setATime(e.target.value)} placeholder="Time option A (ISO or text)" />
-          <input className="w-full rounded-lg border p-3" value={bTime} onChange={(e) => setBTime(e.target.value)} placeholder="Time option B (ISO or text)" />
-        </div>
-
-        <button className="rounded-lg border px-4 py-3 font-medium" onClick={createRun}>
-          Create + Activate
-        </button>
-      </div>
-
-      {event ? (
-        <div className="mt-4 rounded-xl border p-4 space-y-2">
-          <div className="font-medium">Current run</div>
-          <div className="text-sm">ID: <code>{event.id}</code></div>
-          <div className="text-sm">A: {String(event.time_option_a)}</div>
-          <div className="text-sm">B: {String(event.time_option_b)}</div>
-          <div className="text-sm">Run link: <code>{runLink}</code></div>
-        </div>
-      ) : null}
-
-      <div className="mt-4 rounded-xl border p-4 space-y-2">
-        <div className="font-medium">Invite waves (outputs IG handles)</div>
-        <div className="flex gap-2 flex-wrap">
-          <button className="rounded-lg border px-4 py-2" onClick={() => invite("1A")}>Invite 1A</button>
-          <button className="rounded-lg border px-4 py-2" onClick={() => invite("1B")}>Invite 1B</button>
-          <button className="rounded-lg border px-4 py-2" onClick={() => invite("2")}>Invite 2</button>
-        </div>
-
-        {waveResult?.handles ? (
-          <div className="mt-3">
-            <div className="text-sm font-medium">Handles to DM</div>
-            <textarea className="mt-2 w-full rounded-lg border p-3 h-32" readOnly value={waveResult.handles.join("\n")} />
-            <div className="text-sm font-medium mt-3">DM template</div>
-            <textarea
-              className="mt-2 w-full rounded-lg border p-3 h-32"
-              readOnly
-              value={`Got you. Today’s options:\nA) ${String(event?.time_option_a)}\nB) ${String(event?.time_option_b)}\nRSVP + role here: ${runLink}\nUpdates: ${statusLink}\n\nReply RUN for a chance to get in.`}
-            />
+    <main className="min-h-screen bg-black text-white">
+      <div className="mx-auto max-w-6xl px-6 py-14 space-y-6">
+        <div className="flex items-end justify-between gap-6">
+          <div>
+            <div className="text-3xl font-semibold uppercase tracking-tight">ADMIN</div>
+            <div className="text-white/70">Pickup applications (latest 200)</div>
           </div>
-        ) : null}
-      </div>
+        </div>
 
-      {msg ? <p className="mt-4 text-sm text-red-600">{msg}</p> : null}
+        {error && (
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-6 text-white/80">
+            Error: {error.message}
+          </div>
+        )}
+
+        <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03]">
+          <table className="w-full text-sm">
+            <thead className="text-white/70">
+              <tr className="border-b border-white/10">
+                <th className="p-4 text-left">Created</th>
+                <th className="p-4 text-left">Name</th>
+                <th className="p-4 text-left">Age</th>
+                <th className="p-4 text-left">IG</th>
+                <th className="p-4 text-left">Phone</th>
+                <th className="p-4 text-left">Level</th>
+                <th className="p-4 text-left">Town</th>
+                <th className="p-4 text-left">Tier</th>
+                <th className="p-4 text-left">Status</th>
+                <th className="p-4 text-left">Reliability</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data || []).map((r, i) => (
+                <tr key={i} className="border-b border-white/10 align-top">
+                  <td className="p-4 whitespace-nowrap text-white/70">{fmtDate(r.created_at)}</td>
+                  <td className="p-4 font-semibold text-white/90">{r.full_name || "-"}</td>
+                  <td className="p-4 text-white/80">{r.age ?? "-"}</td>
+                  <td className="p-4 text-white/80">{r.instagram || "-"}</td>
+                  <td className="p-4 text-white/80">{r.phone || "-"}</td>
+                  <td className="p-4 text-white/80">{r.level || "-"}</td>
+                  <td className="p-4 text-white/80">{r.town || "-"}</td>
+                  <td className="p-4 text-white/80">{r.tier || "new"}</td>
+                  <td className="p-4 text-white/80">{r.status || "active"}</td>
+                  <td className="p-4 text-white/80">{r.reliability_score ?? 50}</td>
+                </tr>
+              ))}
+              {!data?.length && (
+                <tr>
+                  <td className="p-6 text-white/60" colSpan={10}>
+                    No pickup applications yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="text-xs text-white/50">
+          Tier edits: use Supabase Table Editor for now (tier/status/reliability/notes). If you want inline edits on this page, say so.
+        </div>
+      </div>
     </main>
   );
 }

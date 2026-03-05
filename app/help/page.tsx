@@ -97,7 +97,7 @@ export default function HelpPage() {
             <ButtonLink href="/training" label="TRAINING" />
             <ButtonLink href="/u23" label="U23 SELECT TEAM" />
             <ButtonLink href="/tournament" label="TOURNAMENT" />
-            <ButtonLink href="/status/pickup" label="PICKUP" />
+            <ButtonLink href="/pickup" label="PICKUP" />
             <ButtonLink href="/status/tournament" label="STATUS" />
           </div>
         </section>
