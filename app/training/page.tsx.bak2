@@ -1,0 +1,133 @@
+import Link from "next/link";
+import CoachCard, { type Coach } from "@/components/CoachCard";
+import { TRAINING_COACHES } from "@/lib/trainingCoaches";
+
+const GOOGLE_FORM = "https://forms.gle/4KMEreV6sjxHbTmw8";
+
+export default function TrainingPage() {
+  const cards: Coach[] = TRAINING_COACHES.map((c) => ({
+    slug: c.slug,
+    name: c.name,
+    photoSrc: c.photoSrc,
+    experienceLine: c.experienceLine,
+    position: c.position,
+    homeField: c.homeField,
+  }));
+
+  return (
+    <main className="min-h-screen bg-black text-white">
+      <div className="mx-auto max-w-6xl px-5 sm:px-6 py-12 sm:py-14 space-y-12">
+        <header className="space-y-5">
+          <h1 className="text-3xl font-semibold tracking-tight uppercase">TRAINING SESSIONS</h1>
+
+          <p className="text-white/80 max-w-3xl">
+            Small-group and 1:1 sessions focused on sharp touches, speed of play, and decision-making under pressure.
+          </p>
+
+          {/* ABOVE-THE-FOLD CTA (goes to Google Form) */}
+          <div className="space-y-2">
+            <a
+              href={GOOGLE_FORM}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-semibold bg-white text-black w-full sm:w-auto"
+            >
+              BOOK A SESSION
+            </a>
+            <p className="text-sm text-white/60">Open to anyone. We’ll reply with next steps.</p>
+          </div>
+
+          {/* VIDEO (bigger, no grid) */}
+          <div className="mt-6">
+            <div className="mx-auto w-full md:w-3/4 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
+              <div className="h-[360px] sm:h-[420px] md:h-[520px] w-full">
+                <video
+                  className="h-full w-full object-cover"
+                  src="/training-hero.mp4"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  preload="auto"
+                />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Responsive: stacks on mobile, 2-col on large screens */}
+        <section className="grid gap-10 lg:grid-cols-2">
+          {/* LEFT */}
+          <div className="space-y-10">
+            <div className="space-y-3">
+              <h2 className="text-xl font-semibold uppercase">COACHING</h2>
+              <p className="text-white/80 max-w-xl">
+                Book with one coach or multiple. Every coach has played at the college level.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold uppercase">EXPECTATIONS</h3>
+              <p className="text-white/80 max-w-xl">Show up ready to work, respect the pace, and be on time.</p>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold uppercase">PRICING</h3>
+              <p className="text-white/80 max-w-xl">Pricing varies by coach.</p>
+            </div>
+          </div>
+
+          {/* RIGHT */}
+          <div className="space-y-10">
+            <div className="space-y-3">
+              <h2 className="text-xl font-semibold uppercase">LOCATION</h2>
+              <p className="text-white/80 max-w-xl">
+                Sessions are held at the coach’s home field. Most players should expect to drive. If you are within
+                approximately 45 minutes, you are within the standard service area.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <h2 className="text-xl font-semibold uppercase">TRAVEL ADD-ON (IF THE COACH TRAVELS TO YOU)</h2>
+              <p className="text-white/80 max-w-xl">
+                If you request a coach to travel outside their standard service area, a travel add-on fee will apply.
+              </p>
+              <ul className="list-disc pl-6 space-y-1 text-white/80 max-w-xl">
+                <li>0–15 min: $0</li>
+                <li>15–30 min: +$10</li>
+                <li>30–45 min: +$20</li>
+                <li>Over 45 minutes: Pricing determined on a case-by-case basis.</li>
+              </ul>
+              <p className="text-sm text-white/60 max-w-xl">
+                Travel time is calculated based on the estimated drive time from the coach’s home field.
+              </p>
+              <p className="text-sm text-white/60 max-w-xl">
+                This approach establishes clear expectations and helps prevent misunderstandings.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* COACH CARDS */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold uppercase">COACHES</h2>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 justify-items-center">
+            {cards.map((c) => (
+              <CoachCard key={c.slug} coach={c} />
+            ))}
+          </div>
+        </section>
+
+        <div className="pt-2">
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-semibold bg-white text-black w-full sm:w-auto"
+          >
+            HOME
+          </Link>
+        </div>
+      </div>
+    </main>
+  );
+}

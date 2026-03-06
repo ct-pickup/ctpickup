@@ -213,81 +213,92 @@ export default function TournamentIntakePage() {
         )}
 
         {/* Agreement Modal */}
-        {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6">
-            <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-black p-6">
-              <div className="flex items-start justify-between gap-6">
-                <div className="space-y-1">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-white/70">
-                    SUBMISSION AGREEMENT
-                  </div>
-                  <div className="text-white/85">
-                    You must read and agree to the rules before submitting.
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="text-sm underline text-white/70"
-                >
-                  Close
-                </button>
-              </div>
-
-              <div
-                ref={scrollRef}
-                onScroll={onScroll}
-                className="mt-5 h-72 overflow-y-auto rounded-xl border border-white/10 bg-white/[0.03] p-5 space-y-4 text-white/80"
-              >
-                <div className="font-semibold uppercase text-white/90">
-                  HOW THIS WORKS (READ BEFORE SUBMITTING)
-                </div>
-
-                <p>Captains and players must submit their entry at least 48 hours before the tournament start time.</p>
-
-                <p>Team spots are limited. Once the maximum number of teams is reached, the Status Board will show that the tournament is full.</p>
-
-                <p>The count on the Status Board can update as submissions are approved or removed.</p>
-
-                <p>Once the tournament is full, additional teams will not be included in the tournament group.</p>
-
-                <p>Minimum roster size is required to submit a team. The goalkeeper does count toward your minimum player total.</p>
-
-                <p className="text-sm text-white/70">
-                  Read <Link href="/rules" className="underline">Rules & Eligibility</Link> for eligibility and behavior standards.
-                </p>
-              </div>
-
-              <div className="mt-5 space-y-3">
-                <label className="flex items-start gap-3 text-sm text-white/80">
-                  <input
-                    type="checkbox"
-                    className="mt-1"
-                    disabled={!scrolledBottom}
-                    checked={checked}
-                    onChange={(e) => setChecked(e.target.checked)}
-                  />
-                  <span>
-                    I have read and agree to the rules and eligibility requirements.
-                    {!scrolledBottom && (
-                      <span className="block text-xs text-white/50 mt-1">
-                        Scroll to the bottom to enable this checkbox.
-                      </span>
-                    )}
-                  </span>
-                </label>
-
-                <button
-                  onClick={startChat}
-                  disabled={!checked}
-                  className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-semibold bg-white text-black w-full sm:w-auto disabled:opacity-50"
-                >
-                  CONTINUE
-                </button>
-              </div>
-            </div>
+        {/* Agreement Modal */}
+{showModal && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6">
+    <div className="w-full max-w-2xl rounded-2xl border border-black/10 bg-white p-6 text-black">
+      <div className="flex items-start justify-between gap-6">
+        <div className="space-y-1">
+          <div className="text-sm font-semibold uppercase tracking-wide text-black/60">
+            SUBMISSION AGREEMENT
           </div>
-        )}
+          <div className="text-black/80">
+            You must read and agree to the rules before submitting.
+          </div>
+        </div>
+
+        <button
+          onClick={() => setShowModal(false)}
+          className="text-sm underline text-black/60"
+        >
+          Close
+        </button>
+      </div>
+
+      <div
+        ref={scrollRef}
+        onScroll={onScroll}
+        className="mt-5 h-72 overflow-y-auto rounded-xl border border-black/10 bg-black/5 p-5 space-y-4 text-black/80"
+      >
+        <div className="font-semibold uppercase text-black/90">
+          HOW THIS WORKS (READ BEFORE SUBMITTING)
+        </div>
+
+        <p>
+          Captains and players must submit their entry at least 48 hours before the tournament start time.
+        </p>
+
+        <p>
+          Team spots are limited. Once the maximum number of teams is reached, the Status Board will show that the tournament is full.
+        </p>
+
+        <p>
+          The count on the Status Board can update as submissions are approved or removed.
+        </p>
+
+        <p>
+          Once the tournament is full, additional teams will not be included in the tournament group.
+        </p>
+
+        <p>
+          Minimum roster size is required to submit a team. The goalkeeper does count toward your minimum player total.
+        </p>
+
+        <p className="text-sm text-black/60">
+          Read <Link href="/rules" className="underline">Rules & Eligibility</Link> for eligibility and behavior standards.
+        </p>
+      </div>
+
+      <div className="mt-5 space-y-3">
+        <label className="flex items-start gap-3 text-sm text-black/70">
+          <input
+            type="checkbox"
+            className="mt-1 accent-black"
+            disabled={!scrolledBottom}
+            checked={checked}
+            onChange={(e) => setChecked(e.target.checked)}
+          />
+          <span>
+            I have read and agree to the rules and eligibility requirements.
+            {!scrolledBottom && (
+              <span className="block text-xs text-black/50 mt-1">
+                Scroll to the bottom to enable this checkbox.
+              </span>
+            )}
+          </span>
+        </label>
+
+        <button
+          onClick={startChat}
+          disabled={!checked}
+          className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-semibold bg-black text-white w-full sm:w-auto disabled:opacity-50"
+        >
+          CONTINUE
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       </div>
     </main>
   );

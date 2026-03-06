@@ -58,7 +58,10 @@ export default function PickupIntakePage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setMessages((m) => [...m, { role: "assistant", text: data?.error || "Something went wrong." }]);
+        setMessages((m) => [
+          ...m,
+          { role: "assistant", text: data?.error || "Something went wrong." },
+        ]);
         setLoading(false);
         return;
       }
@@ -75,7 +78,10 @@ export default function PickupIntakePage() {
 
       setLoading(false);
     } catch {
-      setMessages((m) => [...m, { role: "assistant", text: "Network error. Try again." }]);
+      setMessages((m) => [
+        ...m,
+        { role: "assistant", text: "Network error. Try again." },
+      ]);
       setLoading(false);
     }
   }
@@ -84,8 +90,12 @@ export default function PickupIntakePage() {
     <main className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-3xl px-6 py-14 space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-semibold uppercase tracking-tight">PICKUP INTAKE</h1>
-          <Link href="/pickup" className="text-sm underline text-white/80">Back</Link>
+          <h1 className="text-3xl font-semibold uppercase tracking-tight">
+            PICKUP INTAKE
+          </h1>
+          <Link href="/pickup" className="text-sm underline text-white/80">
+            Back
+          </Link>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-4">
@@ -132,7 +142,9 @@ export default function PickupIntakePage() {
             <div className="pt-2 text-sm text-white/70">
               Submission received.
               <div className="mt-3 flex gap-4">
-                <Link href="/" className="underline text-white/80">Home</Link>
+                <Link href="/info" className="underline text-white/80">
+                  Info
+                </Link>
               </div>
             </div>
           )}
@@ -141,7 +153,9 @@ export default function PickupIntakePage() {
             <div className="pt-2 text-sm text-white/70">
               If you’re in immediate danger, call 911. If you’re in the U.S., call or text 988.
               <div className="mt-3">
-                <Link href="/" className="underline text-white/80">Home</Link>
+                <Link href="/info" className="underline text-white/80">
+                  Info
+                </Link>
               </div>
             </div>
           )}

@@ -66,12 +66,12 @@ function levelVerdict(level?: string): { ok: boolean; unclear: boolean; reason?:
     "just for fun", "sunday league"
   ];
   if (reject.some((w) => s.includes(w))) {
-    return { ok: false, unclear: false, reason: "CT Pickup tournaments are intended for college/former college and high-level club players (ECNL, MLS Next)." };
+    return { ok: false, unclear: false, reason: "CT Pickup tournaments are intended for college/former college, high-level club (ECNL, MLS Next), and varsity players. If you do not meet eligibility, email pickupct.com and get a referral from a player. Most likely you will be able to play. No promises." };
   }
 
   const accept = [
     "college", "former college", "ncaa", "d1", "d2", "d3", "juco", "naia",
-    "mls next", "ecnl", "usl", "usl2", "academy", "npsl", "semi-pro", "semi pro", "pro"
+    "mls next", "ecnl", "varsity", "usl", "usl2", "academy", "npsl", "semi-pro", "semi pro", "pro"
   ];
   if (accept.some((w) => s.includes(w))) return { ok: true, unclear: false };
 
