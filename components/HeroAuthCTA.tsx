@@ -10,46 +10,48 @@ const supabase = createClient(
 );
 
 export default function HeroAuthCTA() {
-  const [ready, setReady] = useState(false);
-  const [loggedIn, setLoggedIn] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isAuthed, setIsAuthed] = useState(false);
 
   useEffect(() => {
-    let active = true;
+    let alive = true;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      setLoggedIn(!!data.session);
-      setReady(true);
-    });
+    async function run() {
+      const { data } = await supabase.auth.getSession();
+      if (!alive) return;
+      setIsAuthed(!!data.session);
+      setLoading(false);
+    }
 
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      setLoggedIn(!!session);
+    run();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
+      setIsAuthed(!!session);
+      setLoading(false);
     });
 
     return () => {
-      active = false;
-      data.subscription.unsubscribe();
+      alive = false;
+      sub.subscription.unsubscribe();
     };
   }, []);
 
-  if (!ready) return null;
+  if (loading) return <div className="mt-7 h-[72px]" />;
 
-  // If logged in, remove login/signup buttons (your request).
-  if (loggedIn) {
+  if (isAuthed) {
     return (
       <div className="mt-7 flex flex-col items-center justify-center gap-2">
-        <div className="text-xs text-white/60">You’re logged in.</div>
         <Link
-          href="/status"
-          className="text-xs text-white/70 hover:text-white hover:underline underline-offset-4"
+          href="/after-login"
+          className="rounded-md bg-white px-7 py-3 text-sm font-semibold text-black"
         >
-          View status
+          CONTINUE
         </Link>
+        <div className="text-xs text-white/60">You’re signed in.</div>
       </div>
     );
   }
 
-  // If not logged in, show CTAs.
   return (
     <div className="mt-7 flex flex-col items-center justify-center gap-2">
       <Link
@@ -60,7 +62,7 @@ export default function HeroAuthCTA() {
       </Link>
 
       <div className="text-xs text-white/60">
-        You are required to save your info to access invite-only run details and tournaments.
+        Required to save your info and access invite-only run details.
       </div>
 
       <Link

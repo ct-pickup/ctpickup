@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PageTop from "@/components/PageTop";
 
 const EMAIL = "pickupct@gmail.com";
 
@@ -27,6 +28,7 @@ function QA({ q, a }: { q: string; a: string }) {
 export default function HelpPage() {
   return (
     <main className="min-h-screen bg-black text-white">
+      <PageTop title="HELP" />
       <div className="mx-auto max-w-5xl px-6 py-14 space-y-10">
         {/* Top row */}
         <div className="flex items-start justify-between gap-6">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import HeroAuthCTA from "@/components/HeroAuthCTA";
 import SideMenu from "@/components/SideMenu";
 
 const CT_LOGO_SRC = "/ct-logo.png"; // put your CT logo in /public as ct-logo.png
@@ -40,19 +41,7 @@ export default function HomePage() {
               COMMUNITY. CULTURE. COMPETITION.
             </p>
 
-            <div className="mt-7 flex flex-col items-center justify-center gap-2">
-              <Link href="/login" className="rounded-md bg-white px-7 py-3 text-sm font-semibold text-black">
-                LOG IN
-              </Link>
-
-              <div className="text-xs text-white/60">
-                Required to save your info and access invite-only run details.
-              </div>
-
-              <Link href="/signup" className="text-xs underline text-white/70 hover:text-white">
-                New? Create account
-              </Link>
-            </div>
+            <HeroAuthCTA />
 
             <div className="mt-6 flex items-center justify-start text-sm text-white/85">
               <a href="https://instagram.com/ct.pickup" target="_blank" rel="noreferrer" className="flex items-center gap-3">

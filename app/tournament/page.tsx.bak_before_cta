@@ -1,7 +1,5 @@
 "use client";
 
-import PageTop from "@/components/PageTop";
-
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
@@ -172,8 +170,13 @@ export default function TournamentPage() {
 
   return (
     <main className="min-h-screen bg-black text-white">
-      <PageTop title="TOURNAMENT" />
       <div className="mx-auto max-w-5xl px-6 py-14 space-y-10">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-semibold uppercase tracking-tight">TOURNAMENT</h1>
+          <Link href="/" className="text-sm text-white/70 hover:text-white hover:underline underline-offset-4">
+            Back
+          </Link>
+        </div>
 
         {/* Public status */}
         <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 space-y-5">

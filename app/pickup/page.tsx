@@ -1,14 +1,12 @@
 import Link from "next/link";
+import PageTop from "@/components/PageTop";
 
 export default function PickupPage() {
   return (
     <main className="min-h-screen bg-black text-white">
+      <PageTop title="PICKUP" />
       <div className="mx-auto max-w-5xl px-6 py-14 space-y-10">
         {/* Top row */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-semibold uppercase tracking-tight">PICKUP</h1>
-          <Link href="/" className="text-sm underline text-white/80">Home</Link>
-        </div>
 
         {/* Request Access card (replaces where video used to be) */}
         <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-10 space-y-4">

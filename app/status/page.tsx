@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PageTop from "@/components/PageTop";
 
 type TourneyStatus = "confirmed" | "planning" | "inactive";
 
@@ -48,16 +49,8 @@ const ORDER: TourneyStatus[] = ["inactive", "planning", "confirmed"];
 export default function StatusPage() {
   return (
     <main className="min-h-screen bg-black text-white">
+      <PageTop title="STATUS" />
       <div className="mx-auto max-w-5xl px-6 py-14 space-y-10">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-semibold uppercase tracking-tight">STATUS</h1>
-          <Link
-            href="/"
-            className="text-sm text-white/70 hover:text-white hover:underline underline-offset-4"
-          >
-            Back
-          </Link>
-        </div>
 
         {/* Main Status Card */}
         <section className={`rounded-2xl p-8 ${UI[tourneyStatus].card}`}>
