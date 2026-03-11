@@ -55,8 +55,7 @@ export async function POST(req: Request) {
       wave,
       count: handles.length,
       handles,
-      dm_template: `Reply RUN for a chance to get in.\n\nGot you. Today’s options:\nA) [A TIME]\nB) [B TIME]\nRSVP here: [RUN LINK]\nUpdates: [STATUS LINK]`,
-    });
+dm_template: `Hey — we’re looking to put together a CT Pickup run for [DATE_OR_TBD].\n\nPlease check the website for all details, updates, and to submit your availability:\n[RUN_LINK]\n\nThis invite was sent to Tier 1 players first and is an automated message.`,    });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }

@@ -1,151 +1,263 @@
+"use client";
+
 import Link from "next/link";
-import PageTop from "@/components/PageTop";
+import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 
-const EMAIL = "pickupct@gmail.com";
+type Msg = {
+  role: "user" | "assistant";
+  text: string;
+};
 
-function ButtonLink({ href, label }: { href: string; label: string }) {
-  return (
-    <Link
-      href={href}
-      className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-semibold bg-white text-black w-full sm:w-auto"
-    >
-      {label}
-    </Link>
-  );
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+const EXAMPLE_QUESTIONS = [
+  "How do I join a tournament?",
+  "How do I join pickup?",
+  "Where do I find training?",
+  "How do I apply for U23?",
+];
+
+const WORD_LIMIT = 50;
+
+function countWords(text: string) {
+  const words = text.trim().match(/\S+/g);
+  return words ? words.length : 0;
 }
 
-function QA({ q, a }: { q: string; a: string }) {
+function UserIcon() {
   return (
-    <div className="space-y-2">
-      <div className="text-sm font-semibold uppercase tracking-wide text-white/85">
-        {q}
-      </div>
-      <p className="text-white/75 leading-relaxed">{a}</p>
-    </div>
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="text-black/60"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M20 21a8 8 0 0 0-16 0"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
 export default function HelpPage() {
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [typedIntro, setTypedIntro] = useState("");
+  const [currentExample, setCurrentExample] = useState(EXAMPLE_QUESTIONS[0]);
+  const [firstName, setFirstName] = useState("there");
+  const [busy, setBusy] = useState(false);
+
+  const fullIntro = `Hi, ${firstName}, what can I assist you with?`;
+  const wordsUsed = countWords(input);
+  const wordsRemaining = Math.max(0, WORD_LIMIT - wordsUsed);
+
+  useEffect(() => {
+    (async () => {
+      const { data: sessionRes } = await supabase.auth.getSession();
+      const user = sessionRes.session?.user;
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("first_name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const name = String(profile?.first_name || "").trim();
+      if (name) setFirstName(name);
+    })();
+  }, []);
+
+  useEffect(() => {
+    setTypedIntro("");
+    let i = 0;
+    const timer = setInterval(() => {
+      i += 1;
+      setTypedIntro(fullIntro.slice(0, i));
+      if (i >= fullIntro.length) clearInterval(timer);
+    }, 42);
+
+    return () => clearInterval(timer);
+  }, [fullIntro]);
+
+  const canSend = useMemo(() => {
+    const trimmed = input.trim();
+    return trimmed.length > 0 && countWords(trimmed) <= WORD_LIMIT && !busy;
+  }, [input, busy]);
+
+  async function send() {
+    const text = input.trim();
+    if (!text || countWords(text) > WORD_LIMIT || busy) return;
+
+    setMessages((prev) => [...prev, { role: "user", text }]);
+    setInput("");
+    setBusy(true);
+
+    try {
+      const r = await fetch("/api/help/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: text }),
+      });
+      const j = await r.json();
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: r.ok
+            ? String(j?.text || "I couldn’t generate a reply.")
+            : String(j?.error || "Something went wrong."),
+        },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: "Something went wrong connecting to help.",
+        },
+      ]);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function pickRandomExample() {
+    const pool = EXAMPLE_QUESTIONS.filter((q) => q !== currentExample);
+    const next =
+      pool[Math.floor(Math.random() * pool.length)] || EXAMPLE_QUESTIONS[0];
+    setCurrentExample(next);
+    setInput(next);
+  }
+
   return (
     <main className="min-h-screen bg-black text-white">
-      <PageTop title="HELP" />
-      <div className="mx-auto max-w-5xl px-6 py-14 space-y-10">
-        {/* Top row */}
-        <div className="flex items-start justify-between gap-6">
-          <div className="text-4xl md:text-5xl font-semibold uppercase tracking-tight text-white leading-none">
-            HELP
+      <div className="mx-auto max-w-6xl px-6 pt-6">
+        <div className="rounded-full bg-white/90 px-6 py-3 text-black flex items-center justify-between gap-4">
+          <div className="text-base md:text-lg font-semibold tracking-wide whitespace-nowrap">
+            CT Pickup
           </div>
 
-          <div className="text-right space-y-2">
-            <div className="space-y-1">
-              <div className="text-sm font-semibold uppercase tracking-wide text-white/60">
-                CONTACT
-              </div>
-              <a
-                href={`mailto:${EMAIL}`}
-                className="text-sm font-semibold underline text-white/85"
+          <div className="hidden md:flex items-center gap-6">
+            <Link href="/after-login" className="text-sm font-medium">
+              Home
+            </Link>
+            <Link href="/pickup" className="text-sm font-medium">
+              Pickup Games
+            </Link>
+            <Link href="/tournament" className="text-sm font-medium">
+              Tournaments
+            </Link>
+            <Link href="/training" className="text-sm font-medium">
+              Training
+            </Link>
+            <Link href="/u23" className="text-sm font-medium">
+              U23
+            </Link>
+            <Link href="/info" className="text-sm font-medium">
+              About
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-2 rounded-full border border-black/15 px-3 py-1.5">
+            <div className="h-8 w-8 rounded-full border border-black/15 flex items-center justify-center">
+              <UserIcon />
+            </div>
+            <div className="text-sm font-medium max-w-[140px] truncate">
+              Profile
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-4xl px-6 py-14 space-y-8">
+        <div className="space-y-2">
+          <div className="min-h-[64px] text-4xl md:text-5xl font-semibold tracking-tight text-white leading-none">
+            {typedIntro}
+            {typedIntro.length < fullIntro.length ? (
+              <span className="animate-pulse">|</span>
+            ) : null}
+          </div>
+        </div>
+
+        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 md:p-8 space-y-6">
+          <div className="space-y-4">
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                className={[
+                  "max-w-[90%] rounded-2xl px-4 py-3 text-sm whitespace-pre-line",
+                  m.role === "user"
+                    ? "ml-auto bg-white text-black"
+                    : "bg-black/40 text-white border border-white/10",
+                ].join(" ")}
               >
-                {EMAIL}
-              </a>
+                {m.text}
+              </div>
+            ))}
+
+            {busy ? (
+              <div className="max-w-[90%] rounded-2xl px-4 py-3 text-sm bg-black/40 text-white border border-white/10">
+                Thinking...
+              </div>
+            ) : null}
+          </div>
+
+          <div className="space-y-3">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask something here..."
+              className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+              rows={4}
+            />
+
+            <div className="text-xs text-white/45">
+              Words remaining: {wordsRemaining}
             </div>
 
-            <a href="#questions" className="text-sm font-semibold underline text-white/80">
-              Questions
-            </a>
-          </div>
-        </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={send}
+                disabled={!canSend}
+                className="rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-black disabled:opacity-50"
+              >
+                Ask
+              </button>
 
-        {/* Quick answers */}
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-10 space-y-4">
-          <div className="text-sm font-semibold uppercase tracking-wide text-white/70">
-            QUICK ANSWERS
-          </div>
+              <button
+                type="button"
+                onClick={pickRandomExample}
+                className="rounded-md border border-white/15 bg-black px-5 py-2.5 text-sm font-semibold text-white/85 hover:bg-white/[0.04]"
+              >
+                Example questions
+              </button>
+            </div>
 
-          <div className="space-y-3 text-white/80">
-            <p>
-              <span className="font-semibold text-white/90">Status:</span>{" "}
-              Pickup and tournament updates live on the Status pages.
-            </p>
-            <p>
-              <span className="font-semibold text-white/90">Training:</span>{" "}
-              Booking and details are on the Training Sessions page.
-            </p>
-            <p>
-              <span className="font-semibold text-white/90">Response time:</span>{" "}
-              We reply with next steps as soon as possible.
-            </p>
-          </div>
-        </section>
-
-        {/* Standards */}
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-10 space-y-4">
-          <div className="text-sm font-semibold uppercase tracking-wide text-white/70">
-            STANDARDS
-          </div>
-          <div className="space-y-3 text-white/80">
-            <p>Competitive environment. Clean play under pressure.</p>
-            <p>Reliable communication. No ego. Respect the pace.</p>
-            <p>Show up on time. If you can’t make it, say it early.</p>
+            {wordsRemaining <= 0 ? (
+              <div className="text-sm text-white/60">
+                You’ve reached the current word limit.
+              </div>
+            ) : null}
           </div>
         </section>
-
-        {/* Programs */}
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-10 space-y-5">
-          <div className="text-sm font-semibold uppercase tracking-wide text-white/70">
-            LOOKING FOR PROGRAMS?
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <ButtonLink href="/training" label="TRAINING" />
-            <ButtonLink href="/u23" label="U23 SELECT TEAM" />
-            <ButtonLink href="/tournament" label="TOURNAMENT" />
-            <ButtonLink href="/pickup" label="PICKUP" />
-            <ButtonLink href="/status/tournament" label="STATUS" />
-          </div>
-        </section>
-
-        {/* Questions */}
-        <section
-          id="questions"
-          className="rounded-2xl border border-white/10 bg-white/[0.03] p-10 space-y-7"
-        >
-          <div className="text-sm font-semibold uppercase tracking-wide text-white/70">
-            QUESTIONS
-          </div>
-
-          <div className="space-y-7">
-            <QA
-              q="Who is CT Pickup for?"
-              a="CT Pickup is intended for college players, former college players, and high-level club players (ECNL, MLS Next). The minimum age is 16. This is not a casual or low-intensity environment."
-            />
-
-            <QA
-              q="How do I RSVP?"
-              a="RSVP is required only for tournaments. Pickup runs use a tiered invite system. If a run reaches capacity, you will be confirmed or placed on standby."
-            />
-
-            <QA
-              q="Is there a lateness cutoff?"
-              a="Yes. If you are running late, please notify us. Consistent lateness will result in lower priority for capped runs."
-            />
-
-            <QA
-              q="What are the basic behavior rules?"
-              a="Maintain a competitive but respectful environment. Fights, threats, and disruptive behavior are not tolerated. Respect the game, the field, and all participants. Slide tackles are strictly prohibited. Violators will be removed and not invited to return."
-            />
-
-            <QA
-              q="How do announcements go out (text, email, Instagram)?"
-              a="Primary updates are communicated via Instagram and direct messages. Confirmation and day-of messages provide essential run information."
-            />
-          </div>
-        </section>
-
-        <div className="pt-2">
-          <Link href="/" className="inline-flex underline text-white/80">
-            HOME
-          </Link>
-        </div>
       </div>
     </main>
   );

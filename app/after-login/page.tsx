@@ -1,365 +1,347 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 
-type TourneyStatus = "confirmed" | "planning" | "inactive";
-type PickupStatus = "open" | "invite_only" | "inactive";
+const HERO_IMAGES = [
+  "/hero/1.jpg",
+  "/hero/2.jpg",
+  "/hero/3.jpg",
+  "/hero/4.jpg",
+  "/hero/5.jpg",
+  "/hero/6.jpg",
+];
 
-function ReasonPicker({
-  label,
-  onDone,
-}: {
-  label: string;
-  onDone: (payload: { reasonQuick?: string; reasonNote?: string }) => void;
-}) {
-  const [quick, setQuick] = useState<string | undefined>(undefined);
-  const [note, setNote] = useState("");
+type NavMenu = "pickup" | "tournaments" | "about" | null;
 
-  const options = [
-    "Schedule conflict",
-    "Injury",
-    "Out of town",
-    "Work / school",
-    "Not interested",
-    "Other",
-  ];
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+function UserIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="text-black/60"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M20 21a8 8 0 0 0-16 0"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function HeroSlideshow() {
+  const slides = [...HERO_IMAGES, ...HERO_IMAGES];
 
   return (
-    <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-5">
-      <div className="text-sm font-semibold uppercase tracking-wide text-white/80">
-        {label}
-      </div>
-      <div className="mt-2 text-sm text-white/75">
-        Is there a reason you can’t play?
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        {options.map((o) => (
-          <button
-            key={o}
-            type="button"
-            onClick={() => setQuick(o)}
-            className={[
-              "rounded-full px-3 py-1.5 text-xs border",
-              quick === o
-                ? "border-white/25 bg-white/10 text-white/90"
-                : "border-white/10 text-white/55 hover:bg-white/[0.04]",
-            ].join(" ")}
+    <div className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
+      <div
+        className="flex w-max animate-[slide_40s_linear_infinite]"
+        style={{ gap: "16px", padding: "16px" }}
+      >
+        {slides.map((src, i) => (
+          <div
+            key={`${src}-${i}`}
+            className="h-[320px] w-[240px] md:h-[420px] md:w-[320px] shrink-0 overflow-hidden rounded-xl bg-white/5"
           >
-            {o}
-          </button>
+            <img
+              src={src}
+              alt={`CT Pickup photo ${i + 1}`}
+              className="h-full w-full object-cover"
+            />
+          </div>
         ))}
-      </div>
-
-      <textarea
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        placeholder="Optional note…"
-        className="mt-3 w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
-        rows={3}
-      />
-
-      <div className="mt-4">
-        <button
-          type="button"
-          onClick={() => onDone({ reasonQuick: quick, reasonNote: note.trim() || undefined })}
-          className="rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-black"
-        >
-          Continue
-        </button>
       </div>
     </div>
   );
 }
 
+function DropdownGroup({
+  label,
+  open,
+  onClick,
+  items,
+}: {
+  label: string;
+  open: boolean;
+  onClick: () => void;
+  items: { label: string; href: string }[];
+}) {
+  return (
+    <div className="relative">
+      <button type="button" onClick={onClick} className="text-sm font-medium">
+        {label}
+      </button>
+
+      {open ? (
+        <div className="absolute left-0 top-full z-20 mt-2 min-w-[220px] rounded-xl border border-black/10 bg-white p-2 text-black shadow-lg">
+          <div className="flex flex-col">
+            {items.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="rounded-lg px-3 py-2 text-sm hover:bg-black/5"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function MobileDropdownGroup({
+  label,
+  open,
+  onClick,
+  items,
+}: {
+  label: string;
+  open: boolean;
+  onClick: () => void;
+  items: { label: string; href: string }[];
+}) {
+  return (
+    <div className="rounded-xl border border-black/10">
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium"
+      >
+        <span>{label}</span>
+        <span>{open ? "−" : "+"}</span>
+      </button>
+
+      {open ? (
+        <div className="border-t border-black/10 px-2 py-2">
+          <div className="flex flex-col">
+            {items.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="rounded-lg px-3 py-2 text-sm hover:bg-black/5"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function AfterLoginPage() {
-  const router = useRouter();
-
-  const [enter, setEnter] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  const [tournamentStatus, setTournamentStatus] = useState<TourneyStatus>("planning");
-  const [pickupStatus, setPickupStatus] = useState<PickupStatus>("invite_only");
-
-  const [aiText, setAiText] = useState("");
-  const [doneMsg, setDoneMsg] = useState<string | null>(null);
-
-  const [tourneyAnswer, setTourneyAnswer] = useState<"yes" | "no" | null>(null);
-  const [pickupAnswer, setPickupAnswer] = useState<"yes" | "no" | null>(null);
-
-  const showTournamentAsk = tournamentStatus === "planning" || tournamentStatus === "confirmed";
-  const showPickupAsk = pickupStatus === "open" || pickupStatus === "invite_only";
+  const [openMenu, setOpenMenu] = useState<NavMenu>(null);
+  const [heading, setHeading] = useState("WELCOME BACK");
+  const [profileName, setProfileName] = useState("Profile");
 
   useEffect(() => {
-    const id = requestAnimationFrame(() => setEnter(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
+    const params = new URLSearchParams(window.location.search);
+    const isNew = params.get("new") === "1";
+    const baseWelcome = isNew ? "WELCOME" : "WELCOME BACK";
 
-  const tournamentPill = useMemo(() => {
-    if (tournamentStatus === "confirmed") {
-      return { label: "CONFIRMED", cls: "border-emerald-500/25 bg-emerald-500/15 text-emerald-200" };
-    }
-    if (tournamentStatus === "planning") {
-      return { label: "PLANNING", cls: "border-white/15 bg-white/10 text-white/85" };
-    }
-    return { label: "NOT ANNOUNCED", cls: "border-red-500/25 bg-red-500/15 text-red-200" };
-  }, [tournamentStatus]);
+    setHeading(baseWelcome);
 
-  const pickupPill = useMemo(() => {
-    if (pickupStatus === "open") return { label: "OPEN", cls: "border-emerald-500/25 bg-emerald-500/15 text-emerald-200" };
-    if (pickupStatus === "invite_only") return { label: "INVITE ONLY", cls: "border-white/15 bg-white/10 text-white/85" };
-    return { label: "NOT ACTIVE", cls: "border-red-500/25 bg-red-500/15 text-red-200" };
-  }, [pickupStatus]);
-
-  useEffect(() => {
     (async () => {
-      try {
-        const s = await fetch("/api/status/summary");
-        const sj = await s.json();
+      const { data: sessionRes } = await supabase.auth.getSession();
+      const user = sessionRes.session?.user;
 
-        const t: TourneyStatus = sj?.tournamentStatus || "planning";
-        const p: PickupStatus = sj?.pickupStatus || "invite_only";
+      if (!user) {
+        setHeading(baseWelcome);
+        return;
+      }
 
-        setTournamentStatus(t);
-        setPickupStatus(p);
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("first_name")
+        .eq("id", user.id)
+        .maybeSingle();
 
-        const nothingActive = t === "inactive" && p === "inactive";
+      const name = String(profile?.first_name || "").trim();
 
-        if (nothingActive) {
-          // Keep the site clean: brief confirmation then return home (still logged in)
-          setAiText("You’re logged in. No active tournament or pickup updates right now.");
-          setLoading(false);
-
-          setTimeout(() => {
-            router.replace("/");
-          }, 1100);
-
-          return;
-        }
-
-        // OpenAI status message
-        const r = await fetch("/api/after-login/message", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tournamentStatus: t, pickupStatus: p }),
-        });
-        const rj = await r.json();
-        setAiText(String(rj?.text || "You’re logged in."));
-      } catch {
-        setAiText("You’re logged in. Updates will be posted here first.");
-      } finally {
-        setLoading(false);
+      if (name) {
+        setProfileName(name);
+        setHeading(`${baseWelcome}, ${name.toUpperCase()}`);
+      } else {
+        setHeading(baseWelcome);
       }
     })();
-  }, [router]);
+  }, []);
 
-  function finishAndGoHome(extra?: string) {
-    setDoneMsg(extra || "All set. You’re logged in now.");
+  const pickupItems = [
+    { label: "Upcoming Games", href: "/pickup" },
+    { label: "How It Works", href: "/pickup" },
+    { label: "Join a Game", href: "/pickup" },
+  ];
+
+  const tournamentItems = [
+    { label: "Upcoming Tournaments", href: "/tournament" },
+    { label: "How It Works", href: "/tournament" },
+    { label: "Join a Tournament", href: "/tournament" },
+  ];
+
+  const aboutItems = [
+    { label: "Mission", href: "/mission" },
+    { label: "Rules", href: "/rules" },
+    { label: "Community", href: "/community" },
+  ];
+
+  function toggleMenu(menu: Exclude<NavMenu, null>) {
+    setOpenMenu((prev) => (prev === menu ? null : menu));
   }
 
   return (
     <main className="min-h-screen bg-black text-white">
-      <div
-        className={[
-          "mx-auto max-w-4xl px-6 py-14 space-y-10",
-          "transition-all duration-500",
-          enter ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2",
-        ].join(" ")}
-      >
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-semibold uppercase tracking-tight">WELCOME</h1>
-          <Link
-            href="/"
-            className="text-sm text-white/70 hover:text-white hover:underline underline-offset-4"
-          >
-            Home
-          </Link>
-        </div>
+      <style jsx global>{`
+        @keyframes slide {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+      `}</style>
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className={`rounded-full px-4 py-2 text-sm font-semibold border ${tournamentPill.cls}`}>
-              TOURNAMENT · {tournamentPill.label}
+      <div className="mx-auto max-w-6xl px-6 pt-6">
+        <div className="rounded-[28px] bg-white/90 px-6 py-3 text-black">
+          <div className="hidden md:flex items-center justify-between gap-4">
+            <div className="text-base md:text-lg font-semibold tracking-wide whitespace-nowrap">
+              CT Pickup
             </div>
-            <div className={`rounded-full px-4 py-2 text-sm font-semibold border ${pickupPill.cls}`}>
-              PICKUP · {pickupPill.label}
+
+            <div className="flex items-center gap-6">
+              <Link href="/" className="text-sm font-medium">
+                Home
+              </Link>
+
+              <DropdownGroup
+                label="Pickup Games"
+                open={openMenu === "pickup"}
+                onClick={() => toggleMenu("pickup")}
+                items={pickupItems}
+              />
+
+              <DropdownGroup
+                label="Tournaments"
+                open={openMenu === "tournaments"}
+                onClick={() => toggleMenu("tournaments")}
+                items={tournamentItems}
+              />
+
+              <Link href="/training" className="text-sm font-medium">
+                Training
+              </Link>
+
+              <Link href="/u23" className="text-sm font-medium">
+                U23
+              </Link>
+
+              <DropdownGroup
+                label="About"
+                open={openMenu === "about"}
+                onClick={() => toggleMenu("about")}
+                items={aboutItems}
+              />
             </div>
-          </div>
 
-          <div className="mt-5 text-base text-white/85 whitespace-pre-line min-h-[64px]">
-            {loading ? "Checking status…" : aiText}
-          </div>
-
-          {/* If we already finished (after reasons), show final */}
-          {doneMsg && (
-            <div className="mt-6 rounded-xl border border-white/10 bg-black/30 p-5">
-              <div className="text-sm text-white/80">{doneMsg}</div>
-              <div className="mt-4">
-                <button
-                  type="button"
-                  onClick={() => router.replace("/")}
-                  className="rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-black"
-                >
-                  Return to home
-                </button>
+            <div className="flex items-center gap-2 rounded-full border border-black/15 px-3 py-1.5">
+              <div className="h-8 w-8 rounded-full border border-black/15 flex items-center justify-center">
+                <UserIcon />
+              </div>
+              <div className="text-sm font-medium max-w-[140px] truncate">
+                {profileName}
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Questions */}
-          {!doneMsg && (showTournamentAsk || showPickupAsk) && (
-            <div className="mt-6 space-y-4">
-              {showTournamentAsk && (
-                <div className="rounded-xl border border-white/10 bg-black/30 p-5">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-white/80">
-                    Tournament
-                  </div>
-                  <div className="mt-2 text-sm text-white/75">
-                    Would you be willing to play in the next tournament?
-                  </div>
+          <div className="md:hidden space-y-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="text-base font-semibold tracking-wide whitespace-nowrap">
+                CT Pickup
+              </div>
 
-                  {tourneyAnswer === null && (
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTourneyAnswer("yes");
-                        }}
-                        className="rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-black"
-                      >
-                        Yes
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTourneyAnswer("no")}
-                        className="rounded-md border border-white/15 bg-black px-5 py-2.5 text-sm font-semibold text-white/85 hover:bg-white/[0.04]"
-                      >
-                        No
-                      </button>
-                    </div>
-                  )}
-
-                  {tourneyAnswer === "yes" && (
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <Link
-                        href="/tournament"
-                        className="rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-black"
-                      >
-                        Continue
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => finishAndGoHome("Perfect. You’re logged in.")}
-                        className="rounded-md border border-white/15 bg-black px-5 py-2.5 text-sm font-semibold text-white/85 hover:bg-white/[0.04]"
-                      >
-                        Return to home
-                      </button>
-                    </div>
-                  )}
-
-                  {tourneyAnswer === "no" && (
-                    <ReasonPicker
-                      label="Tournament"
-                      onDone={() => {
-                        // If pickup also needs an answer, let them do that too.
-                        if (showPickupAsk && pickupAnswer === null) return;
-                        finishAndGoHome("Thanks. You’re logged in now.");
-                      }}
-                    />
-                  )}
+              <div className="flex items-center gap-2 rounded-full border border-black/15 px-3 py-1.5">
+                <div className="h-8 w-8 rounded-full border border-black/15 flex items-center justify-center">
+                  <UserIcon />
                 </div>
-              )}
-
-              {showPickupAsk && (
-                <div className="rounded-xl border border-white/10 bg-black/30 p-5">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-white/80">
-                    Pickup
-                  </div>
-                  <div className="mt-2 text-sm text-white/75">
-                    Do you want to be considered for pickup runs?
-                  </div>
-
-                  {pickupAnswer === null && (
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPickupAnswer("yes");
-                        }}
-                        className="rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-black"
-                      >
-                        Yes
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPickupAnswer("no")}
-                        className="rounded-md border border-white/15 bg-black px-5 py-2.5 text-sm font-semibold text-white/85 hover:bg-white/[0.04]"
-                      >
-                        No
-                      </button>
-                    </div>
-                  )}
-
-                  {pickupAnswer === "yes" && (
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <Link
-                        href="/pickup"
-                        className="rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-black"
-                      >
-                        Continue
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => finishAndGoHome("Perfect. You’re logged in.")}
-                        className="rounded-md border border-white/15 bg-black px-5 py-2.5 text-sm font-semibold text-white/85 hover:bg-white/[0.04]"
-                      >
-                        Return to home
-                      </button>
-                    </div>
-                  )}
-
-                  {pickupAnswer === "no" && (
-                    <ReasonPicker
-                      label="Pickup"
-                      onDone={() => {
-                        if (showTournamentAsk && tourneyAnswer === null) return;
-                        finishAndGoHome("Thanks. You’re logged in now.");
-                      }}
-                    />
-                  )}
+                <div className="text-sm font-medium max-w-[120px] truncate">
+                  {profileName}
                 </div>
-              )}
-
-              {/* If they answered everything, let them go home */}
-              {( (!showTournamentAsk || tourneyAnswer !== null) &&
-                 (!showPickupAsk || pickupAnswer !== null) ) && (
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={() => finishAndGoHome("All set. You’re logged in now.")}
-                    className="text-sm text-white/70 hover:text-white hover:underline underline-offset-4"
-                  >
-                    Return to home
-                  </button>
-                </div>
-              )}
+              </div>
             </div>
-          )}
 
-          {!doneMsg && (
-            <div className="mt-6">
-              <button
-                type="button"
-                onClick={() => router.replace("/")}
-                className="text-sm text-white/70 hover:text-white hover:underline underline-offset-4"
-              >
-                Continue to home
-              </button>
+            <div className="flex flex-col gap-2">
+              <Link href="/" className="rounded-xl border border-black/10 px-4 py-3 text-sm font-medium">
+                Home
+              </Link>
+
+              <MobileDropdownGroup
+                label="Pickup Games"
+                open={openMenu === "pickup"}
+                onClick={() => toggleMenu("pickup")}
+                items={pickupItems}
+              />
+
+              <MobileDropdownGroup
+                label="Tournaments"
+                open={openMenu === "tournaments"}
+                onClick={() => toggleMenu("tournaments")}
+                items={tournamentItems}
+              />
+
+              <Link href="/training" className="rounded-xl border border-black/10 px-4 py-3 text-sm font-medium">
+                Training
+              </Link>
+
+              <Link href="/u23" className="rounded-xl border border-black/10 px-4 py-3 text-sm font-medium">
+                U23
+              </Link>
+
+              <MobileDropdownGroup
+                label="About"
+                open={openMenu === "about"}
+                onClick={() => toggleMenu("about")}
+                items={aboutItems}
+              />
             </div>
-          )}
-        </section>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-6xl px-6 pt-8 pb-20">
+        <div className="mx-auto max-w-6xl">
+          <div className="text-center">
+            <h1 className="text-2xl md:text-3xl font-semibold uppercase tracking-tight">
+              {heading}
+            </h1>
+
+            <div className="mt-3 text-sm md:text-base font-semibold text-white/75">
+              Use the navigation above to explore pickup games, tournaments, training, and more.
+            </div>
+          </div>
+
+          <HeroSlideshow />
+        </div>
       </div>
     </main>
   );

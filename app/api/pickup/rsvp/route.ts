@@ -1,100 +1,110 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { tiersForPhase, type Tier } from "@/lib/pickup/tiers";
 
-const supabaseAdmin = createClient(
+export const runtime = "nodejs";
+
+const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2024-06-20",
 });
 
-type Body = { action: "join" | "decline" };
+function bearer(req: Request) {
+  const auth = req.headers.get("authorization") || "";
+  return auth.startsWith("Bearer ") ? auth.slice(7) : null;
+}
+
+type Body = { action: "join" | "decline"; run_id: string };
 
 export async function POST(req: Request) {
-  const auth = req.headers.get("authorization") || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+  const token = bearer(req);
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const u = await supabaseAdmin.auth.getUser(token);
+  const u = await admin.auth.getUser(token);
   const user = u.data.user;
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = (await req.json()) as Body;
-  if (!body?.action) return NextResponse.json({ error: "Bad request" }, { status: 400 });
+  if (!body?.action || !body?.run_id) {
+    return NextResponse.json({ error: "Bad request" }, { status: 400 });
+  }
 
-  const profRes = await supabaseAdmin
+  const runRes = await admin.from("pickup_runs").select("*").eq("id", body.run_id).maybeSingle();
+  const run = runRes.data;
+  if (!run) return NextResponse.json({ error: "Run not found." }, { status: 404 });
+
+  // Final RSVP only opens after admin finalizes slot
+  if (run.status !== "active" || !run.start_at || !run.final_slot_id) {
+    return NextResponse.json({ error: "Final RSVP not open yet." }, { status: 403 });
+  }
+
+  const prof = await admin
     .from("profiles")
-    .select("tier, approved, full_name, instagram")
+    .select("approved, tier_rank, tier")
     .eq("id", user.id)
     .maybeSingle();
 
-  const tier = (profRes.data?.tier as Tier) || "TPUBLIC";
-  const approved = !!profRes.data?.approved;
-
-  if (!approved) {
+  if (!prof.data?.approved) {
     return NextResponse.json({ error: "Account pending approval." }, { status: 403 });
   }
 
-  // upcoming run
-  const runRes = await supabaseAdmin
-    .from("pickup_runs")
-    .select("*")
-    .neq("status", "canceled")
-    .gte("start_at", new Date().toISOString())
-    .order("start_at", { ascending: true })
-    .limit(1);
+  // Must have availability available for final slot
+  const myAvail = await admin
+    .from("pickup_run_availability")
+    .select("state, slot_id")
+    .eq("run_id", run.id)
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  const run = runRes.data?.[0];
-  if (!run) return NextResponse.json({ error: "No run available." }, { status: 404 });
+  const eligible =
+    myAvail.data?.state === "available" && myAvail.data?.slot_id === run.final_slot_id;
 
+  if (!eligible) {
+    return NextResponse.json({ error: "Not eligible for this final RSVP." }, { status: 403 });
+  }
+
+  // Cancellation cutoff applies only once start_at exists
   const now = Date.now();
   const deadline = run.cancellation_deadline ? new Date(run.cancellation_deadline).getTime() : null;
-
-  // After cancellation deadline: no new joins / no cancels
   if (deadline && now > deadline) {
     return NextResponse.json({ error: "Deadline passed." }, { status: 403 });
   }
 
-  const invitedTiers = tiersForPhase(run.run_type, Number(run.invite_phase || 0));
-  const invitedNow = invitedTiers.includes(tier);
-
-  if (!invitedNow) {
-    return NextResponse.json({ error: "Not invited yet." }, { status: 403 });
-  }
-
-  // get current RSVP if exists
-  const existing = await supabaseAdmin
+  const existing = await admin
     .from("pickup_run_rsvps")
     .select("*")
     .eq("run_id", run.id)
     .eq("user_id", user.id)
     .maybeSingle();
 
-  // decline
   if (body.action === "decline") {
     if (existing.data?.status === "pending_payment") {
       return NextResponse.json({ error: "Payment is pending. Contact admin." }, { status: 409 });
     }
 
-    await supabaseAdmin
-      .from("pickup_run_rsvps")
-      .upsert({
+    const newStatus =
+      existing.data?.status && existing.data.status !== "declined" ? "canceled" : "declined";
+
+    await admin.from("pickup_run_rsvps").upsert(
+      {
         run_id: run.id,
         user_id: user.id,
-        tier_at_time: tier,
-        status: "declined",
+        tier_at_time: prof.data?.tier || null,
+        status: newStatus,
         updated_at: new Date().toISOString(),
-      }, { onConflict: "run_id,user_id" });
+      },
+      { onConflict: "run_id,user_id" }
+    );
 
-    return NextResponse.json({ ok: true, status: "declined" });
+    return NextResponse.json({ ok: true, status: newStatus });
   }
 
   // JOIN
-  const confirmedCountRes = await supabaseAdmin
+  const confirmedCountRes = await admin
     .from("pickup_run_rsvps")
     .select("id", { count: "exact", head: true })
     .eq("run_id", run.id)
@@ -105,37 +115,41 @@ export async function POST(req: Request) {
   const hasSlot = confirmedCount < capacity;
 
   if (!hasSlot) {
-    await supabaseAdmin
-      .from("pickup_run_rsvps")
-      .upsert({
+    await admin.from("pickup_run_rsvps").upsert(
+      {
         run_id: run.id,
         user_id: user.id,
-        tier_at_time: tier,
+        tier_at_time: prof.data?.tier || null,
         status: "standby",
         updated_at: new Date().toISOString(),
-      }, { onConflict: "run_id,user_id" });
-
+      },
+      { onConflict: "run_id,user_id" }
+    );
     return NextResponse.json({ ok: true, status: "standby" });
   }
 
   const feeCents = Number(run.fee_cents || 0);
-
-  // Free run: confirm immediately
   if (feeCents <= 0) {
-    await supabaseAdmin
-      .from("pickup_run_rsvps")
-      .upsert({
+    await admin.from("pickup_run_rsvps").upsert(
+      {
         run_id: run.id,
         user_id: user.id,
-        tier_at_time: tier,
+        tier_at_time: prof.data?.tier || null,
         status: "confirmed",
         updated_at: new Date().toISOString(),
-      }, { onConflict: "run_id,user_id" });
-
+      },
+      { onConflict: "run_id,user_id" }
+    );
     return NextResponse.json({ ok: true, status: "confirmed" });
   }
 
-  // Paid run: require Stripe checkout
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return NextResponse.json(
+      { error: "Stripe is not configured (missing STRIPE_SECRET_KEY)." },
+      { status: 500 }
+    );
+  }
+
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
   const session = await stripe.checkout.sessions.create({
@@ -161,16 +175,17 @@ export async function POST(req: Request) {
     },
   });
 
-  await supabaseAdmin
-    .from("pickup_run_rsvps")
-    .upsert({
+  await admin.from("pickup_run_rsvps").upsert(
+    {
       run_id: run.id,
       user_id: user.id,
-      tier_at_time: tier,
+      tier_at_time: prof.data?.tier || null,
       status: "pending_payment",
       checkout_session_id: session.id,
       updated_at: new Date().toISOString(),
-    }, { onConflict: "run_id,user_id" });
+    },
+    { onConflict: "run_id,user_id" }
+  );
 
   return NextResponse.json({ ok: true, checkout_url: session.url });
 }

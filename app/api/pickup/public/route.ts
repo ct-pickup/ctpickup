@@ -1,44 +1,61 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { tiersForPhase, type Tier } from "@/lib/pickup/tiers";
 
-const supabaseAdmin = createClient(
+export const runtime = "nodejs";
+
+const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-function ms() {
-  return Date.now();
+function bearer(req: Request) {
+  const auth = req.headers.get("authorization") || "";
+  return auth.startsWith("Bearer ") ? auth.slice(7) : null;
+}
+
+// tier_rank mapping (locked):
+// 1A=1, 1B=2, 2=3, 3=4, 4=5, PUBLIC=6
+function isTier1(rank: number | null | undefined) {
+  return rank === 1 || rank === 2;
 }
 
 export async function GET(req: Request) {
-  const auth = req.headers.get("authorization") || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+  const token = bearer(req);
 
   let userId: string | null = null;
-  let userTier: Tier | null = null;
   let approved = false;
+  let isAdmin = false;
+  let tier: string | null = null;
+  let tierRank: number | null = null;
 
   if (token) {
-    const u = await supabaseAdmin.auth.getUser(token);
+    const u = await admin.auth.getUser(token);
     userId = u.data.user?.id || null;
 
     if (userId) {
-      const prof = await supabaseAdmin
+      const prof = await admin
         .from("profiles")
-        .select("tier, approved")
+        .select("approved,is_admin,tier,tier_rank,first_name,last_name,instagram")
         .eq("id", userId)
         .maybeSingle();
 
-      userTier = (prof.data?.tier as Tier) || "TPUBLIC";
       approved = !!prof.data?.approved;
+      isAdmin = !!prof.data?.is_admin;
+      tier = (prof.data?.tier ?? null) as any;
+      tierRank =
+        prof.data?.tier_rank === null || prof.data?.tier_rank === undefined
+          ? null
+          : Number(prof.data?.tier_rank);
     }
   }
 
-  const runRes = await supabaseAdmin
+  // SAFEST (matches your current UI): only show upcoming runs with a real start_at.
+  // Planning runs with start_at=null belong in a separate "planning context" endpoint later.
+  const runRes = await admin
     .from("pickup_runs")
     .select("*")
     .neq("status", "canceled")
+    .not("start_at", "is", null)
     .gte("start_at", new Date().toISOString())
     .order("start_at", { ascending: true })
     .limit(1);
@@ -49,111 +66,123 @@ export async function GET(req: Request) {
     return NextResponse.json({
       status: "inactive",
       run: null,
-      visibility: { invitedTiers: [], attendanceVisible: false, invitedNow: false },
-      counts: { confirmed: 0, standby: 0, tier1Confirmed: 0 },
+      visibility: { invitedNow: false, attendanceVisible: false },
+      counts: { confirmed: 0, standby: 0, pending_payment: 0, tier1Confirmed: 0 },
       my_status: null,
       attendees: [],
-      me: { tier: userTier, approved },
+      me: { approved, is_admin: isAdmin, tier, tier_rank: tierRank },
     });
   }
 
-  const rsvpRes = await supabaseAdmin
+  // RSVP rows (do NOT assume a unique constraint exists)
+  const rsvpRes = await admin
     .from("pickup_run_rsvps")
-    .select("status, tier_at_time, user_id")
+    .select("id,user_id,status,updated_at,created_at")
     .eq("run_id", run.id);
 
-  const rows = rsvpRes.data || [];
-  const confirmed = rows.filter((r) => r.status === "confirmed").length;
-  const standby = rows.filter((r) => r.status === "standby").length;
+  const rsvpRows = rsvpRes.data || [];
+  const confirmedRows = rsvpRows.filter((r) => r.status === "confirmed");
+  const standbyRows = rsvpRows.filter((r) => r.status === "standby");
+  const pendingRows = rsvpRows.filter((r) => r.status === "pending_payment");
 
-  const tier1Confirmed = rows.filter(
-    (r) =>
-      r.status === "confirmed" &&
-      (r.tier_at_time === "T1A" || r.tier_at_time === "T1B")
-  ).length;
+  // Tier-1 confirmed count using profiles.tier_rank (canonical)
+  let tier1Confirmed = 0;
+  if (confirmedRows.length) {
+    const ids = Array.from(new Set(confirmedRows.map((r) => r.user_id)));
+    const profs = await admin.from("profiles").select("id,tier_rank").in("id", ids);
 
-  const openedAt = new Date(run.phase_opened_at).getTime();
-  const fourHours = 4 * 60 * 60 * 1000;
-  const withinFirst4h = ms() - openedAt < fourHours;
+    const rankById = new Map<string, number>();
+    for (const p of profs.data || []) {
+      rankById.set(String(p.id), Number(p.tier_rank ?? 6));
+    }
 
-  const prevPeak = Number(run.tier1_peak || 0);
-  const tier1Peak = Math.max(prevPeak, tier1Confirmed);
-
-  let phase = Number(run.invite_phase || 0);
-  const runType = run.run_type as "select" | "public";
-
-  // Tier 2 invite begins:
-  // - after 4 hours
-  // - OR sooner only if Tier-1 *dropped* below 5 (peak reached >= 5, current < 5)
-  if (phase === 0) {
-    const timePassed = !withinFirst4h;
-    const droppedBelow = tier1Peak >= 5 && tier1Confirmed < 5;
-    if (timePassed || droppedBelow) phase = 1;
+    tier1Confirmed = confirmedRows.filter((r) => isTier1(rankById.get(String(r.user_id)))).length;
   }
 
-  // Auto-lock rule: becomes ACTIVE only when Tier-1 confirmed >= 5
-  const shouldLock = tier1Confirmed >= 5 && !run.locked_at;
+  // invitedNow (canonical rules):
+  // - user must be approved
+  // - run.open_tier_rank must be non-null (starts null; do NOT use 0)
+  // - tier_rank <= open_tier_rank
+  // - invite row exists in pickup_run_invites for (run_id,user_id)
+  let invitedNow = false;
 
-  // persist best-effort
-  if (phase !== Number(run.invite_phase) || shouldLock || tier1Peak !== prevPeak) {
-    await supabaseAdmin
-      .from("pickup_runs")
-      .update({
-        invite_phase: phase,
-        tier1_peak: tier1Peak,
-        status: shouldLock ? "active" : run.status, // only becomes active at lock
-        locked_at: shouldLock ? new Date().toISOString() : run.locked_at,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", run.id);
-  }
+  const runOpenTierRank =
+    run.open_tier_rank === null || run.open_tier_rank === undefined
+      ? null
+      : Number(run.open_tier_rank);
 
-  const invitedTiers = tiersForPhase(runType, phase);
-
-  // invitedNow requires: user exists, approved, tier in invited tiers
-  const invitedNow =
-    !!userTier && approved && invitedTiers.includes(userTier);
-
-  // Attendance visibility rule:
-  // During first 4 hours, ONLY Tier-1A/1B can see attendance.
-  // After 4 hours, invited tiers can see attendance.
-  const attendanceVisible =
-    !!userTier &&
+  if (
+    userId &&
     approved &&
-    (withinFirst4h
-      ? (userTier === "T1A" || userTier === "T1B")
-      : invitedTiers.includes(userTier));
+    tierRank !== null &&
+    runOpenTierRank !== null &&
+    tierRank <= runOpenTierRank
+  ) {
+    const inv = await admin
+      .from("pickup_run_invites")
+      .select("id")
+      .eq("run_id", run.id)
+      .eq("user_id", userId)
+      .limit(1);
 
-  let attendees: any[] = [];
-  if (attendanceVisible) {
-    const ids = rows.filter((r) => r.status === "confirmed").map((r) => r.user_id);
-    if (ids.length) {
-      const ppl = await supabaseAdmin
-        .from("profiles")
-        .select("id, full_name, instagram, tier")
-        .in("id", ids);
+    invitedNow = (inv.data || []).length > 0;
+  }
 
-      attendees = (ppl.data || []).map((p) => ({
-        full_name: p.full_name,
-        instagram: p.instagram,
-        tier: p.tier,
-      }));
+  // Attendance visibility:
+  // - within 4 hours of wave1_started_at: only Tier 1A/1B can see
+  // - after that: invitedNow can see
+  let attendanceVisible = false;
+  if (invitedNow && tierRank !== null) {
+    const waveStartedAt = run.wave1_started_at ? new Date(run.wave1_started_at).getTime() : null;
+    if (!waveStartedAt) {
+      attendanceVisible = true;
+    } else {
+      const within4h = Date.now() - waveStartedAt < 4 * 60 * 60 * 1000;
+      attendanceVisible = within4h ? isTier1(tierRank) : true;
     }
   }
 
+  // My status: latest row for this user
   let myStatus: string | null = null;
   if (userId) {
-    const mine = await supabaseAdmin
+    const mine = await admin
       .from("pickup_run_rsvps")
-      .select("status")
+      .select("status,updated_at,created_at")
       .eq("run_id", run.id)
       .eq("user_id", userId)
-      .maybeSingle();
-    myStatus = mine.data?.status || null;
+      .order("updated_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    myStatus = mine.data?.[0]?.status || null;
   }
 
+  // Attendees list (confirmed only) if visible
+  let attendees: any[] = [];
+  if (attendanceVisible && confirmedRows.length) {
+    const ids = Array.from(new Set(confirmedRows.map((r) => r.user_id)));
+    const ppl = await admin
+      .from("profiles")
+      .select("id,first_name,last_name,instagram,tier,tier_rank")
+      .in("id", ids);
+
+    attendees = (ppl.data || []).map((p) => ({
+      full_name: `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Player",
+      instagram: p.instagram || null,
+      tier: p.tier ?? null,
+      tier_rank: p.tier_rank ?? null,
+    }));
+  }
+
+  // Location privacy (canonical):
+  // only confirmed players (or admin) can see exact location.
+  const locationText =
+    (isAdmin || myStatus === "confirmed") && run.location_private
+      ? String(run.location_private)
+      : null;
+
   return NextResponse.json({
-    status: shouldLock ? "active" : run.status,
+    status: run.status || "inactive",
     run: {
       id: run.id,
       run_type: run.run_type,
@@ -162,15 +191,27 @@ export async function GET(req: Request) {
       capacity: run.capacity,
       fee_cents: run.fee_cents,
       currency: run.currency,
-      locked_at: run.locked_at,
-      invite_phase: phase,
       cancellation_deadline: run.cancellation_deadline,
-      location_text: myStatus === "confirmed" ? run.location_text : null, // confirmed only
+
+      // Keep this key name so your current frontend keeps working:
+      location_text: locationText,
+
+      // Canonical fields (safe to include):
+      open_tier_rank: run.open_tier_rank,
+      wave1_started_at: run.wave1_started_at,
+      likely_on_at: run.likely_on_at,
+      likely_on_slot_id: run.likely_on_slot_id,
+      final_slot_id: run.final_slot_id,
     },
-    visibility: { invitedTiers, attendanceVisible, invitedNow, withinFirst4h },
-    counts: { confirmed, standby, tier1Confirmed, tier1Peak },
+    visibility: { invitedNow, attendanceVisible },
+    counts: {
+      confirmed: confirmedRows.length,
+      standby: standbyRows.length,
+      pending_payment: pendingRows.length,
+      tier1Confirmed,
+    },
     my_status: myStatus,
     attendees,
-    me: { tier: userTier, approved },
+    me: { approved, is_admin: isAdmin, tier, tier_rank: tierRank },
   });
 }
