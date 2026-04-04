@@ -16,13 +16,12 @@ type Collected = {
   availability?: string;
 };
 
-export default function TournamentIntakePage() {
+export default function IntakeFlow() {
   const firstQuestion = "What’s your full name?";
 
   const [agreed, setAgreed] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [scrolledBottom, setScrolledBottom] = useState(false);
-  const [checked, setChecked] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -36,10 +35,7 @@ export default function TournamentIntakePage() {
   const [crisis, setCrisis] = useState(false);
 
   useEffect(() => {
-    if (!showModal) {
-      setScrolledBottom(false);
-      setChecked(false);
-    }
+    if (!showModal) setScrolledBottom(false);
   }, [showModal]);
 
   function onScroll() {
@@ -75,7 +71,7 @@ export default function TournamentIntakePage() {
     setMessages((m) => [...m, { role: "user", text: userText }]);
 
     try {
-      const res = await fetch("/api/tournament/intake", {
+      const res = await fetch("/api/tournament", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -131,9 +127,9 @@ export default function TournamentIntakePage() {
 
             <button
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-semibold bg-white text-black w-full sm:w-auto"
+              className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-semibold bg-white text-white w-full sm:w-auto"
             >
-              MAKE SUBMISSION
+              ENTER TOURNAMENT
             </button>
 
             <div className="text-sm text-white/60">
@@ -150,7 +146,7 @@ export default function TournamentIntakePage() {
                     "max-w-[85%] rounded-xl px-4 py-3 text-sm leading-relaxed border",
                     m.role === "assistant"
                       ? "bg-white/[0.03] border-white/10 text-white/85"
-                      : "ml-auto bg-white text-black border-white/20",
+                      : "ml-auto bg-white text-white border-white/20",
                   ].join(" ")}
                 >
                   {m.text}
@@ -175,7 +171,7 @@ export default function TournamentIntakePage() {
               <button
                 onClick={send}
                 disabled={!canSend}
-                className="rounded-md px-5 py-3 text-sm font-semibold bg-white text-black disabled:opacity-50"
+                className="rounded-md px-5 py-3 text-sm font-semibold bg-white text-white disabled:opacity-50"
               >
                 Send
               </button>
@@ -215,21 +211,20 @@ export default function TournamentIntakePage() {
         {/* Agreement Modal */}
         {/* Agreement Modal */}
 {showModal && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6">
-    <div className="w-full max-w-2xl rounded-2xl border border-black/10 bg-white p-6 text-black">
+<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">    <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-[#0b0b0b] p-6 text-white border border-white/10">
       <div className="flex items-start justify-between gap-6">
         <div className="space-y-1">
-          <div className="text-sm font-semibold uppercase tracking-wide text-black/60">
+          <div className="text-sm font-semibold uppercase tracking-wide text-white/60">
             SUBMISSION AGREEMENT
           </div>
-          <div className="text-black/80">
+          <div className="text-white/80">
             You must read and agree to the rules before submitting.
           </div>
         </div>
 
         <button
           onClick={() => setShowModal(false)}
-          className="text-sm underline text-black/60"
+          className="text-sm underline text-white/60"
         >
           Close
         </button>
@@ -238,9 +233,9 @@ export default function TournamentIntakePage() {
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        className="mt-5 h-72 overflow-y-auto rounded-xl border border-black/10 bg-black/5 p-5 space-y-4 text-black/80"
+        className="mt-5 h-72 overflow-y-auto rounded-xl border border-white/10 bg-black/30 p-5 space-y-4 text-white/80"
       >
-        <div className="font-semibold uppercase text-black/90">
+        <div className="font-semibold uppercase text-white/90">
           HOW THIS WORKS (READ BEFORE SUBMITTING)
         </div>
 
@@ -264,33 +259,17 @@ export default function TournamentIntakePage() {
           Minimum roster size is required to submit a team. The goalkeeper does count toward your minimum player total.
         </p>
 
-        <p className="text-sm text-black/60">
+        <p className="text-sm text-white/60">
           Read <Link href="/rules" className="underline">Rules & Eligibility</Link> for eligibility and behavior standards.
         </p>
       </div>
 
       <div className="mt-5 space-y-3">
-        <label className="flex items-start gap-3 text-sm text-black/70">
-          <input
-            type="checkbox"
-            className="mt-1 accent-black"
-            disabled={!scrolledBottom}
-            checked={checked}
-            onChange={(e) => setChecked(e.target.checked)}
-          />
-          <span>
-            I have read and agree to the rules and eligibility requirements.
-            {!scrolledBottom && (
-              <span className="block text-xs text-black/50 mt-1">
-                Scroll to the bottom to enable this checkbox.
-              </span>
-            )}
-          </span>
-        </label>
+        
 
         <button
           onClick={startChat}
-          disabled={!checked}
+          disabled={!scrolledBottom}
           className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-semibold bg-black text-white w-full sm:w-auto disabled:opacity-50"
         >
           CONTINUE

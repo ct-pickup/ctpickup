@@ -138,7 +138,7 @@ export default async function PickupStatusPage() {
   const hasSomething = !!globalUpdate || !!runUpdate || !!run;
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-[#0f0f10] text-white">
       <PageTop title="STATUS" />
       <div className="mx-auto max-w-6xl px-6 py-14 space-y-10">
         {/* Neutral fallback if nothing exists */}

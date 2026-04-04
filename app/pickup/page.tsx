@@ -148,11 +148,11 @@ export default function PickupPage() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-[#0f0f10] text-white">
       <PageTop title="PICKUP" />
 
-      <div className="mx-auto max-w-5xl px-6 py-10 space-y-8">
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-7 space-y-5">
+      <div className="mx-auto max-w-5xl space-y-8 px-5 py-10">
+        <section className="rounded-2xl border border-white/15 bg-white/5 p-7 space-y-5">
           <div className={`inline-flex rounded-full px-4 py-2 text-sm font-semibold border ${pill(data?.status || "inactive")}`}>
             {runTypeLabel ? `${runTypeLabel} · ${statusLabel}` : statusLabel}
           </div>

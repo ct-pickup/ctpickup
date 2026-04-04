@@ -3,7 +3,7 @@ import PageTop from "@/components/PageTop";
 
 export default function TournamentStatusPage() {
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-[#0f0f10] text-white">
       <PageTop title="STATUS" />
       <div className="mx-auto max-w-6xl px-6 py-14 space-y-10">
 

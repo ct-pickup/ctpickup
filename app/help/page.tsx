@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { PageShell, Panel, TopNav } from "@/components/layout";
 import { createClient } from "@supabase/supabase-js";
 
 type Msg = {
@@ -35,7 +35,7 @@ function UserIcon() {
       height="18"
       viewBox="0 0 24 24"
       fill="none"
-      className="text-black/60"
+      className="text-white/70"
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
@@ -146,47 +146,26 @@ export default function HelpPage() {
     setInput(next);
   }
 
-  return (
-    <main className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-6xl px-6 pt-6">
-        <div className="rounded-full bg-white/90 px-6 py-3 text-black flex items-center justify-between gap-4">
-          <div className="text-base md:text-lg font-semibold tracking-wide whitespace-nowrap">
-            CT Pickup
-          </div>
-
-          <div className="hidden md:flex items-center gap-6">
-            <Link href="/after-login" className="text-sm font-medium">
-              Home
-            </Link>
-            <Link href="/pickup" className="text-sm font-medium">
-              Pickup Games
-            </Link>
-            <Link href="/tournament" className="text-sm font-medium">
-              Tournaments
-            </Link>
-            <Link href="/training" className="text-sm font-medium">
-              Training
-            </Link>
-            <Link href="/u23" className="text-sm font-medium">
-              U23
-            </Link>
-            <Link href="/info" className="text-sm font-medium">
-              About
-            </Link>
-          </div>
-
-          <div className="flex items-center gap-2 rounded-full border border-black/15 px-3 py-1.5">
-            <div className="h-8 w-8 rounded-full border border-black/15 flex items-center justify-center">
-              <UserIcon />
-            </div>
-            <div className="text-sm font-medium max-w-[140px] truncate">
-              Profile
-            </div>
-          </div>
-        </div>
+  const profileSlot = (
+    <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5">
+      <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20">
+        <UserIcon />
       </div>
+      <div className="max-w-[140px] truncate text-sm font-medium text-white/90">
+        Profile
+      </div>
+    </div>
+  );
 
-      <div className="mx-auto max-w-4xl px-6 py-14 space-y-8">
+  return (
+    <PageShell maxWidthClass="max-w-6xl">
+      <TopNav
+        brandHref="/after-login"
+        showBack={false}
+        rightSlot={profileSlot}
+      />
+
+      <div className="mx-auto max-w-4xl space-y-8 pb-16 pt-4">
         <div className="space-y-2">
           <div className="min-h-[64px] text-4xl md:text-5xl font-semibold tracking-tight text-white leading-none">
             {typedIntro}
@@ -196,7 +175,7 @@ export default function HelpPage() {
           </div>
         </div>
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 md:p-8 space-y-6">
+        <Panel className="space-y-6 p-6 md:p-8">
           <div className="space-y-4">
             {messages.map((m, i) => (
               <div
@@ -257,8 +236,8 @@ export default function HelpPage() {
               </div>
             ) : null}
           </div>
-        </section>
+        </Panel>
       </div>
-    </main>
+    </PageShell>
   );
 }

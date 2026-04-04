@@ -2,6 +2,7 @@
 
 /* ===== ROOT DESIGN SYSTEM ===== */
 :root {
+  /* colors */
   --bg: #0f0f10;
   --surface: #1a1a1b;
   --surface-2: #222224;
@@ -11,16 +12,18 @@
 
   --border: rgba(255,255,255,0.08);
 
+  /* brand */
   --brand: #22c55e;
 
+  /* layout */
   --radius: 16px;
   --container: 720px;
 }
 
 /* ===== BASE ===== */
 html, body {
-  margin: 0;
   padding: 0;
+  margin: 0;
 }
 
 body {
@@ -29,9 +32,10 @@ body {
   font-family: var(--font-sora), ui-sans-serif, system-ui;
 }
 
-/* ===== PAGE ===== */
+/* ===== PAGE WRAPPER ===== */
 .ct-page {
   min-height: 100vh;
+  background: var(--bg);
 }
 
 /* ===== CONTAINER ===== */
@@ -53,11 +57,13 @@ body {
 .ct-title {
   font-size: 32px;
   font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .ct-sub {
   font-size: 14px;
   color: var(--muted);
+  margin-top: 6px;
 }
 
 /* ===== BUTTON ===== */
@@ -84,3 +90,8 @@ body {
   padding: 12px;
   color: var(--text);
 }
+npm run dev
+> app/globals.css
+
+echo "" > app/globals.css
+

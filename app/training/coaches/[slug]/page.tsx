@@ -1,72 +1,85 @@
-import Link from "next/link";
-import { TRAINING_COACHES } from "@/lib/trainingCoaches";
+import { notFound } from "next/navigation";
+import { CoachHeadshot } from "@/components/training/CoachHeadshot";
+import {
+  PageShell,
+  Panel,
+  SectionEyebrow,
+  TopNav,
+} from "@/components/layout";
+import { trainingCoaches } from "@/lib/trainingCoaches";
 
-export default function CoachInfoPage({ params }: { params: { slug: string } }) {
-  const slug = (params.slug || "").toLowerCase().trim();
-  const coach = TRAINING_COACHES.find((c) => (c.slug || "").toLowerCase().trim() === slug);
+export default async function CoachPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const coach = trainingCoaches.find((c) => c.slug === slug);
 
-  if (!coach) {
-    return (
-      <main className="min-h-screen bg-white text-black">
-        <div className="mx-auto max-w-3xl px-6 py-14 space-y-4">
-          <div className="text-2xl font-semibold">Coach not found</div>
-          <div className="text-sm text-black/60">Slug: {slug}</div>
-          <div className="text-sm text-black/60">
-            Available: {TRAINING_COACHES.map((c) => c.slug).filter(Boolean).join(", ")}
-          </div>
-          <Link href="/training" className="text-sm hover:underline underline-offset-4">
-            Back to Training
-          </Link>
-        </div>
-      </main>
-    );
-  }
+  if (!coach) notFound();
 
   return (
-    <main className="min-h-screen bg-white text-black">
-      <div className="mx-auto max-w-3xl px-6 py-14 space-y-8">
-        <div className="flex items-center justify-between">
-          <div className="text-2xl font-semibold uppercase tracking-tight">{coach.name}</div>
-          <Link href="/training" className="text-sm text-black/70 hover:text-black hover:underline underline-offset-4">
-            Back
-          </Link>
-        </div>
+    <PageShell>
+      <TopNav backHref="/training" backLabel="Training" />
 
-        {/* Photo on white */}
-        <div className="rounded-2xl border border-black/10 overflow-hidden bg-white">
-          {coach.photoSrc ? (
-            <img src={coach.photoSrc} alt={coach.name} className="w-full h-auto object-cover" />
-          ) : (
-            <div className="h-[360px] bg-black/5" />
-          )}
-        </div>
+      <div className="mb-8">
+        <SectionEyebrow>Training</SectionEyebrow>
+        <h1 className="mt-3 text-2xl font-bold uppercase tracking-[0.18em] text-white sm:text-3xl md:tracking-[0.22em]">
+          {coach.name}
+        </h1>
+      </div>
 
-        {/* Details on dark */}
-        <div className="rounded-2xl bg-black text-white p-6 space-y-6">
-          <div className="space-y-3">
-            <div className="text-sm font-semibold uppercase tracking-wide text-white/70">Experience</div>
-            <ul className="list-disc pl-5 space-y-1 text-white/85">
-              {coach.details.experience.map((x, i) => (
-                <li key={i}>{x}</li>
-              ))}
-            </ul>
-          </div>
+      <div className="grid gap-6 lg:grid-cols-[minmax(240px,320px)_1fr] lg:items-start lg:gap-8">
+        <CoachHeadshot
+          src={coach.image}
+          alt={coach.name}
+          sizes="(max-width:1024px) 100vw, 320px"
+          className="aspect-[4/5] w-full max-w-sm mx-auto lg:mx-0 rounded-2xl border border-white/15 bg-[#141415]"
+          imagePosition={coach.imagePosition}
+          priority
+        />
 
-          <div className="space-y-3">
-            <div className="text-sm font-semibold uppercase tracking-wide text-white/70">Coaching</div>
-            <ul className="list-disc pl-5 space-y-1 text-white/85">
-              {coach.details.coaching.map((x, i) => (
-                <li key={i}>{x}</li>
-              ))}
-            </ul>
-          </div>
+        <div className="space-y-4">
+          <Panel>
+            <SectionEyebrow>Experience</SectionEyebrow>
+            <p className="mt-3 text-sm leading-relaxed text-white/80 sm:text-base">
+              {coach.experience}
+            </p>
 
-          <div className="space-y-2">
-            <div className="text-sm font-semibold uppercase tracking-wide text-white/70">Location</div>
-            <div className="text-white/85">{coach.details.location}</div>
-          </div>
+            <div className="mt-8">
+              <SectionEyebrow>Coaching Background</SectionEyebrow>
+              <p className="mt-3 text-sm leading-relaxed text-white/80 sm:text-base">
+                {coach.coaching}
+              </p>
+            </div>
+          </Panel>
+
+          <Panel>
+            <SectionEyebrow>Specialty</SectionEyebrow>
+            <p className="mt-3 text-sm leading-relaxed text-white sm:text-base">
+              {coach.specialty}
+            </p>
+
+            <div className="mt-6">
+              <SectionEyebrow>Hometown</SectionEyebrow>
+              <p className="mt-3 text-sm text-white sm:text-base">
+                {coach.hometown || "Connecticut"}
+              </p>
+            </div>
+
+            <div className="mt-8">
+              <a
+                href={coach.bookingLink}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-white px-5 text-sm font-semibold text-black transition hover:opacity-90"
+              >
+                Request {coach.name}
+              </a>
+            </div>
+          </Panel>
         </div>
       </div>
-    </main>
+    </PageShell>
   );
 }

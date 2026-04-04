@@ -138,15 +138,22 @@ export async function evaluate_lock(event_id: string): Promise<{
 
   if (rErr) throw new Error(rErr.message);
 
+  const rsvpRows = rows ?? [];
+
   function agg(choice: Choice) {
-    const yes = rows.filter(r => r.choice === choice && r.status === "yes");
-    const waitlist = rows.filter(r => r.choice === choice && r.status === "waitlist").length;
+    const yes = rsvpRows.filter(r => r.choice === choice && r.status === "yes");
+    const waitlist = rsvpRows.filter(r => r.choice === choice && r.status === "waitlist").length;
 
     const field_yes = yes.filter(r => r.role === "field").length;
     const goalie_yes = yes.filter(r => r.role === "goalie").length;
 
-    const yes_1a = yes.filter(r => r.player?.tier === "1A").length;
-    const yes_1b = yes.filter(r => r.player?.tier === "1B").length;
+    const playerTier = (r: (typeof yes)[number]) => {
+      const p = r.player as { tier?: string } | { tier?: string }[] | null | undefined;
+      if (!p) return undefined;
+      return Array.isArray(p) ? p[0]?.tier : p.tier;
+    };
+    const yes_1a = yes.filter((r) => playerTier(r) === "1A").length;
+    const yes_1b = yes.filter((r) => playerTier(r) === "1B").length;
 
     return { field_yes, goalie_yes, waitlist, yes_1a, yes_1b };
   }
