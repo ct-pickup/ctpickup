@@ -141,7 +141,17 @@ export default function SignupPage() {
   }
 
   async function sendCode() {
-    if (!isReady || !supabase || !emailLooksValid || busy) return;
+    if (!emailLooksValid || busy) return;
+    if (!isReady || !supabase) {
+      if (!isReady) {
+        setMsg("Still connecting. Please try again in a moment.");
+      } else {
+        setMsg(
+          "Sign-up isn’t available right now (missing Supabase configuration). Please refresh or contact support.",
+        );
+      }
+      return;
+    }
 
     setBusy(true);
     setMsg(null);
@@ -168,7 +178,17 @@ export default function SignupPage() {
   }
 
   async function verifyCode() {
-    if (!isReady || !supabase || !code.trim() || busy) return;
+    if (!code.trim() || busy) return;
+    if (!isReady || !supabase) {
+      if (!isReady) {
+        setMsg("Still connecting. Please try again in a moment.");
+      } else {
+        setMsg(
+          "Sign-up isn’t available right now (missing Supabase configuration). Please refresh or contact support.",
+        );
+      }
+      return;
+    }
 
     setBusy(true);
     setMsg(null);
@@ -187,7 +207,17 @@ export default function SignupPage() {
   }
 
   async function saveProfileAndContinue() {
-    if (!isReady || !supabase || !canSaveProfile || busy) return;
+    if (!canSaveProfile || busy) return;
+    if (!isReady || !supabase) {
+      if (!isReady) {
+        setMsg("Still connecting. Please try again in a moment.");
+      } else {
+        setMsg(
+          "Sign-up isn’t available right now (missing Supabase configuration). Please refresh or contact support.",
+        );
+      }
+      return;
+    }
 
     setBusy(true);
     setMsg(null);
@@ -330,11 +360,12 @@ export default function SignupPage() {
                     />
 
                     <button
+                      type="button"
                       className="w-full rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-black disabled:opacity-50"
-                      onClick={sendCode}
-                      disabled={!isReady || !supabase || !emailLooksValid || busy}
+                      onClick={() => void sendCode()}
+                      disabled={!emailLooksValid || busy || !isReady}
                     >
-                      {busy ? "Continuing..." : "Continue"}
+                      {busy ? "Continuing..." : !isReady ? "Loading…" : "Continue"}
                     </button>
                   </>
                 )}
@@ -352,14 +383,16 @@ export default function SignupPage() {
                     />
 
                     <button
+                      type="button"
                       className="w-full rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-black disabled:opacity-50"
-                      onClick={verifyCode}
-                      disabled={!isReady || !supabase || !code.trim() || busy}
+                      onClick={() => void verifyCode()}
+                      disabled={!code.trim() || busy || !isReady}
                     >
-                      {busy ? "Verifying..." : "Continue"}
+                      {busy ? "Verifying..." : !isReady ? "Loading…" : "Continue"}
                     </button>
 
                     <button
+                      type="button"
                       className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white/85 hover:bg-white/[0.04]"
                       onClick={() => {
                         setStage("email");
@@ -436,11 +469,12 @@ export default function SignupPage() {
                     </label>
 
                     <button
+                      type="button"
                       className="w-full rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-black disabled:opacity-50"
-                      onClick={saveProfileAndContinue}
-                      disabled={!isReady || !supabase || !canSaveProfile || busy}
+                      onClick={() => void saveProfileAndContinue()}
+                      disabled={!canSaveProfile || busy || !isReady}
                     >
-                      {busy ? "Saving..." : "Finish Sign Up"}
+                      {busy ? "Saving..." : !isReady ? "Loading…" : "Finish Sign Up"}
                     </button>
                   </>
                 )}
