@@ -61,6 +61,9 @@ export function getStripeWebhookSecret(): string {
 export function getOpenAI(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey?.trim()) {
+    console.error(
+      "[OpenAI] Missing OPENAI_API_KEY. Add it to .env.local for local dev or to Vercel → Settings → Environment Variables for production. Server-only; never expose this to the client.",
+    );
     throw new Error("Missing OPENAI_API_KEY");
   }
   return new OpenAI({ apiKey });

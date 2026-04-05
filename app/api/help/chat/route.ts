@@ -10,8 +10,27 @@ import {
   sanitizeHelpNavActions,
   stripNavActionsFromModelText,
 } from "@/lib/helpNavWhitelist";
+import { getOpenAI } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
+
+/** Match OpenAI Responses API + SDK shape (see tournament intake route). */
+function extractAssistantText(resp: unknown): string | null {
+  const r = resp as Record<string, unknown>;
+  const helper = String(r?.output_text ?? "").trim();
+  if (helper) return helper;
+
+  const out = Array.isArray(r?.output) ? r.output : [];
+  const msg = out.find((o: unknown) => (o as { type?: string })?.type === "message");
+  const content = Array.isArray((msg as { content?: unknown })?.content)
+    ? (msg as { content: unknown[] }).content
+    : [];
+  const text = content.find((c: unknown) => (c as { type?: string })?.type === "output_text") as
+    | { text?: string }
+    | undefined;
+  const t = text?.text;
+  return t && String(t).trim() ? String(t).trim() : null;
+}
 
 export async function POST(req: Request) {
   try {
@@ -32,9 +51,15 @@ SIGNED_IN_USER_IS_STAFF (internal)
 This user has staff access. If they ask about managing pickup runs, tournament intake, or the operator status view, you MAY include these in NAV_ACTIONS_JSON (still max 3 total actions): /admin/pickup, /admin/tournament, /admin/status. In your conversational answer, avoid saying “admin”; use neutral wording like “pickup management” or “status tools.”`
       : "";
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "Missing OPENAI_API_KEY" }, { status: 500 });
+    let openai;
+    try {
+      openai = getOpenAI();
+    } catch (initErr) {
+      console.error("[api/help/chat] OpenAI client unavailable:", initErr);
+      return NextResponse.json(
+        { error: "Help assistant is not configured on the server." },
+        { status: 503 }
+      );
     }
 
     const liveContext = await buildHelpAssistantContext(req);
@@ -49,38 +74,77 @@ This user has staff access. If they ask about managing pickup runs, tournament i
       `User question: ${question}`,
     ].join("\n");
 
-    const r = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-5-mini",
+    const model =
+      process.env.OPENAI_HELP_MODEL?.trim() ||
+      process.env.OPENAI_MODEL?.trim() ||
+      "gpt-5-mini";
+
+    let resp: unknown;
+    try {
+      resp = await openai.responses.create({
+        model,
         input: prompt,
-      }),
-    });
-
-    const j = await r.json();
-
-    if (!r.ok) {
+        max_output_tokens: 2048,
+        store: false,
+      });
+    } catch (apiErr: unknown) {
+      const msg = apiErr instanceof Error ? apiErr.message : String(apiErr);
+      console.error("[api/help/chat] OpenAI API request failed:", msg, apiErr);
       return NextResponse.json(
-        { error: j?.error?.message || "OpenAI request failed" },
-        { status: 500 }
+        { error: "The help assistant could not reach the AI service. Try again shortly." },
+        { status: 502 }
       );
     }
 
-    const rawText =
-      j?.output_text ||
-      j?.output
-        ?.map((item: any) =>
-          item?.content?.map((c: any) => c?.text || "").join("")
-        )
-        .join("\n")
-        .trim() ||
-      "I couldn’t generate a reply.";
+    const ai = resp as {
+      error?: { message?: string; code?: string } | null;
+      status?: string;
+      incomplete_details?: { reason?: string } | null;
+    };
 
-    let { userText, rawActions } = stripNavActionsFromModelText(rawText);
+    if (ai.error) {
+      console.error("[api/help/chat] OpenAI response.error:", ai.error);
+      return NextResponse.json(
+        { error: ai.error.message || "Model returned an error." },
+        { status: 502 }
+      );
+    }
+
+    const extracted = extractAssistantText(resp);
+    const rawText = extracted?.trim() || "";
+
+    if (
+      (ai.status === "failed" || ai.status === "incomplete") &&
+      !rawText
+    ) {
+      console.error("[api/help/chat] OpenAI response not completed:", {
+        status: ai.status,
+        incomplete_details: ai.incomplete_details,
+      });
+      return NextResponse.json(
+        {
+          error:
+            ai.incomplete_details?.reason === "max_output_tokens"
+              ? "Reply was cut off; ask a shorter question."
+              : "The model did not finish a reply. Try again.",
+        },
+        { status: 502 }
+      );
+    }
+
+    if (!rawText) {
+      console.error("[api/help/chat] Empty model output", {
+        responseStatus: ai.status,
+      });
+      return NextResponse.json(
+        { error: "Empty reply from the model. Try again." },
+        { status: 502 }
+      );
+    }
+
+    const { userText: parsedUserText, rawActions } =
+      stripNavActionsFromModelText(rawText);
+    let userText = parsedUserText;
     let actions = sanitizeHelpNavActions(rawActions, { isAdmin, maxActions: 3 });
 
     if (crisisQuestion) {
@@ -89,10 +153,9 @@ This user has staff access. If they ask about managing pickup runs, tournament i
     }
 
     return NextResponse.json({ text: userText, actions });
-  } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || "Server error" },
-      { status: 500 }
-    );
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[api/help/chat] Unhandled error:", msg, e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

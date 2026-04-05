@@ -128,20 +128,18 @@ export default function HelpPage() {
     return () => clearInterval(timer);
   }, [fullIntro]);
 
-  const supabaseConfigured = isReady && !!supabase;
-
   const canSend = useMemo(() => {
     const trimmed = input.trim();
     return (
-      supabaseConfigured &&
+      isReady &&
       trimmed.length > 0 &&
       countWords(trimmed) <= WORD_LIMIT &&
       !busy
     );
-  }, [input, busy, supabaseConfigured]);
+  }, [input, busy, isReady]);
 
   async function send() {
-    if (!isReady || !supabase) return;
+    if (!isReady) return;
     const text = input.trim();
     if (!text || countWords(text) > WORD_LIMIT || busy) return;
 
@@ -150,13 +148,15 @@ export default function HelpPage() {
     setBusy(true);
 
     try {
-      const { data: sessionRes } = await supabase.auth.getSession();
-      const accessToken = sessionRes.session?.access_token;
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
-      if (accessToken) {
-        headers.Authorization = `Bearer ${accessToken}`;
+      if (supabase) {
+        const { data: sessionRes } = await supabase.auth.getSession();
+        const accessToken = sessionRes.session?.access_token;
+        if (accessToken) {
+          headers.Authorization = `Bearer ${accessToken}`;
+        }
       }
 
       const r = await fetch("/api/help/chat", {
@@ -164,7 +164,20 @@ export default function HelpPage() {
         headers,
         body: JSON.stringify({ question: text }),
       });
-      const j = await r.json();
+      let j: { text?: unknown; error?: unknown; actions?: unknown };
+      try {
+        j = await r.json();
+      } catch (parseErr) {
+        console.error("[help] /api/help/chat response was not JSON", parseErr);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            text: "Invalid response from help service. Please try again.",
+          },
+        ]);
+        return;
+      }
 
       const assistantText = r.ok
         ? String(j?.text || "I couldn’t generate a reply.")
@@ -180,7 +193,8 @@ export default function HelpPage() {
           ...(actions.length ? { actions } : {}),
         },
       ]);
-    } catch {
+    } catch (err) {
+      console.error("[help] /api/help/chat request failed", err);
       setMessages((prev) => [
         ...prev,
         {
