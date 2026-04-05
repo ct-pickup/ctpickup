@@ -4,14 +4,39 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
+  APP_HOME_URL,
   HUB_NAV_ABOUT,
   HUB_NAV_PICKUP,
   HUB_NAV_TOURNAMENT,
   hubDropdownActive,
   navItemActive,
 } from "@/lib/siteNav";
+import { HistoryBack } from "./HistoryBack";
 
 type NavMenu = "pickup" | "tournaments" | "about" | null;
+
+/** Back in the top bar only on these hubs (exact path or nested). */
+const TOP_NAV_BACK_PREFIXES = ["/pickup", "/about", "/tournament-info"] as const;
+
+/** Focused flows: do not render the primary nav bar (exact path or nested). */
+const TOP_NAV_HIDDEN_PREFIXES = [
+  "/terms",
+  "/privacy",
+  "/liability-waiver",
+  "/profile",
+] as const;
+
+function topNavShowsHistoryBack(pathname: string) {
+  return TOP_NAV_BACK_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
+function shouldHideTopNav(pathname: string) {
+  return TOP_NAV_HIDDEN_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
 
 function UserIcon() {
   return (
@@ -41,11 +66,10 @@ function UserIcon() {
 }
 
 export function TopNav({
-  brandHref = "/",
-  homeHref = "/",
-  backHref = "/",
+  brandHref = APP_HOME_URL,
+  homeHref = APP_HOME_URL,
+  fallbackHref = APP_HOME_URL,
   backLabel = "Back",
-  showBack = true,
   rightSlot,
   profileSection,
   className = "",
@@ -53,12 +77,12 @@ export function TopNav({
 }: {
   /** Logo “CT Pickup” target */
   brandHref?: string;
-  /** Top-level Home link (matches `/after-login`) */
+  /** Top-level Home link (default: `APP_HOME_URL`) */
   homeHref?: string;
-  backHref?: string;
+  /** When history has no in-app previous step. */
+  fallbackHref?: string;
   backLabel?: string;
-  showBack?: boolean;
-  /** Replaces profile + back (e.g. Help page). */
+  /** Replaces profile when set (e.g. Help); Back (when shown) appears before this slot. */
   rightSlot?: React.ReactNode;
   /** Right-side profile chip like `/after-login`. */
   profileSection?: { displayName: string };
@@ -83,6 +107,8 @@ export function TopNav({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [openMenu]);
 
+  if (shouldHideTopNav(pathname)) return null;
+
   function toggle(menu: Exclude<NavMenu, null>) {
     setOpenMenu((prev) => (prev === menu ? null : menu));
   }
@@ -91,18 +117,28 @@ export function TopNav({
   const tournamentsOpen = openMenu === "tournaments";
   const aboutOpen = openMenu === "about";
 
-  const linkBase = "text-sm font-medium transition";
+  const linkBase =
+    "shrink-0 whitespace-nowrap text-[13px] font-medium transition xl:text-sm";
   const linkIdle = `${linkBase} text-white/80 hover:text-white`;
   const linkActive = `${linkBase} text-white`;
 
   const trainingOn = navItemActive(pathname, "/training");
   const u23On = navItemActive(pathname, "/u23");
-  const homeOn = pathname === homeHref || (homeHref === "/" && pathname === "/");
+  const esportsOn = navItemActive(pathname, "/esports");
+  const guidanceOn = navItemActive(pathname, "/guidance");
+  const homeBasePath = (homeHref.split("?")[0] || "/").replace(/\/$/, "") || "/";
+  const homeOn =
+    homeBasePath === "/"
+      ? pathname === "/"
+      : pathname === homeBasePath || pathname.startsWith(`${homeBasePath}/`);
 
-  const rightExtra = rightSlot ? (
-    <div className="shrink-0">{rightSlot}</div>
-  ) : profileSection ? (
-    <div className="hidden shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 md:flex">
+  const backClass =
+    "shrink-0 text-sm text-white/75 transition hover:text-white";
+
+  const showHistoryBack = topNavShowsHistoryBack(pathname);
+
+  const profilePill = profileSection ? (
+    <div className="flex shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5">
       <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20">
         <UserIcon />
       </div>
@@ -110,38 +146,45 @@ export function TopNav({
         {profileSection.displayName}
       </div>
     </div>
-  ) : showBack ? (
-    <Link
-      href={backHref}
-      className="shrink-0 text-sm text-white/75 transition hover:text-white"
-    >
-      {backLabel}
-    </Link>
-  ) : (
-    <div className="hidden w-14 shrink-0 md:block" aria-hidden />
+  ) : null;
+
+  const desktopRight = (
+    <div className="hidden shrink-0 items-center gap-2 lg:flex lg:gap-3">
+      {showHistoryBack ? (
+        <HistoryBack
+          fallbackHref={fallbackHref}
+          label={backLabel}
+          className={backClass}
+        />
+      ) : null}
+      {rightSlot ?? profilePill}
+    </div>
   );
 
   return (
     <div className={`mb-8 sm:mb-10 ${className}`}>
       <div
         ref={navRef}
-        className={`rounded-full border border-white/15 bg-white/6 px-5 py-3 backdrop-blur-sm ${innerClassName}`}
+        className={`rounded-full border border-white/15 bg-white/6 px-3 py-2.5 backdrop-blur-sm sm:px-4 lg:px-4 lg:py-3 xl:px-5 ${innerClassName}`}
       >
-        {/* Desktop */}
-        <div className="hidden items-center justify-between gap-4 md:flex">
+        {/* Desktop — lg+ only so all links fit on one row without colliding with logo/profile */}
+        <div className="hidden items-center justify-between gap-3 lg:flex xl:gap-4">
           <Link
             href={brandHref}
-            className="shrink-0 text-sm font-semibold uppercase tracking-[0.22em] text-white/90 sm:text-base"
+            className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase tracking-[0.18em] text-white/90 xl:text-sm xl:tracking-[0.22em]"
           >
             CT Pickup
           </Link>
 
-          <nav className="flex min-w-0 flex-1 items-center justify-center gap-6 text-sm lg:gap-7">
+          <nav
+            aria-label="Primary"
+            className="flex min-w-0 max-w-full flex-1 flex-nowrap items-center justify-center gap-x-2 px-0.5 sm:gap-x-2.5 xl:gap-x-3 2xl:gap-x-4"
+          >
             <Link href={homeHref} className={homeOn ? linkActive : linkIdle}>
               Home
             </Link>
 
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => toggle("pickup")}
@@ -154,7 +197,7 @@ export function TopNav({
                 Pickup Games
               </button>
               {pickupOpen ? (
-                <div className="absolute left-0 top-full z-30 mt-2 min-w-[220px] rounded-xl border border-white/15 bg-[#141415] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.55)] backdrop-blur-md">
+                <div className="absolute left-0 top-full z-[100] mt-2 min-w-[220px] rounded-xl border border-white/15 bg-[#141415] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.55)] backdrop-blur-md">
                   {HUB_NAV_PICKUP.map((item) => (
                     <Link
                       key={item.href + item.label}
@@ -168,7 +211,7 @@ export function TopNav({
               ) : null}
             </div>
 
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => toggle("tournaments")}
@@ -181,7 +224,7 @@ export function TopNav({
                 Tournaments
               </button>
               {tournamentsOpen ? (
-                <div className="absolute left-0 top-full z-30 mt-2 min-w-[220px] rounded-xl border border-white/15 bg-[#141415] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.55)] backdrop-blur-md">
+                <div className="absolute left-0 top-full z-[100] mt-2 min-w-[220px] rounded-xl border border-white/15 bg-[#141415] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.55)] backdrop-blur-md">
                   {HUB_NAV_TOURNAMENT.map((item) => (
                     <Link
                       key={item.href + item.label}
@@ -206,7 +249,21 @@ export function TopNav({
               U23
             </Link>
 
-            <div className="relative">
+            <Link
+              href="/esports"
+              className={esportsOn ? linkActive : linkIdle}
+            >
+              Esports
+            </Link>
+
+            <Link
+              href="/guidance"
+              className={guidanceOn ? linkActive : linkIdle}
+            >
+              Guidance
+            </Link>
+
+            <div className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => toggle("about")}
@@ -219,7 +276,7 @@ export function TopNav({
                 About
               </button>
               {aboutOpen ? (
-                <div className="absolute right-0 top-full z-30 mt-2 min-w-[200px] rounded-xl border border-white/15 bg-[#141415] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.55)] backdrop-blur-md">
+                <div className="absolute right-0 top-full z-[100] mt-2 min-w-[200px] rounded-xl border border-white/15 bg-[#141415] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.55)] backdrop-blur-md">
                   {HUB_NAV_ABOUT.map((item) => (
                     <Link
                       key={item.href}
@@ -234,11 +291,11 @@ export function TopNav({
             </div>
           </nav>
 
-          {rightExtra}
+          {desktopRight}
         </div>
 
-        {/* Mobile */}
-        <div className="space-y-3 md:hidden">
+        {/* Tablet & mobile — same breakpoint as desktop row */}
+        <div className="space-y-3 lg:hidden">
           <div className="flex items-center justify-between gap-3">
             <Link
               href={brandHref}
@@ -246,25 +303,27 @@ export function TopNav({
             >
               CT Pickup
             </Link>
-            {profileSection ? (
-              <div className="flex shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2.5 py-1.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20">
-                  <UserIcon />
+            <div className="flex min-w-0 shrink-0 items-center gap-2">
+              {showHistoryBack ? (
+                <HistoryBack
+                  fallbackHref={fallbackHref}
+                  label={backLabel}
+                  className={backClass}
+                />
+              ) : null}
+              {profileSection ? (
+                <div className="flex max-w-[min(100%,11rem)] items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2.5 py-1.5">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/20">
+                    <UserIcon />
+                  </div>
+                  <div className="truncate text-xs font-medium text-white/90">
+                    {profileSection.displayName}
+                  </div>
                 </div>
-                <div className="max-w-[100px] truncate text-xs font-medium text-white/90">
-                  {profileSection.displayName}
-                </div>
-              </div>
-            ) : rightSlot ? (
-              <div className="shrink-0 scale-90">{rightSlot}</div>
-            ) : showBack ? (
-              <Link
-                href={backHref}
-                className="shrink-0 text-sm text-white/75"
-              >
-                {backLabel}
-              </Link>
-            ) : null}
+              ) : rightSlot ? (
+                <div className="shrink-0 scale-90">{rightSlot}</div>
+              ) : null}
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -337,6 +396,20 @@ export function TopNav({
               className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white/90"
             >
               U23
+            </Link>
+
+            <Link
+              href="/esports"
+              className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white/90"
+            >
+              Esports
+            </Link>
+
+            <Link
+              href="/guidance"
+              className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white/90"
+            >
+              Guidance
             </Link>
 
             <div className="overflow-hidden rounded-xl border border-white/15">

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
+import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
+import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
 
 export const runtime = "nodejs";
 
@@ -35,6 +37,11 @@ export async function POST(req: Request) {
 
     const { data: u, error: uErr } = await anon.auth.getUser(token);
     if (uErr || !u?.user) return NextResponse.json({ error: "invalid_auth" }, { status: 401 });
+
+    const waiverOk = await userHasAcceptedCurrentWaiver(u.user.id);
+    if (!waiverOk) {
+      return NextResponse.json({ error: "waiver_required" }, { status: 403 });
+    }
 
     const { data: t } = await admin
       .from("tournaments")
@@ -80,7 +87,7 @@ export async function POST(req: Request) {
       })
       .eq("id", cap.id);
 
-    const origin = req.headers.get("origin") || "http://localhost:3000";
+    const origin = requestSiteUrlFromRequest(req);
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",

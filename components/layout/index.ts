@@ -1,3 +1,5 @@
+export { AuthenticatedProfileMenu } from "./AuthenticatedProfileMenu";
+export { HistoryBack } from "./HistoryBack";
 export { PageShell } from "./PageShell";
 export { Panel } from "./Panel";
 export { SectionEyebrow } from "./SectionEyebrow";

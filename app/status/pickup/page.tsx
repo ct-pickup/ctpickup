@@ -9,6 +9,7 @@ type PickupRun = {
   status: "planning" | "likely_on" | "active" | string;
   start_at: string | null;
   created_at: string;
+  run_type?: string | null;
 };
 
 type RunUpdate = {
@@ -74,19 +75,33 @@ async function loadData() {
 
   const globalUpdate = (globalRes.data as RunUpdate | null) ?? null;
 
-  // 2) most relevant run:
-  // status in ('planning','likely_on','active')
-  // order by start_at asc nulls last, then created_at desc
-  const runRes = await supabase
+  // 2) Public status board: promoted public run, else newest public scheduled run.
+  // Select/invite runs are omitted here so unauthenticated visitors do not see them.
+  const curRes = await supabase
     .from("pickup_runs")
-    .select("id, title, status, start_at, created_at")
-    .in("status", ["planning", "likely_on", "active"])
-    .order("start_at", { ascending: true, nullsFirst: false })
-    .order("created_at", { ascending: false })
-    .limit(1)
+    .select("id, title, status, start_at, created_at, run_type")
+    .eq("is_current", true)
+    .neq("status", "canceled")
     .maybeSingle();
 
-  const run = (runRes.data as PickupRun | null) ?? null;
+  let run: PickupRun | null = null;
+  if (curRes.data?.run_type === "public") {
+    run = curRes.data as PickupRun;
+  }
+
+  if (!run) {
+    const runRes = await supabase
+      .from("pickup_runs")
+      .select("id, title, status, start_at, created_at, run_type")
+      .in("status", ["planning", "likely_on", "active"])
+      .eq("run_type", "public")
+      .order("start_at", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    const rows = (runRes.data as PickupRun[] | null) ?? [];
+    run = rows[0] ?? null;
+  }
 
   // 3) latest update for that run
   let runUpdate: RunUpdate | null = null;
@@ -139,7 +154,9 @@ export default async function PickupStatusPage() {
 
   return (
     <main className="min-h-screen bg-[#0f0f10] text-white">
-      <PageTop title="STATUS" />
+      <div className="mx-auto max-w-6xl px-6 pt-2">
+        <PageTop flush title="STATUS" fallbackHref="/pickup" />
+      </div>
       <div className="mx-auto max-w-6xl px-6 py-14 space-y-10">
         {/* Neutral fallback if nothing exists */}
         {!hasSomething && (

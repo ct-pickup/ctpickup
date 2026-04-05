@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { HistoryBack } from "@/components/layout";
 
 type Choice = "A" | "B";
 type Role = "field" | "goalie";
@@ -116,6 +117,10 @@ export default function RunClient({ event, counts: initialCounts }: { event: Eve
 
   return (
     <main className="min-h-screen p-6 max-w-xl mx-auto">
+      <HistoryBack
+        fallbackHref="/status/pickup"
+        className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900"
+      />
       <h1 className="text-2xl font-semibold">CT Pickup Run</h1>
 
       <div className="mt-2 text-sm text-gray-600">

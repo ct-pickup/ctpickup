@@ -1,21 +1,32 @@
 export type SiteNavItem = { href: string; label: string };
 
+/** In-app Home (returning users — no “first visit” greeting flag). */
+export const APP_HOME_URL = "/after-login";
+
+/**
+ * First hub load after sign-up — `/after-login` reads `?new=1` for “Welcome, …” vs “Welcome back, …”.
+ * Use for signup completion + signup email redirect only; login and global nav use `APP_HOME_URL`.
+ */
+export const APP_HOME_FIRST_VISIT_URL = "/after-login?new=1";
+
 /** Logged-out / marketing hub — Home is `/`. */
 export const SITE_NAV_PUBLIC: SiteNavItem[] = [
   { href: "/", label: "Home" },
-  { href: "/pickup", label: "Pickup" },
   { href: "/tournament", label: "Tournament" },
   { href: "/training", label: "Training" },
   { href: "/u23", label: "U23" },
+  { href: "/esports", label: "Esports" },
+  { href: "/guidance", label: "Guidance" },
   { href: "/community", label: "Community" },
 ];
 
 const appBase: SiteNavItem[] = [
-  { href: "/after-login", label: "Home" },
-  { href: "/pickup", label: "Pickup" },
+  { href: APP_HOME_URL, label: "Home" },
   { href: "/tournament", label: "Tournament" },
   { href: "/training", label: "Training" },
   { href: "/u23", label: "U23" },
+  { href: "/esports", label: "Esports" },
+  { href: "/guidance", label: "Guidance" },
 ];
 
 /** Post-login hub pages — last link emphasizes Community. */
@@ -38,7 +49,8 @@ export const SITE_NAV_APP_ABOUT: SiteNavItem[] = [
 
 export function navItemActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
-  if (href === "/after-login") {
+  const hrefPath = href.split("?")[0];
+  if (hrefPath === "/after-login") {
     return (
       pathname === "/after-login" || pathname.startsWith("/after-login/")
     );

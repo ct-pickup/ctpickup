@@ -1,12 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { useEffect, useMemo, useState } from "react";
+import { HistoryBack } from "@/components/layout";
+import { supabaseBrowser } from "@/lib/supabase/client";
 
 function cleanIG(s: string) {
   return s.trim().replace(/^@/, "").replace(/\s+/g, "");
@@ -15,6 +11,7 @@ function cleanIG(s: string) {
 type ChangeType = "day_time" | "captain" | "phone" | "name" | "other";
 
 export default function UpdatePage() {
+  const supabase = useMemo(() => supabaseBrowser(), []);
   const [loading, setLoading] = useState(true);
   const [profileIG, setProfileIG] = useState<string | null>(null);
 
@@ -47,7 +44,7 @@ export default function UpdatePage() {
 
       setLoading(false);
     })();
-  }, []);
+  }, [supabase]);
 
   async function submit() {
     setMsg(null);
@@ -78,6 +75,10 @@ export default function UpdatePage() {
   if (loading) {
     return (
       <main className="min-h-screen p-6 max-w-xl mx-auto">
+        <HistoryBack
+          fallbackHref="/tournament"
+          className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900"
+        />
         <h1 className="text-2xl font-semibold">Loading…</h1>
       </main>
     );
@@ -86,6 +87,10 @@ export default function UpdatePage() {
   if (done) {
     return (
       <main className="min-h-screen p-6 max-w-xl mx-auto">
+        <HistoryBack
+          fallbackHref="/tournament"
+          className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900"
+        />
         <h1 className="text-2xl font-semibold">Update received</h1>
         <p className="mt-3 text-gray-700">
           We’ve logged your change request. A CT Pickup member will review it soon.
@@ -109,6 +114,10 @@ export default function UpdatePage() {
 
   return (
     <main className="min-h-screen p-6 max-w-xl mx-auto">
+      <HistoryBack
+        fallbackHref="/tournament"
+        className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900"
+      />
       <h1 className="text-2xl font-semibold">Fix / Edit My Submission</h1>
       <p className="mt-2 text-sm text-gray-600">
         Use this if something changed after you submitted tournament availability.

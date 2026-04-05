@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { CoachHeadshot } from "@/components/training/CoachHeadshot";
 import {
+  AuthenticatedProfileMenu,
   PageShell,
   Panel,
   SectionEyebrow,
@@ -20,23 +21,29 @@ export default async function CoachPage({
 
   return (
     <PageShell>
-      <TopNav backHref="/training" backLabel="Training" />
+      <TopNav
+        fallbackHref="/training"
+        backLabel="Training"
+        rightSlot={<AuthenticatedProfileMenu />}
+      />
 
       <div className="mb-8">
         <SectionEyebrow>Training</SectionEyebrow>
         <h1 className="mt-3 text-2xl font-bold uppercase tracking-[0.18em] text-white sm:text-3xl md:tracking-[0.22em]">
           {coach.name}
         </h1>
+        <p className="mt-2 text-sm text-white/70">
+          {[coach.college, coach.position].filter(Boolean).join(" · ")}
+        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(240px,320px)_1fr] lg:items-start lg:gap-8">
         <CoachHeadshot
-          src={coach.image}
-          alt={coach.name}
-          sizes="(max-width:1024px) 100vw, 320px"
+          slug={coach.slug}
+          name={coach.name}
           className="aspect-[4/5] w-full max-w-sm mx-auto lg:mx-0 rounded-2xl border border-white/15 bg-[#141415]"
           imagePosition={coach.imagePosition}
-          priority
+          loading="eager"
         />
 
         <div className="space-y-4">

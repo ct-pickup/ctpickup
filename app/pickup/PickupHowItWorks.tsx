@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import PageTop from "@/components/PageTop";
+import { HistoryBack } from "@/components/layout";
+import { APP_HOME_URL } from "@/lib/siteNav";
 
 const upcomingCards = [
   {
@@ -227,7 +229,9 @@ export default function PickupHowItWorksPage() {
       </div>
 
       <div className="relative z-10">
-        <PageTop title="PICKUP" hideMenu />
+        <div className="mx-auto max-w-6xl px-6 pt-2">
+          <PageTop flush title="PICKUP" hideMenu fallbackHref="/pickup" />
+        </div>
 
         <div className="mx-auto max-w-6xl px-6 pb-16 pt-8">
           <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] p-8 shadow-[0_30px_100px_rgba(0,0,0,0.42)] backdrop-blur-2xl sm:p-10">
@@ -405,15 +409,14 @@ export default function PickupHowItWorksPage() {
               </div>
 
               <div className="flex flex-wrap gap-3 lg:justify-end">
-                <Link
-                  href="/pickup"
-                  className="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:opacity-90"
-                >
-                  Back to Pickup
-                </Link>
+                <HistoryBack
+                  fallbackHref="/pickup"
+                  label="Back to Pickup"
+                  className="inline-flex cursor-pointer items-center justify-center rounded-full border-0 bg-white px-5 py-3 text-sm font-semibold text-black transition hover:opacity-90"
+                />
 
                 <Link
-                  href="/"
+                  href={APP_HOME_URL}
                   className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10"
                 >
                   Home

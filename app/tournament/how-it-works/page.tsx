@@ -1,4 +1,5 @@
 import {
+  AuthenticatedProfileMenu,
   PageShell,
   Panel,
   SectionEyebrow,
@@ -7,10 +8,14 @@ import {
 
 export default function TournamentHowItWorksPage() {
   return (
-    <PageShell maxWidthClass="max-w-3xl" className="pb-16">
-      <TopNav backHref="/tournament" backLabel="Tournament" />
+    <PageShell className="pb-16 pt-2">
+      <TopNav
+        fallbackHref="/tournament"
+        backLabel="Tournament"
+        rightSlot={<AuthenticatedProfileMenu />}
+      />
 
-      <div className="pt-2">
+      <div className="mx-auto max-w-3xl">
         <SectionEyebrow>Tournament</SectionEyebrow>
         <h1 className="mt-3 text-2xl font-bold uppercase tracking-[0.14em] text-white sm:text-3xl">
           How Tournaments Work

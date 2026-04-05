@@ -1,95 +1,164 @@
+"use client";
+
 import Link from "next/link";
+import { EmptyStateMessage } from "@/components/EmptyStateMessage";
+import { Panel } from "@/components/layout";
+import { PickupStatCell, PickupSubpageLoading, PickupSubpageShell } from "@/components/pickup";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
-export default function JoinAGamePage() {
-  const run = {
-    title: "CT Pickup Run",
-    date: "Saturday, Aug 17",
-    time: "7:00 PM",
-    location: "Hidden until confirmed",
-    level: "High-level / invite based",
-    spotsLeft: 4,
-    status: "Open",
-  };
+type PublicPayload = {
+  status?: string;
+  run: {
+    id: string;
+    title?: string | null;
+    start_at?: string | null;
+    run_type?: string | null;
+    capacity?: number | null;
+    location_text?: string | null;
+  } | null;
+  counts?: { confirmed?: number };
+  my_status?: string | null;
+};
 
-  const myStatus = "Not joined yet";
+function fmtRunDate(iso: string | null | undefined) {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+  } catch {
+    return "—";
+  }
+}
+
+function fmtRunTime(iso: string | null | undefined) {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  } catch {
+    return "—";
+  }
+}
+
+function levelLabel(runType: string | null | undefined) {
+  if (runType === "public") return "Open signup";
+  if (runType === "select") return "Invite based";
+  return "—";
+}
+
+function myStatusLabel(myStatus: string | null | undefined) {
+  if (!myStatus) return "Not joined yet";
+  return myStatus.replace(/_/g, " ");
+}
+
+function JoinAGameContent() {
+  const searchParams = useSearchParams();
+  const runId = searchParams.get("run");
+  const supabase = useMemo(() => supabaseBrowser(), []);
+
+  const [data, setData] = useState<PublicPayload | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const session = await supabase.auth.getSession();
+        const token = session.data.session?.access_token;
+        const qs = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
+        const headers: HeadersInit = {};
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const r = await fetch(`/api/pickup/public${qs}`, { headers, cache: "no-store" });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j?.error || "Could not load run.");
+        if (!cancelled) {
+          setData(j as PublicPayload);
+          setError(null);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Could not load run.");
+          setData({ run: null });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, runId]);
+
+  const loading = data === null;
+  const run = data?.run ?? null;
+  const capacity = run?.capacity ?? 0;
+  const confirmed = data?.counts?.confirmed ?? 0;
+  const spotsLeft = Math.max(0, Number(capacity) - Number(confirmed));
 
   return (
-    <main className="py-8">
-      <div className="mx-auto max-w-3xl">
-        
-        <div className="mb-8 flex items-center justify-between">
-          <h1 className="text-3xl font-bold uppercase tracking-[0.18em] text-white">
-            Join A Game
-          </h1>
-
-          <Link
-            href="/pickup"
-            className="text-sm font-medium text-white/70 hover:text-white"
-          >
-            Back
-          </Link>
-        </div>
-
-        <p className="mb-6 text-sm text-white/70">
-          Reserve a spot for the next active run.
-        </p>
-
-        <div className="space-y-6">
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-white/50">
-                Current Run
+    <PickupSubpageShell
+      title="Join A Game"
+      intro="Reserve a spot for the next active run."
+    >
+      {loading ? (
+        <p className="text-sm text-white/60">Loading…</p>
+      ) : error ? (
+        <p className="text-sm text-white/60">{error}</p>
+      ) : !run ? (
+        <Panel className="space-y-2">
+          <EmptyStateMessage>No games available to join</EmptyStateMessage>
+        </Panel>
+      ) : (
+        <div className="space-y-4">
+          <Panel className="space-y-5">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/55">
+                Current run
               </p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">
-                {run.title}
+              <h2 className="text-2xl font-bold uppercase tracking-tight text-white md:text-3xl">
+                {run.title || "Pickup run"}
               </h2>
             </div>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-white/45">Date</p>
-                <p className="mt-2 text-base font-medium text-white">{run.date}</p>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-white/45">Time</p>
-                <p className="mt-2 text-base font-medium text-white">{run.time}</p>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-white/45">Level</p>
-                <p className="mt-2 text-base font-medium text-white">{run.level}</p>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-white/45">Spots Left</p>
-                <p className="mt-2 text-base font-medium text-white">{run.spotsLeft}</p>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4 sm:col-span-2">
-                <p className="text-xs uppercase tracking-[0.18em] text-white/45">Location</p>
-                <p className="mt-2 text-base font-medium text-white">{run.location}</p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <PickupStatCell label="Date" value={fmtRunDate(run.start_at)} />
+              <PickupStatCell label="Time" value={fmtRunTime(run.start_at)} />
+              <PickupStatCell label="Level" value={levelLabel(run.run_type)} />
+              <PickupStatCell label="Spots left" value={spotsLeft} />
+              <div className="sm:col-span-2 lg:col-span-3">
+                <PickupStatCell
+                  label="Location"
+                  value={run.location_text ?? "Hidden until confirmed"}
+                />
               </div>
             </div>
-          </section>
+          </Panel>
 
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
-            <p className="text-xs uppercase tracking-[0.24em] text-white/50">
-              Your Status
+          <Panel className="space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/55">
+              Your status
             </p>
-            <p className="mt-3 text-lg font-medium text-white">{myStatus}</p>
+            <p className="text-lg font-semibold text-white">{myStatusLabel(data?.my_status)}</p>
 
-            <div className="mt-6">
+            <div className="flex flex-wrap gap-3">
               <Link
                 href="/pickup/intake"
-                className="inline-flex min-w-[200px] items-center justify-center rounded-md bg-white px-6 py-3 text-sm font-semibold text-black"
+                className="inline-flex min-w-[200px] items-center justify-center rounded-md bg-white px-5 py-3 text-sm font-semibold text-black"
               >
                 Continue
               </Link>
             </div>
-          </section>
+          </Panel>
         </div>
-      </div>
-    </main>
+      )}
+    </PickupSubpageShell>
+  );
+}
+
+export default function JoinAGamePage() {
+  return (
+    <Suspense fallback={<PickupSubpageLoading title="Join A Game" />}>
+      <JoinAGameContent />
+    </Suspense>
   );
 }

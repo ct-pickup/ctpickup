@@ -1,14 +1,21 @@
 "use client";
 
-import PageTop from "@/components/PageTop";
+import { EmptyStateMessage } from "@/components/EmptyStateMessage";
+import {
+  AuthenticatedProfileMenu,
+  PageShell,
+  TopNav,
+} from "@/components/layout";
+import { WaiverAcceptanceModal } from "@/components/waiver/WaiverAcceptanceModal";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { APP_HOME_URL } from "@/lib/siteNav";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+type PendingPickup =
+  | { kind: "availability"; state: "available" | "declined"; slot_id: string | null }
+  | { kind: "rsvp"; action: "join" | "decline" }
+  | { kind: "pay" };
 
 type Data = any;
 
@@ -28,11 +35,23 @@ function fmt(dt: string | null) {
 }
 
 export default function PickupPage() {
+  const supabase = useMemo(() => supabaseBrowser(), []);
   const [token, setToken] = useState<string | null>(null);
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [waiverModalOpen, setWaiverModalOpen] = useState(false);
+  const pendingPickup = useRef<PendingPickup | null>(null);
+
+  async function waiverAcceptedNow(): Promise<boolean> {
+    if (!token) return false;
+    const r = await fetch("/api/waiver/status", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const j = await r.json().catch(() => ({}));
+    return !!j?.accepted;
+  }
 
   async function refresh(t = token) {
     setLoading(true);
@@ -45,10 +64,16 @@ export default function PickupPage() {
 
   useEffect(() => {
     (async () => {
-      const s = await supabase.auth.getSession();
-      setToken(s.data.session?.access_token || null);
+      const { data } = await supabase.auth.getSession();
+      setToken(data.session?.access_token ?? null);
     })();
-  }, []);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_e, session) => {
+      setToken(session?.access_token ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, [supabase]);
 
   useEffect(() => {
     refresh();
@@ -73,6 +98,13 @@ export default function PickupPage() {
   async function submitAvailability(state: "available" | "declined", slot_id?: string | null) {
     if (!token || !data?.run?.id) return;
 
+    const sid = slot_id ?? null;
+    if (!(await waiverAcceptedNow())) {
+      pendingPickup.current = { kind: "availability", state, slot_id: sid };
+      setWaiverModalOpen(true);
+      return;
+    }
+
     setBusy(true);
     setMsg(null);
     try {
@@ -81,13 +113,19 @@ export default function PickupPage() {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           run_id: data.run.id,
-          slot_id: slot_id || null,
+          slot_id: sid,
           state,
         }),
       });
 
-      const j = await r.json();
+      const j = await r.json().catch(() => ({}));
       if (!r.ok) {
+        if (r.status === 403 && j?.error === "waiver_required") {
+          pendingPickup.current = { kind: "availability", state, slot_id: sid };
+          setWaiverModalOpen(true);
+          setMsg(null);
+          return;
+        }
         setMsg(j?.error || "Could not submit availability.");
         return;
       }
@@ -100,6 +138,12 @@ export default function PickupPage() {
   async function rsvp(action: "join" | "decline") {
     if (!token || !data?.run?.id) return;
 
+    if (!(await waiverAcceptedNow())) {
+      pendingPickup.current = { kind: "rsvp", action };
+      setWaiverModalOpen(true);
+      return;
+    }
+
     setBusy(true);
     setMsg(null);
     try {
@@ -109,8 +153,14 @@ export default function PickupPage() {
         body: JSON.stringify({ action, run_id: data.run.id }),
       });
 
-      const j = await r.json();
+      const j = await r.json().catch(() => ({}));
       if (!r.ok) {
+        if (r.status === 403 && j?.error === "waiver_required") {
+          pendingPickup.current = { kind: "rsvp", action };
+          setWaiverModalOpen(true);
+          setMsg(null);
+          return;
+        }
         setMsg(j?.error || "Something went wrong.");
         return;
       }
@@ -127,6 +177,12 @@ export default function PickupPage() {
   async function payNow() {
     if (!token || !data?.run?.id) return;
 
+    if (!(await waiverAcceptedNow())) {
+      pendingPickup.current = { kind: "pay" };
+      setWaiverModalOpen(true);
+      return;
+    }
+
     setBusy(true);
     setMsg(null);
     try {
@@ -136,8 +192,14 @@ export default function PickupPage() {
         body: JSON.stringify({ run_id: data.run.id }),
       });
 
-      const j = await r.json();
+      const j = await r.json().catch(() => ({}));
       if (!r.ok) {
+        if (r.status === 403 && j?.error === "waiver_required") {
+          pendingPickup.current = { kind: "pay" };
+          setWaiverModalOpen(true);
+          setMsg(null);
+          return;
+        }
         setMsg(j?.error || "Could not start checkout.");
         return;
       }
@@ -148,10 +210,15 @@ export default function PickupPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0f0f10] text-white">
-      <PageTop title="PICKUP" />
+    <PageShell maxWidthClass="max-w-5xl" className="pb-16 pt-2">
+      <TopNav
+        brandHref={APP_HOME_URL}
+        homeHref={APP_HOME_URL}
+        fallbackHref={APP_HOME_URL}
+        rightSlot={<AuthenticatedProfileMenu />}
+      />
 
-      <div className="mx-auto max-w-5xl space-y-8 px-5 py-10">
+      <div className="space-y-8 pb-6 pt-2 md:pt-4">
         <section className="rounded-2xl border border-white/15 bg-white/5 p-7 space-y-5">
           <div className={`inline-flex rounded-full px-4 py-2 text-sm font-semibold border ${pill(data?.status || "inactive")}`}>
             {runTypeLabel ? `${runTypeLabel} · ${statusLabel}` : statusLabel}
@@ -170,7 +237,7 @@ export default function PickupPage() {
           ) : loading ? (
             <div className="text-white/70">Loading…</div>
           ) : !data?.run ? (
-            <div className="text-white/80">No run announced.</div>
+            <EmptyStateMessage>No active pickup games</EmptyStateMessage>
           ) : !data?.me?.approved ? (
             <div className="text-white/80">
               Your account is pending approval. If you’re already known to CT Pickup, we’ll approve your account and tier.
@@ -194,7 +261,7 @@ export default function PickupPage() {
                   ) : null}
                 </div>
               ) : (
-                <div className="text-sm text-white/60">No updates posted yet.</div>
+                <EmptyStateMessage>No updates posted yet.</EmptyStateMessage>
               )}
 
               <div className="space-y-1 pt-2">
@@ -247,7 +314,7 @@ export default function PickupPage() {
                         );
                       })
                     ) : (
-                      <div className="text-sm text-white/60">No time slots posted yet.</div>
+                      <EmptyStateMessage>No time slots posted yet.</EmptyStateMessage>
                     )}
                   </div>
 
@@ -378,7 +445,7 @@ export default function PickupPage() {
                           ))}
                         </div>
                       ) : (
-                        <div className="text-sm text-white/60">No confirmed players shown yet.</div>
+                        <EmptyStateMessage>No confirmed players shown yet.</EmptyStateMessage>
                       )}
                     </div>
                   ) : null}
@@ -397,6 +464,25 @@ export default function PickupPage() {
           )}
         </section>
       </div>
-    </main>
+
+      {waiverModalOpen && token ? (
+        <WaiverAcceptanceModal
+          token={token}
+          onClose={() => {
+            setWaiverModalOpen(false);
+            pendingPickup.current = null;
+          }}
+          onAccepted={() => {
+            setWaiverModalOpen(false);
+            const p = pendingPickup.current;
+            pendingPickup.current = null;
+            if (!p) return;
+            if (p.kind === "availability") void submitAvailability(p.state, p.slot_id);
+            else if (p.kind === "rsvp") void rsvp(p.action);
+            else void payNow();
+          }}
+        />
+      ) : null}
+    </PageShell>
   );
 }

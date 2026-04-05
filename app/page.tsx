@@ -1,6 +1,6 @@
 import Link from "next/link";
-
-const CT_LOGO_SRC = "/ct-logo.png";
+import { HomeSessionIntro } from "@/components/home/HomeSessionIntro";
+import { HomeHeroBrand } from "@/components/home/HomeHeroBrand";
 
 function UserIcon() {
   return (
@@ -60,66 +60,56 @@ function InstagramIcon() {
 
 export default function HomePage() {
   return (
-    <main className="py-5">
-      <div className="mx-auto max-w-5xl">
-        <div className="rounded-full border border-white/15 bg-white/6 px-5 py-3 backdrop-blur-sm">
-          <div className="flex items-center justify-between gap-4">
-            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-white/90 sm:text-base">
-              Competitive · Together
-            </div>
+    <HomeSessionIntro>
+      <main className="py-5">
+        <div className="mx-auto max-w-5xl">
+          <div className="rounded-full border border-white/15 bg-white/6 px-5 py-3 backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div className="text-sm font-semibold uppercase tracking-[0.22em] text-white/90 sm:text-base">
+                Competitive · Together
+              </div>
 
-            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10">
-              <UserIcon />
+              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10">
+                <UserIcon />
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <section className="flex min-h-[72vh] flex-col items-center justify-center text-center">
-        <img
-          src={CT_LOGO_SRC}
-          alt="CT Pickup"
-          className="w-[260px] md:w-[340px] h-auto object-contain"
-        />
+        <section className="flex min-h-[72vh] flex-col items-center justify-center text-center">
+          <HomeHeroBrand />
 
-        <h1 className="mt-6 text-3xl font-bold tracking-[0.55em] text-white md:text-4xl">
-          PICKUP
-        </h1>
+          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <Link
+              href="/login"
+              className="min-w-[160px] rounded-md bg-white px-6 py-3 text-sm font-semibold text-black"
+            >
+              Log In
+            </Link>
 
-        <p className="mt-5 text-xs uppercase tracking-[0.28em] text-white/75 md:text-sm">
-          Community. Culture. Competition.
-        </p>
+            <Link
+              href="/signup"
+              className="min-w-[160px] rounded-md border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10"
+            >
+              Sign Up
+            </Link>
+          </div>
 
-        <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-          <Link
-            href="/login"
-            className="min-w-[160px] rounded-md bg-white px-6 py-3 text-sm font-semibold text-black"
-          >
-            Log In
-          </Link>
-
-          <Link
-            href="/signup"
-            className="min-w-[160px] rounded-md border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10"
-          >
-            Sign Up
-          </Link>
-        </div>
-
-        <div className="mt-8 flex items-center justify-center">
-          <a
-            href="https://instagram.com/ct.pickup"
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-3 text-sm text-white/80"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10">
-              <InstagramIcon />
-            </span>
-            <span className="font-medium">@ct.pickup</span>
-          </a>
-        </div>
-      </section>
-    </main>
+          <div className="mt-8 flex items-center justify-center">
+            <a
+              href="https://instagram.com/ct.pickup"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-3 text-sm text-white/80"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10">
+                <InstagramIcon />
+              </span>
+              <span className="font-medium">@ct.pickup</span>
+            </a>
+          </div>
+        </section>
+      </main>
+    </HomeSessionIntro>
   );
 }

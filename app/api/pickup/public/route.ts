@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import type { PublicPickupRunRow } from "@/lib/pickup/publicUpcomingRuns";
+import {
+  fetchFirstPublicUpcomingPickupRun,
+  fetchPickupRunCandidate,
+  userCanViewPickupRun,
+} from "@/lib/pickup/featuredPickupRun";
 
 export const runtime = "nodejs";
 
@@ -49,18 +55,27 @@ export async function GET(req: Request) {
     }
   }
 
-  // SAFEST (matches your current UI): only show upcoming runs with a real start_at.
-  // Planning runs with start_at=null belong in a separate "planning context" endpoint later.
-  const runRes = await admin
-    .from("pickup_runs")
-    .select("*")
-    .neq("status", "canceled")
-    .not("start_at", "is", null)
-    .gte("start_at", new Date().toISOString())
-    .order("start_at", { ascending: true })
-    .limit(1);
+  const url = new URL(req.url);
+  const runIdParam = url.searchParams.get("run_id");
 
-  const run = runRes.data?.[0] || null;
+  let run: PublicPickupRunRow | null = await fetchPickupRunCandidate(admin, {
+    runId: runIdParam,
+  });
+
+  if (run) {
+    const canView = await userCanViewPickupRun(admin, run, {
+      userId,
+      approved,
+      isAdmin,
+      tierRank,
+    });
+    if (!canView) run = null;
+  }
+
+  if (!run && !runIdParam) {
+    const fb = await fetchFirstPublicUpcomingPickupRun(admin);
+    if (fb) run = fb;
+  }
 
   if (!run) {
     return NextResponse.json({
@@ -111,34 +126,35 @@ export async function GET(req: Request) {
       ? null
       : Number(run.open_tier_rank);
 
-  if (
-    userId &&
-    approved &&
-    tierRank !== null &&
-    runOpenTierRank !== null &&
-    tierRank <= runOpenTierRank
-  ) {
-    const inv = await admin
-      .from("pickup_run_invites")
-      .select("id")
-      .eq("run_id", run.id)
-      .eq("user_id", userId)
-      .limit(1);
+  const effectiveTierRank =
+    tierRank === null || tierRank === undefined ? 6 : tierRank;
 
-    invitedNow = (inv.data || []).length > 0;
+  if (userId && approved && runOpenTierRank !== null && effectiveTierRank <= runOpenTierRank) {
+    if (run.run_type === "public") {
+      invitedNow = true;
+    } else {
+      const inv = await admin
+        .from("pickup_run_invites")
+        .select("id")
+        .eq("run_id", run.id)
+        .eq("user_id", userId)
+        .limit(1);
+
+      invitedNow = (inv.data || []).length > 0;
+    }
   }
 
   // Attendance visibility:
   // - within 4 hours of wave1_started_at: only Tier 1A/1B can see
   // - after that: invitedNow can see
   let attendanceVisible = false;
-  if (invitedNow && tierRank !== null) {
+  if (invitedNow) {
     const waveStartedAt = run.wave1_started_at ? new Date(run.wave1_started_at).getTime() : null;
     if (!waveStartedAt) {
       attendanceVisible = true;
     } else {
       const within4h = Date.now() - waveStartedAt < 4 * 60 * 60 * 1000;
-      attendanceVisible = within4h ? isTier1(tierRank) : true;
+      attendanceVisible = within4h ? isTier1(effectiveTierRank) : true;
     }
   }
 

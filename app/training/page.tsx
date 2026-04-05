@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CoachHeadshot } from "@/components/training/CoachHeadshot";
 import {
+  AuthenticatedProfileMenu,
   PageShell,
   Panel,
   SectionEyebrow,
@@ -11,7 +12,7 @@ import { trainingCoaches, TRAINING_REQUEST_LINK } from "@/lib/trainingCoaches";
 export default function TrainingPage() {
   return (
     <PageShell>
-      <TopNav />
+      <TopNav rightSlot={<AuthenticatedProfileMenu />} />
 
       <header className="grid gap-8 lg:grid-cols-[1fr_1fr] lg:items-center lg:gap-10">
         <div className="space-y-4">
@@ -143,12 +144,11 @@ export default function TrainingPage() {
                 <div className="px-4 pt-3 pb-4">
                   <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl border border-white/15 bg-[#141415]">
                     <CoachHeadshot
-                      src={c.image}
-                      alt={c.name}
-                      sizes="(max-width:640px) 100vw, (max-width:1024px) 50vw, 280px"
-                      className="absolute inset-0"
+                      slug={c.slug}
+                      name={c.name}
+                      className="h-full w-full min-h-0"
                       imagePosition={c.imagePosition}
-                      priority={i < 3}
+                      loading={i < 3 ? "eager" : "lazy"}
                     />
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-4 pb-3 pt-14">
                       <p className="text-sm font-semibold uppercase tracking-[0.12em] text-white sm:text-base">

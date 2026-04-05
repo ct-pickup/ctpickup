@@ -1,15 +1,21 @@
 import {
+  AuthenticatedProfileMenu,
   PageShell,
   Panel,
   SectionEyebrow,
   TopNav,
 } from "@/components/layout";
+import { APP_HOME_URL } from "@/lib/siteNav";
 const SIDE_IMAGE = "/mission/side.jpg";
 
 export default function MissionPage() {
   return (
     <PageShell maxWidthClass="max-w-6xl">
-      <TopNav brandHref="/after-login" backHref="/after-login" />
+      <TopNav
+        brandHref={APP_HOME_URL}
+        fallbackHref={APP_HOME_URL}
+        rightSlot={<AuthenticatedProfileMenu />}
+      />
 
       <div className="grid items-center gap-8 pb-16 pt-4 lg:grid-cols-[minmax(0,620px)_280px] lg:gap-10">
         <Panel className="p-6 md:p-8 lg:p-10">

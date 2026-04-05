@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { HistoryBack } from "@/components/layout";
 
 export default function HowItWorksPage() {
   return (
@@ -9,12 +9,10 @@ export default function HowItWorksPage() {
             How It Works
           </h1>
 
-          <Link
-            href="/pickup"
-            className="text-sm font-medium text-white/70 hover:text-white"
-          >
-            Back
-          </Link>
+          <HistoryBack
+            fallbackHref="/pickup"
+            className="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-white/70 transition hover:text-white"
+          />
         </div>
 
         <p className="mb-8 text-sm text-white/70">

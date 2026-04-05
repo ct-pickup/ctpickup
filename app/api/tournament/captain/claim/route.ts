@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,6 +18,11 @@ export async function POST(req: Request) {
 
   const { data: u, error: uErr } = await anon.auth.getUser(token);
   if (uErr || !u?.user) return NextResponse.json({ error: "invalid_auth" }, { status: 401 });
+
+  const waiverOk = await userHasAcceptedCurrentWaiver(u.user.id);
+  if (!waiverOk) {
+    return NextResponse.json({ error: "waiver_required" }, { status: 403 });
+  }
 
   const userId = u.user.id;
 

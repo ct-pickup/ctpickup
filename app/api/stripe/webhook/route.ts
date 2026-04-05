@@ -24,9 +24,7 @@ export async function POST(req: Request) {
   try {
     event = stripe.webhooks.constructEvent(raw, sig, process.env.STRIPE_WEBHOOK_SECRET!);
   } catch (err: any) {
-    console.log("WEBHOOK env whsec len:", (process.env.STRIPE_WEBHOOK_SECRET || "").length);
-    console.log("WEBHOOK env whsec head:", (process.env.STRIPE_WEBHOOK_SECRET || "").slice(0, 6));
-    console.log("WEBHOOK bad_signature:", err?.message || err);
+    console.error("stripe_webhook_signature_failed:", err?.message || err);
     return NextResponse.json(
       { error: "bad_signature", details: String(err?.message || err) },
       { status: 400 }

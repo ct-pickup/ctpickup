@@ -49,8 +49,8 @@ const ORDER: TourneyStatus[] = ["inactive", "planning", "confirmed"];
 export default function StatusPage() {
   return (
     <main className="min-h-screen bg-[#0f0f10] text-white">
-      <PageTop title="STATUS" />
-      <div className="mx-auto max-w-5xl px-6 py-14 space-y-10">
+      <PageTop title="STATUS" fallbackHref="/" />
+      <div className="mx-auto max-w-5xl px-5 py-14 space-y-10">
 
         {/* Main Status Card */}
         <section className={`rounded-2xl p-8 ${UI[tourneyStatus].card}`}>

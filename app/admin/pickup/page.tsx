@@ -1,14 +1,11 @@
 "use client";
 
 import PageTop from "@/components/PageTop";
+import { AdminHubNav } from "@/components/admin/AdminHubNav";
 import Link from "next/link";
+import { APP_HOME_URL } from "@/lib/siteNav";
+import { supabaseBrowser } from "@/lib/supabase/client";
 import { useEffect, useMemo, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 function fmt(dt: string | null) {
   if (!dt) return "TBD";
@@ -39,8 +36,8 @@ Leave blank.`,
 } as const;
 
 export default function AdminPickupPage() {
+  const supabase = useMemo(() => supabaseBrowser(), []);
   const [token, setToken] = useState<string | null>(null);
-  const [meAdmin, setMeAdmin] = useState<boolean>(false);
 
   const [runs, setRuns] = useState<any[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string>("");
@@ -80,13 +77,13 @@ const [locationPreset, setLocationPreset] = useState<
     if (!token) return;
     setMsg(null);
 
-    // basic admin check via /api/pickup/public (me.is_admin exists)
-    const pr = await fetch("/api/pickup/public", { headers: { Authorization: `Bearer ${token}` } });
-    const pj = await pr.json();
-    setMeAdmin(!!pj?.me?.is_admin);
-
     const r = await fetch("/api/pickup/switch", { headers: { Authorization: `Bearer ${token}` } });
     const j = await r.json();
+    if (!r.ok) {
+      setMsg(j?.error || "Could not load runs.");
+      setRuns([]);
+      return;
+    }
     setRuns(j?.runs || []);
   }
 
@@ -108,7 +105,14 @@ const [locationPreset, setLocationPreset] = useState<
       const t = s.data.session?.access_token || null;
       setToken(t);
     })();
-  }, []);
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setToken(session?.access_token ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, [supabase]);
 
   useEffect(() => {
     if (token) load();
@@ -137,18 +141,26 @@ setWave1Result(null);
         return;
       }
       await load();
-if (selectedRunId) await loadDetail(selectedRunId);
+      if (payload?.action === "create_run" && j?.run_id) {
+        const rid = String(j.run_id);
+        setSelectedRunId(rid);
+        await loadDetail(rid);
+      } else if (selectedRunId) {
+        await loadDetail(selectedRunId);
+      }
 
-if (payload?.action === "open_wave1") {
-  setWave1Result({
-    invited: Number(j?.invited || 0),
-    handles: Array.isArray(j?.handles) ? j.handles.filter(Boolean) : [],
-    dm_template: String(j?.dm_template || ""),
-  });
-  setMsg("Wave 1 opened.");
-} else {
-  setMsg("Done.");
-}
+      if (payload?.action === "launch_outreach" || payload?.action === "open_wave1") {
+        setWave1Result({
+          invited: Number(j?.invited || 0),
+          handles: Array.isArray(j?.handles) ? j.handles.filter(Boolean) : [],
+          dm_template: String(j?.dm_template || ""),
+        });
+        setMsg("Outreach launched. Auto checkpoints will run on schedule (cron + this page).");
+      } else if (payload?.action === "create_run") {
+        setMsg("Run created and promoted. Add time slots, then Launch outreach (36h+ before kickoff).");
+      } else {
+        setMsg("Done.");
+      }
     } finally {
       setBusy(false);
     }
@@ -158,14 +170,26 @@ if (payload?.action === "open_wave1") {
     return detail?.run || null;
   }, [detail]);
 
+  const auto = detail?.auto_status;
+  const launchBlockedReason = useMemo(() => {
+    if (!selectedRun) return "Select a run.";
+    if (selectedRun.outreach_started_at) return "Outreach already launched.";
+    if (!auto?.anchor_start_at) return "Add at least one slot with kickoff time.";
+    const h = auto.hours_until_start;
+    if (h === null || h < 36) return "Kickoff must be at least 36 hours away.";
+    return null;
+  }, [selectedRun, auto]);
+
   if (!token) {
     return (
       <main className="min-h-screen bg-black text-white">
-        <PageTop title="ADMIN" />
+        <div className="mx-auto max-w-6xl px-6 pt-2">
+          <PageTop flush title="ADMIN · PICKUP" fallbackHref={APP_HOME_URL} />
+        </div>
         <div className="mx-auto max-w-4xl px-6 py-12 space-y-4">
           <div className="text-white/80">Log in to access admin tools.</div>
           <Link
-            href="/login"
+            href="/login?next=/admin/pickup"
             className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-semibold bg-white text-black w-full sm:w-auto"
           >
             LOG IN
@@ -175,21 +199,14 @@ if (payload?.action === "open_wave1") {
     );
   }
 
-  if (!meAdmin) {
-    return (
-      <main className="min-h-screen bg-black text-white">
-        <PageTop title="ADMIN" />
-        <div className="mx-auto max-w-4xl px-6 py-12 space-y-4">
-          <div className="text-white/80">Forbidden. Your account is not marked as admin.</div>
-          <div className="text-sm text-white/60">Set profiles.is_admin = true for your user in Supabase.</div>
-        </div>
-      </main>
-    );
-  }
-
   return (
     <main className="min-h-screen bg-black text-white">
-      <PageTop title="ADMIN · PICKUP" />
+      <div className="mx-auto max-w-6xl px-6 pt-2">
+        <PageTop flush title="ADMIN · PICKUP" fallbackHref={APP_HOME_URL} />
+        <div className="pb-2">
+          <AdminHubNav />
+        </div>
+      </div>
 
       <div className="mx-auto max-w-6xl px-6 py-10 space-y-10">
         {msg ? <div className="text-sm text-white/70">{msg}</div> : null}
@@ -337,6 +354,73 @@ if (payload?.action === "open_wave1") {
               <div>Open tier rank: {selectedRun.open_tier_rank ?? "null"}</div>
               <div>Likely-on slot: {selectedRun.likely_on_slot_id ?? "null"}</div>
               <div>Final slot: {selectedRun.final_slot_id ?? "null"}</div>
+              <div>Hub promoted (is_current): {selectedRun.is_current ? "yes" : "no"}</div>
+              <div>Outreach started: {selectedRun.outreach_started_at ? fmt(selectedRun.outreach_started_at) : "—"}</div>
+              <div>Auto-managed: {selectedRun.auto_managed ? "yes" : "no"}</div>
+            </div>
+          ) : null}
+
+          {auto ? (
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-6 space-y-3 text-sm text-white/80">
+              <div className="text-xs font-semibold uppercase tracking-widest text-emerald-200/90">
+                Auto pipeline
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div>
+                  <span className="text-white/55">Anchor kickoff</span>{" "}
+                  <span className="text-white/90">{auto.anchor_start_at ? fmt(auto.anchor_start_at) : "—"}</span>
+                </div>
+                <div>
+                  <span className="text-white/55">Hours until kickoff</span>{" "}
+                  <span className="text-white/90">{auto.hours_until_start ?? "—"}</span>
+                </div>
+                <div>
+                  <span className="text-white/55">Current wave</span>{" "}
+                  <span className="text-white/90">{auto.current_wave_label}</span>{" "}
+                  <span className="text-white/50">(open_tier_rank {auto.open_tier_rank ?? "—"})</span>
+                </div>
+                <div>
+                  <span className="text-white/55">Committed / confirmed</span>{" "}
+                  <span className="text-white/90">
+                    {auto.committed_players} / {auto.confirmed_players}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-white/55">Expand if committed below</span>{" "}
+                  <span className="text-white/90">{auto.expand_threshold}</span>
+                </div>
+                <div>
+                  <span className="text-white/55">Likely-on (Tier-1 / slot)</span>{" "}
+                  <span className="text-white/90">≥{auto.likely_on_tier1_per_slot}</span>
+                </div>
+                <div>
+                  <span className="text-white/55">Auto-finalize min (1h)</span>{" "}
+                  <span className="text-white/90">{auto.finalize_min_committed}</span>
+                </div>
+              </div>
+              <div>
+                <span className="text-white/55">Checkpoints</span>
+                <div className="mt-1 text-xs text-white/65 font-mono space-y-0.5">
+                  <div>24h: {auto.checkpoints.cp_24h_at ? fmt(auto.checkpoints.cp_24h_at) : "pending"}</div>
+                  <div>12h: {auto.checkpoints.cp_12h_at ? fmt(auto.checkpoints.cp_12h_at) : "pending"}</div>
+                  <div>6h: {auto.checkpoints.cp_6h_at ? fmt(auto.checkpoints.cp_6h_at) : "pending"}</div>
+                  <div>1h: {auto.checkpoints.cp_1h_at ? fmt(auto.checkpoints.cp_1h_at) : "pending"}</div>
+                </div>
+              </div>
+              <div>
+                <span className="text-white/55">Next step</span>
+                <div className="mt-1 text-white/90">{auto.next_step}</div>
+              </div>
+              {auto.recent_log?.length ? (
+                <div>
+                  <span className="text-white/55">Last processor log</span>
+                  <ul className="mt-1 list-disc pl-5 text-xs text-white/70 space-y-1">
+                    {auto.recent_log.map((line: string, i: number) => (
+                      <li key={i}>{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -392,12 +476,17 @@ if (payload?.action === "open_wave1") {
   <div className="space-y-4">
     <div className="flex flex-wrap gap-3">
       <button
-        disabled={busy}
-        onClick={() => act({ action: "open_wave1", run_id: selectedRunId })}
+        disabled={busy || !!launchBlockedReason}
+        title={launchBlockedReason || undefined}
+        onClick={() => act({ action: "launch_outreach", run_id: selectedRunId })}
         className="rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-black disabled:opacity-50"
       >
-        Open Wave 1 (Tier 1A + 1B)
+        Launch outreach (Tier 1A + 1B)
       </button>
+
+      {launchBlockedReason ? (
+        <p className="text-xs text-amber-200/80 w-full">{launchBlockedReason}</p>
+      ) : null}
 
       <button
         disabled={busy}
@@ -411,7 +500,7 @@ if (payload?.action === "open_wave1") {
     {wave1Result ? (
       <div className="rounded-xl border border-white/10 bg-black/30 p-6 space-y-4">
         <div className="text-sm font-semibold uppercase tracking-wide text-white/80">
-          Wave 1 DM
+          Outreach DM / SMS
         </div>
 
         <div className="text-sm text-white/70">

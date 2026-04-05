@@ -1,3 +1,8 @@
+/** Headshot URL under `public/coaches/{slug}.jpg`. */
+export function coachPhotoSrc(slug: string): string {
+  return `/coaches/${slug}.jpg`;
+}
+
 export type TrainingCoach = {
   slug: string;
   name: string;
@@ -8,7 +13,6 @@ export type TrainingCoach = {
   position: string;
   /** One-line specialty for the training grid; detail page uses `specialty`. */
   cardSpecialty: string;
-  image: string;
   /** CSS `object-position` for inconsistent source crops (headshot bias). */
   imagePosition?: string;
   experience: string;
@@ -29,7 +33,6 @@ export const trainingCoaches: TrainingCoach[] = [
     position: "Midfielder",
     cardSpecialty:
       "High-level technical work, academy habits, speed of play, competitive standards",
-    image: "/coaches/gabriel.jpg",
     imagePosition: "50% 12%",
     experience:
       "Played with the New England Revolution and New England Revolution II in MLS NEXT Pro. Two-time MLS NEXT Cup Champion and captain of the U19 team within the New England Revolution academy system. Competed at the NCAA Division I level at Providence College and will be entering his second year at the University of Vermont. Represented Peru at the U17 National Team level in international competition.",
@@ -47,7 +50,6 @@ export const trainingCoaches: TrainingCoach[] = [
     position: "Midfielder",
     cardSpecialty:
       "Game understanding, competitive training, leadership, advanced development",
-    image: "/coaches/arian.jpg",
     imagePosition: "50% 14%",
     experience:
       "Played with the New York Red Bulls second team in the USL Championship and MLS NEXT Pro. Competed at the NCAA Division I level at both the University of New Hampshire and Penn State University. Served as captain of the Guatemala U20 National Team and represented Guatemala in CONCACAF competition and two U20 World Cup qualifying campaigns. Was recently called up to train with the U23 National Team.",
@@ -64,7 +66,6 @@ export const trainingCoaches: TrainingCoach[] = [
     college: "Trinity College",
     position: "Defender",
     cardSpecialty: "Defending, positioning, recovery speed, game awareness",
-    image: "/coaches/matt.jpg",
     experience:
       "Played MLS NEXT with NYSC and captained CFC at the ECNL level, helping lead the club to back-to-back ECNL National Playoff appearances. Competed as a defender at Bucknell University at the NCAA Division I level and currently plays at Trinity College at the NCAA Division III level.",
     coaching:
@@ -80,7 +81,6 @@ export const trainingCoaches: TrainingCoach[] = [
     college: "Colgate University",
     position: "Goalkeeper",
     cardSpecialty: "Goalkeeping, shot-stopping, handling, footwork",
-    image: "/coaches/mason.jpg",
     experience:
       "Played with Hvidovre IF in the Danish second division. Played with Levante UD in the Spanish Segunda Division, trained with HB Køge and Lyngby Boldklub in Denmark, Torrent CF in Spain, Colgate NCAA D1, USYNT Regional Camp selection, and was a Capelli Sport USA U17 and U19 selectee and captain.",
     coaching:
@@ -94,16 +94,15 @@ export const trainingCoaches: TrainingCoach[] = [
     name: "Leah Delaurentiis",
     hometown: "Fairfield, Connecticut",
     college: "Bucknell University",
-    position: "Forward",
+    position: "Defender",
     cardSpecialty:
-      "Technical development, confidence on the ball, age-appropriate training",
-    image: "/coaches/leah.jpg",
+      "Defending, positioning, 1v1 defending, age-appropriate training",
     experience:
       "Played club for the CFC ECNL 2006 team from 2018 to 2024. All Conference New England ECNL First Team Player from 2021 to 2024. Played varsity soccer for Fairfield Ludlowe High School, earned All-FCIAC First Team from 2021 to 2024, and was captain for the 2024 season. Currently competes at the NCAA Division I level at Bucknell University.",
     coaching:
       "Worked for Ole Soccer as a Head and Assistant Coach, devising sessions for children ages 4-12. Coached and supervised youth athletes by developing age-appropriate training that promoted skill development, teamwork, and sportsmanship. Started a soccer clinic in 2022 and coached youth sessions in Fairfield, Connecticut, for local families.",
     specialty:
-      "Technical development, confidence on the ball, and age-appropriate training for younger players.",
+      "Defending, positioning, and 1v1 defending, with age-appropriate technical work for younger players.",
     bookingLink: TRAINING_REQUEST_LINK,
   },
   {
@@ -114,7 +113,6 @@ export const trainingCoaches: TrainingCoach[] = [
     position: "Attacking midfielder",
     cardSpecialty:
       "Attacking play, movement, creativity, technical work for younger players",
-    image: "/coaches/patrick.jpg",
     imagePosition: "50% 15%",
     experience:
       "Played with FC Westchester at the MLS NEXT level. Currently competing in Spain with a club in Tercera RFEF in Zaragoza and will play at the NCAA Division I level at Colgate University next year. Has experience across attacking roles, including central attacking midfield, central midfield, and left wing. Also attended two U.S. Youth National Team camps at the U15 and U16 levels.",

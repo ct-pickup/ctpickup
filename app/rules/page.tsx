@@ -1,15 +1,21 @@
 import {
+  AuthenticatedProfileMenu,
   PageShell,
   Panel,
   SectionEyebrow,
   TopNav,
 } from "@/components/layout";
+import { APP_HOME_URL } from "@/lib/siteNav";
 const SIDE_VIDEO = "/rules/side.mp4";
 
 export default function RulesPage() {
   return (
     <PageShell maxWidthClass="max-w-6xl">
-      <TopNav brandHref="/after-login" backHref="/after-login" />
+      <TopNav
+        brandHref={APP_HOME_URL}
+        fallbackHref={APP_HOME_URL}
+        rightSlot={<AuthenticatedProfileMenu />}
+      />
 
       <div className="grid items-start gap-8 pb-16 pt-4 lg:grid-cols-[minmax(0,620px)_280px] lg:gap-10">
         <Panel className="p-6 md:p-8 lg:p-10">

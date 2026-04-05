@@ -29,6 +29,134 @@ body {
   font-family: var(--font-sora), ui-sans-serif, system-ui;
 }
 
+/* ===== HERO PHOTO STRIP (after-login hub — global name so Tailwind arbitrary keyframes aren’t required) ===== */
+@keyframes ct-hero-photo-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.ct-hero-photo-marquee {
+  animation: ct-hero-photo-marquee 40s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ct-hero-photo-marquee {
+    animation: none;
+  }
+}
+
+/* ===== ROUTE OVERLAY (portal — premium enter / exit, keep brand unchanged) ===== */
+/* Shell is opaque immediately so the next route does not flash through; brand motion unchanged. */
+.ct-route-overlay {
+  opacity: 1;
+}
+
+.ct-route-overlay-brand > img {
+  animation: ct-route-brand-logo 620ms cubic-bezier(0.16, 1, 0.32, 1) both;
+}
+
+.ct-route-overlay-brand > :nth-child(2) {
+  animation: ct-route-brand-title 640ms cubic-bezier(0.16, 1, 0.32, 1) both;
+  animation-delay: 75ms;
+}
+
+.ct-route-overlay-brand > p {
+  animation: ct-route-brand-tag 660ms cubic-bezier(0.16, 1, 0.32, 1) both;
+  animation-delay: 140ms;
+}
+
+.ct-route-overlay--exiting {
+  animation: ct-route-shell-out 420ms cubic-bezier(0.45, 0, 0.2, 1) forwards;
+}
+
+.ct-route-overlay--exiting .ct-route-overlay-brand {
+  animation: ct-route-brand-out 420ms cubic-bezier(0.45, 0, 0.2, 1) forwards;
+}
+
+@keyframes ct-route-shell-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes ct-route-brand-logo {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0) scale(0.986);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes ct-route-brand-title {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes ct-route-brand-tag {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes ct-route-brand-out {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0) scale(0.988);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ct-route-overlay,
+  .ct-route-overlay-brand > img,
+  .ct-route-overlay-brand > :nth-child(2),
+  .ct-route-overlay-brand > p {
+    animation: none !important;
+    animation-delay: 0ms !important;
+    transform: none;
+  }
+
+  .ct-route-overlay:not(.ct-route-overlay--exiting) {
+    opacity: 1;
+  }
+
+  .ct-route-overlay--exiting {
+    animation: none !important;
+    opacity: 0;
+    transition: opacity 220ms ease-out;
+  }
+
+  .ct-route-overlay--exiting .ct-route-overlay-brand {
+    animation: none !important;
+    opacity: 0;
+    transition: opacity 220ms ease-out;
+  }
+}
+
 /* ===== PAGE ===== */
 .ct-page {
   min-height: 100vh;

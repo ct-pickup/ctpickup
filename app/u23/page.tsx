@@ -1,14 +1,16 @@
-import Link from "next/link";
 import AutoSlider from "@/components/AutoSlider";
+import { AutoplayHighlightVideo } from "@/components/u23/AutoplayHighlightVideo";
 import {
+  AuthenticatedProfileMenu,
+  HistoryBack,
   PageShell,
   Panel,
   SectionEyebrow,
   TopNav,
 } from "@/components/layout";
+import { APP_HOME_URL } from "@/lib/siteNav";
 
 const APPLY_FORM = "https://forms.gle/4KMEreV6sjxHbTmw8";
-const AFTER_LOGIN_URL = "/after-login?new=1";
 
 export default function U23Page() {
   const images = [{ src: "/u23-team.jpg", alt: "U23 Select Team" }];
@@ -30,7 +32,11 @@ export default function U23Page() {
 
   return (
     <PageShell maxWidthClass="max-w-6xl" className="pb-16">
-      <TopNav backHref={AFTER_LOGIN_URL} backLabel="Hub" />
+      <TopNav
+        fallbackHref={APP_HOME_URL}
+        backLabel="Back"
+        rightSlot={<AuthenticatedProfileMenu />}
+      />
 
       <section className="mt-4 grid gap-5 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
         <Panel className="p-6 md:p-8 lg:p-9">
@@ -69,12 +75,10 @@ export default function U23Page() {
                 Apply Now
               </a>
 
-              <Link
-                href={AFTER_LOGIN_URL}
-                className="inline-flex items-center justify-center rounded-md border border-white/20 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-              >
-                Back
-              </Link>
+              <HistoryBack
+                fallbackHref={APP_HOME_URL}
+                className="inline-flex cursor-pointer items-center justify-center rounded-md border border-white/20 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+              />
             </div>
 
             <div className="pt-3">
@@ -91,9 +95,11 @@ export default function U23Page() {
 
         <Panel className="p-4 md:p-5">
           <div className="overflow-hidden rounded-xl border border-white/15">
-            <div className="min-h-[320px] md:min-h-[420px]">
-              <AutoSlider images={images} intervalMs={5000} />
-            </div>
+            <AutoSlider
+              images={images}
+              intervalMs={5000}
+              aspectClassName="aspect-[4/5] md:aspect-[3/4]"
+            />
           </div>
 
           <div className="space-y-1 px-1 pt-3">
@@ -152,23 +158,17 @@ export default function U23Page() {
 
           <div className="mt-8 grid gap-4">
             <div className="rounded-xl border border-white/15 bg-black/40 p-3">
-              <video
-                className="w-full rounded-lg border border-white/10 bg-black"
-                controls
-                preload="metadata"
-              >
-                <source src="/u23-clip-1.mp4" type="video/mp4" />
-              </video>
+              <AutoplayHighlightVideo
+                src="/u23-clip-1.mp4"
+                label="U23 highlight clip 1"
+              />
             </div>
 
             <div className="rounded-xl border border-white/15 bg-black/40 p-3">
-              <video
-                className="w-full rounded-lg border border-white/10 bg-black"
-                controls
-                preload="metadata"
-              >
-                <source src="/u23-clip-2.mp4" type="video/mp4" />
-              </video>
+              <AutoplayHighlightVideo
+                src="/u23-clip-2.mp4"
+                label="U23 highlight clip 2"
+              />
             </div>
           </div>
         </Panel>

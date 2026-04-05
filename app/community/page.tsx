@@ -1,17 +1,23 @@
 import {
+  AuthenticatedProfileMenu,
   PageShell,
   Panel,
   SectionEyebrow,
   TopNav,
 } from "@/components/layout";
+import { APP_HOME_URL } from "@/lib/siteNav";
 const SIDE_IMAGE = "/community/community-side.jpg";
 
 export default function CommunityPage() {
   return (
     <PageShell maxWidthClass="max-w-6xl">
-      <TopNav brandHref="/after-login" backHref="/after-login" />
+      <TopNav
+        brandHref={APP_HOME_URL}
+        fallbackHref={APP_HOME_URL}
+        rightSlot={<AuthenticatedProfileMenu />}
+      />
 
-      <div className="grid items-start gap-8 pb-16 pt-4 lg:grid-cols-[minmax(0,620px)_280px] lg:gap-10">
+      <div className="grid items-start gap-8 pb-16 pt-4 lg:grid-cols-[minmax(0,620px)_minmax(300px,1fr)] lg:gap-10">
         <Panel className="p-6 md:p-8 lg:p-10">
           <div className="max-w-[620px]">
             <SectionEyebrow>CT Pickup</SectionEyebrow>
@@ -48,13 +54,15 @@ export default function CommunityPage() {
           </div>
         </Panel>
 
-        <div className="hidden lg:block">
+        <div className="hidden min-w-0 lg:block">
           <Panel className="overflow-hidden p-0">
-            <img
-              src={SIDE_IMAGE}
-              alt="CT Pickup"
-              className="h-[520px] w-full object-cover grayscale opacity-50"
-            />
+            <div className="relative aspect-[3/2] w-full overflow-hidden">
+              <img
+                src={SIDE_IMAGE}
+                alt="CT Pickup"
+                className="absolute bottom-0 left-0 h-[136%] w-full object-cover object-bottom grayscale opacity-50"
+              />
+            </div>
           </Panel>
         </div>
       </div>

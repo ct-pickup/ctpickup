@@ -1,7 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
-import { PageShell, Panel, SectionEyebrow, TopNav } from "@/components/layout";
+import {
+  AuthenticatedProfileMenu,
+  PageShell,
+  Panel,
+  SectionEyebrow,
+  TopNav,
+} from "@/components/layout";
+import { APP_HOME_URL } from "@/lib/siteNav";
 
 type Section = {
   id: string;
@@ -56,7 +63,11 @@ export default function InfoPage() {
 
   return (
     <PageShell>
-      <TopNav brandHref="/after-login" backHref="/after-login" />
+      <TopNav
+        brandHref={APP_HOME_URL}
+        fallbackHref={APP_HOME_URL}
+        rightSlot={<AuthenticatedProfileMenu />}
+      />
 
       <div className="space-y-8 pb-16 pt-4">
         <div>

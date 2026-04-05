@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { HistoryBack } from "@/components/layout";
+import { APP_HOME_URL } from "@/lib/siteNav";
 
 type Role = "assistant" | "user";
 type Msg = { role: Role; text: string };
@@ -114,9 +116,10 @@ export default function IntakeFlow() {
       <div className="mx-auto max-w-3xl px-6 py-14 space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-semibold uppercase tracking-tight">TOURNAMENT INTAKE</h1>
-          <Link href="/tournament" className="text-sm underline text-white/80">
-            Back
-          </Link>
+          <HistoryBack
+            fallbackHref="/tournament"
+            className="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-white/80 underline underline-offset-4 transition hover:text-white"
+          />
         </div>
 
         {!agreed ? (
@@ -184,7 +187,7 @@ export default function IntakeFlow() {
       <Link href="/status/tournament" className="underline text-white/80">
         Tournament Status
       </Link>
-      <Link href="/" className="underline text-white/80">
+      <Link href={APP_HOME_URL} className="underline text-white/80">
         Home
       </Link>
     </div>
@@ -195,7 +198,7 @@ export default function IntakeFlow() {
   <div className="pt-2 text-sm text-white/70">
     If you’re in immediate danger, call 911. If you’re in the U.S., call or text 988.
     <div className="mt-3">
-      <Link href="/" className="underline text-white/80">
+      <Link href={APP_HOME_URL} className="underline text-white/80">
         Home
       </Link>
     </div>
