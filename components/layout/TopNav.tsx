@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { usePathname } from "next/navigation";
 import {
   APP_HOME_URL,
@@ -42,10 +50,23 @@ function MobileChevron({ expanded }: { expanded: boolean }) {
   return (
     <span
       aria-hidden
-      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.07] text-[15px] font-light leading-none tabular-nums text-white/50"
+      className="flex h-[44px] w-8 shrink-0 items-center justify-center text-[15px] font-light leading-none tabular-nums text-white/[0.28] antialiased"
     >
-      {expanded ? "−" : "+"}
+      {expanded ? "\u2212" : "+"}
     </span>
+  );
+}
+
+/** Smooth height expand/collapse without changing open/close logic. */
+function MobileAccordionPanel({ open, children }: { open: boolean; children: ReactNode }) {
+  return (
+    <div
+      className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${
+        open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+      }`}
+    >
+      <div className="min-h-0 overflow-hidden">{children}</div>
+    </div>
   );
 }
 
@@ -72,6 +93,35 @@ function UserIcon() {
         strokeWidth="2"
         strokeLinecap="round"
       />
+    </svg>
+  );
+}
+
+function MobileMenuIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="text-white/80"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      {open ? (
+        <path
+          d="M6 6l12 12M18 6L6 18"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+        />
+      ) : (
+        <>
+          <path d="M5 7h14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+          <path d="M5 12h14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+          <path d="M5 17h14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+        </>
+      )}
     </svg>
   );
 }
@@ -105,10 +155,19 @@ export function TopNav({
 }) {
   const pathname = usePathname() || "";
   const [openMenu, setOpenMenu] = useState<NavMenu>(null);
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [overlayTopPx, setOverlayTopPx] = useState(0);
+  const [portalReady, setPortalReady] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
+  const mobileBarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   useEffect(() => {
     setOpenMenu(null);
+    setMobileSheetOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -120,6 +179,50 @@ export function TopNav({
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [openMenu]);
+
+  const closeMobileSheet = useCallback(() => setMobileSheetOpen(false), []);
+
+  useLayoutEffect(() => {
+    if (!mobileSheetOpen) return;
+    function updateOverlayTop() {
+      const el = mobileBarRef.current;
+      if (!el) return;
+      setOverlayTopPx(el.getBoundingClientRect().bottom);
+    }
+    updateOverlayTop();
+    window.addEventListener("resize", updateOverlayTop);
+    window.addEventListener("scroll", updateOverlayTop, true);
+    return () => {
+      window.removeEventListener("resize", updateOverlayTop);
+      window.removeEventListener("scroll", updateOverlayTop, true);
+    };
+  }, [mobileSheetOpen]);
+
+  useEffect(() => {
+    if (!mobileSheetOpen) return;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileSheetOpen]);
+
+  useEffect(() => {
+    if (!mobileSheetOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") closeMobileSheet();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mobileSheetOpen, closeMobileSheet]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    function onMq() {
+      if (mq.matches) setMobileSheetOpen(false);
+    }
+    mq.addEventListener("change", onMq);
+    return () => mq.removeEventListener("change", onMq);
+  }, []);
 
   if (shouldHideTopNav(pathname)) return null;
 
@@ -155,20 +258,24 @@ export function TopNav({
 
   const showHistoryBack = topNavShowsHistoryBack(pathname);
 
+  const mobileRowBase =
+    "touch-manipulation flex min-h-[44px] w-full items-center rounded-[6px] pl-1.5 pr-1.5 text-left text-[15px] font-medium leading-none tracking-[-0.012em] transition-colors active:bg-white/[0.055]";
+
   const mobileNavItem = (active: boolean) =>
     [
-      "flex min-h-[42px] items-center px-3 py-2 text-[13px] font-medium tracking-tight transition-colors active:bg-white/[0.06]",
-      active ? "text-white" : "text-white/78 hover:text-white/95",
+      mobileRowBase,
+      active ? "text-white" : "text-white/[0.82] hover:bg-white/[0.035] hover:text-white/[0.94]",
     ].join(" ");
 
   const mobileAccordionBtn = (active: boolean) =>
     [
-      "flex min-h-[42px] w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] font-medium tracking-tight transition-colors active:bg-white/[0.06]",
-      active ? "text-white" : "text-white/78 hover:text-white/95",
+      "touch-manipulation flex min-h-[44px] w-full items-center rounded-[6px] pl-1.5 pr-0 text-left text-[15px] font-medium leading-none tracking-[-0.012em] transition-colors active:bg-white/[0.055]",
+      "justify-between gap-1",
+      active ? "text-white" : "text-white/[0.82] hover:bg-white/[0.035] hover:text-white/[0.94]",
     ].join(" ");
 
   const mobileSubLink =
-    "flex min-h-10 items-center rounded-md py-1.5 pl-3 pr-3 text-[13px] font-normal leading-snug text-white/62 transition hover:bg-white/[0.05] hover:text-white/90 active:bg-white/[0.07]";
+    "touch-manipulation relative flex min-h-[36px] w-full items-center py-[7px] pl-3.5 pr-1.5 text-[11px] font-normal leading-[1.4] tracking-[0.01em] text-white/[0.38] transition-colors before:pointer-events-none before:absolute before:left-0 before:top-[6px] before:bottom-[6px] before:w-px before:bg-white/[0.09] before:content-[''] hover:bg-white/[0.025] hover:text-white/[0.62] active:bg-white/[0.04]";
 
   const profilePill = profileSection ? (
     <div className="flex shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5">
@@ -194,11 +301,165 @@ export function TopNav({
     </div>
   );
 
+  const mobileSheetNav = showPrimaryNav ? (
+    <nav aria-label="Primary" className="flex flex-col px-3 pb-8 pt-2">
+      <Link
+        href={homeHref}
+        onClick={closeMobileSheet}
+        className={mobileNavItem(homeOn)}
+      >
+        Home
+      </Link>
+
+      <div className="flex flex-col">
+        <button
+          type="button"
+          aria-expanded={pickupOpen}
+          onClick={() => toggle("pickup")}
+          className={mobileAccordionBtn(
+            hubDropdownActive(pathname, "pickup") || pickupOpen,
+          )}
+        >
+          <span className="min-w-0 flex-1">Pickup Games</span>
+          <MobileChevron expanded={pickupOpen} />
+        </button>
+        <MobileAccordionPanel open={pickupOpen}>
+          <div className="ml-2 flex flex-col pb-0.5 pt-0.5">
+            {HUB_NAV_PICKUP.map((item) => (
+              <Link
+                key={item.href + item.label}
+                href={item.href}
+                onClick={closeMobileSheet}
+                className={mobileSubLink}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </MobileAccordionPanel>
+      </div>
+
+      <div className="flex flex-col">
+        <button
+          type="button"
+          aria-expanded={tournamentsOpen}
+          onClick={() => toggle("tournaments")}
+          className={mobileAccordionBtn(
+            hubDropdownActive(pathname, "tournament") || tournamentsOpen,
+          )}
+        >
+          <span className="min-w-0 flex-1">Tournaments</span>
+          <MobileChevron expanded={tournamentsOpen} />
+        </button>
+        <MobileAccordionPanel open={tournamentsOpen}>
+          <div className="ml-2 flex flex-col pb-0.5 pt-0.5">
+            {HUB_NAV_TOURNAMENT.map((item) => (
+              <Link
+                key={item.href + item.label}
+                href={item.href}
+                onClick={closeMobileSheet}
+                className={mobileSubLink}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </MobileAccordionPanel>
+      </div>
+
+      <Link
+        href="/training"
+        onClick={closeMobileSheet}
+        className={mobileNavItem(trainingOn)}
+      >
+        Training
+      </Link>
+
+      <Link href="/u23" onClick={closeMobileSheet} className={mobileNavItem(u23On)}>
+        U23
+      </Link>
+
+      <Link
+        href="/esports"
+        onClick={closeMobileSheet}
+        className={mobileNavItem(esportsOn)}
+      >
+        Esports
+      </Link>
+
+      <Link
+        href="/guidance"
+        onClick={closeMobileSheet}
+        className={mobileNavItem(guidanceOn)}
+      >
+        Guidance
+      </Link>
+
+      <div className="flex flex-col">
+        <button
+          type="button"
+          aria-expanded={aboutOpen}
+          onClick={() => toggle("about")}
+          className={mobileAccordionBtn(
+            hubDropdownActive(pathname, "about") || aboutOpen,
+          )}
+        >
+          <span className="min-w-0 flex-1">About</span>
+          <MobileChevron expanded={aboutOpen} />
+        </button>
+        <MobileAccordionPanel open={aboutOpen}>
+          <div className="ml-2 flex flex-col pb-0.5 pt-0.5">
+            {HUB_NAV_ABOUT.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={closeMobileSheet}
+                className={mobileSubLink}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </MobileAccordionPanel>
+      </div>
+    </nav>
+  ) : null;
+
+  const mobileNavPortal =
+    portalReady && mobileSheetOpen
+      ? createPortal(
+          <>
+            <div
+              className="fixed left-0 right-0 bottom-0 z-[305] bg-black/70 backdrop-blur-[3px] lg:hidden"
+              style={{ top: overlayTopPx }}
+              onClick={closeMobileSheet}
+              aria-hidden
+            />
+            <div
+              id="mobile-nav-sheet"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Site navigation"
+              className="fixed left-0 right-0 z-[310] overflow-y-auto overscroll-y-contain border-b border-white/[0.08] bg-[#121213] shadow-[0_28px_80px_rgba(0,0,0,0.55)] lg:hidden"
+              style={{
+                top: overlayTopPx,
+                maxHeight: `calc(100dvh - ${overlayTopPx}px)`,
+                paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))",
+              }}
+            >
+              {mobileSheetNav}
+            </div>
+          </>,
+          document.body,
+        )
+      : null;
+
   return (
-    <div className={`mb-6 sm:mb-8 lg:mb-10 ${className}`}>
+    <>
+    <div className={`mb-3 sm:mb-4 lg:mb-10 ${className}`}>
       <div
         ref={navRef}
-        className={`rounded-2xl border border-white/15 bg-white/6 px-3 py-2 backdrop-blur-none sm:px-4 sm:py-2.5 lg:rounded-full lg:px-4 lg:py-3 lg:backdrop-blur-sm xl:px-5 ${innerClassName}`}
+        className={`max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none max-lg:backdrop-blur-none rounded-2xl border border-white/15 bg-white/6 px-3 py-2 backdrop-blur-none sm:px-4 sm:py-2.5 lg:rounded-full lg:border lg:bg-white/6 lg:px-4 lg:py-3 lg:backdrop-blur-sm xl:px-5 ${innerClassName}`}
       >
         {/* Desktop — lg+ only so all links fit on one row without colliding with logo/profile */}
         <div className="hidden items-center justify-between gap-3 lg:flex xl:gap-4">
@@ -330,16 +591,19 @@ export function TopNav({
           {desktopRight}
         </div>
 
-        {/* Tablet & mobile — single surface, compact rhythm; lg+ uses desktop row */}
-        <div className="lg:hidden">
-          <div className="flex items-center justify-between gap-2 border-b border-white/[0.09] pb-2.5">
+        {/* Tablet & mobile — compact bar; full nav in portal sheet */}
+        <div
+          ref={mobileBarRef}
+          className="lg:hidden sticky top-0 z-[320] -mx-1 flex flex-col border-b border-white/[0.07] bg-[#0f0f10]/92 px-1 pb-2 pt-[max(0.5rem,env(safe-area-inset-top,0px))] backdrop-blur-md supports-[backdrop-filter]:bg-[#0f0f10]/88"
+        >
+          <div className="flex min-h-[44px] items-center justify-between gap-2">
             <Link
               href={brandHref}
-              className="min-w-0 py-0.5 text-[11px] font-semibold uppercase leading-tight tracking-[0.14em] text-white/92 sm:text-xs sm:tracking-[0.18em]"
+              className="min-w-0 -ml-0.5 py-2 pl-0.5 pr-2 text-[11px] font-semibold uppercase leading-none tracking-[0.17em] text-white/[0.88] sm:tracking-[0.18em]"
             >
               CT Pickup
             </Link>
-            <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
+            <div className="flex min-w-0 shrink-0 items-center gap-0.5 sm:gap-1">
               {showHistoryBack ? (
                 <HistoryBack
                   fallbackHref={fallbackHref}
@@ -348,138 +612,43 @@ export function TopNav({
                 />
               ) : null}
               {profileSection ? (
-                <div className="flex max-w-[min(100%,10.5rem)] items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.07] px-2 py-1 sm:max-w-[11rem] sm:px-2.5">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.04]">
-                    <UserIcon />
-                  </div>
-                  <div className="truncate text-[12px] font-medium text-white/88">
-                    {profileSection.displayName}
-                  </div>
-                </div>
+                <Link
+                  href="/profile"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/[0.055] hover:text-white/90 active:bg-white/[0.08]"
+                  aria-label={`Profile (${profileSection.displayName})`}
+                  title={profileSection.displayName}
+                >
+                  <UserIcon />
+                </Link>
               ) : rightSlot ? (
                 <div className="shrink-0">{rightSlot}</div>
               ) : null}
+              {showPrimaryNav ? (
+                <button
+                  type="button"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white/80 transition-colors hover:bg-white/[0.06] active:bg-white/[0.09]"
+                  aria-expanded={mobileSheetOpen}
+                  aria-controls="mobile-nav-sheet"
+                  aria-label={mobileSheetOpen ? "Close menu" : "Open menu"}
+                  onClick={() => {
+                    if (mobileSheetOpen) {
+                      setMobileSheetOpen(false);
+                      return;
+                    }
+                    const el = mobileBarRef.current;
+                    if (el) setOverlayTopPx(el.getBoundingClientRect().bottom);
+                    setMobileSheetOpen(true);
+                  }}
+                >
+                  <MobileMenuIcon open={mobileSheetOpen} />
+                </button>
+              ) : null}
             </div>
           </div>
-
-          {showPrimaryNav ? (
-            <nav
-              aria-label="Primary"
-              className="mt-2 overflow-hidden rounded-xl border border-white/[0.09] bg-black/25"
-            >
-              <div className="divide-y divide-white/[0.07]">
-                <Link href={homeHref} className={mobileNavItem(homeOn)}>
-                  Home
-                </Link>
-
-                <div>
-                  <button
-                    type="button"
-                    aria-expanded={pickupOpen}
-                    onClick={() => toggle("pickup")}
-                    className={mobileAccordionBtn(
-                      hubDropdownActive(pathname, "pickup") || pickupOpen,
-                    )}
-                  >
-                    <span className="min-w-0 flex-1">Pickup Games</span>
-                    <MobileChevron expanded={pickupOpen} />
-                  </button>
-                  {pickupOpen ? (
-                    <div className="border-t border-white/[0.07] bg-black/35 px-2 py-1">
-                      <div className="space-y-0.5 border-l border-white/10 pl-2">
-                        {HUB_NAV_PICKUP.map((item) => (
-                          <Link
-                            key={item.href + item.label}
-                            href={item.href}
-                            className={mobileSubLink}
-                          >
-                            {item.label}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-
-                <div>
-                  <button
-                    type="button"
-                    aria-expanded={tournamentsOpen}
-                    onClick={() => toggle("tournaments")}
-                    className={mobileAccordionBtn(
-                      hubDropdownActive(pathname, "tournament") ||
-                        tournamentsOpen,
-                    )}
-                  >
-                    <span className="min-w-0 flex-1">Tournaments</span>
-                    <MobileChevron expanded={tournamentsOpen} />
-                  </button>
-                  {tournamentsOpen ? (
-                    <div className="border-t border-white/[0.07] bg-black/35 px-2 py-1">
-                      <div className="space-y-0.5 border-l border-white/10 pl-2">
-                        {HUB_NAV_TOURNAMENT.map((item) => (
-                          <Link
-                            key={item.href + item.label}
-                            href={item.href}
-                            className={mobileSubLink}
-                          >
-                            {item.label}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-
-                <Link href="/training" className={mobileNavItem(trainingOn)}>
-                  Training
-                </Link>
-
-                <Link href="/u23" className={mobileNavItem(u23On)}>
-                  U23
-                </Link>
-
-                <Link href="/esports" className={mobileNavItem(esportsOn)}>
-                  Esports
-                </Link>
-
-                <Link href="/guidance" className={mobileNavItem(guidanceOn)}>
-                  Guidance
-                </Link>
-
-                <div>
-                  <button
-                    type="button"
-                    aria-expanded={aboutOpen}
-                    onClick={() => toggle("about")}
-                    className={mobileAccordionBtn(
-                      hubDropdownActive(pathname, "about") || aboutOpen,
-                    )}
-                  >
-                    <span className="min-w-0 flex-1">About</span>
-                    <MobileChevron expanded={aboutOpen} />
-                  </button>
-                  {aboutOpen ? (
-                    <div className="border-t border-white/[0.07] bg-black/35 px-2 py-1">
-                      <div className="space-y-0.5 border-l border-white/10 pl-2">
-                        {HUB_NAV_ABOUT.map((item) => (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            className={mobileSubLink}
-                          >
-                            {item.label}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </nav>
-          ) : null}
         </div>
       </div>
     </div>
+    {mobileNavPortal}
+    </>
   );
 }

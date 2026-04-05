@@ -101,7 +101,7 @@ export function AuthenticatedProfileMenu() {
   if (!isReady || !ready) {
     return (
       <div
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5 lg:h-9 lg:w-9"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/25 lg:h-9 lg:w-9 lg:border lg:border-white/20 lg:bg-white/5"
         aria-busy="true"
         aria-label="Loading account"
       >
@@ -114,7 +114,7 @@ export function AuthenticatedProfileMenu() {
     return (
       <Link
         href="/login"
-        className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white/90 transition hover:bg-white/[0.14] lg:h-9 lg:min-h-0 lg:px-3 lg:py-1.5"
+        className="flex min-h-[44px] shrink-0 items-center rounded-md px-2 text-sm font-semibold text-white/85 transition-colors hover:bg-white/[0.05] hover:text-white active:bg-white/[0.07] lg:h-9 lg:min-h-0 lg:rounded-full lg:border lg:border-white/20 lg:bg-white/10 lg:px-3 lg:py-1.5 lg:text-sm lg:font-medium lg:hover:bg-white/[0.14]"
       >
         Log in
       </Link>
@@ -126,7 +126,7 @@ export function AuthenticatedProfileMenu() {
   return (
     <Link
       href="/profile"
-      className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-white/10 transition hover:bg-white/[0.14] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40 lg:h-9 lg:w-9"
+      className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-white/80 transition-colors hover:bg-white/[0.06] hover:text-white active:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40 lg:h-9 lg:w-9 lg:border lg:border-white/20 lg:bg-white/10 lg:hover:bg-white/[0.14]"
       aria-label="Your profile"
     >
       {showImg ? (
