@@ -34,8 +34,9 @@ export default function TermsPage() {
       <Panel className="mt-6 p-6 md:p-8">
         <div className="space-y-4 text-sm leading-relaxed text-white/75 md:text-base">
           <p>
-            CT Pickup provides scheduling, community, and related services for basketball
-            activities, including pickup games, tournaments, training, and guidance.
+            CT Pickup provides scheduling, community, and related services for soccer and
+            association football activities, including pickup games, tournaments,
+            training, and guidance.
           </p>
           <p>
             Use of the platform and participation in any activities connected to it are
