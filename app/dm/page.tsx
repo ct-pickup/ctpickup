@@ -2,6 +2,7 @@ import { supabaseService } from "@/lib/supabase/service";
 import { HistoryBack } from "@/components/layout";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export default async function DMPage() {
   const supabase = supabaseService();
