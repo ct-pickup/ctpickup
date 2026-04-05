@@ -1,6 +1,5 @@
-import OpenAI from "openai";
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getOpenAI, getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 type Collected = {
   full_name?: string;
@@ -12,11 +11,6 @@ type Collected = {
   level?: string;
   availability?: string;
 };
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function normalizeInstagram(handle?: string): string | null {
   if (!handle) return null;
@@ -109,9 +103,6 @@ function extractAssistantText(resp: any): string | null {
 
 export async function POST(req: Request) {
   try {
-    if (!process.env.OPENAI_API_KEY) return NextResponse.json({ error: "Missing OPENAI_API_KEY" }, { status: 500 });
-    if (!supabaseUrl || !supabaseServiceKey) return NextResponse.json({ error: "Missing Supabase env vars" }, { status: 500 });
-
     const body = await req.json();
     const user_message: string = (body?.user_message || "").toString().trim();
     const last_question: string = (body?.last_question || "").toString();
@@ -154,6 +145,8 @@ export async function POST(req: Request) {
       },
       required: ["done", "next_question", "collected_fields"],
     };
+
+    const openai = getOpenAI();
 
     const developer = [
       "You are CT Pickup's Tournament Intake assistant.",
@@ -263,7 +256,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    const supabase = getSupabaseAdmin({
       auth: { persistSession: false },
     });
 

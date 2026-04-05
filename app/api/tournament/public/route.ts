@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const dynamic = "force-dynamic";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 const ACTIVE_CLAIM_STATUSES = [
   "claim_submitted",
@@ -18,7 +14,7 @@ const ACTIVE_CLAIM_STATUSES = [
   "confirmed",
 ];
 
-async function expireOverduePaymentHolds(tournamentId: string) {
+async function expireOverduePaymentHolds(supabase: SupabaseClient, tournamentId: string) {
   const now = new Date().toISOString();
   await supabase
     .from("tournament_captains")
@@ -29,6 +25,8 @@ async function expireOverduePaymentHolds(tournamentId: string) {
 }
 
 export async function GET() {
+  const supabase = getSupabaseAdmin();
+
   const { data: t, error: tErr } = await supabase
     .from("tournaments")
     .select("*")
@@ -50,7 +48,7 @@ export async function GET() {
     });
   }
 
-  await expireOverduePaymentHolds(t.id);
+  await expireOverduePaymentHolds(supabase, t.id);
 
   const { data: captains, error: cErr } = await supabase
     .from("tournament_captains")

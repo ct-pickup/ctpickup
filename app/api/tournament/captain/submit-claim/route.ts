@@ -1,13 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-const admin = createClient(supabaseUrl, serviceKey);
-const anon = createClient(supabaseUrl, anonKey);
+import { getSupabaseAdmin, getSupabaseAnon } from "@/lib/server/runtimeClients";
 
 const ACTIVE_CLAIM_STATUSES = [
   "claim_submitted",
@@ -24,6 +17,9 @@ function normIg(s: string) {
 }
 
 export async function POST(req: Request) {
+  const admin = getSupabaseAdmin();
+  const anon = getSupabaseAnon();
+
   const token = req.headers.get("authorization")?.replace("Bearer ", "") || "";
   if (!token) return NextResponse.json({ error: "missing_auth" }, { status: 401 });
 

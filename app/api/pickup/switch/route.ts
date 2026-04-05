@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { MIN_LEAD_BEFORE_LAUNCH_MS } from "@/lib/pickup/autoRunConfig";
 import {
@@ -8,18 +7,16 @@ import {
 } from "@/lib/pickup/autoRunCheckpoints";
 import { insertInvitesForTierRanks, sendPickupInviteSms } from "@/lib/pickup/pickupInvites";
 import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
+import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
-
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 // GET: returns runs list + optional detail (?run_id=...)
 export async function GET(req: Request) {
   const guard = await requireAdminBearer(req);
   if (!guard.ok) return guard.response;
+
+  const admin = getSupabaseAdmin();
 
   const url = new URL(req.url);
   const run_id = url.searchParams.get("run_id");
@@ -124,6 +121,8 @@ type Action =
 export async function POST(req: Request) {
   const guard = await requireAdminBearer(req);
   if (!guard.ok) return guard.response;
+
+  const admin = getSupabaseAdmin();
 
   const body = await req.json().catch(() => ({}));
   const action = String(body.action || "") as Action;

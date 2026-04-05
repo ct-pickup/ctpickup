@@ -1,17 +1,12 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import {
   publicUpcomingRunsQuery,
   type PublicPickupRunListRow,
 } from "@/lib/pickup/publicUpcomingRuns";
+import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 function levelLabel(runType: string | null | undefined) {
   if (runType === "public") return "Open signup";
@@ -21,6 +16,7 @@ function levelLabel(runType: string | null | undefined) {
 
 /** GET — upcoming public pickup runs only (invite/select runs are not listed anonymously). No auth. */
 export async function GET() {
+  const admin = getSupabaseAdmin();
   const cols = "id,title,status,start_at,capacity,run_type";
 
   const runRes = await publicUpcomingRunsQuery(admin, cols);

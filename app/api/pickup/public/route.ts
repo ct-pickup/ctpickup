@@ -1,18 +1,13 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import type { PublicPickupRunRow } from "@/lib/pickup/publicUpcomingRuns";
 import {
   fetchFirstPublicUpcomingPickupRun,
   fetchPickupRunCandidate,
   userCanViewPickupRun,
 } from "@/lib/pickup/featuredPickupRun";
+import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
-
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 function bearer(req: Request) {
   const auth = req.headers.get("authorization") || "";
@@ -26,6 +21,7 @@ function isTier1(rank: number | null | undefined) {
 }
 
 export async function GET(req: Request) {
+  const admin = getSupabaseAdmin();
   const token = bearer(req);
 
   let userId: string | null = null;

@@ -1,19 +1,9 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import Stripe from "stripe";
 import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
+import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
-
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2026-02-25.clover",
-});
 
 function bearer(req: Request) {
   const auth = req.headers.get("authorization") || "";
@@ -21,6 +11,8 @@ function bearer(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const admin = getSupabaseAdmin();
+
   const token = bearer(req);
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -55,7 +47,10 @@ export async function POST(req: Request) {
   const feeCents = Number(run.fee_cents || 0);
   if (feeCents <= 0) return NextResponse.json({ error: "This run is free." }, { status: 409 });
 
-  if (!process.env.STRIPE_SECRET_KEY) {
+  let stripe;
+  try {
+    stripe = getStripePickup();
+  } catch {
     return NextResponse.json(
       { error: "Stripe is not configured (missing STRIPE_SECRET_KEY)." },
       { status: 500 }

@@ -1,28 +1,37 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { createClient } from "@supabase/supabase-js";
+import {
+  getStripeTournament,
+  getStripeWebhookSecret,
+  getSupabaseAdmin,
+} from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: (process.env.STRIPE_API_VERSION as any) || "2026-02-25",
-});
-
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export async function POST(req: Request) {
+  const stripe = getStripeTournament();
+  const admin = getSupabaseAdmin();
+
   const sig = req.headers.get("stripe-signature");
   if (!sig) return NextResponse.json({ error: "missing_signature" }, { status: 400 });
 
   // IMPORTANT: use raw bytes, not req.text()
   const raw = Buffer.from(await req.arrayBuffer());
 
+  let webhookSecret: string;
+  try {
+    webhookSecret = getStripeWebhookSecret();
+  } catch (err: any) {
+    console.error("stripe_webhook_config:", err?.message || err);
+    return NextResponse.json(
+      { error: "server_misconfigured", details: String(err?.message || err) },
+      { status: 500 }
+    );
+  }
+
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(raw, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+    event = stripe.webhooks.constructEvent(raw, sig, webhookSecret);
   } catch (err: any) {
     console.error("stripe_webhook_signature_failed:", err?.message || err);
     return NextResponse.json(

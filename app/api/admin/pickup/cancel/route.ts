@@ -1,28 +1,9 @@
 import { NextResponse } from "next/server";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import Stripe from "stripe";
-
-function getSupabaseAdmin(): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url?.trim()) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL");
-  }
-  if (!key?.trim()) {
-    throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
-  }
-  return createClient(url, key);
-}
-
-function getStripe(): Stripe {
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret?.trim()) {
-    throw new Error("Missing STRIPE_SECRET_KEY");
-  }
-  return new Stripe(secret, {
-    apiVersion: "2026-02-25.clover",
-  });
-}
+import type Stripe from "stripe";
+import {
+  getStripePickup,
+  getSupabaseAdmin,
+} from "@/lib/server/runtimeClients";
 
 export async function POST(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
@@ -65,7 +46,7 @@ export async function POST(req: Request) {
   for (const r of rsvps) {
     try {
       if (r.paid_at && r.payment_intent_id && !r.refund_id) {
-        if (!stripe) stripe = getStripe();
+        if (!stripe) stripe = getStripePickup();
         const refund = await stripe.refunds.create({
           payment_intent: String(r.payment_intent_id),
         });

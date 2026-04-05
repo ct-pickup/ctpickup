@@ -1,23 +1,16 @@
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
-import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
+import {
+  getStripeTournament,
+  getSupabaseAdmin,
+  getSupabaseAnon,
+} from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: (process.env.STRIPE_API_VERSION as any) || "2026-02-25",
-});
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-const admin = createClient(supabaseUrl, serviceKey);
-const anon = createClient(supabaseUrl, anonKey);
-
-async function expireIfOverdue(captain: any) {
+async function expireIfOverdue(captain: any, admin: SupabaseClient) {
   if (captain.status !== "payment_pending") return captain;
   if (!captain.payment_due_at) return captain;
   if (new Date(captain.payment_due_at).getTime() > Date.now()) return captain;
@@ -32,6 +25,10 @@ async function expireIfOverdue(captain: any) {
 
 export async function POST(req: Request) {
   try {
+    const stripe = getStripeTournament();
+    const admin = getSupabaseAdmin();
+    const anon = getSupabaseAnon();
+
     const token = req.headers.get("authorization")?.replace("Bearer ", "") || "";
     if (!token) return NextResponse.json({ error: "missing_auth" }, { status: 401 });
 
@@ -61,7 +58,7 @@ export async function POST(req: Request) {
 
     if (!captain) return NextResponse.json({ error: "no_captain_claim" }, { status: 409 });
 
-    const cap = await expireIfOverdue(captain);
+    const cap = await expireIfOverdue(captain, admin);
     if (cap.status === "released_expired") {
       return NextResponse.json({ error: "claim_expired_reclaim" }, { status: 409 });
     }
