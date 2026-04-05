@@ -70,6 +70,64 @@ function MobileAccordionPanel({ open, children }: { open: boolean; children: Rea
   );
 }
 
+/**
+ * Mobile menu: portal only mounts when `open` is true (nothing in document.body when closed).
+ * Root uses pointer-events-none so only backdrop + sheet capture input; no full-screen invisible blocker.
+ */
+function MobileNavSheetPortal({
+  open,
+  overlayTopPx,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  overlayTopPx: number;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !open) {
+    return null;
+  }
+
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const topPx = Math.max(48, Math.round(Number.isFinite(overlayTopPx) ? overlayTopPx : 48));
+
+  return createPortal(
+    <div className="pointer-events-none fixed inset-0 z-[305] lg:hidden">
+      <div
+        role="presentation"
+        className="pointer-events-auto absolute left-0 right-0 bottom-0 z-0 bg-black/70 backdrop-blur-[3px]"
+        style={{ top: topPx }}
+        onClick={onClose}
+      />
+      <div
+        id="mobile-nav-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Site navigation"
+        className="pointer-events-auto absolute left-0 right-0 z-10 overflow-y-auto overscroll-y-contain border-b border-white/[0.08] bg-[#121213] shadow-[0_28px_80px_rgba(0,0,0,0.55)]"
+        style={{
+          top: topPx,
+          maxHeight: `calc(100dvh - ${topPx}px)`,
+          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))",
+        }}
+      >
+        {children}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function UserIcon() {
   return (
     <svg
@@ -157,18 +215,19 @@ export function TopNav({
   const [openMenu, setOpenMenu] = useState<NavMenu>(null);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [overlayTopPx, setOverlayTopPx] = useState(0);
-  const [portalReady, setPortalReady] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
   const mobileBarRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setPortalReady(true);
-  }, []);
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     setOpenMenu(null);
     setMobileSheetOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
 
   useEffect(() => {
     function onPointerDown(e: PointerEvent) {
@@ -183,11 +242,11 @@ export function TopNav({
   const closeMobileSheet = useCallback(() => setMobileSheetOpen(false), []);
 
   useLayoutEffect(() => {
-    if (!mobileSheetOpen) return;
+    if (!mobileSheetOpen || !showPrimaryNav) return;
     function updateOverlayTop() {
       const el = mobileBarRef.current;
       if (!el) return;
-      setOverlayTopPx(el.getBoundingClientRect().bottom);
+      setOverlayTopPx(Math.max(48, el.getBoundingClientRect().bottom));
     }
     updateOverlayTop();
     window.addEventListener("resize", updateOverlayTop);
@@ -196,24 +255,28 @@ export function TopNav({
       window.removeEventListener("resize", updateOverlayTop);
       window.removeEventListener("scroll", updateOverlayTop, true);
     };
-  }, [mobileSheetOpen]);
+  }, [mobileSheetOpen, showPrimaryNav]);
 
   useEffect(() => {
-    if (!mobileSheetOpen) return;
+    if (!mobileSheetOpen || !showPrimaryNav) return;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [mobileSheetOpen]);
+  }, [mobileSheetOpen, showPrimaryNav]);
 
   useEffect(() => {
-    if (!mobileSheetOpen) return;
+    if (!showPrimaryNav) setMobileSheetOpen(false);
+  }, [showPrimaryNav]);
+
+  useEffect(() => {
+    if (!mobileSheetOpen || !showPrimaryNav) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") closeMobileSheet();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [mobileSheetOpen, closeMobileSheet]);
+  }, [mobileSheetOpen, showPrimaryNav, closeMobileSheet]);
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 1024px)");
@@ -425,35 +488,6 @@ export function TopNav({
     </nav>
   ) : null;
 
-  const mobileNavPortal =
-    portalReady && mobileSheetOpen
-      ? createPortal(
-          <>
-            <div
-              className="fixed left-0 right-0 bottom-0 z-[305] bg-black/70 backdrop-blur-[3px] lg:hidden"
-              style={{ top: overlayTopPx }}
-              onClick={closeMobileSheet}
-              aria-hidden
-            />
-            <div
-              id="mobile-nav-sheet"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Site navigation"
-              className="fixed left-0 right-0 z-[310] overflow-y-auto overscroll-y-contain border-b border-white/[0.08] bg-[#121213] shadow-[0_28px_80px_rgba(0,0,0,0.55)] lg:hidden"
-              style={{
-                top: overlayTopPx,
-                maxHeight: `calc(100dvh - ${overlayTopPx}px)`,
-                paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))",
-              }}
-            >
-              {mobileSheetNav}
-            </div>
-          </>,
-          document.body,
-        )
-      : null;
-
   return (
     <>
     <div className={`mb-3 sm:mb-4 lg:mb-10 ${className}`}>
@@ -636,7 +670,10 @@ export function TopNav({
                       return;
                     }
                     const el = mobileBarRef.current;
-                    if (el) setOverlayTopPx(el.getBoundingClientRect().bottom);
+                    if (el) {
+                      const b = el.getBoundingClientRect().bottom;
+                      setOverlayTopPx(Math.max(48, b));
+                    }
                     setMobileSheetOpen(true);
                   }}
                 >
@@ -648,7 +685,13 @@ export function TopNav({
         </div>
       </div>
     </div>
-    {mobileNavPortal}
+    <MobileNavSheetPortal
+      open={mobileSheetOpen && showPrimaryNav}
+      overlayTopPx={overlayTopPx}
+      onClose={closeMobileSheet}
+    >
+      {mobileSheetNav}
+    </MobileNavSheetPortal>
     </>
   );
 }
