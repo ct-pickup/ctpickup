@@ -2,7 +2,6 @@ import AutoSlider from "@/components/AutoSlider";
 import { AutoplayHighlightVideo } from "@/components/u23/AutoplayHighlightVideo";
 import {
   AuthenticatedProfileMenu,
-  HistoryBack,
   PageShell,
   Panel,
   SectionEyebrow,
@@ -10,7 +9,8 @@ import {
 } from "@/components/layout";
 import { APP_HOME_URL } from "@/lib/siteNav";
 
-const APPLY_FORM = "https://forms.gle/4KMEreV6sjxHbTmw8";
+const APPLY_FORM =
+  "https://docs.google.com/forms/d/e/1FAIpQLSc6GTxVGfHtgJpiP_Vp_w2OPgMJteRd8AH9TK0Jeri_t9E4sw/viewform?usp=publish-editor";
 
 export default function U23Page() {
   const images = [{ src: "/u23-team.jpg", alt: "U23 Select Team" }];
@@ -69,16 +69,11 @@ export default function U23Page() {
               <a
                 href={APPLY_FORM}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="inline-flex items-center justify-center rounded-md bg-white px-5 py-3 text-sm font-semibold text-black transition hover:opacity-90"
               >
                 Apply Now
               </a>
-
-              <HistoryBack
-                fallbackHref={APP_HOME_URL}
-                className="inline-flex cursor-pointer items-center justify-center rounded-md border border-white/20 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-              />
             </div>
 
             <div className="pt-3">
