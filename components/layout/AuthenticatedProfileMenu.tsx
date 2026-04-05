@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { PROFILE_SELECT, type ProfileRow } from "@/lib/profileFields";
@@ -38,51 +38,55 @@ function UserGlyph({ className }: { className?: string }) {
  * Uses `getUser()` (validated JWT) instead of `getSession()` so cookie-based SSR clients don’t look logged out.
  */
 export function AuthenticatedProfileMenu() {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const loadRef = useRef<() => Promise<void>>(() => Promise.resolve());
   const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarBroken, setAvatarBroken] = useState(false);
 
-  const load = useCallback(async () => {
-    const { data, error } = await supabase.auth.getUser();
-    const user = data.user;
-    if (error || !user) {
-      setUserId(null);
-      setAvatarUrl(null);
-      setReady(true);
-      return;
-    }
-
-    setUserId(user.id);
-
-    const { data: row } = await supabase
-      .from("profiles")
-      .select(PROFILE_SELECT)
-      .eq("id", user.id)
-      .maybeSingle();
-
-    const p = row as ProfileRow | null;
-    setAvatarUrl(p?.avatar_url?.trim() || null);
-    setAvatarBroken(false);
-    setReady(true);
-  }, [supabase]);
-
   useEffect(() => {
+    const supabase = supabaseBrowser();
+
+    const load = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      const user = data.user;
+      if (error || !user) {
+        setUserId(null);
+        setAvatarUrl(null);
+        setReady(true);
+        return;
+      }
+
+      setUserId(user.id);
+
+      const { data: row } = await supabase
+        .from("profiles")
+        .select(PROFILE_SELECT)
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const p = row as ProfileRow | null;
+      setAvatarUrl(p?.avatar_url?.trim() || null);
+      setAvatarBroken(false);
+      setReady(true);
+    };
+
+    loadRef.current = load;
+
     void load();
     const { data: sub } = supabase.auth.onAuthStateChange(() => {
       void load();
     });
     return () => sub.subscription.unsubscribe();
-  }, [load, supabase]);
+  }, []);
 
   useEffect(() => {
     const onUpdated = () => {
-      void load();
+      void loadRef.current();
     };
     window.addEventListener(PROFILE_UPDATED_EVENT, onUpdated);
     return () => window.removeEventListener(PROFILE_UPDATED_EVENT, onUpdated);
-  }, [load]);
+  }, []);
 
   if (!ready) {
     return (
