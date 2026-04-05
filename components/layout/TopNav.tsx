@@ -38,6 +38,17 @@ function shouldHideTopNav(pathname: string) {
   );
 }
 
+function MobileChevron({ expanded }: { expanded: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.07] text-[15px] font-light leading-none tabular-nums text-white/50"
+    >
+      {expanded ? "−" : "+"}
+    </span>
+  );
+}
+
 function UserIcon() {
   return (
     <svg
@@ -138,7 +149,26 @@ export function TopNav({
   const backClass =
     "shrink-0 text-sm text-white/75 transition hover:text-white inline-flex items-center justify-center min-h-[44px] rounded-lg px-2 -mx-0.5 active:bg-white/5 lg:min-h-0 lg:rounded-none lg:px-0 lg:mx-0 lg:active:bg-transparent";
 
+  /** Compact back control for the mobile header row only */
+  const mobileHeaderBackClass =
+    "shrink-0 text-[13px] font-medium text-white/65 transition hover:text-white inline-flex items-center justify-center min-h-10 rounded-lg px-2.5 active:bg-white/[0.07]";
+
   const showHistoryBack = topNavShowsHistoryBack(pathname);
+
+  const mobileNavItem = (active: boolean) =>
+    [
+      "flex min-h-[42px] items-center px-3 py-2 text-[13px] font-medium tracking-tight transition-colors active:bg-white/[0.06]",
+      active ? "text-white" : "text-white/78 hover:text-white/95",
+    ].join(" ");
+
+  const mobileAccordionBtn = (active: boolean) =>
+    [
+      "flex min-h-[42px] w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] font-medium tracking-tight transition-colors active:bg-white/[0.06]",
+      active ? "text-white" : "text-white/78 hover:text-white/95",
+    ].join(" ");
+
+  const mobileSubLink =
+    "flex min-h-10 items-center rounded-md py-1.5 pl-3 pr-3 text-[13px] font-normal leading-snug text-white/62 transition hover:bg-white/[0.05] hover:text-white/90 active:bg-white/[0.07]";
 
   const profilePill = profileSection ? (
     <div className="flex shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5">
@@ -300,12 +330,12 @@ export function TopNav({
           {desktopRight}
         </div>
 
-        {/* Tablet & mobile — same breakpoint as desktop row */}
-        <div className="space-y-2 sm:space-y-2.5 lg:hidden">
-          <div className="flex items-center justify-between gap-2 sm:gap-3">
+        {/* Tablet & mobile — single surface, compact rhythm; lg+ uses desktop row */}
+        <div className="lg:hidden">
+          <div className="flex items-center justify-between gap-2 border-b border-white/[0.09] pb-2.5">
             <Link
               href={brandHref}
-              className="py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/90 sm:text-sm sm:tracking-[0.22em]"
+              className="min-w-0 py-0.5 text-[11px] font-semibold uppercase leading-tight tracking-[0.14em] text-white/92 sm:text-xs sm:tracking-[0.18em]"
             >
               CT Pickup
             </Link>
@@ -314,15 +344,15 @@ export function TopNav({
                 <HistoryBack
                   fallbackHref={fallbackHref}
                   label={backLabel}
-                  className={backClass}
+                  className={mobileHeaderBackClass}
                 />
               ) : null}
               {profileSection ? (
-                <div className="flex max-w-[min(100%,11rem)] items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2 py-1.5 sm:px-2.5">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 sm:h-8 sm:w-8">
+                <div className="flex max-w-[min(100%,10.5rem)] items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.07] px-2 py-1 sm:max-w-[11rem] sm:px-2.5">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.04]">
                     <UserIcon />
                   </div>
-                  <div className="truncate text-xs font-medium text-white/90">
+                  <div className="truncate text-[12px] font-medium text-white/88">
                     {profileSection.displayName}
                   </div>
                 </div>
@@ -333,116 +363,120 @@ export function TopNav({
           </div>
 
           {showPrimaryNav ? (
-            <div className="flex flex-col gap-1.5 sm:gap-2">
-              <Link
-                href={homeHref}
-                className="flex min-h-[44px] items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/90 sm:py-3"
-              >
-                Home
-              </Link>
+            <nav
+              aria-label="Primary"
+              className="mt-2 overflow-hidden rounded-xl border border-white/[0.09] bg-black/25"
+            >
+              <div className="divide-y divide-white/[0.07]">
+                <Link href={homeHref} className={mobileNavItem(homeOn)}>
+                  Home
+                </Link>
 
-              <div className="overflow-hidden rounded-xl border border-white/15">
-                <button
-                  type="button"
-                  onClick={() => toggle("pickup")}
-                  className="flex min-h-[44px] w-full items-center justify-between px-4 py-2.5 text-left text-sm font-medium text-white/90 sm:py-3"
-                >
-                  <span>Pickup Games</span>
-                  <span className="text-white/50">{pickupOpen ? "−" : "+"}</span>
-                </button>
-                {pickupOpen ? (
-                  <div className="border-t border-white/10 px-1.5 py-1.5 sm:px-2 sm:py-2">
-                    {HUB_NAV_PICKUP.map((item) => (
-                      <Link
-                        key={item.href + item.label}
-                        href={item.href}
-                        className="flex min-h-[44px] items-center rounded-lg px-3 py-2.5 text-sm text-white/80 hover:bg-white/10"
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
-                  </div>
-                ) : null}
+                <div>
+                  <button
+                    type="button"
+                    aria-expanded={pickupOpen}
+                    onClick={() => toggle("pickup")}
+                    className={mobileAccordionBtn(
+                      hubDropdownActive(pathname, "pickup") || pickupOpen,
+                    )}
+                  >
+                    <span className="min-w-0 flex-1">Pickup Games</span>
+                    <MobileChevron expanded={pickupOpen} />
+                  </button>
+                  {pickupOpen ? (
+                    <div className="border-t border-white/[0.07] bg-black/35 px-2 py-1">
+                      <div className="space-y-0.5 border-l border-white/10 pl-2">
+                        {HUB_NAV_PICKUP.map((item) => (
+                          <Link
+                            key={item.href + item.label}
+                            href={item.href}
+                            className={mobileSubLink}
+                          >
+                            {item.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div>
+                  <button
+                    type="button"
+                    aria-expanded={tournamentsOpen}
+                    onClick={() => toggle("tournaments")}
+                    className={mobileAccordionBtn(
+                      hubDropdownActive(pathname, "tournament") ||
+                        tournamentsOpen,
+                    )}
+                  >
+                    <span className="min-w-0 flex-1">Tournaments</span>
+                    <MobileChevron expanded={tournamentsOpen} />
+                  </button>
+                  {tournamentsOpen ? (
+                    <div className="border-t border-white/[0.07] bg-black/35 px-2 py-1">
+                      <div className="space-y-0.5 border-l border-white/10 pl-2">
+                        {HUB_NAV_TOURNAMENT.map((item) => (
+                          <Link
+                            key={item.href + item.label}
+                            href={item.href}
+                            className={mobileSubLink}
+                          >
+                            {item.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <Link href="/training" className={mobileNavItem(trainingOn)}>
+                  Training
+                </Link>
+
+                <Link href="/u23" className={mobileNavItem(u23On)}>
+                  U23
+                </Link>
+
+                <Link href="/esports" className={mobileNavItem(esportsOn)}>
+                  Esports
+                </Link>
+
+                <Link href="/guidance" className={mobileNavItem(guidanceOn)}>
+                  Guidance
+                </Link>
+
+                <div>
+                  <button
+                    type="button"
+                    aria-expanded={aboutOpen}
+                    onClick={() => toggle("about")}
+                    className={mobileAccordionBtn(
+                      hubDropdownActive(pathname, "about") || aboutOpen,
+                    )}
+                  >
+                    <span className="min-w-0 flex-1">About</span>
+                    <MobileChevron expanded={aboutOpen} />
+                  </button>
+                  {aboutOpen ? (
+                    <div className="border-t border-white/[0.07] bg-black/35 px-2 py-1">
+                      <div className="space-y-0.5 border-l border-white/10 pl-2">
+                        {HUB_NAV_ABOUT.map((item) => (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className={mobileSubLink}
+                          >
+                            {item.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </div>
-
-              <div className="overflow-hidden rounded-xl border border-white/15">
-                <button
-                  type="button"
-                  onClick={() => toggle("tournaments")}
-                  className="flex min-h-[44px] w-full items-center justify-between px-4 py-2.5 text-left text-sm font-medium text-white/90 sm:py-3"
-                >
-                  <span>Tournaments</span>
-                  <span className="text-white/50">
-                    {tournamentsOpen ? "−" : "+"}
-                  </span>
-                </button>
-                {tournamentsOpen ? (
-                  <div className="border-t border-white/10 px-1.5 py-1.5 sm:px-2 sm:py-2">
-                    {HUB_NAV_TOURNAMENT.map((item) => (
-                      <Link
-                        key={item.href + item.label}
-                        href={item.href}
-                        className="flex min-h-[44px] items-center rounded-lg px-3 py-2.5 text-sm text-white/80 hover:bg-white/10"
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-
-              <Link
-                href="/training"
-                className="flex min-h-[44px] items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/90 sm:py-3"
-              >
-                Training
-              </Link>
-
-              <Link
-                href="/u23"
-                className="flex min-h-[44px] items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/90 sm:py-3"
-              >
-                U23
-              </Link>
-
-              <Link
-                href="/esports"
-                className="flex min-h-[44px] items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/90 sm:py-3"
-              >
-                Esports
-              </Link>
-
-              <Link
-                href="/guidance"
-                className="flex min-h-[44px] items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/90 sm:py-3"
-              >
-                Guidance
-              </Link>
-
-              <div className="overflow-hidden rounded-xl border border-white/15">
-                <button
-                  type="button"
-                  onClick={() => toggle("about")}
-                  className="flex min-h-[44px] w-full items-center justify-between px-4 py-2.5 text-left text-sm font-medium text-white/90 sm:py-3"
-                >
-                  <span>About</span>
-                  <span className="text-white/50">{aboutOpen ? "−" : "+"}</span>
-                </button>
-                {aboutOpen ? (
-                  <div className="border-t border-white/10 px-1.5 py-1.5 sm:px-2 sm:py-2">
-                    {HUB_NAV_ABOUT.map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className="flex min-h-[44px] items-center rounded-lg px-3 py-2.5 text-sm text-white/80 hover:bg-white/10"
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </div>
+            </nav>
           ) : null}
         </div>
       </div>
