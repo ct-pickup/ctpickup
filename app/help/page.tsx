@@ -68,6 +68,8 @@ export default function HelpPage() {
   const [currentExample, setCurrentExample] = useState(EXAMPLE_QUESTIONS[0]);
   const [firstName, setFirstName] = useState("there");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const fullIntro = `Hi, ${firstName}, what can I assist you with?`;
@@ -75,13 +77,28 @@ export default function HelpPage() {
   const wordsRemaining = Math.max(0, WORD_LIMIT - wordsUsed);
 
   useEffect(() => {
-    if (!isReady || !supabase) return;
-    (async () => {
-      const { data: sessionRes } = await supabase.auth.getSession();
-      const user = sessionRes.session?.user;
-      if (!user) return;
+    if (!isReady) return;
+    if (!supabase) {
+      setAuthResolved(true);
+      setIsLoggedIn(false);
+      return;
+    }
 
-      const { data: profile } = await supabase
+    const client = supabase;
+
+    async function syncUser() {
+      const { data: userRes, error: userErr } = await client.auth.getUser();
+      const user = userErr ? null : userRes.user;
+      setIsLoggedIn(!!user);
+      setAuthResolved(true);
+
+      if (!user) {
+        setFirstName("there");
+        setIsAdmin(false);
+        return;
+      }
+
+      const { data: profile } = await client
         .from("profiles")
         .select("first_name, is_admin")
         .eq("id", user.id)
@@ -90,7 +107,13 @@ export default function HelpPage() {
       const name = String(profile?.first_name || "").trim();
       if (name) setFirstName(name);
       setIsAdmin(!!profile?.is_admin);
-    })();
+    }
+
+    void syncUser();
+    const { data: sub } = client.auth.onAuthStateChange(() => {
+      void syncUser();
+    });
+    return () => sub.subscription.unsubscribe();
   }, [supabase, isReady]);
 
   useEffect(() => {
@@ -184,6 +207,7 @@ export default function HelpPage() {
         brandHref={APP_HOME_URL}
         fallbackHref={APP_HOME_URL}
         rightSlot={<AuthenticatedProfileMenu />}
+        showPrimaryNav={authResolved && isLoggedIn}
       />
 
       <div className="mx-auto max-w-4xl space-y-8 pb-16 pt-4">
