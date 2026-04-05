@@ -14,6 +14,10 @@ type Stage = "email" | "code" | "profile";
 const LEFT_IMAGE = "/signup/left.jpg";
 const RIGHT_IMAGE = "/signup/right.jpg";
 
+function cleanInstagramHandle(s: string) {
+  return s.trim().replace(/^@/, "").replace(/\s+/g, "");
+}
+
 function SidePhoto({ src, alt }: { src: string; alt: string }) {
   return (
     <div className="hidden xl:block w-[280px]">
@@ -232,18 +236,26 @@ export default function SignupPage() {
         return;
       }
 
+      const ig = cleanInstagramHandle(instagram);
+      const profileEmail =
+        (user.email ?? emailClean).trim().toLowerCase() || null;
+      const nowIso = new Date().toISOString();
+
       const { error } = await supabase.from("profiles").upsert(
         {
           id: user.id,
+          email: profileEmail,
           first_name: firstName.trim(),
           last_name: lastName.trim(),
           phone: phone.trim(),
-          instagram: instagram.trim(),
+          instagram: ig,
+          updated_at: nowIso,
         },
         { onConflict: "id" }
       );
 
       if (error) {
+        console.error("[signup] profiles upsert failed:", error.message, error);
         setBusy(false);
         setMsg(error.message);
         return;

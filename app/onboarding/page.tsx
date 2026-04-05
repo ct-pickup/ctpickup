@@ -60,15 +60,24 @@ export default function OnboardingPage() {
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) return (window.location.href = "/login");
 
-    const { error } = await supabase.from("profiles").insert({
-      id: auth.user.id,
-      first_name: firstName.trim(),
-      last_name: lastName.trim(),
-      instagram: ig,
-      phone: phone.trim(),
-    });
+    const profileEmail = auth.user.email?.trim().toLowerCase() ?? null;
+    const { error } = await supabase.from("profiles").upsert(
+      {
+        id: auth.user.id,
+        email: profileEmail,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        instagram: ig,
+        phone: phone.trim(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" }
+    );
 
-    if (error) return setMsg(error.message);
+    if (error) {
+      console.error("[onboarding] profiles upsert failed:", error.message, error);
+      return setMsg(error.message);
+    }
 
     const { data: sessionData } = await supabase.auth.getSession();
     const accessToken = sessionData.session?.access_token;
