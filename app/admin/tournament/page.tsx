@@ -1,7 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
 import PageTop from "@/components/PageTop";
 import { AdminHubNav } from "@/components/admin/AdminHubNav";
 import { APP_HOME_URL } from "@/lib/siteNav";
+import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import {
   clearActiveTournament,
   createTournament,
@@ -10,9 +10,6 @@ import {
 } from "./actions";
 
 export const dynamic = "force-dynamic";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 function fmtDate(iso?: string) {
   if (!iso) return "";
@@ -28,7 +25,10 @@ export default async function AdminTournamentPage({
   const sp = await searchParams;
   const filterDecision = sp.decision;
 
-  if (!supabaseUrl || !supabaseServiceKey) {
+  let supabase;
+  try {
+    supabase = getSupabaseAdmin({ auth: { persistSession: false } });
+  } catch {
     return (
       <main className="min-h-screen bg-black text-white">
         <div className="mx-auto max-w-6xl px-6 pt-10 pb-10">
@@ -38,10 +38,6 @@ export default async function AdminTournamentPage({
       </main>
     );
   }
-
-  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: { persistSession: false },
-  });
 
   const [{ data: tournaments, error: tListErr }, { data: activeT, error: activeErr }] = await Promise.all([
     supabase.from("tournaments").select("*").order("created_at", { ascending: false }),

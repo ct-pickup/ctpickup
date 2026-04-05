@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import PageTop from "@/components/PageTop";
 import { AdminHubNav } from "@/components/admin/AdminHubNav";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -16,11 +17,13 @@ type StatusRow = {
 };
 
 export default function AdminStatusPage() {
-  const supabase = supabaseBrowser();
+  const supabaseRef = useRef<SupabaseClient | null>(null);
   const [row, setRow] = useState<StatusRow | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    const supabase = supabaseBrowser();
+    supabaseRef.current = supabase;
     (async () => {
       const { data, error } = await supabase
         .from("status_updates")
@@ -31,11 +34,12 @@ export default function AdminStatusPage() {
       if (error) setMsg(error.message);
       else setRow(data as StatusRow);
     })();
-  }, [supabase]);
+  }, []);
 
   async function save() {
+    const supabase = supabaseRef.current;
     setMsg(null);
-    if (!row) return;
+    if (!supabase || !row) return;
 
     const { error } = await supabase
       .from("status_updates")

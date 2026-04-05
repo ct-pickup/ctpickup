@@ -3,6 +3,7 @@ import { supabaseService } from "@/lib/supabase/service";
 import { HistoryBack } from "@/components/layout";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type Choice = "A" | "B";
 type Counts = {
