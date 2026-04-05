@@ -1,35 +1,29 @@
-import { NextResponse } from "next/server";
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const TWIML = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Message>Got your message — CT Pickup will respond soon.</Message>
+</Response>`;
+
 /**
- * Twilio inbound SMS (starter).
- * Twilio POSTs `application/x-www-form-urlencoded` with at least `Body` and `From`.
+ * Twilio inbound SMS. POST body is application/x-www-form-urlencoded.
  * For production, add signature verification (see `lib/twilio/verifySignature.ts`).
  */
 export async function POST(req: Request) {
   const raw = await req.text();
   const params = new URLSearchParams(raw);
-  const from = params.get("From") ?? "";
-  const body = params.get("Body") ?? "";
+  console.info("[ctpickup twilio inbound]", Object.fromEntries(params));
 
-  console.info("[ctpickup twilio inbound]", { From: from, Body: body });
-
-  const twiml =
-    '<?xml version="1.0" encoding="UTF-8"?>' +
-    "<Response>" +
-    "<Message>Got your message — CT Pickup will respond soon.</Message>" +
-    "</Response>";
-
-  return new NextResponse(twiml, {
+  return new Response(TWIML, {
     status: 200,
-    headers: {
-      "Content-Type": "text/xml; charset=utf-8",
-    },
+    headers: { "Content-Type": "text/xml" },
   });
 }
 
 export async function GET() {
-  return new NextResponse("Method Not Allowed", { status: 405 });
+  return new Response("CT Pickup Twilio inbound route is live", {
+    status: 200,
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
 }
