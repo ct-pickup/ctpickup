@@ -65,14 +65,14 @@ function MobileAccordionPanel({ open, children }: { open: boolean; children: Rea
         open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
       }`}
     >
-      <div className="min-h-0 overflow-hidden">{children}</div>
+      <div className="relative z-[1] min-h-0 overflow-hidden [touch-action:manipulation]">{children}</div>
     </div>
   );
 }
 
 /**
- * Mobile menu: portal only mounts when `open` is true (nothing in document.body when closed).
- * Root uses pointer-events-none so only backdrop + sheet capture input; no full-screen invisible blocker.
+ * Mobile menu: portal only mounts when `open` is true.
+ * Sheet and dimmer are stacked vertically (flex column) so they never overlap — avoids WebKit eating taps on nested links.
  */
 function MobileNavSheetPortal({
   open,
@@ -102,27 +102,29 @@ function MobileNavSheetPortal({
   const topPx = Math.max(48, Math.round(Number.isFinite(overlayTopPx) ? overlayTopPx : 48));
 
   return createPortal(
-    <div className="pointer-events-none fixed inset-0 z-[305] lg:hidden">
-      <div
-        role="presentation"
-        className="pointer-events-auto absolute left-0 right-0 bottom-0 z-0 bg-black/70 backdrop-blur-[3px]"
-        style={{ top: topPx }}
-        onClick={onClose}
-      />
+    <div
+      className="fixed inset-x-0 bottom-0 z-[305] flex flex-col lg:hidden"
+      style={{ top: topPx }}
+    >
       <div
         id="mobile-nav-sheet"
         role="dialog"
         aria-modal="true"
         aria-label="Site navigation"
-        className="pointer-events-auto absolute left-0 right-0 z-10 overflow-y-auto overscroll-y-contain border-b border-white/[0.08] bg-[#121213] shadow-[0_28px_80px_rgba(0,0,0,0.55)]"
+        className="relative z-10 min-h-0 w-full shrink-0 overflow-y-auto overscroll-y-contain border-b border-white/[0.08] bg-[#121213] shadow-[0_28px_80px_rgba(0,0,0,0.55)] [touch-action:manipulation]"
         style={{
-          top: topPx,
           maxHeight: `calc(100dvh - ${topPx}px)`,
           paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))",
         }}
       >
         {children}
       </div>
+      <div
+        role="presentation"
+        aria-hidden
+        className="relative z-0 min-h-0 flex-1 bg-black/70 backdrop-blur-[3px] [touch-action:manipulation]"
+        onClick={onClose}
+      />
     </div>,
     document.body,
   );
@@ -338,7 +340,7 @@ export function TopNav({
     ].join(" ");
 
   const mobileSubLink =
-    "touch-manipulation relative flex min-h-[36px] w-full items-center py-[7px] pl-3.5 pr-1.5 text-[11px] font-normal leading-[1.4] tracking-[0.01em] text-white/[0.38] transition-colors before:pointer-events-none before:absolute before:left-0 before:top-[6px] before:bottom-[6px] before:w-px before:bg-white/[0.09] before:content-[''] hover:bg-white/[0.025] hover:text-white/[0.62] active:bg-white/[0.04]";
+    "relative z-[2] flex min-h-[36px] w-full items-center border-l border-white/[0.09] py-[7px] pl-3.5 pr-1.5 text-[11px] font-normal leading-[1.4] tracking-[0.01em] text-white/[0.38] transition-colors [touch-action:manipulation] hover:bg-white/[0.025] hover:text-white/[0.62] active:bg-white/[0.04]";
 
   const profilePill = profileSection ? (
     <div className="flex shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5">
