@@ -234,8 +234,13 @@ export function TopNav({
   useEffect(() => {
     function onPointerDown(e: PointerEvent) {
       if (!openMenu) return;
+      const target = e.target as Node;
       const el = navRef.current;
-      if (el && !el.contains(e.target as Node)) setOpenMenu(null);
+      if (el?.contains(target)) return;
+      // Mobile sheet is portaled to document.body — outside navRef but still in-app menu.
+      const sheet = typeof document !== "undefined" ? document.getElementById("mobile-nav-sheet") : null;
+      if (sheet?.contains(target)) return;
+      setOpenMenu(null);
     }
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
@@ -366,13 +371,10 @@ export function TopNav({
     </div>
   );
 
+  /** Sheet closes via `useLayoutEffect` on `pathname` — avoid onClick close that unmounts portal before client nav. */
   const mobileSheetNav = showPrimaryNav ? (
     <nav aria-label="Primary" className="flex flex-col px-3 pb-8 pt-2">
-      <Link
-        href={homeHref}
-        onClick={closeMobileSheet}
-        className={mobileNavItem(homeOn)}
-      >
+      <Link href={homeHref} className={mobileNavItem(homeOn)}>
         Home
       </Link>
 
@@ -391,12 +393,7 @@ export function TopNav({
         <MobileAccordionPanel open={pickupOpen}>
           <div className="ml-2 flex flex-col pb-0.5 pt-0.5">
             {HUB_NAV_PICKUP.map((item) => (
-              <Link
-                key={item.href + item.label}
-                href={item.href}
-                onClick={closeMobileSheet}
-                className={mobileSubLink}
-              >
+              <Link key={item.href + item.label} href={item.href} className={mobileSubLink}>
                 {item.label}
               </Link>
             ))}
@@ -419,12 +416,7 @@ export function TopNav({
         <MobileAccordionPanel open={tournamentsOpen}>
           <div className="ml-2 flex flex-col pb-0.5 pt-0.5">
             {HUB_NAV_TOURNAMENT.map((item) => (
-              <Link
-                key={item.href + item.label}
-                href={item.href}
-                onClick={closeMobileSheet}
-                className={mobileSubLink}
-              >
+              <Link key={item.href + item.label} href={item.href} className={mobileSubLink}>
                 {item.label}
               </Link>
             ))}
@@ -432,31 +424,19 @@ export function TopNav({
         </MobileAccordionPanel>
       </div>
 
-      <Link
-        href="/training"
-        onClick={closeMobileSheet}
-        className={mobileNavItem(trainingOn)}
-      >
+      <Link href="/training" className={mobileNavItem(trainingOn)}>
         Training
       </Link>
 
-      <Link href="/u23" onClick={closeMobileSheet} className={mobileNavItem(u23On)}>
+      <Link href="/u23" className={mobileNavItem(u23On)}>
         U23
       </Link>
 
-      <Link
-        href="/esports"
-        onClick={closeMobileSheet}
-        className={mobileNavItem(esportsOn)}
-      >
+      <Link href="/esports" className={mobileNavItem(esportsOn)}>
         Esports
       </Link>
 
-      <Link
-        href="/guidance"
-        onClick={closeMobileSheet}
-        className={mobileNavItem(guidanceOn)}
-      >
+      <Link href="/guidance" className={mobileNavItem(guidanceOn)}>
         Guidance
       </Link>
 
@@ -475,12 +455,7 @@ export function TopNav({
         <MobileAccordionPanel open={aboutOpen}>
           <div className="ml-2 flex flex-col pb-0.5 pt-0.5">
             {HUB_NAV_ABOUT.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={closeMobileSheet}
-                className={mobileSubLink}
-              >
+              <Link key={item.href} href={item.href} className={mobileSubLink}>
                 {item.label}
               </Link>
             ))}
