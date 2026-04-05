@@ -136,7 +136,7 @@ export function TopNav({
       : pathname === homeBasePath || pathname.startsWith(`${homeBasePath}/`);
 
   const backClass =
-    "shrink-0 text-sm text-white/75 transition hover:text-white";
+    "shrink-0 text-sm text-white/75 transition hover:text-white inline-flex items-center justify-center min-h-[44px] rounded-lg px-2 -mx-0.5 active:bg-white/5 lg:min-h-0 lg:rounded-none lg:px-0 lg:mx-0 lg:active:bg-transparent";
 
   const showHistoryBack = topNavShowsHistoryBack(pathname);
 
@@ -165,10 +165,10 @@ export function TopNav({
   );
 
   return (
-    <div className={`mb-8 sm:mb-10 ${className}`}>
+    <div className={`mb-6 sm:mb-8 lg:mb-10 ${className}`}>
       <div
         ref={navRef}
-        className={`rounded-2xl border border-white/15 bg-white/6 px-3 py-2.5 backdrop-blur-none sm:px-4 lg:rounded-full lg:px-4 lg:py-3 lg:backdrop-blur-sm xl:px-5 ${innerClassName}`}
+        className={`rounded-2xl border border-white/15 bg-white/6 px-3 py-2 backdrop-blur-none sm:px-4 sm:py-2.5 lg:rounded-full lg:px-4 lg:py-3 lg:backdrop-blur-sm xl:px-5 ${innerClassName}`}
       >
         {/* Desktop — lg+ only so all links fit on one row without colliding with logo/profile */}
         <div className="hidden items-center justify-between gap-3 lg:flex xl:gap-4">
@@ -301,15 +301,15 @@ export function TopNav({
         </div>
 
         {/* Tablet & mobile — same breakpoint as desktop row */}
-        <div className="space-y-3 lg:hidden">
-          <div className="flex items-center justify-between gap-3">
+        <div className="space-y-2 sm:space-y-2.5 lg:hidden">
+          <div className="flex items-center justify-between gap-2 sm:gap-3">
             <Link
               href={brandHref}
-              className="text-sm font-semibold uppercase tracking-[0.22em] text-white/90"
+              className="py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/90 sm:text-sm sm:tracking-[0.22em]"
             >
               CT Pickup
             </Link>
-            <div className="flex min-w-0 shrink-0 items-center gap-2">
+            <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
               {showHistoryBack ? (
                 <HistoryBack
                   fallbackHref={fallbackHref}
@@ -318,8 +318,8 @@ export function TopNav({
                 />
               ) : null}
               {profileSection ? (
-                <div className="flex max-w-[min(100%,11rem)] items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2.5 py-1.5">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/20">
+                <div className="flex max-w-[min(100%,11rem)] items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2 py-1.5 sm:px-2.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 sm:h-8 sm:w-8">
                     <UserIcon />
                   </div>
                   <div className="truncate text-xs font-medium text-white/90">
@@ -327,16 +327,16 @@ export function TopNav({
                   </div>
                 </div>
               ) : rightSlot ? (
-                <div className="shrink-0 scale-90">{rightSlot}</div>
+                <div className="shrink-0">{rightSlot}</div>
               ) : null}
             </div>
           </div>
 
           {showPrimaryNav ? (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               <Link
                 href={homeHref}
-                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white/90"
+                className="flex min-h-[44px] items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/90 sm:py-3"
               >
                 Home
               </Link>
@@ -345,18 +345,18 @@ export function TopNav({
                 <button
                   type="button"
                   onClick={() => toggle("pickup")}
-                  className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-white/90"
+                  className="flex min-h-[44px] w-full items-center justify-between px-4 py-2.5 text-left text-sm font-medium text-white/90 sm:py-3"
                 >
                   <span>Pickup Games</span>
                   <span className="text-white/50">{pickupOpen ? "−" : "+"}</span>
                 </button>
                 {pickupOpen ? (
-                  <div className="border-t border-white/10 px-2 py-2">
+                  <div className="border-t border-white/10 px-1.5 py-1.5 sm:px-2 sm:py-2">
                     {HUB_NAV_PICKUP.map((item) => (
                       <Link
                         key={item.href + item.label}
                         href={item.href}
-                        className="block rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/10"
+                        className="flex min-h-[44px] items-center rounded-lg px-3 py-2.5 text-sm text-white/80 hover:bg-white/10"
                       >
                         {item.label}
                       </Link>
@@ -369,7 +369,7 @@ export function TopNav({
                 <button
                   type="button"
                   onClick={() => toggle("tournaments")}
-                  className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-white/90"
+                  className="flex min-h-[44px] w-full items-center justify-between px-4 py-2.5 text-left text-sm font-medium text-white/90 sm:py-3"
                 >
                   <span>Tournaments</span>
                   <span className="text-white/50">
@@ -377,12 +377,12 @@ export function TopNav({
                   </span>
                 </button>
                 {tournamentsOpen ? (
-                  <div className="border-t border-white/10 px-2 py-2">
+                  <div className="border-t border-white/10 px-1.5 py-1.5 sm:px-2 sm:py-2">
                     {HUB_NAV_TOURNAMENT.map((item) => (
                       <Link
                         key={item.href + item.label}
                         href={item.href}
-                        className="block rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/10"
+                        className="flex min-h-[44px] items-center rounded-lg px-3 py-2.5 text-sm text-white/80 hover:bg-white/10"
                       >
                         {item.label}
                       </Link>
@@ -393,28 +393,28 @@ export function TopNav({
 
               <Link
                 href="/training"
-                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white/90"
+                className="flex min-h-[44px] items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/90 sm:py-3"
               >
                 Training
               </Link>
 
               <Link
                 href="/u23"
-                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white/90"
+                className="flex min-h-[44px] items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/90 sm:py-3"
               >
                 U23
               </Link>
 
               <Link
                 href="/esports"
-                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white/90"
+                className="flex min-h-[44px] items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/90 sm:py-3"
               >
                 Esports
               </Link>
 
               <Link
                 href="/guidance"
-                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white/90"
+                className="flex min-h-[44px] items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/90 sm:py-3"
               >
                 Guidance
               </Link>
@@ -423,18 +423,18 @@ export function TopNav({
                 <button
                   type="button"
                   onClick={() => toggle("about")}
-                  className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-white/90"
+                  className="flex min-h-[44px] w-full items-center justify-between px-4 py-2.5 text-left text-sm font-medium text-white/90 sm:py-3"
                 >
                   <span>About</span>
                   <span className="text-white/50">{aboutOpen ? "−" : "+"}</span>
                 </button>
                 {aboutOpen ? (
-                  <div className="border-t border-white/10 px-2 py-2">
+                  <div className="border-t border-white/10 px-1.5 py-1.5 sm:px-2 sm:py-2">
                     {HUB_NAV_ABOUT.map((item) => (
                       <Link
                         key={item.href}
                         href={item.href}
-                        className="block rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/10"
+                        className="flex min-h-[44px] items-center rounded-lg px-3 py-2.5 text-sm text-white/80 hover:bg-white/10"
                       >
                         {item.label}
                       </Link>

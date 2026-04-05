@@ -101,7 +101,7 @@ export function AuthenticatedProfileMenu() {
   if (!isReady || !ready) {
     return (
       <div
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5 lg:h-9 lg:w-9"
         aria-busy="true"
         aria-label="Loading account"
       >
@@ -114,7 +114,7 @@ export function AuthenticatedProfileMenu() {
     return (
       <Link
         href="/login"
-        className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white/90 transition hover:bg-white/[0.14]"
+        className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white/90 transition hover:bg-white/[0.14] lg:h-9 lg:min-h-0 lg:px-3 lg:py-1.5"
       >
         Log in
       </Link>
@@ -126,7 +126,7 @@ export function AuthenticatedProfileMenu() {
   return (
     <Link
       href="/profile"
-      className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-white/10 transition hover:bg-white/[0.14] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40"
+      className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-white/10 transition hover:bg-white/[0.14] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40 lg:h-9 lg:w-9"
       aria-label="Your profile"
     >
       {showImg ? (

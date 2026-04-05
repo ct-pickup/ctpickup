@@ -22,15 +22,15 @@ export function HomeHeroBrand({
       <img
         src="/ct-logo.png"
         alt={logoAlt}
-        className="w-[260px] md:w-[340px] h-auto object-contain"
+        className="h-auto w-[min(100%,220px)] max-w-[260px] object-contain sm:w-[260px] sm:max-w-none md:w-[340px]"
         draggable={false}
       />
 
-      <TitleTag className="mt-6 text-3xl font-bold tracking-[0.55em] text-white md:text-4xl">
+      <TitleTag className="mt-4 text-2xl font-bold tracking-[0.32em] text-white sm:mt-6 sm:text-3xl sm:tracking-[0.48em] md:text-4xl md:tracking-[0.55em]">
         PICKUP
       </TitleTag>
 
-      <p className="mt-5 text-xs uppercase tracking-[0.28em] text-white/75 md:text-sm">
+      <p className="mt-3 max-w-[20rem] text-[11px] uppercase leading-relaxed tracking-[0.2em] text-white/75 sm:mt-5 sm:max-w-none sm:text-xs sm:tracking-[0.24em] md:text-sm md:tracking-[0.28em]">
         Community. Culture. Competition.
       </p>
     </>

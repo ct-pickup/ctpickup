@@ -16,7 +16,7 @@ export function PageShell({
     <main
       className={`min-h-screen bg-[#0f0f10] py-5 text-white ${mainClassName}`}
     >
-      <div className={`mx-auto px-5 ${maxWidthClass} ${className}`}>
+      <div className={`mx-auto px-4 sm:px-5 ${maxWidthClass} ${className}`}>
         {children}
       </div>
     </main>

@@ -27,7 +27,7 @@ export default function PageTop({
         flush ? "w-full pt-2" : "mx-auto max-w-5xl px-5 pt-2"
       }
     >
-      <div className="flex items-center justify-between rounded-full border border-white/15 bg-white/6 px-5 py-3 backdrop-blur-sm">
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/15 bg-white/6 px-4 py-2.5 backdrop-blur-none sm:px-5 sm:py-3 lg:rounded-full lg:backdrop-blur-sm">
         <div className="flex min-w-0 items-center gap-4 text-sm text-white/80">
           <HistoryBack
             fallbackHref={fallbackHref}

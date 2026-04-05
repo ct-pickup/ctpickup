@@ -28,7 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {!hideHelp ? (
           <Link
             href="/help"
-            className="fixed bottom-5 right-5 z-40 rounded-full border border-white/15 bg-black px-4 py-3 text-sm font-semibold text-white shadow-lg hover:bg-white/[0.06]"
+            className="fixed bottom-4 right-4 z-40 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-white/15 bg-black px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-white/[0.06] sm:bottom-5 sm:right-5 sm:min-h-0 sm:min-w-0 sm:py-3"
           >
             Help
           </Link>

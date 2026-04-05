@@ -61,48 +61,48 @@ function InstagramIcon() {
 export default function HomePage() {
   return (
     <HomeSessionIntro>
-      <main className="py-5">
-        <div className="mx-auto max-w-5xl">
-          <div className="rounded-full border border-white/15 bg-white/6 px-5 py-3 backdrop-blur-sm">
-            <div className="flex items-center justify-between gap-4">
-              <div className="text-sm font-semibold uppercase tracking-[0.22em] text-white/90 sm:text-base">
+      <main className="overflow-x-hidden py-4 sm:py-5">
+        <div className="mx-auto max-w-5xl px-4 sm:px-5">
+          <div className="rounded-2xl border border-white/15 bg-white/6 px-4 py-2.5 backdrop-blur-none sm:rounded-full sm:px-5 sm:py-3 sm:backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-3 sm:gap-4">
+              <div className="min-w-0 text-xs font-semibold uppercase leading-snug tracking-[0.14em] text-white/90 sm:text-sm sm:tracking-[0.22em] md:text-base">
                 Competitive · Together
               </div>
 
-              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 sm:h-11 sm:w-11">
                 <UserIcon />
               </div>
             </div>
           </div>
         </div>
 
-        <section className="flex min-h-[72vh] flex-col items-center justify-center text-center">
+        <section className="flex min-h-[56vh] flex-col items-center justify-center px-4 pb-6 pt-4 text-center sm:min-h-[64vh] sm:pb-8 sm:pt-6 md:min-h-[72vh] md:pb-0 md:pt-0">
           <HomeHeroBrand />
 
-          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <div className="mt-6 flex w-full max-w-sm flex-col items-stretch gap-3 sm:mt-8 sm:w-auto sm:max-w-none sm:flex-row sm:items-center sm:justify-center">
             <Link
               href="/login"
-              className="min-w-[160px] rounded-md bg-white px-6 py-3 text-sm font-semibold text-black"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-white px-6 py-3 text-sm font-semibold text-black sm:min-w-[160px]"
             >
               Log In
             </Link>
 
             <Link
               href="/signup"
-              className="min-w-[160px] rounded-md border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-md border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10 sm:min-w-[160px]"
             >
               Sign Up
             </Link>
           </div>
 
-          <div className="mt-8 flex items-center justify-center">
+          <div className="mt-6 sm:mt-8">
             <a
               href="https://instagram.com/ct.pickup"
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-3 text-sm text-white/80"
+              className="inline-flex min-h-[44px] items-center justify-center gap-3 rounded-lg px-2 text-sm text-white/80 transition hover:text-white"
             >
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10">
                 <InstagramIcon />
               </span>
               <span className="font-medium">@ct.pickup</span>
