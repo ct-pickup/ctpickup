@@ -59,9 +59,27 @@ Mirror [`.env.example`](./.env.example) in the Vercel project **Settings → Env
 
 ### Optional (Twilio SMS, if you use it)
 
-`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` — see comments in `.env.example`.
+Server-side SMS lives under `lib/twilio/` with webhooks at `POST /api/twilio/inbound` and `POST /api/twilio/status`. See **Twilio setup** below.
 
-`VERCEL_URL` is set automatically on Vercel and is used as a fallback when `NEXT_PUBLIC_SITE_URL` is missing.
+| Variable | Notes |
+|----------|--------|
+| `TWILIO_ACCOUNT_SID` | Account SID — **recommended** so inbound/status payloads are checked against this deployment (rejects cross-tenant misconfiguration) |
+| `TWILIO_AUTH_TOKEN` | **Required for webhooks** — validates `X-Twilio-Signature` |
+| `TWILIO_PHONE_NUMBER` | E.164 from-number (or use `TWILIO_FROM_NUMBER` legacy alias) |
+| `TWILIO_MESSAGING_SERVICE_SID` | Optional; when set, outbound sends use the Messaging Service instead of `TWILIO_PHONE_NUMBER` |
+| `NEXT_PUBLIC_SITE_URL` | Canonical `https://…` origin — used to reconstruct webhook URLs for signature validation |
+| `TWILIO_WEBHOOK_BASE_URL` | Optional override if the URL Twilio posts to must differ from `NEXT_PUBLIC_SITE_URL` |
+| `TWILIO_SKIP_SIGNATURE_VALIDATION` | Set to `1` **only in local dev** if tunnel URL mismatches break validation — **never in production** |
+| `TWILIO_STATUS_CALLBACK_URL` | Optional default `https://…/api/twilio/status` for **outbound** message status callbacks (https required in production; `http` allowed locally) |
+
+`VERCEL_URL` is set automatically on Vercel but is **not** used for Twilio signature validation; prefer `NEXT_PUBLIC_SITE_URL` or `TWILIO_WEBHOOK_BASE_URL`.
+
+#### Twilio setup (dashboard)
+
+1. Buy / configure a phone number or [Messaging Service](https://www.twilio.com/docs/messaging/services).
+2. **Inbound SMS**: Phone number (or Messaging Service) → *A message comes in* → Webhook `POST`, URL `https://<your-domain>/api/twilio/inbound`, HTTP POST.
+3. **Status callbacks**: On the same number or Messaging Service, set *Status callback* URL to `https://<your-domain>/api/twilio/status` (or configure per-message `StatusCallback` when you add it in code later).
+4. Copy Account SID and Auth Token into Vercel env (and `.env.local` for local testing).
 
 ### Supabase Auth email (OTP / deliverability)
 

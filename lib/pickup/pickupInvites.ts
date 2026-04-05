@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sendTwilioSms } from "@/lib/sms/twilio";
+import { sendSms } from "@/lib/twilio/sendSms";
 
 export type InvitePlayer = {
   user_id: string;
@@ -62,7 +62,12 @@ export async function sendPickupInviteSms(players: InvitePlayer[], message: stri
   const withPhone = players.filter((p) => p.phone);
   const results = await Promise.all(
     withPhone.map(async (p) => {
-      const result = await sendTwilioSms(p.phone as string, message);
+      const result = await sendSms({
+        to: p.phone as string,
+        body: message,
+        kind: "run_invite",
+        correlationId: p.user_id,
+      });
       return result.ok;
     })
   );

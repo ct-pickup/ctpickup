@@ -10,7 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   APP_HOME_URL,
   HUB_NAV_ABOUT,
@@ -116,6 +116,7 @@ function MobileNavSheetPortal({
           maxHeight: `calc(100dvh - ${topPx}px)`,
           paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))",
         }}
+        onPointerDown={(e) => e.stopPropagation()}
       >
         {children}
       </div>
@@ -214,6 +215,7 @@ export function TopNav({
   innerClassName?: string;
 }) {
   const pathname = usePathname() || "";
+  const router = useRouter();
   const [openMenu, setOpenMenu] = useState<NavMenu>(null);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [overlayTopPx, setOverlayTopPx] = useState(0);
@@ -234,17 +236,19 @@ export function TopNav({
   useEffect(() => {
     function onPointerDown(e: PointerEvent) {
       if (!openMenu) return;
+      // Mobile accordion lives in a portal; never run desktop "outside click" while sheet is open.
+      if (mobileSheetOpen) return;
       const target = e.target as Node;
       const el = navRef.current;
       if (el?.contains(target)) return;
-      // Mobile sheet is portaled to document.body — outside navRef but still in-app menu.
-      const sheet = typeof document !== "undefined" ? document.getElementById("mobile-nav-sheet") : null;
+      const sheet =
+        typeof document !== "undefined" ? document.getElementById("mobile-nav-sheet") : null;
       if (sheet?.contains(target)) return;
       setOpenMenu(null);
     }
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [openMenu]);
+  }, [openMenu, mobileSheetOpen]);
 
   const closeMobileSheet = useCallback(() => setMobileSheetOpen(false), []);
 
@@ -393,7 +397,16 @@ export function TopNav({
         <MobileAccordionPanel open={pickupOpen}>
           <div className="ml-2 flex flex-col pb-0.5 pt-0.5">
             {HUB_NAV_PICKUP.map((item) => (
-              <Link key={item.href + item.label} href={item.href} className={mobileSubLink}>
+              <Link
+                key={item.href + item.label}
+                href={item.href}
+                className={mobileSubLink}
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                  e.preventDefault();
+                  router.push(item.href);
+                }}
+              >
                 {item.label}
               </Link>
             ))}
@@ -416,7 +429,16 @@ export function TopNav({
         <MobileAccordionPanel open={tournamentsOpen}>
           <div className="ml-2 flex flex-col pb-0.5 pt-0.5">
             {HUB_NAV_TOURNAMENT.map((item) => (
-              <Link key={item.href + item.label} href={item.href} className={mobileSubLink}>
+              <Link
+                key={item.href + item.label}
+                href={item.href}
+                className={mobileSubLink}
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                  e.preventDefault();
+                  router.push(item.href);
+                }}
+              >
                 {item.label}
               </Link>
             ))}
