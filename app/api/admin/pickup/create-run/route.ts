@@ -1,12 +1,21 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabaseAdmin(): SupabaseClient {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url?.trim()) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL");
+  }
+  if (!key?.trim()) {
+    throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
+  }
+  return createClient(url, key);
+}
 
 export async function POST(req: Request) {
+  const supabaseAdmin = getSupabaseAdmin();
+
   const auth = req.headers.get("authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
