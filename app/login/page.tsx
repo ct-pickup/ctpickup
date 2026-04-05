@@ -77,7 +77,7 @@ function LoginForm() {
     if (error) return setMsg(error.message);
 
     setStage("code");
-    setMsg("Code sent. Check your email.");
+    setMsg("Code sent. Check your email for an 8-digit code.");
   }
 
   async function verifyCode() {
@@ -96,9 +96,16 @@ function LoginForm() {
     setBusy(true);
     setMsg(null);
 
+    const token = code.replace(/\D/g, "");
+    if (token.length !== 8) {
+      setBusy(false);
+      setMsg("Enter the 8-digit code from your email.");
+      return;
+    }
+
     const { error } = await supabase.auth.verifyOtp({
       email: emailClean,
-      token: code.trim(),
+      token,
       type: "email",
     });
 
@@ -132,7 +139,9 @@ function LoginForm() {
           <div className="space-y-2">
             <h1 className="text-3xl font-semibold uppercase tracking-tight">LOG IN</h1>
             <p className="text-sm text-white/75">Log in to save your info and manage invites.</p>
-            <p className="text-sm text-white/55">We’ll email you a verification code. No password needed.</p>
+            <p className="text-sm text-white/55">
+              We’ll email you an 8-digit verification code. No password needed.
+            </p>
           </div>
 
           <HistoryBack
@@ -170,13 +179,18 @@ function LoginForm() {
             <>
               <input
                 className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
-                placeholder="6-digit code"
+                placeholder="8-digit code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 disabled={busy}
                 inputMode="numeric"
                 autoComplete="one-time-code"
+                maxLength={16}
+                aria-describedby="login-code-hint"
               />
+              <p id="login-code-hint" className="text-xs text-white/45">
+                Enter the 8-digit code from your email (spaces are OK).
+              </p>
 
               <button
                 type="button"

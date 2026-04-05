@@ -52,7 +52,9 @@ Mirror [`.env.example`](./.env.example) in the Vercel project **Settings → Env
 
 | Variable | Notes |
 |----------|--------|
-| `OPENAI_API_KEY` | Tournament AI intake (`/api/tournament/intake`) and Help assistant (`/api/help/chat`) |
+| `OPENAI_API_KEY` | Tournament AI intake (`/api/tournament/intake`) and Help assistant (`/api/help/chat`) — **required server-side on Vercel** for those features |
+| `OPENAI_MODEL` | Optional; tournament intake default is `gpt-5.2` when unset |
+| `OPENAI_HELP_MODEL` | Optional; help chat uses this, else `OPENAI_MODEL`, else `gpt-5-mini` |
 | `STRIPE_API_VERSION` | Optional; must match your Stripe account API version if you set it |
 
 ### Optional (Twilio SMS, if you use it)
@@ -60,6 +62,10 @@ Mirror [`.env.example`](./.env.example) in the Vercel project **Settings → Env
 `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` — see comments in `.env.example`.
 
 `VERCEL_URL` is set automatically on Vercel and is used as a fallback when `NEXT_PUBLIC_SITE_URL` is missing.
+
+### Supabase Auth email (OTP / deliverability)
+
+Sign-in uses an **8-digit email code**. Configure **SMTP** (e.g. Resend), **from name/address** (`CT Pickup` / `login@ctpickup.net`), and **email templates** in the Supabase Dashboard. See [`docs/supabase-auth-email.md`](./docs/supabase-auth-email.md) for template examples and spam/deliverability notes.
 
 ### Supabase migrations
 

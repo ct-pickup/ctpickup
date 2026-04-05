@@ -36,6 +36,7 @@ export default function InfoPage() {
         title: "Accounts",
         text:
           "Log in saves your info so you don’t re-enter it every time.\n\n" +
+          "Signing in uses an 8-digit code sent to your email (no password).\n\n" +
           "It unlocks invite-only details (like exact location when confirmed).\n\n" +
           "It lets you see Confirmed vs Standby.\n\n" +
           "It lets you update your profile without DM’ing.",
