@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import PageTop from "@/components/PageTop";
 import { AdminHubNav } from "@/components/admin/AdminHubNav";
 import { APP_HOME_URL } from "@/lib/siteNav";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 
 type Row = {
   id: string;
@@ -35,7 +35,7 @@ function displayName(r: Row) {
 }
 
 export default function AdminWaiversPage() {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const { supabase, isReady } = useSupabaseBrowser();
   const [token, setToken] = useState<string | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const [currentVersion, setCurrentVersion] = useState<string | null>(null);
@@ -44,6 +44,11 @@ export default function AdminWaiversPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isReady) return;
+    if (!supabase) {
+      setSessionReady(true);
+      return;
+    }
     (async () => {
       const { data } = await supabase.auth.getSession();
       setToken(data.session?.access_token ?? null);
@@ -55,7 +60,7 @@ export default function AdminWaiversPage() {
       setToken(session?.access_token ?? null);
     });
     return () => subscription.unsubscribe();
-  }, [supabase]);
+  }, [supabase, isReady]);
 
   const load = useCallback(async () => {
     if (!token) {
@@ -84,7 +89,7 @@ export default function AdminWaiversPage() {
     void load();
   }, [load]);
 
-  if (!sessionReady) {
+  if (!isReady || !sessionReady) {
     return (
       <main className="min-h-screen bg-black text-white">
         <div className="mx-auto max-w-6xl px-6 pt-2 pb-8">

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import PageTop from "@/components/PageTop";
 import { AdminHubNav } from "@/components/admin/AdminHubNav";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { APP_HOME_URL } from "@/lib/siteNav";
 
 type StatusRow = {
@@ -17,15 +17,27 @@ type StatusRow = {
 };
 
 export default function AdminStatusPage() {
+  const { supabase, isReady } = useSupabaseBrowser();
   const supabaseRef = useRef<SupabaseClient | null>(null);
   const [row, setRow] = useState<StatusRow | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    const supabase = supabaseBrowser();
     supabaseRef.current = supabase;
+  }, [supabase]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    if (!supabase) {
+      setMsg(
+        "Supabase is not configured (missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY)."
+      );
+      return;
+    }
+
+    const client = supabase;
     (async () => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from("status_updates")
         .select("id,phase,primary_slot,secondary_slot,next_update_by,announcement")
         .eq("id", 1)
@@ -34,7 +46,7 @@ export default function AdminStatusPage() {
       if (error) setMsg(error.message);
       else setRow(data as StatusRow);
     })();
-  }, []);
+  }, [supabase, isReady]);
 
   async function save() {
     const supabase = supabaseRef.current;

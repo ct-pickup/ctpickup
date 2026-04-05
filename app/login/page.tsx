@@ -4,7 +4,7 @@ import Link from "next/link";
 import { HistoryBack } from "@/components/layout";
 import { safeNextPath } from "@/lib/auth/safeNextPath";
 import { APP_HOME_URL } from "@/lib/siteNav";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { useTransitionNav } from "@/components/TransitionNavContext";
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -13,7 +13,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const transitionNav = useTransitionNav();
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const { supabase, isReady } = useSupabaseBrowser();
 
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -44,7 +44,7 @@ function LoginForm() {
   }
 
   async function sendCode() {
-    if (!emailLooksValid || busy) return;
+    if (!isReady || !supabase || !emailLooksValid || busy) return;
 
     setBusy(true);
     setMsg(null);
@@ -71,7 +71,7 @@ function LoginForm() {
   }
 
   async function verifyCode() {
-    if (!code.trim() || busy) return;
+    if (!isReady || !supabase || !code.trim() || busy) return;
 
     setBusy(true);
     setMsg(null);
@@ -141,7 +141,7 @@ function LoginForm() {
             <button
               className="w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
               onClick={sendCode}
-              disabled={!emailLooksValid || busy}
+              disabled={!isReady || !supabase || !emailLooksValid || busy}
             >
               {busy ? "Continuing..." : "Continue"}
             </button>
@@ -160,7 +160,7 @@ function LoginForm() {
               <button
                 className="w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
                 onClick={verifyCode}
-                disabled={!code.trim() || busy}
+                disabled={!isReady || !supabase || !code.trim() || busy}
               >
                 {busy ? "Verifying..." : "Continue"}
               </button>

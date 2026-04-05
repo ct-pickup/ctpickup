@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AuthenticatedProfileMenu,
   PageShell,
@@ -10,7 +10,7 @@ import {
 } from "@/components/layout";
 import { EmptyStateMessage } from "@/components/EmptyStateMessage";
 import { WaiverAcceptanceModal } from "@/components/waiver/WaiverAcceptanceModal";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 
 type Prelim = {
   fullName: string;
@@ -54,7 +54,7 @@ function statusBlurb(d: TournamentPublic | null) {
 }
 
 export default function TournamentPage() {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const { supabase, isReady } = useSupabaseBrowser();
 
   const [publicData, setPublicData] = useState<TournamentPublic | null>(null);
   const [publicLoading, setPublicLoading] = useState(true);
@@ -108,6 +108,7 @@ export default function TournamentPage() {
   }, [refreshPublic]);
 
   useEffect(() => {
+    if (!isReady || !supabase) return;
     (async () => {
       const s = await supabase.auth.getSession();
       setToken(s.data.session?.access_token ?? null);
@@ -118,7 +119,7 @@ export default function TournamentPage() {
       setToken(session?.access_token ?? null);
     });
     return () => subscription.unsubscribe();
-  }, [supabase]);
+  }, [supabase, isReady]);
 
   useEffect(() => {
     if (!modalOpen) {

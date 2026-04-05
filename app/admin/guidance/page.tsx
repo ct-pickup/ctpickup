@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import PageTop from "@/components/PageTop";
 import { AdminHubNav } from "@/components/admin/AdminHubNav";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import type { GuidancePlan, GuidanceRequestStatus } from "@/lib/guidanceRequest";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 
 type Row = {
   id: string;
@@ -29,12 +29,17 @@ function fmt(dt: string) {
 }
 
 export default function AdminGuidancePage() {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const { supabase, isReady } = useSupabaseBrowser();
   const [rows, setRows] = useState<Row[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
+    if (!supabase) {
+      setLoading(false);
+      setRows([]);
+      return;
+    }
     setMsg(null);
     setLoading(true);
     const { data, error } = await supabase
@@ -54,10 +59,12 @@ export default function AdminGuidancePage() {
   }, [supabase]);
 
   useEffect(() => {
+    if (!isReady) return;
     void load();
-  }, [load]);
+  }, [load, isReady]);
 
   async function updateStatus(id: string, status: GuidanceRequestStatus) {
+    if (!supabase) return;
     setMsg(null);
     const { error } = await supabase
       .from("guidance_requests")

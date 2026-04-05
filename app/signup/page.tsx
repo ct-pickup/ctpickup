@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { HistoryBack } from "@/components/layout";
 import { APP_HOME_FIRST_VISIT_URL } from "@/lib/siteNav";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 import { useTransitionNav } from "@/components/TransitionNavContext";
 
@@ -94,7 +94,7 @@ function InfoIcon() {
 export default function SignupPage() {
   const router = useRouter();
   const transitionNav = useTransitionNav();
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const { supabase, isReady } = useSupabaseBrowser();
 
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -141,7 +141,7 @@ export default function SignupPage() {
   }
 
   async function sendCode() {
-    if (!emailLooksValid || busy) return;
+    if (!isReady || !supabase || !emailLooksValid || busy) return;
 
     setBusy(true);
     setMsg(null);
@@ -168,7 +168,7 @@ export default function SignupPage() {
   }
 
   async function verifyCode() {
-    if (!code.trim() || busy) return;
+    if (!isReady || !supabase || !code.trim() || busy) return;
 
     setBusy(true);
     setMsg(null);
@@ -187,7 +187,7 @@ export default function SignupPage() {
   }
 
   async function saveProfileAndContinue() {
-    if (!canSaveProfile || busy) return;
+    if (!isReady || !supabase || !canSaveProfile || busy) return;
 
     setBusy(true);
     setMsg(null);
@@ -332,7 +332,7 @@ export default function SignupPage() {
                     <button
                       className="w-full rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-black disabled:opacity-50"
                       onClick={sendCode}
-                      disabled={!emailLooksValid || busy}
+                      disabled={!isReady || !supabase || !emailLooksValid || busy}
                     >
                       {busy ? "Continuing..." : "Continue"}
                     </button>
@@ -354,7 +354,7 @@ export default function SignupPage() {
                     <button
                       className="w-full rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-black disabled:opacity-50"
                       onClick={verifyCode}
-                      disabled={!code.trim() || busy}
+                      disabled={!isReady || !supabase || !code.trim() || busy}
                     >
                       {busy ? "Verifying..." : "Continue"}
                     </button>
@@ -438,7 +438,7 @@ export default function SignupPage() {
                     <button
                       className="w-full rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-black disabled:opacity-50"
                       onClick={saveProfileAndContinue}
-                      disabled={!canSaveProfile || busy}
+                      disabled={!isReady || !supabase || !canSaveProfile || busy}
                     >
                       {busy ? "Saving..." : "Finish Sign Up"}
                     </button>

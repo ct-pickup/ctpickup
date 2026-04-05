@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { HistoryBack } from "@/components/layout";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 
 function cleanIG(s: string) {
   return s.trim().replace(/^@/, "").replace(/\s+/g, "");
@@ -11,7 +11,7 @@ function cleanIG(s: string) {
 type ChangeType = "day_time" | "captain" | "phone" | "name" | "other";
 
 export default function UpdatePage() {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const { supabase, isReady } = useSupabaseBrowser();
   const [loading, setLoading] = useState(true);
   const [profileIG, setProfileIG] = useState<string | null>(null);
 
@@ -24,6 +24,7 @@ export default function UpdatePage() {
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isReady || !supabase) return;
     (async () => {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) {
@@ -44,9 +45,10 @@ export default function UpdatePage() {
 
       setLoading(false);
     })();
-  }, [supabase]);
+  }, [supabase, isReady]);
 
   async function submit() {
+    if (!isReady || !supabase) return;
     setMsg(null);
 
     const ig = cleanIG(instagram);
@@ -72,7 +74,7 @@ export default function UpdatePage() {
     setDone(true);
   }
 
-  if (loading) {
+  if (!isReady || loading) {
     return (
       <main className="min-h-screen p-6 max-w-xl mx-auto">
         <HistoryBack

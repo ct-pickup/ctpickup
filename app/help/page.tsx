@@ -9,7 +9,7 @@ import {
   TopNav,
 } from "@/components/layout";
 import { APP_HOME_URL } from "@/lib/siteNav";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import {
   filterNavActionsForClient,
   type HelpNavAction,
@@ -61,7 +61,7 @@ function assistantTextWithHttpsLinks(text: string): ReactNode {
 }
 
 export default function HelpPage() {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const { supabase, isReady } = useSupabaseBrowser();
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [typedIntro, setTypedIntro] = useState("");
@@ -75,6 +75,7 @@ export default function HelpPage() {
   const wordsRemaining = Math.max(0, WORD_LIMIT - wordsUsed);
 
   useEffect(() => {
+    if (!isReady || !supabase) return;
     (async () => {
       const { data: sessionRes } = await supabase.auth.getSession();
       const user = sessionRes.session?.user;
@@ -90,7 +91,7 @@ export default function HelpPage() {
       if (name) setFirstName(name);
       setIsAdmin(!!profile?.is_admin);
     })();
-  }, [supabase]);
+  }, [supabase, isReady]);
 
   useEffect(() => {
     setTypedIntro("");
@@ -104,12 +105,20 @@ export default function HelpPage() {
     return () => clearInterval(timer);
   }, [fullIntro]);
 
+  const supabaseConfigured = isReady && !!supabase;
+
   const canSend = useMemo(() => {
     const trimmed = input.trim();
-    return trimmed.length > 0 && countWords(trimmed) <= WORD_LIMIT && !busy;
-  }, [input, busy]);
+    return (
+      supabaseConfigured &&
+      trimmed.length > 0 &&
+      countWords(trimmed) <= WORD_LIMIT &&
+      !busy
+    );
+  }, [input, busy, supabaseConfigured]);
 
   async function send() {
+    if (!isReady || !supabase) return;
     const text = input.trim();
     if (!text || countWords(text) > WORD_LIMIT || busy) return;
 

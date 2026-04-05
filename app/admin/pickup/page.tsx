@@ -4,7 +4,7 @@ import PageTop from "@/components/PageTop";
 import { AdminHubNav } from "@/components/admin/AdminHubNav";
 import Link from "next/link";
 import { APP_HOME_URL } from "@/lib/siteNav";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { useEffect, useMemo, useState } from "react";
 
 function fmt(dt: string | null) {
@@ -36,7 +36,7 @@ Leave blank.`,
 } as const;
 
 export default function AdminPickupPage() {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const { supabase, isReady } = useSupabaseBrowser();
   const [token, setToken] = useState<string | null>(null);
 
   const [runs, setRuns] = useState<any[]>([]);
@@ -100,6 +100,7 @@ const [locationPreset, setLocationPreset] = useState<
   }
 
   useEffect(() => {
+    if (!isReady || !supabase) return;
     (async () => {
       const s = await supabase.auth.getSession();
       const t = s.data.session?.access_token || null;
@@ -112,7 +113,7 @@ const [locationPreset, setLocationPreset] = useState<
       setToken(session?.access_token ?? null);
     });
     return () => subscription.unsubscribe();
-  }, [supabase]);
+  }, [supabase, isReady]);
 
   useEffect(() => {
     if (token) load();

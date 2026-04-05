@@ -7,7 +7,7 @@ import {
   TopNav,
 } from "@/components/layout";
 import { APP_HOME_URL } from "@/lib/siteNav";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { resolveWelcomeFirstName } from "@/lib/welcomeFirstName";
 
 const HERO_IMAGES = [
@@ -59,16 +59,27 @@ function HeroSlideshow() {
 }
 
 export default function AfterLoginClient() {
+  const { supabase, isReady } = useSupabaseBrowser();
   const [welcomeTarget, setWelcomeTarget] = useState<string | null>(null);
   const [typedLen, setTypedLen] = useState(0);
 
   useEffect(() => {
-    const supabase = supabaseBrowser();
+    if (!isReady) return;
+
     const params = new URLSearchParams(window.location.search);
     const isFirstHubVisitAfterSignup = params.get("new") === "1";
 
+    if (!supabase) {
+      setWelcomeTarget(
+        isFirstHubVisitAfterSignup ? "Welcome" : "Welcome back"
+      );
+      return;
+    }
+
+    const client = supabase;
+
     (async () => {
-      const { data, error } = await supabase.auth.getUser();
+      const { data, error } = await client.auth.getUser();
       const user = data.user;
 
       if (error || !user) {
@@ -78,7 +89,7 @@ export default function AfterLoginClient() {
         return;
       }
 
-      const { data: profile } = await supabase
+      const { data: profile } = await client
         .from("profiles")
         .select("first_name")
         .eq("id", user.id)
@@ -94,7 +105,7 @@ export default function AfterLoginClient() {
         );
       }
     })();
-  }, []);
+  }, [supabase, isReady]);
 
   useEffect(() => {
     if (welcomeTarget === null) return;

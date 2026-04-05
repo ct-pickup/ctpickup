@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Panel } from "@/components/layout";
 import {
@@ -9,12 +9,12 @@ import {
 } from "@/lib/guidancePlans";
 import { parseGuidancePlan, type GuidancePlan } from "@/lib/guidanceRequest";
 import { profileDisplayName, type ProfileRow } from "@/lib/profileFields";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { GuidanceRequestForm } from "./GuidanceRequestForm";
 
 export function GuidancePlansAndRequest() {
   const searchParams = useSearchParams();
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const { supabase, isReady } = useSupabaseBrowser();
 
   const planFromUrl = parseGuidancePlan(searchParams.get("plan"));
   const [plan, setPlan] = useState<GuidancePlan>(planFromUrl ?? "foundation");
@@ -27,6 +27,7 @@ export function GuidancePlansAndRequest() {
   const [profileHint, setProfileHint] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isReady || !supabase) return;
     (async () => {
       const { data: s } = await supabase.auth.getSession();
       if (!s.session?.user) {
@@ -43,7 +44,7 @@ export function GuidancePlansAndRequest() {
       const bits = [name || null, u.email || null].filter(Boolean);
       setProfileHint(bits.length ? bits.join(" · ") : u.email || null);
     })();
-  }, [supabase]);
+  }, [supabase, isReady]);
 
   return (
     <section className="space-y-6">

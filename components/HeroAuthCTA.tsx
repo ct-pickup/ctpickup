@@ -2,31 +2,36 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
 import { APP_HOME_URL } from "@/lib/siteNav";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 
 export default function HeroAuthCTA() {
+  const { supabase, isReady } = useSupabaseBrowser();
   const [loading, setLoading] = useState(true);
   const [isAuthed, setIsAuthed] = useState(false);
 
   useEffect(() => {
+    if (!isReady) return;
+
+    if (!supabase) {
+      setIsAuthed(false);
+      setLoading(false);
+      return;
+    }
+
+    const client = supabase;
     let alive = true;
 
     async function run() {
-      const { data } = await supabase.auth.getSession();
+      const { data } = await client.auth.getSession();
       if (!alive) return;
       setIsAuthed(!!data.session);
       setLoading(false);
     }
 
-    run();
+    void run();
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
+    const { data: sub } = client.auth.onAuthStateChange((_evt, session) => {
       setIsAuthed(!!session);
       setLoading(false);
     });
@@ -35,9 +40,9 @@ export default function HeroAuthCTA() {
       alive = false;
       sub.subscription.unsubscribe();
     };
-  }, []);
+  }, [supabase, isReady]);
 
-  if (loading) return <div className="mt-7 h-[72px]" />;
+  if (!isReady || loading) return <div className="mt-7 h-[72px]" />;
 
   if (isAuthed) {
     return (

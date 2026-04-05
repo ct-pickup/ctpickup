@@ -16,7 +16,7 @@ import {
   TopNav,
 } from "@/components/layout";
 import { APP_HOME_URL } from "@/lib/siteNav";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import {
   PROFILE_SELECT,
   profileDisplayName,
@@ -69,7 +69,7 @@ function fieldRow(label: string, value: string | null | undefined) {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const { supabase, isReady } = useSupabaseBrowser();
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
@@ -79,6 +79,7 @@ export default function ProfilePage() {
   const [avatarBroken, setAvatarBroken] = useState(false);
 
   const load = useCallback(async () => {
+    if (!supabase) return;
     setMsg(null);
     const { data, error } = await supabase.auth.getUser();
     const user = data.user;
@@ -111,10 +112,16 @@ export default function ProfilePage() {
   }, [router, supabase]);
 
   useEffect(() => {
+    if (!isReady) return;
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
     void load();
-  }, [load]);
+  }, [load, isReady, supabase]);
 
   async function onPickFile(e: ChangeEvent<HTMLInputElement>) {
+    if (!supabase) return;
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file || !userId) return;
@@ -172,6 +179,7 @@ export default function ProfilePage() {
   }
 
   async function signOut() {
+    if (!supabase) return;
     await supabase.auth.signOut();
     window.location.href = "/";
   }
@@ -187,7 +195,7 @@ export default function ProfilePage() {
       ? `@${String(profile.instagram).replace(/^@/, "")}`
       : null;
 
-  if (loading) {
+  if (!isReady || loading) {
     return (
       <PageShell maxWidthClass="max-w-2xl">
         <TopNav

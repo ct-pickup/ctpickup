@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 
 function PersonIcon() {
   return (
@@ -27,12 +22,20 @@ function PersonIcon() {
 }
 
 export default function AccountMenu() {
+  const { supabase, isReady } = useSupabaseBrowser();
   const [open, setOpen] = useState(false);
   const [authed, setAuthed] = useState<boolean | null>(null);
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    (async () => {
+    if (!isReady) return;
+
+    if (!supabase) {
+      setAuthed(false);
+      return;
+    }
+
+    void (async () => {
       const { data } = await supabase.auth.getUser();
       setAuthed(!!data.user);
     })();
@@ -42,7 +45,7 @@ export default function AccountMenu() {
     });
 
     return () => sub.subscription.unsubscribe();
-  }, []);
+  }, [supabase, isReady]);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -54,6 +57,7 @@ export default function AccountMenu() {
   }, []);
 
   async function logout() {
+    if (!supabase) return;
     await supabase.auth.signOut();
     window.location.href = "/";
   }
@@ -84,7 +88,9 @@ export default function AccountMenu() {
             zIndex: 60,
           }}
         >
-          {authed ? (
+          {!isReady || authed === null ? (
+            <div className="text-sm text-white/60">Loading…</div>
+          ) : authed ? (
             <div style={{ display: "grid", gap: 8 }}>
               <a className="ct-btn ct-btn-outline" href="/onboarding">
                 Player Profile

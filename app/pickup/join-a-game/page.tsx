@@ -4,8 +4,8 @@ import Link from "next/link";
 import { EmptyStateMessage } from "@/components/EmptyStateMessage";
 import { Panel } from "@/components/layout";
 import { PickupStatCell, PickupSubpageLoading, PickupSubpageShell } from "@/components/pickup";
-import { supabaseBrowser } from "@/lib/supabase/client";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type PublicPayload = {
@@ -56,17 +56,21 @@ function myStatusLabel(myStatus: string | null | undefined) {
 function JoinAGameContent() {
   const searchParams = useSearchParams();
   const runId = searchParams.get("run");
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const { supabase, isReady } = useSupabaseBrowser();
 
   const [data, setData] = useState<PublicPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isReady) return;
     let cancelled = false;
     (async () => {
       try {
-        const session = await supabase.auth.getSession();
-        const token = session.data.session?.access_token;
+        let token: string | undefined;
+        if (supabase) {
+          const session = await supabase.auth.getSession();
+          token = session.data.session?.access_token;
+        }
         const qs = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
         const headers: HeadersInit = {};
         if (token) headers.Authorization = `Bearer ${token}`;
@@ -87,7 +91,7 @@ function JoinAGameContent() {
     return () => {
       cancelled = true;
     };
-  }, [supabase, runId]);
+  }, [supabase, isReady, runId]);
 
   const loading = data === null;
   const run = data?.run ?? null;

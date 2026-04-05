@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { WaiverAcceptanceModal } from "@/components/waiver/WaiverAcceptanceModal";
 import type { GuidancePlan } from "@/lib/guidanceRequest";
 import { GUIDANCE_PLAN_DEFINITIONS, formatGuidancePriceUsd } from "@/lib/guidancePlans";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 
 const PLAN_OPTIONS = GUIDANCE_PLAN_DEFINITIONS.map((p) => ({
   value: p.key,
@@ -18,7 +18,7 @@ type Props = {
 };
 
 export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const { supabase, isReady } = useSupabaseBrowser();
   const [message, setMessage] = useState("");
   const [sportFocus, setSportFocus] = useState("");
   const [busy, setBusy] = useState(false);
@@ -28,6 +28,7 @@ export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
   const [waiverModalOpen, setWaiverModalOpen] = useState(false);
 
   useEffect(() => {
+    if (!isReady || !supabase) return;
     void supabase.auth.getSession().then(({ data }) => {
       setSessionToken(data.session?.access_token ?? null);
     });
@@ -37,10 +38,11 @@ export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
       setSessionToken(session?.access_token ?? null);
     });
     return () => subscription.unsubscribe();
-  }, [supabase]);
+  }, [supabase, isReady]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!isReady || !supabase) return;
     setError(null);
     setBusy(true);
 
@@ -199,7 +201,7 @@ export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
 
       <button
         type="submit"
-        disabled={busy}
+        disabled={busy || !isReady}
         className="inline-flex min-h-[44px] w-full items-center justify-center rounded-md border border-white/25 bg-white px-6 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-50 sm:w-auto"
       >
         {busy ? "Sending…" : "Request guidance"}

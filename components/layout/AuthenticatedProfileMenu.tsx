@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { PROFILE_SELECT, type ProfileRow } from "@/lib/profileFields";
 import { PROFILE_UPDATED_EVENT } from "@/lib/profileBroadcast";
 
@@ -38,6 +38,7 @@ function UserGlyph({ className }: { className?: string }) {
  * Uses `getUser()` (validated JWT) instead of `getSession()` so cookie-based SSR clients don’t look logged out.
  */
 export function AuthenticatedProfileMenu() {
+  const { supabase, isReady } = useSupabaseBrowser();
   const loadRef = useRef<() => Promise<void>>(() => Promise.resolve());
   const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -45,10 +46,19 @@ export function AuthenticatedProfileMenu() {
   const [avatarBroken, setAvatarBroken] = useState(false);
 
   useEffect(() => {
-    const supabase = supabaseBrowser();
+    if (!isReady) return;
+
+    if (!supabase) {
+      setUserId(null);
+      setAvatarUrl(null);
+      setReady(true);
+      return;
+    }
+
+    const client = supabase;
 
     const load = async () => {
-      const { data, error } = await supabase.auth.getUser();
+      const { data, error } = await client.auth.getUser();
       const user = data.user;
       if (error || !user) {
         setUserId(null);
@@ -59,7 +69,7 @@ export function AuthenticatedProfileMenu() {
 
       setUserId(user.id);
 
-      const { data: row } = await supabase
+      const { data: row } = await client
         .from("profiles")
         .select(PROFILE_SELECT)
         .eq("id", user.id)
@@ -74,11 +84,11 @@ export function AuthenticatedProfileMenu() {
     loadRef.current = load;
 
     void load();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+    const { data: sub } = client.auth.onAuthStateChange(() => {
       void load();
     });
     return () => sub.subscription.unsubscribe();
-  }, []);
+  }, [supabase, isReady]);
 
   useEffect(() => {
     const onUpdated = () => {
@@ -88,7 +98,7 @@ export function AuthenticatedProfileMenu() {
     return () => window.removeEventListener(PROFILE_UPDATED_EVENT, onUpdated);
   }, []);
 
-  if (!ready) {
+  if (!isReady || !ready) {
     return (
       <div
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5"

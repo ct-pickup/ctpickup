@@ -9,7 +9,7 @@ import {
 import { WaiverAcceptanceModal } from "@/components/waiver/WaiverAcceptanceModal";
 import Link from "next/link";
 import { APP_HOME_URL } from "@/lib/siteNav";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type PendingPickup =
@@ -35,7 +35,7 @@ function fmt(dt: string | null) {
 }
 
 export default function PickupPage() {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const { supabase, isReady } = useSupabaseBrowser();
   const [token, setToken] = useState<string | null>(null);
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,6 +63,7 @@ export default function PickupPage() {
   }
 
   useEffect(() => {
+    if (!isReady || !supabase) return;
     (async () => {
       const { data } = await supabase.auth.getSession();
       setToken(data.session?.access_token ?? null);
@@ -73,7 +74,7 @@ export default function PickupPage() {
       setToken(session?.access_token ?? null);
     });
     return () => subscription.unsubscribe();
-  }, [supabase]);
+  }, [supabase, isReady]);
 
   useEffect(() => {
     refresh();

@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { HistoryBack } from "@/components/layout";
 import { APP_HOME_URL } from "@/lib/siteNav";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 
 function cleanIG(s: string) {
@@ -12,7 +12,7 @@ function cleanIG(s: string) {
 }
 
 export default function OnboardingPage() {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const { supabase, isReady } = useSupabaseBrowser();
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -23,6 +23,7 @@ export default function OnboardingPage() {
   const [waiverAccepted, setWaiverAccepted] = useState(false);
 
   useEffect(() => {
+    if (!isReady || !supabase) return;
     (async () => {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) {
@@ -43,9 +44,10 @@ export default function OnboardingPage() {
 
       setLoading(false);
     })();
-  }, [supabase]);
+  }, [supabase, isReady]);
 
   async function save() {
+    if (!isReady || !supabase) return;
     setMsg(null);
 
     const ig = cleanIG(instagram);
