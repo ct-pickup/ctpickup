@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { supabaseService } from "@/lib/supabase/service";
-import { requireAdmin } from "@/lib/admin/guard";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const deny = requireAdmin(req);
-  if (deny) return deny;
+  const guard = await requireAdminBearer(req);
+  if (!guard.ok) return guard.response;
 
   try {
     const body = await req.json();

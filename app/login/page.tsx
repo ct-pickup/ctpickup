@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { HistoryBack } from "@/components/layout";
+import { safeNextPath } from "@/lib/auth/safeNextPath";
+import { APP_HOME_URL } from "@/lib/siteNav";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { useTransitionNav } from "@/components/TransitionNavContext";
+import { Suspense, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const transitionNav = useTransitionNav();
+  const supabase = useMemo(() => supabaseBrowser(), []);
 
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -56,7 +58,9 @@ export default function LoginPage() {
 
     const { error } = await supabase.auth.signInWithOtp({
       email: emailClean,
-      options: { emailRedirectTo: `${window.location.origin}/after-login` },
+      options: {
+        emailRedirectTo: `${window.location.origin}${APP_HOME_URL}`,
+      },
     });
 
     setBusy(false);
@@ -81,14 +85,21 @@ export default function LoginPage() {
     setBusy(false);
     if (error) return setMsg(error.message);
 
-    // smooth fade out
+    const next = safeNextPath(searchParams.get("next"));
+    const target = next ?? APP_HOME_URL;
+
     setTransitioning(true);
-    setTimeout(() => router.push("/after-login"), 260);
+    setTimeout(() => {
+      if (transitionNav) {
+        transitionNav.navigateWithTransition(target);
+      } else {
+        router.push(target);
+      }
+    }, 260);
   }
 
   return (
     <main className="min-h-screen bg-black text-white">
-      {/* Fade overlay */}
       <div
         className={[
           "fixed inset-0 bg-black pointer-events-none transition-opacity duration-300",
@@ -104,12 +115,10 @@ export default function LoginPage() {
             <p className="text-sm text-white/55">We’ll email you a verification code. No password needed.</p>
           </div>
 
-          <Link
-            href="/"
-            className="text-sm text-white/70 hover:underline underline-offset-4 hover:text-white"
-          >
-            Back
-          </Link>
+          <HistoryBack
+            fallbackHref="/"
+            className="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-white/70 underline-offset-4 transition hover:text-white hover:underline"
+          />
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-4">
@@ -183,5 +192,19 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-black text-white flex items-center justify-center text-sm text-white/60">
+          Loading…
+        </main>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

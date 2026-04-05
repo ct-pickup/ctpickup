@@ -1,4 +1,5 @@
 import { supabaseService } from "@/lib/supabase/service";
+import { HistoryBack } from "@/components/layout";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,10 @@ export default async function DMPage() {
   if (!event) {
     return (
       <main className="min-h-screen p-6">
+        <HistoryBack
+          fallbackHref="/"
+          className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900"
+        />
         <h1 className="text-2xl font-semibold">No active run</h1>
       </main>
     );
@@ -26,6 +31,10 @@ export default async function DMPage() {
 
   return (
     <main className="min-h-screen p-6 max-w-2xl mx-auto">
+      <HistoryBack
+        fallbackHref="/"
+        className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900"
+      />
       <h1 className="text-2xl font-semibold">DM Templates</h1>
 
       <div className="mt-6 rounded-xl border p-4 space-y-3">

@@ -7,12 +7,15 @@ type AutoSliderProps = {
   images: { src: string; alt?: string }[];
   intervalMs?: number;
   className?: string;
+  /** Tailwind aspect utility for the frame (default 16:9). */
+  aspectClassName?: string;
 };
 
 export default function AutoSlider({
   images,
   intervalMs = 5000,
   className = "",
+  aspectClassName = "aspect-[16/9]",
 }: AutoSliderProps) {
   const [index, setIndex] = useState(0);
 
@@ -30,7 +33,7 @@ export default function AutoSlider({
 
   return (
     <div className={`relative w-full overflow-hidden rounded-lg ${className}`}>
-      <div className="relative w-full aspect-[16/9]">
+      <div className={`relative w-full ${aspectClassName}`}>
         <Image
           key={current.src}
           src={current.src}

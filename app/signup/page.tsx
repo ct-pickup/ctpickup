@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { HistoryBack } from "@/components/layout";
+import { APP_HOME_FIRST_VISIT_URL } from "@/lib/siteNav";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
+import { useTransitionNav } from "@/components/TransitionNavContext";
 
 type Stage = "email" | "code" | "profile";
 
@@ -94,6 +93,8 @@ function InfoIcon() {
 
 export default function SignupPage() {
   const router = useRouter();
+  const transitionNav = useTransitionNav();
+  const supabase = useMemo(() => supabaseBrowser(), []);
 
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -106,6 +107,7 @@ export default function SignupPage() {
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [instagram, setInstagram] = useState("");
+  const [waiverAccepted, setWaiverAccepted] = useState(false);
 
   const emailClean = useMemo(() => email.trim().toLowerCase(), [email]);
 
@@ -123,9 +125,10 @@ export default function SignupPage() {
       firstName.trim().length > 0 &&
       lastName.trim().length > 0 &&
       phone.trim().length > 0 &&
-      instagram.trim().length > 0
+      instagram.trim().length > 0 &&
+      waiverAccepted
     );
-  }, [firstName, lastName, phone, instagram]);
+  }, [firstName, lastName, phone, instagram, waiverAccepted]);
 
   async function checkExists() {
     const r = await fetch("/api/auth/email-exists", {
@@ -152,7 +155,9 @@ export default function SignupPage() {
 
     const { error } = await supabase.auth.signInWithOtp({
       email: emailClean,
-      options: { emailRedirectTo: `${window.location.origin}/after-login?new=1` },
+      options: {
+        emailRedirectTo: `${window.location.origin}${APP_HOME_FIRST_VISIT_URL}`,
+      },
     });
 
     setBusy(false);
@@ -188,10 +193,10 @@ export default function SignupPage() {
     setMsg(null);
 
     try {
-      const sessionRes = await supabase.auth.getSession();
-      const user = sessionRes.data.session?.user;
+      const { data: auth, error: authErr } = await supabase.auth.getUser();
+      const user = auth.user;
 
-      if (!user) {
+      if (authErr || !user) {
         setBusy(false);
         setMsg("Session not found. Please verify your code again.");
         return;
@@ -208,14 +213,48 @@ export default function SignupPage() {
         { onConflict: "id" }
       );
 
-      setBusy(false);
       if (error) {
+        setBusy(false);
         setMsg(error.message);
         return;
       }
 
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) {
+        setBusy(false);
+        setMsg("Session not found. Please verify your code again.");
+        return;
+      }
+
+      const acceptRes = await fetch("/api/waiver/accept", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ acknowledge: true }),
+      });
+
+      setBusy(false);
+      if (!acceptRes.ok) {
+        const aj = await acceptRes.json().catch(() => ({}));
+        setMsg(
+          typeof aj?.error === "string"
+            ? `Could not record waiver acceptance (${aj.error.replace(/_/g, " ")}).`
+            : "Could not record waiver acceptance. Please try again."
+        );
+        return;
+      }
+
       setTransitioning(true);
-      setTimeout(() => router.push("/after-login?new=1"), 260);
+      setTimeout(() => {
+        if (transitionNav) {
+          transitionNav.navigateWithTransition(APP_HOME_FIRST_VISIT_URL);
+        } else {
+          router.push(APP_HOME_FIRST_VISIT_URL);
+        }
+      }, 260);
     } catch (e: any) {
       setBusy(false);
       setMsg(e?.message || "Something went wrong.");
@@ -239,12 +278,10 @@ export default function SignupPage() {
             CT Pickup
           </div>
 
-          <Link
-            href="/"
-            className="text-sm text-white/70 hover:text-white hover:underline underline-offset-4"
-          >
-            Back
-          </Link>
+          <HistoryBack
+            fallbackHref="/"
+            className="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-white/70 underline-offset-4 transition hover:text-white hover:underline"
+          />
         </div>
 
         <div className="flex items-center justify-center gap-10">
@@ -267,8 +304,8 @@ export default function SignupPage() {
                 </p>
 
                 <div className="pt-1">
-  <InfoIcon />
-</div>
+                  <InfoIcon />
+                </div>
               </div>
 
               <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
@@ -373,6 +410,30 @@ export default function SignupPage() {
                       onChange={(e) => setInstagram(e.target.value)}
                       disabled={busy}
                     />
+
+                    <label className="flex cursor-pointer items-start gap-3 text-left text-sm leading-relaxed text-white/75">
+                      <input
+                        type="checkbox"
+                        checked={waiverAccepted}
+                        onChange={(e) => setWaiverAccepted(e.target.checked)}
+                        disabled={busy}
+                        className="mt-1 h-4 w-4 shrink-0 rounded border-white/30 bg-black"
+                      />
+                      <span>
+                        I agree to the{" "}
+                        <Link
+                          href="/liability-waiver"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-semibold text-white underline-offset-4 hover:underline"
+                        >
+                          Liability Waiver &amp; Participation Agreement
+                        </Link>{" "}
+                        ({CURRENT_WAIVER_VERSION}), including eligibility (13+; parental
+                        consent if under 18). I understand I must accept the current waiver
+                        version to use tournaments and related services.
+                      </span>
+                    </label>
 
                     <button
                       className="w-full rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-black disabled:opacity-50"

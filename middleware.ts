@@ -1,41 +1,62 @@
-import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
 
-const COOKIE = "ct_admin";
+function copySupabaseCookies(from: NextResponse, to: NextResponse) {
+  from.cookies.getAll().forEach((cookie) => {
+    to.cookies.set(cookie);
+  });
+}
 
-export function middleware(req: NextRequest) {
-  const { pathname, searchParams } = req.nextUrl;
+export async function middleware(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({ request });
 
-  // Only protect /admin/*
-  if (!pathname.startsWith("/admin")) return NextResponse.next();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
 
-  // Already authed?
-  const hasCookie = req.cookies.get(COOKIE)?.value === "1";
-  if (hasCookie) return NextResponse.next();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  // Magic ?key=ADMIN_SECRET sets cookie then redirects (removes the key from URL)
-  const key = searchParams.get("key");
-  const secret = process.env.ADMIN_SECRET;
+  const { pathname } = request.nextUrl;
 
-  if (key && secret && key === secret) {
-    const url = req.nextUrl.clone();
-    url.searchParams.delete("key");
-
-    const res = NextResponse.redirect(url);
-    res.cookies.set(COOKIE, "1", {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
-    return res;
+  if (pathname === "/admin/login" || pathname.startsWith("/admin/login/")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("next", "/admin/pickup");
+    const redirectRes = NextResponse.redirect(url);
+    copySupabaseCookies(supabaseResponse, redirectRes);
+    return redirectRes;
   }
 
-  // Not authed -> send to home
-  const home = req.nextUrl.clone();
-  home.pathname = "/";
-  home.search = "";
-  return NextResponse.redirect(home);
+  if (pathname.startsWith("/admin")) {
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      const nextPath = `${pathname}${request.nextUrl.search}`;
+      url.searchParams.set("next", nextPath);
+      const redirectRes = NextResponse.redirect(url);
+      copySupabaseCookies(supabaseResponse, redirectRes);
+      return redirectRes;
+    }
+  }
+
+  return supabaseResponse;
 }
 
 export const config = {

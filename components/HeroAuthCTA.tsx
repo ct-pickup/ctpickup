@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { APP_HOME_URL } from "@/lib/siteNav";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -42,7 +43,7 @@ export default function HeroAuthCTA() {
     return (
       <div className="mt-7 flex flex-col items-center justify-center gap-2">
         <Link
-          href="/after-login"
+          href={APP_HOME_URL}
           className="rounded-md bg-white px-7 py-3 text-sm font-semibold text-black"
         >
           CONTINUE

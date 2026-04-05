@@ -1,9 +1,14 @@
 "use client";
 
-import PageTop from "@/components/PageTop";
-
-import Link from "next/link";
 import { useMemo } from "react";
+import {
+  AuthenticatedProfileMenu,
+  PageShell,
+  Panel,
+  SectionEyebrow,
+  TopNav,
+} from "@/components/layout";
+import { APP_HOME_URL } from "@/lib/siteNav";
 
 type Section = {
   id: string;
@@ -57,45 +62,50 @@ export default function InfoPage() {
   );
 
   return (
-    <main className="min-h-screen bg-black text-white">
-      <PageTop title="INFO" />
-      <div className="mx-auto max-w-5xl px-6 py-14 space-y-10">
+    <PageShell>
+      <TopNav
+        brandHref={APP_HOME_URL}
+        fallbackHref={APP_HOME_URL}
+        rightSlot={<AuthenticatedProfileMenu />}
+      />
 
-        {/* QUICK FIND (tabs only) */}
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
-          <div className="text-sm font-semibold uppercase tracking-wide text-white/70">
-            Quick Find
-          </div>
+      <div className="space-y-8 pb-16 pt-4">
+        <div>
+          <SectionEyebrow>Reference</SectionEyebrow>
+          <h1 className="mt-3 text-2xl font-semibold uppercase tracking-tight text-white md:text-3xl">
+            Info
+          </h1>
+        </div>
+
+        <Panel className="space-y-3">
+          <SectionEyebrow>Quick Find</SectionEyebrow>
 
           <div className="flex flex-wrap gap-2 pt-1">
             {sections.map((s) => (
               <a
                 key={s.id}
                 href={`#${s.id}`}
-                className="text-xs rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-white/75 hover:text-white"
+                className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/75 transition hover:text-white"
               >
                 {s.title}
               </a>
             ))}
           </div>
-        </div>
+        </Panel>
 
-        {/* Sections */}
         <div className="space-y-4">
           {sections.map((sec) => (
-            <section
-              key={sec.id}
-              id={sec.id}
-              className="rounded-2xl border border-white/10 bg-white/[0.03] p-7 space-y-3"
-            >
-              <div className="text-lg font-semibold uppercase tracking-wide text-white/90">
+            <Panel key={sec.id} id={sec.id} className="scroll-mt-24 space-y-3">
+              <h2 className="text-lg font-semibold uppercase tracking-wide text-white">
                 {sec.title}
+              </h2>
+              <div className="whitespace-pre-line text-sm leading-relaxed text-white/75">
+                {sec.text}
               </div>
-              <div className="text-white/75 whitespace-pre-line">{sec.text}</div>
-            </section>
+            </Panel>
           ))}
         </div>
       </div>
-    </main>
+    </PageShell>
   );
 }

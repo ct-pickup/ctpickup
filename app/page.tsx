@@ -1,8 +1,6 @@
-"use client";
-
 import Link from "next/link";
-
-const CT_LOGO_SRC = "/ct-logo.png";
+import { HomeSessionIntro } from "@/components/home/HomeSessionIntro";
+import { HomeHeroBrand } from "@/components/home/HomeHeroBrand";
 
 function UserIcon() {
   return (
@@ -11,7 +9,7 @@ function UserIcon() {
       height="18"
       viewBox="0 0 24 24"
       fill="none"
-      className="text-black/60"
+      className="text-white"
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
@@ -37,7 +35,7 @@ function InstagramIcon() {
       height="18"
       viewBox="0 0 24 24"
       fill="none"
-      className="text-white/80"
+      className="text-white/85"
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
@@ -62,72 +60,56 @@ function InstagramIcon() {
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-6xl px-6 pt-6">
-        <div className="rounded-full bg-white/90 px-6 py-3 text-black flex items-center justify-between">
-          <div className="font-semibold tracking-wide uppercase">
-            COMPETITIVE · TOGETHER
-          </div>
+    <HomeSessionIntro>
+      <main className="py-5">
+        <div className="mx-auto max-w-5xl">
+          <div className="rounded-full border border-white/15 bg-white/6 px-5 py-3 backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div className="text-sm font-semibold uppercase tracking-[0.22em] text-white/90 sm:text-base">
+                Competitive · Together
+              </div>
 
-          <div className="h-9 w-9 rounded-full border border-black/15 flex items-center justify-center">
-            <UserIcon />
+              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10">
+                <UserIcon />
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="mx-auto max-w-6xl px-6">
-        <section className="relative mt-10 flex min-h-[72vh] items-center justify-center">
-          <div className="absolute inset-0 rounded-3xl bg-gradient-to-b from-white/5 to-transparent" />
+        <section className="flex min-h-[72vh] flex-col items-center justify-center text-center">
+          <HomeHeroBrand />
 
-          <div className="relative w-full max-w-xl text-center">
-            <div className="flex justify-center">
-              <img
-                src={CT_LOGO_SRC}
-                alt="CT Pickup"
-                className="w-[360px] md:w-[460px] h-auto object-contain"
-              />
-            </div>
+          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <Link
+              href="/login"
+              className="min-w-[160px] rounded-md bg-white px-6 py-3 text-sm font-semibold text-black"
+            >
+              Log In
+            </Link>
 
-            <div className="mt-6 text-white uppercase font-semibold tracking-[0.9em] text-2xl md:text-3xl">
-              P I C K U P
-            </div>
+            <Link
+              href="/signup"
+              className="min-w-[160px] rounded-md border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10"
+            >
+              Sign Up
+            </Link>
+          </div>
 
-            <p className="mt-6 text-base md:text-lg font-semibold uppercase tracking-wide text-white/85">
-              COMMUNITY. CULTURE. COMPETITION.
-            </p>
-
-            <div className="mt-7 flex flex-col items-center justify-center gap-3">
-              <Link
-                href="/login"
-                className="rounded-md bg-white px-7 py-3 text-sm font-semibold text-black"
-              >
-                LOG IN
-              </Link>
-
-              <Link
-                href="/signup"
-                className="rounded-md border border-white/15 bg-white/5 px-7 py-3 text-sm font-semibold text-white"
-              >
-                SIGN UP
-              </Link>
-            </div>
-
-            <div className="mt-8 flex items-center justify-center text-sm text-white/85">
-              <a
-                href="https://instagram.com/ct.pickup"
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-3"
-              >
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/15 bg-white/5">
-                  <InstagramIcon />
-                </span>
-                <span className="font-semibold">ct.pickup</span>
-              </a>
-            </div>
+          <div className="mt-8 flex items-center justify-center">
+            <a
+              href="https://instagram.com/ct.pickup"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-3 text-sm text-white/80"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10">
+                <InstagramIcon />
+              </span>
+              <span className="font-medium">@ct.pickup</span>
+            </a>
           </div>
         </section>
-      </div>
-    </main>
+      </main>
+    </HomeSessionIntro>
   );
 }

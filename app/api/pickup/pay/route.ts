@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
+import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
 
 export const runtime = "nodejs";
 
@@ -10,7 +12,7 @@ const admin = createClient(
 );
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2024-06-20",
+  apiVersion: "2026-02-25.clover",
 });
 
 function bearer(req: Request) {
@@ -25,6 +27,11 @@ export async function POST(req: Request) {
   const u = await admin.auth.getUser(token);
   const user = u.data.user;
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const waiverOk = await userHasAcceptedCurrentWaiver(user.id);
+  if (!waiverOk) {
+    return NextResponse.json({ error: "waiver_required" }, { status: 403 });
+  }
 
   const body = await req.json().catch(() => ({}));
   const run_id = String(body.run_id || "");
@@ -55,7 +62,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const baseUrl = requestSiteUrlFromRequest(req);
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",

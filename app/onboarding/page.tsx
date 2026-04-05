@@ -1,18 +1,18 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { HistoryBack } from "@/components/layout";
+import { APP_HOME_URL } from "@/lib/siteNav";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 
 function cleanIG(s: string) {
   return s.trim().replace(/^@/, "").replace(/\s+/g, "");
 }
 
 export default function OnboardingPage() {
+  const supabase = useMemo(() => supabaseBrowser(), []);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -20,6 +20,7 @@ export default function OnboardingPage() {
   const [lastName, setLastName] = useState("");
   const [instagram, setInstagram] = useState("");
   const [phone, setPhone] = useState("");
+  const [waiverAccepted, setWaiverAccepted] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -42,7 +43,7 @@ export default function OnboardingPage() {
 
       setLoading(false);
     })();
-  }, []);
+  }, [supabase]);
 
   async function save() {
     setMsg(null);
@@ -52,6 +53,7 @@ export default function OnboardingPage() {
     if (!lastName.trim()) return setMsg("Last name is required.");
     if (!ig) return setMsg("Instagram is required.");
     if (!phone.trim()) return setMsg("Phone is required.");
+    if (!waiverAccepted) return setMsg("Please accept the Liability Waiver to continue.");
 
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) return (window.location.href = "/login");
@@ -66,12 +68,37 @@ export default function OnboardingPage() {
 
     if (error) return setMsg(error.message);
 
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (!accessToken) return setMsg("Session not found. Please log in again.");
+
+    const acceptRes = await fetch("/api/waiver/accept", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ acknowledge: true }),
+    });
+    if (!acceptRes.ok) {
+      const aj = await acceptRes.json().catch(() => ({}));
+      return setMsg(
+        typeof aj?.error === "string"
+          ? `Could not record waiver (${aj.error.replace(/_/g, " ")}).`
+          : "Could not record waiver acceptance."
+      );
+    }
+
     window.location.href = "/tournament";
   }
 
   if (loading) {
     return (
       <main className="min-h-screen p-6 max-w-xl mx-auto">
+        <HistoryBack
+          fallbackHref="/login"
+          className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900"
+        />
         <h1 className="text-2xl font-semibold">Setting up…</h1>
       </main>
     );
@@ -79,6 +106,10 @@ export default function OnboardingPage() {
 
   return (
     <main className="min-h-screen p-6 max-w-xl mx-auto">
+      <HistoryBack
+        fallbackHref={APP_HOME_URL}
+        className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900"
+      />
       <h1 className="text-2xl font-semibold">New here?</h1>
       <p className="mt-2 text-sm text-gray-600">
         Instagram + phone are required so we can verify identity and contact you quickly
@@ -93,6 +124,27 @@ export default function OnboardingPage() {
 
         <input className="rounded-lg border p-3 w-full" placeholder="Instagram (@handle)" value={instagram} onChange={(e) => setInstagram(e.target.value)} />
         <input className="rounded-lg border p-3 w-full" placeholder="Phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />
+
+        <label className="flex cursor-pointer items-start gap-3 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={waiverAccepted}
+            onChange={(e) => setWaiverAccepted(e.target.checked)}
+            className="mt-1 h-4 w-4 shrink-0"
+          />
+          <span>
+            I agree to the{" "}
+            <Link
+              href="/liability-waiver"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-gray-900 underline"
+            >
+              Liability Waiver
+            </Link>{" "}
+            ({CURRENT_WAIVER_VERSION}).
+          </span>
+        </label>
 
         <button className="rounded-lg border px-4 py-3 font-medium" onClick={save}>
           Save & continue

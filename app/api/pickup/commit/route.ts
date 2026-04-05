@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,11 @@ export async function POST(req: Request) {
   const u = await admin.auth.getUser(token);
   const userId = u.data.user?.id || null;
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const waiverOk = await userHasAcceptedCurrentWaiver(userId);
+  if (!waiverOk) {
+    return NextResponse.json({ error: "waiver_required" }, { status: 403 });
+  }
 
   const body = await req.json();
   const run_id = String(body.run_id || "");
@@ -64,15 +70,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not invited yet." }, { status: 403 });
   }
 
-  const inviteRow = await admin
-    .from("pickup_run_invites")
-    .select("run_id,user_id")
-    .eq("run_id", run_id)
-    .eq("user_id", userId)
-    .maybeSingle();
+  if (run.data.run_type !== "public") {
+    const inviteRow = await admin
+      .from("pickup_run_invites")
+      .select("run_id,user_id")
+      .eq("run_id", run_id)
+      .eq("user_id", userId)
+      .maybeSingle();
 
-  if (!inviteRow.data) {
-    return NextResponse.json({ error: "Not invited yet." }, { status: 403 });
+    if (!inviteRow.data) {
+      return NextResponse.json({ error: "Not invited yet." }, { status: 403 });
+    }
   }
 
   // Upsert availability

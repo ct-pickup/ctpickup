@@ -1,18 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  AuthenticatedProfileMenu,
+  PageShell,
+  Panel,
+  TopNav,
+} from "@/components/layout";
+import { APP_HOME_URL } from "@/lib/siteNav";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import {
+  filterNavActionsForClient,
+  type HelpNavAction,
+} from "@/lib/helpNavWhitelist";
 
 type Msg = {
   role: "user" | "assistant";
   text: string;
+  actions?: HelpNavAction[];
 };
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 const EXAMPLE_QUESTIONS = [
   "How do I join a tournament?",
@@ -28,38 +35,39 @@ function countWords(text: string) {
   return words ? words.length : 0;
 }
 
-function UserIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      className="text-black/60"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M20 21a8 8 0 0 0-16 0"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
+/** Turn bare https URLs in assistant copy into external links (e.g. 988 Lifeline). */
+function assistantTextWithHttpsLinks(text: string): ReactNode {
+  const segments = text.split(/(https:\/\/[^\s]+)/g);
+  return segments.map((seg, i) => {
+    if (!/^https:\/\//.test(seg)) {
+      return <span key={i}>{seg}</span>;
+    }
+    const href = seg.replace(/[.,;:!?)\]]+$/g, "");
+    const tail = seg.slice(href.length);
+    return (
+      <span key={i}>
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-sky-300 underline underline-offset-2 hover:text-sky-200"
+        >
+          {href}
+        </a>
+        {tail}
+      </span>
+    );
+  });
 }
 
 export default function HelpPage() {
+  const supabase = useMemo(() => supabaseBrowser(), []);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [typedIntro, setTypedIntro] = useState("");
   const [currentExample, setCurrentExample] = useState(EXAMPLE_QUESTIONS[0]);
   const [firstName, setFirstName] = useState("there");
+  const [isAdmin, setIsAdmin] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const fullIntro = `Hi, ${firstName}, what can I assist you with?`;
@@ -74,14 +82,15 @@ export default function HelpPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("first_name")
+        .select("first_name, is_admin")
         .eq("id", user.id)
         .maybeSingle();
 
       const name = String(profile?.first_name || "").trim();
       if (name) setFirstName(name);
+      setIsAdmin(!!profile?.is_admin);
     })();
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
     setTypedIntro("");
@@ -109,20 +118,34 @@ export default function HelpPage() {
     setBusy(true);
 
     try {
+      const { data: sessionRes } = await supabase.auth.getSession();
+      const accessToken = sessionRes.session?.access_token;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (accessToken) {
+        headers.Authorization = `Bearer ${accessToken}`;
+      }
+
       const r = await fetch("/api/help/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ question: text }),
       });
       const j = await r.json();
+
+      const assistantText = r.ok
+        ? String(j?.text || "I couldn’t generate a reply.")
+        : String(j?.error || "Something went wrong.");
+      const rawActions = r.ok && Array.isArray(j?.actions) ? j.actions : [];
+      const actions = filterNavActionsForClient(rawActions, { isAdmin });
 
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          text: r.ok
-            ? String(j?.text || "I couldn’t generate a reply.")
-            : String(j?.error || "Something went wrong."),
+          text: assistantText,
+          ...(actions.length ? { actions } : {}),
         },
       ]);
     } catch {
@@ -147,46 +170,14 @@ export default function HelpPage() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-6xl px-6 pt-6">
-        <div className="rounded-full bg-white/90 px-6 py-3 text-black flex items-center justify-between gap-4">
-          <div className="text-base md:text-lg font-semibold tracking-wide whitespace-nowrap">
-            CT Pickup
-          </div>
+    <PageShell maxWidthClass="max-w-6xl">
+      <TopNav
+        brandHref={APP_HOME_URL}
+        fallbackHref={APP_HOME_URL}
+        rightSlot={<AuthenticatedProfileMenu />}
+      />
 
-          <div className="hidden md:flex items-center gap-6">
-            <Link href="/after-login" className="text-sm font-medium">
-              Home
-            </Link>
-            <Link href="/pickup" className="text-sm font-medium">
-              Pickup Games
-            </Link>
-            <Link href="/tournament" className="text-sm font-medium">
-              Tournaments
-            </Link>
-            <Link href="/training" className="text-sm font-medium">
-              Training
-            </Link>
-            <Link href="/u23" className="text-sm font-medium">
-              U23
-            </Link>
-            <Link href="/info" className="text-sm font-medium">
-              About
-            </Link>
-          </div>
-
-          <div className="flex items-center gap-2 rounded-full border border-black/15 px-3 py-1.5">
-            <div className="h-8 w-8 rounded-full border border-black/15 flex items-center justify-center">
-              <UserIcon />
-            </div>
-            <div className="text-sm font-medium max-w-[140px] truncate">
-              Profile
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-4xl px-6 py-14 space-y-8">
+      <div className="mx-auto max-w-4xl space-y-8 pb-16 pt-4">
         <div className="space-y-2">
           <div className="min-h-[64px] text-4xl md:text-5xl font-semibold tracking-tight text-white leading-none">
             {typedIntro}
@@ -196,21 +187,43 @@ export default function HelpPage() {
           </div>
         </div>
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 md:p-8 space-y-6">
+        <Panel className="space-y-6 p-6 md:p-8">
           <div className="space-y-4">
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                className={[
-                  "max-w-[90%] rounded-2xl px-4 py-3 text-sm whitespace-pre-line",
-                  m.role === "user"
-                    ? "ml-auto bg-white text-black"
-                    : "bg-black/40 text-white border border-white/10",
-                ].join(" ")}
-              >
-                {m.text}
-              </div>
-            ))}
+            {messages.map((m, i) => {
+              const safeActions =
+                m.role === "assistant"
+                  ? filterNavActionsForClient(m.actions, { isAdmin })
+                  : [];
+              return (
+                <div
+                  key={i}
+                  className={[
+                    "max-w-[90%] rounded-2xl px-4 py-3 text-sm whitespace-pre-line",
+                    m.role === "user"
+                      ? "ml-auto bg-white text-black"
+                      : "bg-black/40 text-white border border-white/10",
+                  ].join(" ")}
+                >
+                  {m.role === "assistant"
+                    ? assistantTextWithHttpsLinks(m.text)
+                    : m.text}
+                  {safeActions.length ? (
+                    <div className="mt-3 flex flex-wrap gap-2 border-t border-white/10 pt-3">
+                      {safeActions.map((a) => (
+                        <Link
+                          key={`${a.href}-${a.label}`}
+                          href={a.href}
+                          title={a.reason}
+                          className="inline-flex items-center rounded-full border border-white/20 bg-white/[0.08] px-3 py-1.5 text-xs font-semibold text-white/90 transition hover:border-white/30 hover:bg-white/[0.12]"
+                        >
+                          {a.label}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
 
             {busy ? (
               <div className="max-w-[90%] rounded-2xl px-4 py-3 text-sm bg-black/40 text-white border border-white/10">
@@ -257,8 +270,8 @@ export default function HelpPage() {
               </div>
             ) : null}
           </div>
-        </section>
+        </Panel>
       </div>
-    </main>
+    </PageShell>
   );
 }

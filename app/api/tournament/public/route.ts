@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+export const dynamic = "force-dynamic";
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -34,7 +36,19 @@ export async function GET() {
     .limit(1)
     .maybeSingle();
 
-  if (tErr || !t) return NextResponse.json({ error: "no_active_tournament" }, { status: 404 });
+  if (tErr) {
+    return NextResponse.json({ error: tErr.message }, { status: 500 });
+  }
+
+  if (!t) {
+    return NextResponse.json({
+      tournament: null,
+      claimedTeams: 0,
+      confirmedTeams: 0,
+      official: false,
+      full: false,
+    });
+  }
 
   await expireOverduePaymentHolds(t.id);
 

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { HistoryBack } from "@/components/layout";
 
 type Role = "assistant" | "user";
 type Msg = { role: Role; text: string };
@@ -93,9 +94,10 @@ export default function PickupIntakePage() {
           <h1 className="text-3xl font-semibold uppercase tracking-tight">
             PICKUP INTAKE
           </h1>
-          <Link href="/pickup" className="text-sm underline text-white/80">
-            Back
-          </Link>
+          <HistoryBack
+            fallbackHref="/pickup"
+            className="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-white/80 underline underline-offset-4 transition hover:text-white"
+          />
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-4">
