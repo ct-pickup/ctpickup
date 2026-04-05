@@ -13,7 +13,7 @@ import { APP_HOME_URL } from "@/lib/siteNav";
 export const metadata: Metadata = {
   title: "Esports Tournaments | CT Pickup",
   description:
-    "EA SPORTS FC online tournaments—brackets, schedules, and competition separate from outdoor CT Pickup events.",
+    "EA SPORTS FC online tournaments—$10 buy-in per player, brackets, schedules, and competition separate from outdoor CT Pickup events.",
 };
 
 export const dynamic = "force-dynamic";
@@ -59,8 +59,9 @@ export default async function EsportsTournamentsPage() {
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-white/72 md:text-lg md:leading-8">
           This hub is for{" "}
           <span className="text-white/90">EA SPORTS FC</span> competition
-          online—brackets, schedules, and digital matchups. It is separate from
-          our outdoor team tournaments on the field.
+          online—brackets, schedules, and digital matchups. Each event uses a{" "}
+          <span className="text-white/90">$10 buy-in per player</span>. It is
+          separate from our outdoor team tournaments on the field.
         </p>
       </header>
 

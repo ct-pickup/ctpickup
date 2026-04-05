@@ -13,7 +13,7 @@ import { APP_HOME_URL } from "@/lib/siteNav";
 export const metadata: Metadata = {
   title: "Esports | CT Pickup",
   description:
-    "EA SPORTS FC esports: tournament brackets, a cash prize for the winner, free entry, and open signup.",
+    "EA SPORTS FC esports: tournament brackets, a cash prize for the winner, $10 buy-in per player, and open signup.",
 };
 
 const highlights = [
@@ -33,9 +33,9 @@ const highlights = [
     body: "The champion earns a real cash payout. Straightforward stakes, real incentive.",
   },
   {
-    title: "Free to enter",
-    subtitle: "No buy-in",
-    body: "There is no entry fee. Sign up, secure your spot, and compete without paying to play.",
+    title: "Buy-in",
+    subtitle: "$10 per player",
+    body: "EA SPORTS FC tournaments use a $10 buy-in per player. That is the stake to enter the bracket; the winner still takes the advertised cash prize.",
   },
   {
     title: "Open to everyone",
@@ -68,8 +68,8 @@ export default function EsportsPage() {
           <p className="max-w-xl text-base leading-relaxed text-white/78 md:text-lg md:leading-8">
             Our esports series runs on the current EA SPORTS FC title, featuring
             tournament brackets, a cash prize for the winner, and{" "}
-            <span className="text-white/90">free entry</span> for anyone ready to
-            sign up and compete.
+            <span className="text-white/90">a $10 buy-in per player</span> for anyone
+            ready to sign up and compete.
           </p>
 
           <div className="pt-1">
@@ -156,7 +156,7 @@ export default function EsportsPage() {
                 </li>
                 <li className="flex gap-3 text-sm leading-relaxed text-white/78 md:text-base">
                   <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand)]" />
-                  <span>Free to enter.</span>
+                  <span>Entry: $10 per player (EA SPORTS FC tournaments).</span>
                 </li>
                 <li className="flex gap-3 text-sm leading-relaxed text-white/78 md:text-base">
                   <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand)]" />
