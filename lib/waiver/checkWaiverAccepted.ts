@@ -14,7 +14,21 @@ export async function userHasAcceptedCurrentWaiver(userId: string): Promise<bool
     .maybeSingle();
 
   if (error) {
-    console.error("[waiver] check:", error.message);
+    const err = error as {
+      message?: string;
+      code?: string;
+      details?: string | null;
+      hint?: string | null;
+    };
+    console.error(
+      "[waiver] check:",
+      JSON.stringify({
+        message: err.message,
+        code: err.code,
+        details: err.details,
+        hint: err.hint,
+      })
+    );
     return false;
   }
   return !!data;

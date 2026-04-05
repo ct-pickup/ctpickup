@@ -31,7 +31,29 @@ export async function POST(req: Request) {
   );
 
   if (error) {
-    console.error("[waiver/accept]", error.message);
+    const err = error as {
+      message?: string;
+      code?: string;
+      details?: string | null;
+      hint?: string | null;
+    };
+    console.error(
+      "[waiver/accept]",
+      JSON.stringify({
+        message: err.message,
+        code: err.code,
+        details: err.details,
+        hint: err.hint,
+      })
+    );
+    if (
+      typeof err.message === "string" &&
+      err.message.includes("schema cache")
+    ) {
+      console.error(
+        "[waiver/accept] Table missing from PostgREST schema: apply Supabase migrations (e.g. supabase db push) so public.user_waiver_acceptance exists."
+      );
+    }
     return NextResponse.json({ error: "save_failed" }, { status: 500 });
   }
 
