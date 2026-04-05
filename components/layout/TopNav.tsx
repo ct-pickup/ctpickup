@@ -168,7 +168,7 @@ export function TopNav({
     <div className={`mb-8 sm:mb-10 ${className}`}>
       <div
         ref={navRef}
-        className={`rounded-full border border-white/15 bg-white/6 px-3 py-2.5 backdrop-blur-sm sm:px-4 lg:px-4 lg:py-3 xl:px-5 ${innerClassName}`}
+        className={`rounded-2xl border border-white/15 bg-white/6 px-3 py-2.5 backdrop-blur-none sm:px-4 lg:rounded-full lg:px-4 lg:py-3 lg:backdrop-blur-sm xl:px-5 ${innerClassName}`}
       >
         {/* Desktop — lg+ only so all links fit on one row without colliding with logo/profile */}
         <div className="hidden items-center justify-between gap-3 lg:flex xl:gap-4">
