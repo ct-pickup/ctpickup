@@ -16,11 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
 
   const hideHelp =
-    pathname === "/signup" ||
-    pathname === "/login" ||
-    pathname === "/onboarding" ||
-    pathname === "/help" ||
-    pathname === "/profile";
+    pathname === "/" || pathname === "/login" || pathname === "/signup";
 
   return (
     <html lang="en" className={sora.variable}>
