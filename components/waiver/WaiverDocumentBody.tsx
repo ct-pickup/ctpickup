@@ -9,10 +9,11 @@ export function WaiverDocumentBody() {
           1. Assumption of Risk
         </h2>
         <p>
-          You understand that participation in basketball activities—including pickup
-          games, informal runs, tournaments, training, and related events—involves
-          inherent risks. These risks include, but are not limited to, physical injury,
-          illness, collisions with other participants, and unforeseen hazards.
+          You understand that participation in soccer and association football
+          activities—including pickup games, scrimmages, informal matches, tournaments,
+          training, and related athletic events—involves inherent risks. These risks
+          include, but are not limited to, physical injury, illness, collisions with
+          other participants, and unforeseen hazards.
         </p>
         <p>
           You voluntarily assume all risks associated with participation, whether known
@@ -72,9 +73,9 @@ export function WaiverDocumentBody() {
         </h2>
         <p>
           This agreement applies to all use of the platform and all activities connected
-          to it, including but not limited to pickup games, informal runs, tournaments,
-          training, guidance, and any other basketball-related interactions or events
-          involving other users.
+          to it, including but not limited to pickup games, scrimmages, informal matches,
+          tournaments, training, guidance, and any other interactions or events related
+          to soccer or association football involving other users.
         </p>
       </section>
 

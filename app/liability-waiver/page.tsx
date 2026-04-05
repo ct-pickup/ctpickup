@@ -14,7 +14,7 @@ import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 export const metadata: Metadata = {
   title: "Liability Waiver | CT Pickup",
   description:
-    "Liability Waiver & Participation Agreement for CT Pickup basketball activities, pickup, tournaments, training, and guidance.",
+    "Liability Waiver & Participation Agreement for CT Pickup soccer and association football activities, including pickup games, tournaments, training, and guidance.",
 };
 
 export default function LiabilityWaiverPage() {
@@ -42,8 +42,9 @@ export default function LiabilityWaiverPage() {
         </h1>
         <p className="mt-4 text-sm leading-relaxed text-white/65 md:text-base">
           By using this platform or participating in any activities connected to it
-          — including pickup games, informal runs, tournaments, training, guidance, or
-          any other basketball-related activities — you agree to the following:
+          — including pickup games, scrimmages, informal matches, tournaments, training,
+          guidance, or any other activities related to soccer or association football —
+          you agree to the following:
         </p>
       </header>
 
