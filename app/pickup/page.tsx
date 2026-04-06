@@ -49,6 +49,15 @@ export default function PickupPage() {
   const [waiverModalOpen, setWaiverModalOpen] = useState(false);
   const pendingPickup = useRef<PendingPickup | null>(null);
 
+  const [reliability, setReliability] = useState<{
+    tracked_pickups: number;
+    score_pct: number | null;
+    bucket: "building" | "good" | "watch" | "needs_review" | string | null;
+    user_label: string;
+    user_subtext: string;
+  } | null>(null);
+  const [reliabilityLoading, setReliabilityLoading] = useState(false);
+
   async function waiverAcceptedNow(): Promise<boolean> {
     if (!token) return false;
     const r = await fetch("/api/waiver/status", {
@@ -67,6 +76,27 @@ export default function PickupPage() {
     setLoading(false);
   }
 
+  async function loadReliability(t = token) {
+    if (!t) {
+      setReliability(null);
+      return;
+    }
+    setReliabilityLoading(true);
+    try {
+      const r = await fetch("/api/pickup/standing", {
+        headers: { Authorization: `Bearer ${t}` },
+      });
+      const j = await r.json().catch(() => null);
+      if (!r.ok || !j?.ok) {
+        setReliability(null);
+        return;
+      }
+      setReliability(j.reliability || null);
+    } finally {
+      setReliabilityLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (!isReady || !supabase) return;
     (async () => {
@@ -82,7 +112,10 @@ export default function PickupPage() {
   }, [supabase, isReady]);
 
   useEffect(() => {
-    refresh();
+    void (async () => {
+      await refresh();
+      await loadReliability(token);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -286,6 +319,25 @@ export default function PickupPage() {
               <div className="space-y-1 pt-2">
                 <div className="text-white/90 text-lg font-semibold">{data.run.title}</div>
                 <div className="text-sm text-white/70">{fmt(data.run.start_at)}</div>
+                {token ? (
+                  <div className="pt-2">
+                    {reliabilityLoading ? (
+                      <div className="inline-flex rounded-full border border-white/12 bg-white/[0.04] px-4 py-1.5 text-xs text-white/60">
+                        Checking rating…
+                      </div>
+                    ) : reliability ? (
+                      <div className="inline-flex flex-col rounded-full border border-white/12 bg-white/[0.04] px-4 py-1.5 text-xs text-white/75 sm:flex-row sm:items-center sm:gap-3">
+                        <span className="font-semibold text-white/85">
+                          {reliability.user_label}
+                          {reliability.score_pct != null && reliability.bucket !== "building"
+                            ? ` · ${Math.round(reliability.score_pct)}%`
+                            : ""}
+                        </span>
+                        <span className="text-[11px] text-white/55 leading-none">{reliability.user_subtext}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
 
               {!data.visibility?.invitedNow && (data.run.status === "planning" || data.run.status === "likely_on") ? (

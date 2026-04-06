@@ -5,7 +5,7 @@ import PageTop from "@/components/PageTop";
 import { pickupAutoCodeLabel } from "@/lib/pickup/standing/autoCodeLabels";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type StandingRow = {
   user_id: string;
@@ -16,7 +16,9 @@ type StandingRow = {
   confirmed_count: number | null;
   attended_count: number | null;
   strike_count: number | null;
-  attendance_rate_pct: number | null;
+  reliability_tracked_pickups: number | null;
+  reliability_score_pct: number | null;
+  reliability_bucket: "building" | "good" | "watch" | "needs_review" | string | null;
   waiver_current: boolean;
   effective_standing: string;
   auto_standing: string;
@@ -48,10 +50,31 @@ function chipTone(eff: string): string {
   }
 }
 
+function reliabilityLabel(row: StandingRow): string {
+  const tracked = row.reliability_tracked_pickups || 0;
+  const score = row.reliability_score_pct;
+  const bucket = row.reliability_bucket;
+
+  if (tracked < 3 || score == null) {
+    return "Building rating · starts after 3 pickups";
+  }
+
+  if (bucket === "good") {
+    return `Good Standing · ${Math.round(score)}%`;
+  }
+
+  if (bucket === "watch" || bucket === "needs_review") {
+    return `Reliability · ${Math.round(score)}%`;
+  }
+
+  return `Reliability · ${Math.round(score)}%`;
+}
+
 export default function PickupStandingAdminClient() {
   const { supabase, isReady } = useSupabaseBrowser();
   const [token, setToken] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
+  const [reliabilityFilter, setReliabilityFilter] = useState<string>("all");
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<StandingRow[]>([]);
   const [waiverVersion, setWaiverVersion] = useState<string>("");
@@ -104,6 +127,21 @@ export default function PickupStandingAdminClient() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const displayedRows = useMemo(() => {
+    if (reliabilityFilter === "all") return rows;
+
+    if (reliabilityFilter === "good") {
+      return rows.filter((r) => r.reliability_bucket === "good");
+    }
+
+    if (reliabilityFilter === "building") {
+      return rows.filter((r) => r.reliability_bucket === "building" || r.reliability_score_pct == null);
+    }
+
+    // below standard
+    return rows.filter((r) => r.reliability_bucket === "watch" || r.reliability_bucket === "needs_review");
+  }, [rows, reliabilityFilter]);
 
   function openEdit(row: StandingRow) {
     setEdit(row);
@@ -205,6 +243,19 @@ export default function PickupStandingAdminClient() {
               <option value="missing_waiver">Missing waiver</option>
             </select>
           </label>
+          <label className="flex min-w-[220px] flex-col gap-1 text-xs text-white/55">
+            Reliability
+            <select
+              value={reliabilityFilter}
+              onChange={(e) => setReliabilityFilter(e.target.value)}
+              className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+            >
+              <option value="all">All</option>
+              <option value="good">Good Standing</option>
+              <option value="building">Building rating</option>
+              <option value="below">Below standard</option>
+            </select>
+          </label>
           <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-xs text-white/55">
             Search (name, IG, email)
             <input
@@ -233,8 +284,8 @@ export default function PickupStandingAdminClient() {
                 <th className="px-3 py-3">Automatic</th>
                 <th className="px-3 py-3">Waiver</th>
                 <th className="px-3 py-3">Join</th>
-                <th className="px-3 py-3">Reliability (90d)</th>
-                <th className="px-3 py-3">Attendance</th>
+                <th className="px-3 py-3">Reliability</th>
+                <th className="px-3 py-3">History</th>
                 <th className="px-3 py-3" />
               </tr>
             </thead>
@@ -245,14 +296,14 @@ export default function PickupStandingAdminClient() {
                     Loading…
                   </td>
                 </tr>
-              ) : rows.length === 0 ? (
+              ) : displayedRows.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-3 py-8 text-center text-white/45">
                     No rows for this filter.
                   </td>
                 </tr>
               ) : (
-                rows.map((row) => (
+                displayedRows.map((row) => (
                   <tr key={row.user_id} className="text-white/85">
                     <td className="px-3 py-3 align-top">
                       <div className="font-medium text-white">
@@ -296,13 +347,21 @@ export default function PickupStandingAdminClient() {
                       )}
                     </td>
                     <td className="px-3 py-3 align-top font-mono text-[11px] text-white/55">
+                      <div className="text-xs text-white/80">
+                        {reliabilityLabel(row)}
+                      </div>
+                      <div className="mt-1 text-[11px] text-white/45">
+                        Tracked pickups: {row.reliability_tracked_pickups ?? 0}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 align-top font-mono text-[11px] text-white/55">
                       NS {row.standing?.rollup_no_shows_90d ?? 0} · LC{" "}
                       {row.standing?.rollup_late_cancels_90d ?? 0} · Pay{" "}
                       {row.standing?.rollup_pickup_payment_issues_90d ?? 0}
-                    </td>
-                    <td className="px-3 py-3 align-top font-mono text-[11px] text-white/55">
-                      {row.attendance_rate_pct != null ? `${row.attendance_rate_pct}%` : "—"} · strikes{" "}
-                      {row.strike_count ?? 0}
+                      <div className="mt-1">
+                        Attended {row.attended_count ?? 0} / {row.confirmed_count ?? 0} · strikes{" "}
+                        {row.strike_count ?? 0}
+                      </div>
                     </td>
                     <td className="px-3 py-3 align-top">
                       <button

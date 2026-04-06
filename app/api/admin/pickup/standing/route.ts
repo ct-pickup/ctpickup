@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { recomputePickupStandingForUser } from "@/lib/pickup/standing/recomputePickupStanding";
 import type { PickupStandingLevel } from "@/lib/pickup/standing/types";
+import { computePickupReliability } from "@/lib/pickup/standing/reliabilityScore";
 import { supabaseService } from "@/lib/supabase/service";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 
@@ -56,16 +57,25 @@ function buildRow(
   p: ProfileRow,
   s: Record<string, unknown> | null,
   waiverOk: boolean,
+  lateCancelsLifetime: number,
 ) {
   const effective = (s?.effective_standing || "good") as PickupStandingLevel;
   const auto = (s?.auto_standing || "good") as PickupStandingLevel;
   const manual = (s?.manual_standing ?? null) as PickupStandingLevel | null;
   const joinOk = (effective === "good" || effective === "warning") && waiverOk;
 
-  const attendanceRate =
-    p.confirmed_count && p.confirmed_count > 0
-      ? Math.round((Number(p.attended_count || 0) / Number(p.confirmed_count)) * 1000) / 10
-      : null;
+  const confirmed = Number(p.confirmed_count || 0);
+  const attended = Number(p.attended_count || 0);
+  const strikes = Number(p.strike_count || 0);
+
+  const lateCancels = Number(lateCancelsLifetime || 0);
+
+  const reliability = computePickupReliability({
+    confirmed,
+    attended,
+    lateCancels,
+    noShows: strikes,
+  });
 
   return {
     user_id: p.id,
@@ -76,7 +86,9 @@ function buildRow(
     confirmed_count: p.confirmed_count,
     attended_count: p.attended_count,
     strike_count: p.strike_count,
-    attendance_rate_pct: attendanceRate,
+    reliability_tracked_pickups: reliability.trackedPickups,
+    reliability_score_pct: reliability.scorePct,
+    reliability_bucket: reliability.bucket,
     waiver_current: waiverOk,
     standing: s
       ? {
@@ -133,6 +145,27 @@ export async function GET(req: Request) {
     return new Map((data || []).map((r) => [r.user_id as string, r as Record<string, unknown>]));
   }
 
+  async function lateCancelMapFor(userIds: string[]) {
+    if (!userIds.length) return new Map<string, number>();
+    const { data, error } = await svc
+      .from("pickup_reliability_incidents")
+      .select("user_id")
+      .eq("kind", "late_cancel")
+      .in("user_id", userIds);
+
+    if (error) {
+      console.error("[admin/pickup/standing] late_cancel incidents", error.message);
+      return new Map<string, number>();
+    }
+
+    const map = new Map<string, number>();
+    for (const r of data || []) {
+      const uid = String((r as any).user_id);
+      map.set(uid, (map.get(uid) || 0) + 1);
+    }
+    return map;
+  }
+
   let profs: ProfileRow[] = [];
 
   if (filter === "warning" || filter === "suspended" || filter === "banned") {
@@ -167,12 +200,13 @@ export async function GET(req: Request) {
 
     const pBy = new Map((pRows || []).map((p) => [(p as ProfileRow).id, p as ProfileRow]));
     const waived = await waiverSetFor(ids);
+    const lateMap = await lateCancelMapFor(ids);
     const rows = (stRows || [])
       .map((st) => {
         const p = pBy.get(st.user_id as string);
         if (!p) return null;
         if (!matchesQuery(p, q)) return null;
-        return buildRow(p, st as Record<string, unknown>, waived.has(p.id));
+        return buildRow(p, st as Record<string, unknown>, waived.has(p.id), lateMap.get(p.id) ?? 0);
       })
       .filter(Boolean);
 
@@ -213,7 +247,8 @@ export async function GET(req: Request) {
     const slice = missing.slice(offset, offset + limit);
     const ids = slice.map((p) => p.id);
     const stMap = await standingMapFor(ids);
-    const rows = slice.map((p) => buildRow(p, stMap.get(p.id) || null, false));
+    const lateMap = await lateCancelMapFor(ids);
+    const rows = slice.map((p) => buildRow(p, stMap.get(p.id) || null, false, lateMap.get(p.id) ?? 0));
 
     return NextResponse.json({
       filter,
@@ -240,7 +275,11 @@ export async function GET(req: Request) {
 
     const list = (approved || []) as ProfileRow[];
     const ids = list.map((p) => p.id);
-    const [waivedSet, stMap] = await Promise.all([waiverSetFor(ids), standingMapFor(ids)]);
+    const [waivedSet, stMap, lateMap] = await Promise.all([
+      waiverSetFor(ids),
+      standingMapFor(ids),
+      lateCancelMapFor(ids),
+    ]);
 
     const goodList = list
       .filter((p) => waivedSet.has(p.id))
@@ -252,7 +291,7 @@ export async function GET(req: Request) {
       .filter((p) => matchesQuery(p, q));
 
     const slice = goodList.slice(offset, offset + limit);
-    const rows = slice.map((p) => buildRow(p, stMap.get(p.id) || null, true));
+    const rows = slice.map((p) => buildRow(p, stMap.get(p.id) || null, true, lateMap.get(p.id) ?? 0));
 
     return NextResponse.json({
       filter,
@@ -299,9 +338,13 @@ export async function GET(req: Request) {
     });
   }
 
-  const [waivedSet, stMap] = await Promise.all([waiverSetFor(ids), standingMapFor(ids)]);
+  const [waivedSet, stMap, lateMap] = await Promise.all([
+    waiverSetFor(ids),
+    standingMapFor(ids),
+    lateCancelMapFor(ids),
+  ]);
 
-  const rows = profs.map((p) => buildRow(p, stMap.get(p.id) || null, waivedSet.has(p.id)));
+  const rows = profs.map((p) => buildRow(p, stMap.get(p.id) || null, waivedSet.has(p.id), lateMap.get(p.id) ?? 0));
 
   return NextResponse.json({
     filter,
