@@ -7,6 +7,7 @@ import {
   SectionEyebrow,
   TopNav,
 } from "@/components/layout";
+import { EsportsSetupNudgeBar } from "@/components/profile/EsportsSetupNudgeBar";
 import { fetchPublicEsportsTournaments } from "@/lib/esports/fetchPublicEsportsTournaments";
 import { APP_HOME_URL } from "@/lib/siteNav";
 
@@ -50,6 +51,7 @@ export default async function EsportsTournamentsPage() {
         fallbackHref={APP_HOME_URL}
         rightSlot={<AuthenticatedProfileMenu />}
       />
+      <EsportsSetupNudgeBar />
 
       <header className="mt-4">
         <SectionEyebrow>Esports</SectionEyebrow>

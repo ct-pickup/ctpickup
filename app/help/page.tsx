@@ -8,6 +8,7 @@ import {
   Panel,
   TopNav,
 } from "@/components/layout";
+import { EsportsSetupNudgeBar } from "@/components/profile/EsportsSetupNudgeBar";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import {
@@ -223,6 +224,7 @@ export default function HelpPage() {
         rightSlot={<AuthenticatedProfileMenu />}
         showPrimaryNav={authResolved && isLoggedIn}
       />
+      <EsportsSetupNudgeBar />
 
       <div className="mx-auto max-w-4xl space-y-8 pb-16 pt-4">
         <div className="space-y-2">

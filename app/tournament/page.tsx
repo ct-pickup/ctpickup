@@ -8,6 +8,7 @@ import {
   SectionEyebrow,
   TopNav,
 } from "@/components/layout";
+import { EsportsSetupNudgeBar } from "@/components/profile/EsportsSetupNudgeBar";
 import { EmptyStateMessage } from "@/components/EmptyStateMessage";
 import { WaiverAcceptanceModal } from "@/components/waiver/WaiverAcceptanceModal";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
@@ -302,6 +303,7 @@ export default function TournamentPage() {
   return (
     <PageShell className="pb-16 pt-2">
       <TopNav rightSlot={<AuthenticatedProfileMenu />} />
+      <EsportsSetupNudgeBar />
 
       <div className="grid gap-8 md:grid-cols-[260px_1fr]">
         <div className="space-y-10">

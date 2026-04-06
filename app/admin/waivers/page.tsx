@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import PageTop from "@/components/PageTop";
-import { AdminHubNav } from "@/components/admin/AdminHubNav";
+import { AdminWorkArea } from "@/components/admin/AdminWorkArea";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 
@@ -42,6 +42,7 @@ export default function AdminWaiversPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (!isReady) return;
@@ -89,11 +90,20 @@ export default function AdminWaiversPage() {
     void load();
   }, [load]);
 
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => {
+      const name = displayName(r).toLowerCase();
+      return name.includes(q) || r.user_id.toLowerCase().includes(q) || r.version.toLowerCase().includes(q);
+    });
+  }, [rows, search]);
+
   if (!isReady || !sessionReady) {
     return (
       <main className="min-h-screen bg-black text-white">
-        <div className="mx-auto max-w-6xl px-6 pt-2 pb-8">
-          <PageTop flush title="ADMIN · WAIVERS" fallbackHref={APP_HOME_URL} />
+        <div className="mx-auto max-w-6xl pt-2 pb-8">
+          <PageTop flush title="Staff · Waivers" fallbackHref={APP_HOME_URL} />
           <p className="mt-6 text-sm text-white/50">Loading…</p>
         </div>
       </main>
@@ -103,11 +113,10 @@ export default function AdminWaiversPage() {
   if (!token) {
     return (
       <main className="min-h-screen bg-black text-white">
-        <div className="mx-auto max-w-6xl px-6 pt-2 pb-8">
-          <PageTop flush title="ADMIN · WAIVERS" fallbackHref={APP_HOME_URL} />
-          <AdminHubNav className="pb-4" />
+        <div className="mx-auto max-w-6xl pt-2 pb-8">
+          <PageTop flush title="Staff · Waivers" fallbackHref={APP_HOME_URL} />
           <p className="text-sm text-white/60">
-            <a href="/login?next=/admin/waivers" className="underline-offset-4 hover:underline">
+            <a href="/login?next=/admin" className="underline-offset-4 hover:underline">
               Log in
             </a>{" "}
             as an admin to view waiver acceptance records.
@@ -119,23 +128,35 @@ export default function AdminWaiversPage() {
 
   return (
     <main className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-6xl space-y-6 px-6 py-8">
-        <PageTop flush title="ADMIN · WAIVERS" fallbackHref={APP_HOME_URL} />
-        <AdminHubNav />
+      <div className="mx-auto max-w-6xl space-y-6 py-8">
+        <PageTop flush title="Staff · Waivers" fallbackHref={APP_HOME_URL} />
+
+        <AdminWorkArea question="Who has accepted the current waiver version, and what blocks checkout or guidance until they do?">
+          <p className="text-sm text-white/55">
+            The active waiver version ships with the app — engineering bumps it when terms change. See also{" "}
+            <a href="/admin/settings" className="text-white/80 underline-offset-4 hover:underline">
+              Settings
+            </a>
+            .
+          </p>
+        </AdminWorkArea>
+
+        <input
+          type="search"
+          placeholder="Search by name, account ID, or waiver version…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full max-w-md rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white outline-none placeholder:text-white/35"
+        />
 
         <p className="text-sm text-white/60">
-          Records are stored in Supabase table{" "}
-          <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs">
-            user_waiver_acceptance
-          </code>
-          . Each row is one acceptance for a specific waiver version; when you bump the
-          version in code, users must accept again before tournament checkout or guidance
-          requests.
+          Each line is one acceptance for a specific waiver version. When engineering bumps the version in code, players
+          must accept again before tournament checkout or guidance requests.
         </p>
 
         {currentVersion ? (
           <p className="text-xs uppercase tracking-widest text-white/45">
-            Active app waiver version:{" "}
+            Waiver version in the app:{" "}
             <span className="font-semibold text-white/70">{currentVersion}</span>
           </p>
         ) : null}
@@ -158,9 +179,11 @@ export default function AdminWaiversPage() {
           <p className="text-sm text-white/50">Loading…</p>
         ) : rows.length === 0 ? (
           <p className="text-sm text-white/50">No acceptance records yet.</p>
+        ) : filteredRows.length === 0 ? (
+          <p className="text-sm text-white/50">No matches for that search.</p>
         ) : (
           <div className="space-y-3">
-            {rows.map((r) => (
+            {filteredRows.map((r) => (
               <div
                 key={r.id}
                 className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 md:p-6"

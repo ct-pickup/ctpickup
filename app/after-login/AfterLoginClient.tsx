@@ -6,6 +6,7 @@ import {
   PageShell,
   TopNav,
 } from "@/components/layout";
+import { EsportsSetupNudgeBar } from "@/components/profile/EsportsSetupNudgeBar";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { resolveWelcomeFirstName } from "@/lib/welcomeFirstName";
@@ -158,6 +159,7 @@ export default function AfterLoginClient() {
         fallbackHref={APP_HOME_URL}
         rightSlot={<AuthenticatedProfileMenu />}
       />
+      <EsportsSetupNudgeBar />
 
       <div className="pt-6 md:pt-8">
         <div className="mx-auto max-w-full">

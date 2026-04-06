@@ -1,9 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HistoryBack } from "@/components/layout";
+import { EsportsGoaliePreferenceFields } from "@/components/profile/EsportsGoaliePreferenceFields";
 import { APP_HOME_URL } from "@/lib/siteNav";
+import {
+  bindEsportsPreferenceHandlers,
+  esportsDetailsComplete,
+  profileEsportsGoalieColumns,
+  type EsportsConsole,
+  type EsportsInterest,
+  type EsportsPlatform,
+} from "@/lib/profilePreferences";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 
@@ -21,6 +30,21 @@ export default function OnboardingPage() {
   const [instagram, setInstagram] = useState("");
   const [phone, setPhone] = useState("");
   const [waiverAccepted, setWaiverAccepted] = useState(false);
+
+  const [esportsInterest, setEsportsInterest] = useState<EsportsInterest | null>(null);
+  const [esportsPlatform, setEsportsPlatform] = useState<EsportsPlatform | null>(null);
+  const [esportsConsole, setEsportsConsole] = useState<EsportsConsole | null>(null);
+  const [playsGoalie, setPlaysGoalie] = useState<boolean | null>(null);
+
+  const { onEsportsInterest, onEsportsPlatform } = useMemo(
+    () =>
+      bindEsportsPreferenceHandlers({
+        setInterest: setEsportsInterest,
+        setPlatform: setEsportsPlatform,
+        setConsole: setEsportsConsole,
+      }),
+    [],
+  );
 
   useEffect(() => {
     if (!isReady || !supabase) return;
@@ -56,11 +80,30 @@ export default function OnboardingPage() {
     if (!ig) return setMsg("Instagram is required.");
     if (!phone.trim()) return setMsg("Phone is required.");
     if (!waiverAccepted) return setMsg("Please accept the Liability Waiver to continue.");
+    if (esportsInterest === null || playsGoalie === null) {
+      return setMsg("Answer the online tournament question and whether you can play goalie.");
+    }
+    if (
+      !esportsDetailsComplete({
+        esports_interest: esportsInterest,
+        esports_platform: esportsPlatform,
+        esports_console: esportsConsole,
+      })
+    ) {
+      return setMsg("You said yes to online tournaments — choose your platform and console.");
+    }
 
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) return (window.location.href = "/login");
 
     const profileEmail = auth.user.email?.trim().toLowerCase() ?? null;
+    const prefs = profileEsportsGoalieColumns({
+      esportsInterest,
+      esportsPlatform,
+      esportsConsole,
+      playsGoalie,
+    });
+
     const { error } = await supabase.from("profiles").upsert(
       {
         id: auth.user.id,
@@ -69,6 +112,10 @@ export default function OnboardingPage() {
         last_name: lastName.trim(),
         instagram: ig,
         phone: phone.trim(),
+        esports_interest: prefs.esports_interest,
+        esports_platform: prefs.esports_platform,
+        esports_console: prefs.esports_console,
+        plays_goalie: prefs.plays_goalie,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "id" }
@@ -135,6 +182,18 @@ export default function OnboardingPage() {
 
         <input className="rounded-lg border p-3 w-full" placeholder="Instagram (@handle)" value={instagram} onChange={(e) => setInstagram(e.target.value)} />
         <input className="rounded-lg border p-3 w-full" placeholder="Phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />
+
+        <EsportsGoaliePreferenceFields
+          variant="light"
+          esportsInterest={esportsInterest}
+          onEsportsInterest={onEsportsInterest}
+          esportsPlatform={esportsPlatform}
+          onEsportsPlatform={onEsportsPlatform}
+          esportsConsole={esportsConsole}
+          onEsportsConsole={setEsportsConsole}
+          playsGoalie={playsGoalie}
+          onPlaysGoalie={setPlaysGoalie}
+        />
 
         <label className="flex cursor-pointer items-start gap-3 text-sm text-gray-700">
           <input

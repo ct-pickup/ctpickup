@@ -11,6 +11,7 @@ type TournamentPublic = {
     title: string;
     officialThreshold: number;
     maxTeams: number;
+    announcement?: string | null;
   } | null;
   claimedTeams: number;
   confirmedTeams: number;
@@ -20,7 +21,7 @@ type TournamentPublic = {
 };
 
 function headline(d: TournamentPublic | null) {
-  if (!d?.tournament) return "No active tournament";
+  if (!d?.tournament) return "No live tournament";
   if (d.full) return "Tournament full";
   if (d.official) return "Tournament confirmed";
   return "Organizing";
@@ -91,9 +92,14 @@ export default function TournamentStatusPage() {
               <div className="mt-4 text-lg font-semibold text-white/90">{headline(data)}</div>
               <div className="mt-2 text-sm text-white/60">
                 {t.title ? `${t.title}. ` : null}
-                Confirmed teams: {data?.confirmedTeams ?? 0} / {t.maxTeams}. Claims in progress:{" "}
-                {data?.claimedTeams ?? 0}. Minimum to confirm: {t.officialThreshold} teams.
+                Confirmed teams: {data?.confirmedTeams ?? 0} of {t.maxTeams} max. Teams working through signup:{" "}
+                {data?.claimedTeams ?? 0}. Goes official at {t.officialThreshold} confirmed teams.
               </div>
+              {t.announcement ? (
+                <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/85 whitespace-pre-wrap">
+                  {t.announcement}
+                </div>
+              ) : null}
               <div className="mt-6">
                 <Link
                   href="/tournament"

@@ -13,7 +13,9 @@ const TWIML = `<?xml version="1.0" encoding="UTF-8"?>
 export async function POST(req: Request) {
   const raw = await req.text();
   const params = new URLSearchParams(raw);
-  console.info("[ctpickup twilio inbound]", Object.fromEntries(params));
+  const From = params.get("From") ?? "";
+  const Body = params.get("Body") ?? "";
+  console.info("[ctpickup twilio inbound]", { From, Body });
 
   return new Response(TWIML, {
     status: 200,
@@ -24,6 +26,6 @@ export async function POST(req: Request) {
 export async function GET() {
   return new Response("CT Pickup Twilio inbound route is live", {
     status: 200,
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
+    headers: { "Content-Type": "text/plain" },
   });
 }

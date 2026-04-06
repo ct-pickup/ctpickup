@@ -8,6 +8,7 @@ import {
   SectionEyebrow,
   TopNav,
 } from "@/components/layout";
+import { EsportsSetupNudgeBar } from "@/components/profile/EsportsSetupNudgeBar";
 import { APP_HOME_URL } from "@/lib/siteNav";
 
 export const metadata: Metadata = {
@@ -52,6 +53,7 @@ export default function EsportsPage() {
         fallbackHref={APP_HOME_URL}
         rightSlot={<AuthenticatedProfileMenu />}
       />
+      <EsportsSetupNudgeBar />
 
       <header className="mt-4 grid gap-8 lg:grid-cols-[1fr_0.95fr] lg:items-center lg:gap-12">
         <div className="space-y-5">

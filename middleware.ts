@@ -38,7 +38,7 @@ export async function middleware(request: NextRequest) {
   if (pathname === "/admin/login" || pathname.startsWith("/admin/login/")) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("next", "/admin/pickup");
+    url.searchParams.set("next", "/admin");
     const redirectRes = NextResponse.redirect(url);
     copySupabaseCookies(supabaseResponse, redirectRes);
     return redirectRes;
@@ -60,5 +60,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin", "/admin/:path*"],
 };

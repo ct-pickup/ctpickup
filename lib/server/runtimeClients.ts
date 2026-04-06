@@ -1,6 +1,11 @@
 import OpenAI from "openai";
 import Stripe from "stripe";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import {
+  assertStripeSecretKeyForRuntime,
+  assertStripeWebhookSecretForRuntime,
+  warnPublishableStripeKeyIfMisconfigured,
+} from "@/lib/server/stripeEnv";
 
 export function getSupabaseAdmin(
   options?: Parameters<typeof createClient>[2],
@@ -28,34 +33,26 @@ export function getSupabaseAnon(): SupabaseClient {
   return createClient(url, key);
 }
 
-/** Pickup checkout (RSVP / pay) — Stripe API version pinned for this project. */
+const stripeApiVersion =
+  (process.env.STRIPE_API_VERSION as Stripe.LatestApiVersion | undefined) ||
+  ("2026-02-25" as Stripe.LatestApiVersion);
+
+/** Pickup checkout (RSVP / pay) — same API version as tournament + webhooks. */
 export function getStripePickup(): Stripe {
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret?.trim()) {
-    throw new Error("Missing STRIPE_SECRET_KEY");
-  }
-  return new Stripe(secret, {
-    apiVersion: "2026-02-25.clover",
-  });
+  warnPublishableStripeKeyIfMisconfigured();
+  const secret = assertStripeSecretKeyForRuntime();
+  return new Stripe(secret, { apiVersion: stripeApiVersion });
 }
 
 /** Tournament checkout + webhooks — respects STRIPE_API_VERSION when set. */
 export function getStripeTournament(): Stripe {
-  const secret = process.env.STRIPE_SECRET_KEY;
-  if (!secret?.trim()) {
-    throw new Error("Missing STRIPE_SECRET_KEY");
-  }
-  return new Stripe(secret, {
-    apiVersion: (process.env.STRIPE_API_VERSION as any) || "2026-02-25",
-  });
+  warnPublishableStripeKeyIfMisconfigured();
+  const secret = assertStripeSecretKeyForRuntime();
+  return new Stripe(secret, { apiVersion: stripeApiVersion });
 }
 
 export function getStripeWebhookSecret(): string {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!secret?.trim()) {
-    throw new Error("Missing STRIPE_WEBHOOK_SECRET");
-  }
-  return secret;
+  return assertStripeWebhookSecretForRuntime();
 }
 
 export function getOpenAI(): OpenAI {

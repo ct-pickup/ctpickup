@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ensurePickupRunInviteLink } from "@/lib/pickup/ensureRunInviteLink";
 import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
 import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
@@ -124,6 +125,7 @@ export async function POST(req: Request) {
       },
       { onConflict: "run_id,user_id" }
     );
+    await ensurePickupRunInviteLink(admin, run.id, user.id);
     return NextResponse.json({ ok: true, status: "standby" });
   }
 
@@ -139,43 +141,70 @@ export async function POST(req: Request) {
       },
       { onConflict: "run_id,user_id" }
     );
+    await ensurePickupRunInviteLink(admin, run.id, user.id);
     return NextResponse.json({ ok: true, status: "confirmed" });
   }
 
   let stripe;
   try {
     stripe = getStripePickup();
-  } catch {
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("stripe_pickup_rsvp_config_error:", msg);
     return NextResponse.json(
-      { error: "Stripe is not configured (missing STRIPE_SECRET_KEY)." },
-      { status: 500 }
+      { error: "Stripe is not configured." },
+      { status: 500 },
     );
   }
 
   const baseUrl = requestSiteUrlFromRequest(req);
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    payment_method_types: ["card"],
-    customer_email: user.email || undefined,
-    line_items: [
-      {
-        price_data: {
-          currency: run.currency || "usd",
-          unit_amount: feeCents,
-          product_data: { name: `CT Pickup Field Fee` },
+  const pickupMeta = {
+    kind: "pickup" as const,
+    run_id: String(run.id),
+    user_id: String(user.id),
+  };
+
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      customer_email: user.email || undefined,
+      line_items: [
+        {
+          price_data: {
+            currency: run.currency || "usd",
+            unit_amount: feeCents,
+            product_data: { name: `CT Pickup Field Fee` },
+          },
+          quantity: 1,
         },
-        quantity: 1,
+      ],
+      success_url: `${baseUrl}/pickup?paid=1`,
+      cancel_url: `${baseUrl}/pickup?canceled=1`,
+      metadata: { ...pickupMeta },
+      payment_intent_data: {
+        metadata: { ...pickupMeta },
       },
-    ],
-    success_url: `${baseUrl}/pickup?paid=1`,
-    cancel_url: `${baseUrl}/pickup?canceled=1`,
-    metadata: {
-      kind: "pickup",
-      run_id: String(run.id),
-      user_id: String(user.id),
-    },
-  });
+    });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("stripe_pickup_rsvp_checkout_error:", msg);
+    return NextResponse.json(
+      { error: "Checkout could not be created." },
+      { status: 500 },
+    );
+  }
+
+  console.log(
+    JSON.stringify({
+      stripe_checkout: true,
+      flow: "pickup_rsvp",
+      checkout_session_id: session.id,
+      run_id: run.id,
+    }),
+  );
 
   await admin.from("pickup_run_rsvps").upsert(
     {
@@ -188,6 +217,8 @@ export async function POST(req: Request) {
     },
     { onConflict: "run_id,user_id" }
   );
+
+  await ensurePickupRunInviteLink(admin, run.id, user.id);
 
   return NextResponse.json({ ok: true, checkout_url: session.url });
 }

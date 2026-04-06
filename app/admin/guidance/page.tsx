@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import PageTop from "@/components/PageTop";
-import { AdminHubNav } from "@/components/admin/AdminHubNav";
+import { AdminWorkArea } from "@/components/admin/AdminWorkArea";
+import { StatusChip } from "@/components/admin/StatusChip";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import type { GuidancePlan, GuidanceRequestStatus } from "@/lib/guidanceRequest";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
@@ -33,6 +35,7 @@ export default function AdminGuidancePage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   const load = useCallback(async () => {
     if (!supabase) {
@@ -63,6 +66,27 @@ export default function AdminGuidancePage() {
     void load();
   }, [load, isReady]);
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => {
+      const blob = [
+        r.submitter_name,
+        r.submitter_email,
+        r.message,
+        r.plan,
+        r.sport_focus,
+        r.profile_tier_snapshot,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return blob.includes(q);
+    });
+  }, [rows, search]);
+
+  const pendingCount = useMemo(() => rows.filter((r) => r.status === "pending").length, [rows]);
+
   async function updateStatus(id: string, status: GuidanceRequestStatus) {
     if (!supabase) return;
     setMsg(null);
@@ -76,18 +100,31 @@ export default function AdminGuidancePage() {
 
   return (
     <main className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-6xl space-y-6 px-6 py-8">
-        <PageTop flush title="ADMIN · GUIDANCE" fallbackHref={APP_HOME_URL} />
-        <AdminHubNav />
+      <div className="mx-auto max-w-6xl space-y-6 py-8">
+        <PageTop flush title="Staff · Guidance inbox" fallbackHref={APP_HOME_URL} />
+
+        <AdminWorkArea question="Which requests are still pending, and what should you mark assigned or completed next?">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            {pendingCount > 0 ? <StatusChip tone="pending">{pendingCount} pending</StatusChip> : (
+              <StatusChip tone="synced">Inbox clear</StatusChip>
+            )}
+            <Link href="/guidance" target="_blank" className="text-xs text-white/50 hover:text-white">
+              Public page ↗
+            </Link>
+          </div>
+          <input
+            type="search"
+            placeholder="Search name, email, plan, message…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="mb-4 w-full max-w-md rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white outline-none placeholder:text-white/35"
+          />
+        </AdminWorkArea>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-white/60">
-            Submissions are stored in Supabase table{" "}
-            <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs">
-              guidance_requests
-            </code>
-            . New entries appear here in real time when users submit from the
-            Guidance page.
+            Table <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs">guidance_requests</code> — tied to the public
+            Guidance page only (not the site-wide status card).
           </p>
           <button
             type="button"
@@ -108,9 +145,11 @@ export default function AdminGuidancePage() {
           <p className="text-sm text-white/50">Loading…</p>
         ) : rows.length === 0 ? (
           <p className="text-sm text-white/50">No requests yet.</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-white/50">No matches for that search.</p>
         ) : (
           <div className="space-y-4">
-            {rows.map((r) => (
+            {filtered.map((r) => (
               <div
                 key={r.id}
                 className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 md:p-6"
@@ -120,8 +159,15 @@ export default function AdminGuidancePage() {
                     <div className="text-xs uppercase tracking-widest text-white/45">
                       {fmt(r.created_at)}
                     </div>
-                    <div className="mt-1 font-semibold capitalize text-white">
-                      {r.plan}
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <span className="font-semibold capitalize text-white">{r.plan}</span>
+                      {r.status === "pending" ? (
+                        <StatusChip tone="pending">Pending</StatusChip>
+                      ) : r.status === "assigned" ? (
+                        <StatusChip tone="scheduled">Assigned</StatusChip>
+                      ) : (
+                        <StatusChip tone="synced">Done</StatusChip>
+                      )}
                     </div>
                   </div>
                   <label className="flex items-center gap-2 text-sm text-white/70">

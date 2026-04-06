@@ -2,10 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { recordTournamentActivationChange } from "@/lib/admin/surfaceHealth";
+import { enqueueRevalidateAndRun } from "@/lib/admin/sync/enqueueRevalidate";
 import { supabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
 
-async function assertAdmin() {
+async function assertAdmin(): Promise<string> {
   const supabase = await supabaseServer();
   const {
     data: { user },
@@ -19,6 +21,7 @@ async function assertAdmin() {
     .maybeSingle();
 
   if (!prof?.is_admin) redirect("/");
+  return user.id;
 }
 
 async function deactivateAllTournaments(svc: ReturnType<typeof supabaseService>) {
@@ -31,7 +34,7 @@ async function deactivateAllTournaments(svc: ReturnType<typeof supabaseService>)
 }
 
 export async function setActiveTournament(formData: FormData) {
-  await assertAdmin();
+  const actorId = await assertAdmin();
   const id = String(formData.get("tournament_id") || "").trim();
   const svc = supabaseService();
 
@@ -42,14 +45,18 @@ export async function setActiveTournament(formData: FormData) {
     if (error) redirect(`/admin/tournament?e=${encodeURIComponent(error.message)}`);
   }
 
+  await recordTournamentActivationChange(svc, actorId);
+  await enqueueRevalidateAndRun(svc, ["/tournament", "/status/tournament"]);
   revalidatePath("/admin/tournament");
   redirect("/admin/tournament?ok=active");
 }
 
 export async function clearActiveTournament() {
-  await assertAdmin();
+  const actorId = await assertAdmin();
   const svc = supabaseService();
   await deactivateAllTournaments(svc);
+  await recordTournamentActivationChange(svc, actorId);
+  await enqueueRevalidateAndRun(svc, ["/tournament", "/status/tournament"]);
   revalidatePath("/admin/tournament");
   redirect("/admin/tournament?ok=cleared");
 }

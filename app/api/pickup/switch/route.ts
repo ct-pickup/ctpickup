@@ -1,5 +1,7 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
+import { recordLegacyPickupPost } from "@/lib/admin/surfaceHealth";
 import { MIN_LEAD_BEFORE_LAUNCH_MS } from "@/lib/pickup/autoRunConfig";
 import {
   describePickupAutoStatus,
@@ -8,6 +10,10 @@ import {
 import { insertInvitesForTierRanks, sendPickupInviteSms } from "@/lib/pickup/pickupInvites";
 import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import {
+  PROFILE_GOALIE_HEADCOUNT_TARGET,
+  shouldWarnLowWillingGoalies,
+} from "@/lib/pickup/profileGoalieRoster";
 
 export const runtime = "nodejs";
 
@@ -90,6 +96,31 @@ export async function GET(req: Request) {
     pending_payment: rsvps.filter((r) => r.status === "pending_payment").length,
   };
 
+  const confirmedIds = Array.from(
+    new Set(rsvps.filter((r) => r.status === "confirmed").map((r) => r.user_id)),
+  );
+  let goalie_willing_confirmed = 0;
+  if (confirmedIds.length) {
+    const goaliesRes = await admin
+      .from("profiles")
+      .select("plays_goalie")
+      .in("id", confirmedIds);
+    if (!goaliesRes.error) {
+      for (const row of goaliesRes.data || []) {
+        if (row.plays_goalie === true) goalie_willing_confirmed += 1;
+      }
+    }
+  }
+
+  const goalie_profile_signal = {
+    willing_confirmed: goalie_willing_confirmed,
+    target_minimum: PROFILE_GOALIE_HEADCOUNT_TARGET,
+    low_willing_warning: shouldWarnLowWillingGoalies(
+      confirmedIds.length,
+      goalie_willing_confirmed,
+    ),
+  };
+
   const auto_status = describePickupAutoStatus(run, slots, availability, rsvps, messages);
 
   return NextResponse.json({
@@ -104,6 +135,7 @@ export async function GET(req: Request) {
       run: updateRun.data?.[0] || null,
     },
     counts,
+    goalie_profile_signal,
     auto_status,
   });
 }
@@ -176,6 +208,9 @@ export async function POST(req: Request) {
     if (ins.error) return NextResponse.json({ error: ins.error.message }, { status: 500 });
     const newId = ins.data?.id as string | undefined;
     if (!newId) return NextResponse.json({ error: "Insert returned no id" }, { status: 500 });
+
+    revalidatePath("/pickup");
+    revalidatePath("/status/pickup");
 
     return NextResponse.json({ ok: true, run_id: newId });
   }
@@ -326,6 +361,9 @@ export async function POST(req: Request) {
 
     if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
 
+    revalidatePath("/pickup");
+    revalidatePath("/status/pickup");
+
     return NextResponse.json({ ok: true });
   }
 
@@ -345,6 +383,9 @@ export async function POST(req: Request) {
     const up = await admin.from("pickup_runs").update(patch).eq("id", run_id);
     if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
 
+    revalidatePath("/pickup");
+    revalidatePath("/status/pickup");
+
     return NextResponse.json({ ok: true });
   }
 
@@ -360,6 +401,9 @@ export async function POST(req: Request) {
     });
 
     if (ins.error) return NextResponse.json({ error: ins.error.message }, { status: 500 });
+    await recordLegacyPickupPost(admin, { runId: run_id_up, userId: guard.userId });
+    revalidatePath("/pickup");
+    revalidatePath("/status/pickup");
     return NextResponse.json({ ok: true });
   }
 
@@ -377,6 +421,8 @@ export async function POST(req: Request) {
     }).eq("id", run_id);
 
     if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
+    revalidatePath("/pickup");
+    revalidatePath("/status/pickup");
     return NextResponse.json({ ok: true });
   }
 

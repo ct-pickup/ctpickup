@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import Link from "next/link";
 import PageTop from "@/components/PageTop";
-import { AdminHubNav } from "@/components/admin/AdminHubNav";
+import { AdminWorkArea } from "@/components/admin/AdminWorkArea";
+import { StatusChip } from "@/components/admin/StatusChip";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { APP_HOME_URL } from "@/lib/siteNav";
 
@@ -29,9 +31,7 @@ export default function AdminStatusPage() {
   useEffect(() => {
     if (!isReady) return;
     if (!supabase) {
-      setMsg(
-        "Supabase is not configured (missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY)."
-      );
+      setMsg("Database isn’t configured — check your environment for the public database URL and anon key.");
       return;
     }
 
@@ -68,12 +68,25 @@ export default function AdminStatusPage() {
     setMsg(error ? error.message : "Saved.");
   }
 
+  const chips = useMemo(() => {
+    if (!row) return null;
+    const ann = (row.announcement || "").trim();
+    const nu = row.next_update_by ? new Date(row.next_update_by).getTime() : NaN;
+    const scheduled = !Number.isNaN(nu) && nu > Date.now();
+    return (
+      <div className="mb-4 flex flex-wrap gap-2">
+        {!ann ? <StatusChip tone="draft">Draft</StatusChip> : <StatusChip tone="published">Live copy</StatusChip>}
+        {scheduled ? <StatusChip tone="scheduled">Commitment</StatusChip> : null}
+        <StatusChip tone="synced">Save = public on next load</StatusChip>
+      </div>
+    );
+  }, [row]);
+
   if (!row) {
     return (
       <main className="min-h-screen bg-black text-white">
-        <div className="mx-auto max-w-xl space-y-4 px-6 pt-2 pb-8">
-          <PageTop flush title="ADMIN · STATUS" fallbackHref={APP_HOME_URL} />
-          <AdminHubNav />
+        <div className="mx-auto max-w-xl space-y-4 pt-2 pb-8">
+          <PageTop flush title="Staff · Site-wide status" fallbackHref={APP_HOME_URL} />
           <p className="text-sm text-white/55">{msg ?? "Loading…"}</p>
         </div>
       </main>
@@ -82,9 +95,23 @@ export default function AdminStatusPage() {
 
   return (
     <main className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-xl space-y-6 px-6 pt-2 pb-8">
-        <PageTop flush title="ADMIN · STATUS" fallbackHref={APP_HOME_URL} />
-        <AdminHubNav />
+      <div className="mx-auto max-w-xl space-y-6 pt-2 pb-8">
+        <PageTop flush title="Staff · Site-wide status" fallbackHref={APP_HOME_URL} />
+
+        <AdminWorkArea question="What should visitors read on status pages right now, and when did you promise the next update?">
+          {chips}
+          <div className="mb-6 flex flex-wrap gap-3 text-xs">
+            <Link href="/status/pickup" target="_blank" className="text-white/55 hover:text-white">
+              Preview pickup status ↗
+            </Link>
+            <Link href="/status/tournament" target="_blank" className="text-white/55 hover:text-white">
+              Preview tournament status ↗
+            </Link>
+            <Link href="/admin/content" className="text-white/55 hover:text-white">
+              Content workflow
+            </Link>
+          </div>
+        </AdminWorkArea>
 
         <div className="space-y-3">
           <label className="block">
@@ -96,39 +123,44 @@ export default function AdminStatusPage() {
             />
           </label>
 
-          <label className="block">
-            <div className="text-sm text-white/55">Primary slot</div>
-            <input
-              className="w-full rounded-lg border border-white/15 bg-black px-3 py-3 text-sm text-white outline-none"
-              value={row.primary_slot ?? ""}
-              onChange={(e) =>
-                setRow({ ...row, primary_slot: e.target.value || null })
-              }
-            />
-          </label>
+          <details className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
+            <summary className="cursor-pointer text-sm text-white/70">Slot lines &amp; schedule (advanced)</summary>
+            <div className="mt-3 space-y-3">
+              <label className="block">
+                <div className="text-sm text-white/55">Primary slot</div>
+                <input
+                  className="w-full rounded-lg border border-white/15 bg-black px-3 py-3 text-sm text-white outline-none"
+                  value={row.primary_slot ?? ""}
+                  onChange={(e) =>
+                    setRow({ ...row, primary_slot: e.target.value || null })
+                  }
+                />
+              </label>
 
-          <label className="block">
-            <div className="text-sm text-white/55">Secondary slot</div>
-            <input
-              className="w-full rounded-lg border border-white/15 bg-black px-3 py-3 text-sm text-white outline-none"
-              value={row.secondary_slot ?? ""}
-              onChange={(e) =>
-                setRow({ ...row, secondary_slot: e.target.value || null })
-              }
-            />
-          </label>
+              <label className="block">
+                <div className="text-sm text-white/55">Secondary slot</div>
+                <input
+                  className="w-full rounded-lg border border-white/15 bg-black px-3 py-3 text-sm text-white outline-none"
+                  value={row.secondary_slot ?? ""}
+                  onChange={(e) =>
+                    setRow({ ...row, secondary_slot: e.target.value || null })
+                  }
+                />
+              </label>
 
-          <label className="block">
-            <div className="text-sm text-white/55">Next update by (ISO)</div>
-            <input
-              className="w-full rounded-lg border border-white/15 bg-black px-3 py-3 text-sm text-white outline-none"
-              placeholder="2026-03-02T18:00:00Z"
-              value={row.next_update_by ?? ""}
-              onChange={(e) =>
-                setRow({ ...row, next_update_by: e.target.value || null })
-              }
-            />
-          </label>
+              <label className="block">
+                <div className="text-sm text-white/55">Next update by (ISO)</div>
+                <input
+                  className="w-full rounded-lg border border-white/15 bg-black px-3 py-3 text-sm text-white outline-none"
+                  placeholder="2026-03-02T18:00:00Z"
+                  value={row.next_update_by ?? ""}
+                  onChange={(e) =>
+                    setRow({ ...row, next_update_by: e.target.value || null })
+                  }
+                />
+              </label>
+            </div>
+          </details>
 
           <label className="block">
             <div className="text-sm text-white/55">Announcement</div>

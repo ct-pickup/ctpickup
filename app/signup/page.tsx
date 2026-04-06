@@ -4,7 +4,16 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { HistoryBack } from "@/components/layout";
+import { EsportsGoaliePreferenceFields } from "@/components/profile/EsportsGoaliePreferenceFields";
 import { APP_HOME_FIRST_VISIT_URL } from "@/lib/siteNav";
+import {
+  bindEsportsPreferenceHandlers,
+  esportsDetailsComplete,
+  profileEsportsGoalieColumns,
+  type EsportsConsole,
+  type EsportsInterest,
+  type EsportsPlatform,
+} from "@/lib/profilePreferences";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 import { useTransitionNav } from "@/components/TransitionNavContext";
@@ -113,6 +122,21 @@ export default function SignupPage() {
   const [instagram, setInstagram] = useState("");
   const [waiverAccepted, setWaiverAccepted] = useState(false);
 
+  const [esportsInterest, setEsportsInterest] = useState<EsportsInterest | null>(null);
+  const [esportsPlatform, setEsportsPlatform] = useState<EsportsPlatform | null>(null);
+  const [esportsConsole, setEsportsConsole] = useState<EsportsConsole | null>(null);
+  const [playsGoalie, setPlaysGoalie] = useState<boolean | null>(null);
+
+  const { onEsportsInterest, onEsportsPlatform } = useMemo(
+    () =>
+      bindEsportsPreferenceHandlers({
+        setInterest: setEsportsInterest,
+        setPlatform: setEsportsPlatform,
+        setConsole: setEsportsConsole,
+      }),
+    [],
+  );
+
   const emailClean = useMemo(() => email.trim().toLowerCase(), [email]);
 
   const emailLooksValid = useMemo(() => {
@@ -125,14 +149,33 @@ export default function SignupPage() {
   }, [emailClean]);
 
   const canSaveProfile = useMemo(() => {
+    const prefsOk =
+      esportsInterest !== null &&
+      playsGoalie !== null &&
+      esportsDetailsComplete({
+        esports_interest: esportsInterest,
+        esports_platform: esportsPlatform,
+        esports_console: esportsConsole,
+      });
     return (
       firstName.trim().length > 0 &&
       lastName.trim().length > 0 &&
       phone.trim().length > 0 &&
       instagram.trim().length > 0 &&
-      waiverAccepted
+      waiverAccepted &&
+      prefsOk
     );
-  }, [firstName, lastName, phone, instagram, waiverAccepted]);
+  }, [
+    firstName,
+    lastName,
+    phone,
+    instagram,
+    waiverAccepted,
+    esportsInterest,
+    esportsPlatform,
+    esportsConsole,
+    playsGoalie,
+  ]);
 
   async function checkExists() {
     const r = await fetch("/api/auth/email-exists", {
@@ -248,6 +291,13 @@ export default function SignupPage() {
         (user.email ?? emailClean).trim().toLowerCase() || null;
       const nowIso = new Date().toISOString();
 
+      const prefs = profileEsportsGoalieColumns({
+        esportsInterest: esportsInterest!,
+        esportsPlatform,
+        esportsConsole,
+        playsGoalie: playsGoalie!,
+      });
+
       const { error } = await supabase.from("profiles").upsert(
         {
           id: user.id,
@@ -256,6 +306,10 @@ export default function SignupPage() {
           last_name: lastName.trim(),
           phone: phone.trim(),
           instagram: ig,
+          esports_interest: prefs.esports_interest,
+          esports_platform: prefs.esports_platform,
+          esports_console: prefs.esports_console,
+          plays_goalie: prefs.plays_goalie,
           updated_at: nowIso,
         },
         { onConflict: "id" }
@@ -465,6 +519,19 @@ export default function SignupPage() {
                       placeholder="Instagram Handle"
                       value={instagram}
                       onChange={(e) => setInstagram(e.target.value)}
+                      disabled={busy}
+                    />
+
+                    <EsportsGoaliePreferenceFields
+                      variant="signup"
+                      esportsInterest={esportsInterest}
+                      onEsportsInterest={onEsportsInterest}
+                      esportsPlatform={esportsPlatform}
+                      onEsportsPlatform={onEsportsPlatform}
+                      esportsConsole={esportsConsole}
+                      onEsportsConsole={setEsportsConsole}
+                      playsGoalie={playsGoalie}
+                      onPlaysGoalie={setPlaysGoalie}
                       disabled={busy}
                     />
 

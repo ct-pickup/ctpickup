@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { AdminShell } from "@/components/admin/AdminShell";
 import { supabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
 
@@ -9,7 +10,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?next=" + encodeURIComponent("/admin/pickup"));
+    redirect("/login?next=" + encodeURIComponent("/admin"));
   }
 
   const { data: prof } = await supabaseService()
@@ -22,5 +23,5 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect("/");
   }
 
-  return <>{children}</>;
+  return <AdminShell>{children}</AdminShell>;
 }

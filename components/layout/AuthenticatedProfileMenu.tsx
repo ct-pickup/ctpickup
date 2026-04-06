@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { PROFILE_SELECT, type ProfileRow } from "@/lib/profileFields";
 import { PROFILE_UPDATED_EVENT } from "@/lib/profileBroadcast";
+import { esportsSetupIncomplete } from "@/lib/profilePreferences";
 
 function UserGlyph({ className }: { className?: string }) {
   return (
@@ -44,6 +45,7 @@ export function AuthenticatedProfileMenu() {
   const [userId, setUserId] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarBroken, setAvatarBroken] = useState(false);
+  const [esportsIncomplete, setEsportsIncomplete] = useState(false);
 
   useEffect(() => {
     if (!isReady) return;
@@ -51,6 +53,7 @@ export function AuthenticatedProfileMenu() {
     if (!supabase) {
       setUserId(null);
       setAvatarUrl(null);
+      setEsportsIncomplete(false);
       setReady(true);
       return;
     }
@@ -63,6 +66,7 @@ export function AuthenticatedProfileMenu() {
       if (error || !user) {
         setUserId(null);
         setAvatarUrl(null);
+        setEsportsIncomplete(false);
         setReady(true);
         return;
       }
@@ -78,6 +82,7 @@ export function AuthenticatedProfileMenu() {
       const p = row as ProfileRow | null;
       setAvatarUrl(p?.avatar_url?.trim() || null);
       setAvatarBroken(false);
+      setEsportsIncomplete(esportsSetupIncomplete(p?.esports_interest));
       setReady(true);
     };
 
@@ -126,9 +131,20 @@ export function AuthenticatedProfileMenu() {
   return (
     <Link
       href="/profile"
-      className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-white/80 transition-colors hover:bg-white/[0.06] hover:text-white active:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40 lg:h-9 lg:w-9 lg:border lg:border-white/20 lg:bg-white/10 lg:hover:bg-white/[0.14]"
-      aria-label="Your profile"
+      title={esportsIncomplete ? "Profile — finish online tournament preference" : undefined}
+      className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-white/80 transition-colors hover:bg-white/[0.06] hover:text-white active:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40 lg:h-9 lg:w-9 lg:border lg:border-white/20 lg:bg-white/10 lg:hover:bg-white/[0.14]"
+      aria-label={
+        esportsIncomplete
+          ? "Your profile — finish online tournament setup"
+          : "Your profile"
+      }
     >
+      {esportsIncomplete ? (
+        <span
+          className="pointer-events-none absolute right-0 top-0 z-[1] h-2.5 w-2.5 rounded-full bg-amber-400 shadow-[0_0_0_2px_rgba(15,15,16,0.95)]"
+          aria-hidden
+        />
+      ) : null}
       {showImg ? (
         <img
           src={avatarUrl!}

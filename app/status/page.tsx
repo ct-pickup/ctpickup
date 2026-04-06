@@ -22,21 +22,21 @@ const UI: Record<
   }
 > = {
   confirmed: {
-    label: "CONFIRMED",
+    label: "Confirmed",
     headline: "Tournament confirmed",
     blurb: "Date is locked. Details will be posted here first.",
     card: "border border-emerald-500/25 bg-emerald-500/10",
     pillActive: "border border-emerald-500/25 bg-emerald-500/15 text-emerald-200",
   },
   planning: {
-    label: "PLANNING",
+    label: "Planning",
     headline: "Tournament planning",
     blurb: "We’re organizing the next tournament. Updates will be posted here first.",
     card: "border border-white/10 bg-white/[0.03]",
     pillActive: "border border-white/15 bg-white/10 text-white/85",
   },
   inactive: {
-    label: "NOT ANNOUNCED",
+    label: "Not announced",
     headline: "No tournament announced",
     blurb: "No tournament is currently scheduled.",
     card: "border border-red-500/25 bg-red-500/10",

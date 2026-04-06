@@ -1,12 +1,14 @@
 import Link from "next/link";
 
+/** Legacy compact nav — prefer sidebar in `AdminShell`. Kept for narrow contexts. */
 const ADMIN_LINKS = [
-  { href: "/admin/pickup", label: "Pickup" },
-  { href: "/admin/tournament", label: "Tournament" },
-  { href: "/admin/guidance", label: "Guidance" },
-  { href: "/admin/esports", label: "Esports" },
-  { href: "/admin/waivers", label: "Waivers" },
-  { href: "/admin/status", label: "Status" },
+  { href: "/admin", label: "Dashboard" },
+  { href: "/admin/content", label: "Content" },
+  { href: "/admin/tournament", label: "Tournaments" },
+  { href: "/admin/pickup", label: "Pickups" },
+  { href: "/admin/relationships", label: "Relationships" },
+  { href: "/admin/sync", label: "Sync" },
+  { href: "/admin/settings", label: "Settings" },
 ] as const;
 
 export function AdminHubNav({

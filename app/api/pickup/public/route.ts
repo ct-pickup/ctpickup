@@ -43,6 +43,7 @@ export async function GET(req: Request) {
     let isAdmin = false;
     let tier: string | null = null;
     let tierRank: number | null = null;
+    let myPlaysGoalie: boolean | null = null;
 
     if (token) {
       const u = await admin.auth.getUser(token);
@@ -56,7 +57,7 @@ export async function GET(req: Request) {
       if (userId) {
         const prof = await admin
           .from("profiles")
-          .select("approved,is_admin,tier,tier_rank,first_name,last_name,instagram")
+          .select("approved,is_admin,tier,tier_rank,first_name,last_name,instagram,plays_goalie")
           .eq("id", userId)
           .maybeSingle();
 
@@ -71,6 +72,8 @@ export async function GET(req: Request) {
           prof.data?.tier_rank === null || prof.data?.tier_rank === undefined
             ? null
             : Number(prof.data?.tier_rank);
+        const pg = prof.data?.plays_goalie;
+        myPlaysGoalie = pg === true ? true : pg === false ? false : null;
       }
     }
 
@@ -101,10 +104,16 @@ export async function GET(req: Request) {
         status: "inactive",
         run: null,
         visibility: { invitedNow: false, attendanceVisible: false },
-        counts: { confirmed: 0, standby: 0, pending_payment: 0, tier1Confirmed: 0 },
+        counts: {
+          confirmed: 0,
+          standby: 0,
+          pending_payment: 0,
+          tier1Confirmed: 0,
+          goalie_willing_confirmed: 0,
+        },
         my_status: null,
         attendees: [],
-        me: { approved, is_admin: isAdmin, tier, tier_rank: tierRank },
+        me: { approved, is_admin: isAdmin, tier, tier_rank: tierRank, plays_goalie: myPlaysGoalie },
       });
     }
 
@@ -210,23 +219,29 @@ export async function GET(req: Request) {
 
     // Attendees list (confirmed only) if visible
     let attendees: any[] = [];
+    let goalieWillingConfirmed = 0;
     if (attendanceVisible && confirmedRows.length) {
       const ids = Array.from(new Set(confirmedRows.map((r) => r.user_id)));
       const ppl = await admin
         .from("profiles")
-        .select("id,first_name,last_name,instagram,tier,tier_rank")
+        .select("id,first_name,last_name,instagram,tier,tier_rank,plays_goalie")
         .in("id", ids);
 
       if (ppl.error) {
         console.error(`[api/${ROUTE}] profiles_attendees:`, ppl.error.message, ppl.error);
       }
 
-      attendees = (ppl.data || []).map((p) => ({
-        full_name: `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Player",
-        instagram: p.instagram || null,
-        tier: p.tier ?? null,
-        tier_rank: p.tier_rank ?? null,
-      }));
+      attendees = (ppl.data || []).map((p) => {
+        const willing = p.plays_goalie === true;
+        if (willing) goalieWillingConfirmed += 1;
+        return {
+          full_name: `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Player",
+          instagram: p.instagram || null,
+          tier: p.tier ?? null,
+          tier_rank: p.tier_rank ?? null,
+          plays_goalie: willing,
+        };
+      });
     }
 
     // Location privacy (canonical):
@@ -264,10 +279,11 @@ export async function GET(req: Request) {
         standby: standbyRows.length,
         pending_payment: pendingRows.length,
         tier1Confirmed,
+        goalie_willing_confirmed: goalieWillingConfirmed,
       },
       my_status: myStatus,
       attendees,
-      me: { approved, is_admin: isAdmin, tier, tier_rank: tierRank },
+      me: { approved, is_admin: isAdmin, tier, tier_rank: tierRank, plays_goalie: myPlaysGoalie },
     });
   } catch (err) {
     return jsonUnexpectedErrorResponse(ROUTE, "GET", err);

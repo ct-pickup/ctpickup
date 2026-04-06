@@ -1,5 +1,12 @@
 import PageTop from "@/components/PageTop";
-import { AdminHubNav } from "@/components/admin/AdminHubNav";
+import {
+  OperatorLatestLine,
+  OperatorLiveBar,
+  OperatorNextSteps,
+  OperatorQuickActions,
+  OperatorWhereAppears,
+} from "@/components/admin/operator/OperatorSections";
+import { getTournamentOperatorContext } from "@/lib/admin/operatorContext";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import {
@@ -13,9 +20,24 @@ export const dynamic = "force-dynamic";
 
 function fmtDate(iso?: string) {
   if (!iso) return "";
-  const d = new Date(iso);
-  return d.toLocaleString();
+  try {
+    return new Date(iso).toLocaleString();
+  } catch {
+    return "";
+  }
 }
+
+type TourneyRow = Record<string, unknown> & {
+  id: string;
+  title?: string;
+  slug?: string;
+  is_active?: boolean;
+  target_teams?: number;
+  official_threshold?: number;
+  max_teams?: number;
+  staff_announcement?: string | null;
+  staff_announcement_at?: string | null;
+};
 
 export default async function AdminTournamentPage({
   searchParams,
@@ -31,9 +53,9 @@ export default async function AdminTournamentPage({
   } catch {
     return (
       <main className="min-h-screen bg-black text-white">
-        <div className="mx-auto max-w-6xl px-6 pt-10 pb-10">
-          <PageTop flush title="ADMIN · TOURNAMENT" fallbackHref={APP_HOME_URL} />
-          <p className="mt-6 text-white/80">Missing Supabase env vars.</p>
+        <div className="mx-auto max-w-6xl pt-10 pb-10">
+          <PageTop flush title="Staff · Tournaments" fallbackHref={APP_HOME_URL} />
+          <p className="mt-6 text-white/80">Database isn’t configured for this environment.</p>
         </div>
       </main>
     );
@@ -44,15 +66,17 @@ export default async function AdminTournamentPage({
     supabase.from("tournaments").select("*").eq("is_active", true).limit(1).maybeSingle(),
   ]);
 
+  const active = activeT as TourneyRow | null;
+
   let captains: Record<string, unknown>[] = [];
   let captainsErr: string | null = null;
-  if (activeT?.id) {
+  if (active?.id) {
     const cRes = await supabase
       .from("tournament_captains")
       .select(
         "id,user_id,status,captain_name,captain_instagram,team_name,expected_players,captain_verified,claim_submitted_at,payment_due_at"
       )
-      .eq("tournament_id", activeT.id)
+      .eq("tournament_id", active.id)
       .order("claim_submitted_at", { ascending: false });
     captains = (cRes.data || []) as Record<string, unknown>[];
     if (cRes.error) captainsErr = cRes.error.message;
@@ -72,17 +96,40 @@ export default async function AdminTournamentPage({
 
   const { data: submissions, error: subErr } = await q;
 
+  const opCtx = await getTournamentOperatorContext(
+    supabase,
+    active
+      ? {
+          id: active.id,
+          title: active.title,
+          staff_announcement: active.staff_announcement ?? null,
+          staff_announcement_at: active.staff_announcement_at ?? null,
+        }
+      : null,
+  );
+
+  const nextSteps: string[] = [];
+  if (!active) {
+    nextSteps.push("Mark a tournament live so players see it on the tournament pages.");
+  } else {
+    const pend = (submissions || []).filter((s) => (s.decision as string) === "pending").length;
+    if (pend) nextSteps.push(`${pend} signup(s) pending review.`);
+    const hot = captains.filter((c) =>
+      ["payment_pending", "claim_submitted", "roster_pending"].includes(String(c.status || "")),
+    );
+    if (hot.length) nextSteps.push(`${hot.length} captain claim(s) need follow-up.`);
+  }
+
   return (
     <main className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-6xl space-y-6 px-6 py-10">
-        <PageTop flush title="ADMIN · TOURNAMENT" fallbackHref={APP_HOME_URL} />
-        <AdminHubNav />
+      <div className="mx-auto max-w-6xl space-y-6 py-8">
+        <PageTop flush title="Staff · Tournaments" fallbackHref={APP_HOME_URL} />
 
         {sp.ok ? (
           <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
-            {sp.ok === "active" && "Active tournament updated."}
-            {sp.ok === "cleared" && "No tournament is active on the public site."}
-            {sp.ok === "created" && "Tournament created (inactive until you activate it)."}
+            {sp.ok === "active" && "Live tournament updated."}
+            {sp.ok === "cleared" && "No tournament is live."}
+            {sp.ok === "created" && "Tournament created."}
             {sp.ok === "saved" && "Submission saved."}
           </div>
         ) : null}
@@ -92,188 +139,209 @@ export default async function AdminTournamentPage({
           </div>
         ) : null}
 
-        {/* Public site driver: tournaments.is_active */}
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-6">
-          <div>
-            <h2 className="text-lg font-semibold uppercase tracking-tight text-white">
-              Active tournament (public)
-            </h2>
-            <p className="mt-1 text-sm text-white/55">
-              The row with <span className="text-white/75">is_active = true</span> is what{" "}
-              <code className="text-white/80">/api/tournament/public</code> and the tournament hub use.
+        <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 space-y-2">
+          <h2 className="text-sm font-semibold text-white">Live tournament</h2>
+          <p className="text-sm text-white/70">
+            The tournament marked Live is the one players currently see on the public tournament page and tournament hub.
+          </p>
+          {!active ? (
+            <p className="text-sm text-white/55">
+              No tournament is live right now, so players will not see a featured tournament.
             </p>
+          ) : null}
+        </section>
+
+        <OperatorLiveBar
+          label="Live on hub"
+          title={active?.title || "—"}
+          chip={active ? { tone: "published", text: "Live" } : { tone: "draft", text: "None" }}
+          previewHref="/tournament"
+        />
+
+        {active ? (
+          <div className="space-y-4">
+            <OperatorQuickActions
+              publishHref="/admin/publish?tournament=1"
+              previewPaths={[
+                { href: "/tournament", label: "Tournament hub" },
+                { href: "/status/tournament", label: "Tournament status" },
+              ]}
+            />
+            <OperatorLatestLine
+              title="Live tournament announcement"
+              body={opCtx.staffAnnouncement}
+              at={opCtx.staffAnnouncementAt ? fmtDate(opCtx.staffAnnouncementAt as string) : null}
+              empty="None yet — publish an update with the live tournament selected."
+            />
+            <OperatorWhereAppears rows={opCtx.whereRows} tablesMissing={opCtx.tablesMissing} />
+            <OperatorNextSteps items={nextSteps} />
           </div>
+        ) : (
+          <OperatorNextSteps items={nextSteps} />
+        )}
 
-          {activeErr ? (
-            <p className="text-sm text-red-300">{activeErr.message}</p>
-          ) : activeT ? (
-            <div className="rounded-xl border border-white/10 bg-black/30 p-4 text-sm text-white/85 space-y-1">
-              <div className="font-semibold text-white">{activeT.title}</div>
-              <div className="text-white/60">
-                slug: {activeT.slug} · target {activeT.target_teams} · official ≥{" "}
-                {activeT.official_threshold} · max {activeT.max_teams}
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-white/60">No active tournament — public pages show an empty state.</p>
-          )}
-
-          {tListErr ? (
-            <p className="text-sm text-red-300">{tListErr.message}</p>
-          ) : (
-            <div className="space-y-3">
-              <div className="text-xs font-semibold uppercase tracking-wider text-white/45">
-                All tournaments
-              </div>
-              <div className="overflow-x-auto rounded-xl border border-white/10">
-                <table className="w-full text-sm">
-                  <thead className="text-white/60">
-                    <tr className="border-b border-white/10">
-                      <th className="p-3 text-left">Title</th>
-                      <th className="p-3 text-left">Slug</th>
-                      <th className="p-3 text-left">Target / official / max</th>
-                      <th className="p-3 text-left">Active</th>
-                      <th className="p-3 text-left"> </th>
+        <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 space-y-6">
+          <div>
+            <div className="text-sm font-semibold text-white">All tournaments</div>
+            {activeErr ? <p className="mt-2 text-sm text-red-300">{activeErr.message}</p> : null}
+            {tListErr ? <p className="mt-2 text-sm text-red-300">{tListErr.message}</p> : null}
+            <div className="mt-3 overflow-x-auto rounded-lg border border-white/10">
+              <table className="w-full text-sm min-w-[720px]">
+                <thead className="text-white/50">
+                  <tr className="border-b border-white/10">
+                    <th className="p-2 text-left">Title</th>
+                    <th className="p-2 text-left">URL name</th>
+                    <th className="p-2 text-left">Target teams</th>
+                    <th className="p-2 text-left">Teams for official status</th>
+                    <th className="p-2 text-left">Maximum teams</th>
+                    <th className="p-2 text-left">Live</th>
+                    <th className="p-2 text-left" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {(tournaments || []).length === 0 ? (
+                    <tr>
+                      <td className="p-4 text-white/50" colSpan={7}>
+                        No tournaments yet. Create one below.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {(tournaments || []).length === 0 ? (
-                      <tr>
-                        <td className="p-4 text-white/50" colSpan={5}>
-                          No tournament rows yet. Create one below.
+                  ) : (
+                    (tournaments as TourneyRow[]).map((t) => (
+                      <tr key={t.id} className="border-b border-white/10 align-top">
+                        <td className="p-2 text-white/90">{t.title}</td>
+                        <td className="p-2 text-white/60">{t.slug || "—"}</td>
+                        <td className="p-2 text-white/75">{t.target_teams ?? "—"}</td>
+                        <td className="p-2 text-white/75">{t.official_threshold ?? "—"}</td>
+                        <td className="p-2 text-white/75">{t.max_teams ?? "—"}</td>
+                        <td className="p-2 text-white/75">{t.is_active ? "Live" : "Not live"}</td>
+                        <td className="p-2">
+                          {!t.is_active ? (
+                            <form action={setActiveTournament}>
+                              <input type="hidden" name="tournament_id" value={t.id} />
+                              <button
+                                type="submit"
+                                className="rounded-md bg-white px-2 py-1 text-[11px] font-semibold text-black"
+                              >
+                                Make live
+                              </button>
+                            </form>
+                          ) : (
+                            <form action={clearActiveTournament}>
+                              <button
+                                type="submit"
+                                className="rounded-md border border-white/20 px-2 py-1 text-[11px] font-semibold text-white/85"
+                              >
+                                Take offline
+                              </button>
+                            </form>
+                          )}
                         </td>
                       </tr>
-                    ) : (
-                      (tournaments || []).map((t) => (
-                        <tr key={t.id} className="border-b border-white/10 align-top">
-                          <td className="p-3 text-white/90">{t.title}</td>
-                          <td className="p-3 text-white/70">{t.slug}</td>
-                          <td className="p-3 text-white/70">
-                            {t.target_teams} / {t.official_threshold} / {t.max_teams}
-                          </td>
-                          <td className="p-3 text-white/80">{t.is_active ? "Yes" : "No"}</td>
-                          <td className="p-3">
-                            {!t.is_active ? (
-                              <form action={setActiveTournament}>
-                                <input type="hidden" name="tournament_id" value={t.id} />
-                                <button
-                                  type="submit"
-                                  className="rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-black"
-                                >
-                                  Set active
-                                </button>
-                              </form>
-                            ) : (
-                              <form action={clearActiveTournament}>
-                                <button
-                                  type="submit"
-                                  className="rounded-md border border-white/20 px-3 py-1.5 text-xs font-semibold text-white/85"
-                                >
-                                  Deactivate
-                                </button>
-                              </form>
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
-          )}
+          </div>
 
-          <div className="border-t border-white/10 pt-6 space-y-4">
-            <div className="text-xs font-semibold uppercase tracking-wider text-white/45">
-              Create tournament
+          <div className="space-y-3 border-t border-white/10 pt-6">
+            <div>
+              <h3 className="text-sm font-semibold text-white">Create tournament</h3>
+              <p className="mt-1 text-sm text-white/55">Create a new tournament draft. You can make it live later.</p>
             </div>
-            <form action={createTournament} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <input
-                name="title"
-                required
-                placeholder="Title"
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-              />
-              <input
-                name="slug"
-                placeholder="Slug (optional)"
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-              />
-              <input
-                name="target_teams"
-                type="number"
-                min={1}
-                defaultValue={12}
-                required
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
-              />
-              <input
-                name="official_threshold"
-                type="number"
-                min={1}
-                defaultValue={8}
-                required
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
-              />
-              <input
-                name="max_teams"
-                type="number"
-                min={1}
-                defaultValue={12}
-                required
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
-              />
-              <div className="flex items-end">
-                <button
-                  type="submit"
-                  className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-black"
-                >
-                  Create (inactive)
+            <form action={createTournament} className="grid gap-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-white/80">Title</span>
+                <input
+                  name="title"
+                  required
+                  placeholder="Spring invitational"
+                  className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                />
+              </label>
+              <div className="flex flex-col gap-1 text-sm sm:col-span-2">
+                <label className="text-white/80" htmlFor="new-tournament-url-name">
+                  URL name <span className="text-white/45">(optional)</span>
+                </label>
+                <input
+                  id="new-tournament-url-name"
+                  name="slug"
+                  placeholder="next-tournament"
+                  className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                />
+                <p className="text-xs text-white/45">Used in the page link. Example: next-tournament</p>
+              </div>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-white/80">Target teams</span>
+                <span className="text-xs text-white/45">How many teams you are planning toward.</span>
+                <input
+                  name="target_teams"
+                  type="number"
+                  min={1}
+                  defaultValue={12}
+                  required
+                  className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-white/80">Teams needed for official status</span>
+                <span className="text-xs text-white/45">Once this many teams are confirmed, the tournament reads as official.</span>
+                <input
+                  name="official_threshold"
+                  type="number"
+                  min={1}
+                  defaultValue={8}
+                  required
+                  className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-white/80">Maximum teams</span>
+                <span className="text-xs text-white/45">Cap on confirmed teams before the tournament is full.</span>
+                <input
+                  name="max_teams"
+                  type="number"
+                  min={1}
+                  defaultValue={12}
+                  required
+                  className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                />
+              </label>
+              <div className="flex items-end sm:col-span-2">
+                <button type="submit" className="rounded-md bg-white px-3 py-2 text-xs font-semibold text-black">
+                  Create draft
                 </button>
               </div>
             </form>
           </div>
         </section>
 
-        {/* Captain claims for active tournament */}
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-4">
-          <h2 className="text-lg font-semibold uppercase tracking-tight text-white">
-            Captain claims
-          </h2>
-          {!activeT ? (
-            <p className="text-sm text-white/60">Activate a tournament to see captain claims.</p>
+        <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+          <div className="text-sm font-semibold text-white">Captain claims</div>
+          {!active ? (
+            <p className="text-sm text-white/55">Captain claims appear after a tournament is made live.</p>
           ) : captainsErr ? (
             <p className="text-sm text-red-300">{captainsErr}</p>
           ) : captains.length === 0 ? (
-            <p className="text-sm text-white/60">No captain rows for this tournament yet.</p>
+            <p className="text-sm text-white/50">No captain claims yet.</p>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-white/10">
+            <div className="overflow-x-auto rounded-lg border border-white/10">
               <table className="w-full text-sm">
-                <thead className="text-white/60">
+                <thead className="text-white/50">
                   <tr className="border-b border-white/10">
-                    <th className="p-3 text-left">Status</th>
-                    <th className="p-3 text-left">Captain</th>
-                    <th className="p-3 text-left">IG</th>
-                    <th className="p-3 text-left">Team</th>
-                    <th className="p-3 text-left">Exp.</th>
-                    <th className="p-3 text-left">Verified</th>
-                    <th className="p-3 text-left">Submitted</th>
+                    <th className="p-2 text-left">Status</th>
+                    <th className="p-2 text-left">Captain</th>
+                    <th className="p-2 text-left">Team</th>
+                    <th className="p-2 text-left">Submitted</th>
                   </tr>
                 </thead>
                 <tbody>
                   {captains.map((c) => (
-                    <tr key={String(c.id)} className="border-b border-white/10 align-top">
-                      <td className="p-3 text-white/80">{String(c.status || "—")}</td>
-                      <td className="p-3 text-white/90">{String(c.captain_name || "—")}</td>
-                      <td className="p-3 text-white/70">{String(c.captain_instagram || "—")}</td>
-                      <td className="p-3 text-white/80">{String(c.team_name || "—")}</td>
-                      <td className="p-3 text-white/70">
-                        {c.expected_players != null ? String(c.expected_players) : "—"}
-                      </td>
-                      <td className="p-3 text-white/70">{c.captain_verified ? "Yes" : "No"}</td>
-                      <td className="p-3 whitespace-nowrap text-white/60">
-                        {fmtDate(c.claim_submitted_at as string)}
-                      </td>
+                    <tr key={String(c.id)} className="border-b border-white/10">
+                      <td className="p-2 text-white/80">{String(c.status || "—")}</td>
+                      <td className="p-2 text-white/90">{String(c.captain_name || "—")}</td>
+                      <td className="p-2 text-white/70">{String(c.team_name || "—")}</td>
+                      <td className="p-2 whitespace-nowrap text-white/55">{fmtDate(c.claim_submitted_at as string)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -282,73 +350,56 @@ export default async function AdminTournamentPage({
           )}
         </section>
 
-        {/* Intake submissions */}
-        <section className="space-y-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <div className="text-3xl font-semibold uppercase tracking-tight text-white">Submissions</div>
-              <div className="text-white/70 text-sm">Tournament intake (latest 200)</div>
+              <div className="text-sm font-semibold text-white">Tournament signups</div>
+              <p className="mt-0.5 text-xs text-white/50">Recent player signup submissions.</p>
             </div>
-
-            <div className="text-sm text-white/60">
-              Filters:{" "}
+            <div className="text-xs text-white/50">
               <a className="underline" href="/admin/tournament">
                 All
-              </a>{" "}
-              ·{" "}
+              </a>
+              {" · "}
               <a className="underline" href="/admin/tournament?decision=pending">
                 Pending
-              </a>{" "}
-              ·{" "}
+              </a>
+              {" · "}
               <a className="underline" href="/admin/tournament?decision=confirmed">
                 Confirmed
-              </a>{" "}
-              ·{" "}
+              </a>
+              {" · "}
               <a className="underline" href="/admin/tournament?decision=standby">
                 Standby
               </a>
             </div>
           </div>
 
-          {subErr && (
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-6 text-white/80">
-              Error: {subErr.message}
-            </div>
-          )}
+          {subErr ? <p className="text-sm text-red-300">{subErr.message}</p> : null}
 
-          <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03]">
-            <table className="w-full text-sm min-w-[1100px]">
-              <thead className="text-white/70">
+          <div className="overflow-x-auto rounded-xl border border-white/10 bg-white/[0.03]">
+            <table className="w-full text-sm min-w-[900px]">
+              <thead className="text-white/50">
                 <tr className="border-b border-white/10">
-                  <th className="p-3 text-left">Created</th>
-                  <th className="p-3 text-left">Name</th>
-                  <th className="p-3 text-left">Age</th>
-                  <th className="p-3 text-left">IG</th>
-                  <th className="p-3 text-left">Phone</th>
-                  <th className="p-3 text-left">Level</th>
-                  <th className="p-3 text-left">Availability</th>
-                  <th className="p-3 text-left">Review</th>
+                  <th className="p-2 text-left">Created</th>
+                  <th className="p-2 text-left">Name</th>
+                  <th className="p-2 text-left">IG</th>
+                  <th className="p-2 text-left">Review</th>
                 </tr>
               </thead>
               <tbody>
                 {(submissions || []).map((r) => (
                   <tr key={r.id} className="border-b border-white/10 align-top">
-                    <td className="p-3 whitespace-nowrap text-white/70">{fmtDate(r.created_at)}</td>
-                    <td className="p-3 font-semibold text-white/90">{r.full_name || "-"}</td>
-                    <td className="p-3 text-white/80">{r.age ?? "-"}</td>
-                    <td className="p-3 text-white/80">{r.instagram || "-"}</td>
-                    <td className="p-3 text-white/80">{r.phone || "-"}</td>
-                    <td className="p-3 text-white/80">{r.level || "-"}</td>
-                    <td className="p-3 text-white/70 max-w-[200px]">
-                      <div className="line-clamp-2">{r.availability || "-"}</div>
-                    </td>
-                    <td className="p-3">
-                      <form action={updateTourneySubmission} className="space-y-2 min-w-[200px]">
+                    <td className="p-2 whitespace-nowrap text-white/60">{fmtDate(r.created_at)}</td>
+                    <td className="p-2 font-medium text-white/90">{r.full_name || "—"}</td>
+                    <td className="p-2 text-white/70">{r.instagram || "—"}</td>
+                    <td className="p-2">
+                      <form action={updateTourneySubmission} className="space-y-1 min-w-[160px]">
                         <input type="hidden" name="submission_id" value={r.id} />
                         <select
                           name="decision"
                           defaultValue={(r.decision as string) || "pending"}
-                          className="w-full rounded-md border border-white/15 bg-black/50 px-2 py-1.5 text-xs text-white"
+                          className="w-full rounded border border-white/15 bg-black/50 px-2 py-1 text-xs text-white"
                         >
                           <option value="pending">pending</option>
                           <option value="confirmed">confirmed</option>
@@ -359,33 +410,26 @@ export default async function AdminTournamentPage({
                           name="notes"
                           defaultValue={(r.notes as string) || ""}
                           placeholder="Notes"
-                          className="w-full rounded-md border border-white/15 bg-black/50 px-2 py-1.5 text-xs text-white placeholder:text-white/35"
+                          className="w-full rounded border border-white/15 bg-black/50 px-2 py-1 text-xs text-white"
                         />
-                        <label className="flex items-center gap-2 text-xs text-white/70">
-                          <input
-                            type="checkbox"
-                            name="reviewed"
-                            defaultChecked={!!r.reviewed}
-                          />
+                        <label className="flex items-center gap-1 text-[11px] text-white/60">
+                          <input type="checkbox" name="reviewed" defaultChecked={!!r.reviewed} />
                           Reviewed
                         </label>
-                        <button
-                          type="submit"
-                          className="w-full rounded-md bg-white/90 px-2 py-1.5 text-xs font-semibold text-black"
-                        >
+                        <button type="submit" className="w-full rounded bg-white/90 py-1 text-[11px] font-semibold text-black">
                           Save
                         </button>
                       </form>
                     </td>
                   </tr>
                 ))}
-                {!submissions?.length && (
+                {!submissions?.length ? (
                   <tr>
-                    <td className="p-6 text-white/60" colSpan={8}>
-                      No submissions yet.
+                    <td className="p-4 text-white/50" colSpan={4}>
+                      No signups yet.
                     </td>
                   </tr>
-                )}
+                ) : null}
               </tbody>
             </table>
           </div>

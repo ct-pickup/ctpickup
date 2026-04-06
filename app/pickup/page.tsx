@@ -6,6 +6,11 @@ import {
   PageShell,
   TopNav,
 } from "@/components/layout";
+import { EsportsSetupNudgeBar } from "@/components/profile/EsportsSetupNudgeBar";
+import {
+  PROFILE_GOALIE_HEADCOUNT_TARGET,
+  shouldWarnLowWillingGoalies,
+} from "@/lib/pickup/profileGoalieRoster";
 import { WaiverAcceptanceModal } from "@/components/waiver/WaiverAcceptanceModal";
 import Link from "next/link";
 import { APP_HOME_URL } from "@/lib/siteNav";
@@ -218,6 +223,7 @@ export default function PickupPage() {
         fallbackHref={APP_HOME_URL}
         rightSlot={<AuthenticatedProfileMenu />}
       />
+      <EsportsSetupNudgeBar />
 
       <div className="space-y-8 pb-6 pt-2 md:pt-4">
         <section className="rounded-2xl border border-white/15 bg-white/5 p-7 space-y-5">
@@ -442,12 +448,53 @@ export default function PickupPage() {
                             <div key={idx}>
                               {a.full_name || "Player"}{" "}
                               {a.instagram ? <span className="text-white/55">(@{a.instagram})</span> : null}
+                              {a.plays_goalie ? (
+                                <span className="text-emerald-200/80"> · goalie</span>
+                              ) : null}
                             </div>
                           ))}
                         </div>
                       ) : (
                         <EmptyStateMessage>No confirmed players shown yet.</EmptyStateMessage>
                       )}
+                      {typeof data.counts?.goalie_willing_confirmed === "number" &&
+                      typeof data.counts?.confirmed === "number" &&
+                      shouldWarnLowWillingGoalies(
+                        data.counts.confirmed,
+                        data.counts.goalie_willing_confirmed,
+                      ) ? (
+                        <div
+                          className="mt-3 rounded-lg border border-amber-400/35 bg-amber-400/[0.08] px-3 py-2.5 text-xs leading-relaxed text-amber-50/95"
+                          role="status"
+                        >
+                          <span className="font-semibold text-amber-100">Heads up — goalies:</span> Only{" "}
+                          {data.counts.goalie_willing_confirmed} confirmed
+                          {data.counts.goalie_willing_confirmed === 1 ? " player" : " players"} listed
+                          themselves as willing to play goalie in Profile. Most pickup games need at least{" "}
+                          {PROFILE_GOALIE_HEADCOUNT_TARGET}. This is informational only — staff will still
+                          balance the session.
+                        </div>
+                      ) : typeof data.counts?.goalie_willing_confirmed === "number" &&
+                        data.counts.confirmed > 0 &&
+                        !shouldWarnLowWillingGoalies(
+                          data.counts.confirmed,
+                          data.counts.goalie_willing_confirmed,
+                        ) ? (
+                        <p className="pt-3 text-xs text-white/55 leading-relaxed">
+                          {data.counts.goalie_willing_confirmed} confirmed
+                          {data.counts.goalie_willing_confirmed === 1 ? " player" : " players"} said in
+                          Profile they can play goalie (target: at least {PROFILE_GOALIE_HEADCOUNT_TARGET}{" "}
+                          for most sessions).
+                        </p>
+                      ) : null}
+                      {token && data.me?.plays_goalie == null ? (
+                        <p className="pt-2 text-xs text-white/50 leading-relaxed">
+                          <Link href="/profile" className="font-medium text-white/75 underline-offset-4 hover:underline">
+                            Add whether you play goalie in your profile
+                          </Link>{" "}
+                          so we can balance skaters and goalies.
+                        </p>
+                      ) : null}
                     </div>
                   ) : null}
 

@@ -1,5 +1,6 @@
 import PageTop from "@/components/PageTop";
-import { AdminHubNav } from "@/components/admin/AdminHubNav";
+import { AdminWorkArea } from "@/components/admin/AdminWorkArea";
+import { StatusChip } from "@/components/admin/StatusChip";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { supabaseService } from "@/lib/supabase/service";
 import {
@@ -52,11 +53,22 @@ export default async function AdminEsportsPage({
 
   const list = (rows || []) as Row[];
 
+  const liveCount = list.filter((r) => r.status === "upcoming" || r.status === "active").length;
+
   return (
     <main className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-6xl space-y-10 px-6 py-10">
-        <PageTop flush title="ADMIN · ESPORTS" fallbackHref={APP_HOME_URL} />
-        <AdminHubNav />
+      <div className="mx-auto max-w-6xl space-y-10 py-10">
+        <PageTop flush title="Staff · Esports" fallbackHref={APP_HOME_URL} />
+
+        <AdminWorkArea question="Which digital tournaments are upcoming or live on the public listing, and what still needs dates or copy?">
+          <div className="mb-2 flex flex-wrap gap-2">
+            <StatusChip tone="neutral">{list.length} tournaments</StatusChip>
+            <StatusChip tone="published">{liveCount} public-visible</StatusChip>
+            <a href="/esports/tournaments" target="_blank" rel="noreferrer" className="text-xs text-white/50 hover:text-white">
+              Preview listing ↗
+            </a>
+          </div>
+        </AdminWorkArea>
 
         {sp.ok ? (
           <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
@@ -80,11 +92,10 @@ export default async function AdminEsportsPage({
             Create esports tournament
           </h2>
           <p className="text-sm text-white/55">
-            Use ISO 8601 for dates (include offset or Z), e.g.{" "}
-            <code className="text-white/75">2026-05-15T19:00:00-04:00</code>. Public
-            page shows tournaments with status{" "}
-            <span className="text-white/80">upcoming</span> or{" "}
-            <span className="text-white/80">active</span> only.
+            Use a full date and time with timezone, e.g.{" "}
+            <code className="text-white/75">2026-05-15T19:00:00-04:00</code>. The public
+            listing only shows tournaments marked <span className="text-white/80">upcoming</span> or{" "}
+            <span className="text-white/80">active</span>.
           </p>
           <form
             action={createEsportsTournament}

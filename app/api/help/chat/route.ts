@@ -48,7 +48,7 @@ export async function POST(req: Request) {
       ? `
 
 SIGNED_IN_USER_IS_STAFF (internal)
-This user has staff access. If they ask about managing pickup runs, tournament intake, or the operator status view, you MAY include these in NAV_ACTIONS_JSON (still max 3 total actions): /admin/pickup, /admin/tournament, /admin/status. In your conversational answer, avoid saying “admin”; use neutral wording like “pickup management” or “status tools.”`
+This user has staff access. If they ask about managing pickup runs, tournament intake, posts/status, or sync, you MAY include these in NAV_ACTIONS_JSON (still max 3 total actions): /admin, /admin/pickup, /admin/tournament, /admin/content, /admin/sync. In your conversational answer, avoid saying “admin”; use neutral wording like “staff dashboard”, “pickup management”, or “status tools.”`
       : "";
 
     let openai;

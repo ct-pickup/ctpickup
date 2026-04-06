@@ -7,6 +7,7 @@ import {
   SectionEyebrow,
   TopNav,
 } from "@/components/layout";
+import { EsportsSetupNudgeBar } from "@/components/profile/EsportsSetupNudgeBar";
 
 export function PickupSubpageShell({
   title,
@@ -27,6 +28,7 @@ export function PickupSubpageShell({
         backLabel="Pickup"
         rightSlot={<AuthenticatedProfileMenu />}
       />
+      <EsportsSetupNudgeBar />
 
       <div className={`mx-auto ${maxWidthClass}`}>
         <SectionEyebrow>Pickup</SectionEyebrow>
@@ -49,6 +51,7 @@ export function PickupSubpageLoading({ title }: { title: string }) {
         backLabel="Pickup"
         rightSlot={<AuthenticatedProfileMenu />}
       />
+      <EsportsSetupNudgeBar />
       <div className="mx-auto max-w-3xl">
         <SectionEyebrow>Pickup</SectionEyebrow>
         <h1 className="mt-3 text-2xl font-bold uppercase tracking-[0.14em] text-white sm:text-3xl">

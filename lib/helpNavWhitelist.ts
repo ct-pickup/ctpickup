@@ -48,6 +48,8 @@ export const HELP_NAV_ROUTES: RouteDef[] = [
   { href: "/status/pickup", label: "Pickup status" },
   { href: "/status/tournament", label: "Tournament status" },
   { href: "/dm", label: "DM" },
+  { href: "/admin", label: "Admin · Overview", adminOnly: true },
+  { href: "/admin/publish", label: "Admin · Publish", adminOnly: true },
   { href: "/admin/pickup", label: "Admin · Pickup", adminOnly: true },
   { href: "/admin/tournament", label: "Admin · Tournament", adminOnly: true },
   { href: "/admin/status", label: "Admin · Status", adminOnly: true },

@@ -86,6 +86,14 @@ export async function POST(req: Request) {
 
     const origin = requestSiteUrlFromRequest(req);
 
+    const sessionMetadata = {
+      kind: "tournament" as const,
+      tournament_id: String(t.id),
+      captain_id: String(cap.id),
+      user_id: String(u.user.id),
+      players_count: "5",
+    };
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [
@@ -105,13 +113,20 @@ export async function POST(req: Request) {
       cancel_url: `${origin}/tournament?canceled=1`,
       customer_email: u.user.email || undefined,
       client_reference_id: cap.id,
-      metadata: {
-        tournament_id: String(t.id),
-        captain_id: String(cap.id),
-        user_id: String(u.user.id),
-        players_count: "5",
+      metadata: { ...sessionMetadata },
+      payment_intent_data: {
+        metadata: { ...sessionMetadata },
       },
     });
+
+    console.log(
+      JSON.stringify({
+        stripe_checkout: true,
+        flow: "tournament",
+        checkout_session_id: session.id,
+        captain_id: cap.id,
+      }),
+    );
 
     await admin.from("tournament_payments").insert({
       tournament_id: t.id,
@@ -124,7 +139,9 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (e: any) {
-    return NextResponse.json({ error: "server_error", details: String(e?.message || e) }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("stripe_create_checkout_session_error:", msg);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }

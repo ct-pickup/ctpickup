@@ -42,21 +42,21 @@ function formatNY(ts: string) {
 function pillForRunStatus(status: string) {
   if (status === "active")
     return {
-      label: "ACTIVE",
+      label: "Active",
       cls: "border-emerald-500/25 bg-emerald-500/15 text-emerald-200",
     };
   if (status === "likely_on")
     return {
-      label: "LIKELY ON",
+      label: "Likely on",
       cls: "border-white/15 bg-white/10 text-white/85",
     };
   if (status === "planning")
     return {
-      label: "PLANNING",
+      label: "Planning",
       cls: "border-white/15 bg-white/10 text-white/85",
     };
   return {
-    label: status.toUpperCase(),
+    label: status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " "),
     cls: "border-white/15 bg-white/10 text-white/85",
   };
 }
@@ -178,7 +178,7 @@ export default async function PickupStatusPage() {
           <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 space-y-4">
             <div className="flex items-center justify-between gap-4">
               <div className="text-sm font-semibold uppercase tracking-wide text-white/80">
-                Global Update
+                Everyone
               </div>
               <div className="text-xs text-white/55">
                 {formatNY(globalUpdate.created_at)}
@@ -202,7 +202,7 @@ export default async function PickupStatusPage() {
                     pillForRunStatus(run.status).cls,
                   ].join(" ")}
                 >
-                  RUN · {pillForRunStatus(run.status).label}
+                  Pickup · {pillForRunStatus(run.status).label}
                 </div>
 
                 <div className="text-sm text-white/70">
@@ -244,7 +244,7 @@ export default async function PickupStatusPage() {
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="text-xs uppercase tracking-widest text-white/55">
-                      {u.run_id ? "Run" : "Global"}
+                      {u.run_id ? "One run" : "Everyone"}
                     </div>
                     <div className="text-xs text-white/55">
                       {formatNY(u.created_at)}

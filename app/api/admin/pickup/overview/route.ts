@@ -35,16 +35,32 @@ export async function GET(req: Request) {
   const standbyIds = (rsvps.data || []).filter(r => r.status === "standby").map(r => r.user_id);
 
   const confirmed = confirmedIds.length
-    ? await supabaseAdmin.from("profiles").select("id,full_name,instagram,tier,confirmed_count,attended_count,strike_count").in("id", confirmedIds)
+    ? await supabaseAdmin
+        .from("profiles")
+        .select(
+          "id,first_name,last_name,instagram,tier,plays_goalie,confirmed_count,attended_count,strike_count",
+        )
+        .in("id", confirmedIds)
     : { data: [] as any[] };
 
   const standby = standbyIds.length
-    ? await supabaseAdmin.from("profiles").select("id,full_name,instagram,tier,confirmed_count,attended_count,strike_count").in("id", standbyIds)
+    ? await supabaseAdmin
+        .from("profiles")
+        .select(
+          "id,first_name,last_name,instagram,tier,plays_goalie,confirmed_count,attended_count,strike_count",
+        )
+        .in("id", standbyIds)
     : { data: [] as any[] };
+
+  const mapRow = (r: Record<string, unknown>) => ({
+    ...r,
+    full_name:
+      `${String(r.first_name || "").trim()} ${String(r.last_name || "").trim()}`.trim() || null,
+  });
 
   return NextResponse.json({
     run,
-    confirmed: confirmed.data || [],
-    standby: standby.data || [],
+    confirmed: (confirmed.data || []).map(mapRow),
+    standby: (standby.data || []).map(mapRow),
   });
 }

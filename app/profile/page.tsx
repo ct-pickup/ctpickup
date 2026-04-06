@@ -17,12 +17,29 @@ import {
 } from "@/components/layout";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
+import { EsportsGoaliePreferenceFields } from "@/components/profile/EsportsGoaliePreferenceFields";
 import {
   PROFILE_SELECT,
   profileDisplayName,
   type ProfileRow,
 } from "@/lib/profileFields";
 import { broadcastProfileUpdated } from "@/lib/profileBroadcast";
+import {
+  bindEsportsPreferenceHandlers,
+  esportsDetailsComplete,
+  esportsSetupIncomplete,
+  esportsSetupNudgeMessage,
+  formatEsportsSummary,
+  formatGoaliePreference,
+  parseEsportsConsole,
+  parseEsportsInterest,
+  parseEsportsPlatform,
+  profileEsportsGoalieColumns,
+  sanitizeEsportsFormState,
+  type EsportsConsole,
+  type EsportsInterest,
+  type EsportsPlatform,
+} from "@/lib/profilePreferences";
 
 const AVATAR_STORAGE_PATH = "avatar.jpg";
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -78,6 +95,23 @@ export default function ProfilePage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [avatarBroken, setAvatarBroken] = useState(false);
 
+  const [esportsInterest, setEsportsInterest] = useState<EsportsInterest | null>(null);
+  const [esportsPlatform, setEsportsPlatform] = useState<EsportsPlatform | null>(null);
+  const [esportsConsole, setEsportsConsole] = useState<EsportsConsole | null>(null);
+  const [playsGoalie, setPlaysGoalie] = useState<boolean | null>(null);
+  const [prefsBusy, setPrefsBusy] = useState(false);
+  const [prefsMsg, setPrefsMsg] = useState<string | null>(null);
+
+  const { onEsportsInterest, onEsportsPlatform } = useMemo(
+    () =>
+      bindEsportsPreferenceHandlers({
+        setInterest: setEsportsInterest,
+        setPlatform: setEsportsPlatform,
+        setConsole: setEsportsConsole,
+      }),
+    [],
+  );
+
   const load = useCallback(async () => {
     if (!supabase) return;
     setMsg(null);
@@ -110,6 +144,21 @@ export default function ProfilePage() {
     }
     setLoading(false);
   }, [router, supabase]);
+
+  useEffect(() => {
+    if (!profile) return;
+    const sanitized = sanitizeEsportsFormState({
+      interest: parseEsportsInterest(profile.esports_interest),
+      platform: parseEsportsPlatform(profile.esports_platform),
+      console: parseEsportsConsole(profile.esports_console),
+    });
+    setEsportsInterest(sanitized.interest);
+    setEsportsPlatform(sanitized.platform);
+    setEsportsConsole(sanitized.console);
+    setPlaysGoalie(
+      profile.plays_goalie === true || profile.plays_goalie === false ? profile.plays_goalie : null
+    );
+  }, [profile]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -173,6 +222,10 @@ export default function ProfilePage() {
             instagram: null,
             avatar_url: publicUrl,
             tier: null,
+            esports_interest: null,
+            esports_platform: null,
+            esports_console: null,
+            plays_goalie: null,
           }
     );
     broadcastProfileUpdated();
@@ -182,6 +235,64 @@ export default function ProfilePage() {
     if (!supabase) return;
     await supabase.auth.signOut();
     window.location.href = "/";
+  }
+
+  async function savePreferences() {
+    if (!supabase || !userId) return;
+    setPrefsMsg(null);
+    if (esportsInterest === null || playsGoalie === null) {
+      setPrefsMsg("Choose an answer for online tournaments and for playing goalie.");
+      return;
+    }
+    if (
+      !esportsDetailsComplete({
+        esports_interest: esportsInterest,
+        esports_platform: esportsPlatform,
+        esports_console: esportsConsole,
+      })
+    ) {
+      setPrefsMsg("You’re interested in online tournaments — pick your platform and console.");
+      return;
+    }
+
+    const prefs = profileEsportsGoalieColumns({
+      esportsInterest,
+      esportsPlatform,
+      esportsConsole,
+      playsGoalie,
+    });
+
+    setPrefsBusy(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        esports_interest: prefs.esports_interest,
+        esports_platform: prefs.esports_platform,
+        esports_console: prefs.esports_console,
+        plays_goalie: prefs.plays_goalie,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId);
+
+    setPrefsBusy(false);
+    if (error) {
+      setPrefsMsg(error.message);
+      return;
+    }
+
+    setProfile((p) =>
+      p
+        ? {
+            ...p,
+            esports_interest: prefs.esports_interest,
+            esports_platform: prefs.esports_platform,
+            esports_console: prefs.esports_console,
+            plays_goalie: prefs.plays_goalie,
+          }
+        : p
+    );
+    broadcastProfileUpdated();
+    setPrefsMsg("Saved.");
   }
 
   const displayName =
@@ -257,7 +368,53 @@ export default function ProfilePage() {
             {fieldRow("Phone", profile?.phone)}
             {fieldRow("Instagram", ig)}
             {fieldRow("Tier", profile?.tier)}
+            {fieldRow("Online tournaments", formatEsportsSummary(profile ?? {}))}
+            {fieldRow("Goalie", formatGoaliePreference(profile?.plays_goalie))}
           </dl>
+
+          <div className="space-y-4 border-t border-white/10 pt-8">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/80">
+                Pickup &amp; online preferences
+              </h2>
+              <p className="mt-1 text-xs text-white/45 leading-relaxed">
+                Update anytime. Prize tournaments need platform details only if you choose &quot;Yes, interested.&quot; You can
+                always get back here from the profile icon.
+              </p>
+            </div>
+
+            <EsportsGoaliePreferenceFields
+              variant="signup"
+              esportsInterest={esportsInterest}
+              onEsportsInterest={onEsportsInterest}
+              esportsPlatform={esportsPlatform}
+              onEsportsPlatform={onEsportsPlatform}
+              esportsConsole={esportsConsole}
+              onEsportsConsole={setEsportsConsole}
+              playsGoalie={playsGoalie}
+              onPlaysGoalie={setPlaysGoalie}
+              disabled={prefsBusy}
+              incompleteBanner={
+                profile && esportsSetupIncomplete(profile.esports_interest)
+                  ? esportsSetupNudgeMessage(profile.esports_interest)
+                  : null
+              }
+              hideIntro
+            />
+
+            {prefsMsg ? (
+              <p className="text-sm text-amber-200/90 leading-relaxed">{prefsMsg}</p>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => void savePreferences()}
+              disabled={prefsBusy}
+              className="w-full rounded-lg bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-50 sm:w-auto"
+            >
+              {prefsBusy ? "Saving…" : "Save preferences"}
+            </button>
+          </div>
 
           {msg ? (
             <p className="text-sm text-amber-200/90 leading-relaxed">{msg}</p>

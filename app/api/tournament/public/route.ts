@@ -82,6 +82,11 @@ export async function GET() {
     const official = confirmedTeams >= t.official_threshold; // 8
     const full = confirmedTeams >= t.max_teams; // 12
 
+    const staffAnnouncement =
+      "staff_announcement" in t && typeof (t as { staff_announcement?: unknown }).staff_announcement === "string"
+        ? (t as { staff_announcement: string }).staff_announcement
+        : null;
+
     return NextResponse.json({
       tournament: {
         id: t.id,
@@ -90,6 +95,7 @@ export async function GET() {
         targetTeams: t.target_teams,
         officialThreshold: t.official_threshold,
         maxTeams: t.max_teams,
+        announcement: staffAnnouncement?.trim() ? staffAnnouncement : null,
       },
       claimedTeams,
       confirmedTeams,
