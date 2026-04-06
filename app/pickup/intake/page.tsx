@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { HistoryBack } from "@/components/layout";
+import { readJsonSafely, userFacingMessageForError } from "@/lib/client/apiErrors";
 
 type Role = "assistant" | "user";
 type Msg = { role: Role; text: string };
@@ -46,42 +47,54 @@ export default function PickupIntakePage() {
     setMessages((m) => [...m, { role: "user", text: userText }]);
 
     try {
+      const payload = {
+        user_message: userText,
+        last_question: lastQuestion,
+        collected_fields: collected,
+      };
+
+      // Debug: helpful when diagnosing production failures.
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[pickup/intake] submit:", payload);
+      }
+
       const res = await fetch("/api/pickup/intake", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_message: userText,
-          last_question: lastQuestion,
-          collected_fields: collected,
-        }),
+        body: JSON.stringify(payload),
       });
-
-      const data = await res.json();
+      const { data } = await readJsonSafely(res);
+      const j = (data ?? {}) as any;
 
       if (!res.ok) {
-        setMessages((m) => [
-          ...m,
-          { role: "assistant", text: data?.error || "Something went wrong." },
-        ]);
+        const msg = userFacingMessageForError({ response: res, data });
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[pickup/intake] submit_http_error:", { status: res.status, data });
+        }
+        setMessages((m) => [...m, { role: "assistant", text: msg }]);
         setLoading(false);
         return;
       }
 
-      setCollected(data.collected_fields || {});
-      setDone(!!data.done);
-      setCrisis(!!data.crisis);
+      setCollected(j.collected_fields || {});
+      setDone(!!j.done);
+      setCrisis(!!j.crisis);
 
-      const next = (data.next_question || "").trim();
+      const next = (j.next_question || "").trim();
       if (next) {
         setMessages((m) => [...m, { role: "assistant", text: next }]);
         setLastQuestion(next);
       }
 
       setLoading(false);
-    } catch {
+    } catch (e: unknown) {
+      const msg = userFacingMessageForError({ err: e });
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[pickup/intake] submit_failed:", e);
+      }
       setMessages((m) => [
         ...m,
-        { role: "assistant", text: "Network error. Try again." },
+        { role: "assistant", text: msg },
       ]);
       setLoading(false);
     }
