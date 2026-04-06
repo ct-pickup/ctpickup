@@ -163,33 +163,35 @@ export default function SignupPage() {
     return true;
   }, [emailClean]);
 
-  const canSaveProfile = useMemo(() => {
-    const prefsOk =
-      esportsInterest !== null &&
-      playsGoalie !== null &&
-      esportsDetailsComplete({
-        esports_interest: esportsInterest,
-        esports_platform: esportsPlatform,
-        esports_console: esportsConsole,
-        esports_online_id: esportsOnlineId,
-      });
+  const canContinueIdentity = useMemo(() => {
     return (
       firstName.trim().length > 0 &&
       lastName.trim().length > 0 &&
       gender !== "" &&
-      Boolean(normalizePlayingPosition(playingPosition)) &&
-      phone.trim().length > 0 &&
-      instagram.trim().length > 0 &&
-      waiverAccepted &&
-      prefsOk
+      Boolean(normalizePlayingPosition(playingPosition))
     );
+  }, [firstName, lastName, gender, playingPosition]);
+
+  const canContinueContact = useMemo(() => {
+    return phone.trim().length > 0 && instagram.trim().length > 0;
+  }, [phone, instagram]);
+
+  const canSaveProfile = useMemo(() => {
+    const esportsOk =
+      esportsInterest !== null &&
+      playsGoalie !== null &&
+      (esportsInterest !== "yes" ||
+        esportsDetailsComplete({
+          esports_interest: esportsInterest,
+          esports_platform: esportsPlatform,
+          esports_console: esportsConsole,
+          esports_online_id: esportsOnlineId,
+        }));
+
+    return canContinueIdentity && canContinueContact && waiverAccepted && esportsOk;
   }, [
-    firstName,
-    lastName,
-    gender,
-    playingPosition,
-    phone,
-    instagram,
+    canContinueIdentity,
+    canContinueContact,
     waiverAccepted,
     esportsInterest,
     esportsPlatform,
@@ -547,33 +549,23 @@ export default function SignupPage() {
                       />
                     </div>
 
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="w-full">
-                        <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-white/55">
-                          Sex / gender
-                        </label>
-                        <select
-                          className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white outline-none focus:border-white/25"
-                          value={gender}
-                          onChange={(e) => setGender(e.target.value as any)}
-                          disabled={busy}
-                        >
-                          <option value="" disabled>
-                            Select…
-                          </option>
-                          <option value="male">{PROFILE_GENDER_LABELS.male}</option>
-                          <option value="female">{PROFILE_GENDER_LABELS.female}</option>
-                          <option value="other">{PROFILE_GENDER_LABELS.other}</option>
-                        </select>
-                      </div>
-
-                      <input
-                        className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
-                        placeholder="Playing position"
-                        value={playingPosition}
-                        onChange={(e) => setPlayingPosition(e.target.value)}
+                    <div className="w-full">
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-white/55">
+                        Sex / gender
+                      </label>
+                      <select
+                        className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white outline-none focus:border-white/25"
+                        value={gender}
+                        onChange={(e) => setGender(e.target.value as any)}
                         disabled={busy}
-                      />
+                      >
+                        <option value="" disabled>
+                          Select…
+                        </option>
+                        <option value="male">{PROFILE_GENDER_LABELS.male}</option>
+                        <option value="female">{PROFILE_GENDER_LABELS.female}</option>
+                        <option value="other">{PROFILE_GENDER_LABELS.other}</option>
+                      </select>
                     </div>
 
                     {gender === "other" ? (
@@ -586,6 +578,29 @@ export default function SignupPage() {
                         maxLength={64}
                       />
                     ) : null}
+
+                    <input
+                      className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                      placeholder="Playing position"
+                      value={playingPosition}
+                      onChange={(e) => setPlayingPosition(e.target.value)}
+                      disabled={busy}
+                    />
+
+                    <EsportsGoaliePreferenceFields
+                      variant="signup"
+                      esportsInterest={esportsInterest}
+                      onEsportsInterest={onEsportsInterest}
+                      esportsPlatform={esportsPlatform}
+                      onEsportsPlatform={onEsportsPlatform}
+                      esportsConsole={esportsConsole}
+                      onEsportsConsole={setEsportsConsole}
+                      esportsOnlineId={esportsOnlineId}
+                      onEsportsOnlineIdChange={setEsportsOnlineId}
+                      playsGoalie={playsGoalie}
+                      onPlaysGoalie={setPlaysGoalie}
+                      disabled={busy}
+                    />
 
                     <input
                       className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
@@ -602,26 +617,6 @@ export default function SignupPage() {
                       placeholder="Instagram Handle"
                       value={instagram}
                       onChange={(e) => setInstagram(e.target.value)}
-                      disabled={busy}
-                    />
-
-                    <p className="text-xs text-white/45 leading-relaxed">
-                      &quot;Decide later&quot; is fine — you still need to pick whether you can play goalie to finish signup.
-                      If you choose &quot;Yes, interested&quot; for online tournaments, add platform, console, and your online ID.
-                    </p>
-
-                    <EsportsGoaliePreferenceFields
-                      variant="signup"
-                      esportsInterest={esportsInterest}
-                      onEsportsInterest={onEsportsInterest}
-                      esportsPlatform={esportsPlatform}
-                      onEsportsPlatform={onEsportsPlatform}
-                      esportsConsole={esportsConsole}
-                      onEsportsConsole={setEsportsConsole}
-                      esportsOnlineId={esportsOnlineId}
-                      onEsportsOnlineIdChange={setEsportsOnlineId}
-                      playsGoalie={playsGoalie}
-                      onPlaysGoalie={setPlaysGoalie}
                       disabled={busy}
                     />
 

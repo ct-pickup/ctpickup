@@ -47,6 +47,7 @@ import {
   type EsportsInterest,
   type EsportsPlatform,
 } from "@/lib/profilePreferences";
+import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 
 const AVATAR_STORAGE_PATH = "avatar.jpg";
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -91,6 +92,10 @@ function fieldRow(label: string, value: string | null | undefined) {
   );
 }
 
+function cleanIG(s: string) {
+  return s.trim().replace(/^@/, "").replace(/\s+/g, "");
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const { supabase, isReady } = useSupabaseBrowser();
@@ -116,8 +121,13 @@ export default function ProfilePage() {
   const [basicsGender, setBasicsGender] = useState<ProfileGender | "">("");
   const [basicsGenderOther, setBasicsGenderOther] = useState("");
   const [basicsPlayingPosition, setBasicsPlayingPosition] = useState("");
+  const [basicsPhone, setBasicsPhone] = useState("");
+  const [basicsInstagram, setBasicsInstagram] = useState("");
   const [basicsBusy, setBasicsBusy] = useState(false);
   const [basicsMsg, setBasicsMsg] = useState<string | null>(null);
+
+  const [contactBusy, setContactBusy] = useState(false);
+  const [contactMsg, setContactMsg] = useState<string | null>(null);
 
   const { onEsportsInterest, onEsportsPlatform } = useMemo(
     () =>
@@ -187,6 +197,8 @@ export default function ProfilePage() {
     setBasicsGender(parseProfileGender(profile.gender) ?? "");
     setBasicsGenderOther(String(profile.gender_other ?? ""));
     setBasicsPlayingPosition(String(profile.playing_position ?? ""));
+    setBasicsPhone(String(profile.phone ?? ""));
+    setBasicsInstagram(String(profile.instagram ?? ""));
   }, [profile]);
 
   useEffect(() => {
@@ -251,6 +263,9 @@ export default function ProfilePage() {
         : {
             first_name: null,
             last_name: null,
+            gender: null,
+            gender_other: null,
+            playing_position: null,
             phone: null,
             instagram: null,
             avatar_url: publicUrl,
@@ -341,6 +356,48 @@ export default function ProfilePage() {
     );
     broadcastProfileUpdated();
     setPrefsMsg("Saved.");
+  }
+
+  async function saveContact() {
+    if (!supabase || !userId) return;
+    setContactMsg(null);
+
+    const phoneClean = basicsPhone.trim();
+    const igClean = cleanIG(basicsInstagram);
+    if (!phoneClean) return setContactMsg("Phone is required.");
+    if (!igClean) return setContactMsg("Instagram is required.");
+
+    setContactBusy(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        phone: phoneClean,
+        instagram: igClean,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId);
+
+    setContactBusy(false);
+    if (error) {
+      setContactMsg(
+        isMissingProfileColumnError(error.message)
+          ? profileSchemaMismatchUserMessage()
+          : error.message,
+      );
+      return;
+    }
+
+    setProfile((p) =>
+      p
+        ? {
+            ...p,
+            phone: phoneClean,
+            instagram: igClean,
+          }
+        : p,
+    );
+    broadcastProfileUpdated();
+    setContactMsg("Saved.");
   }
 
   async function saveBasics() {
@@ -469,7 +526,8 @@ export default function ProfilePage() {
 
           <dl>
             {fieldRow("Email", email)}
-            {fieldRow("Name", profileDisplayName(profile) || null)}
+            {fieldRow("First name", profile?.first_name)}
+            {fieldRow("Last name", profile?.last_name)}
             {fieldRow(
               "Sex / gender",
               profile?.gender
@@ -481,11 +539,24 @@ export default function ProfilePage() {
               ? fieldRow("Gender description", profile?.gender_other)
               : null}
             {fieldRow("Playing position", profile?.playing_position)}
+            {fieldRow("Goalie", formatGoaliePreference(profile?.plays_goalie))}
+            {fieldRow("Online tournaments", formatEsportsSummary(profile ?? {}))}
             {fieldRow("Phone", profile?.phone)}
             {fieldRow("Instagram", ig)}
-            {fieldRow("Tier", profile?.tier)}
-            {fieldRow("Online tournaments", formatEsportsSummary(profile ?? {}))}
-            {fieldRow("Goalie", formatGoaliePreference(profile?.plays_goalie))}
+            <div className="border-b border-white/10 py-4 last:border-0">
+              <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">
+                Waiver
+              </dt>
+              <dd className="mt-1 text-sm text-white/90 break-words">
+                <Link
+                  href="/liability-waiver"
+                  className="font-semibold text-white underline-offset-4 hover:underline"
+                >
+                  Liability Waiver &amp; Participation Agreement
+                </Link>{" "}
+                ({CURRENT_WAIVER_VERSION})
+              </dd>
+            </div>
           </dl>
 
           <div className="space-y-4 border-t border-white/10 pt-8">
@@ -517,33 +588,23 @@ export default function ProfilePage() {
               />
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="w-full">
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-white/55">
-                  Sex / gender
-                </label>
-                <select
-                  className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-white/25"
-                  value={basicsGender}
-                  onChange={(e) => setBasicsGender(e.target.value as any)}
-                  disabled={basicsBusy}
-                >
-                  <option value="" disabled>
-                    Select…
-                  </option>
-                  <option value="male">{PROFILE_GENDER_LABELS.male}</option>
-                  <option value="female">{PROFILE_GENDER_LABELS.female}</option>
-                  <option value="other">{PROFILE_GENDER_LABELS.other}</option>
-                </select>
-              </div>
-
-              <input
-                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
-                value={basicsPlayingPosition}
-                onChange={(e) => setBasicsPlayingPosition(e.target.value)}
+            <div className="w-full">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-white/55">
+                Sex / gender
+              </label>
+              <select
+                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-white/25"
+                value={basicsGender}
+                onChange={(e) => setBasicsGender(e.target.value as any)}
                 disabled={basicsBusy}
-                placeholder="Playing position"
-              />
+              >
+                <option value="" disabled>
+                  Select…
+                </option>
+                <option value="male">{PROFILE_GENDER_LABELS.male}</option>
+                <option value="female">{PROFILE_GENDER_LABELS.female}</option>
+                <option value="other">{PROFILE_GENDER_LABELS.other}</option>
+              </select>
             </div>
 
             {basicsGender === "other" ? (
@@ -556,6 +617,14 @@ export default function ProfilePage() {
                 maxLength={64}
               />
             ) : null}
+
+            <input
+              className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+              value={basicsPlayingPosition}
+              onChange={(e) => setBasicsPlayingPosition(e.target.value)}
+              disabled={basicsBusy}
+              placeholder="Playing position"
+            />
 
             {basicsMsg ? (
               <p className="text-sm text-amber-200/90 leading-relaxed whitespace-pre-line">
@@ -620,6 +689,52 @@ export default function ProfilePage() {
               className="w-full rounded-lg bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-50 sm:w-auto"
             >
               {prefsBusy ? "Saving…" : "Save preferences"}
+            </button>
+          </div>
+
+          <div className="space-y-4 border-t border-white/10 pt-8">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/80">
+                Contact
+              </h2>
+              <p className="mt-1 text-xs text-white/45 leading-relaxed">
+                Used for contacting you about pickup sessions and tournaments.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input
+                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                value={basicsPhone}
+                onChange={(e) => setBasicsPhone(e.target.value)}
+                disabled={contactBusy}
+                placeholder="Phone number"
+                inputMode="tel"
+                autoComplete="tel"
+              />
+              <input
+                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                value={basicsInstagram}
+                onChange={(e) => setBasicsInstagram(e.target.value)}
+                disabled={contactBusy}
+                placeholder="Instagram (@handle)"
+                autoComplete="off"
+              />
+            </div>
+
+            {contactMsg ? (
+              <p className="text-sm text-amber-200/90 leading-relaxed whitespace-pre-line">
+                {contactMsg}
+              </p>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => void saveContact()}
+              disabled={contactBusy}
+              className="w-full rounded-lg bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-50 sm:w-auto"
+            >
+              {contactBusy ? "Saving…" : "Save contact"}
             </button>
           </div>
 

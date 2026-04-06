@@ -220,31 +220,22 @@ export default function OnboardingPage() {
           <input className="rounded-lg border p-3" placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="w-full">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600">
-              Sex / gender
-            </label>
-            <select
-              className="rounded-lg border p-3 w-full bg-white"
-              value={gender}
-              onChange={(e) => setGender(e.target.value as any)}
-            >
-              <option value="" disabled>
-                Select…
-              </option>
-              <option value="male">{PROFILE_GENDER_LABELS.male}</option>
-              <option value="female">{PROFILE_GENDER_LABELS.female}</option>
-              <option value="other">{PROFILE_GENDER_LABELS.other}</option>
-            </select>
-          </div>
-
-          <input
-            className="rounded-lg border p-3 w-full"
-            placeholder="Playing position"
-            value={playingPosition}
-            onChange={(e) => setPlayingPosition(e.target.value)}
-          />
+        <div className="w-full">
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600">
+            Sex / gender
+          </label>
+          <select
+            className="rounded-lg border p-3 w-full bg-white"
+            value={gender}
+            onChange={(e) => setGender(e.target.value as any)}
+          >
+            <option value="" disabled>
+              Select…
+            </option>
+            <option value="male">{PROFILE_GENDER_LABELS.male}</option>
+            <option value="female">{PROFILE_GENDER_LABELS.female}</option>
+            <option value="other">{PROFILE_GENDER_LABELS.other}</option>
+          </select>
         </div>
 
         {gender === "other" ? (
@@ -257,13 +248,12 @@ export default function OnboardingPage() {
           />
         ) : null}
 
-        <input className="rounded-lg border p-3 w-full" placeholder="Instagram (@handle)" value={instagram} onChange={(e) => setInstagram(e.target.value)} />
-        <input className="rounded-lg border p-3 w-full" placeholder="Phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />
-
-        <p className="text-xs text-gray-600 leading-relaxed">
-          &quot;Decide later&quot; for online tournaments is OK. You still need to say if you can play goalie.
-          &quot;Yes, interested&quot; requires platform, console, and your Xbox gamertag or PlayStation online ID.
-        </p>
+        <input
+          className="rounded-lg border p-3 w-full"
+          placeholder="Playing position"
+          value={playingPosition}
+          onChange={(e) => setPlayingPosition(e.target.value)}
+        />
 
         <EsportsGoaliePreferenceFields
           variant="light"
@@ -277,6 +267,20 @@ export default function OnboardingPage() {
           onEsportsOnlineIdChange={setEsportsOnlineId}
           playsGoalie={playsGoalie}
           onPlaysGoalie={setPlaysGoalie}
+        />
+
+        <input
+          className="rounded-lg border p-3 w-full"
+          placeholder="Phone number"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+        />
+
+        <input
+          className="rounded-lg border p-3 w-full"
+          placeholder="Instagram (@handle)"
+          value={instagram}
+          onChange={(e) => setInstagram(e.target.value)}
         />
 
         <label className="flex cursor-pointer items-start gap-3 text-sm text-gray-700">
