@@ -3,15 +3,20 @@
 import {
   ESPORTS_CONSOLE_LABELS,
   ESPORTS_INTEREST_LABELS,
+  ESPORTS_ONLINE_ID_MAX_LEN,
   ESPORTS_PLATFORM_LABELS,
   PLAYER_ESPORTS_GOALIE_COPY,
   consolesForPlatform,
+  onlineIdLabelForPlatform,
   type EsportsConsole,
   type EsportsInterest,
   type EsportsPlatform,
 } from "@/lib/profilePreferences";
 
 type Variant = "signup" | "light";
+
+/** `all` = goalie then online events (default). Split flows use `goalie` / `esports` on separate steps. */
+export type EsportsGoalieSection = "all" | "goalie" | "esports";
 
 const shell = {
   signup: {
@@ -24,6 +29,8 @@ const shell = {
     optOn: "border-white bg-white text-black",
     block: "space-y-3 rounded-xl border border-white/10 bg-white/[0.02] p-4",
     callout: "rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs text-amber-100/90 leading-relaxed",
+    textInput:
+      "w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25",
   },
   light: {
     legend: "text-sm font-medium text-gray-900",
@@ -34,6 +41,7 @@ const shell = {
     optOn: "border-gray-900 bg-gray-900 text-white",
     block: "space-y-3 rounded-lg border border-gray-200 bg-gray-50/50 p-4",
     callout: "rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900/90 leading-relaxed",
+    textInput: "w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-gray-500",
   },
 } as const;
 
@@ -82,12 +90,16 @@ function ChoiceRow<T extends string>({
 
 export type EsportsGoaliePreferenceFieldsProps = {
   variant: Variant;
+  /** Default `all`: pickup goalie first, then optional online tournaments. */
+  section?: EsportsGoalieSection;
   esportsInterest: EsportsInterest | null;
   onEsportsInterest: (v: EsportsInterest) => void;
   esportsPlatform: EsportsPlatform | null;
   onEsportsPlatform: (v: EsportsPlatform) => void;
   esportsConsole: EsportsConsole | null;
   onEsportsConsole: (v: EsportsConsole) => void;
+  esportsOnlineId: string;
+  onEsportsOnlineIdChange: (v: string) => void;
   playsGoalie: boolean | null;
   onPlaysGoalie: (v: boolean) => void;
   disabled?: boolean;
@@ -101,12 +113,15 @@ export type EsportsGoaliePreferenceFieldsProps = {
 
 export function EsportsGoaliePreferenceFields({
   variant,
+  section = "all",
   esportsInterest,
   onEsportsInterest,
   esportsPlatform,
   onEsportsPlatform,
   esportsConsole,
   onEsportsConsole,
+  esportsOnlineId,
+  onEsportsOnlineIdChange,
   playsGoalie,
   onPlaysGoalie,
   disabled,
@@ -115,6 +130,8 @@ export function EsportsGoaliePreferenceFields({
   hideIntro = false,
 }: EsportsGoaliePreferenceFieldsProps) {
   const s = shell[variant];
+  const showGoalie = section === "all" || section === "goalie";
+  const showEsports = section === "all" || section === "esports";
   const interestOptions = (["yes", "no", "later"] as const).map((id) => ({
     id,
     label: ESPORTS_INTEREST_LABELS[id],
@@ -132,54 +149,82 @@ export function EsportsGoaliePreferenceFields({
       }))
     : [];
 
-  return (
-    <div className="space-y-5">
-      {!hideIntro ? (
+  const esportsBlock = (
+    <>
+      {showEsports && incompleteBanner ? <div className={s.callout}>{incompleteBanner}</div> : null}
+
+      {showEsports && !hideIntro ? (
         <div className="space-y-1">
           <p className={s.legend}>{PLAYER_ESPORTS_GOALIE_COPY.introTitle}</p>
           <p className={s.sub}>{PLAYER_ESPORTS_GOALIE_COPY.introBody}</p>
         </div>
       ) : null}
 
-      {incompleteBanner ? <div className={s.callout}>{incompleteBanner}</div> : null}
-
-      <ChoiceRow
-        variant={variant}
-        label={PLAYER_ESPORTS_GOALIE_COPY.questionTournament}
-        value={esportsInterest}
-        onChange={onEsportsInterest}
-        options={interestOptions}
-        disabled={disabled}
-      />
-
-      {esportsInterest === "later" && showLaterReminder ? (
-        <p className={s.sub}>{PLAYER_ESPORTS_GOALIE_COPY.reminderLater}</p>
-      ) : null}
-
-      {esportsInterest === "yes" ? (
+      {showEsports ? (
         <>
           <ChoiceRow
             variant={variant}
-            label={PLAYER_ESPORTS_GOALIE_COPY.questionPlatform}
-            value={esportsPlatform}
-            onChange={onEsportsPlatform}
-            options={platformOptions}
+            label={PLAYER_ESPORTS_GOALIE_COPY.questionTournament}
+            value={esportsInterest}
+            onChange={onEsportsInterest}
+            options={interestOptions}
             disabled={disabled}
           />
 
-          {esportsPlatform ? (
-            <ChoiceRow
-              variant={variant}
-              label={PLAYER_ESPORTS_GOALIE_COPY.questionConsole}
-              value={esportsConsole}
-              onChange={onEsportsConsole}
-              options={consoleOpts}
-              disabled={disabled}
-            />
+          {esportsInterest === "later" && showLaterReminder ? (
+            <p className={s.sub}>{PLAYER_ESPORTS_GOALIE_COPY.reminderLater}</p>
+          ) : null}
+
+          {esportsInterest === "yes" ? (
+            <>
+              <ChoiceRow
+                variant={variant}
+                label={PLAYER_ESPORTS_GOALIE_COPY.questionPlatform}
+                value={esportsPlatform}
+                onChange={onEsportsPlatform}
+                options={platformOptions}
+                disabled={disabled}
+              />
+
+              {esportsPlatform ? (
+                <ChoiceRow
+                  variant={variant}
+                  label={PLAYER_ESPORTS_GOALIE_COPY.questionConsole}
+                  value={esportsConsole}
+                  onChange={onEsportsConsole}
+                  options={consoleOpts}
+                  disabled={disabled}
+                />
+              ) : null}
+
+              {esportsPlatform && esportsConsole ? (
+                <div className={s.block}>
+                  <label className="mb-2 block">
+                    <div className={s.legend}>{onlineIdLabelForPlatform(esportsPlatform)}</div>
+                    <input
+                      type="text"
+                      autoComplete="off"
+                      maxLength={ESPORTS_ONLINE_ID_MAX_LEN}
+                      value={esportsOnlineId}
+                      onChange={(e) => onEsportsOnlineIdChange(e.target.value)}
+                      disabled={disabled}
+                      className={`mt-2 ${s.textInput}`}
+                      placeholder={esportsPlatform === "xbox" ? "e.g. PlayerOne123" : "e.g. YourPSN_ID"}
+                    />
+                  </label>
+                  <p className={`mt-2 ${s.sub}`}>{PLAYER_ESPORTS_GOALIE_COPY.onlineIdHelp}</p>
+                </div>
+              ) : null}
+            </>
           ) : null}
         </>
       ) : null}
+    </>
+  );
 
+  const goalieBlock = showGoalie ? (
+    <>
+      {section === "goalie" ? <p className={s.sub}>{PLAYER_ESPORTS_GOALIE_COPY.goalieSectionLead}</p> : null}
       <ChoiceRow
         variant={variant}
         label={PLAYER_ESPORTS_GOALIE_COPY.questionGoalie}
@@ -192,6 +237,21 @@ export function EsportsGoaliePreferenceFields({
         disabled={disabled}
       />
       <p className={s.sub}>{PLAYER_ESPORTS_GOALIE_COPY.goalieHelp}</p>
+    </>
+  ) : null;
+
+  return (
+    <div className="space-y-5">
+      {section === "all" ? (
+        <>
+          {goalieBlock}
+          {esportsBlock}
+        </>
+      ) : section === "goalie" ? (
+        goalieBlock
+      ) : (
+        esportsBlock
+      )}
     </div>
   );
 }

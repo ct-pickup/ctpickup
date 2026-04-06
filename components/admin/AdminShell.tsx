@@ -8,8 +8,10 @@ const SECTIONS = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/content", label: "Content" },
   { href: "/admin/publish", label: "Publish" },
+  { href: "/admin/payments", label: "Payments" },
   { href: "/admin/tournament", label: "Tournaments" },
-  { href: "/admin/pickup", label: "Pickups" },
+  { href: "/admin/pickup", label: "Pickups", activeMatch: "exact" as const },
+  { href: "/admin/pickup/standing", label: "Pickup standing" },
   { href: "/admin/relationships", label: "Relationships" },
   { href: "/admin/sync", label: "Sync & status" },
   { href: "/admin/settings", label: "Settings" },
@@ -27,12 +29,17 @@ function NavLink({
   href,
   label,
   pathname,
+  activeMatch = "prefix",
 }: {
   href: string;
   label: string;
   pathname: string;
+  activeMatch?: "exact" | "prefix";
 }) {
-  const active = pathname === href || (href !== "/admin" && pathname.startsWith(href + "/"));
+  const active =
+    activeMatch === "exact"
+      ? pathname === href
+      : pathname === href || (href !== "/admin" && pathname.startsWith(href + "/"));
   const activeCls = active ? "bg-white/10 text-white" : "text-white/65 hover:bg-white/[0.06] hover:text-white";
 
   return (
@@ -59,7 +66,13 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="flex flex-col gap-1" aria-label="Admin navigation">
           {SECTIONS.map((item) => (
-            <NavLink key={item.href} href={item.href} label={item.label} pathname={pathname} />
+            <NavLink
+              key={item.href}
+              href={item.href}
+              label={item.label}
+              pathname={pathname}
+              activeMatch={"activeMatch" in item ? item.activeMatch : "prefix"}
+            />
           ))}
         </nav>
         <div className="mt-auto hidden pt-10 md:block">
@@ -87,8 +100,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         aria-label="Admin navigation"
       >
         {SECTIONS.map((item) => {
+          const match = "activeMatch" in item ? item.activeMatch : "prefix";
           const active =
-            pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href + "/"));
+            match === "exact"
+              ? pathname === item.href
+              : pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href + "/"));
           return (
             <Link
               key={item.href}

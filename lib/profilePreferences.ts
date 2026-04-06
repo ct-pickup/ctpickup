@@ -5,19 +5,27 @@
 
 /** Player-facing strings for signup, onboarding, and profile (single source). */
 export const PLAYER_ESPORTS_GOALIE_COPY = {
-  introTitle: "Online tournaments (optional)",
+  /** Shown above the goalie question when signup/onboarding splits steps (goalie before online events). */
+  goalieSectionLead:
+    "First, how you play at pickup. Online prize events are optional—we’ll ask next.",
+  introTitle: "Weekly online money tournaments (optional)",
   introBody:
-    "If you might play in online events with prizes, tell us here. You can change this anytime—open Profile from the person icon at the top.",
+    "Separate from ice pickup: if you might join weekly online tournaments for money, answer below. You can change this anytime in Profile.",
   questionTournament:
-    "Are you interested in online tournaments where you can win prize money?",
+    "Do you want to join weekly online tournaments to make money?",
   reminderLater:
     "You can finish this anytime: tap the profile icon in the top corner, open Profile, and update your preferences there.",
   questionPlatform: "What do you play on?",
   questionConsole: "Which system do you have?",
+  questionOnlineIdXbox: "What is your Xbox gamertag?",
+  questionOnlineIdPlaystation: "What is your PlayStation online ID?",
+  onlineIdHelp: "We use this to invite you to the right bracket and verify it’s you.",
   questionGoalie: "Are you open to playing goalie at pickup?",
   goalieHelp:
     "We use this to balance games—most sessions need at least two people who can play net.",
 } as const;
+
+export const ESPORTS_ONLINE_ID_MAX_LEN = 64;
 
 export type EsportsInterest = "yes" | "no" | "later";
 export type EsportsPlatform = "xbox" | "playstation";
@@ -68,6 +76,20 @@ export function parseEsportsConsole(raw: string | null | undefined): EsportsCons
   return null;
 }
 
+export function onlineIdLabelForPlatform(p: EsportsPlatform): string {
+  return p === "xbox"
+    ? PLAYER_ESPORTS_GOALIE_COPY.questionOnlineIdXbox
+    : PLAYER_ESPORTS_GOALIE_COPY.questionOnlineIdPlaystation;
+}
+
+/** Trim + max length; empty input → null for persistence. */
+export function normalizeEsportsOnlineId(raw: string | null | undefined): string | null {
+  const t = String(raw ?? "")
+    .trim()
+    .slice(0, ESPORTS_ONLINE_ID_MAX_LEN);
+  return t.length > 0 ? t : null;
+}
+
 /** True when user deferred or has never set interest (legacy rows). */
 export function esportsSetupIncomplete(interest: string | null | undefined): boolean {
   return interest !== "yes" && interest !== "no";
@@ -77,15 +99,41 @@ export function esportsDetailsComplete(args: {
   esports_interest: string | null | undefined;
   esports_platform: string | null | undefined;
   esports_console: string | null | undefined;
+  esports_online_id?: string | null | undefined;
 }): boolean {
   if (args.esports_interest !== "yes") return true;
-  return Boolean(parseEsportsPlatform(args.esports_platform) && parseEsportsConsole(args.esports_console));
+  if (!parseEsportsPlatform(args.esports_platform) || !parseEsportsConsole(args.esports_console)) {
+    return false;
+  }
+  return Boolean(normalizeEsportsOnlineId(args.esports_online_id ?? null));
+}
+
+/**
+ * True when the user should be nudged to open Profile for esports: unset/later, or `yes` without
+ * full platform + console + online ID (matches save validation).
+ */
+export function esportsFlowNeedsAttention(row: {
+  esports_interest?: string | null;
+  esports_platform?: string | null;
+  esports_console?: string | null;
+  esports_online_id?: string | null;
+}): boolean {
+  const interest = parseEsportsInterest(row.esports_interest ?? null);
+  if (interest === null || interest === "later") return true;
+  if (interest === "no") return false;
+  return !esportsDetailsComplete({
+    esports_interest: "yes",
+    esports_platform: row.esports_platform,
+    esports_console: row.esports_console,
+    esports_online_id: row.esports_online_id,
+  });
 }
 
 export function formatEsportsSummary(row: {
   esports_interest?: string | null;
   esports_platform?: string | null;
   esports_console?: string | null;
+  esports_online_id?: string | null;
 }): string | null {
   const i = parseEsportsInterest(row.esports_interest ?? null);
   if (!i) return "Not set";
@@ -93,8 +141,11 @@ export function formatEsportsSummary(row: {
   if (i === "later") return "Decide later — finish in Profile (profile icon)";
   const plat = parseEsportsPlatform(row.esports_platform ?? null);
   const con = parseEsportsConsole(row.esports_console ?? null);
+  const oid = normalizeEsportsOnlineId(row.esports_online_id ?? null);
   if (!plat || !con) return "Interested — add platform below";
-  return `${ESPORTS_PLATFORM_LABELS[plat]} · ${ESPORTS_CONSOLE_LABELS[con]}`;
+  const base = `${ESPORTS_PLATFORM_LABELS[plat]} · ${ESPORTS_CONSOLE_LABELS[con]}`;
+  if (!oid) return `${base} — add gamertag / online ID below`;
+  return `${base} · ${oid}`;
 }
 
 /** Short line for banners / nudges outside the profile editor. */
@@ -103,6 +154,21 @@ export function esportsSetupNudgeMessage(interest: string | null | undefined): s
     return "You chose to decide later about online tournaments. Finish anytime in Profile — tap the profile icon at the top.";
   }
   return "Set your online tournament preference in Profile — tap the profile icon at the top.";
+}
+
+/** Banner / nudge copy when `esportsFlowNeedsAttention` is true. */
+export function esportsProfileNudgeCopy(row: {
+  esports_interest?: string | null;
+  esports_platform?: string | null;
+  esports_console?: string | null;
+  esports_online_id?: string | null;
+}): string | null {
+  if (!esportsFlowNeedsAttention(row)) return null;
+  const raw = row.esports_interest;
+  if (raw === "yes") {
+    return "Your online tournament details aren’t finished. Open Profile (tap the profile icon) to add platform, console, and your gamertag or online ID.";
+  }
+  return esportsSetupNudgeMessage(raw);
 }
 
 export function formatGoaliePreference(plays_goalie: boolean | null | undefined): string | null {
@@ -118,11 +184,13 @@ export function profileEsportsGoalieColumns(args: {
   esportsInterest: EsportsInterest;
   esportsPlatform: EsportsPlatform | null;
   esportsConsole: EsportsConsole | null;
+  esportsOnlineId: string;
   playsGoalie: boolean;
 }): {
   esports_interest: EsportsInterest;
   esports_platform: EsportsPlatform | null;
   esports_console: EsportsConsole | null;
+  esports_online_id: string | null;
   plays_goalie: boolean;
 } {
   if (args.esportsInterest !== "yes") {
@@ -130,6 +198,7 @@ export function profileEsportsGoalieColumns(args: {
       esports_interest: args.esportsInterest,
       esports_platform: null,
       esports_console: null,
+      esports_online_id: null,
       plays_goalie: args.playsGoalie,
     };
   }
@@ -137,6 +206,7 @@ export function profileEsportsGoalieColumns(args: {
     esports_interest: "yes",
     esports_platform: args.esportsPlatform,
     esports_console: args.esportsConsole,
+    esports_online_id: normalizeEsportsOnlineId(args.esportsOnlineId),
     plays_goalie: args.playsGoalie,
   };
 }
@@ -149,33 +219,46 @@ export function sanitizeEsportsFormState(args: {
   interest: EsportsInterest | null;
   platform: EsportsPlatform | null;
   console: EsportsConsole | null;
+  onlineId: string;
 }): {
   interest: EsportsInterest | null;
   platform: EsportsPlatform | null;
   console: EsportsConsole | null;
+  onlineId: string;
 } {
   const interest = args.interest;
   if (!interest || interest !== "yes") {
-    return { interest, platform: null, console: null };
+    return { interest, platform: null, console: null, onlineId: "" };
   }
   const platform = parseEsportsPlatform(args.platform);
   if (!platform) {
-    return { interest: "yes", platform: null, console: null };
+    return { interest: "yes", platform: null, console: null, onlineId: "" };
   }
   const allowed = consolesForPlatform(platform);
   const c = parseEsportsConsole(args.console);
   const consoleOk = c && allowed.includes(c) ? c : null;
-  return { interest: "yes", platform, console: consoleOk };
+  if (!consoleOk) {
+    return { interest: "yes", platform, console: null, onlineId: "" };
+  }
+  return {
+    interest: "yes",
+    platform,
+    console: consoleOk,
+    onlineId: args.onlineId.trim().slice(0, ESPORTS_ONLINE_ID_MAX_LEN),
+  };
 }
 
 type EsportsPrefSetters = {
   setInterest: (v: EsportsInterest | null) => void;
   setPlatform: (v: EsportsPlatform | null) => void;
   setConsole: (v: EsportsConsole | null) => void;
+  setOnlineId: (v: string) => void;
 };
 
 /**
- * Single implementation for interest/platform transitions (yes→no/later clears dependents; Xbox↔PlayStation clears console).
+ * Single implementation for transitions:
+ * yes→no/later clears platform, console, online ID;
+ * Xbox↔PlayStation clears console + online ID (IDs are platform-specific).
  */
 export function bindEsportsPreferenceHandlers(setters: EsportsPrefSetters) {
   return {
@@ -184,11 +267,13 @@ export function bindEsportsPreferenceHandlers(setters: EsportsPrefSetters) {
       if (v !== "yes") {
         setters.setPlatform(null);
         setters.setConsole(null);
+        setters.setOnlineId("");
       }
     },
     onEsportsPlatform: (v: EsportsPlatform) => {
       setters.setPlatform(v);
       setters.setConsole(null);
+      setters.setOnlineId("");
     },
   };
 }

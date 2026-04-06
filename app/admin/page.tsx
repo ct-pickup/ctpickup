@@ -1,9 +1,8 @@
 import Link from "next/link";
 import PageTop from "@/components/PageTop";
 import { AdminWorkArea } from "@/components/admin/AdminWorkArea";
-import { PublishComposer } from "@/components/admin/PublishComposer";
+import { StaffPublishPanel } from "@/components/admin/StaffPublishPanel";
 import { StatusChip } from "@/components/admin/StatusChip";
-import { UnifiedPublishForm } from "@/components/admin/UnifiedPublishForm";
 import { fetchPickupSyncSummaries } from "@/lib/admin/pickupSyncSummaries";
 import { isPublishLayerAvailable } from "@/lib/admin/publishLayer";
 import { loadRecentOperatorContext } from "@/lib/admin/recentOperatorContext";
@@ -145,7 +144,6 @@ export default async function AdminDashboardPage() {
     is_current: !!r.is_current,
     status: r.status,
   }));
-  const defaultRunIds = currentRunRes.data?.id ? [currentRunRes.data.id as string] : [];
 
   return (
     <main className="min-h-screen text-white">
@@ -291,10 +289,14 @@ export default async function AdminDashboardPage() {
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider text-white/45">Publish from the dashboard</div>
               <p className="mt-1 max-w-xl text-sm text-white/55">
-                Same flow as <Link href="/admin/publish" className="text-white underline-offset-4 hover:underline">Publish</Link>
+                Same composer as{" "}
+                <Link href="/admin/publish" className="text-white underline-offset-4 hover:underline">
+                  Publish
+                </Link>
+                . Multi-run targets and previews live on that page under “Advanced”.
                 {publishLayerMissing
-                  ? " — updates save directly until full publish logging is enabled for your site."
-                  : " — each destination is logged, you can preview first, and pages refresh after you publish."}
+                  ? " Full delivery logging appears after the staff publish migration is applied."
+                  : " Each destination is logged and cache refresh runs after you publish."}
               </p>
             </div>
             <Link
@@ -321,15 +323,12 @@ export default async function AdminDashboardPage() {
               developer can enable it with the latest staff database migration.
             </p>
           )}
-          {publishLayerMissing ? (
-            <UnifiedPublishForm pickupRuns={publishRuns} defaultRunId={currentRunRes.data?.id ?? null} />
-          ) : (
-            <PublishComposer
-              runs={publishRuns}
-              defaultRunIds={defaultRunIds}
-              hasActiveTournament={!!activeTournamentRes.data?.id}
-            />
-          )}
+          <StaffPublishPanel
+            pickupRuns={publishRuns}
+            defaultRunId={currentRunRes.data?.id ?? null}
+            hasActiveTournament={!!activeTournamentRes.data?.id}
+            publishLayerOk={publishLayerOk}
+          />
         </section>
 
         {/* Content + sync snapshot */}

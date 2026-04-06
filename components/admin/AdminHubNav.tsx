@@ -4,8 +4,10 @@ import Link from "next/link";
 const ADMIN_LINKS = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/content", label: "Content" },
+  { href: "/admin/payments", label: "Payments" },
   { href: "/admin/tournament", label: "Tournaments" },
   { href: "/admin/pickup", label: "Pickups" },
+  { href: "/admin/pickup/standing", label: "Pickup standing" },
   { href: "/admin/relationships", label: "Relationships" },
   { href: "/admin/sync", label: "Sync" },
   { href: "/admin/settings", label: "Settings" },

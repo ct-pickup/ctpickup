@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recomputePickupStandingForUser } from "@/lib/pickup/standing/recomputePickupStanding";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export async function POST(req: Request) {
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
   const { run_id, attendance } = await req.json(); // attendance: [{user_id, attended}]
   if (!run_id || !Array.isArray(attendance)) return NextResponse.json({ error: "Bad request" }, { status: 400 });
 
-  // Upsert attendance
+  // Upsert attendance + reliability incidents (no-shows) for standing
   for (const a of attendance) {
     await supabaseAdmin
       .from("pickup_run_attendance")
@@ -29,6 +30,25 @@ export async function POST(req: Request) {
         marked_by: user.id,
         marked_at: new Date().toISOString(),
       }, { onConflict: "run_id,user_id" });
+
+    if (a.attended) {
+      await supabaseAdmin
+        .from("pickup_reliability_incidents")
+        .delete()
+        .eq("run_id", run_id)
+        .eq("user_id", a.user_id)
+        .eq("kind", "no_show");
+    } else {
+      const ins = await supabaseAdmin.from("pickup_reliability_incidents").insert({
+        run_id,
+        user_id: a.user_id,
+        kind: "no_show",
+        source: "attendance",
+      });
+      if (ins.error && ins.error.code !== "23505") {
+        console.error("[mark-attendance] incident:", ins.error.message);
+      }
+    }
   }
 
   // Recompute stats for affected users
@@ -53,6 +73,15 @@ export async function POST(req: Request) {
         updated_at: new Date().toISOString(),
       })
       .eq("id", uid);
+  }
+
+  for (const uid of userIds) {
+    try {
+      await recomputePickupStandingForUser(supabaseAdmin, uid);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[mark-attendance] standing recompute:", msg);
+    }
   }
 
   return NextResponse.json({ ok: true });

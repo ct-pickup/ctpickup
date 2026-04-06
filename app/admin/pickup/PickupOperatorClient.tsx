@@ -248,6 +248,15 @@ export default function PickupOperatorClient() {
       </div>
 
       <div className="mx-auto max-w-6xl py-8 space-y-6 px-4 sm:px-0">
+        <div className="text-sm text-white/55">
+          <Link
+            href="/admin/pickup/standing"
+            className="text-white/80 underline-offset-4 hover:text-white hover:underline"
+          >
+            Player standing &amp; reliability
+          </Link>
+        </div>
+
         <OperatorLiveBar
           label="Live on hub"
           title={hubTitle}

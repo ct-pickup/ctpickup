@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { CoachProfileBackBar } from "@/components/training/CoachProfileBackBar";
 import { CoachHeadshot } from "@/components/training/CoachHeadshot";
 import {
   AuthenticatedProfileMenu,
@@ -21,11 +22,9 @@ export default async function CoachPage({
 
   return (
     <PageShell>
-      <TopNav
-        fallbackHref="/training"
-        backLabel="Training"
-        rightSlot={<AuthenticatedProfileMenu />}
-      />
+      <TopNav rightSlot={<AuthenticatedProfileMenu />} />
+
+      <CoachProfileBackBar />
 
       <div className="mb-8">
         <SectionEyebrow>Training</SectionEyebrow>

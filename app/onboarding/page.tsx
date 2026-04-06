@@ -13,8 +13,18 @@ import {
   type EsportsInterest,
   type EsportsPlatform,
 } from "@/lib/profilePreferences";
+import {
+  isMissingProfileColumnError,
+  profileSchemaMismatchUserMessage,
+} from "@/lib/profileLoad";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
+import {
+  PROFILE_GENDER_LABELS,
+  type ProfileGender,
+  profileIdentityColumns,
+  normalizePlayingPosition,
+} from "@/lib/profileIdentityFields";
 
 function cleanIG(s: string) {
   return s.trim().replace(/^@/, "").replace(/\s+/g, "");
@@ -27,6 +37,9 @@ export default function OnboardingPage() {
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [gender, setGender] = useState<ProfileGender | "">("");
+  const [genderOther, setGenderOther] = useState("");
+  const [playingPosition, setPlayingPosition] = useState("");
   const [instagram, setInstagram] = useState("");
   const [phone, setPhone] = useState("");
   const [waiverAccepted, setWaiverAccepted] = useState(false);
@@ -34,6 +47,7 @@ export default function OnboardingPage() {
   const [esportsInterest, setEsportsInterest] = useState<EsportsInterest | null>(null);
   const [esportsPlatform, setEsportsPlatform] = useState<EsportsPlatform | null>(null);
   const [esportsConsole, setEsportsConsole] = useState<EsportsConsole | null>(null);
+  const [esportsOnlineId, setEsportsOnlineId] = useState("");
   const [playsGoalie, setPlaysGoalie] = useState<boolean | null>(null);
 
   const { onEsportsInterest, onEsportsPlatform } = useMemo(
@@ -42,6 +56,7 @@ export default function OnboardingPage() {
         setInterest: setEsportsInterest,
         setPlatform: setEsportsPlatform,
         setConsole: setEsportsConsole,
+        setOnlineId: setEsportsOnlineId,
       }),
     [],
   );
@@ -57,7 +72,7 @@ export default function OnboardingPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("first_name,last_name,instagram,phone")
+        .select("first_name")
         .eq("id", auth.user.id)
         .maybeSingle();
 
@@ -77,6 +92,8 @@ export default function OnboardingPage() {
     const ig = cleanIG(instagram);
     if (!firstName.trim()) return setMsg("First name is required.");
     if (!lastName.trim()) return setMsg("Last name is required.");
+    if (!gender) return setMsg("Sex / gender is required.");
+    if (!normalizePlayingPosition(playingPosition)) return setMsg("Playing position is required.");
     if (!ig) return setMsg("Instagram is required.");
     if (!phone.trim()) return setMsg("Phone is required.");
     if (!waiverAccepted) return setMsg("Please accept the Liability Waiver to continue.");
@@ -88,9 +105,12 @@ export default function OnboardingPage() {
         esports_interest: esportsInterest,
         esports_platform: esportsPlatform,
         esports_console: esportsConsole,
+        esports_online_id: esportsOnlineId,
       })
     ) {
-      return setMsg("You said yes to online tournaments — choose your platform and console.");
+      return setMsg(
+        "You said yes to online tournaments — add platform, console, and your gamertag or online ID.",
+      );
     }
 
     const { data: auth } = await supabase.auth.getUser();
@@ -101,20 +121,33 @@ export default function OnboardingPage() {
       esportsInterest,
       esportsPlatform,
       esportsConsole,
+      esportsOnlineId,
       playsGoalie,
+    });
+
+    const identity = profileIdentityColumns({
+      firstName,
+      lastName,
+      gender: gender as ProfileGender,
+      genderOther,
+      playingPosition,
     });
 
     const { error } = await supabase.from("profiles").upsert(
       {
         id: auth.user.id,
         email: profileEmail,
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
+        first_name: identity.first_name,
+        last_name: identity.last_name,
+        gender: identity.gender,
+        gender_other: identity.gender_other,
+        playing_position: identity.playing_position,
         instagram: ig,
         phone: phone.trim(),
         esports_interest: prefs.esports_interest,
         esports_platform: prefs.esports_platform,
         esports_console: prefs.esports_console,
+        esports_online_id: prefs.esports_online_id,
         plays_goalie: prefs.plays_goalie,
         updated_at: new Date().toISOString(),
       },
@@ -123,7 +156,14 @@ export default function OnboardingPage() {
 
     if (error) {
       console.error("[onboarding] profiles upsert failed:", error.message, error);
-      return setMsg(error.message);
+      if (isMissingProfileColumnError(error.message)) {
+        console.error("[onboarding] Apply profile migrations (see lib/profileLoad.ts).");
+      }
+      return setMsg(
+        isMissingProfileColumnError(error.message)
+          ? profileSchemaMismatchUserMessage()
+          : error.message,
+      );
     }
 
     const { data: sessionData } = await supabase.auth.getSession();
@@ -176,12 +216,54 @@ export default function OnboardingPage() {
 
       <div className="mt-6 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <input className="rounded-lg border p-3" placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-          <input className="rounded-lg border p-3" placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+          <input className="rounded-lg border p-3" placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" />
+          <input className="rounded-lg border p-3" placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" />
         </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="w-full">
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600">
+              Sex / gender
+            </label>
+            <select
+              className="rounded-lg border p-3 w-full bg-white"
+              value={gender}
+              onChange={(e) => setGender(e.target.value as any)}
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              <option value="male">{PROFILE_GENDER_LABELS.male}</option>
+              <option value="female">{PROFILE_GENDER_LABELS.female}</option>
+              <option value="other">{PROFILE_GENDER_LABELS.other}</option>
+            </select>
+          </div>
+
+          <input
+            className="rounded-lg border p-3 w-full"
+            placeholder="Playing position"
+            value={playingPosition}
+            onChange={(e) => setPlayingPosition(e.target.value)}
+          />
+        </div>
+
+        {gender === "other" ? (
+          <input
+            className="rounded-lg border p-3 w-full"
+            placeholder="Describe (optional)"
+            value={genderOther}
+            onChange={(e) => setGenderOther(e.target.value)}
+            maxLength={64}
+          />
+        ) : null}
 
         <input className="rounded-lg border p-3 w-full" placeholder="Instagram (@handle)" value={instagram} onChange={(e) => setInstagram(e.target.value)} />
         <input className="rounded-lg border p-3 w-full" placeholder="Phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />
+
+        <p className="text-xs text-gray-600 leading-relaxed">
+          &quot;Decide later&quot; for online tournaments is OK. You still need to say if you can play goalie.
+          &quot;Yes, interested&quot; requires platform, console, and your Xbox gamertag or PlayStation online ID.
+        </p>
 
         <EsportsGoaliePreferenceFields
           variant="light"
@@ -191,6 +273,8 @@ export default function OnboardingPage() {
           onEsportsPlatform={onEsportsPlatform}
           esportsConsole={esportsConsole}
           onEsportsConsole={setEsportsConsole}
+          esportsOnlineId={esportsOnlineId}
+          onEsportsOnlineIdChange={setEsportsOnlineId}
           playsGoalie={playsGoalie}
           onPlaysGoalie={setPlaysGoalie}
         />
@@ -220,7 +304,9 @@ export default function OnboardingPage() {
           Save & continue
         </button>
 
-        {msg ? <p className="text-sm text-red-600">{msg}</p> : null}
+        {msg ? (
+          <p className="text-sm text-red-600 whitespace-pre-line leading-relaxed">{msg}</p>
+        ) : null}
       </div>
     </main>
   );

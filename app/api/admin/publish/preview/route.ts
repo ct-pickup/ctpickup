@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireAdminBearer } from "@/lib/admin/requireAdmin";
+import { composePublishMessage } from "@/lib/admin/publish/composePublishMessage";
 import { buildPublicationPreview } from "@/lib/admin/publish/buildPreview";
+import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import type { PublishTargetsInput } from "@/lib/admin/publish/types";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
   const guard = await requireAdminBearer(req);
   if (!guard.ok) return guard.response;
 
-  let body: { message?: string; targets?: PublishTargetsInput };
+  let body: { message?: string; label?: string | null; targets?: PublishTargetsInput };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -28,7 +29,12 @@ export async function POST(req: Request) {
 
   const targets = body.targets || {};
   if (!hasAnyTarget(targets)) {
-    return NextResponse.json({ error: "Select at least one target." }, { status: 400 });
+    return NextResponse.json({ error: "Select at least one destination." }, { status: 400 });
+  }
+
+  const composed = composePublishMessage(String(body.message || ""), body.label);
+  if (!composed.ok) {
+    return NextResponse.json({ error: composed.error }, { status: 400 });
   }
 
   let admin;
@@ -39,6 +45,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 
-  const previews = await buildPublicationPreview(admin, String(body.message || ""), targets);
+  const previews = await buildPublicationPreview(admin, composed.text, targets);
   return NextResponse.json({ previews });
 }

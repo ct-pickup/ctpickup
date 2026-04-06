@@ -9,6 +9,7 @@ import {
 import { getTournamentOperatorContext } from "@/lib/admin/operatorContext";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { tourneySubmissionDisplayName } from "@/lib/tournament/tourneySubmissionNames";
 import {
   clearActiveTournament,
   createTournament,
@@ -85,7 +86,7 @@ export default async function AdminTournamentPage({
   let q = supabase
     .from("tourney_submissions")
     .select(
-      "id, created_at, full_name, age, instagram, phone, level, availability, decision, reviewed, notes"
+      "id, created_at, first_name, last_name, age, instagram, phone, level, availability, decision, reviewed, notes, meta"
     )
     .order("created_at", { ascending: false })
     .limit(200);
@@ -391,7 +392,13 @@ export default async function AdminTournamentPage({
                 {(submissions || []).map((r) => (
                   <tr key={r.id} className="border-b border-white/10 align-top">
                     <td className="p-2 whitespace-nowrap text-white/60">{fmtDate(r.created_at)}</td>
-                    <td className="p-2 font-medium text-white/90">{r.full_name || "—"}</td>
+                    <td className="p-2 font-medium text-white/90">
+                      {tourneySubmissionDisplayName({
+                        first_name: r.first_name as string | null | undefined,
+                        last_name: r.last_name as string | null | undefined,
+                        meta: r.meta,
+                      })}
+                    </td>
                     <td className="p-2 text-white/70">{r.instagram || "—"}</td>
                     <td className="p-2">
                       <form action={updateTourneySubmission} className="space-y-1 min-w-[160px]">

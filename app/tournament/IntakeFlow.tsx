@@ -73,7 +73,7 @@ export default function IntakeFlow() {
     setMessages((m) => [...m, { role: "user", text: userText }]);
 
     try {
-      const res = await fetch("/api/tournament", {
+      const res = await fetch("/api/tournament/intake", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

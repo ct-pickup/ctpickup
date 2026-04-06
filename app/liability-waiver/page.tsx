@@ -3,11 +3,11 @@ import Link from "next/link";
 import { WaiverDocumentBody } from "@/components/waiver/WaiverDocumentBody";
 import {
   AuthenticatedProfileMenu,
-  HistoryBack,
   PageShell,
   Panel,
   TopNav,
 } from "@/components/layout";
+import { LiabilityWaiverReturnBack } from "@/components/waiver/LiabilityWaiverReturnBack";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 
@@ -26,12 +26,7 @@ export default function LiabilityWaiverPage() {
         rightSlot={<AuthenticatedProfileMenu />}
       />
 
-      <div className="mt-4 flex items-center gap-4">
-        <HistoryBack
-          fallbackHref="/"
-          className="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-white/75 transition hover:text-white"
-        />
-      </div>
+      <LiabilityWaiverReturnBack />
 
       <header className="mt-6">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/55">

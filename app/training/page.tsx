@@ -105,7 +105,7 @@ export default function TrainingPage() {
         </Panel>
       </section>
 
-      <section className="mt-10 sm:mt-12">
+      <section id="coaches" className="mt-10 scroll-mt-24 sm:mt-12 sm:scroll-mt-28">
         <Panel className="p-5 md:p-6 lg:p-7">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>

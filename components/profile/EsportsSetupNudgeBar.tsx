@@ -5,7 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { PROFILE_UPDATED_EVENT } from "@/lib/profileBroadcast";
-import { esportsSetupIncomplete, esportsSetupNudgeMessage } from "@/lib/profilePreferences";
+import { isMissingProfileColumnError } from "@/lib/profileLoad";
+import { esportsProfileNudgeCopy } from "@/lib/profilePreferences";
 
 const HIDE_PREFIXES = [
   "/profile",
@@ -45,20 +46,32 @@ export function EsportsSetupNudgeBar() {
       return;
     }
 
-    const { data: row } = await supabase
+    const r = await supabase
       .from("profiles")
-      .select("esports_interest")
+      .select("esports_interest, esports_platform, esports_console, esports_online_id")
       .eq("id", user.id)
       .maybeSingle();
 
-    const interest = row?.esports_interest ?? null;
-    if (!esportsSetupIncomplete(interest)) {
+    if (r.error) {
+      if (isMissingProfileColumnError(r.error.message)) {
+        setShow(false);
+        setMessage(null);
+        return;
+      }
       setShow(false);
       setMessage(null);
       return;
     }
 
-    setMessage(esportsSetupNudgeMessage(interest));
+    const row = r.data;
+    const copy = row ? esportsProfileNudgeCopy(row) : null;
+    if (!copy) {
+      setShow(false);
+      setMessage(null);
+      return;
+    }
+
+    setMessage(copy);
     setShow(true);
   }, [isReady, supabase, pathname]);
 

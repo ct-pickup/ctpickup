@@ -1,5 +1,18 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+import { composePublishMessage } from "@/lib/admin/publish/composePublishMessage";
+import { executePublication } from "@/lib/admin/publish/executePublication";
+import {
+  collectRevalidatePaths,
+  writePublishTargetDeliveries,
+} from "@/lib/admin/publish/publishTargetWrites";
+import {
+  effectsFromPublication,
+  verifyLinksFromTargets,
+} from "@/lib/admin/publish/publicationResponse";
+import type { PublishTargetsInput } from "@/lib/admin/publish/types";
+import { enqueueRevalidateAndRun } from "@/lib/admin/sync/enqueueRevalidate";
+import { isPublishLayerAvailable } from "@/lib/admin/publishLayer";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { processAutoPickupRun } from "@/lib/pickup/autoRunCheckpoints";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
@@ -16,15 +29,6 @@ type PublishTargets = {
   /** Active `tournaments` row — `staff_*` columns when migration applied; surfaced via `/api/tournament/public` */
   tournament_active?: boolean;
 };
-
-function revalidatePublicSurfaces() {
-  revalidatePath("/status/pickup");
-  revalidatePath("/pickup");
-  revalidatePath("/admin/content");
-  revalidatePath("/admin/relationships");
-  revalidatePath("/admin");
-  revalidatePath("/admin/sync");
-}
 
 export async function POST(req: Request) {
   const guard = await requireAdminBearer(req);
@@ -120,28 +124,34 @@ export async function POST(req: Request) {
   }
 
   if (action === "publish") {
-    const message = String(body.message || "").trim();
-    const targets = (body.targets || {}) as PublishTargets;
-
-    if (!message) {
-      return NextResponse.json({ error: "Message is required." }, { status: 400 });
+    const targetsIn = (body.targets || {}) as PublishTargets;
+    const composed = composePublishMessage(String(body.message || ""), body.label as string | undefined);
+    if (!composed.ok) {
+      return NextResponse.json({ error: composed.error }, { status: 400 });
     }
 
-    const doStatus = !!targets.status_updates;
-    const doGlobal = !!targets.pickup_global;
-    const runId = targets.pickup_run_id ? String(targets.pickup_run_id) : null;
-    const doTournament = !!targets.tournament_active;
+    const mapped: PublishTargetsInput = {
+      siteStatus: !!targetsIn.status_updates,
+      pickupGlobal: !!targetsIn.pickup_global,
+      pickupRunIds: targetsIn.pickup_run_id ? [String(targetsIn.pickup_run_id)] : [],
+      tournamentActive: !!targetsIn.tournament_active,
+    };
 
-    if (!doStatus && !doGlobal && !runId && !doTournament) {
+    if (
+      !mapped.siteStatus &&
+      !mapped.pickupGlobal &&
+      !(mapped.pickupRunIds && mapped.pickupRunIds.length) &&
+      !mapped.tournamentActive
+    ) {
       return NextResponse.json(
         {
           error: "Choose at least one place to send this message (site status, pickup, or live tournament).",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    if (runId) {
+    for (const runId of mapped.pickupRunIds || []) {
       const runRes = await admin.from("pickup_runs").select("id,status").eq("id", runId).maybeSingle();
       if (!runRes.data) {
         return NextResponse.json({ error: "Pickup run not found for scoped post." }, { status: 404 });
@@ -151,96 +161,49 @@ export async function POST(req: Request) {
       }
     }
 
-    const now = new Date().toISOString();
-    const effects: { record: string; detail: string }[] = [];
+    const publishLayerOk = await isPublishLayerAvailable(admin);
 
-    if (doStatus) {
-      const { error } = await admin
-        .from("status_updates")
-        .update({ announcement: message, updated_at: now })
-        .eq("id", 1);
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      effects.push({
-        record: "Site-wide status",
-        detail: "Main announcement updated (help chat and staff tools read this).",
-      });
-    }
-
-    if (doGlobal) {
-      const { error } = await admin.from("pickup_run_updates").insert({
-        run_id: null,
-        message,
-        created_by: guard.userId,
-      });
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      effects.push({
-        record: "Pickup (all players)",
-        detail: "Posted to everyone following pickup — shows on pickup status and feeds.",
-      });
-    }
-
-    if (runId) {
-      const { error } = await admin.from("pickup_run_updates").insert({
-        run_id: runId,
-        message,
-        created_by: guard.userId,
-      });
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      effects.push({
-        record: "Pickup (one run)",
-        detail: "Posted only for the run you selected.",
-      });
-    }
-
-    if (doTournament) {
-      const tRes = await admin.from("tournaments").select("id,title").eq("is_active", true).maybeSingle();
-      if (!tRes.data?.id) {
-        effects.push({
-          record: "Live tournament",
-          detail: "Skipped — mark a tournament live first, then publish again.",
+    if (publishLayerOk) {
+      try {
+        const result = await executePublication({
+          admin,
+          userId: guard.userId,
+          message: composed.text,
+          targets: mapped,
+          idempotencyKey: null,
         });
-      } else {
-        const { error } = await admin
-          .from("tournaments")
-          .update({ staff_announcement: message, staff_announcement_at: now })
-          .eq("id", tRes.data.id);
-        if (error) {
-          return NextResponse.json(
-            {
-              error: error.message,
-              hint: "Tournament announcements may need a recent database update. Ask whoever deploys the app to run pending migrations.",
-            },
-            { status: 500 }
-          );
-        }
-        effects.push({
-          record: "Live tournament",
-          detail: `Announcement saved on “${tRes.data.title || tRes.data.id}”.`,
+        return NextResponse.json({
+          ok: true,
+          action: "publish",
+          duplicate: result.duplicate,
+          publicationId: result.publicationId,
+          deliveries: result.deliveries,
+          revalidateJobId: result.revalidateJobId,
+          revalidateError: result.revalidateError,
+          effects: effectsFromPublication(result),
+          verify: verifyLinksFromTargets(mapped),
         });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return NextResponse.json({ error: msg }, { status: 500 });
       }
     }
 
-    revalidatePublicSurfaces();
-    if (doTournament) {
-      revalidatePath("/tournament");
-      revalidatePath("/status/tournament");
-    }
-
-    const verify: { label: string; href: string }[] = [];
-    if (doGlobal || runId) verify.push({ label: "Pickup status", href: "/status/pickup" });
-    if (doStatus) {
-      verify.push({ label: "Site-wide status editor", href: "/admin/status" });
-    }
-    if (doTournament) {
-      verify.push({ label: "Tournament hub", href: "/tournament" });
-    }
-    verify.push({ label: "Pickup hub", href: "/pickup" });
+    const drafts = await writePublishTargetDeliveries(admin, guard.userId, composed.text, mapped);
+    const paths = collectRevalidatePaths(mapped);
+    const rev =
+      paths.length > 0 ? await enqueueRevalidateAndRun(admin, paths) : await enqueueRevalidateAndRun(admin, []);
 
     return NextResponse.json({
       ok: true,
       action: "publish",
-      effects,
-      verify,
+      duplicate: false,
+      publicationId: null,
+      deliveries: drafts,
+      revalidateJobId: rev.jobId,
+      revalidateError: rev.error,
+      effects: effectsFromPublication({ deliveries: drafts }),
+      verify: verifyLinksFromTargets(mapped),
     });
   }
 

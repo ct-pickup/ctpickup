@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 
 export async function GET(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
@@ -52,14 +53,58 @@ export async function GET(req: Request) {
         .in("id", standbyIds)
     : { data: [] as any[] };
 
-  const mapRow = (r: Record<string, unknown>) => ({
-    ...r,
-    full_name:
-      `${String(r.first_name || "").trim()} ${String(r.last_name || "").trim()}`.trim() || null,
-  });
+  const rosterIds = Array.from(new Set([...confirmedIds, ...standbyIds]));
+
+  let standingRows: Record<string, unknown>[] = [];
+  let waiverRows: { user_id: string }[] = [];
+
+  if (rosterIds.length) {
+    const [stRes, wRes] = await Promise.all([
+      supabaseAdmin.from("pickup_player_standing").select("*").in("user_id", rosterIds),
+      supabaseAdmin
+        .from("user_waiver_acceptance")
+        .select("user_id")
+        .eq("version", CURRENT_WAIVER_VERSION)
+        .in("user_id", rosterIds),
+    ]);
+    standingRows = (stRes.data || []) as Record<string, unknown>[];
+    waiverRows = (wRes.data || []) as { user_id: string }[];
+  }
+
+  const standingBy = new Map((standingRows || []).map((s) => [s.user_id as string, s]));
+  const waiverOk = new Set((waiverRows || []).map((w) => w.user_id));
+
+  const mapRow = (r: Record<string, unknown>) => {
+    const id = String(r.id || "");
+    const st = standingBy.get(id) || null;
+    const wOk = waiverOk.has(id);
+    const eff = String(st?.effective_standing || "good");
+    return {
+      ...r,
+      full_name:
+        `${String(r.first_name || "").trim()} ${String(r.last_name || "").trim()}`.trim() || null,
+      waiver_current: wOk,
+      pickup_standing: st
+        ? {
+            effective_standing: st.effective_standing,
+            auto_standing: st.auto_standing,
+            manual_standing: st.manual_standing,
+            pickup_eligible: st.pickup_eligible,
+            auto_codes: st.auto_codes,
+            rollup_no_shows_90d: st.rollup_no_shows_90d,
+            rollup_late_cancels_90d: st.rollup_late_cancels_90d,
+            rollup_pickup_payment_issues_90d: st.rollup_pickup_payment_issues_90d,
+            staff_notes: st.staff_notes,
+            manual_reason: st.manual_reason,
+          }
+        : null,
+      join_ok: (eff === "good" || eff === "warning") && wOk,
+    };
+  };
 
   return NextResponse.json({
     run,
+    current_waiver_version: CURRENT_WAIVER_VERSION,
     confirmed: (confirmed.data || []).map(mapRow),
     standby: (standby.data || []).map(mapRow),
   });

@@ -14,9 +14,19 @@ import {
   type EsportsInterest,
   type EsportsPlatform,
 } from "@/lib/profilePreferences";
+import {
+  isMissingProfileColumnError,
+  profileSchemaMismatchUserMessage,
+} from "@/lib/profileLoad";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 import { useTransitionNav } from "@/components/TransitionNavContext";
+import {
+  PROFILE_GENDER_LABELS,
+  type ProfileGender,
+  profileIdentityColumns,
+  normalizePlayingPosition,
+} from "@/lib/profileIdentityFields";
 
 type Stage = "email" | "code" | "profile";
 
@@ -118,6 +128,9 @@ export default function SignupPage() {
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [gender, setGender] = useState<ProfileGender | "">("");
+  const [genderOther, setGenderOther] = useState("");
+  const [playingPosition, setPlayingPosition] = useState("");
   const [phone, setPhone] = useState("");
   const [instagram, setInstagram] = useState("");
   const [waiverAccepted, setWaiverAccepted] = useState(false);
@@ -125,6 +138,7 @@ export default function SignupPage() {
   const [esportsInterest, setEsportsInterest] = useState<EsportsInterest | null>(null);
   const [esportsPlatform, setEsportsPlatform] = useState<EsportsPlatform | null>(null);
   const [esportsConsole, setEsportsConsole] = useState<EsportsConsole | null>(null);
+  const [esportsOnlineId, setEsportsOnlineId] = useState("");
   const [playsGoalie, setPlaysGoalie] = useState<boolean | null>(null);
 
   const { onEsportsInterest, onEsportsPlatform } = useMemo(
@@ -133,6 +147,7 @@ export default function SignupPage() {
         setInterest: setEsportsInterest,
         setPlatform: setEsportsPlatform,
         setConsole: setEsportsConsole,
+        setOnlineId: setEsportsOnlineId,
       }),
     [],
   );
@@ -156,10 +171,13 @@ export default function SignupPage() {
         esports_interest: esportsInterest,
         esports_platform: esportsPlatform,
         esports_console: esportsConsole,
+        esports_online_id: esportsOnlineId,
       });
     return (
       firstName.trim().length > 0 &&
       lastName.trim().length > 0 &&
+      gender !== "" &&
+      Boolean(normalizePlayingPosition(playingPosition)) &&
       phone.trim().length > 0 &&
       instagram.trim().length > 0 &&
       waiverAccepted &&
@@ -168,12 +186,15 @@ export default function SignupPage() {
   }, [
     firstName,
     lastName,
+    gender,
+    playingPosition,
     phone,
     instagram,
     waiverAccepted,
     esportsInterest,
     esportsPlatform,
     esportsConsole,
+    esportsOnlineId,
     playsGoalie,
   ]);
 
@@ -295,20 +316,33 @@ export default function SignupPage() {
         esportsInterest: esportsInterest!,
         esportsPlatform,
         esportsConsole,
+        esportsOnlineId,
         playsGoalie: playsGoalie!,
+      });
+
+      const identity = profileIdentityColumns({
+        firstName,
+        lastName,
+        gender: gender as ProfileGender,
+        genderOther,
+        playingPosition,
       });
 
       const { error } = await supabase.from("profiles").upsert(
         {
           id: user.id,
           email: profileEmail,
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
+          first_name: identity.first_name,
+          last_name: identity.last_name,
+          gender: identity.gender,
+          gender_other: identity.gender_other,
+          playing_position: identity.playing_position,
           phone: phone.trim(),
           instagram: ig,
           esports_interest: prefs.esports_interest,
           esports_platform: prefs.esports_platform,
           esports_console: prefs.esports_console,
+          esports_online_id: prefs.esports_online_id,
           plays_goalie: prefs.plays_goalie,
           updated_at: nowIso,
         },
@@ -317,8 +351,15 @@ export default function SignupPage() {
 
       if (error) {
         console.error("[signup] profiles upsert failed:", error.message, error);
+        if (isMissingProfileColumnError(error.message)) {
+          console.error("[signup] Apply profile migrations (see profileSchemaMismatchUserMessage in lib/profileLoad.ts).");
+        }
         setBusy(false);
-        setMsg(error.message);
+        setMsg(
+          isMissingProfileColumnError(error.message)
+            ? profileSchemaMismatchUserMessage()
+            : error.message,
+        );
         return;
       }
 
@@ -489,20 +530,62 @@ export default function SignupPage() {
                     <div className="grid gap-4 sm:grid-cols-2">
                       <input
                         className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
-                        placeholder="First Name"
+                        placeholder="First name"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
                         disabled={busy}
+                        autoComplete="given-name"
                       />
 
                       <input
                         className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
-                        placeholder="Last Name"
+                        placeholder="Last name"
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                         disabled={busy}
+                        autoComplete="family-name"
                       />
                     </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="w-full">
+                        <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-white/55">
+                          Sex / gender
+                        </label>
+                        <select
+                          className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white outline-none focus:border-white/25"
+                          value={gender}
+                          onChange={(e) => setGender(e.target.value as any)}
+                          disabled={busy}
+                        >
+                          <option value="" disabled>
+                            Select…
+                          </option>
+                          <option value="male">{PROFILE_GENDER_LABELS.male}</option>
+                          <option value="female">{PROFILE_GENDER_LABELS.female}</option>
+                          <option value="other">{PROFILE_GENDER_LABELS.other}</option>
+                        </select>
+                      </div>
+
+                      <input
+                        className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                        placeholder="Playing position"
+                        value={playingPosition}
+                        onChange={(e) => setPlayingPosition(e.target.value)}
+                        disabled={busy}
+                      />
+                    </div>
+
+                    {gender === "other" ? (
+                      <input
+                        className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                        placeholder="Describe (optional)"
+                        value={genderOther}
+                        onChange={(e) => setGenderOther(e.target.value)}
+                        disabled={busy}
+                        maxLength={64}
+                      />
+                    ) : null}
 
                     <input
                       className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
@@ -522,6 +605,11 @@ export default function SignupPage() {
                       disabled={busy}
                     />
 
+                    <p className="text-xs text-white/45 leading-relaxed">
+                      &quot;Decide later&quot; is fine — you still need to pick whether you can play goalie to finish signup.
+                      If you choose &quot;Yes, interested&quot; for online tournaments, add platform, console, and your online ID.
+                    </p>
+
                     <EsportsGoaliePreferenceFields
                       variant="signup"
                       esportsInterest={esportsInterest}
@@ -530,6 +618,8 @@ export default function SignupPage() {
                       onEsportsPlatform={onEsportsPlatform}
                       esportsConsole={esportsConsole}
                       onEsportsConsole={setEsportsConsole}
+                      esportsOnlineId={esportsOnlineId}
+                      onEsportsOnlineIdChange={setEsportsOnlineId}
                       playsGoalie={playsGoalie}
                       onPlaysGoalie={setPlaysGoalie}
                       disabled={busy}
@@ -570,7 +660,9 @@ export default function SignupPage() {
                   </>
                 )}
 
-                {msg ? <p className="text-sm text-white/70">{msg}</p> : null}
+                {msg ? (
+                  <p className="text-sm text-white/70 whitespace-pre-line leading-relaxed">{msg}</p>
+                ) : null}
 
                 {msg?.includes("already have this account") && (
                   <Link

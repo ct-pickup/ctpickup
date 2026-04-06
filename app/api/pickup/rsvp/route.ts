@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { ensurePickupRunInviteLink } from "@/lib/pickup/ensureRunInviteLink";
 import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
+import { assertPickupStandingAllowsParticipation } from "@/lib/pickup/standing/participationGate";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
+import { paymentIntentIdFromCheckoutSession } from "@/lib/payments/stripeSessionIds";
+import { recordPlatformCheckoutStarted } from "@/lib/payments/recordCheckoutStarted";
 import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -26,6 +29,14 @@ export async function POST(req: Request) {
   const waiverOk = await userHasAcceptedCurrentWaiver(user.id);
   if (!waiverOk) {
     return NextResponse.json({ error: "waiver_required" }, { status: 403 });
+  }
+
+  const standingGate = await assertPickupStandingAllowsParticipation(admin, user.id);
+  if (!standingGate.ok) {
+    return NextResponse.json(
+      { error: standingGate.code, detail: standingGate.detail },
+      { status: 403 },
+    );
   }
 
   const body = (await req.json()) as Body;
@@ -217,6 +228,19 @@ export async function POST(req: Request) {
     },
     { onConflict: "run_id,user_id" }
   );
+
+  await recordPlatformCheckoutStarted(admin, {
+    productType: "pickup",
+    productEntityId: String(run.id),
+    userId: user.id,
+    stripeCheckoutSessionId: session.id,
+    stripePaymentIntentId: paymentIntentIdFromCheckoutSession(session),
+    amountCents: feeCents,
+    currency: String(run.currency || "usd"),
+    title: `Pickup field fee — ${String(run.title || "Run").trim() || "Run"}`,
+    summary: null,
+    metadata: { run_id: run.id, flow: "pickup_rsvp" },
+  });
 
   await ensurePickupRunInviteLink(admin, run.id, user.id);
 

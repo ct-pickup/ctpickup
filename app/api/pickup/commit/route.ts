@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { assertPickupStandingAllowsParticipation } from "@/lib/pickup/standing/participationGate";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
@@ -26,6 +27,14 @@ export async function POST(req: Request) {
   const waiverOk = await userHasAcceptedCurrentWaiver(userId);
   if (!waiverOk) {
     return NextResponse.json({ error: "waiver_required" }, { status: 403 });
+  }
+
+  const standingGate = await assertPickupStandingAllowsParticipation(admin, userId);
+  if (!standingGate.ok) {
+    return NextResponse.json(
+      { error: standingGate.code, detail: standingGate.detail },
+      { status: 403 },
+    );
   }
 
   const body = await req.json();

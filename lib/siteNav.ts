@@ -68,7 +68,6 @@ export const HUB_NAV_PICKUP: HubNavLink[] = [
 ];
 
 export const HUB_NAV_TOURNAMENT: HubNavLink[] = [
-  { label: "Upcoming Tournaments", href: "/tournament" },
   { label: "How It Works", href: "/tournament/how-it-works" },
   { label: "Join a Tournament", href: "/tournament" },
 ];

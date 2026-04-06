@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
-import { PROFILE_SELECT, type ProfileRow } from "@/lib/profileFields";
 import { PROFILE_UPDATED_EVENT } from "@/lib/profileBroadcast";
-import { esportsSetupIncomplete } from "@/lib/profilePreferences";
+import { loadProfileRowForUser } from "@/lib/profileLoad";
+import { esportsFlowNeedsAttention } from "@/lib/profilePreferences";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 
 function UserGlyph({ className }: { className?: string }) {
   return (
@@ -73,16 +73,14 @@ export function AuthenticatedProfileMenu() {
 
       setUserId(user.id);
 
-      const { data: row } = await client
-        .from("profiles")
-        .select(PROFILE_SELECT)
-        .eq("id", user.id)
-        .maybeSingle();
-
-      const p = row as ProfileRow | null;
+      const res = await loadProfileRowForUser(client, user.id);
+      const p = res.row;
       setAvatarUrl(p?.avatar_url?.trim() || null);
       setAvatarBroken(false);
-      setEsportsIncomplete(esportsSetupIncomplete(p?.esports_interest));
+      setEsportsIncomplete(
+        res.hasEsportsSchema &&
+          Boolean(p && esportsFlowNeedsAttention(p)),
+      );
       setReady(true);
     };
 

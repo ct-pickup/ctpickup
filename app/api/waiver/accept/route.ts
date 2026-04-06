@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabase/service";
+import { recomputePickupStandingForUser } from "@/lib/pickup/standing/recomputePickupStanding";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 import { getSupabaseAnon } from "@/lib/server/runtimeClients";
 
@@ -55,6 +56,13 @@ export async function POST(req: Request) {
       );
     }
     return NextResponse.json({ error: "save_failed" }, { status: 500 });
+  }
+
+  try {
+    await recomputePickupStandingForUser(svc, u.user.id);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[waiver/accept] standing recompute:", msg);
   }
 
   return NextResponse.json({

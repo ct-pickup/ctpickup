@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
+import { paymentIntentIdFromCheckoutSession } from "@/lib/payments/stripeSessionIds";
+import { recordPlatformCheckoutStarted } from "@/lib/payments/recordCheckoutStarted";
 import {
   getStripeTournament,
   getSupabaseAdmin,
@@ -136,6 +138,23 @@ export async function POST(req: Request) {
       players_count: 5,
       stripe_session_id: session.id,
       status: "pending",
+    });
+
+    await recordPlatformCheckoutStarted(admin, {
+      productType: "tournament",
+      productEntityId: String(cap.id),
+      userId: u.user.id,
+      stripeCheckoutSessionId: session.id,
+      stripePaymentIntentId: paymentIntentIdFromCheckoutSession(session),
+      amountCents: 25000,
+      currency: "usd",
+      title: `Tournament captain payment — ${String(t.title || "Tournament").trim() || "Tournament"}`,
+      summary: null,
+      metadata: {
+        tournament_id: t.id,
+        captain_id: cap.id,
+        flow: "tournament_captain",
+      },
     });
 
     return NextResponse.json({ url: session.url });

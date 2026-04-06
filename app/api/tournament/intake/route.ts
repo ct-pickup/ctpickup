@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { splitFullNameToFirstLast } from "@/lib/tournament/tourneySubmissionNames";
 import { getOpenAI, getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 type Collected = {
@@ -260,16 +261,23 @@ export async function POST(req: Request) {
       auth: { persistSession: false },
     });
 
+    const { first_name, last_name } = splitFullNameToFirstLast(newFields.full_name || "");
+
     await supabase.from("tourney_submissions").upsert(
       {
-        full_name: newFields.full_name ?? null,
+        first_name: first_name || null,
+        last_name: last_name || null,
         age: newFields.age ?? null,
         instagram: newFields.instagram ?? null,
         instagram_norm: newFields.instagram_norm ?? null,
         phone: newFields.phone ?? null,
         level: newFields.level ?? null,
         availability: newFields.availability ?? null,
-        meta: { messaging_app: newFields.messaging_app ?? null, source: "tournament_intake_v6" },
+        meta: {
+          messaging_app: newFields.messaging_app ?? null,
+          source: "tournament_intake_v6",
+          intake_full_name: newFields.full_name ?? null,
+        },
       },
       { onConflict: "instagram_norm" }
     );
@@ -279,6 +287,7 @@ export async function POST(req: Request) {
       crisis: false,
       next_question: "Submission received.",
       collected_fields: newFields,
+      full_name: [first_name, last_name].filter(Boolean).join(" ").trim() || newFields.full_name || null,
     });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });

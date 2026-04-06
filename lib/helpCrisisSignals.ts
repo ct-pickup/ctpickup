@@ -30,6 +30,25 @@ If you’re in the U.S. and need support right now: call or text 988 (Suicide & 
 
 If you or someone else is in immediate danger, call 911 or your local emergency number.`;
 
+/**
+ * Hard-stop crisis response for the in-app help assistant.
+ *
+ * Requirements:
+ * - No follow-up questions.
+ * - Immediate crisis resources + emergency guidance + next steps.
+ * - Plain text (help UI is not markdown-rendered).
+ */
+export const HELP_CRISIS_RESPONSE_US = `I’m really sorry you’re feeling this way, and I’m glad you reached out. You don’t have to go through this alone.
+
+If you’re in the U.S., call or text 988 (Suicide & Crisis Lifeline, 24/7). For chat and more resources, use the official site: https://988lifeline.org/
+
+If you’re in immediate danger, call 911 (U.S.) or your local emergency number right now.
+
+Immediate next steps:
+- Call or text 988 now.
+- Reach out to someone you trust (a friend, family member, teammate) and stay with them or ask them to stay on the phone with you.
+- If you can, move to a safer place and put distance between you and anything you could use to hurt yourself.`;
+
 export function appendCrisisResourcesIfMissing(answer: string): string {
   const t = answer.toLowerCase();
   const has988 = /\b988\b/.test(answer);

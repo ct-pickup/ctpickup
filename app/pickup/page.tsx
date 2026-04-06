@@ -132,6 +132,10 @@ export default function PickupPage() {
           setMsg(null);
           return;
         }
+        if (r.status === 403 && j?.error === "standing_not_eligible") {
+          setMsg(typeof j?.detail === "string" ? j.detail : "Pickup participation is not available for your account.");
+          return;
+        }
         setMsg(j?.error || "Could not submit availability.");
         return;
       }
@@ -165,6 +169,10 @@ export default function PickupPage() {
           pendingPickup.current = { kind: "rsvp", action };
           setWaiverModalOpen(true);
           setMsg(null);
+          return;
+        }
+        if (r.status === 403 && j?.error === "standing_not_eligible") {
+          setMsg(typeof j?.detail === "string" ? j.detail : "Pickup participation is not available for your account.");
           return;
         }
         setMsg(j?.error || "Something went wrong.");
@@ -204,6 +212,10 @@ export default function PickupPage() {
           pendingPickup.current = { kind: "pay" };
           setWaiverModalOpen(true);
           setMsg(null);
+          return;
+        }
+        if (r.status === 403 && j?.error === "standing_not_eligible") {
+          setMsg(typeof j?.detail === "string" ? j.detail : "Pickup participation is not available for your account.");
           return;
         }
         setMsg(j?.error || "Could not start checkout.");

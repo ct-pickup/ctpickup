@@ -2,6 +2,8 @@ import Link from "next/link";
 import PageTop from "@/components/PageTop";
 import { AdminWorkArea } from "@/components/admin/AdminWorkArea";
 import { PublishComposer } from "@/components/admin/PublishComposer";
+import { StaffPublishPanel } from "@/components/admin/StaffPublishPanel";
+import { isPublishLayerAvailable } from "@/lib/admin/publishLayer";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { supabaseService } from "@/lib/supabase/service";
 
@@ -29,6 +31,8 @@ export default async function AdminPublishPage({
     );
   }
 
+  const publishLayerOk = await isPublishLayerAvailable(supabase);
+
   const [runsRes, promotedRes, activeTRes] = await Promise.all([
     supabase
       .from("pickup_runs")
@@ -50,18 +54,30 @@ export default async function AdminPublishPage({
     id: r.id as string,
     title: r.title as string | null,
     is_current: r.is_current as boolean | null,
+    status: String(r.status ?? ""),
   }));
 
   const defaultRunIds = promotedRes.data?.id ? [promotedRes.data.id as string] : [];
+  const panelRuns = runs.map((r) => ({
+    id: r.id,
+    title: r.title,
+    is_current: !!r.is_current,
+    status: r.status,
+  }));
 
   return (
     <main className="min-h-screen text-white">
       <PageTop flush title="Staff · Publish" fallbackHref={APP_HOME_URL} />
 
-      <AdminWorkArea question="Write once, choose every surface that should carry the same message, preview each destination, then publish in a single action.">
+      <AdminWorkArea question="Where should this update go — site-wide, one pickup run, or both — and did it land?">
         <p className="mb-6 max-w-3xl text-sm text-white/55">
-          Sends your message to the pickup posts, site-wide status, and/or live tournament you select, keeps a publish log when
-          logging is enabled, and refreshes public pages afterward. Sending the same publish twice won’t duplicate posts.
+          <strong className="font-medium text-white/80">Data:</strong> site-wide copy lives in{" "}
+          <code className="text-white/60">status_updates</code> row <code className="text-white/60">id = 1</code> (
+          <code className="text-white/60">announcement</code>). Pickup posts are rows in{" "}
+          <code className="text-white/60">pickup_run_updates</code> (<code className="text-white/60">run_id</code> set for a run,
+          or <code className="text-white/60">null</code> for “all pickup” under More destinations). One publish can write to
+          both tables in a single request. Afterward, paths like <code className="text-white/60">/pickup</code> and{" "}
+          <code className="text-white/60">/status/pickup</code> are revalidated so visitors see changes quickly.
         </p>
         <div className="mb-8 flex flex-wrap gap-3 text-sm">
           <Link href="/admin/sync" className="text-white underline-offset-4 hover:underline">
@@ -75,13 +91,35 @@ export default async function AdminPublishPage({
           </Link>
         </div>
 
-        <PublishComposer
-          runs={runs}
-          defaultRunIds={defaultRunIds}
-          preselectRunIds={preselectRunIds}
-          preselectTournament={preselectTournament}
+        <StaffPublishPanel
+          pickupRuns={panelRuns}
+          defaultRunId={
+            preselectRunIds[0] ||
+            (promotedRes.data?.id as string | undefined) ||
+            null
+          }
           hasActiveTournament={!!activeTRes.data?.id}
+          publishLayerOk={publishLayerOk}
         />
+
+        <details className="mt-10 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+          <summary className="cursor-pointer text-sm font-medium text-white/85">
+            Advanced — multiple runs, preview, extra targets
+          </summary>
+          <p className="mt-3 max-w-3xl text-xs text-white/50">
+            Check several pickup runs at once, preview each destination, or align with a deep-linked tournament flag. Uses the
+            same server pipeline as the simple composer above.
+          </p>
+          <div className="mt-5">
+            <PublishComposer
+              runs={runs}
+              defaultRunIds={defaultRunIds}
+              preselectRunIds={preselectRunIds}
+              preselectTournament={preselectTournament}
+              hasActiveTournament={!!activeTRes.data?.id}
+            />
+          </div>
+        </details>
       </AdminWorkArea>
     </main>
   );

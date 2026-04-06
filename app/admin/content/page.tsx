@@ -3,8 +3,8 @@ import PageTop from "@/components/PageTop";
 import { AdminWorkArea } from "@/components/admin/AdminWorkArea";
 import { PublishComposer } from "@/components/admin/PublishComposer";
 import { RecentOperatorActivity } from "@/components/admin/RecentOperatorActivity";
+import { StaffPublishPanel } from "@/components/admin/StaffPublishPanel";
 import { StatusChip } from "@/components/admin/StatusChip";
-import { UnifiedPublishForm } from "@/components/admin/UnifiedPublishForm";
 import { loadRecentOperatorContext } from "@/lib/admin/recentOperatorContext";
 import { isPublishLayerAvailable } from "@/lib/admin/publishLayer";
 import { APP_HOME_URL } from "@/lib/siteNav";
@@ -97,21 +97,26 @@ export default async function AdminContentPage() {
 
         <section className="mb-10 space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-white/45">Publish here</h2>
+          <StaffPublishPanel
+            pickupRuns={publishRuns}
+            defaultRunId={(promotedRes.data?.id as string) ?? null}
+            hasActiveTournament={!!activeTRes.data?.id}
+            publishLayerOk={publishLayerOk}
+          />
           {publishLayerOk ? (
-            <PublishComposer
-              runs={publishRuns}
-              defaultRunIds={defaultRunIds}
-              hasActiveTournament={!!activeTRes.data?.id}
-            />
-          ) : (
-            <>
-              <p className="text-xs text-amber-200/90">
-                Full publish logging isn’t on — you can still post using direct writes. Your developer can enable previews,
-                delivery history, and retries with the latest staff database migration.
-              </p>
-              <UnifiedPublishForm pickupRuns={publishRuns} defaultRunId={(promotedRes.data?.id as string) ?? null} />
-            </>
-          )}
+            <details className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+              <summary className="cursor-pointer text-sm font-medium text-white/80">
+                Advanced — multi-run &amp; preview
+              </summary>
+              <div className="mt-4">
+                <PublishComposer
+                  runs={publishRuns}
+                  defaultRunIds={defaultRunIds}
+                  hasActiveTournament={!!activeTRes.data?.id}
+                />
+              </div>
+            </details>
+          ) : null}
         </section>
 
         <div className="mb-10">

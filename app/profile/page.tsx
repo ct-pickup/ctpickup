@@ -18,17 +18,24 @@ import {
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { EsportsGoaliePreferenceFields } from "@/components/profile/EsportsGoaliePreferenceFields";
-import {
-  PROFILE_SELECT,
-  profileDisplayName,
-  type ProfileRow,
-} from "@/lib/profileFields";
+import { profileDisplayName, type ProfileRow } from "@/lib/profileFields";
 import { broadcastProfileUpdated } from "@/lib/profileBroadcast";
+import {
+  PROFILE_GENDER_LABELS,
+  type ProfileGender,
+  parseProfileGender,
+  profileIdentityColumns,
+  normalizePlayingPosition,
+} from "@/lib/profileIdentityFields";
+import {
+  isMissingProfileColumnError,
+  loadProfileRowForUser,
+  profileSchemaMismatchUserMessage,
+} from "@/lib/profileLoad";
 import {
   bindEsportsPreferenceHandlers,
   esportsDetailsComplete,
-  esportsSetupIncomplete,
-  esportsSetupNudgeMessage,
+  esportsProfileNudgeCopy,
   formatEsportsSummary,
   formatGoaliePreference,
   parseEsportsConsole,
@@ -98,9 +105,19 @@ export default function ProfilePage() {
   const [esportsInterest, setEsportsInterest] = useState<EsportsInterest | null>(null);
   const [esportsPlatform, setEsportsPlatform] = useState<EsportsPlatform | null>(null);
   const [esportsConsole, setEsportsConsole] = useState<EsportsConsole | null>(null);
+  const [esportsOnlineId, setEsportsOnlineId] = useState("");
   const [playsGoalie, setPlaysGoalie] = useState<boolean | null>(null);
   const [prefsBusy, setPrefsBusy] = useState(false);
   const [prefsMsg, setPrefsMsg] = useState<string | null>(null);
+  const [hasEsportsSchema, setHasEsportsSchema] = useState(true);
+
+  const [basicsFirstName, setBasicsFirstName] = useState("");
+  const [basicsLastName, setBasicsLastName] = useState("");
+  const [basicsGender, setBasicsGender] = useState<ProfileGender | "">("");
+  const [basicsGenderOther, setBasicsGenderOther] = useState("");
+  const [basicsPlayingPosition, setBasicsPlayingPosition] = useState("");
+  const [basicsBusy, setBasicsBusy] = useState(false);
+  const [basicsMsg, setBasicsMsg] = useState<string | null>(null);
 
   const { onEsportsInterest, onEsportsPlatform } = useMemo(
     () =>
@@ -108,6 +125,7 @@ export default function ProfilePage() {
         setInterest: setEsportsInterest,
         setPlatform: setEsportsPlatform,
         setConsole: setEsportsConsole,
+        setOnlineId: setEsportsOnlineId,
       }),
     [],
   );
@@ -129,17 +147,17 @@ export default function ProfilePage() {
     setUserId(user.id);
     setEmail(user.email ?? null);
 
-    const { data: row, error: pErr } = await supabase
-      .from("profiles")
-      .select(PROFILE_SELECT)
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (pErr) {
-      setMsg(pErr.message);
+    const res = await loadProfileRowForUser(supabase, user.id);
+    setHasEsportsSchema(res.hasEsportsSchema);
+    if (res.error) {
+      setMsg(
+        isMissingProfileColumnError(res.error)
+          ? profileSchemaMismatchUserMessage()
+          : res.error,
+      );
       setProfile(null);
     } else {
-      setProfile(row as ProfileRow | null);
+      setProfile(res.row);
       setAvatarBroken(false);
     }
     setLoading(false);
@@ -151,13 +169,24 @@ export default function ProfilePage() {
       interest: parseEsportsInterest(profile.esports_interest),
       platform: parseEsportsPlatform(profile.esports_platform),
       console: parseEsportsConsole(profile.esports_console),
+      onlineId: profile.esports_online_id ?? "",
     });
     setEsportsInterest(sanitized.interest);
     setEsportsPlatform(sanitized.platform);
     setEsportsConsole(sanitized.console);
+    setEsportsOnlineId(sanitized.onlineId);
     setPlaysGoalie(
       profile.plays_goalie === true || profile.plays_goalie === false ? profile.plays_goalie : null
     );
+  }, [profile]);
+
+  useEffect(() => {
+    if (!profile) return;
+    setBasicsFirstName(String(profile.first_name ?? ""));
+    setBasicsLastName(String(profile.last_name ?? ""));
+    setBasicsGender(parseProfileGender(profile.gender) ?? "");
+    setBasicsGenderOther(String(profile.gender_other ?? ""));
+    setBasicsPlayingPosition(String(profile.playing_position ?? ""));
   }, [profile]);
 
   useEffect(() => {
@@ -207,7 +236,11 @@ export default function ProfilePage() {
 
     setUploadBusy(false);
     if (dbErr) {
-      setMsg(dbErr.message);
+      setMsg(
+        isMissingProfileColumnError(dbErr.message)
+          ? profileSchemaMismatchUserMessage()
+          : dbErr.message,
+      );
       return;
     }
 
@@ -225,6 +258,7 @@ export default function ProfilePage() {
             esports_interest: null,
             esports_platform: null,
             esports_console: null,
+            esports_online_id: null,
             plays_goalie: null,
           }
     );
@@ -240,6 +274,10 @@ export default function ProfilePage() {
   async function savePreferences() {
     if (!supabase || !userId) return;
     setPrefsMsg(null);
+    if (!hasEsportsSchema) {
+      setPrefsMsg(profileSchemaMismatchUserMessage());
+      return;
+    }
     if (esportsInterest === null || playsGoalie === null) {
       setPrefsMsg("Choose an answer for online tournaments and for playing goalie.");
       return;
@@ -249,9 +287,12 @@ export default function ProfilePage() {
         esports_interest: esportsInterest,
         esports_platform: esportsPlatform,
         esports_console: esportsConsole,
+        esports_online_id: esportsOnlineId,
       })
     ) {
-      setPrefsMsg("You’re interested in online tournaments — pick your platform and console.");
+      setPrefsMsg(
+        "You’re interested in online tournaments — pick platform, console, and your gamertag or online ID.",
+      );
       return;
     }
 
@@ -259,6 +300,7 @@ export default function ProfilePage() {
       esportsInterest,
       esportsPlatform,
       esportsConsole,
+      esportsOnlineId,
       playsGoalie,
     });
 
@@ -269,6 +311,7 @@ export default function ProfilePage() {
         esports_interest: prefs.esports_interest,
         esports_platform: prefs.esports_platform,
         esports_console: prefs.esports_console,
+        esports_online_id: prefs.esports_online_id,
         plays_goalie: prefs.plays_goalie,
         updated_at: new Date().toISOString(),
       })
@@ -276,7 +319,11 @@ export default function ProfilePage() {
 
     setPrefsBusy(false);
     if (error) {
-      setPrefsMsg(error.message);
+      setPrefsMsg(
+        isMissingProfileColumnError(error.message)
+          ? profileSchemaMismatchUserMessage()
+          : error.message,
+      );
       return;
     }
 
@@ -287,12 +334,70 @@ export default function ProfilePage() {
             esports_interest: prefs.esports_interest,
             esports_platform: prefs.esports_platform,
             esports_console: prefs.esports_console,
+            esports_online_id: prefs.esports_online_id,
             plays_goalie: prefs.plays_goalie,
           }
         : p
     );
     broadcastProfileUpdated();
     setPrefsMsg("Saved.");
+  }
+
+  async function saveBasics() {
+    if (!supabase || !userId) return;
+    setBasicsMsg(null);
+    if (!basicsFirstName.trim()) return setBasicsMsg("First name is required.");
+    if (!basicsLastName.trim()) return setBasicsMsg("Last name is required.");
+    if (!basicsGender) return setBasicsMsg("Sex / gender is required.");
+    if (!normalizePlayingPosition(basicsPlayingPosition)) {
+      return setBasicsMsg("Playing position is required.");
+    }
+
+    const identity = profileIdentityColumns({
+      firstName: basicsFirstName,
+      lastName: basicsLastName,
+      gender: basicsGender as ProfileGender,
+      genderOther: basicsGenderOther,
+      playingPosition: basicsPlayingPosition,
+    });
+
+    setBasicsBusy(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        first_name: identity.first_name,
+        last_name: identity.last_name,
+        gender: identity.gender,
+        gender_other: identity.gender_other,
+        playing_position: identity.playing_position,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId);
+    setBasicsBusy(false);
+
+    if (error) {
+      setBasicsMsg(
+        isMissingProfileColumnError(error.message)
+          ? profileSchemaMismatchUserMessage()
+          : error.message,
+      );
+      return;
+    }
+
+    setProfile((p) =>
+      p
+        ? {
+            ...p,
+            first_name: identity.first_name,
+            last_name: identity.last_name,
+            gender: identity.gender,
+            gender_other: identity.gender_other,
+            playing_position: identity.playing_position,
+          }
+        : p,
+    );
+    broadcastProfileUpdated();
+    setBasicsMsg("Saved.");
   }
 
   const displayName =
@@ -365,12 +470,108 @@ export default function ProfilePage() {
           <dl>
             {fieldRow("Email", email)}
             {fieldRow("Name", profileDisplayName(profile) || null)}
+            {fieldRow(
+              "Sex / gender",
+              profile?.gender
+                ? PROFILE_GENDER_LABELS[profile.gender as ProfileGender] ??
+                    String(profile.gender)
+                : null,
+            )}
+            {profile?.gender === "other"
+              ? fieldRow("Gender description", profile?.gender_other)
+              : null}
+            {fieldRow("Playing position", profile?.playing_position)}
             {fieldRow("Phone", profile?.phone)}
             {fieldRow("Instagram", ig)}
             {fieldRow("Tier", profile?.tier)}
             {fieldRow("Online tournaments", formatEsportsSummary(profile ?? {}))}
             {fieldRow("Goalie", formatGoaliePreference(profile?.plays_goalie))}
           </dl>
+
+          <div className="space-y-4 border-t border-white/10 pt-8">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/80">
+                Basics
+              </h2>
+              <p className="mt-1 text-xs text-white/45 leading-relaxed">
+                These are used for identity and roster basics. Update anytime.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input
+                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                value={basicsFirstName}
+                onChange={(e) => setBasicsFirstName(e.target.value)}
+                disabled={basicsBusy}
+                placeholder="First name"
+                autoComplete="given-name"
+              />
+              <input
+                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                value={basicsLastName}
+                onChange={(e) => setBasicsLastName(e.target.value)}
+                disabled={basicsBusy}
+                placeholder="Last name"
+                autoComplete="family-name"
+              />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="w-full">
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-white/55">
+                  Sex / gender
+                </label>
+                <select
+                  className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-white/25"
+                  value={basicsGender}
+                  onChange={(e) => setBasicsGender(e.target.value as any)}
+                  disabled={basicsBusy}
+                >
+                  <option value="" disabled>
+                    Select…
+                  </option>
+                  <option value="male">{PROFILE_GENDER_LABELS.male}</option>
+                  <option value="female">{PROFILE_GENDER_LABELS.female}</option>
+                  <option value="other">{PROFILE_GENDER_LABELS.other}</option>
+                </select>
+              </div>
+
+              <input
+                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                value={basicsPlayingPosition}
+                onChange={(e) => setBasicsPlayingPosition(e.target.value)}
+                disabled={basicsBusy}
+                placeholder="Playing position"
+              />
+            </div>
+
+            {basicsGender === "other" ? (
+              <input
+                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                value={basicsGenderOther}
+                onChange={(e) => setBasicsGenderOther(e.target.value)}
+                disabled={basicsBusy}
+                placeholder="Describe (optional)"
+                maxLength={64}
+              />
+            ) : null}
+
+            {basicsMsg ? (
+              <p className="text-sm text-amber-200/90 leading-relaxed whitespace-pre-line">
+                {basicsMsg}
+              </p>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => void saveBasics()}
+              disabled={basicsBusy}
+              className="w-full rounded-lg bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-50 sm:w-auto"
+            >
+              {basicsBusy ? "Saving…" : "Save basics"}
+            </button>
+          </div>
 
           <div className="space-y-4 border-t border-white/10 pt-8">
             <div>
@@ -383,33 +584,39 @@ export default function ProfilePage() {
               </p>
             </div>
 
-            <EsportsGoaliePreferenceFields
-              variant="signup"
-              esportsInterest={esportsInterest}
-              onEsportsInterest={onEsportsInterest}
-              esportsPlatform={esportsPlatform}
-              onEsportsPlatform={onEsportsPlatform}
-              esportsConsole={esportsConsole}
-              onEsportsConsole={setEsportsConsole}
-              playsGoalie={playsGoalie}
-              onPlaysGoalie={setPlaysGoalie}
-              disabled={prefsBusy}
-              incompleteBanner={
-                profile && esportsSetupIncomplete(profile.esports_interest)
-                  ? esportsSetupNudgeMessage(profile.esports_interest)
-                  : null
-              }
-              hideIntro
-            />
+            {!hasEsportsSchema ? (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/95 leading-relaxed whitespace-pre-line">
+                {profileSchemaMismatchUserMessage()}
+              </div>
+            ) : (
+              <EsportsGoaliePreferenceFields
+                variant="signup"
+                esportsInterest={esportsInterest}
+                onEsportsInterest={onEsportsInterest}
+                esportsPlatform={esportsPlatform}
+                onEsportsPlatform={onEsportsPlatform}
+                esportsConsole={esportsConsole}
+                onEsportsConsole={setEsportsConsole}
+                esportsOnlineId={esportsOnlineId}
+                onEsportsOnlineIdChange={setEsportsOnlineId}
+                playsGoalie={playsGoalie}
+                onPlaysGoalie={setPlaysGoalie}
+                disabled={prefsBusy}
+                incompleteBanner={
+                  profile && hasEsportsSchema ? esportsProfileNudgeCopy(profile) : null
+                }
+                hideIntro
+              />
+            )}
 
             {prefsMsg ? (
-              <p className="text-sm text-amber-200/90 leading-relaxed">{prefsMsg}</p>
+              <p className="text-sm text-amber-200/90 leading-relaxed whitespace-pre-line">{prefsMsg}</p>
             ) : null}
 
             <button
               type="button"
               onClick={() => void savePreferences()}
-              disabled={prefsBusy}
+              disabled={prefsBusy || !hasEsportsSchema}
               className="w-full rounded-lg bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-50 sm:w-auto"
             >
               {prefsBusy ? "Saving…" : "Save preferences"}
@@ -417,7 +624,7 @@ export default function ProfilePage() {
           </div>
 
           {msg ? (
-            <p className="text-sm text-amber-200/90 leading-relaxed">{msg}</p>
+            <p className="text-sm text-amber-200/90 leading-relaxed whitespace-pre-line">{msg}</p>
           ) : null}
 
           <div className="flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:flex-wrap">

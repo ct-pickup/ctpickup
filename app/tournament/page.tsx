@@ -37,8 +37,8 @@ type TournamentPublic = {
 function statusHeadline(d: TournamentPublic | null) {
   if (!d?.tournament) return "Not scheduled";
   if (d.full) return "Full";
-  if (d.official) return "Confirmed";
-  return "Planning";
+  if (d.official) return "Official";
+  return "Open for entries";
 }
 
 function statusBlurb(d: TournamentPublic | null) {
@@ -46,12 +46,12 @@ function statusBlurb(d: TournamentPublic | null) {
     return "There is no active tournament right now. Check back soon.";
   }
   if (d.full) {
-    return "This tournament has reached the maximum number of confirmed teams.";
+    return "All team slots are filled.";
   }
   if (d.official) {
-    return "The tournament is confirmed. Team spots may still be open until the field is full.";
+    return "The field is official. Spots may remain until the roster cap is reached.";
   }
-  return "The tournament becomes confirmed once the minimum team threshold is reached.";
+  return "The field becomes official once enough teams are approved.";
 }
 
 export default function TournamentPage() {
@@ -323,7 +323,7 @@ export default function TournamentPage() {
                 </div>
                 {!t ? (
                   <EmptyStateMessage className="mt-2">
-                    No tournaments available
+                    No tournament is open right now
                   </EmptyStateMessage>
                 ) : (
                   <p className="text-sm text-white/55">{statusBlurb(publicData)}</p>
