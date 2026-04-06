@@ -46,33 +46,57 @@ Variables depend on Supabase version; common ones include `{{ .Token }}`, `{{ .C
 
 ### Minimal HTML body (OTP emphasis)
 
-Use in the template editor (adjust variables to match your Supabase template names):
+Use in **Supabase → Auth → Email Templates** for the **login code / OTP** email.
+
+**Subject line**
+
+`Your login code`
+
+**HTML body**
 
 ```html
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<body style="margin:0;padding:24px;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.5;color:#111;background:#fafafa;">
-  <p style="margin:0 0 12px;">Hi,</p>
-  <p style="margin:0 0 16px;">Use this code to sign in to <strong>CT Pickup</strong>:</p>
-  <p style="margin:0 0 20px;font-size:22px;letter-spacing:0.2em;font-weight:600;">{{ .Token }}</p>
-  <p style="margin:0 0 8px;color:#444;font-size:14px;">This code expires soon. If you didn’t request it, you can ignore this email.</p>
-  <p style="margin:16px 0 0;color:#666;font-size:13px;">— CT Pickup</p>
-</body>
+  <body style="margin:0;padding:0;background:#ffffff;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;background:#ffffff;">
+      <tr>
+        <td align="center" style="padding:24px 16px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;max-width:560px;">
+            <tr>
+              <td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; font-size: 16px; line-height: 24px; color: #111111;">
+                <div style="margin:0;">Your login code</div>
+                <br />
+                <div style="margin:0;">Enter this code in the app to continue:</div>
+                <br />
+                <div style="font-size: 28px; font-weight: 600; letter-spacing: 4px; line-height: 36px; margin: 0;">
+                  {{ .Token }}
+                </div>
+                <br />
+                <div style="margin:0;">This code expires shortly.</div>
+                <br />
+                <div style="margin:0;">– CT Pickup</div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
 </html>
 ```
 
 ### Plain text (same message)
 
 ```
-Hi,
+Your login code
 
-Use this code to sign in to CT Pickup:
+Enter this code in the app to continue:
 
 {{ .Token }}
 
-This code expires soon. If you didn't request it, you can ignore this email.
+This code expires shortly.
 
-— CT Pickup
+– CT Pickup
 ```
 
 ## Operational checks
