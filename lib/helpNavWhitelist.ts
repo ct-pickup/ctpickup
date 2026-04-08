@@ -18,7 +18,7 @@ const COACH_SLUGS = new Set(trainingCoaches.map((c) => c.slug));
 /** Canonical internal destinations the assistant may suggest (server + client sanitize to this set). */
 export const HELP_NAV_ROUTES: RouteDef[] = [
   { href: "/", label: "Home" },
-  { href: "/after-login", label: "Home hub" },
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/login", label: "Log in" },
   { href: "/signup", label: "Sign up" },
   { href: "/onboarding", label: "Onboarding" },

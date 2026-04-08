@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "download-coach-photos": "bash scripts/download-coach-photos.sh"
+    "download-coach-photos": "bash scripts/download-coach-photos.sh",
+    "supabase:db:push": "npx supabase db push",
+    "supabase:db:push:local": "npx supabase db push --local"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",

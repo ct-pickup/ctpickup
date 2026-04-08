@@ -1,13 +1,13 @@
 export type SiteNavItem = { href: string; label: string };
 
 /** In-app Home (returning users — no “first visit” greeting flag). */
-export const APP_HOME_URL = "/after-login";
+export const APP_HOME_URL = "/dashboard";
 
 /**
- * First hub load after sign-up — `/after-login` reads `?new=1` for “Welcome, …” vs “Welcome back, …”.
+ * First hub load after sign-up — `/dashboard` reads `?new=1` for “Welcome, …” vs “Welcome back, …”.
  * Use for signup completion + signup email redirect only; login and global nav use `APP_HOME_URL`.
  */
-export const APP_HOME_FIRST_VISIT_URL = "/after-login?new=1";
+export const APP_HOME_FIRST_VISIT_URL = "/dashboard?new=1";
 
 /** Logged-out / marketing hub — Home is `/`. */
 export const SITE_NAV_PUBLIC: SiteNavItem[] = [
@@ -50,15 +50,15 @@ export const SITE_NAV_APP_ABOUT: SiteNavItem[] = [
 export function navItemActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
   const hrefPath = href.split("?")[0];
-  if (hrefPath === "/after-login") {
+  if (hrefPath === "/dashboard") {
     return (
-      pathname === "/after-login" || pathname.startsWith("/after-login/")
+      pathname === "/dashboard" || pathname.startsWith("/dashboard/")
     );
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** Shared with `TopNav` — same entries as `/after-login` dropdowns. */
+/** Shared with `TopNav` — same entries as the dashboard dropdowns. */
 export type HubNavLink = { label: string; href: string };
 
 export const HUB_NAV_PICKUP: HubNavLink[] = [

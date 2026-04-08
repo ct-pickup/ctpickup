@@ -207,7 +207,7 @@ export function TopNav({
   backLabel?: string;
   /** Replaces profile when set (e.g. Help); Back (when shown) appears before this slot. */
   rightSlot?: React.ReactNode;
-  /** Right-side profile chip like `/after-login`. */
+  /** Right-side profile chip like the dashboard. */
   profileSection?: { displayName: string };
   /** Hub links (Home, Pickup, Tournaments, …). `/help` passes `false` for guests after auth is known. */
   showPrimaryNav?: boolean;

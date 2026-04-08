@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { HomeSessionIntro } from "@/components/home/HomeSessionIntro";
 import { HomeHeroBrand } from "@/components/home/HomeHeroBrand";
+import { supabaseServer } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 
 function UserIcon() {
   return (
@@ -58,7 +60,18 @@ function InstagramIcon() {
   );
 }
 
-export default function HomePage() {
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const supabase = await supabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    redirect("/dashboard");
+  }
+
   return (
     <HomeSessionIntro>
       <main className="overflow-x-hidden py-4 sm:py-5">
@@ -79,19 +92,30 @@ export default function HomePage() {
         <section className="flex min-h-[56vh] flex-col items-center justify-center px-4 pb-6 pt-4 text-center sm:min-h-[64vh] sm:pb-8 sm:pt-6 md:min-h-[72vh] md:pb-0 md:pt-0">
           <HomeHeroBrand />
 
+          <div className="mt-4 max-w-xl text-pretty text-sm font-medium leading-relaxed text-white/75 sm:mt-5 sm:text-base">
+            Find competitive pickup soccer in Connecticut. Join games, see what’s upcoming, and show up ready to play.
+          </div>
+
           <div className="mt-6 flex w-full max-w-sm flex-col items-stretch gap-3 sm:mt-8 sm:w-auto sm:max-w-none sm:flex-row sm:items-center sm:justify-center">
             <Link
-              href="/login"
+              href="/pickup/join-a-game"
               className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-white px-6 py-3 text-sm font-semibold text-black sm:min-w-[160px]"
             >
-              Log In
+              Join a Pickup
             </Link>
 
             <Link
-              href="/signup"
+              href="/pickup/upcoming-games"
               className="inline-flex min-h-[44px] items-center justify-center rounded-md border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10 sm:min-w-[160px]"
             >
-              Sign Up
+              View Games
+            </Link>
+
+            <Link
+              href="/login"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-md border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10 sm:min-w-[160px]"
+            >
+              Log In
             </Link>
           </div>
 

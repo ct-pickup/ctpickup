@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { HistoryBack } from "@/components/layout";
+import { Input, selectFieldClassName } from "@/components/ui/input";
 import { EsportsGoaliePreferenceFields } from "@/components/profile/EsportsGoaliePreferenceFields";
 import { APP_HOME_FIRST_VISIT_URL } from "@/lib/siteNav";
 import {
@@ -465,8 +466,7 @@ export default function SignupPage() {
               <div className="mt-6 rounded-2xl border border-white/10 bg-black/30 p-5 space-y-4">
                 {stage === "email" && (
                   <>
-                    <input
-                      className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                    <Input
                       placeholder="Email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -488,8 +488,7 @@ export default function SignupPage() {
 
                 {stage === "code" && (
                   <>
-                    <input
-                      className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                    <Input
                       placeholder="8-digit code"
                       value={code}
                       onChange={(e) => setCode(e.target.value)}
@@ -530,8 +529,7 @@ export default function SignupPage() {
                 {stage === "profile" && (
                   <>
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <input
-                        className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                      <Input
                         placeholder="First name"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
@@ -539,8 +537,7 @@ export default function SignupPage() {
                         autoComplete="given-name"
                       />
 
-                      <input
-                        className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                      <Input
                         placeholder="Last name"
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
@@ -554,7 +551,7 @@ export default function SignupPage() {
                         Sex / gender
                       </label>
                       <select
-                        className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white outline-none focus:border-white/25"
+                        className={selectFieldClassName}
                         value={gender}
                         onChange={(e) => setGender(e.target.value as any)}
                         disabled={busy}
@@ -569,8 +566,7 @@ export default function SignupPage() {
                     </div>
 
                     {gender === "other" ? (
-                      <input
-                        className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                      <Input
                         placeholder="Describe (optional)"
                         value={genderOther}
                         onChange={(e) => setGenderOther(e.target.value)}
@@ -579,8 +575,7 @@ export default function SignupPage() {
                       />
                     ) : null}
 
-                    <input
-                      className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                    <Input
                       placeholder="Playing position"
                       value={playingPosition}
                       onChange={(e) => setPlayingPosition(e.target.value)}
@@ -602,8 +597,7 @@ export default function SignupPage() {
                       disabled={busy}
                     />
 
-                    <input
-                      className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                    <Input
                       placeholder="Phone Number"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
@@ -612,8 +606,7 @@ export default function SignupPage() {
                       autoComplete="tel"
                     />
 
-                    <input
-                      className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                    <Input
                       placeholder="Instagram Handle"
                       value={instagram}
                       onChange={(e) => setInstagram(e.target.value)}
