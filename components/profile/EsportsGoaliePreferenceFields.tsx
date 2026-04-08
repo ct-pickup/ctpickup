@@ -207,7 +207,11 @@ export function EsportsGoaliePreferenceFields({
                       value={esportsOnlineId}
                       onChange={(e) => onEsportsOnlineIdChange(e.target.value)}
                       disabled={disabled}
-                      className={variant === "signup" ? "mt-2 w-full" : `mt-2 ${s.textInput}`}
+                      className={
+                        variant === "signup"
+                          ? "mt-2 w-full"
+                          : `mt-2 ${shell.light.textInput}`
+                      }
                       placeholder={esportsPlatform === "xbox" ? "e.g. PlayerOne123" : "e.g. YourPSN_ID"}
                     />
                   </label>
