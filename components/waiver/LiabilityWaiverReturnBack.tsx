@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { HistoryBack } from "@/components/layout";
 
@@ -8,14 +10,16 @@ const RETURN_LABELS: Record<string, string> = {
 
 export type LiabilityWaiverReturnBackProps = {
   /** Resolved from `?returnTo=` on the server (open-redirect safe). */
-  returnTo: string | null;
+  returnTo?: string | null;
 };
 
 /**
  * Back navigation for the waiver page. `returnTo` comes from the page’s
  * `searchParams` so we avoid client `useSearchParams()` and prerender bailout.
  */
-export function LiabilityWaiverReturnBack({ returnTo }: LiabilityWaiverReturnBackProps) {
+export function LiabilityWaiverReturnBack({
+  returnTo = null,
+}: LiabilityWaiverReturnBackProps) {
   const fallbackHref = returnTo ?? "/";
 
   return (

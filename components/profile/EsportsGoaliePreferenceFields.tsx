@@ -30,6 +30,7 @@ const shell = {
     optOn: "border-white bg-white text-black",
     block: "space-y-3 rounded-xl border border-white/10 bg-white/[0.02] p-4",
     callout: "rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs text-amber-100/90 leading-relaxed",
+    textInput: "",
   },
   light: {
     legend: "text-sm font-medium text-gray-900",
@@ -208,9 +209,7 @@ export function EsportsGoaliePreferenceFields({
                       onChange={(e) => onEsportsOnlineIdChange(e.target.value)}
                       disabled={disabled}
                       className={
-                        variant === "signup"
-                          ? "mt-2 w-full"
-                          : `mt-2 ${shell.light.textInput}`
+                        variant === "signup" ? "mt-2 w-full" : `mt-2 ${s.textInput}`
                       }
                       placeholder={esportsPlatform === "xbox" ? "e.g. PlayerOne123" : "e.g. YourPSN_ID"}
                     />

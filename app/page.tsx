@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { HomeSessionIntro } from "@/components/home/HomeSessionIntro";
 import { HomeHeroBrand } from "@/components/home/HomeHeroBrand";
-import { supabaseServer } from "@/lib/supabase/server";
+import { trySupabaseServer } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 function UserIcon() {
@@ -63,13 +63,15 @@ function InstagramIcon() {
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const supabase = await supabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = await trySupabaseServer();
+  if (supabase) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (user) {
-    redirect("/dashboard");
+    if (user) {
+      redirect("/dashboard");
+    }
   }
 
   return (

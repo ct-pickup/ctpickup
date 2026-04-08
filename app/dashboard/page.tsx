@@ -1,11 +1,15 @@
 import { redirect } from "next/navigation";
 import AfterLoginClient from "../after-login/AfterLoginClient";
-import { supabaseServer } from "@/lib/supabase/server";
+import { trySupabaseServer } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const supabase = await supabaseServer();
+  const supabase = await trySupabaseServer();
+  if (!supabase) {
+    redirect("/login?next=/dashboard");
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
