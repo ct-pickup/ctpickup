@@ -10,6 +10,7 @@ import {
 import { LiabilityWaiverReturnBack } from "@/components/waiver/LiabilityWaiverReturnBack";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
+import { safeWaiverReturnTo } from "@/lib/waiver/safeReturnTo";
 
 export const metadata: Metadata = {
   title: "Liability Waiver | CT Pickup",
@@ -17,7 +18,16 @@ export const metadata: Metadata = {
     "Liability Waiver & Participation Agreement for CT Pickup soccer and association football activities, including pickup games, tournaments, training, and guidance.",
 };
 
-export default function LiabilityWaiverPage() {
+type PageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function LiabilityWaiverPage({ searchParams }: PageProps) {
+  const sp = (await searchParams) ?? {};
+  const raw = sp.returnTo;
+  const returnToRaw = Array.isArray(raw) ? raw[0] : raw;
+  const returnTo = safeWaiverReturnTo(returnToRaw ?? null);
+
   return (
     <PageShell maxWidthClass="max-w-3xl" className="pb-16">
       <TopNav
@@ -26,7 +36,7 @@ export default function LiabilityWaiverPage() {
         rightSlot={<AuthenticatedProfileMenu />}
       />
 
-      <LiabilityWaiverReturnBack />
+      <LiabilityWaiverReturnBack returnTo={returnTo} />
 
       <header className="mt-6">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/55">
