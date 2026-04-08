@@ -18,6 +18,8 @@ export const metadata: Metadata = {
     "Liability Waiver & Participation Agreement for CT Pickup soccer and association football activities, including pickup games, tournaments, training, and guidance.",
 };
 
+export const dynamic = "force-dynamic";
+
 type PageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
