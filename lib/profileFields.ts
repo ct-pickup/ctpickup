@@ -25,6 +25,24 @@ export type ProfileRow = {
   plays_goalie: boolean | null;
 };
 
+/** All-null row for client state when no profile is loaded yet (e.g. after avatar upload before refetch). */
+export const EMPTY_PROFILE_ROW: ProfileRow = {
+  first_name: null,
+  last_name: null,
+  gender: null,
+  gender_other: null,
+  playing_position: null,
+  phone: null,
+  instagram: null,
+  avatar_url: null,
+  tier: null,
+  esports_interest: null,
+  esports_platform: null,
+  esports_console: null,
+  esports_online_id: null,
+  plays_goalie: null,
+};
+
 export function profileDisplayName(row: ProfileRow | null): string {
   const combined = [row?.first_name, row?.last_name].filter(Boolean).join(" ").trim();
   return combined;

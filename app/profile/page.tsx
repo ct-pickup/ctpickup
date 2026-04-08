@@ -18,7 +18,11 @@ import {
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { EsportsGoaliePreferenceFields } from "@/components/profile/EsportsGoaliePreferenceFields";
-import { profileDisplayName, type ProfileRow } from "@/lib/profileFields";
+import {
+  EMPTY_PROFILE_ROW,
+  profileDisplayName,
+  type ProfileRow,
+} from "@/lib/profileFields";
 import { broadcastProfileUpdated } from "@/lib/profileBroadcast";
 import {
   PROFILE_GENDER_LABELS,
@@ -258,24 +262,7 @@ export default function ProfilePage() {
 
     setAvatarBroken(false);
     setProfile((p) =>
-      p
-        ? { ...p, avatar_url: publicUrl }
-        : {
-            first_name: null,
-            last_name: null,
-            gender: null,
-            gender_other: null,
-            playing_position: null,
-            phone: null,
-            instagram: null,
-            avatar_url: publicUrl,
-            tier: null,
-            esports_interest: null,
-            esports_platform: null,
-            esports_console: null,
-            esports_online_id: null,
-            plays_goalie: null,
-          }
+      p ? { ...p, avatar_url: publicUrl } : { ...EMPTY_PROFILE_ROW, avatar_url: publicUrl }
     );
     broadcastProfileUpdated();
   }
