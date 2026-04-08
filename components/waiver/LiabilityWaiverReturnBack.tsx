@@ -1,21 +1,21 @@
-"use client";
-
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { HistoryBack } from "@/components/layout";
-import { safeWaiverReturnTo } from "@/lib/waiver/safeReturnTo";
 
 const RETURN_LABELS: Record<string, string> = {
   "/signup": "Back to sign up",
   "/onboarding": "Back to profile setup",
 };
 
+export type LiabilityWaiverReturnBackProps = {
+  /** Resolved from `?returnTo=` on the server (open-redirect safe). */
+  returnTo: string | null;
+};
+
 /**
- * Reads ?returnTo= for HistoryBack when referrer/history is empty (common on mobile).
+ * Back navigation for the waiver page. `returnTo` comes from the page’s
+ * `searchParams` so we avoid client `useSearchParams()` and prerender bailout.
  */
-export function LiabilityWaiverReturnBack() {
-  const searchParams = useSearchParams();
-  const returnTo = safeWaiverReturnTo(searchParams.get("returnTo"));
+export function LiabilityWaiverReturnBack({ returnTo }: LiabilityWaiverReturnBackProps) {
   const fallbackHref = returnTo ?? "/";
 
   return (
