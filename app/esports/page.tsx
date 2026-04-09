@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { EsportsMark } from "@/components/esports/EsportsMark";
-import { EsportsLegalReviewBlock } from "@/components/legal/EsportsLegalReviewBlock";
 import {
   AuthenticatedProfileMenu,
   PageShell,
@@ -83,7 +82,21 @@ export default function EsportsPage() {
       </header>
 
       <section className="mt-10 md:mt-14">
-        <EsportsLegalReviewBlock />
+        <Panel className="p-6 md:p-8">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/85">
+            Legal documents
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-white/65">
+            Registration requires that you review and accept the Official Tournament Rules, the Terms
+            and Conditions, and the Privacy and Publicity Consent Policy.
+          </p>
+          <Link
+            href="/legal/esports"
+            className="mt-3 inline-flex text-sm font-medium text-[var(--brand)] underline-offset-4 hover:underline"
+          >
+            View esports legal documents
+          </Link>
+        </Panel>
       </section>
 
       <section className="mt-8 scroll-mt-24 md:mt-10">

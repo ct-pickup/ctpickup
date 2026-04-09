@@ -6,7 +6,6 @@ import {
   Panel,
   TopNav,
 } from "@/components/layout";
-import { EsportsLegalReviewBlock } from "@/components/legal/EsportsLegalReviewBlock";
 
 export const metadata: Metadata = {
   title: "Esports legal documents | CT Pickup",
@@ -25,8 +24,6 @@ export default function EsportsLegalIndexPage() {
       </p>
 
       <div className="mt-8 space-y-6">
-        <EsportsLegalReviewBlock />
-
         <Panel className="p-6 md:p-8">
           <ul className="space-y-4 text-sm">
             <li>

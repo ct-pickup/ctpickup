@@ -434,6 +434,14 @@ function EsportsOfficialRulesSections10to18() {
           Conditions. Platform-only claims are subject to Section 11.3 of the Terms and Conditions, which
           incorporates this arbitration framework.
         </p>
+        <p className="mt-3">
+          <span className="font-semibold text-white/90">15.6 Courts; Entry of Award; Injunctive Relief.</span>{" "}
+          Judgment on any arbitration award may be entered in any court having jurisdiction. Except where
+          prohibited by applicable law, either party may seek temporary injunctive or equitable relief in
+          a court of competent jurisdiction to preserve the status quo pending arbitration. Nothing in
+          this Section 15 creates an agreement to litigate covered disputes in court in the first
+          instance.
+        </p>
       </section>
 
       <section>
