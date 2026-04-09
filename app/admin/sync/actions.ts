@@ -3,14 +3,12 @@
 import { redirect } from "next/navigation";
 import { retryPublicationDelivery } from "@/lib/admin/publish/executePublication";
 import { retryRevalidateJob } from "@/lib/admin/sync/enqueueRevalidate";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getAuthUserSafe, supabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
 
 async function assertAdmin(): Promise<string> {
   const supabase = await supabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUserSafe(supabase);
   if (!user?.id) redirect("/login?next=/admin/sync");
 
   const { data: prof } = await supabaseService()

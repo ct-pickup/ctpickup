@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabase/service";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getAuthUserSafe, supabaseServer } from "@/lib/supabase/server";
 
 const AGREEMENT_TITLE = "Tournament Rules and Eligibility";
 const AGREEMENT_TEXT = `
@@ -25,14 +25,7 @@ export async function POST(req: Request) {
     }
 
     const server = await supabaseServer();
-    const {
-      data: { user },
-      error: userError,
-    } = await server.auth.getUser();
-
-    if (userError) {
-      console.error("auth getUser error:", userError);
-    }
+    const user = await getAuthUserSafe(server);
 
     if (!user) {
       return NextResponse.json({ error: "You must be logged in." }, { status: 401 });

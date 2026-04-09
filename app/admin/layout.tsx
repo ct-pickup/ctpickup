@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { trySupabaseServer } from "@/lib/supabase/server";
+import { getAuthUserSafe, trySupabaseServer } from "@/lib/supabase/server";
 import { trySupabaseService } from "@/lib/supabase/service";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -14,10 +14,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect("/login?next=" + encodeURIComponent("/admin"));
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getAuthUserSafe(supabase);
   if (!user) {
     redirect("/login?next=" + encodeURIComponent("/admin"));
   }

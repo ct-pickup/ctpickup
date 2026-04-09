@@ -1,18 +1,21 @@
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { getSupabasePublicEnv } from "@/lib/supabase/env";
 
-function getSupabasePublicEnv(): { url: string; anonKey: string } | null {
-  const url =
-    process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
-    process.env.SUPABASE_URL?.trim() ||
-    "";
-  const anonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
-    process.env.SUPABASE_ANON_KEY?.trim() ||
-    "";
+export { getSupabasePublicEnv } from "@/lib/supabase/env";
 
-  if (!url || !anonKey) return null;
-  return { url, anonKey };
+/**
+ * Server-side `getUser()` without throwing: avoids crashes when Auth returns an
+ * unexpected shape or the network fails. Use for Server Components / layouts.
+ */
+export async function getAuthUserSafe(client: SupabaseClient): Promise<User | null> {
+  try {
+    const { data } = await client.auth.getUser();
+    return data?.user ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -20,23 +23,31 @@ function getSupabasePublicEnv(): { url: string; anonKey: string } | null {
  * are missing (common during misconfigured deploys), so public pages can still render.
  */
 export async function trySupabaseServer() {
-  const env = getSupabasePublicEnv();
-  if (!env) return null;
+  try {
+    const env = getSupabasePublicEnv();
+    if (!env) return null;
 
-  const cookieStore = await cookies();
+    const cookieStore = await cookies();
 
-  return createServerClient(env.url, env.anonKey, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
+    return createServerClient(env.url, env.anonKey, {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          } catch {
+            // Server Components cannot always write cookies during render; middleware refreshes the session.
+          }
+        },
       },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, options);
-        });
-      },
-    },
-  });
+    });
+  } catch {
+    return null;
+  }
 }
 
 export async function supabaseServer() {
@@ -57,9 +68,13 @@ export async function supabaseServer() {
           return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
-          });
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          } catch {
+            // Server Components cannot always write cookies during render; middleware refreshes the session.
+          }
         },
       },
     }

@@ -4,14 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { recordTournamentActivationChange } from "@/lib/admin/surfaceHealth";
 import { enqueueRevalidateAndRun } from "@/lib/admin/sync/enqueueRevalidate";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getAuthUserSafe, supabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
 
 async function assertAdmin(): Promise<string> {
   const supabase = await supabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUserSafe(supabase);
   if (!user?.id) redirect("/login?next=/admin/tournament");
 
   const { data: prof } = await supabaseService()

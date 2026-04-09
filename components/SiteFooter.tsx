@@ -17,6 +17,13 @@ export function SiteFooter() {
           Privacy
         </Link>
         <Link
+          href="/after-login"
+          className="inline-flex min-h-[44px] items-center px-2 py-1 transition hover:text-white/80 sm:min-h-0 sm:px-0 sm:py-0"
+          title="Member hub after signing in (ctpickup.net)"
+        >
+          Member hub
+        </Link>
+        <Link
           href="/liability-waiver"
           className="inline-flex min-h-[44px] items-center px-2 py-1 transition hover:text-white/80 sm:min-h-0 sm:px-0 sm:py-0"
         >
