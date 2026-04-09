@@ -1,22 +1,24 @@
 import { Panel } from "@/components/layout";
 
 /**
- * Pre-launch blocker: uploaded legal drafts appear inconsistent on dispute resolution.
- * Do not remove until counsel reconciles Official Rules vs Participant Terms.
+ * Explains how the three esports legal documents work together (priority + cross-references).
  */
 export function EsportsLegalReviewBlock() {
   return (
-    <Panel className="border border-amber-400/30 bg-amber-400/[0.07] p-5 md:p-6">
-      <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-100/95">
-        Legal review required (dispute resolution)
+    <Panel className="border border-white/15 bg-white/[0.04] p-5 md:p-6">
+      <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/90">
+        How these documents work together
       </h2>
-      <p className="mt-3 text-sm leading-relaxed text-amber-50/90">
-        Before launch, counsel should reconcile how disputes are resolved: the{" "}
-        <span className="text-white/95">Official Tournament Rules</span> describe binding
-        arbitration (including JAMS rules and Hartford County), while the{" "}
-        <span className="text-white/95">Participant Terms</span> describe exclusive venue in
-        Connecticut state and federal courts. Users should not be asked to accept both as
-        written until these provisions are aligned.
+      <p className="mt-3 text-sm leading-relaxed text-white/75">
+        Registration records acceptance of the{" "}
+        <span className="text-white/90">Official Tournament Rules</span>,{" "}
+        <span className="text-white/90">Terms and Conditions</span>, and{" "}
+        <span className="text-white/90">Privacy and Publicity Consent Policy</span>. They include a
+        shared priority rule: tournament-specific matters are governed by the Official Tournament
+        Rules; privacy, publicity, and data-use matters by the Privacy and Publicity Consent Policy;
+        general platform and account matters by the Terms; where documents conflict on the same
+        topic, the more specific document controls. Dispute resolution and governing law are aligned
+        across all three.
       </p>
     </Panel>
   );

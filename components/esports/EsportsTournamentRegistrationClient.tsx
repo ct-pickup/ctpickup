@@ -130,6 +130,7 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
       setRegistrationId(typeof j.registration_id === "string" ? j.registration_id : null);
       setPaymentStatus("unpaid");
       setMsg(null);
+      await loadRegistration();
     } catch {
       setMsg("Something went wrong.");
     }
@@ -212,9 +213,12 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-white">Read the documents</h2>
         <p className="text-sm text-white/65">
-          You must review each document before you can sign. Document versions on file: Rules{" "}
-          {esportsDocVersionLabel.officialRules}, Terms {esportsDocVersionLabel.participantTerms},
-          Privacy {esportsDocVersionLabel.privacyPublicity}.
+          These three documents work together: tournament-specific matters are governed by the Official
+          Tournament Rules; privacy, publicity, and data use by the Privacy and Publicity Consent Policy;
+          general platform and account matters by the Terms and Conditions. If there is a direct
+          conflict, the more specific document controls. You must review each document before you sign.
+          Versions on file: Rules {esportsDocVersionLabel.officialRules}, Terms{" "}
+          {esportsDocVersionLabel.participantTerms}, Privacy {esportsDocVersionLabel.privacyPublicity}.
         </p>
         <ul className="flex flex-col gap-2 text-sm">
           <li>

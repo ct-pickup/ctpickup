@@ -36,7 +36,7 @@ export default function EsportsLegalIndexPage() {
               >
                 Official Tournament Rules
               </Link>
-              <p className="mt-1 text-white/60">Competition structure, eligibility, and dispute resolution (draft).</p>
+              <p className="mt-1 text-white/60">Tournament format, prizes, eligibility, arbitration.</p>
             </li>
             <li>
               <Link
@@ -45,7 +45,7 @@ export default function EsportsLegalIndexPage() {
               >
                 Terms and Conditions
               </Link>
-              <p className="mt-1 text-white/60">Participant agreement for digital tournaments (draft).</p>
+              <p className="mt-1 text-white/60">Platform, account, payments, and coordinated dispute terms.</p>
             </li>
             <li>
               <Link
@@ -54,7 +54,7 @@ export default function EsportsLegalIndexPage() {
               >
                 Privacy and Publicity Consent Policy
               </Link>
-              <p className="mt-1 text-white/60">Data use, streaming, and results publicity (draft).</p>
+              <p className="mt-1 text-white/60">Privacy, publicity, retention, and data choices.</p>
             </li>
           </ul>
         </Panel>
