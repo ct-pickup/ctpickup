@@ -178,7 +178,7 @@ export default function DashboardWelcomeExperience() {
         brandHref="/"
         homeHref="/"
         fallbackHref="/"
-        rightSlot={<AuthenticatedProfileMenu />}
+        rightSlot={<AuthenticatedProfileMenu guestCtaMode="signupFirst" />}
       />
       <EsportsSetupNudgeBar />
 

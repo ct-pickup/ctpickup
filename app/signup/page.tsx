@@ -10,6 +10,7 @@ import {
   SIGNUP_INTENT_QUERY,
   type SignupIntent,
   isSignupIntent,
+  HAS_EVER_SIGNED_UP_KEY,
   signupCopyForIntent,
   signupUrlForIntent,
 } from "@/lib/auth/signupIntent";
@@ -400,6 +401,12 @@ function SignupForm({ intent }: { intent: SignupIntent }) {
             : "Could not record waiver acceptance. Please try again."
         );
         return;
+      }
+
+      try {
+        window.localStorage.setItem(HAS_EVER_SIGNED_UP_KEY, "1");
+      } catch {
+        /* ignore */
       }
 
       setTransitioning(true);

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PROFILE_UPDATED_EVENT } from "@/lib/profileBroadcast";
 import { loadProfileRowForUser } from "@/lib/profileLoad";
 import { esportsFlowNeedsAttention } from "@/lib/profilePreferences";
+import { HAS_EVER_SIGNED_UP_KEY, signupUrlForIntent } from "@/lib/auth/signupIntent";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 
 function UserGlyph({ className }: { className?: string }) {
@@ -38,7 +39,15 @@ function UserGlyph({ className }: { className?: string }) {
  * Top-bar account control: logged out → “Log in”; logged in → avatar (photo or placeholder) linking to `/profile`.
  * Uses `getUser()` (validated JWT) instead of `getSession()` so cookie-based SSR clients don’t look logged out.
  */
-export function AuthenticatedProfileMenu() {
+export function AuthenticatedProfileMenu({
+  guestCtaMode = "login",
+}: {
+  /**
+   * - `login` (default): logged-out users see “Log in”.
+   * - `signupFirst`: logged-out users see “Sign up” until this browser successfully completed signup once.
+   */
+  guestCtaMode?: "login" | "signupFirst";
+}) {
   const { supabase, isReady } = useSupabaseBrowser();
   const loadRef = useRef<() => Promise<void>>(() => Promise.resolve());
   const [ready, setReady] = useState(false);
@@ -46,6 +55,19 @@ export function AuthenticatedProfileMenu() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarBroken, setAvatarBroken] = useState(false);
   const [esportsIncomplete, setEsportsIncomplete] = useState(false);
+  const [hasEverSignedUp, setHasEverSignedUp] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (guestCtaMode !== "signupFirst") return;
+    try {
+      setHasEverSignedUp(
+        typeof window !== "undefined" &&
+          window.localStorage.getItem(HAS_EVER_SIGNED_UP_KEY) === "1",
+      );
+    } catch {
+      setHasEverSignedUp(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isReady) return;
@@ -114,12 +136,21 @@ export function AuthenticatedProfileMenu() {
   }
 
   if (!userId) {
+    const showSignupFirst = guestCtaMode === "signupFirst";
+    const href =
+      showSignupFirst && !hasEverSignedUp
+        ? signupUrlForIntent("pickup")
+        : "/login";
+    const label =
+      showSignupFirst && !hasEverSignedUp
+        ? "Sign up"
+        : "Log in";
     return (
       <Link
-        href="/login"
+        href={href}
         className="flex min-h-[44px] shrink-0 items-center rounded-md px-2 text-sm font-semibold text-white/85 transition-colors hover:bg-white/[0.05] hover:text-white active:bg-white/[0.07] lg:h-9 lg:min-h-0 lg:rounded-full lg:border lg:border-white/20 lg:bg-white/10 lg:px-3 lg:py-1.5 lg:text-sm lg:font-medium lg:hover:bg-white/[0.14]"
       >
-        Log in
+        {label}
       </Link>
     );
   }
