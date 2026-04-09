@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { HistoryBack } from "@/components/layout";
 import { EsportsGoaliePreferenceFields } from "@/components/profile/EsportsGoaliePreferenceFields";
-import { APP_HOME_URL } from "@/lib/siteNav";
+import { APP_HOME_FIRST_VISIT_URL, APP_HOME_URL } from "@/lib/siteNav";
 import {
   bindEsportsPreferenceHandlers,
   esportsDetailsComplete,
@@ -77,7 +77,7 @@ export default function OnboardingPage() {
         .maybeSingle();
 
       if (profile) {
-        window.location.href = "/tournament";
+        window.location.href = APP_HOME_URL;
         return;
       }
 
@@ -187,7 +187,7 @@ export default function OnboardingPage() {
       );
     }
 
-    window.location.href = "/tournament";
+    window.location.href = APP_HOME_FIRST_VISIT_URL;
   }
 
   if (loading) {

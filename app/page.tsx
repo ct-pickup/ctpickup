@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { HomeSessionIntro } from "@/components/home/HomeSessionIntro";
 import { HomeHeroBrand } from "@/components/home/HomeHeroBrand";
+import FirstTimeHomeWelcome from "@/components/home/FirstTimeHomeWelcome";
+import { shouldShowFirstRunHomeOnRoot } from "@/lib/profile/resolveFirstRunHome";
 import { getAuthUserSafe, trySupabaseServer } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { SITE_ORIGIN } from "@/lib/site";
@@ -83,10 +86,16 @@ function InstagramIcon() {
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  await connection();
+
   const supabase = await trySupabaseServer();
   if (supabase) {
     const user = await getAuthUserSafe(supabase);
     if (user) {
+      const firstRun = await shouldShowFirstRunHomeOnRoot(user, supabase);
+      if (firstRun) {
+        return <FirstTimeHomeWelcome />;
+      }
       redirect("/dashboard");
     }
   }

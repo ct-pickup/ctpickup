@@ -24,7 +24,7 @@ export function AfterLoginPublicClient({ loginHref }: { loginHref: string }) {
       <div className="mt-8 text-center md:mt-10">
         <HomeHeroBrand titleAs="div" />
         <h1 className="mt-6 text-2xl font-semibold tracking-tight md:text-3xl">
-          CT Pickup member hub
+          Your CT Pickup home
         </h1>
         <p className="mx-auto mt-4 max-w-lg text-pretty text-sm leading-relaxed text-white/75 md:text-base">
           The member home at{" "}
