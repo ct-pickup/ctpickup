@@ -117,17 +117,10 @@ export default async function HomePage() {
 
           <div className="mt-6 flex w-full max-w-sm flex-col items-stretch gap-3 sm:mt-8 sm:w-auto sm:max-w-none sm:flex-row sm:items-center sm:justify-center">
             <Link
-              href="/pickup/join-a-game"
+              href="/pickup/upcoming-games"
               className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-white px-6 py-3 text-sm font-semibold text-black sm:min-w-[160px]"
             >
               Join a Pickup
-            </Link>
-
-            <Link
-              href="/pickup/upcoming-games"
-              className="inline-flex min-h-[44px] items-center justify-center rounded-md border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10 sm:min-w-[160px]"
-            >
-              View Games
             </Link>
 
             <Link

@@ -34,15 +34,13 @@ export async function trySupabaseServer() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          } catch {
-            // Server Components cannot always write cookies during render; middleware refreshes the session.
-          }
-        },
+        /**
+         * Must not call `cookies().set` here. Supabase invokes this asynchronously during
+         * auth refresh; Next.js only allows cookie mutation in Server Actions / Route Handlers,
+         * not in RSC. Unhandled rejections were: "Cookies can only be modified in a Server Action..."
+         * Session refresh + Set-Cookie runs in `proxy.ts` before RSC.
+         */
+        setAll: async () => {},
       },
     });
   } catch {

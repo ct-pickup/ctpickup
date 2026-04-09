@@ -8,7 +8,6 @@ const PATHS: string[] = [
   "/login",
   "/signup",
   "/pickup",
-  "/pickup/join-a-game",
   "/pickup/upcoming-games",
   "/pickup/how-it-works",
   "/tournament",

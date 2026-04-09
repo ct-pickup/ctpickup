@@ -19,6 +19,7 @@ const SECTIONS = [
 
 const PUBLIC_LINKS = [
   { href: "/pickup", label: "Pickup hub" },
+  { href: "/pickup/upcoming-games", label: "Upcoming & join" },
   { href: "/status/pickup", label: "Pickup status" },
   { href: "/tournament", label: "Tournament hub" },
   { href: "/status/tournament", label: "Tournament status" },

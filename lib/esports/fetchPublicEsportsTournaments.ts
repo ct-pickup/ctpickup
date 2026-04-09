@@ -1,4 +1,4 @@
-import { supabaseServer } from "@/lib/supabase/server";
+import { trySupabaseServer } from "@/lib/supabase/server";
 
 export type PublicEsportsTournament = {
   id: string;
@@ -20,7 +20,13 @@ export async function fetchPublicEsportsTournaments(): Promise<{
   error: Error | null;
 }> {
   try {
-    const supabase = await supabaseServer();
+    const supabase = await trySupabaseServer();
+    if (!supabase) {
+      return {
+        data: null,
+        error: new Error("Missing Supabase env or server client."),
+      };
+    }
     const { data, error } = await supabase
       .from("esports_tournaments")
       .select(

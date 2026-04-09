@@ -272,6 +272,7 @@ export default function PickupOperatorClient() {
               publishHref={publishHref}
               previewPaths={[
                 { href: "/pickup", label: "Pickup hub" },
+                { href: "/pickup/upcoming-games", label: "Upcoming & join" },
                 { href: "/status/pickup", label: "Pickup status" },
               ]}
             />

@@ -11,6 +11,9 @@ import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { resolveWelcomeFirstName } from "@/lib/welcomeFirstName";
 
+/** After first completed welcome on /dashboard, we show “Welcome back” on return visits. */
+const DASHBOARD_WELCOME_SEEN_KEY = "ctpickup_dashboard_welcome_seen_v1";
+
 const HERO_IMAGES = [
   "/hero/1.jpg",
   "/hero/2.jpg",
@@ -63,17 +66,32 @@ export default function AfterLoginClient() {
   const { supabase, isReady } = useSupabaseBrowser();
   const [welcomeTarget, setWelcomeTarget] = useState<string | null>(null);
   const [typedLen, setTypedLen] = useState(0);
+  /** `null` until we read localStorage (avoid flashing the wrong greeting). */
+  const [firstVisitToDashboard, setFirstVisitToDashboard] = useState<
+    boolean | null
+  >(null);
 
   useEffect(() => {
-    if (!isReady) return;
+    try {
+      setFirstVisitToDashboard(
+        typeof window !== "undefined" &&
+          window.localStorage.getItem(DASHBOARD_WELCOME_SEEN_KEY) !== "1",
+      );
+    } catch {
+      setFirstVisitToDashboard(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isReady || firstVisitToDashboard === null) return;
 
     const params = new URLSearchParams(window.location.search);
     const isFirstHubVisitAfterSignup = params.get("new") === "1";
+    const useFreshWelcome =
+      isFirstHubVisitAfterSignup || firstVisitToDashboard;
 
     if (!supabase) {
-      setWelcomeTarget(
-        isFirstHubVisitAfterSignup ? "Welcome" : "Welcome back"
-      );
+      setWelcomeTarget(useFreshWelcome ? "Welcome" : "Welcome back");
       return;
     }
 
@@ -84,9 +102,7 @@ export default function AfterLoginClient() {
       const user = data.user;
 
       if (error || !user) {
-        setWelcomeTarget(
-          isFirstHubVisitAfterSignup ? "Welcome" : "Welcome back"
-        );
+        setWelcomeTarget(useFreshWelcome ? "Welcome" : "Welcome back");
         return;
       }
 
@@ -98,15 +114,15 @@ export default function AfterLoginClient() {
 
       const firstName = resolveWelcomeFirstName(profile, user);
 
-      if (isFirstHubVisitAfterSignup) {
+      if (useFreshWelcome) {
         setWelcomeTarget(firstName ? `Welcome, ${firstName}` : "Welcome");
       } else {
         setWelcomeTarget(
-          firstName ? `Welcome back, ${firstName}` : "Welcome back"
+          firstName ? `Welcome back, ${firstName}` : "Welcome back",
         );
       }
     })();
-  }, [supabase, isReady]);
+  }, [supabase, isReady, firstVisitToDashboard]);
 
   useEffect(() => {
     if (welcomeTarget === null) return;
@@ -150,6 +166,15 @@ export default function AfterLoginClient() {
     welcomeTarget === null ? "" : welcomeTarget.slice(0, typedLen);
   const typingComplete =
     welcomeTarget !== null && typedLen >= welcomeTarget.length;
+
+  useEffect(() => {
+    if (!typingComplete || firstVisitToDashboard !== true) return;
+    try {
+      window.localStorage.setItem(DASHBOARD_WELCOME_SEEN_KEY, "1");
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }, [typingComplete, firstVisitToDashboard]);
 
   return (
     <PageShell maxWidthClass="max-w-6xl" className="pb-20 pt-2">

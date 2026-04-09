@@ -26,7 +26,6 @@ export const HELP_NAV_ROUTES: RouteDef[] = [
   { href: "/pickup", label: "Pickup" },
   { href: "/pickup/how-it-works", label: "How pickup works" },
   { href: "/pickup/intake", label: "Pickup intake" },
-  { href: "/pickup/join-a-game", label: "Join a game" },
   { href: "/pickup/upcoming-games", label: "Upcoming games" },
   { href: "/tournament", label: "Tournaments" },
   { href: "/tournament/how-it-works", label: "Tournament info" },
