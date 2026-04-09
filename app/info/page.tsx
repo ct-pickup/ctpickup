@@ -8,7 +8,6 @@ import {
   SectionEyebrow,
   TopNav,
 } from "@/components/layout";
-import { APP_HOME_URL } from "@/lib/siteNav";
 
 type Section = {
   id: string;
@@ -65,8 +64,6 @@ export default function InfoPage() {
   return (
     <PageShell>
       <TopNav
-        brandHref={APP_HOME_URL}
-        fallbackHref={APP_HOME_URL}
         rightSlot={<AuthenticatedProfileMenu />}
       />
 

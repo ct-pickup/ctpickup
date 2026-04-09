@@ -9,7 +9,6 @@ import {
   TopNav,
 } from "@/components/layout";
 import { EsportsSetupNudgeBar } from "@/components/profile/EsportsSetupNudgeBar";
-import { APP_HOME_URL } from "@/lib/siteNav";
 
 export const metadata: Metadata = {
   title: "Esports | CT Pickup",
@@ -49,8 +48,6 @@ export default function EsportsPage() {
   return (
     <PageShell maxWidthClass="max-w-6xl" className="pb-16">
       <TopNav
-        brandHref={APP_HOME_URL}
-        fallbackHref={APP_HOME_URL}
         rightSlot={<AuthenticatedProfileMenu />}
       />
       <EsportsSetupNudgeBar />

@@ -219,8 +219,6 @@ export default function HelpPage() {
   return (
     <PageShell maxWidthClass="max-w-6xl">
       <TopNav
-        brandHref={APP_HOME_URL}
-        fallbackHref={APP_HOME_URL}
         rightSlot={<AuthenticatedProfileMenu />}
         showPrimaryNav={authResolved && isLoggedIn}
       />

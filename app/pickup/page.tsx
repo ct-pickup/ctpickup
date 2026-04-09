@@ -263,9 +263,6 @@ export default function PickupPage() {
   return (
     <PageShell maxWidthClass="max-w-5xl" className="pb-16 pt-2">
       <TopNav
-        brandHref={APP_HOME_URL}
-        homeHref={APP_HOME_URL}
-        fallbackHref={APP_HOME_URL}
         rightSlot={<AuthenticatedProfileMenu />}
       />
       <EsportsSetupNudgeBar />

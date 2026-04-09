@@ -459,8 +459,6 @@ export default function ProfilePage() {
     return (
       <PageShell maxWidthClass="max-w-2xl">
         <TopNav
-          brandHref={APP_HOME_URL}
-          fallbackHref={APP_HOME_URL}
           rightSlot={<AuthenticatedProfileMenu />}
         />
         <p className="py-12 text-center text-sm text-white/50">Loading profile…</p>
@@ -475,8 +473,6 @@ export default function ProfilePage() {
   return (
     <PageShell maxWidthClass="max-w-2xl">
       <TopNav
-        brandHref={APP_HOME_URL}
-        fallbackHref={APP_HOME_URL}
         rightSlot={<AuthenticatedProfileMenu />}
       />
       <div className="pb-16 pt-4">

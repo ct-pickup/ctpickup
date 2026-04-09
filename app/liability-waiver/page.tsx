@@ -8,7 +8,6 @@ import {
   TopNav,
 } from "@/components/layout";
 import { LiabilityWaiverReturnBack } from "@/components/waiver/LiabilityWaiverReturnBack";
-import { APP_HOME_URL } from "@/lib/siteNav";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 import { safeWaiverReturnTo } from "@/lib/waiver/safeReturnTo";
 
@@ -33,8 +32,6 @@ export default async function LiabilityWaiverPage({ searchParams }: PageProps) {
   return (
     <PageShell maxWidthClass="max-w-3xl" className="pb-16">
       <TopNav
-        brandHref={APP_HOME_URL}
-        fallbackHref={APP_HOME_URL}
         rightSlot={<AuthenticatedProfileMenu />}
       />
 

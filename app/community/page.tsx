@@ -5,15 +5,12 @@ import {
   SectionEyebrow,
   TopNav,
 } from "@/components/layout";
-import { APP_HOME_URL } from "@/lib/siteNav";
 const SIDE_IMAGE = "/community/community-side.jpg";
 
 export default function CommunityPage() {
   return (
     <PageShell maxWidthClass="max-w-6xl">
       <TopNav
-        brandHref={APP_HOME_URL}
-        fallbackHref={APP_HOME_URL}
         rightSlot={<AuthenticatedProfileMenu />}
       />
 

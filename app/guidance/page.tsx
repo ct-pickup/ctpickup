@@ -6,7 +6,6 @@ import {
   SectionEyebrow,
   TopNav,
 } from "@/components/layout";
-import { APP_HOME_URL } from "@/lib/siteNav";
 import { GuidancePlansAndRequest } from "./GuidancePlansAndRequest";
 
 const WHAT_WE_HELP_WITH = [
@@ -29,8 +28,6 @@ export default function GuidancePage() {
   return (
     <PageShell maxWidthClass="max-w-4xl">
       <TopNav
-        brandHref={APP_HOME_URL}
-        fallbackHref={APP_HOME_URL}
         rightSlot={<AuthenticatedProfileMenu />}
       />
 

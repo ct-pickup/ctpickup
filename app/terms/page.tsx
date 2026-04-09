@@ -7,7 +7,6 @@ import {
   Panel,
   TopNav,
 } from "@/components/layout";
-import { APP_HOME_URL } from "@/lib/siteNav";
 
 export const metadata: Metadata = {
   title: "Terms | CT Pickup",
@@ -18,8 +17,6 @@ export default function TermsPage() {
   return (
     <PageShell maxWidthClass="max-w-3xl" className="pb-16">
       <TopNav
-        brandHref={APP_HOME_URL}
-        fallbackHref={APP_HOME_URL}
         rightSlot={<AuthenticatedProfileMenu />}
       />
       <div className="mt-4">

@@ -7,7 +7,6 @@ import {
   SectionEyebrow,
   TopNav,
 } from "@/components/layout";
-import { APP_HOME_URL } from "@/lib/siteNav";
 
 const APPLY_FORM =
   "https://docs.google.com/forms/d/e/1FAIpQLSc6GTxVGfHtgJpiP_Vp_w2OPgMJteRd8AH9TK0Jeri_t9E4sw/viewform?usp=publish-editor";
@@ -33,7 +32,6 @@ export default function U23Page() {
   return (
     <PageShell maxWidthClass="max-w-6xl" className="pb-16">
       <TopNav
-        fallbackHref={APP_HOME_URL}
         backLabel="Back"
         rightSlot={<AuthenticatedProfileMenu />}
       />

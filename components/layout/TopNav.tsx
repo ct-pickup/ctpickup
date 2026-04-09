@@ -190,9 +190,9 @@ function MobileMenuIcon({ open }: { open: boolean }) {
 }
 
 export function TopNav({
-  brandHref = APP_HOME_URL,
-  homeHref = APP_HOME_URL,
-  fallbackHref = APP_HOME_URL,
+  brandHref = "/",
+  homeHref = "/",
+  fallbackHref = "/",
   backLabel = "Back",
   rightSlot,
   profileSection,
@@ -203,7 +203,7 @@ export function TopNav({
 }: {
   /** Logo “CT Pickup” target */
   brandHref?: string;
-  /** Top-level Home link (default: `APP_HOME_URL`) */
+  /** Top-level Home link (default: `/`) */
   homeHref?: string;
   /** When history has no in-app previous step. */
   fallbackHref?: string;
