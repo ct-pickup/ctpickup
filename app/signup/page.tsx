@@ -5,7 +5,6 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { HistoryBack } from "@/components/layout";
 import { Input, selectFieldClassName } from "@/components/ui/input";
-import { EsportsGoaliePreferenceFields } from "@/components/profile/EsportsGoaliePreferenceFields";
 import {
   SIGNUP_INTENT_QUERY,
   SIGNUP_NEXT_QUERY,
@@ -19,14 +18,6 @@ import {
 } from "@/lib/auth/signupIntent";
 import { safeNextPath } from "@/lib/auth/safeNextPath";
 import { APP_HOME_FIRST_VISIT_URL } from "@/lib/siteNav";
-import {
-  bindEsportsPreferenceHandlers,
-  esportsDetailsComplete,
-  profileEsportsGoalieColumns,
-  type EsportsConsole,
-  type EsportsInterest,
-  type EsportsPlatform,
-} from "@/lib/profilePreferences";
 import {
   isMissingProfileColumnError,
   profileSchemaMismatchUserMessage,
@@ -158,23 +149,6 @@ function SignupForm({
   const [instagram, setInstagram] = useState("");
   const [waiverAccepted, setWaiverAccepted] = useState(false);
 
-  const [esportsInterest, setEsportsInterest] = useState<EsportsInterest | null>(null);
-  const [esportsPlatform, setEsportsPlatform] = useState<EsportsPlatform | null>(null);
-  const [esportsConsole, setEsportsConsole] = useState<EsportsConsole | null>(null);
-  const [esportsOnlineId, setEsportsOnlineId] = useState("");
-  const [playsGoalie, setPlaysGoalie] = useState<boolean | null>(null);
-
-  const { onEsportsInterest, onEsportsPlatform } = useMemo(
-    () =>
-      bindEsportsPreferenceHandlers({
-        setInterest: setEsportsInterest,
-        setPlatform: setEsportsPlatform,
-        setConsole: setEsportsConsole,
-        setOnlineId: setEsportsOnlineId,
-      }),
-    [],
-  );
-
   const emailClean = useMemo(() => email.trim().toLowerCase(), [email]);
 
   const emailLooksValid = useMemo(() => {
@@ -200,28 +174,10 @@ function SignupForm({
   }, [phone, instagram]);
 
   const canSaveProfile = useMemo(() => {
-    const esportsOk =
-      esportsInterest !== null &&
-      playsGoalie !== null &&
-      (esportsInterest !== "yes" ||
-        esportsDetailsComplete({
-          esports_interest: esportsInterest,
-          esports_platform: esportsPlatform,
-          esports_console: esportsConsole,
-          esports_online_id: esportsOnlineId,
-        }));
-
-    return canContinueIdentity && canContinueContact && waiverAccepted && esportsOk;
-  }, [
-    canContinueIdentity,
-    canContinueContact,
-    waiverAccepted,
-    esportsInterest,
-    esportsPlatform,
-    esportsConsole,
-    esportsOnlineId,
-    playsGoalie,
-  ]);
+    // IMPORTANT: esports / tournament identity is collected only when the user registers.
+    // Basic signup should not require PSN/Xbox/EA or tournament preferences.
+    return canContinueIdentity && canContinueContact && waiverAccepted;
+  }, [canContinueIdentity, canContinueContact, waiverAccepted]);
 
   async function checkExists() {
     const r = await fetch("/api/auth/email-exists", {
@@ -337,14 +293,6 @@ function SignupForm({
         (user.email ?? emailClean).trim().toLowerCase() || null;
       const nowIso = new Date().toISOString();
 
-      const prefs = profileEsportsGoalieColumns({
-        esportsInterest: esportsInterest!,
-        esportsPlatform,
-        esportsConsole,
-        esportsOnlineId,
-        playsGoalie: playsGoalie!,
-      });
-
       const identity = profileIdentityColumns({
         firstName,
         lastName,
@@ -364,11 +312,6 @@ function SignupForm({
           playing_position: identity.playing_position,
           phone: phone.trim(),
           instagram: ig,
-          esports_interest: prefs.esports_interest,
-          esports_platform: prefs.esports_platform,
-          esports_console: prefs.esports_console,
-          esports_online_id: prefs.esports_online_id,
-          plays_goalie: prefs.plays_goalie,
           updated_at: nowIso,
         },
         { onConflict: "id" }
@@ -614,21 +557,6 @@ function SignupForm({
                       placeholder="Playing position"
                       value={playingPosition}
                       onChange={(e) => setPlayingPosition(e.target.value)}
-                      disabled={busy}
-                    />
-
-                    <EsportsGoaliePreferenceFields
-                      variant="signup"
-                      esportsInterest={esportsInterest}
-                      onEsportsInterest={onEsportsInterest}
-                      esportsPlatform={esportsPlatform}
-                      onEsportsPlatform={onEsportsPlatform}
-                      esportsConsole={esportsConsole}
-                      onEsportsConsole={setEsportsConsole}
-                      esportsOnlineId={esportsOnlineId}
-                      onEsportsOnlineIdChange={setEsportsOnlineId}
-                      playsGoalie={playsGoalie}
-                      onPlaysGoalie={setPlaysGoalie}
                       disabled={busy}
                     />
 
