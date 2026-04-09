@@ -37,7 +37,7 @@ export async function POST(req: Request) {
 
     const { data: reg, error: rErr } = await admin
       .from("esports_tournament_registrations")
-      .select("id,payment_status,stripe_checkout_session_id")
+      .select("id,payment_status,stripe_checkout_session_id,esports_player_profile_id")
       .eq("user_id", user.id)
       .eq("tournament_id", tournamentId)
       .maybeSingle();
@@ -51,6 +51,27 @@ export async function POST(req: Request) {
 
     if (reg.payment_status === "paid") {
       return NextResponse.json({ error: "Payment already recorded for this tournament." }, { status: 409 });
+    }
+
+    if (!reg.esports_player_profile_id) {
+      return NextResponse.json(
+        { error: "Complete your esports player profile before paying." },
+        { status: 403 },
+      );
+    }
+
+    const { data: playerProfile } = await admin
+      .from("esports_player_profiles")
+      .select("id")
+      .eq("id", reg.esports_player_profile_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!playerProfile?.id) {
+      return NextResponse.json(
+        { error: "Complete your esports player profile before paying." },
+        { status: 403 },
+      );
     }
 
     let stripe;

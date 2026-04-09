@@ -36,6 +36,19 @@ export async function POST(req: Request) {
 
     const svc = supabaseService();
 
+    const { data: playerProfile, error: pErr } = await svc
+      .from("esports_player_profiles")
+      .select("id,affirmed_18_plus,date_of_birth,platform,psn_id,xbox_gamertag,legal_name,contact_email,state")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (pErr || !playerProfile?.id) {
+      return NextResponse.json(
+        { error: "Complete your esports player profile before signing and paying." },
+        { status: 403 },
+      );
+    }
+
     const { data: tournament, error: tErr } = await svc
       .from("esports_tournaments")
       .select("id,status")
@@ -75,6 +88,7 @@ export async function POST(req: Request) {
 
     const row = {
       user_id: user.id,
+      esports_player_profile_id: playerProfile.id,
       tournament_id: tournamentId,
       signed_full_name: signedFullName,
       doc_version_official_rules: esportsDocVersionLabel.officialRules,
