@@ -10,6 +10,7 @@ const SECTIONS = [
   { href: "/admin/publish", label: "Publish" },
   { href: "/admin/payments", label: "Payments" },
   { href: "/admin/tournament", label: "Tournaments" },
+  { href: "/admin/esports", label: "Esports" },
   { href: "/admin/pickup", label: "Pickups", activeMatch: "exact" as const },
   { href: "/admin/pickup/standing", label: "Pickup standing" },
   { href: "/admin/relationships", label: "Relationships" },
