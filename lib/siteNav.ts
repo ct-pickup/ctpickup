@@ -4,8 +4,8 @@ export type SiteNavItem = { href: string; label: string };
 export const APP_HOME_URL = "/dashboard";
 
 /**
- * First hub load after sign-up — `/dashboard` reads `?new=1` for “Welcome, …” vs “Welcome back, …”.
- * Use for signup completion + signup email redirect only; login and global nav use `APP_HOME_URL`.
+ * Post-signup landing URL (`?new=1` for email redirects / completion flows).
+ * Hub greeting uses localStorage on `/dashboard`: first visit “Welcome”, then “Welcome back, …”.
  */
 export const APP_HOME_FIRST_VISIT_URL = "/dashboard?new=1";
 

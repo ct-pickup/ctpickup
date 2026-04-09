@@ -54,10 +54,13 @@ export default function PrivacyPage() {
             .
           </p>
           <p className="text-white/55">
-            Contact us through{" "}
-            <Link href="/help" className="text-white/75 underline-offset-4 hover:underline">
-              Help
-            </Link>{" "}
+            Contact us via{" "}
+            <a
+              href="mailto:pickupct@gmail.com"
+              className="font-medium text-[var(--brand)] underline-offset-4 hover:underline"
+            >
+              pickupct@gmail.com
+            </a>{" "}
             for privacy-related requests where applicable.
           </p>
         </div>

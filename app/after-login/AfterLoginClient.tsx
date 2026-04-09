@@ -85,10 +85,8 @@ export default function AfterLoginClient() {
   useEffect(() => {
     if (!isReady || firstVisitToDashboard === null) return;
 
-    const params = new URLSearchParams(window.location.search);
-    const isFirstHubVisitAfterSignup = params.get("new") === "1";
-    const useFreshWelcome =
-      isFirstHubVisitAfterSignup || firstVisitToDashboard;
+    /** First hub load only (localStorage). Not `?new=1` — that must not override “welcome back” on return visits. */
+    const useFreshWelcome = firstVisitToDashboard;
 
     if (!supabase) {
       setWelcomeTarget(useFreshWelcome ? "Welcome" : "Welcome back");
@@ -115,7 +113,7 @@ export default function AfterLoginClient() {
       const firstName = resolveWelcomeFirstName(profile, user);
 
       if (useFreshWelcome) {
-        setWelcomeTarget(firstName ? `Welcome, ${firstName}` : "Welcome");
+        setWelcomeTarget("Welcome");
       } else {
         setWelcomeTarget(
           firstName ? `Welcome back, ${firstName}` : "Welcome back",
