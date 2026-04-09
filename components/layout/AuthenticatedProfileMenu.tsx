@@ -40,7 +40,7 @@ function UserGlyph({ className }: { className?: string }) {
  * Uses `getUser()` (validated JWT) instead of `getSession()` so cookie-based SSR clients don’t look logged out.
  */
 export function AuthenticatedProfileMenu({
-  guestCtaMode = "login",
+  guestCtaMode = "signupFirst",
 }: {
   /**
    * - `login` (default): logged-out users see “Log in”.
