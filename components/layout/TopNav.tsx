@@ -22,6 +22,11 @@ import {
 import { HistoryBack } from "./HistoryBack";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { safeNextPath } from "@/lib/auth/safeNextPath";
+import {
+  readHasEverSignedUpBrowser,
+  signupIntentForProtectedPath,
+  signupUrlForProtectedNavFirstVisit,
+} from "@/lib/auth/signupIntent";
 
 type NavMenu = "pickup" | "tournaments" | "about" | null;
 
@@ -214,7 +219,7 @@ export function TopNav({
   profileSection?: { displayName: string };
   /** Hub links (Home, Pickup, Tournaments, …). `/help` passes `false` for guests after auth is known. */
   showPrimaryNav?: boolean;
-  /** When true, logged-out clicks to Pickup/Tournaments/Esports go to `/login?next=...`. */
+  /** When true, logged-out clicks to Pickup/Tournaments/Esports go to signup (first visit) or `/login?next=...` (returning). */
   gateProtectedNav?: boolean;
   className?: string;
   innerClassName?: string;
@@ -275,6 +280,11 @@ export function TopNav({
       }
       if (authed === false && isProtectedHref(href)) {
         const next = safeNextPath(href) ?? "/";
+        const intent = signupIntentForProtectedPath(href);
+        if (intent && !readHasEverSignedUpBrowser()) {
+          router.push(signupUrlForProtectedNavFirstVisit(intent));
+          return;
+        }
         router.push(`/login?next=${encodeURIComponent(next)}`);
         return;
       }

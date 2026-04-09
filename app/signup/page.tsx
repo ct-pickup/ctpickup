@@ -8,6 +8,8 @@ import { Input, selectFieldClassName } from "@/components/ui/input";
 import { EsportsGoaliePreferenceFields } from "@/components/profile/EsportsGoaliePreferenceFields";
 import {
   SIGNUP_INTENT_QUERY,
+  SIGNUP_GATE_QUERY,
+  SIGNUP_GATE_VALUE_SIGNUP_FIRST,
   type SignupIntent,
   isSignupIntent,
   HAS_EVER_SIGNED_UP_KEY,
@@ -123,7 +125,13 @@ function InfoIcon() {
   );
 }
 
-function SignupForm({ intent }: { intent: SignupIntent }) {
+function SignupForm({
+  intent,
+  showGateNotice,
+}: {
+  intent: SignupIntent;
+  showGateNotice?: boolean;
+}) {
   const router = useRouter();
   const transitionNav = useTransitionNav();
   const { supabase, isReady } = useSupabaseBrowser();
@@ -451,6 +459,14 @@ function SignupForm({ intent }: { intent: SignupIntent }) {
 
           <div className="w-full max-w-[420px]">
             <div className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 md:p-6 shadow-[0_20px_70px_rgba(0,0,0,0.34)]">
+              {showGateNotice ? (
+                <p
+                  role="status"
+                  className="mb-5 rounded-2xl border border-amber-400/35 bg-amber-400/[0.09] px-4 py-3 text-sm leading-relaxed text-amber-50/95"
+                >
+                  You must sign up first to get access.
+                </p>
+              ) : null}
               <div className="space-y-3">
                 <h1 className="text-4xl md:text-[52px] font-semibold uppercase tracking-tight">
                   {copy.title}
@@ -689,6 +705,7 @@ function SignupGate() {
   const searchParams = useSearchParams();
   const raw = searchParams.get(SIGNUP_INTENT_QUERY);
   const intent = isSignupIntent(raw) ? raw : null;
+  const showGateNotice = searchParams.get(SIGNUP_GATE_QUERY) === SIGNUP_GATE_VALUE_SIGNUP_FIRST;
 
   useEffect(() => {
     if (intent === null) {
@@ -704,7 +721,7 @@ function SignupGate() {
     );
   }
 
-  return <SignupForm intent={intent} />;
+  return <SignupForm intent={intent} showGateNotice={showGateNotice} />;
 }
 
 export default function SignupPage() {
