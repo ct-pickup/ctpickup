@@ -1,6 +1,9 @@
 /** Query param on `/signup` — required so signup is only for pickup or tournament intent. */
 export const SIGNUP_INTENT_QUERY = "intent";
 
+/** Optional same-origin return path after successful signup (e.g. esports registration). */
+export const SIGNUP_NEXT_QUERY = "next";
+
 /**
  * Persistent client-side marker that this browser has successfully completed signup at least once.
  * Used for guest UX (e.g. show “Log in” instead of “Sign up” on return visits while logged out).

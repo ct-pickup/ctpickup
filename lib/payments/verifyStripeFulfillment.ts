@@ -99,3 +99,41 @@ export async function verifyTournamentPaymentApplied(
     detail: "Tournament payment or captain registration did not reach the expected paid state.",
   };
 }
+
+export async function verifyEsportsRegistrationPaid(
+  admin: SupabaseClient,
+  opts: {
+    sessionId: string | null;
+    registrationId: string | undefined;
+    paymentIntentId: string | null;
+  },
+): Promise<{ ok: boolean; detail: string }> {
+  const { sessionId, registrationId } = opts;
+
+  if (sessionId) {
+    const { data } = await admin
+      .from("esports_tournament_registrations")
+      .select("payment_status,paid_at")
+      .eq("stripe_checkout_session_id", sessionId)
+      .maybeSingle();
+    if (data?.payment_status === "paid" && data.paid_at) {
+      return { ok: true, detail: "Esports registration shows paid after checkout." };
+    }
+  }
+
+  if (registrationId) {
+    const { data } = await admin
+      .from("esports_tournament_registrations")
+      .select("payment_status,paid_at")
+      .eq("id", registrationId)
+      .maybeSingle();
+    if (data?.payment_status === "paid" && data.paid_at) {
+      return { ok: true, detail: "Esports registration shows paid after checkout." };
+    }
+  }
+
+  return {
+    ok: false,
+    detail: "Esports registration payment was not recorded as paid.",
+  };
+}

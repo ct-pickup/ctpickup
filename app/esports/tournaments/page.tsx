@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { EmptyStateMessage } from "@/components/EmptyStateMessage";
+import { EsportsRegisterCtaButton } from "@/components/esports/EsportsRegisterCtaButton";
 import {
   AuthenticatedProfileMenu,
   PageShell,
@@ -45,9 +47,7 @@ export default async function EsportsTournamentsPage() {
 
   return (
     <PageShell maxWidthClass="max-w-6xl" className="pb-16">
-      <TopNav
-        rightSlot={<AuthenticatedProfileMenu />}
-      />
+      <TopNav rightSlot={<AuthenticatedProfileMenu />} />
       <EsportsSetupNudgeBar />
 
       <header className="mt-4">
@@ -56,11 +56,9 @@ export default async function EsportsTournamentsPage() {
           Esports Tournaments
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-white/72 md:text-lg md:leading-8">
-          This hub is for{" "}
-          <span className="text-white/90">EA SPORTS FC</span> competition
-          online—brackets, schedules, and digital matchups. Each event uses a{" "}
-          <span className="text-white/90">$10 buy-in per player</span>. It is
-          separate from our outdoor team tournaments on the field.
+          Browse events below. Open a tournament for eligibility, prize, format, and legal links.{" "}
+          <span className="text-white/90">Register</span> requires an account, full legal acceptance, and
+          the $10 entry fee.
         </p>
       </header>
 
@@ -71,14 +69,12 @@ export default async function EsportsTournamentsPage() {
             Upcoming & live
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/60 md:text-base">
-            Scheduled esports events and prize details. Status shows whether a
-            tournament is open for registration or currently running.
+            Status shows whether registration is open or the event is running. Completed tournaments are
+            not listed here.
           </p>
 
           {error ? (
-            <EmptyStateMessage className="mt-8">
-              Unable to load tournaments
-            </EmptyStateMessage>
+            <EmptyStateMessage className="mt-8">Unable to load tournaments</EmptyStateMessage>
           ) : !data || data.length === 0 ? (
             <EmptyStateMessage className="mt-8">No tournaments available</EmptyStateMessage>
           ) : (
@@ -86,7 +82,7 @@ export default async function EsportsTournamentsPage() {
               {data.map((t) => (
                 <li
                   key={t.id}
-                  className="rounded-xl border border-white/12 bg-white/[0.04] p-5 transition hover:border-white/18 hover:bg-white/[0.06]"
+                  className="flex flex-col rounded-xl border border-white/12 bg-white/[0.04] p-5 transition hover:border-white/18 hover:bg-white/[0.06]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <h3 className="text-base font-semibold tracking-tight text-white md:text-lg">
@@ -109,6 +105,20 @@ export default async function EsportsTournamentsPage() {
                   {t.description ? (
                     <p className="mt-4 text-sm leading-relaxed text-white/60">{t.description}</p>
                   ) : null}
+                  <div className="mt-6 flex flex-col gap-2 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                    <Link
+                      href={`/esports/tournaments/${t.id}`}
+                      className="inline-flex items-center justify-center rounded-md border border-white/18 px-4 py-2.5 text-center text-sm font-semibold text-white/90 transition hover:border-white/30 hover:bg-white/[0.04]"
+                    >
+                      Details
+                    </Link>
+                    <EsportsRegisterCtaButton
+                      tournamentId={t.id}
+                      className="inline-flex items-center justify-center rounded-md bg-[var(--brand)] px-4 py-2.5 text-sm font-semibold text-black transition hover:opacity-90"
+                    >
+                      Register
+                    </EsportsRegisterCtaButton>
+                  </div>
                 </li>
               ))}
             </ul>

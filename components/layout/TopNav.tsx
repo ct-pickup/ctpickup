@@ -262,14 +262,15 @@ export function TopNav({
 
   const isProtectedHref = useCallback((href: string) => {
     const pathOnly = (href.split("?")[0] || "/").replace(/\/+$/, "") || "/";
-    return (
-      pathOnly === "/pickup" ||
-      pathOnly.startsWith("/pickup/") ||
-      pathOnly === "/tournament" ||
-      pathOnly.startsWith("/tournament/") ||
-      pathOnly === "/esports" ||
-      pathOnly.startsWith("/esports/")
-    );
+    if (pathOnly === "/pickup" || pathOnly.startsWith("/pickup/")) return true;
+    if (pathOnly === "/tournament" || pathOnly.startsWith("/tournament/")) return true;
+    if (pathOnly === "/esports" || pathOnly.startsWith("/esports/")) {
+      // Public browse: hub, list, and tournament detail. Registration / consent flows stay gated.
+      if (pathOnly === "/esports" || pathOnly === "/esports/tournaments") return false;
+      if (/^\/esports\/tournaments\/[^/]+$/.test(pathOnly)) return false;
+      return true;
+    }
+    return false;
   }, []);
 
   const pushWithAuthGate = useCallback(

@@ -8,6 +8,7 @@ import { Input, selectFieldClassName } from "@/components/ui/input";
 import { EsportsGoaliePreferenceFields } from "@/components/profile/EsportsGoaliePreferenceFields";
 import {
   SIGNUP_INTENT_QUERY,
+  SIGNUP_NEXT_QUERY,
   SIGNUP_GATE_QUERY,
   SIGNUP_GATE_VALUE_SIGNUP_FIRST,
   type SignupIntent,
@@ -16,6 +17,7 @@ import {
   signupCopyForIntent,
   signupUrlForIntent,
 } from "@/lib/auth/signupIntent";
+import { safeNextPath } from "@/lib/auth/safeNextPath";
 import { APP_HOME_FIRST_VISIT_URL } from "@/lib/siteNav";
 import {
   bindEsportsPreferenceHandlers,
@@ -128,9 +130,12 @@ function InfoIcon() {
 function SignupForm({
   intent,
   showGateNotice,
+  postSignupPath,
 }: {
   intent: SignupIntent;
   showGateNotice?: boolean;
+  /** Safe in-app path after signup, or null to use default first-visit home. */
+  postSignupPath: string | null;
 }) {
   const router = useRouter();
   const transitionNav = useTransitionNav();
@@ -417,12 +422,13 @@ function SignupForm({
         /* ignore */
       }
 
+      const destination = postSignupPath ?? APP_HOME_FIRST_VISIT_URL;
       setTransitioning(true);
       setTimeout(() => {
         if (transitionNav) {
-          transitionNav.navigateWithTransition(APP_HOME_FIRST_VISIT_URL);
+          transitionNav.navigateWithTransition(destination);
         } else {
-          router.push(APP_HOME_FIRST_VISIT_URL);
+          router.push(destination);
         }
       }, 260);
     } catch (e: any) {
@@ -706,6 +712,7 @@ function SignupGate() {
   const raw = searchParams.get(SIGNUP_INTENT_QUERY);
   const intent = isSignupIntent(raw) ? raw : null;
   const showGateNotice = searchParams.get(SIGNUP_GATE_QUERY) === SIGNUP_GATE_VALUE_SIGNUP_FIRST;
+  const postSignupPath = safeNextPath(searchParams.get(SIGNUP_NEXT_QUERY));
 
   useEffect(() => {
     if (intent === null) {
@@ -721,7 +728,9 @@ function SignupGate() {
     );
   }
 
-  return <SignupForm intent={intent} showGateNotice={showGateNotice} />;
+  return (
+    <SignupForm intent={intent} showGateNotice={showGateNotice} postSignupPath={postSignupPath} />
+  );
 }
 
 export default function SignupPage() {

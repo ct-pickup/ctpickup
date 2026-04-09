@@ -10,7 +10,11 @@ import {
   patchPlatformPaymentBySessionId,
 } from "@/lib/payments/webhookPersistence";
 import { recomputePickupStandingForUser } from "@/lib/pickup/standing/recomputePickupStanding";
-import { verifyPickupPaidAndConfirmed, verifyTournamentPaymentApplied } from "@/lib/payments/verifyStripeFulfillment";
+import {
+  verifyEsportsRegistrationPaid,
+  verifyPickupPaidAndConfirmed,
+  verifyTournamentPaymentApplied,
+} from "@/lib/payments/verifyStripeFulfillment";
 import {
   getStripeTournament,
   getStripeWebhookSecret,
@@ -133,6 +137,32 @@ async function fulfillTournament(
     .eq("id", pay.captain_id);
 }
 
+async function fulfillEsports(
+  admin: SupabaseClient,
+  opts: {
+    sessionId: string | null;
+    paymentIntentId: string | null;
+    registrationId: string | undefined;
+  },
+) {
+  const { sessionId, paymentIntentId, registrationId } = opts;
+  if (!registrationId) return;
+  const now = new Date().toISOString();
+  let q = admin
+    .from("esports_tournament_registrations")
+    .update({
+      payment_status: "paid",
+      paid_at: now,
+      stripe_payment_intent_id: paymentIntentId,
+      updated_at: now,
+    })
+    .eq("id", registrationId);
+  if (sessionId) {
+    q = q.eq("stripe_checkout_session_id", sessionId);
+  }
+  await q;
+}
+
 async function handlePaidCheckoutSession(
   admin: SupabaseClient,
   event: Stripe.Event,
@@ -220,6 +250,41 @@ async function handlePaidCheckoutSession(
         staff_summary: v.ok
           ? "Checkout finished and tournament registration was updated."
           : "Checkout finished, but tournament registration did not show as paid. Someone may need to fix this manually.",
+        needs_retry: !v.ok,
+        error_detail: v.ok ? null : v.detail,
+      });
+      return NextResponse.json({ received: true });
+    }
+
+    if (kind === "esports" && md.registration_id) {
+      await fulfillEsports(admin, {
+        sessionId,
+        paymentIntentId,
+        registrationId: md.registration_id,
+      });
+      const v = await verifyEsportsRegistrationPaid(admin, {
+        sessionId,
+        registrationId: md.registration_id,
+        paymentIntentId,
+      });
+
+      await patchPlatformPaymentBySessionId(admin, sessionId, {
+        lifecycle_status: "payment_received",
+        stripe_payment_intent_id: paymentIntentId,
+        stripe_payment_received_at: now,
+        fulfillment_status: v.ok ? "succeeded" : "failed",
+        fulfillment_message: v.ok ? null : v.detail,
+        completed_at: v.ok ? now : null,
+      });
+
+      await logStripeWebhookEvent(admin, {
+        platform_payment_id: platformPaymentId,
+        stripe_event_id: event.id,
+        event_type: event.type,
+        outcome: v.ok ? "processed_ok" : "processed_failed",
+        staff_summary: v.ok
+          ? "Checkout finished and esports entry fee was recorded."
+          : "Checkout finished, but esports registration did not show as paid.",
         needs_retry: !v.ok,
         error_detail: v.ok ? null : v.detail,
       });
@@ -378,6 +443,61 @@ async function handlePaymentIntentSucceeded(admin: SupabaseClient, event: Stripe
         event_type: event.type,
         outcome: "processed_failed",
         staff_summary: "Payment cleared, but updating tournament records failed.",
+        needs_retry: true,
+        error_detail: msg,
+      });
+      console.error("stripe_webhook_handler_error:", msg);
+      return NextResponse.json({ error: "handler_failed" }, { status: 500 });
+    }
+  }
+
+  if (md.kind === "esports" && md.registration_id) {
+    try {
+      await fulfillEsports(admin, {
+        sessionId: null,
+        paymentIntentId,
+        registrationId: md.registration_id,
+      });
+      const v = await verifyEsportsRegistrationPaid(admin, {
+        sessionId: null,
+        registrationId: md.registration_id,
+        paymentIntentId,
+      });
+
+      await patchPlatformPaymentByPaymentIntentId(admin, paymentIntentId, {
+        lifecycle_status: "payment_received",
+        stripe_payment_intent_id: paymentIntentId,
+        stripe_payment_received_at: now,
+        fulfillment_status: v.ok ? "succeeded" : "failed",
+        fulfillment_message: v.ok ? null : v.detail,
+        completed_at: v.ok ? now : null,
+      });
+
+      await logStripeWebhookEvent(admin, {
+        platform_payment_id: platformPaymentId,
+        stripe_event_id: event.id,
+        event_type: event.type,
+        outcome: v.ok ? "processed_ok" : "processed_failed",
+        staff_summary: v.ok
+          ? "Payment cleared and esports entry fee was recorded."
+          : "Payment cleared, but esports registration did not show as paid.",
+        needs_retry: !v.ok,
+        error_detail: v.ok ? null : v.detail,
+      });
+      return NextResponse.json({ received: true });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      await patchPlatformPaymentByPaymentIntentId(admin, paymentIntentId, {
+        lifecycle_status: "payment_received",
+        fulfillment_status: "failed",
+        fulfillment_message: msg,
+      });
+      await logStripeWebhookEvent(admin, {
+        platform_payment_id: platformPaymentId,
+        stripe_event_id: event.id,
+        event_type: event.type,
+        outcome: "processed_failed",
+        staff_summary: "Payment cleared, but updating esports registration failed.",
         needs_retry: true,
         error_detail: msg,
       });
