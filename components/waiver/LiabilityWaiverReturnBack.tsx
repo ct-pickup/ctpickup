@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { HistoryBack } from "@/components/layout";
 
-const RETURN_LABELS: Record<string, string> = {
-  "/signup": "Back to sign up",
-  "/onboarding": "Back to profile setup",
-};
+function returnToLabel(returnTo: string): string {
+  if (returnTo.startsWith("/signup")) return "Back to sign up";
+  if (returnTo.startsWith("/onboarding")) return "Back to profile setup";
+  return "Continue where you left off";
+}
 
 export type LiabilityWaiverReturnBackProps = {
   /** Resolved from `?returnTo=` on the server (open-redirect safe). */
@@ -30,7 +31,7 @@ export function LiabilityWaiverReturnBack({
           href={returnTo}
           className="text-sm font-medium text-white/80 underline-offset-4 transition hover:text-white hover:underline sm:ml-1"
         >
-          {RETURN_LABELS[returnTo] ?? "Continue where you left off"}
+          {returnToLabel(returnTo)}
         </Link>
       ) : null}
     </div>

@@ -4,10 +4,11 @@ export type SiteNavItem = { href: string; label: string };
 export const APP_HOME_URL = "/dashboard";
 
 /**
- * Post-signup landing URL (`?new=1` for email redirects / completion flows).
- * Hub greeting uses localStorage on `/dashboard`: first visit “Welcome”, then “Welcome back, …”.
+ * Post-signup / first-session landing. Must be `/` so the user hits `app/page.tsx` before
+ * `app/dashboard/page.tsx` runs `markDashboardHomeSeen` (which would skip first-run on `/`).
+ * `?new=1` is for analytics / email flows only.
  */
-export const APP_HOME_FIRST_VISIT_URL = "/dashboard?new=1";
+export const APP_HOME_FIRST_VISIT_URL = "/?new=1";
 
 /** Logged-out / marketing hub — Home is `/`. */
 export const SITE_NAV_PUBLIC: SiteNavItem[] = [

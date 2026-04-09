@@ -20,7 +20,7 @@ export const HELP_NAV_ROUTES: RouteDef[] = [
   { href: "/", label: "Home" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/login", label: "Log in" },
-  { href: "/signup", label: "Sign up" },
+  { href: "/signup", label: "Join pickup or tournaments (sign up)" },
   { href: "/onboarding", label: "Onboarding" },
   { href: "/profile", label: "Profile" },
   { href: "/pickup", label: "Pickup" },

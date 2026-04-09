@@ -3,5 +3,5 @@
 import DashboardWelcomeExperience from "@/components/dashboard/DashboardWelcomeExperience";
 
 export default function AfterLoginClient() {
-  return <DashboardWelcomeExperience mode="dashboard" />;
+  return <DashboardWelcomeExperience />;
 }

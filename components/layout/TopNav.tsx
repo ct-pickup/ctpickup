@@ -20,6 +20,8 @@ import {
   navItemActive,
 } from "@/lib/siteNav";
 import { HistoryBack } from "./HistoryBack";
+import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
+import { safeNextPath } from "@/lib/auth/safeNextPath";
 
 type NavMenu = "pickup" | "tournaments" | "about" | null;
 
@@ -195,6 +197,7 @@ export function TopNav({
   rightSlot,
   profileSection,
   showPrimaryNav = true,
+  gateProtectedNav = true,
   className = "",
   innerClassName = "",
 }: {
@@ -211,16 +214,74 @@ export function TopNav({
   profileSection?: { displayName: string };
   /** Hub links (Home, Pickup, Tournaments, …). `/help` passes `false` for guests after auth is known. */
   showPrimaryNav?: boolean;
+  /** When true, logged-out clicks to Pickup/Tournaments/Esports go to `/login?next=...`. */
+  gateProtectedNav?: boolean;
   className?: string;
   innerClassName?: string;
 }) {
   const pathname = usePathname() || "";
   const router = useRouter();
+  const { supabase, isReady } = useSupabaseBrowser();
+  const [authed, setAuthed] = useState<boolean | null>(null);
   const [openMenu, setOpenMenu] = useState<NavMenu>(null);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [overlayTopPx, setOverlayTopPx] = useState(0);
   const navRef = useRef<HTMLDivElement>(null);
   const mobileBarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!gateProtectedNav) {
+      setAuthed(true);
+      return;
+    }
+    if (!isReady) return;
+    if (!supabase) {
+      setAuthed(false);
+      return;
+    }
+    const client = supabase;
+    let alive = true;
+    void (async () => {
+      const { data } = await client.auth.getUser();
+      if (!alive) return;
+      setAuthed(!!data.user);
+    })();
+    const { data: sub } = client.auth.onAuthStateChange((_evt, session) => {
+      setAuthed(!!session?.user);
+    });
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [gateProtectedNav, supabase, isReady]);
+
+  const isProtectedHref = useCallback((href: string) => {
+    const pathOnly = (href.split("?")[0] || "/").replace(/\/+$/, "") || "/";
+    return (
+      pathOnly === "/pickup" ||
+      pathOnly.startsWith("/pickup/") ||
+      pathOnly === "/tournament" ||
+      pathOnly.startsWith("/tournament/") ||
+      pathOnly === "/esports" ||
+      pathOnly.startsWith("/esports/")
+    );
+  }, []);
+
+  const pushWithAuthGate = useCallback(
+    (href: string) => {
+      if (!gateProtectedNav) {
+        router.push(href);
+        return;
+      }
+      if (authed === false && isProtectedHref(href)) {
+        const next = safeNextPath(href) ?? "/";
+        router.push(`/login?next=${encodeURIComponent(next)}`);
+        return;
+      }
+      router.push(href);
+    },
+    [gateProtectedNav, authed, isProtectedHref, router],
+  );
 
   useLayoutEffect(() => {
     setOpenMenu(null);
@@ -378,7 +439,15 @@ export function TopNav({
   /** Sheet closes via `useLayoutEffect` on `pathname` — avoid onClick close that unmounts portal before client nav. */
   const mobileSheetNav = showPrimaryNav ? (
     <nav aria-label="Primary" className="flex flex-col px-3 pb-8 pt-2">
-      <Link href={homeHref} className={mobileNavItem(homeOn)}>
+      <Link
+        href={homeHref}
+        className={mobileNavItem(homeOn)}
+        onClick={(e) => {
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+          e.preventDefault();
+          pushWithAuthGate(homeHref);
+        }}
+      >
         Home
       </Link>
 
@@ -404,7 +473,7 @@ export function TopNav({
                 onClick={(e) => {
                   if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
                   e.preventDefault();
-                  router.push(item.href);
+                  pushWithAuthGate(item.href);
                 }}
               >
                 {item.label}
@@ -436,7 +505,7 @@ export function TopNav({
                 onClick={(e) => {
                   if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
                   e.preventDefault();
-                  router.push(item.href);
+                  pushWithAuthGate(item.href);
                 }}
               >
                 {item.label}
@@ -446,19 +515,51 @@ export function TopNav({
         </MobileAccordionPanel>
       </div>
 
-      <Link href="/training" className={mobileNavItem(trainingOn)}>
+      <Link
+        href="/training"
+        className={mobileNavItem(trainingOn)}
+        onClick={(e) => {
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+          e.preventDefault();
+          pushWithAuthGate("/training");
+        }}
+      >
         Training
       </Link>
 
-      <Link href="/u23" className={mobileNavItem(u23On)}>
+      <Link
+        href="/u23"
+        className={mobileNavItem(u23On)}
+        onClick={(e) => {
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+          e.preventDefault();
+          pushWithAuthGate("/u23");
+        }}
+      >
         U23
       </Link>
 
-      <Link href="/esports" className={mobileNavItem(esportsOn)}>
+      <Link
+        href="/esports"
+        className={mobileNavItem(esportsOn)}
+        onClick={(e) => {
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+          e.preventDefault();
+          pushWithAuthGate("/esports");
+        }}
+      >
         Esports
       </Link>
 
-      <Link href="/guidance" className={mobileNavItem(guidanceOn)}>
+      <Link
+        href="/guidance"
+        className={mobileNavItem(guidanceOn)}
+        onClick={(e) => {
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+          e.preventDefault();
+          pushWithAuthGate("/guidance");
+        }}
+      >
         Guidance
       </Link>
 
@@ -531,6 +632,12 @@ export function TopNav({
                         key={item.href + item.label}
                         href={item.href}
                         className="block rounded-lg px-3 py-2 text-sm text-white/85 transition hover:bg-white/10 hover:text-white"
+                        onClick={(e) => {
+                          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                          e.preventDefault();
+                          setOpenMenu(null);
+                          pushWithAuthGate(item.href);
+                        }}
                       >
                         {item.label}
                       </Link>
@@ -559,6 +666,12 @@ export function TopNav({
                         key={item.href + item.label}
                         href={item.href}
                         className="block rounded-lg px-3 py-2 text-sm text-white/85 transition hover:bg-white/10 hover:text-white"
+                        onClick={(e) => {
+                          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                          e.preventDefault();
+                          setOpenMenu(null);
+                          pushWithAuthGate(item.href);
+                        }}
                       >
                         {item.label}
                       </Link>
@@ -570,17 +683,35 @@ export function TopNav({
               <Link
                 href="/training"
                 className={trainingOn ? linkActive : linkIdle}
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                  e.preventDefault();
+                  pushWithAuthGate("/training");
+                }}
               >
                 Training
               </Link>
 
-              <Link href="/u23" className={u23On ? linkActive : linkIdle}>
+              <Link
+                href="/u23"
+                className={u23On ? linkActive : linkIdle}
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                  e.preventDefault();
+                  pushWithAuthGate("/u23");
+                }}
+              >
                 U23
               </Link>
 
               <Link
                 href="/esports"
                 className={esportsOn ? linkActive : linkIdle}
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                  e.preventDefault();
+                  pushWithAuthGate("/esports");
+                }}
               >
                 Esports
               </Link>
@@ -588,6 +719,11 @@ export function TopNav({
               <Link
                 href="/guidance"
                 className={guidanceOn ? linkActive : linkIdle}
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                  e.preventDefault();
+                  pushWithAuthGate("/guidance");
+                }}
               >
                 Guidance
               </Link>

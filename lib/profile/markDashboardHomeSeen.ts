@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ensureProfileRowForAuthUser } from "@/lib/profile/ensureProfileRowForAuthUser";
+import { isMissingProfileColumnError } from "@/lib/profileLoad";
 import { trySupabaseService } from "@/lib/supabase/service";
 
 const now = () => new Date().toISOString();
@@ -20,13 +21,19 @@ export async function markDashboardHomeSeen(
   if (svc) {
     await ensureProfileRowForAuthUser({ id: userId, email: userHint?.email ?? null });
     const { error } = await svc.from("profiles").update(payload).eq("id", userId);
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      if (isMissingProfileColumnError(error.message)) return { ok: true };
+      return { ok: false, error: error.message };
+    }
     return { ok: true };
   }
 
   if (userScoped) {
     const { error } = await userScoped.from("profiles").update(payload).eq("id", userId);
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      if (isMissingProfileColumnError(error.message)) return { ok: true };
+      return { ok: false, error: error.message };
+    }
     return { ok: true };
   }
 

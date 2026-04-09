@@ -1,0 +1,6 @@
+-- Reset `has_seen_dashboard_home` so you can test first-run `/` (real dashboard UI) again.
+-- Replace the UUID with your auth user id (Supabase Auth → Users, or `auth.uid()` in SQL).
+--
+--   update public.profiles
+--   set has_seen_dashboard_home = false, updated_at = now()
+--   where id = '00000000-0000-0000-0000-000000000000';

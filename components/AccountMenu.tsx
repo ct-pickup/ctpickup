@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { signupUrlForIntent } from "@/lib/auth/signupIntent";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 
 function PersonIcon() {
@@ -107,8 +108,11 @@ export default function AccountMenu() {
               <a className="ct-btn ct-btn-outline" href="/login">
                 Log in
               </a>
-              <a className="ct-btn ct-btn-outline" href="/login">
-                Sign up
+              <a className="ct-btn ct-btn-outline" href={signupUrlForIntent("pickup")}>
+                Join Pickup
+              </a>
+              <a className="ct-btn ct-btn-outline" href={signupUrlForIntent("tournament")}>
+                Join Tournament
               </a>
             </div>
           )}

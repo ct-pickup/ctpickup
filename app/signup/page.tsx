@@ -1,11 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { HistoryBack } from "@/components/layout";
 import { Input, selectFieldClassName } from "@/components/ui/input";
 import { EsportsGoaliePreferenceFields } from "@/components/profile/EsportsGoaliePreferenceFields";
+import {
+  SIGNUP_INTENT_QUERY,
+  type SignupIntent,
+  isSignupIntent,
+  signupCopyForIntent,
+  signupUrlForIntent,
+} from "@/lib/auth/signupIntent";
 import { APP_HOME_FIRST_VISIT_URL } from "@/lib/siteNav";
 import {
   bindEsportsPreferenceHandlers,
@@ -115,10 +122,11 @@ function InfoIcon() {
   );
 }
 
-export default function SignupPage() {
+function SignupForm({ intent }: { intent: SignupIntent }) {
   const router = useRouter();
   const transitionNav = useTransitionNav();
   const { supabase, isReady } = useSupabaseBrowser();
+  const copy = signupCopyForIntent(intent);
 
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -237,7 +245,7 @@ export default function SignupPage() {
     const { error } = await supabase.auth.signInWithOtp({
       email: emailClean,
       options: {
-        emailRedirectTo: `${window.location.origin}${APP_HOME_FIRST_VISIT_URL}`,
+        emailRedirectTo: `${window.location.origin}${signupUrlForIntent(intent)}`,
       },
     });
 
@@ -438,12 +446,10 @@ export default function SignupPage() {
             <div className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 md:p-6 shadow-[0_20px_70px_rgba(0,0,0,0.34)]">
               <div className="space-y-3">
                 <h1 className="text-4xl md:text-[52px] font-semibold uppercase tracking-tight">
-                  Sign Up
+                  {copy.title}
                 </h1>
 
-                <p className="text-sm md:text-base text-white/75 leading-relaxed">
-                  Sign up to save your info and manage your invites.
-                </p>
+                <p className="text-sm md:text-base text-white/75 leading-relaxed">{copy.lead}</p>
 
                 <p className="text-sm text-white/60 leading-relaxed">
                   We’ll email you an 8-digit verification code, so no password is needed. Use
@@ -624,7 +630,7 @@ export default function SignupPage() {
                       <span>
                         I agree to the{" "}
                         <Link
-                          href="/liability-waiver"
+                          href={`/liability-waiver?returnTo=${encodeURIComponent(signupUrlForIntent(intent))}`}
                           target="_blank"
                           rel="noreferrer"
                           className="font-semibold text-white underline-offset-4 hover:underline"
@@ -643,7 +649,7 @@ export default function SignupPage() {
                       onClick={() => void saveProfileAndContinue()}
                       disabled={!canSaveProfile || busy || !isReady}
                     >
-                      {busy ? "Saving..." : !isReady ? "Loading…" : "Finish Sign Up"}
+                      {busy ? "Saving..." : !isReady ? "Loading…" : copy.finishCta}
                     </button>
                   </>
                 )}
@@ -668,5 +674,42 @@ export default function SignupPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+function SignupGate() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const raw = searchParams.get(SIGNUP_INTENT_QUERY);
+  const intent = isSignupIntent(raw) ? raw : null;
+
+  useEffect(() => {
+    if (intent === null) {
+      router.replace("/");
+    }
+  }, [intent, router]);
+
+  if (intent === null) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-black text-sm text-white/60">
+        Returning to home…
+      </main>
+    );
+  }
+
+  return <SignupForm intent={intent} />;
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-black text-sm text-white/60">
+          Loading…
+        </main>
+      }
+    >
+      <SignupGate />
+    </Suspense>
   );
 }

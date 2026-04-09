@@ -90,4 +90,4 @@ ALLOWED href VALUES (copy exactly):
 ${helpNavRoutesForPrompt()}
 
 ROUTES (spoken names; same as allowlist — use sparingly in prose)
-/ /signup /login /dashboard /onboarding /profile /pickup /pickup/how-it-works /pickup/intake /pickup/upcoming-games /status /status/pickup /status/tournament /tournament /tournament/how-it-works /training /training/coaches/[slug] /u23 /esports /esports/tournaments /guidance /community /mission /info /rules /help /update /dm`;
+/ /signup (requires ?intent=pickup or ?intent=tournament from the site; do not suggest bare /signup) /login /dashboard /onboarding /profile /pickup /pickup/how-it-works /pickup/intake /pickup/upcoming-games /status /status/pickup /status/tournament /tournament /tournament/how-it-works /training /training/coaches/[slug] /u23 /esports /esports/tournaments /guidance /community /mission /info /rules /help /update /dm`;

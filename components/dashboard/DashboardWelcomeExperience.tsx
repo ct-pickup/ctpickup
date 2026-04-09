@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import {
   AuthenticatedProfileMenu,
   PageShell,
@@ -63,23 +62,14 @@ function HeroSlideshow() {
   );
 }
 
-export type DashboardWelcomeMode = "dashboard" | "firstVisitHome";
-
-export default function DashboardWelcomeExperience({
-  mode,
-}: {
-  mode: DashboardWelcomeMode;
-}) {
+export default function DashboardWelcomeExperience() {
   const { supabase, isReady } = useSupabaseBrowser();
   const [welcomeTarget, setWelcomeTarget] = useState<string | null>(null);
   const [typedLen, setTypedLen] = useState(0);
-  /** `null` until we read localStorage (dashboard mode only). */
-  const [firstVisitToDashboard, setFirstVisitToDashboard] = useState<
-    boolean | null
-  >(mode === "firstVisitHome" ? true : null);
+  /** `null` until we read localStorage. */
+  const [firstVisitToDashboard, setFirstVisitToDashboard] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (mode === "firstVisitHome") return;
     try {
       setFirstVisitToDashboard(
         typeof window !== "undefined" &&
@@ -88,7 +78,7 @@ export default function DashboardWelcomeExperience({
     } catch {
       setFirstVisitToDashboard(false);
     }
-  }, [mode]);
+  }, []);
 
   useEffect(() => {
     if (!isReady || firstVisitToDashboard === null) return;
@@ -174,44 +164,20 @@ export default function DashboardWelcomeExperience({
 
   useEffect(() => {
     if (!typingComplete || firstVisitToDashboard !== true) return;
-    if (mode === "firstVisitHome") {
-      (async () => {
-        try {
-          const token =
-            (await supabase?.auth.getSession())?.data.session?.access_token;
-          if (!token) return;
-          await fetch("/api/profile/mark-dashboard-home-seen", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          try {
-            window.localStorage.setItem(DASHBOARD_WELCOME_SEEN_KEY, "1");
-          } catch {
-            /* ignore */
-          }
-        } catch {
-          /* non-fatal */
-        }
-      })();
-      return;
-    }
 
     try {
       window.localStorage.setItem(DASHBOARD_WELCOME_SEEN_KEY, "1");
     } catch {
       /* ignore quota / private mode */
     }
-  }, [typingComplete, firstVisitToDashboard, mode, supabase]);
-
-  const brandHref = mode === "firstVisitHome" ? "/" : APP_HOME_URL;
-  const homeHref = APP_HOME_URL;
+  }, [typingComplete, firstVisitToDashboard]);
 
   return (
     <PageShell maxWidthClass="max-w-6xl" className="pb-20 pt-2">
       <TopNav
-        brandHref={brandHref}
-        homeHref={homeHref}
-        fallbackHref={APP_HOME_URL}
+        brandHref="/"
+        homeHref="/"
+        fallbackHref="/"
         rightSlot={<AuthenticatedProfileMenu />}
       />
       <EsportsSetupNudgeBar />
@@ -234,17 +200,6 @@ export default function DashboardWelcomeExperience({
             <div className="mt-3 text-sm md:text-base font-semibold text-white/75">
               Use the navigation above to explore pickup games, tournaments, training, and more.
             </div>
-
-            {mode === "firstVisitHome" ? (
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                <Link
-                  href={APP_HOME_URL}
-                  className="inline-flex min-h-[44px] min-w-[200px] items-center justify-center rounded-md bg-white px-6 py-3 text-sm font-semibold text-black hover:opacity-95"
-                >
-                  Continue to home
-                </Link>
-              </div>
-            ) : null}
           </div>
 
           <HeroSlideshow />

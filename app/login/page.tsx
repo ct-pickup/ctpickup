@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { HistoryBack } from "@/components/layout";
 import { safeNextPath } from "@/lib/auth/safeNextPath";
+import { signupUrlForIntent } from "@/lib/auth/signupIntent";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { useTransitionNav } from "@/components/TransitionNavContext";
@@ -219,12 +220,21 @@ function LoginForm() {
           {msg ? <p className="text-sm text-white/70">{msg}</p> : null}
 
           {msg?.includes("No account on file") && (
-            <Link
-              href="/signup"
-              className="block text-sm text-white/70 hover:text-white hover:underline underline-offset-4"
-            >
-              Create account
-            </Link>
+            <div className="space-y-2 text-sm text-white/70">
+              <p className="text-white/55">Create an account when you are joining:</p>
+              <Link
+                href={signupUrlForIntent("pickup")}
+                className="block hover:text-white hover:underline underline-offset-4"
+              >
+                Join Pickup (sign up)
+              </Link>
+              <Link
+                href={signupUrlForIntent("tournament")}
+                className="block hover:text-white hover:underline underline-offset-4"
+              >
+                Join Tournament (sign up)
+              </Link>
+            </div>
           )}
         </div>
       </div>
