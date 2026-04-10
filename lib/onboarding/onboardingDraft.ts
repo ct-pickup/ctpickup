@@ -18,7 +18,6 @@ export type OnboardingDraftV1 = {
   esportsPlatform: EsportsPlatform | null;
   esportsConsole: EsportsConsole | null;
   esportsOnlineId: string;
-  playsGoalie: boolean | null;
 };
 
 export function readOnboardingDraft(): OnboardingDraftV1 | null {

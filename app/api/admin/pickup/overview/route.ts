@@ -39,7 +39,7 @@ export async function GET(req: Request) {
     ? await supabaseAdmin
         .from("profiles")
         .select(
-          "id,first_name,last_name,instagram,tier,plays_goalie,confirmed_count,attended_count,strike_count",
+          "id,first_name,last_name,instagram,tier,confirmed_count,attended_count,strike_count",
         )
         .in("id", confirmedIds)
     : { data: [] as any[] };
@@ -48,7 +48,7 @@ export async function GET(req: Request) {
     ? await supabaseAdmin
         .from("profiles")
         .select(
-          "id,first_name,last_name,instagram,tier,plays_goalie,confirmed_count,attended_count,strike_count",
+          "id,first_name,last_name,instagram,tier,confirmed_count,attended_count,strike_count",
         )
         .in("id", standbyIds)
     : { data: [] as any[] };

@@ -446,24 +446,6 @@ export default function PickupOperatorClient() {
             </div>
           ) : null}
 
-          {detail?.goalie_profile_signal?.low_willing_warning ? (
-            <div
-              className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2.5 text-xs leading-relaxed text-amber-50/95"
-              role="status"
-            >
-              <span className="font-semibold text-amber-100">Goalies (from profiles):</span>{" "}
-              {detail.goalie_profile_signal.willing_confirmed} confirmed player
-              {detail.goalie_profile_signal.willing_confirmed === 1 ? "" : "s"} said they can play
-              goalie. Target is usually at least {detail.goalie_profile_signal.target_minimum} per
-              session — informational only; no auto block.
-            </div>
-          ) : detail?.goalie_profile_signal && detail.counts?.confirmed > 0 ? (
-            <div className="text-[11px] text-white/45">
-              Profile goalies (confirmed): {detail.goalie_profile_signal.willing_confirmed} willing ·
-              target ≥{detail.goalie_profile_signal.target_minimum}
-            </div>
-          ) : null}
-
           {auto ? (
             <details className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white/75">
               <summary className="cursor-pointer text-white/85">Auto pipeline</summary>

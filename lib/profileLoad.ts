@@ -21,9 +21,9 @@ export function isMissingProfileColumnError(message: string | null | undefined):
 export const PROFILE_SCHEMA_OUTDATED_MESSAGE =
   "Account storage is missing the latest profile fields. Ask an admin to update the database, then refresh.";
 
-/** Staff / developers: how to fix missing `profiles` esports + goalie columns. */
+/** Staff / developers: how to fix missing `profiles` esports-related columns. */
 export const PROFILE_SCHEMA_DEV_HINT =
-  "Staff / developers: run `supabase db push` from the repo, or apply the SQL migrations under `supabase/migrations/` for `profiles` esports + goalie columns (files starting with `20260411120000` and `20260415120000`).";
+  "Staff / developers: run `supabase db push` from the repo, or apply the SQL migrations under `supabase/migrations/` for `profiles` esports fields (files starting with `20260411120000` and `20260415120000`).";
 
 /**
  * Full message: short user-facing line + staff/dev migration hint.

@@ -22,7 +22,6 @@ export type SignupDraftV1 = {
   esportsPlatform: EsportsPlatform | null;
   esportsConsole: EsportsConsole | null;
   esportsOnlineId: string;
-  playsGoalie: boolean | null;
 };
 
 export function readSignupDraft(): SignupDraftV1 | null {

@@ -41,11 +41,10 @@ import {
   esportsDetailsComplete,
   esportsProfileNudgeCopy,
   formatEsportsSummary,
-  formatGoaliePreference,
   parseEsportsConsole,
   parseEsportsInterest,
   parseEsportsPlatform,
-  profileEsportsGoalieColumns,
+  profileEsportsPreferenceColumns,
   sanitizeEsportsFormState,
   type EsportsConsole,
   type EsportsInterest,
@@ -115,7 +114,6 @@ export default function ProfilePage() {
   const [esportsPlatform, setEsportsPlatform] = useState<EsportsPlatform | null>(null);
   const [esportsConsole, setEsportsConsole] = useState<EsportsConsole | null>(null);
   const [esportsOnlineId, setEsportsOnlineId] = useState("");
-  const [playsGoalie, setPlaysGoalie] = useState<boolean | null>(null);
   const [prefsBusy, setPrefsBusy] = useState(false);
   const [prefsMsg, setPrefsMsg] = useState<string | null>(null);
   const [hasEsportsSchema, setHasEsportsSchema] = useState(true);
@@ -189,9 +187,6 @@ export default function ProfilePage() {
     setEsportsPlatform(sanitized.platform);
     setEsportsConsole(sanitized.console);
     setEsportsOnlineId(sanitized.onlineId);
-    setPlaysGoalie(
-      profile.plays_goalie === true || profile.plays_goalie === false ? profile.plays_goalie : null
-    );
   }, [profile]);
 
   useEffect(() => {
@@ -280,8 +275,8 @@ export default function ProfilePage() {
       setPrefsMsg(profileSchemaMismatchUserMessage());
       return;
     }
-    if (esportsInterest === null || playsGoalie === null) {
-      setPrefsMsg("Choose an answer for online tournaments and for playing goalie.");
+    if (esportsInterest === null) {
+      setPrefsMsg("Choose an answer for online tournaments.");
       return;
     }
     if (
@@ -298,12 +293,11 @@ export default function ProfilePage() {
       return;
     }
 
-    const prefs = profileEsportsGoalieColumns({
+    const prefs = profileEsportsPreferenceColumns({
       esportsInterest,
       esportsPlatform,
       esportsConsole,
       esportsOnlineId,
-      playsGoalie,
     });
 
     setPrefsBusy(true);
@@ -314,7 +308,6 @@ export default function ProfilePage() {
         esports_platform: prefs.esports_platform,
         esports_console: prefs.esports_console,
         esports_online_id: prefs.esports_online_id,
-        plays_goalie: prefs.plays_goalie,
         updated_at: new Date().toISOString(),
       })
       .eq("id", userId);
@@ -337,7 +330,6 @@ export default function ProfilePage() {
             esports_platform: prefs.esports_platform,
             esports_console: prefs.esports_console,
             esports_online_id: prefs.esports_online_id,
-            plays_goalie: prefs.plays_goalie,
           }
         : p
     );
@@ -522,7 +514,6 @@ export default function ProfilePage() {
               ? fieldRow("Gender description", profile?.gender_other)
               : null}
             {fieldRow("Playing position", profile?.playing_position)}
-            {fieldRow("Goalie", formatGoaliePreference(profile?.plays_goalie))}
             {fieldRow("Online tournaments", formatEsportsSummary(profile ?? {}))}
             {fieldRow("Phone", profile?.phone)}
             {fieldRow("Instagram", ig)}
@@ -651,8 +642,6 @@ export default function ProfilePage() {
                 onEsportsConsole={setEsportsConsole}
                 esportsOnlineId={esportsOnlineId}
                 onEsportsOnlineIdChange={setEsportsOnlineId}
-                playsGoalie={playsGoalie}
-                onPlaysGoalie={setPlaysGoalie}
                 disabled={prefsBusy}
                 incompleteBanner={
                   profile && hasEsportsSchema ? esportsProfileNudgeCopy(profile) : null

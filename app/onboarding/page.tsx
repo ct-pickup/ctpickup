@@ -8,7 +8,7 @@ import { APP_HOME_FIRST_VISIT_URL, APP_HOME_URL } from "@/lib/siteNav";
 import {
   bindEsportsPreferenceHandlers,
   esportsDetailsComplete,
-  profileEsportsGoalieColumns,
+  profileEsportsPreferenceColumns,
   type EsportsConsole,
   type EsportsInterest,
   type EsportsPlatform,
@@ -48,8 +48,6 @@ export default function OnboardingPage() {
   const [esportsPlatform, setEsportsPlatform] = useState<EsportsPlatform | null>(null);
   const [esportsConsole, setEsportsConsole] = useState<EsportsConsole | null>(null);
   const [esportsOnlineId, setEsportsOnlineId] = useState("");
-  const [playsGoalie, setPlaysGoalie] = useState<boolean | null>(null);
-
   const { onEsportsInterest, onEsportsPlatform } = useMemo(
     () =>
       bindEsportsPreferenceHandlers({
@@ -97,8 +95,8 @@ export default function OnboardingPage() {
     if (!ig) return setMsg("Instagram is required.");
     if (!phone.trim()) return setMsg("Phone is required.");
     if (!waiverAccepted) return setMsg("Please accept the Liability Waiver to continue.");
-    if (esportsInterest === null || playsGoalie === null) {
-      return setMsg("Answer the online tournament question and whether you can play goalie.");
+    if (esportsInterest === null) {
+      return setMsg("Answer the online tournament question.");
     }
     if (
       !esportsDetailsComplete({
@@ -117,12 +115,11 @@ export default function OnboardingPage() {
     if (!auth.user) return (window.location.href = "/login");
 
     const profileEmail = auth.user.email?.trim().toLowerCase() ?? null;
-    const prefs = profileEsportsGoalieColumns({
+    const prefs = profileEsportsPreferenceColumns({
       esportsInterest,
       esportsPlatform,
       esportsConsole,
       esportsOnlineId,
-      playsGoalie,
     });
 
     const identity = profileIdentityColumns({
@@ -148,7 +145,6 @@ export default function OnboardingPage() {
         esports_platform: prefs.esports_platform,
         esports_console: prefs.esports_console,
         esports_online_id: prefs.esports_online_id,
-        plays_goalie: prefs.plays_goalie,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "id" }
@@ -265,8 +261,6 @@ export default function OnboardingPage() {
           onEsportsConsole={setEsportsConsole}
           esportsOnlineId={esportsOnlineId}
           onEsportsOnlineIdChange={setEsportsOnlineId}
-          playsGoalie={playsGoalie}
-          onPlaysGoalie={setPlaysGoalie}
         />
 
         <input

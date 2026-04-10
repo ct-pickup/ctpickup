@@ -10,10 +10,6 @@ import {
 import { insertInvitesForTierRanks, sendPickupInviteSms } from "@/lib/pickup/pickupInvites";
 import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
-import {
-  PROFILE_GOALIE_HEADCOUNT_TARGET,
-  shouldWarnLowWillingGoalies,
-} from "@/lib/pickup/profileGoalieRoster";
 
 export const runtime = "nodejs";
 
@@ -96,31 +92,6 @@ export async function GET(req: Request) {
     pending_payment: rsvps.filter((r) => r.status === "pending_payment").length,
   };
 
-  const confirmedIds = Array.from(
-    new Set(rsvps.filter((r) => r.status === "confirmed").map((r) => r.user_id)),
-  );
-  let goalie_willing_confirmed = 0;
-  if (confirmedIds.length) {
-    const goaliesRes = await admin
-      .from("profiles")
-      .select("plays_goalie")
-      .in("id", confirmedIds);
-    if (!goaliesRes.error) {
-      for (const row of goaliesRes.data || []) {
-        if (row.plays_goalie === true) goalie_willing_confirmed += 1;
-      }
-    }
-  }
-
-  const goalie_profile_signal = {
-    willing_confirmed: goalie_willing_confirmed,
-    target_minimum: PROFILE_GOALIE_HEADCOUNT_TARGET,
-    low_willing_warning: shouldWarnLowWillingGoalies(
-      confirmedIds.length,
-      goalie_willing_confirmed,
-    ),
-  };
-
   const auto_status = describePickupAutoStatus(run, slots, availability, rsvps, messages);
 
   return NextResponse.json({
@@ -135,7 +106,6 @@ export async function GET(req: Request) {
       run: updateRun.data?.[0] || null,
     },
     counts,
-    goalie_profile_signal,
     auto_status,
   });
 }

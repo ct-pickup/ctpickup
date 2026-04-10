@@ -1,13 +1,10 @@
 /**
- * First-class profile fields: esports eligibility + goalie preference.
- * Stored on `profiles`; signup collects them, profile is the long-term editor.
+ * First-class profile fields: esports eligibility (optional online tournaments).
+ * Stored on `profiles`; onboarding and profile are the editors.
  */
 
 /** Player-facing strings for signup, onboarding, and profile (single source). */
 export const PLAYER_ESPORTS_GOALIE_COPY = {
-  /** Shown above the goalie question when signup/onboarding splits steps (goalie before online events). */
-  goalieSectionLead:
-    "First, how you play at pickup. Online prize events are optional—we’ll ask next.",
   introTitle: "Weekly online money tournaments (optional)",
   introBody:
     "Separate from ice pickup: if you might join weekly online tournaments for money, answer below. You can change this anytime in Profile.",
@@ -20,9 +17,6 @@ export const PLAYER_ESPORTS_GOALIE_COPY = {
   questionOnlineIdXbox: "What is your Xbox gamertag?",
   questionOnlineIdPlaystation: "What is your PlayStation online ID?",
   onlineIdHelp: "We use this to invite you to the right bracket and verify it’s you.",
-  questionGoalie: "Are you open to playing goalie at pickup?",
-  goalieHelp:
-    "We use this to balance games—most sessions need at least two people who can play net.",
 } as const;
 
 export const ESPORTS_ONLINE_ID_MAX_LEN = 64;
@@ -171,27 +165,19 @@ export function esportsProfileNudgeCopy(row: {
   return esportsSetupNudgeMessage(raw);
 }
 
-export function formatGoaliePreference(plays_goalie: boolean | null | undefined): string | null {
-  if (plays_goalie === true) return "Yes";
-  if (plays_goalie === false) return "No";
-  return "Not set";
-}
-
 /**
  * DB columns for upsert/update from UI state. Clears platform/console when not "yes".
  */
-export function profileEsportsGoalieColumns(args: {
+export function profileEsportsPreferenceColumns(args: {
   esportsInterest: EsportsInterest;
   esportsPlatform: EsportsPlatform | null;
   esportsConsole: EsportsConsole | null;
   esportsOnlineId: string;
-  playsGoalie: boolean;
 }): {
   esports_interest: EsportsInterest;
   esports_platform: EsportsPlatform | null;
   esports_console: EsportsConsole | null;
   esports_online_id: string | null;
-  plays_goalie: boolean;
 } {
   if (args.esportsInterest !== "yes") {
     return {
@@ -199,7 +185,6 @@ export function profileEsportsGoalieColumns(args: {
       esports_platform: null,
       esports_console: null,
       esports_online_id: null,
-      plays_goalie: args.playsGoalie,
     };
   }
   return {
@@ -207,7 +192,6 @@ export function profileEsportsGoalieColumns(args: {
     esports_platform: args.esportsPlatform,
     esports_console: args.esportsConsole,
     esports_online_id: normalizeEsportsOnlineId(args.esportsOnlineId),
-    plays_goalie: args.playsGoalie,
   };
 }
 
