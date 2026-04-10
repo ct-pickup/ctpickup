@@ -80,6 +80,26 @@ export async function POST(req: Request) {
 
   let session;
   try {
+    const currency = String(run.currency || "usd").trim().toLowerCase() || "usd";
+    const unitAmount = Number.isFinite(feeCents) ? Math.round(feeCents) : feeCents;
+    const successUrl = `${baseUrl}/pickup?paid=1`;
+    const cancelUrl = `${baseUrl}/pickup?canceled=1`;
+
+    console.log(
+      JSON.stringify({
+        stripe_checkout_create_attempt: true,
+        flow: "pickup_pay",
+        baseUrl,
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        mode: "payment",
+        currency,
+        unit_amount: unitAmount,
+        customer_email_present: !!(user.email && String(user.email).trim()),
+        metadata_keys: Object.keys(pickupMeta),
+      }),
+    );
+
     session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -87,23 +107,35 @@ export async function POST(req: Request) {
       line_items: [
         {
           price_data: {
-            currency: run.currency || "usd",
-            unit_amount: feeCents,
+            currency,
+            unit_amount: unitAmount,
             product_data: { name: `CT Pickup Field Fee` },
           },
           quantity: 1,
         },
       ],
-      success_url: `${baseUrl}/pickup?paid=1`,
-      cancel_url: `${baseUrl}/pickup?canceled=1`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
       metadata: { ...pickupMeta },
       payment_intent_data: {
         metadata: { ...pickupMeta },
       },
     });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error("stripe_pickup_pay_checkout_error:", msg);
+    const err = e as any;
+    console.error(
+      "stripe_pickup_pay_checkout_error:",
+      JSON.stringify({
+        name: err?.name || null,
+        message: err?.message || (e instanceof Error ? e.message : String(e)),
+        stripe_type: err?.type || null,
+        stripe_code: err?.code || null,
+        stripe_param: err?.param || null,
+        stripe_status_code: err?.statusCode || null,
+        stripe_request_id: err?.requestId || null,
+        reached_stripe: true,
+      }),
+    );
     return NextResponse.json(
       { error: "Payment session could not be created." },
       { status: 500 },

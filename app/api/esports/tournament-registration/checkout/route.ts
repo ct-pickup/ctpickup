@@ -95,6 +95,26 @@ export async function POST(req: Request) {
 
     let session;
     try {
+      const successUrl = `${baseUrl}/esports/tournaments/${tournamentId}/register?paid=1`;
+      const cancelUrl = `${baseUrl}/esports/tournaments/${tournamentId}/register?canceled=1`;
+
+      const snapshot = {
+        event: "stripe_checkout_create_attempt" as const,
+        route: "app/api/esports/tournament-registration/checkout/route.ts" as const,
+        baseUrl,
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        mode: "payment" as const,
+        currency: "usd" as const,
+        unit_amount: ESPORTS_ENTRY_FEE_CENTS,
+        customer_email_present: !!(user.email && String(user.email).trim()),
+        metadata_keys: Object.keys(esportsMeta),
+      };
+
+      console.log(
+        JSON.stringify(snapshot),
+      );
+
       session = await stripe.checkout.sessions.create({
         mode: "payment",
         payment_method_types: ["card"],
@@ -111,16 +131,45 @@ export async function POST(req: Request) {
             quantity: 1,
           },
         ],
-        success_url: `${baseUrl}/esports/tournaments/${tournamentId}/register?paid=1`,
-        cancel_url: `${baseUrl}/esports/tournaments/${tournamentId}/register?canceled=1`,
+        success_url: successUrl,
+        cancel_url: cancelUrl,
         metadata: { ...esportsMeta },
         payment_intent_data: {
           metadata: { ...esportsMeta },
         },
       });
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.error("stripe_esports_checkout_error:", msg);
+      const err = e as any;
+      console.error(
+        "stripe_esports_checkout_error:",
+        JSON.stringify({
+          event: "stripe_checkout_error",
+          route: "app/api/esports/tournament-registration/checkout/route.ts",
+          name: err?.name || null,
+          message: err?.message || (e instanceof Error ? e.message : String(e)),
+          stripe_type: err?.type || null,
+          stripe_code: err?.code || null,
+          stripe_param: err?.param || null,
+          stripe_status_code: err?.statusCode || null,
+          stripe_request_id: err?.requestId || null,
+          reached_stripe: true,
+          request: {
+            baseUrl,
+            success_url: `${baseUrl}/esports/tournaments/${tournamentId}/register?paid=1`,
+            cancel_url: `${baseUrl}/esports/tournaments/${tournamentId}/register?canceled=1`,
+            mode: "payment",
+            currency: "usd",
+            unit_amount: ESPORTS_ENTRY_FEE_CENTS,
+            customer_email_present: !!(user.email && String(user.email).trim()),
+            metadata_keys: Object.keys({
+              kind: "esports" as const,
+              registration_id: String(reg.id),
+              tournament_id: String(tournamentId),
+              user_id: String(user.id),
+            }),
+          },
+        }),
+      );
       return NextResponse.json({ error: "Checkout could not be created." }, { status: 500 });
     }
 

@@ -178,6 +178,28 @@ export async function POST(req: Request) {
 
   let session;
   try {
+    const currency = String(run.currency || "usd").trim().toLowerCase() || "usd";
+    const unitAmount = Number.isFinite(feeCents) ? Math.round(feeCents) : feeCents;
+    const successUrl = `${baseUrl}/pickup?paid=1`;
+    const cancelUrl = `${baseUrl}/pickup?canceled=1`;
+
+    const snapshot = {
+      event: "stripe_checkout_create_attempt" as const,
+      route: "app/api/pickup/rsvp/route.ts" as const,
+      baseUrl,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      mode: "payment" as const,
+      currency,
+      unit_amount: unitAmount,
+      customer_email_present: !!(user.email && String(user.email).trim()),
+      metadata_keys: Object.keys(pickupMeta),
+    };
+
+    console.log(
+      JSON.stringify(snapshot),
+    );
+
     session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -185,23 +207,51 @@ export async function POST(req: Request) {
       line_items: [
         {
           price_data: {
-            currency: run.currency || "usd",
-            unit_amount: feeCents,
+            currency,
+            unit_amount: unitAmount,
             product_data: { name: `CT Pickup Field Fee` },
           },
           quantity: 1,
         },
       ],
-      success_url: `${baseUrl}/pickup?paid=1`,
-      cancel_url: `${baseUrl}/pickup?canceled=1`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
       metadata: { ...pickupMeta },
       payment_intent_data: {
         metadata: { ...pickupMeta },
       },
     });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error("stripe_pickup_rsvp_checkout_error:", msg);
+    const err = e as any;
+    console.error(
+      "stripe_pickup_rsvp_checkout_error:",
+      JSON.stringify({
+        event: "stripe_checkout_error",
+        route: "app/api/pickup/rsvp/route.ts",
+        name: err?.name || null,
+        message: err?.message || (e instanceof Error ? e.message : String(e)),
+        stripe_type: err?.type || null,
+        stripe_code: err?.code || null,
+        stripe_param: err?.param || null,
+        stripe_status_code: err?.statusCode || null,
+        stripe_request_id: err?.requestId || null,
+        reached_stripe: true,
+        request: {
+          baseUrl,
+          success_url: `${baseUrl}/pickup?paid=1`,
+          cancel_url: `${baseUrl}/pickup?canceled=1`,
+          mode: "payment",
+          currency: String(run.currency || "usd").trim().toLowerCase() || "usd",
+          unit_amount: Number.isFinite(feeCents) ? Math.round(feeCents) : feeCents,
+          customer_email_present: !!(user.email && String(user.email).trim()),
+          metadata_keys: Object.keys({
+            kind: "pickup" as const,
+            run_id: String(run.id),
+            user_id: String(user.id),
+          }),
+        },
+      }),
+    );
     return NextResponse.json(
       { error: "Checkout could not be created." },
       { status: 500 },
