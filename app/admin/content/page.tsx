@@ -74,9 +74,9 @@ export default async function AdminContentPage() {
 
   const status = statusRes.data;
   const announcement = (status?.announcement || "").trim();
-  const now = Date.now();
   const nu = status?.next_update_by ? new Date(status.next_update_by).getTime() : null;
-  const scheduled = nu !== null && !Number.isNaN(nu) && nu > now;
+  const scheduled =
+    nu !== null && !Number.isNaN(nu) && nu > new Date().getTime();
 
   return (
     <main className="min-h-screen text-white">

@@ -63,7 +63,9 @@ export default function AdminGuidancePage() {
 
   useEffect(() => {
     if (!isReady) return;
-    void load();
+    queueMicrotask(() => {
+      void load();
+    });
   }, [load, isReady]);
 
   const filtered = useMemo(() => {
