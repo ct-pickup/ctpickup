@@ -3,4 +3,4 @@
  * captain flows (claim, payment), pickup availability / final RSVP / field payment,
  * and before submitting guidance requests.
  */
-export const CURRENT_WAIVER_VERSION = "v1.2";
+export const CURRENT_WAIVER_VERSION = "v1.3";

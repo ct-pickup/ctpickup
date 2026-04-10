@@ -10,7 +10,7 @@ export const ESPORTS_CONFIRMATION_LABELS: Record<EsportsConfirmationKey, string>
   entry_fee_10_nonrefundable:
     "I understand the entry fee is $10 and is non-refundable except where the rules say otherwise.",
   publicity_streaming_consent:
-    "I consent to publicity, streaming, and posting of my gamertag, results, and tournament-related content as described in the Privacy and Publicity Consent Policy.",
+    "I consent to photographs, audio/video recording, livestreaming, and online posting of my gamertag, voice, image, likeness, results, and tournament-related content as described in the Privacy and Publicity Consent Policy.",
   platform_account_requirements:
     "I understand platform and account requirements (EA account, PSN/Xbox, game ownership, internet, subscriptions) as described in the rules and policies.",
 };

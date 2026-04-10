@@ -144,7 +144,35 @@ export function WaiverDocumentBody() {
 
       <section className="space-y-3">
         <h2 className="text-base font-semibold text-white md:text-lg">
-          12. Eligibility &amp; Acceptance
+          12. Photo, Video, Audio &amp; Public Use
+        </h2>
+        <p>
+          Participation in pickup games, tournaments, training, events, or any other
+          activities connected to CT Pickup is voluntary. If you participate, you give
+          <span className="font-semibold text-white/90"> full, irrevocable consent</span>{" "}
+          for CT Pickup, its operators, organizers, volunteers, and anyone they authorize
+          to photograph, film, livestream, and make audio or video recordings of you, and
+          to capture your name, image, likeness, voice, and performance (your
+          &quot;Appearance&quot;) in connection with those activities.
+        </p>
+        <p>
+          You grant CT Pickup a worldwide, royalty-free, perpetual license to use,
+          reproduce, edit, distribute, publicly display, and publish your Appearance, in
+          whole or in part, in any media now known or later developed—including websites,
+          social media, advertising, and promotional materials—without further notice,
+          approval, or compensation to you, except where prohibited by law.
+        </p>
+        <p>
+          You waive any right to inspect or approve finished materials where permitted by
+          law, and you release CT Pickup and its operators from claims arising out of such
+          use. This section is a non-negotiable condition of participation; if you do not
+          agree, you must not take part in CT Pickup activities.
+        </p>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-white md:text-lg">
+          13. Eligibility &amp; Acceptance
         </h2>
         <p>
           By using this platform, you confirm that you have read and agree to this
@@ -156,7 +184,7 @@ export function WaiverDocumentBody() {
 
       <section className="space-y-3">
         <h2 className="text-base font-semibold text-white md:text-lg">
-          13. Payments &amp; Prizes
+          14. Payments &amp; Prizes
         </h2>
         <p>
           All purchases are non-refundable unless otherwise stated. Prizes are subject
@@ -165,7 +193,7 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">14. No Affiliation</h2>
+        <h2 className="text-base font-semibold text-white md:text-lg">15. No Affiliation</h2>
         <p>
           This platform is not affiliated with or endorsed by EA SPORTS or other third
           parties referenced only in connection with user-run activities.

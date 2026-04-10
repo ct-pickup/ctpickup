@@ -494,6 +494,19 @@ export default function TournamentPage() {
                     Claiming a captain spot does not fully confirm your team. Final approval
                     depends on payment, roster verification, eligibility, and admin review.
                   </p>
+
+                  <div className="font-semibold uppercase text-black/90">
+                    Photo, video &amp; online use
+                  </div>
+
+                  <p>
+                    By participating in this tournament (and related CT Pickup activities),
+                    you confirm you have accepted the current Liability Waiver &amp;
+                    Participation Agreement, including consent for CT Pickup to photograph,
+                    record audio and video, livestream, and publish your name, image,
+                    likeness, and voice online and in other media as described there. That
+                    consent is required and is not negotiable if you play.
+                  </p>
                 </div>
 
                 <div className="mt-5 space-y-3">
@@ -503,7 +516,8 @@ export default function TournamentPage() {
                       checked={agreed}
                       onChange={(e) => setAgreed(e.target.checked)}
                     />
-                    I agree to the rules and eligibility requirements.
+                    I agree to the rules, eligibility requirements, and media consent
+                    described above.
                   </label>
 
                   <input
