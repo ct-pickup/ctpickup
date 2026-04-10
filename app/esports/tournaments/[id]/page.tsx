@@ -10,7 +10,9 @@ import {
 } from "@/components/layout";
 import { EsportsRegisterCtaButton } from "@/components/esports/EsportsRegisterCtaButton";
 import { EsportsSetupNudgeBar } from "@/components/profile/EsportsSetupNudgeBar";
+import { KnockoutBracketDisplay } from "@/components/esports/KnockoutBracketDisplay";
 import { fetchPublicEsportsTournamentById } from "@/lib/esports/fetchPublicEsportsTournamentById";
+import { safeKnockoutBracket } from "@/lib/esports/knockoutBracket";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -39,38 +41,6 @@ function DeadlineRow({ label, iso }: { label: string; iso: string | null | undef
   );
 }
 
-type KnockoutBracketRound = { name?: unknown; matches?: unknown };
-type KnockoutBracketMatch = { a?: unknown; b?: unknown; winner?: unknown; notes?: unknown };
-
-function safeBracket(
-  raw: unknown,
-): { rounds: { name: string; matches: { a: string; b: string; winner?: string; notes?: string }[] }[] } | null {
-  if (!raw || typeof raw !== "object") return null;
-  const rounds = (raw as { rounds?: unknown }).rounds;
-  if (!Array.isArray(rounds)) return null;
-  const cleanRounds = rounds
-    .map((r: KnockoutBracketRound) => {
-      const name = typeof r?.name === "string" ? r.name : "Round";
-      const matchesRaw = r?.matches;
-      const matches = Array.isArray(matchesRaw)
-        ? (matchesRaw as KnockoutBracketMatch[])
-            .map((m) => {
-              const a = typeof m?.a === "string" ? m.a : "";
-              const b = typeof m?.b === "string" ? m.b : "";
-              if (!a && !b) return null;
-              const winner = typeof m?.winner === "string" ? m.winner : undefined;
-              const notes = typeof m?.notes === "string" ? m.notes : undefined;
-              return { a: a || "TBD", b: b || "TBD", winner, notes };
-            })
-            .filter(Boolean) as { a: string; b: string; winner?: string; notes?: string }[]
-        : [];
-      return { name, matches };
-    })
-    .filter((r) => r.matches.length > 0);
-  if (cleanRounds.length === 0) return null;
-  return { rounds: cleanRounds };
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const { data } = await fetchPublicEsportsTournamentById(id);
@@ -85,10 +55,10 @@ export default async function EsportsTournamentDetailPage({ params }: Props) {
   const { id } = await params;
   const { data: t, error } = await fetchPublicEsportsTournamentById(id);
   if (error || !t) notFound();
-  const bracket = safeBracket(t.knockout_bracket);
+  const bracket = safeKnockoutBracket(t.knockout_bracket);
 
   return (
-    <PageShell maxWidthClass="max-w-3xl" className="pb-16">
+    <PageShell maxWidthClass="max-w-6xl" className="pb-16">
       <TopNav rightSlot={<AuthenticatedProfileMenu />} />
       <EsportsSetupNudgeBar />
 
@@ -179,44 +149,26 @@ export default async function EsportsTournamentDetailPage({ params }: Props) {
           </div>
         </Panel>
 
-        {bracket ? (
-          <Panel className="p-6 md:p-8">
-            <h2 className="text-lg font-semibold text-white">Knockout bracket</h2>
-            <p className="mt-3 text-sm text-white/65">
-              This bracket is posted by admins after the group stage closes.
-            </p>
-            <div className="mt-6 space-y-6">
-              {bracket.rounds.map((round, idx) => (
-                <div key={`${round.name}-${idx}`}>
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/55">
-                    {round.name}
-                  </p>
-                  <div className="mt-3 overflow-hidden rounded-xl border border-white/10">
-                    <table className="w-full text-left text-sm">
-                      <tbody className="divide-y divide-white/10">
-                        {round.matches.map((m, j) => (
-                          <tr key={`${idx}-${j}`} className="text-white/80">
-                            <td className="px-4 py-3">
-                              {m.a} <span className="text-white/45">vs</span> {m.b}
-                              {m.winner ? (
-                                <div className="mt-1 text-xs text-white/50">
-                                  Winner: <span className="text-white/75">{m.winner}</span>
-                                </div>
-                              ) : null}
-                              {m.notes ? (
-                                <div className="mt-1 text-xs text-white/50">{m.notes}</div>
-                              ) : null}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ))}
+        <Panel className="p-6 md:p-8">
+          <h2 className="text-lg font-semibold text-white">Knockout bracket</h2>
+          {bracket ? (
+            <>
+              <p className="mt-3 text-sm text-white/60">
+                Rounds read left to right on desktop. The highlighted round is the first with an open match.
+              </p>
+              <div className="mt-6">
+                <KnockoutBracketDisplay bracket={bracket} />
+              </div>
+            </>
+          ) : (
+            <div className="mt-6 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-5 py-10 text-center">
+              <p className="text-sm text-white/70">
+                Knockout bracket will be posted after the group stage closes.
+              </p>
+              <p className="mt-2 text-xs text-white/45">Check back for matchups, deadlines, and results.</p>
             </div>
-          </Panel>
-        ) : null}
+          )}
+        </Panel>
 
         <Panel className="p-6 md:p-8">
           <h2 className="text-lg font-semibold text-white">Entry fee</h2>

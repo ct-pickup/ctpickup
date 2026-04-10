@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getAuthUserSafe, supabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
 import { easternDatetimeLocalToIsoUtc } from "@/lib/datetime/easternWallTime";
+import { parseKnockoutBracketStrictJsonString } from "@/lib/esports/knockoutBracket";
 
 async function assertAdmin() {
   const supabase = await supabaseServer();
@@ -48,16 +49,6 @@ function parseOptionalEasternDatetime(label: string, raw: string): string | null
     );
   }
   return iso;
-}
-
-function parseOptionalJson(label: string, raw: string): unknown | null {
-  const s = raw.trim();
-  if (!s) return null;
-  try {
-    return JSON.parse(s);
-  } catch {
-    redirect(`/admin/esports?e=${encodeURIComponent(`${label} must be valid JSON.`)}`);
-  }
 }
 
 export async function createEsportsTournament(formData: FormData) {
@@ -234,7 +225,11 @@ export async function updateEsportsTournamentKnockoutBracket(formData: FormData)
   if (!id) redirect("/admin/esports?e=" + encodeURIComponent("Missing id."));
 
   const bracketRaw = String(formData.get("knockout_bracket") || "");
-  const knockout_bracket = parseOptionalJson("Knockout bracket", bracketRaw);
+  const parsed = parseKnockoutBracketStrictJsonString(bracketRaw);
+  if (!parsed.ok) {
+    redirect(`/admin/esports?e=${encodeURIComponent(parsed.error)}`);
+  }
+  const knockout_bracket = parsed.value;
 
   const svc = supabaseService();
   const { error } = await svc
