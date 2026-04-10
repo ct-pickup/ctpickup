@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAuthUserSafe, supabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
+import { easternDatetimeLocalToIsoUtc } from "@/lib/datetime/easternWallTime";
 
 async function assertAdmin() {
   const supabase = await supabaseServer();
@@ -19,30 +20,34 @@ async function assertAdmin() {
   if (!prof?.is_admin) redirect("/");
 }
 
-function parseTimestamp(label: string, raw: string): string {
+function parseRequiredEasternDatetime(label: string, raw: string): string {
   const s = raw.trim();
   if (!s) {
     redirect(`/admin/esports?e=${encodeURIComponent(`${label} is required.`)}`);
   }
-  const ms = Date.parse(s);
-  if (Number.isNaN(ms)) {
+  const iso = easternDatetimeLocalToIsoUtc(s);
+  if (!iso) {
     redirect(
-      `/admin/esports?e=${encodeURIComponent(`${label} must be a valid date/time (ISO 8601 recommended).`)}`
+      `/admin/esports?e=${encodeURIComponent(
+        `${label} must be a valid date and time. Enter all times in Eastern Time.`,
+      )}`,
     );
   }
-  return new Date(ms).toISOString();
+  return iso;
 }
 
-function parseOptionalTimestamp(label: string, raw: string): string | null {
+function parseOptionalEasternDatetime(label: string, raw: string): string | null {
   const s = raw.trim();
   if (!s) return null;
-  const ms = Date.parse(s);
-  if (Number.isNaN(ms)) {
+  const iso = easternDatetimeLocalToIsoUtc(s);
+  if (!iso) {
     redirect(
-      `/admin/esports?e=${encodeURIComponent(`${label} must be a valid date/time (ISO 8601 recommended).`)}`
+      `/admin/esports?e=${encodeURIComponent(
+        `${label} must be a valid date and time. Enter all times in Eastern Time, or leave blank.`,
+      )}`,
     );
   }
-  return new Date(ms).toISOString();
+  return iso;
 }
 
 function parseOptionalJson(label: string, raw: string): unknown | null {
@@ -66,32 +71,32 @@ export async function createEsportsTournament(formData: FormData) {
   const endRaw = String(formData.get("end_date") || "");
   const format_summary = String(formData.get("format_summary") || "").trim() || null;
 
-  const group_stage_deadline_1 = parseOptionalTimestamp(
-    "Group stage deadline 1",
+  const group_stage_deadline_1 = parseOptionalEasternDatetime(
+    "Group stage deadline — Monday",
     String(formData.get("group_stage_deadline_1") || ""),
   );
-  const group_stage_deadline_2 = parseOptionalTimestamp(
-    "Group stage deadline 2",
+  const group_stage_deadline_2 = parseOptionalEasternDatetime(
+    "Group stage deadline — Tuesday",
     String(formData.get("group_stage_deadline_2") || ""),
   );
-  const group_stage_final_deadline = parseOptionalTimestamp(
-    "Group stage final deadline",
+  const group_stage_final_deadline = parseOptionalEasternDatetime(
+    "Group stage final deadline — Wednesday 11:59 PM",
     String(formData.get("group_stage_final_deadline") || ""),
   );
-  const knockout_start_at = parseOptionalTimestamp(
-    "Knockout start",
+  const knockout_start_at = parseOptionalEasternDatetime(
+    "Knockout starts — Thursday",
     String(formData.get("knockout_start_at") || ""),
   );
-  const quarterfinal_deadline = parseOptionalTimestamp(
+  const quarterfinal_deadline = parseOptionalEasternDatetime(
     "Quarterfinal deadline",
     String(formData.get("quarterfinal_deadline") || ""),
   );
-  const semifinal_deadline = parseOptionalTimestamp(
+  const semifinal_deadline = parseOptionalEasternDatetime(
     "Semifinal deadline",
     String(formData.get("semifinal_deadline") || ""),
   );
-  const final_deadline = parseOptionalTimestamp(
-    "Final deadline",
+  const final_deadline = parseOptionalEasternDatetime(
+    "Final deadline — Sunday 10:30 PM",
     String(formData.get("final_deadline") || ""),
   );
 
@@ -108,8 +113,8 @@ export async function createEsportsTournament(formData: FormData) {
     redirect("/admin/esports?e=" + encodeURIComponent("Invalid status."));
   }
 
-  const start_date = parseTimestamp("Start date", startRaw);
-  const end_date = parseTimestamp("End date", endRaw);
+  const start_date = parseRequiredEasternDatetime("Tournament starts", startRaw);
+  const end_date = parseRequiredEasternDatetime("Tournament ends", endRaw);
 
   const svc = supabaseService();
   const { error } = await svc.from("esports_tournaments").insert({
@@ -153,32 +158,32 @@ export async function updateEsportsTournament(formData: FormData) {
   const startRaw = String(formData.get("start_date") || "");
   const endRaw = String(formData.get("end_date") || "");
 
-  const group_stage_deadline_1 = parseOptionalTimestamp(
-    "Group stage deadline 1",
+  const group_stage_deadline_1 = parseOptionalEasternDatetime(
+    "Group stage deadline — Monday",
     String(formData.get("group_stage_deadline_1") || ""),
   );
-  const group_stage_deadline_2 = parseOptionalTimestamp(
-    "Group stage deadline 2",
+  const group_stage_deadline_2 = parseOptionalEasternDatetime(
+    "Group stage deadline — Tuesday",
     String(formData.get("group_stage_deadline_2") || ""),
   );
-  const group_stage_final_deadline = parseOptionalTimestamp(
-    "Group stage final deadline",
+  const group_stage_final_deadline = parseOptionalEasternDatetime(
+    "Group stage final deadline — Wednesday 11:59 PM",
     String(formData.get("group_stage_final_deadline") || ""),
   );
-  const knockout_start_at = parseOptionalTimestamp(
-    "Knockout start",
+  const knockout_start_at = parseOptionalEasternDatetime(
+    "Knockout starts — Thursday",
     String(formData.get("knockout_start_at") || ""),
   );
-  const quarterfinal_deadline = parseOptionalTimestamp(
+  const quarterfinal_deadline = parseOptionalEasternDatetime(
     "Quarterfinal deadline",
     String(formData.get("quarterfinal_deadline") || ""),
   );
-  const semifinal_deadline = parseOptionalTimestamp(
+  const semifinal_deadline = parseOptionalEasternDatetime(
     "Semifinal deadline",
     String(formData.get("semifinal_deadline") || ""),
   );
-  const final_deadline = parseOptionalTimestamp(
-    "Final deadline",
+  const final_deadline = parseOptionalEasternDatetime(
+    "Final deadline — Sunday 10:30 PM",
     String(formData.get("final_deadline") || ""),
   );
 
@@ -189,8 +194,8 @@ export async function updateEsportsTournament(formData: FormData) {
     redirect("/admin/esports?e=" + encodeURIComponent("Invalid status."));
   }
 
-  const start_date = parseTimestamp("Start date", startRaw);
-  const end_date = parseTimestamp("End date", endRaw);
+  const start_date = parseRequiredEasternDatetime("Tournament starts", startRaw);
+  const end_date = parseRequiredEasternDatetime("Tournament ends", endRaw);
 
   const svc = supabaseService();
   const { error } = await svc

@@ -4,6 +4,7 @@ import { AdminWorkArea } from "@/components/admin/AdminWorkArea";
 import { StatusChip } from "@/components/admin/StatusChip";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { supabaseService } from "@/lib/supabase/service";
+import { isoTimestamptzToEasternDatetimeLocal } from "@/lib/datetime/easternWallTime";
 import {
   createEsportsTournament,
   deleteEsportsTournament,
@@ -27,6 +28,12 @@ function fmtEt(iso: string) {
   } catch {
     return iso;
   }
+}
+
+/** Value for `<input type="datetime-local">` (Eastern wall time, no timezone suffix). */
+function easternLocalInputValue(iso: string | null | undefined): string {
+  if (!iso) return "";
+  return isoTimestamptzToEasternDatetimeLocal(iso);
 }
 
 type Row = {
@@ -306,107 +313,155 @@ export default async function AdminEsportsPage({
             Create esports tournament
           </h2>
           <p className="text-sm text-white/55">
-            Use a full date and time with timezone, e.g.{" "}
-            <code className="text-white/75">2026-05-15T19:00:00-04:00</code>. The public
-            listing only shows tournaments marked <span className="text-white/80">upcoming</span> or{" "}
+            The public listing only shows tournaments marked{" "}
+            <span className="text-white/80">upcoming</span> or{" "}
             <span className="text-white/80">active</span>.
           </p>
           <form
             action={createEsportsTournament}
             className="grid gap-3 md:grid-cols-2 lg:grid-cols-3"
           >
-            <input
-              name="title"
-              required
-              placeholder="Title"
-              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-            />
-            <input
-              name="game"
-              required
-              placeholder='Game (e.g. EA SPORTS FC 26)'
-              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-            />
-            <input
-              name="prize"
-              required
-              placeholder="Prize"
-              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-            />
-            <input
-              name="start_date"
-              required
-              placeholder="Start (ISO 8601)"
-              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-            />
-            <input
-              name="end_date"
-              required
-              placeholder="End (ISO 8601)"
-              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-            />
-            <select
-              name="status"
-              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
-              defaultValue="upcoming"
-            >
-              <option value="upcoming">upcoming</option>
-              <option value="active">active</option>
-              <option value="completed">completed</option>
-            </select>
-            <textarea
-              name="description"
-              placeholder="Description (optional)"
-              rows={3}
-              className="md:col-span-2 lg:col-span-3 rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-            />
-            <textarea
-              name="format_summary"
-              placeholder="Format summary (public) — short, noob-friendly"
-              rows={3}
-              className="md:col-span-2 lg:col-span-3 rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-            />
+            <label className="flex flex-col gap-1 text-xs text-white/55">
+              Title
+              <input
+                name="title"
+                required
+                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-white/55">
+              Game
+              <input
+                name="game"
+                required
+                placeholder="e.g. EA SPORTS FC 26"
+                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-white/55">
+              Prize
+              <input
+                name="prize"
+                required
+                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-white/55">
+              Tournament starts
+              <input
+                name="start_date"
+                type="datetime-local"
+                required
+                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-white/55">
+              Tournament ends
+              <input
+                name="end_date"
+                type="datetime-local"
+                required
+                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-white/55">
+              Status
+              <select
+                name="status"
+                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                defaultValue="upcoming"
+              >
+                <option value="upcoming">upcoming</option>
+                <option value="active">active</option>
+                <option value="completed">completed</option>
+              </select>
+            </label>
+            <label className="md:col-span-2 lg:col-span-3 flex flex-col gap-1 text-xs text-white/55">
+              Description (optional)
+              <textarea
+                name="description"
+                rows={3}
+                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+              />
+            </label>
+            <label className="md:col-span-2 lg:col-span-3 flex flex-col gap-1 text-xs text-white/55">
+              Public format summary
+              <textarea
+                name="format_summary"
+                rows={3}
+                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+              />
+              <span className="text-[11px] font-normal text-white/45">
+                Short simple explanation players will see.
+              </span>
+            </label>
 
-            <div className="md:col-span-2 lg:col-span-3 pt-2">
-              <p className="text-xs uppercase tracking-[0.14em] text-white/45">
-                Stage deadlines (Eastern Time; store as ISO 8601)
-              </p>
+            <div className="md:col-span-2 lg:col-span-3 space-y-1 border-t border-white/10 pt-4">
+              <p className="text-sm font-semibold text-white">Tournament schedule</p>
+              <p className="text-xs text-white/55">Enter all times in Eastern Time.</p>
             </div>
-            <input
-              name="group_stage_deadline_1"
-              placeholder="Group stage deadline 1 (ISO 8601)"
-              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-            />
-            <input
-              name="group_stage_deadline_2"
-              placeholder="Group stage deadline 2 (ISO 8601)"
-              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-            />
-            <input
-              name="group_stage_final_deadline"
-              placeholder="Group stage final deadline (ISO 8601)"
-              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-            />
-            <input
-              name="knockout_start_at"
-              placeholder="Knockout start (ISO 8601)"
-              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-            />
-            <input
-              name="quarterfinal_deadline"
-              placeholder="Quarterfinal deadline (ISO 8601)"
-              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-            />
-            <input
-              name="semifinal_deadline"
-              placeholder="Semifinal deadline (ISO 8601)"
-              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-            />
-            <input
-              name="final_deadline"
-              placeholder="Final deadline (ISO 8601)"
-              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-            />
+            <label className="flex flex-col gap-1 text-xs text-white/55">
+              Group stage deadline — Monday
+              <input
+                name="group_stage_deadline_1"
+                type="datetime-local"
+                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-white/55">
+              Group stage deadline — Tuesday
+              <input
+                name="group_stage_deadline_2"
+                type="datetime-local"
+                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-white/55">
+              Group stage final deadline — Wednesday 11:59 PM
+              <input
+                name="group_stage_final_deadline"
+                type="datetime-local"
+                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+              />
+              <span className="text-[11px] font-normal text-white/45">
+                Pick the date and 11:59 PM Eastern.
+              </span>
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-white/55">
+              Knockout starts — Thursday
+              <input
+                name="knockout_start_at"
+                type="datetime-local"
+                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-white/55">
+              Quarterfinal deadline
+              <input
+                name="quarterfinal_deadline"
+                type="datetime-local"
+                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-white/55">
+              Semifinal deadline
+              <input
+                name="semifinal_deadline"
+                type="datetime-local"
+                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-white/55">
+              Final deadline — Sunday 10:30 PM
+              <input
+                name="final_deadline"
+                type="datetime-local"
+                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+              />
+              <span className="text-[11px] font-normal text-white/45">
+                Pick the date and 10:30 PM Eastern.
+              </span>
+            </label>
             <div className="md:col-span-2 lg:col-span-3">
               <button
                 type="submit"
@@ -436,106 +491,160 @@ export default async function AdminEsportsPage({
                     className="grid gap-3 md:grid-cols-2 lg:grid-cols-3"
                   >
                     <input type="hidden" name="id" value={row.id} />
-                    <input
-                      name="title"
-                      required
-                      defaultValue={row.title}
-                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
-                    />
-                    <input
-                      name="game"
-                      required
-                      defaultValue={row.game}
-                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
-                    />
-                    <input
-                      name="prize"
-                      required
-                      defaultValue={row.prize}
-                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
-                    />
-                    <input
-                      name="start_date"
-                      required
-                      defaultValue={row.start_date}
-                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
-                    />
-                    <input
-                      name="end_date"
-                      required
-                      defaultValue={row.end_date}
-                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
-                    />
-                    <select
-                      name="status"
-                      defaultValue={row.status}
-                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
-                    >
-                      <option value="upcoming">upcoming</option>
-                      <option value="active">active</option>
-                      <option value="completed">completed</option>
-                    </select>
-                    <textarea
-                      name="description"
-                      defaultValue={row.description ?? ""}
-                      rows={3}
-                      className="md:col-span-2 lg:col-span-3 rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
-                    />
-                    <textarea
-                      name="format_summary"
-                      defaultValue={row.format_summary ?? ""}
-                      rows={3}
-                      placeholder="Format summary (public)"
-                      className="md:col-span-2 lg:col-span-3 rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-                    />
-
-                    <div className="md:col-span-2 lg:col-span-3 pt-2">
-                      <p className="text-xs uppercase tracking-[0.14em] text-white/45">
-                        Stage deadlines (Eastern Time)
-                      </p>
-                    </div>
-                    <input
-                      name="group_stage_deadline_1"
-                      defaultValue={row.group_stage_deadline_1 ?? ""}
-                      placeholder="Group stage deadline 1 (ISO 8601)"
-                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-                    />
-                    <input
-                      name="group_stage_deadline_2"
-                      defaultValue={row.group_stage_deadline_2 ?? ""}
-                      placeholder="Group stage deadline 2 (ISO 8601)"
-                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-                    />
-                    <input
-                      name="group_stage_final_deadline"
-                      defaultValue={row.group_stage_final_deadline ?? ""}
-                      placeholder="Group stage final deadline (ISO 8601)"
-                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-                    />
-                    <input
-                      name="knockout_start_at"
-                      defaultValue={row.knockout_start_at ?? ""}
-                      placeholder="Knockout start (ISO 8601)"
-                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-                    />
-                    <input
-                      name="quarterfinal_deadline"
-                      defaultValue={row.quarterfinal_deadline ?? ""}
-                      placeholder="Quarterfinal deadline (ISO 8601)"
-                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-                    />
-                    <input
-                      name="semifinal_deadline"
-                      defaultValue={row.semifinal_deadline ?? ""}
-                      placeholder="Semifinal deadline (ISO 8601)"
-                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-                    />
-                    <input
-                      name="final_deadline"
-                      defaultValue={row.final_deadline ?? ""}
-                      placeholder="Final deadline (ISO 8601)"
-                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                      Title
+                      <input
+                        name="title"
+                        required
+                        defaultValue={row.title}
+                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
                       />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                      Game
+                      <input
+                        name="game"
+                        required
+                        defaultValue={row.game}
+                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                      Prize
+                      <input
+                        name="prize"
+                        required
+                        defaultValue={row.prize}
+                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                      Tournament starts
+                      <input
+                        name="start_date"
+                        type="datetime-local"
+                        required
+                        defaultValue={easternLocalInputValue(row.start_date)}
+                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                      Tournament ends
+                      <input
+                        name="end_date"
+                        type="datetime-local"
+                        required
+                        defaultValue={easternLocalInputValue(row.end_date)}
+                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                      Status
+                      <select
+                        name="status"
+                        defaultValue={row.status}
+                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                      >
+                        <option value="upcoming">upcoming</option>
+                        <option value="active">active</option>
+                        <option value="completed">completed</option>
+                      </select>
+                    </label>
+                    <label className="md:col-span-2 lg:col-span-3 flex flex-col gap-1 text-xs text-white/55">
+                      Description (optional)
+                      <textarea
+                        name="description"
+                        defaultValue={row.description ?? ""}
+                        rows={3}
+                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                      />
+                    </label>
+                    <label className="md:col-span-2 lg:col-span-3 flex flex-col gap-1 text-xs text-white/55">
+                      Public format summary
+                      <textarea
+                        name="format_summary"
+                        defaultValue={row.format_summary ?? ""}
+                        rows={3}
+                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                      />
+                      <span className="text-[11px] font-normal text-white/45">
+                        Short simple explanation players will see.
+                      </span>
+                    </label>
+
+                    <div className="md:col-span-2 lg:col-span-3 space-y-1 border-t border-white/10 pt-4">
+                      <p className="text-sm font-semibold text-white">Tournament schedule</p>
+                      <p className="text-xs text-white/55">Enter all times in Eastern Time.</p>
+                    </div>
+                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                      Group stage deadline — Monday
+                      <input
+                        name="group_stage_deadline_1"
+                        type="datetime-local"
+                        defaultValue={easternLocalInputValue(row.group_stage_deadline_1)}
+                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                      Group stage deadline — Tuesday
+                      <input
+                        name="group_stage_deadline_2"
+                        type="datetime-local"
+                        defaultValue={easternLocalInputValue(row.group_stage_deadline_2)}
+                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                      Group stage final deadline — Wednesday 11:59 PM
+                      <input
+                        name="group_stage_final_deadline"
+                        type="datetime-local"
+                        defaultValue={easternLocalInputValue(row.group_stage_final_deadline)}
+                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                      />
+                      <span className="text-[11px] font-normal text-white/45">
+                        Pick the date and 11:59 PM Eastern.
+                      </span>
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                      Knockout starts — Thursday
+                      <input
+                        name="knockout_start_at"
+                        type="datetime-local"
+                        defaultValue={easternLocalInputValue(row.knockout_start_at)}
+                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                      Quarterfinal deadline
+                      <input
+                        name="quarterfinal_deadline"
+                        type="datetime-local"
+                        defaultValue={easternLocalInputValue(row.quarterfinal_deadline)}
+                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                      Semifinal deadline
+                      <input
+                        name="semifinal_deadline"
+                        type="datetime-local"
+                        defaultValue={easternLocalInputValue(row.semifinal_deadline)}
+                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                      Final deadline — Sunday 10:30 PM
+                      <input
+                        name="final_deadline"
+                        type="datetime-local"
+                        defaultValue={easternLocalInputValue(row.final_deadline)}
+                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                      />
+                      <span className="text-[11px] font-normal text-white/45">
+                        Pick the date and 10:30 PM Eastern.
+                      </span>
+                    </label>
                     <div className="flex flex-wrap gap-2 md:col-span-2 lg:col-span-3">
                       <button
                         type="submit"
