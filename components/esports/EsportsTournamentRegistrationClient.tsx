@@ -39,6 +39,65 @@ const DOC_LINKS = {
   privacy: "/legal/esports/privacy-publicity",
 } as const;
 
+const US_STATE_OPTIONS = [
+  { value: "", label: "Select…" },
+  { value: "AL", label: "AL — Alabama" },
+  { value: "AK", label: "AK — Alaska" },
+  { value: "AZ", label: "AZ — Arizona" },
+  { value: "AR", label: "AR — Arkansas" },
+  { value: "CA", label: "CA — California" },
+  { value: "CO", label: "CO — Colorado" },
+  { value: "CT", label: "CT — Connecticut" },
+  { value: "DE", label: "DE — Delaware" },
+  { value: "DC", label: "DC — District of Columbia" },
+  { value: "FL", label: "FL — Florida" },
+  { value: "GA", label: "GA — Georgia" },
+  { value: "HI", label: "HI — Hawaii" },
+  { value: "ID", label: "ID — Idaho" },
+  { value: "IL", label: "IL — Illinois" },
+  { value: "IN", label: "IN — Indiana" },
+  { value: "IA", label: "IA — Iowa" },
+  { value: "KS", label: "KS — Kansas" },
+  { value: "KY", label: "KY — Kentucky" },
+  { value: "LA", label: "LA — Louisiana" },
+  { value: "ME", label: "ME — Maine" },
+  { value: "MD", label: "MD — Maryland" },
+  { value: "MA", label: "MA — Massachusetts" },
+  { value: "MI", label: "MI — Michigan" },
+  { value: "MN", label: "MN — Minnesota" },
+  { value: "MS", label: "MS — Mississippi" },
+  { value: "MO", label: "MO — Missouri" },
+  { value: "MT", label: "MT — Montana" },
+  { value: "NE", label: "NE — Nebraska" },
+  { value: "NV", label: "NV — Nevada" },
+  { value: "NH", label: "NH — New Hampshire" },
+  { value: "NJ", label: "NJ — New Jersey" },
+  { value: "NM", label: "NM — New Mexico" },
+  { value: "NY", label: "NY — New York" },
+  { value: "NC", label: "NC — North Carolina" },
+  { value: "ND", label: "ND — North Dakota" },
+  { value: "OH", label: "OH — Ohio" },
+  { value: "OK", label: "OK — Oklahoma" },
+  { value: "OR", label: "OR — Oregon" },
+  { value: "PA", label: "PA — Pennsylvania" },
+  { value: "RI", label: "RI — Rhode Island" },
+  { value: "SC", label: "SC — South Carolina" },
+  { value: "SD", label: "SD — South Dakota" },
+  { value: "TN", label: "TN — Tennessee" },
+  { value: "TX", label: "TX — Texas" },
+  { value: "UT", label: "UT — Utah" },
+  { value: "VT", label: "VT — Vermont" },
+  { value: "VA", label: "VA — Virginia" },
+  { value: "WA", label: "WA — Washington" },
+  { value: "WV", label: "WV — West Virginia" },
+  { value: "WI", label: "WI — Wisconsin" },
+  { value: "WY", label: "WY — Wyoming" },
+] as const;
+
+function normStateCode(s: string): string {
+  return String(s || "").trim().toUpperCase();
+}
+
 function emptyConfirmations(): EsportsConfirmations {
   return ESPORTS_CONFIRMATION_KEYS.reduce((acc, k) => {
     acc[k] = false;
@@ -148,6 +207,7 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
     if (!profile.legal_name?.trim()) return false;
     if (!profile.contact_email?.trim()) return false;
     if (!profile.state?.trim()) return false;
+    if (normStateCode(profile.state) === "CT") return false;
     if (profile.platform === "playstation" && !profile.psn_id) return false;
     if (profile.platform === "xbox" && !profile.xbox_gamertag) return false;
     if (!profile.affirmed_18_plus && !profile.date_of_birth) return false;
@@ -163,6 +223,8 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
   const [pfEa, setPfEa] = useState("");
   const [pfDob, setPfDob] = useState("");
   const [pfAff18, setPfAff18] = useState(false);
+
+  const stateBlocked = useMemo(() => normStateCode(pfState) === "CT", [pfState]);
 
   useEffect(() => {
     if (!profile) return;
@@ -183,6 +245,10 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
 
   async function saveEsportsProfile() {
     if (profileBusy) return;
+    if (stateBlocked) {
+      setProfileMsg("No CT residents are allowed.");
+      return;
+    }
     setProfileBusy(true);
     setProfileMsg(null);
     try {
@@ -351,14 +417,24 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
             <label className="text-xs font-semibold uppercase tracking-[0.14em] text-white/55">
               State
             </label>
-            <input
-              value={pfState}
-              onChange={(e) => setPfState(e.target.value)}
-              className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
-              placeholder="e.g. NY"
+            <select
+              value={normStateCode(pfState)}
+              onChange={(e) => {
+                setProfileMsg(null);
+                setPfState(e.target.value);
+              }}
+              className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
               disabled={profileBusy}
-              maxLength={32}
-            />
+            >
+              {US_STATE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value} disabled={opt.value === ""}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            {stateBlocked ? (
+              <p className="text-xs text-red-300">No CT residents are allowed.</p>
+            ) : null}
           </div>
 
           <div className="space-y-1.5 sm:col-span-2">
@@ -465,7 +541,7 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
           <button
             type="button"
             onClick={() => void saveEsportsProfile()}
-            disabled={profileBusy}
+            disabled={profileBusy || stateBlocked}
             className="inline-flex items-center justify-center rounded-md border border-white/20 px-5 py-3 text-sm font-semibold text-white/85 transition hover:border-white/35 hover:text-white disabled:opacity-40"
           >
             {profileBusy ? "Saving…" : profile ? "Update esports profile" : "Save esports profile"}

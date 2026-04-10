@@ -24,22 +24,38 @@ export type KnockoutBracket = {
 export const KNOCKOUT_BRACKET_SAMPLE_JSON = `{
   "rounds": [
     {
+      "name": "Round of 16",
+      "matches": [
+        { "a": "Seed 1", "b": "Seed 16", "winner": "Seed 1", "notes": "Play by Thu 8pm ET" },
+        { "a": "Seed 8", "b": "Seed 9" },
+        { "a": "Seed 5", "b": "Seed 12" },
+        { "a": "Seed 4", "b": "Seed 13" },
+        { "a": "Seed 6", "b": "Seed 11" },
+        { "a": "Seed 3", "b": "Seed 14" },
+        { "a": "Seed 7", "b": "Seed 10" },
+        { "a": "Seed 2", "b": "Seed 15" }
+      ]
+    },
+    {
       "name": "Quarterfinals",
       "matches": [
-        { "a": "Player 1", "b": "Player 2", "winner": "Player 1", "deadline": "Thu 11:59 PM ET", "notes": "Screenshot proof in Discord" },
-        { "a": "Player 3", "b": "Player 4" }
+        { "a": "Seed 1", "b": "TBD", "deadline": "Fri 11:59 PM ET" },
+        { "a": "TBD", "b": "TBD" },
+        { "a": "TBD", "b": "TBD" },
+        { "a": "TBD", "b": "TBD" }
       ]
     },
     {
       "name": "Semifinals",
       "matches": [
-        { "a": "Player 1", "b": "TBD" }
+        { "a": "TBD", "b": "TBD" },
+        { "a": "TBD", "b": "TBD" }
       ]
     },
     {
       "name": "Final",
       "matches": [
-        { "a": "TBD", "b": "TBD" }
+        { "a": "TBD", "b": "TBD", "notes": "Sunday finish — see schedule panel" }
       ]
     }
   ]
@@ -175,6 +191,14 @@ export function parseKnockoutBracketStrict(raw: unknown): ParseKnockoutBracketRe
     }
     rounds.push(pr);
   }
+  for (let i = 0; i < rounds.length; i++) {
+    for (let j = 0; j < rounds[i].matches.length; j++) {
+      const err = validateKnockoutMatchWinner(rounds[i].matches[j]);
+      if (err) {
+        return { ok: false, error: `Round "${rounds[i].name}" (match ${j + 1}): ${err}` };
+      }
+    }
+  }
   if (rounds.length === 0) return { ok: true, value: null };
   return { ok: true, value: { rounds } };
 }
@@ -203,4 +227,22 @@ export function currentRoundIndex(bracket: KnockoutBracket | null): number | nul
 
 export function winnerMatchesPlayer(winner: string, player: string): boolean {
   return winner.trim().toLowerCase() === player.trim().toLowerCase();
+}
+
+function isPlaceholderTbdLabel(s: string): boolean {
+  return s.trim().toLowerCase() === "tbd";
+}
+
+/**
+ * Admin-only: if `winner` is set, it must match slot A or B (case-insensitive).
+ * Literal "TBD" as winner is rejected (use empty / omit `winner` instead).
+ */
+export function validateKnockoutMatchWinner(match: KnockoutBracketMatch): string | null {
+  const w = match.winner?.trim();
+  if (!w) return null;
+  if (isPlaceholderTbdLabel(w)) {
+    return 'Remove "winner" or leave it blank for undecided matches (do not set winner to TBD).';
+  }
+  if (winnerMatchesPlayer(w, match.a) || winnerMatchesPlayer(w, match.b)) return null;
+  return `Winner "${match.winner}" must exactly match player A or B for that match (check spelling).`;
 }

@@ -153,10 +153,16 @@ export default async function EsportsTournamentDetailPage({ params }: Props) {
           <h2 className="text-lg font-semibold text-white">Knockout bracket</h2>
           {bracket ? (
             <>
-              <p className="mt-3 text-sm text-white/60">
-                Rounds read left to right on desktop. The highlighted round is the first with an open match.
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/60">
+                Single elimination: each column is one round (for example Round of 16 through Final). On larger screens,
+                rounds flow left to right; on mobile they appear in order top to bottom. The highlighted round is the
+                first one that still has a match without a winner.
               </p>
-              <div className="mt-6">
+              <div
+                className="mt-6 rounded-2xl border border-white/10 bg-black/25 p-4 md:p-6"
+                role="region"
+                aria-label="Knockout bracket"
+              >
                 <KnockoutBracketDisplay bracket={bracket} />
               </div>
             </>

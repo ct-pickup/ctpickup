@@ -14,11 +14,11 @@ const SHAPE_HELP = `{
       "name": "Quarterfinals",
       "matches": [
         {
-          "a": "Player or TBD",
-          "b": "Player or TBD",
-          "winner": "optional, must match a or b",
-          "notes": "optional",
-          "deadline": "optional text, e.g. Thu 11:59 PM ET"
+          "a": "Player 1",
+          "b": "Player 2",
+          "winner": "Player 1",
+          "notes": "Thursday deadline",
+          "deadline": "optional, e.g. Thu 11:59 PM ET"
         }
       ]
     }
@@ -41,11 +41,17 @@ export function EsportsKnockoutBracketEditor({ tournamentId, initialJson }: Prop
     <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
       <h3 className="text-sm font-semibold text-white">Knockout bracket (JSON)</h3>
       <p className="mt-2 text-xs leading-relaxed text-white/55">
-        Optional public bracket shown on the tournament page. Paste valid JSON below. Leave empty to clear the
-        bracket. Invalid JSON is rejected on save.
+        Optional public bracket on the tournament page. Leave the field empty to clear. Save runs validation: valid
+        JSON, each round must have a <span className="text-white/75">matches</span> array, and if{" "}
+        <span className="text-white/75">winner</span> is set it must match <span className="text-white/75">a</span> or{" "}
+        <span className="text-white/75">b</span> exactly (case-insensitive). Omit{" "}
+        <span className="text-white/75">a</span> / <span className="text-white/75">b</span> or use{" "}
+        <span className="text-white/75">TBD</span> for open slots.
       </p>
       <details className="mt-3 text-xs text-white/50">
-        <summary className="cursor-pointer select-none text-white/65 hover:text-white/80">Expected shape</summary>
+        <summary className="cursor-pointer select-none text-white/65 hover:text-white/80">
+          Minimal example (round names are free text: Round of 16, Quarterfinals, …)
+        </summary>
         <pre className="mt-2 overflow-x-auto rounded-lg border border-white/10 bg-black/40 p-3 font-mono text-[11px] leading-relaxed text-white/70">
           {SHAPE_HELP}
         </pre>
@@ -113,14 +119,16 @@ export function EsportsKnockoutBracketEditor({ tournamentId, initialJson }: Prop
       </form>
       {preview ? (
         <div className="mt-6 border-t border-white/10 pt-6">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">Preview</p>
-          <p className="mt-1 text-xs text-white/45">Approximate public layout (scroll horizontally if needed).</p>
-          <div className="mt-4 max-h-[min(28rem,70vh)] overflow-auto rounded-xl border border-white/10 bg-black/30 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">Live preview</p>
+          <p className="mt-1 text-xs text-white/45">
+            Same component as the public page (compact). Widen the panel or scroll horizontally on small screens.
+          </p>
+          <div className="mt-4 max-h-[min(32rem,75vh)] overflow-auto rounded-xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-black/40 p-4">
             <KnockoutBracketDisplay bracket={preview} compact />
           </div>
         </div>
       ) : draft.trim() !== "" && parsed.ok && !parsed.value ? (
-        <p className="mt-4 text-xs text-white/45">Preview: nothing to show (empty rounds or no matches).</p>
+        <p className="mt-4 text-xs text-white/45">Preview: nothing to show (empty rounds array or no valid matches).</p>
       ) : null}
     </div>
   );

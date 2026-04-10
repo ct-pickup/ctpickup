@@ -81,6 +81,9 @@ export async function POST(req: Request) {
     if (!state || state.length < 2) {
       return NextResponse.json({ error: "State is required." }, { status: 400 });
     }
+    if (state === "CT") {
+      return NextResponse.json({ error: "No CT residents are allowed." }, { status: 400 });
+    }
     if (!platform) {
       return NextResponse.json({ error: "Platform is required." }, { status: 400 });
     }
