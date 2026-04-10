@@ -7,7 +7,7 @@ import {
   type EsportsConfirmations,
 } from "@/lib/esports/esportsRegistrationConfirmations";
 import { getAuthUserSafe, supabaseServer } from "@/lib/supabase/server";
-import { supabaseService } from "@/lib/supabase/service";
+import { checkRateLimit, requestIp } from "@/lib/server/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -17,6 +17,19 @@ export async function POST(req: Request) {
     const user = await getAuthUserSafe(server);
     if (!user) {
       return NextResponse.json({ error: "You must be logged in." }, { status: 401 });
+    }
+
+    const ip = requestIp(req);
+    const rl = checkRateLimit({
+      key: `esports_consent:${user.id}:${ip}`,
+      limit: 30,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "Too many requests. Try again soon." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } },
+      );
     }
 
     const body = await req.json();
@@ -34,9 +47,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "All confirmations are required." }, { status: 400 });
     }
 
-    const svc = supabaseService();
-
-    const { data: playerProfile, error: pErr } = await svc
+    const { data: playerProfile, error: pErr } = await server
       .from("esports_player_profiles")
       .select("id,affirmed_18_plus,date_of_birth,platform,psn_id,xbox_gamertag,legal_name,contact_email,state")
       .eq("user_id", user.id)
@@ -49,7 +60,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { data: tournament, error: tErr } = await svc
+    const { data: tournament, error: tErr } = await server
       .from("esports_tournaments")
       .select("id,status")
       .eq("id", tournamentId)
@@ -60,12 +71,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Tournament not open for registration." }, { status: 404 });
     }
 
-    const { data: existing } = await svc
+    const { data: existing, error: exErr } = await server
       .from("esports_tournament_registrations")
       .select("id,payment_status")
       .eq("user_id", user.id)
       .eq("tournament_id", tournamentId)
       .maybeSingle();
+    if (exErr) {
+      console.error("[api/esports/consent] existing lookup failed:", exErr.message);
+      return NextResponse.json({ error: "Could not record consent." }, { status: 500 });
+    }
 
     if (existing?.payment_status === "paid") {
       return NextResponse.json({ error: "You are already registered and paid for this event." }, { status: 409 });
@@ -73,7 +88,7 @@ export async function POST(req: Request) {
 
     const userAgent = req.headers.get("user-agent");
     const forwardedFor = req.headers.get("x-forwarded-for");
-    const ip = forwardedFor?.split(",")[0]?.trim() || null;
+    const ipAddr = forwardedFor?.split(",")[0]?.trim() || null;
     const now = new Date().toISOString();
 
     const resetIfUnpaid =
@@ -95,7 +110,7 @@ export async function POST(req: Request) {
       doc_version_terms: esportsDocVersionLabel.participantTerms,
       doc_version_privacy_publicity: esportsDocVersionLabel.privacyPublicity,
       confirmations: confirmations as EsportsConfirmations,
-      consent_ip_address: ip,
+      consent_ip_address: ipAddr,
       consent_user_agent: userAgent,
       consent_recorded_at: now,
       auth_email: user.email ?? null,
@@ -104,7 +119,7 @@ export async function POST(req: Request) {
     };
 
     if (existing) {
-      const { data: updated, error: upErr } = await svc
+      const { data: updated, error: upErr } = await server
         .from("esports_tournament_registrations")
         .update(row)
         .eq("id", existing.id)
@@ -113,27 +128,27 @@ export async function POST(req: Request) {
         .maybeSingle();
 
       if (upErr || !updated) {
-        console.error("esports consent update:", upErr?.message);
+        console.error("[api/esports/consent] update failed:", upErr?.message);
         return NextResponse.json({ error: "Could not update consent." }, { status: 500 });
       }
 
       return NextResponse.json({ ok: true, registration_id: updated.id });
     }
 
-    const { data: inserted, error: insErr } = await svc
+    const { data: inserted, error: insErr } = await server
       .from("esports_tournament_registrations")
       .insert(row)
       .select("id")
       .single();
 
     if (insErr || !inserted) {
-      console.error("esports consent insert:", insErr?.message);
+      console.error("[api/esports/consent] insert failed:", insErr?.message);
       return NextResponse.json({ error: "Could not record consent." }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true, registration_id: inserted.id });
   } catch (e) {
-    console.error("esports consent route:", e);
+    console.error("[api/esports/consent] Unhandled error:", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

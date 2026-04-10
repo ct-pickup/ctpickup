@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthUserSafe, supabaseServer } from "@/lib/supabase/server";
-import { supabaseService } from "@/lib/supabase/service";
+import { checkRateLimit, requestIp } from "@/lib/server/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -25,8 +25,7 @@ export async function GET() {
   const user = await getAuthUserSafe(server);
   if (!user) return NextResponse.json({ error: "You must be logged in." }, { status: 401 });
 
-  const svc = supabaseService();
-  const { data, error } = await svc
+  const { data, error } = await server
     .from("esports_player_profiles")
     .select(
       "id,user_id,legal_name,contact_email,state,platform,psn_id,xbox_gamertag,ea_account,date_of_birth,affirmed_18_plus,created_at,updated_at",
@@ -34,7 +33,10 @@ export async function GET() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[api/esports/player-profile] GET query failed:", error.message);
+    return NextResponse.json({ error: "Could not load profile." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true, profile: data ?? null });
 }
 
@@ -43,6 +45,19 @@ export async function POST(req: Request) {
     const server = await supabaseServer();
     const user = await getAuthUserSafe(server);
     if (!user) return NextResponse.json({ error: "You must be logged in." }, { status: 401 });
+
+    const ip = requestIp(req);
+    const rl = checkRateLimit({
+      key: `esports_player_profile:${user.id}:${ip}`,
+      limit: 20,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "Too many requests. Try again soon." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } },
+      );
+    }
 
     const body = (await req.json()) as Body;
 
@@ -80,7 +95,6 @@ export async function POST(req: Request) {
     }
 
     const now = new Date().toISOString();
-    const svc = supabaseService();
 
     const row = {
       user_id: user.id,
@@ -96,14 +110,18 @@ export async function POST(req: Request) {
       updated_at: now,
     };
 
-    const { data: existing } = await svc
+    const { data: existing, error: exErr } = await server
       .from("esports_player_profiles")
       .select("id")
       .eq("user_id", user.id)
       .maybeSingle();
+    if (exErr) {
+      console.error("[api/esports/player-profile] POST existing lookup failed:", exErr.message);
+      return NextResponse.json({ error: "Could not save profile." }, { status: 500 });
+    }
 
     if (existing?.id) {
-      const { data, error } = await svc
+      const { data, error } = await server
         .from("esports_player_profiles")
         .update(row)
         .eq("id", existing.id)
@@ -112,11 +130,14 @@ export async function POST(req: Request) {
           "id,user_id,legal_name,contact_email,state,platform,psn_id,xbox_gamertag,ea_account,date_of_birth,affirmed_18_plus,created_at,updated_at",
         )
         .single();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) {
+        console.error("[api/esports/player-profile] POST update failed:", error.message);
+        return NextResponse.json({ error: "Could not save profile." }, { status: 500 });
+      }
       return NextResponse.json({ ok: true, profile: data });
     }
 
-    const { data, error } = await svc
+    const { data, error } = await server
       .from("esports_player_profiles")
       .insert({ ...row, created_at: now })
       .select(
@@ -124,10 +145,13 @@ export async function POST(req: Request) {
       )
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("[api/esports/player-profile] POST insert failed:", error.message);
+      return NextResponse.json({ error: "Could not save profile." }, { status: 500 });
+    }
     return NextResponse.json({ ok: true, profile: data });
   } catch (e) {
-    console.error("esports player profile route:", e);
+    console.error("[api/esports/player-profile] Unhandled error:", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
