@@ -9,6 +9,15 @@ export type PublicEsportsTournament = {
   end_date: string;
   status: string;
   description: string | null;
+  format_summary: string | null;
+  group_stage_deadline_1: string | null;
+  group_stage_deadline_2: string | null;
+  group_stage_final_deadline: string | null;
+  knockout_start_at: string | null;
+  quarterfinal_deadline: string | null;
+  semifinal_deadline: string | null;
+  final_deadline: string | null;
+  knockout_bracket: unknown | null;
 };
 
 /**
@@ -30,7 +39,7 @@ export async function fetchPublicEsportsTournaments(): Promise<{
     const { data, error } = await supabase
       .from("esports_tournaments")
       .select(
-        "id, title, game, prize, start_date, end_date, status, description"
+        "id, title, game, prize, start_date, end_date, status, description, format_summary, group_stage_deadline_1, group_stage_deadline_2, group_stage_final_deadline, knockout_start_at, quarterfinal_deadline, semifinal_deadline, final_deadline, knockout_bracket"
       )
       .in("status", ["upcoming", "active"])
       .order("start_date", { ascending: true });

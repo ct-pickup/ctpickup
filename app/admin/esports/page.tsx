@@ -8,6 +8,7 @@ import {
   createEsportsTournament,
   deleteEsportsTournament,
   updateEsportsTournament,
+  updateEsportsTournamentKnockoutBracket,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,58 @@ type Row = {
   end_date: string;
   status: string;
   description: string | null;
+  format_summary: string | null;
+  group_stage_deadline_1: string | null;
+  group_stage_deadline_2: string | null;
+  group_stage_final_deadline: string | null;
+  knockout_start_at: string | null;
+  quarterfinal_deadline: string | null;
+  semifinal_deadline: string | null;
+  final_deadline: string | null;
+  knockout_bracket: unknown | null;
   created_at: string;
+};
+
+type RegistrationRow = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+  tournament_id: string;
+  esports_player_profile_id: string | null;
+  signed_full_name: string;
+  consent_recorded_at: string;
+  doc_version_official_rules: string;
+  doc_version_terms: string;
+  doc_version_privacy_publicity: string;
+  payment_status: string;
+  paid_at: string | null;
+  auth_email: string | null;
+  player:
+    | {
+        legal_name: string;
+        contact_email: string;
+        state: string;
+        platform: string;
+        psn_id: string | null;
+        xbox_gamertag: string | null;
+        ea_account: string | null;
+        affirmed_18_plus: boolean;
+        date_of_birth: string | null;
+      }
+    | {
+        legal_name: string;
+        contact_email: string;
+        state: string;
+        platform: string;
+        psn_id: string | null;
+        xbox_gamertag: string | null;
+        ea_account: string | null;
+        affirmed_18_plus: boolean;
+        date_of_birth: string | null;
+      }[]
+    | null;
+  tournament: { title: string } | { title: string }[] | null;
 };
 
 export default async function AdminEsportsPage({
@@ -52,11 +104,20 @@ export default async function AdminEsportsPage({
     .select("*")
     .order("start_date", { ascending: true });
 
-  const { count: regCount } = await svc
+  const { count: regCount, error: regCountErr } = await svc
     .from("esports_tournament_registrations")
     .select("id", { count: "exact", head: true });
 
+  const { data: regs, error: regErr } = await svc
+    .from("esports_tournament_registrations")
+    .select(
+      "id,created_at,updated_at,user_id,tournament_id,esports_player_profile_id,signed_full_name,consent_recorded_at,doc_version_official_rules,doc_version_terms,doc_version_privacy_publicity,payment_status,paid_at,auth_email, player:esports_player_profiles(legal_name,contact_email,state,platform,psn_id,xbox_gamertag,ea_account,affirmed_18_plus,date_of_birth), tournament:esports_tournaments(title)",
+    )
+    .order("created_at", { ascending: false })
+    .limit(200);
+
   const list = (rows || []) as Row[];
+  const registrations = (regs || []) as unknown as RegistrationRow[];
 
   const liveCount = list.filter((r) => r.status === "upcoming" || r.status === "active").length;
 
@@ -85,13 +146,24 @@ export default async function AdminEsportsPage({
                 )}
               </p>
             </div>
-            <Link
-              href="/admin/esports/registrations"
-              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:opacity-90"
-            >
-              Open registrations →
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <StatusChip tone="neutral">{list.length} tournaments</StatusChip>
+              <StatusChip tone="neutral">
+                {regCountErr ? "—" : regCount || 0} registrations
+              </StatusChip>
+            </div>
           </div>
+          {regCountErr ? (
+            <p className="mt-4 text-sm text-red-200/90">
+              {regCountErr.message}
+              {regCountErr.message.includes("schema cache") ? (
+                <> (Supabase migrations may not be applied in production yet.)</>
+              ) : null}
+            </p>
+          ) : null}
+          {regErr ? (
+            <p className="mt-2 text-sm text-red-200/90">{regErr.message}</p>
+          ) : null}
         </section>
 
         <AdminWorkArea question="Which digital tournaments are upcoming or live on the public listing, and what still needs dates or copy?">
@@ -108,6 +180,109 @@ export default async function AdminEsportsPage({
             </a>
           </div>
         </AdminWorkArea>
+
+        <section className="space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-white/45">
+            Tournament registrations (latest 200)
+          </h2>
+          {registrations.length === 0 ? (
+            <p className="text-sm text-white/50">
+              {regErr ? "Registrations unavailable (DB issue)." : "No registration rows yet."}
+            </p>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03]">
+              <table className="min-w-[1100px] w-full text-left text-xs">
+                <thead className="border-b border-white/10 text-white/55">
+                  <tr>
+                    <th className="px-4 py-3">Tournament</th>
+                    <th className="px-4 py-3">User</th>
+                    <th className="px-4 py-3">Name / Email</th>
+                    <th className="px-4 py-3">Platform IDs</th>
+                    <th className="px-4 py-3">State</th>
+                    <th className="px-4 py-3">Eligibility</th>
+                    <th className="px-4 py-3">Consent</th>
+                    <th className="px-4 py-3">Payment</th>
+                    <th className="px-4 py-3">Created</th>
+                    <th className="px-4 py-3">Updated</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {registrations.map((r) => {
+                    const p = Array.isArray(r.player) ? r.player[0] : r.player;
+                    const t = Array.isArray(r.tournament) ? r.tournament[0] : r.tournament;
+                    const eligibility = p
+                      ? p.affirmed_18_plus || !!p.date_of_birth
+                        ? "18+ on file"
+                        : "missing"
+                      : "missing profile";
+                    const consentOk = !!r.consent_recorded_at;
+                    const pay = r.payment_status;
+                    return (
+                      <tr key={r.id} className="text-white/80">
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-white/90">
+                            {t?.title || r.tournament_id}
+                          </div>
+                          <div className="text-[10px] text-white/40">{r.tournament_id}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="font-mono text-[11px] text-white/70">{r.user_id}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-white/90">{p?.legal_name || r.signed_full_name}</div>
+                          <div className="text-[11px] text-white/50">
+                            {p?.contact_email || r.auth_email || "—"}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-[11px] text-white/70">{p?.platform || "—"}</div>
+                          <div className="text-[11px] text-white/55">
+                            {p?.platform === "playstation" ? `PSN: ${p.psn_id || "—"}` : null}
+                            {p?.platform === "xbox" ? `Xbox: ${p.xbox_gamertag || "—"}` : null}
+                          </div>
+                          <div className="text-[11px] text-white/55">EA: {p?.ea_account || "—"}</div>
+                        </td>
+                        <td className="px-4 py-3">{p?.state || "—"}</td>
+                        <td className="px-4 py-3">
+                          <StatusChip tone={eligibility === "18+ on file" ? "published" : "neutral"}>
+                            {eligibility}
+                          </StatusChip>
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusChip tone={consentOk ? "published" : "neutral"}>
+                            {consentOk ? "signed" : "missing"}
+                          </StatusChip>
+                          <div className="text-[10px] text-white/40 mt-1">
+                            {r.doc_version_official_rules} / {r.doc_version_terms} /{" "}
+                            {r.doc_version_privacy_publicity}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusChip
+                            tone={
+                              pay === "paid"
+                                ? "published"
+                                : pay === "checkout_started"
+                                  ? "neutral"
+                                  : "neutral"
+                            }
+                          >
+                            {pay}
+                          </StatusChip>
+                          <div className="text-[10px] text-white/40 mt-1">
+                            {r.paid_at ? fmtEt(r.paid_at) : ""}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-white/55">{fmtEt(r.created_at)}</td>
+                        <td className="px-4 py-3 text-white/55">{fmtEt(r.updated_at)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
 
         {sp.ok ? (
           <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
@@ -185,6 +360,53 @@ export default async function AdminEsportsPage({
               rows={3}
               className="md:col-span-2 lg:col-span-3 rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
             />
+            <textarea
+              name="format_summary"
+              placeholder="Format summary (public) — short, noob-friendly"
+              rows={3}
+              className="md:col-span-2 lg:col-span-3 rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+            />
+
+            <div className="md:col-span-2 lg:col-span-3 pt-2">
+              <p className="text-xs uppercase tracking-[0.14em] text-white/45">
+                Stage deadlines (Eastern Time; store as ISO 8601)
+              </p>
+            </div>
+            <input
+              name="group_stage_deadline_1"
+              placeholder="Group stage deadline 1 (ISO 8601)"
+              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+            />
+            <input
+              name="group_stage_deadline_2"
+              placeholder="Group stage deadline 2 (ISO 8601)"
+              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+            />
+            <input
+              name="group_stage_final_deadline"
+              placeholder="Group stage final deadline (ISO 8601)"
+              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+            />
+            <input
+              name="knockout_start_at"
+              placeholder="Knockout start (ISO 8601)"
+              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+            />
+            <input
+              name="quarterfinal_deadline"
+              placeholder="Quarterfinal deadline (ISO 8601)"
+              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+            />
+            <input
+              name="semifinal_deadline"
+              placeholder="Semifinal deadline (ISO 8601)"
+              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+            />
+            <input
+              name="final_deadline"
+              placeholder="Final deadline (ISO 8601)"
+              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+            />
             <div className="md:col-span-2 lg:col-span-3">
               <button
                 type="submit"
@@ -259,6 +481,61 @@ export default async function AdminEsportsPage({
                       rows={3}
                       className="md:col-span-2 lg:col-span-3 rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
                     />
+                    <textarea
+                      name="format_summary"
+                      defaultValue={row.format_summary ?? ""}
+                      rows={3}
+                      placeholder="Format summary (public)"
+                      className="md:col-span-2 lg:col-span-3 rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                    />
+
+                    <div className="md:col-span-2 lg:col-span-3 pt-2">
+                      <p className="text-xs uppercase tracking-[0.14em] text-white/45">
+                        Stage deadlines (Eastern Time)
+                      </p>
+                    </div>
+                    <input
+                      name="group_stage_deadline_1"
+                      defaultValue={row.group_stage_deadline_1 ?? ""}
+                      placeholder="Group stage deadline 1 (ISO 8601)"
+                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                    />
+                    <input
+                      name="group_stage_deadline_2"
+                      defaultValue={row.group_stage_deadline_2 ?? ""}
+                      placeholder="Group stage deadline 2 (ISO 8601)"
+                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                    />
+                    <input
+                      name="group_stage_final_deadline"
+                      defaultValue={row.group_stage_final_deadline ?? ""}
+                      placeholder="Group stage final deadline (ISO 8601)"
+                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                    />
+                    <input
+                      name="knockout_start_at"
+                      defaultValue={row.knockout_start_at ?? ""}
+                      placeholder="Knockout start (ISO 8601)"
+                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                    />
+                    <input
+                      name="quarterfinal_deadline"
+                      defaultValue={row.quarterfinal_deadline ?? ""}
+                      placeholder="Quarterfinal deadline (ISO 8601)"
+                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                    />
+                    <input
+                      name="semifinal_deadline"
+                      defaultValue={row.semifinal_deadline ?? ""}
+                      placeholder="Semifinal deadline (ISO 8601)"
+                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                    />
+                    <input
+                      name="final_deadline"
+                      defaultValue={row.final_deadline ?? ""}
+                      placeholder="Final deadline (ISO 8601)"
+                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                      />
                     <div className="flex flex-wrap gap-2 md:col-span-2 lg:col-span-3">
                       <button
                         type="submit"
@@ -272,6 +549,33 @@ export default async function AdminEsportsPage({
                       >
                         Tournament engine
                       </Link>
+                    </div>
+                  </form>
+                  <form action={updateEsportsTournamentKnockoutBracket} className="mt-4 grid gap-3">
+                    <input type="hidden" name="id" value={row.id} />
+                    <textarea
+                      name="knockout_bracket"
+                      defaultValue={
+                        row.knockout_bracket ? JSON.stringify(row.knockout_bracket, null, 2) : ""
+                      }
+                      rows={8}
+                      placeholder={`Manual knockout bracket JSON (optional).
+
+Example:
+{
+  "rounds": [
+    { "name": "Quarterfinals", "matches": [ { "a": "Player A", "b": "Player B" } ] }
+  ]
+}`}
+                      className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 font-mono text-[12px] leading-relaxed text-white placeholder:text-white/35"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="submit"
+                        className="rounded-md border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+                      >
+                        Save knockout bracket
+                      </button>
                     </div>
                   </form>
                   <p className="mt-3 text-xs text-white/40">

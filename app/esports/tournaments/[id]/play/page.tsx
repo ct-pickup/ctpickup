@@ -106,7 +106,7 @@ export default async function EsportsTournamentPlayPage({ params }: Props) {
   const opponentId = youArePlayer1 ? current.player2_user_id : current.player1_user_id;
 
   const svc = supabaseService();
-  const [{ data: stage }, { data: opponentProfile }] = await Promise.all([
+  const [{ data: stage }, { data: opponentProfile }, { data: opponentAppProfile }] = await Promise.all([
     svc
       .from("esports_tournament_stages")
       .select("id,type,name")
@@ -117,17 +117,32 @@ export default async function EsportsTournamentPlayPage({ params }: Props) {
       .select("platform,psn_id,xbox_gamertag,ea_account")
       .eq("user_id", opponentId)
       .maybeSingle(),
+    svc
+      .from("profiles")
+      .select("first_name,last_name,email")
+      .eq("id", opponentId)
+      .maybeSingle(),
   ]);
 
   const stageType = String((stage as any)?.type ?? "—");
   const stageName = String((stage as any)?.name ?? "—");
 
-  let opponentLabel = `User ${opponentId}`;
+  let opponentLabel = "Opponent";
   const op = opponentProfile as any;
   if (op?.platform === "playstation" && op?.psn_id) opponentLabel = `PlayStation · ${String(op.psn_id)}`;
   if (op?.platform === "xbox" && op?.xbox_gamertag) opponentLabel = `Xbox · ${String(op.xbox_gamertag)}`;
   if (op?.ea_account && typeof op?.ea_account === "string" && op.ea_account.trim()) {
     opponentLabel += ` · EA: ${op.ea_account.trim()}`;
+  }
+  if (opponentLabel === "Opponent") {
+    const ap = opponentAppProfile as any;
+    const first = typeof ap?.first_name === "string" ? ap.first_name.trim() : "";
+    const last = typeof ap?.last_name === "string" ? ap.last_name.trim() : "";
+    const full = `${first} ${last}`.trim();
+    const email = typeof ap?.email === "string" ? ap.email.trim() : "";
+    if (full) opponentLabel = full;
+    else if (email) opponentLabel = email;
+    else opponentLabel = `User ${opponentId}`;
   }
 
   return (

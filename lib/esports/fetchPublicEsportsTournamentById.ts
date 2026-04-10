@@ -14,7 +14,9 @@ export async function fetchPublicEsportsTournamentById(
     }
     const { data, error } = await supabase
       .from("esports_tournaments")
-      .select("id, title, game, prize, start_date, end_date, status, description")
+      .select(
+        "id, title, game, prize, start_date, end_date, status, description, format_summary, group_stage_deadline_1, group_stage_deadline_2, group_stage_final_deadline, knockout_start_at, quarterfinal_deadline, semifinal_deadline, final_deadline, knockout_bracket",
+      )
       .eq("id", id)
       .in("status", ["upcoming", "active"])
       .maybeSingle();
