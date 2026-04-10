@@ -15,11 +15,17 @@ create index if not exists user_waiver_acceptance_version_idx
 
 alter table public.user_waiver_acceptance enable row level security;
 
+drop policy if exists "user_waiver_acceptance_insert_own"
+  on public.user_waiver_acceptance;
+
 create policy "user_waiver_acceptance_insert_own"
   on public.user_waiver_acceptance
   for insert
   to authenticated
   with check (auth.uid() = user_id);
+
+drop policy if exists "user_waiver_acceptance_select_own"
+  on public.user_waiver_acceptance;
 
 create policy "user_waiver_acceptance_select_own"
   on public.user_waiver_acceptance

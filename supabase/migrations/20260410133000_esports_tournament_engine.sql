@@ -22,20 +22,6 @@ create index if not exists esports_tournament_stages_status_idx
 
 alter table public.esports_tournament_stages enable row level security;
 
--- Participants can read stages for tournaments they are in (via any match row).
-create policy "esports_tournament_stages_select_participant"
-  on public.esports_tournament_stages
-  for select
-  to authenticated
-  using (
-    exists (
-      select 1
-      from public.esports_matches m
-      where m.tournament_id = esports_tournament_stages.tournament_id
-        and (m.player1_user_id = auth.uid() or m.player2_user_id = auth.uid())
-    )
-  );
-
 create table if not exists public.esports_tournament_groups (
   id uuid primary key default gen_random_uuid(),
   tournament_id uuid not null references public.esports_tournaments (id) on delete cascade,
@@ -49,19 +35,6 @@ create index if not exists esports_tournament_groups_stage_idx
   on public.esports_tournament_groups (stage_id, name);
 
 alter table public.esports_tournament_groups enable row level security;
-
-create policy "esports_tournament_groups_select_participant"
-  on public.esports_tournament_groups
-  for select
-  to authenticated
-  using (
-    exists (
-      select 1
-      from public.esports_matches m
-      where m.group_id = esports_tournament_groups.id
-        and (m.player1_user_id = auth.uid() or m.player2_user_id = auth.uid())
-    )
-  );
 
 create table if not exists public.esports_matches (
   id uuid primary key default gen_random_uuid(),
@@ -107,6 +80,38 @@ create index if not exists esports_matches_winner_idx
   where winner_user_id is not null;
 
 alter table public.esports_matches enable row level security;
+
+-- Participants can read stages/groups for tournaments they are in.
+-- These policies depend on `public.esports_matches`, so they must be created after that table.
+drop policy if exists "esports_tournament_stages_select_participant"
+  on public.esports_tournament_stages;
+create policy "esports_tournament_stages_select_participant"
+  on public.esports_tournament_stages
+  for select
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.esports_matches m
+      where m.tournament_id = esports_tournament_stages.tournament_id
+        and (m.player1_user_id = auth.uid() or m.player2_user_id = auth.uid())
+    )
+  );
+
+drop policy if exists "esports_tournament_groups_select_participant"
+  on public.esports_tournament_groups;
+create policy "esports_tournament_groups_select_participant"
+  on public.esports_tournament_groups
+  for select
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.esports_matches m
+      where m.group_id = esports_tournament_groups.id
+        and (m.player1_user_id = auth.uid() or m.player2_user_id = auth.uid())
+    )
+  );
 
 -- Players can read matches they are assigned to.
 create policy "esports_matches_select_own"
