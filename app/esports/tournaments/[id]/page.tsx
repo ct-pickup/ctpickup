@@ -9,7 +9,7 @@ import {
   TopNav,
 } from "@/components/layout";
 import { SupportEmailLink } from "@/components/SupportEmailLink";
-import { EsportsRegisterCtaButton } from "@/components/esports/EsportsRegisterCtaButton";
+import { EsportsTournamentRegisterSection } from "@/components/esports/EsportsTournamentRegisterSection";
 import { EsportsSetupNudgeBar } from "@/components/profile/EsportsSetupNudgeBar";
 import { KnockoutBracketDisplay } from "@/components/esports/KnockoutBracketDisplay";
 import { fetchPublicEsportsTournamentById } from "@/lib/esports/fetchPublicEsportsTournamentById";
@@ -224,17 +224,10 @@ export default async function EsportsTournamentDetailPage({ params }: Props) {
             <SupportEmailLink className="font-medium text-[var(--brand)] underline-offset-4 hover:underline" />.
           </p>
 
-          <div className="mt-8 border-t border-white/10 pt-8">
-            <EsportsRegisterCtaButton
-              tournamentId={t.id}
-              className="inline-flex w-full items-center justify-center rounded-md bg-[var(--brand)] px-5 py-3 text-sm font-semibold text-black transition hover:opacity-90 sm:w-auto"
-            >
-              Register for this tournament
-            </EsportsRegisterCtaButton>
-            <p className="mt-3 text-xs text-white/45">
-              Sign in required. You will review and sign legal documents before paying the entry fee.
-            </p>
-          </div>
+          <EsportsTournamentRegisterSection
+            tournamentId={t.id}
+            buttonClassName="inline-flex w-full items-center justify-center rounded-md bg-[var(--brand)] px-5 py-3 text-sm font-semibold text-black transition hover:opacity-90 sm:w-auto"
+          />
         </Panel>
       </div>
 

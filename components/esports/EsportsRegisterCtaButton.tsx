@@ -11,21 +11,44 @@ import {
   signupUrlForEsportsRegister,
 } from "@/lib/auth/esportsRegisterUrls";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
+import { useEsportsTournamentPaidRegistration } from "@/components/esports/useEsportsTournamentPaidRegistration";
 
 type Props = {
   tournamentId: string;
   className?: string;
   children: ReactNode;
+  /** Shown instead of {children} when the user is already paid for this tournament. */
+  registeredLabel?: ReactNode;
+  /**
+   * When set (including `null` while resolving), skips the internal paid check so the parent can
+   * fetch once for multiple UI pieces.
+   */
+  paymentRecorded?: boolean | null;
 };
 
 /**
  * Logged-out: signup (first browser visit) or login (returning) with return path to registration.
  * Logged-in: navigate to registration flow.
  */
-export function EsportsRegisterCtaButton({ tournamentId, className, children }: Props) {
+export function EsportsRegisterCtaButton({
+  tournamentId,
+  className,
+  children,
+  registeredLabel = "You're registered",
+  paymentRecorded: paymentRecordedProp,
+}: Props) {
   const router = useRouter();
   const { supabase, isReady } = useSupabaseBrowser();
   const [authed, setAuthed] = useState<boolean | null>(null);
+  const useInternalPaidLookup = paymentRecordedProp === undefined;
+  const hookPaid = useEsportsTournamentPaidRegistration(
+    supabase,
+    isReady,
+    tournamentId,
+    authed,
+    useInternalPaidLookup,
+  );
+  const paidForTournament = useInternalPaidLookup ? hookPaid : paymentRecordedProp;
 
   useEffect(() => {
     if (!isReady || !supabase) {
@@ -66,6 +89,23 @@ export function EsportsRegisterCtaButton({ tournamentId, className, children }: 
   }
 
   if (authed === true) {
+    if (paidForTournament === null) {
+      return (
+        <button type="button" disabled className={className}>
+          {children}
+        </button>
+      );
+    }
+    if (paidForTournament === true) {
+      return (
+        <Link
+          href={`/esports/tournaments/${tournamentId}`}
+          className={className}
+        >
+          {registeredLabel}
+        </Link>
+      );
+    }
     return (
       <Link
         href={`/esports/tournaments/${tournamentId}/register`}

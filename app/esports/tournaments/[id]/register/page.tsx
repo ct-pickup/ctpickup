@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import {
   AuthenticatedProfileMenu,
   PageShell,
   Panel,
-  SectionEyebrow,
   TopNav,
 } from "@/components/layout";
+import { EsportsRegisterPageHeader } from "@/components/esports/EsportsRegisterPageHeader";
 import { EsportsTournamentRegistrationClient } from "@/components/esports/EsportsTournamentRegistrationClient";
 import { EsportsSetupNudgeBar } from "@/components/profile/EsportsSetupNudgeBar";
 import { fetchPublicEsportsTournamentById } from "@/lib/esports/fetchPublicEsportsTournamentById";
@@ -35,21 +34,7 @@ export default async function EsportsTournamentRegisterPage({ params }: Props) {
       <TopNav rightSlot={<AuthenticatedProfileMenu />} />
       <EsportsSetupNudgeBar />
 
-      <header className="mt-4">
-        <SectionEyebrow>Esports registration</SectionEyebrow>
-        <h1 className="mt-4 text-2xl font-semibold uppercase tracking-tight text-white md:text-3xl">
-          {tournament.title}
-        </h1>
-        <p className="mt-3 text-sm text-white/60">
-          Consent, signature, and $10 entry. You must be signed in.{" "}
-          <Link
-            href={`/esports/tournaments/${tournament.id}`}
-            className="text-[var(--brand)] underline-offset-4 hover:underline"
-          >
-            Tournament overview
-          </Link>
-        </p>
-      </header>
+      <EsportsRegisterPageHeader tournamentId={tournament.id} tournamentTitle={tournament.title} />
 
       <Panel className="mt-8 p-6 md:p-8">
         <Suspense
