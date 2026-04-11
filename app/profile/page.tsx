@@ -26,7 +26,9 @@ import {
 import { broadcastProfileUpdated } from "@/lib/profileBroadcast";
 import {
   PROFILE_GENDER_LABELS,
+  PROFILE_USERNAME_MAX_LEN,
   type ProfileGender,
+  normalizeProfileUsername,
   parseProfileGender,
   profileIdentityColumns,
   normalizePlayingPosition,
@@ -120,9 +122,11 @@ export default function ProfilePage() {
 
   const [basicsFirstName, setBasicsFirstName] = useState("");
   const [basicsLastName, setBasicsLastName] = useState("");
+  const [basicsSex, setBasicsSex] = useState<ProfileGender | "">("");
   const [basicsGender, setBasicsGender] = useState<ProfileGender | "">("");
   const [basicsGenderOther, setBasicsGenderOther] = useState("");
   const [basicsPlayingPosition, setBasicsPlayingPosition] = useState("");
+  const [basicsUsername, setBasicsUsername] = useState("");
   const [basicsPhone, setBasicsPhone] = useState("");
   const [basicsInstagram, setBasicsInstagram] = useState("");
   const [basicsBusy, setBasicsBusy] = useState(false);
@@ -193,9 +197,11 @@ export default function ProfilePage() {
     if (!profile) return;
     setBasicsFirstName(String(profile.first_name ?? ""));
     setBasicsLastName(String(profile.last_name ?? ""));
+    setBasicsSex(parseProfileGender(profile.sex) ?? "");
     setBasicsGender(parseProfileGender(profile.gender) ?? "");
     setBasicsGenderOther(String(profile.gender_other ?? ""));
     setBasicsPlayingPosition(String(profile.playing_position ?? ""));
+    setBasicsUsername(String(profile.username ?? ""));
     setBasicsPhone(String(profile.phone ?? ""));
     setBasicsInstagram(String(profile.instagram ?? ""));
   }, [profile]);
@@ -384,14 +390,22 @@ export default function ProfilePage() {
     setBasicsMsg(null);
     if (!basicsFirstName.trim()) return setBasicsMsg("First name is required.");
     if (!basicsLastName.trim()) return setBasicsMsg("Last name is required.");
-    if (!basicsGender) return setBasicsMsg("Sex / gender is required.");
+    if (!basicsSex) return setBasicsMsg("Sex is required.");
+    if (!basicsGender) return setBasicsMsg("Gender is required.");
     if (!normalizePlayingPosition(basicsPlayingPosition)) {
       return setBasicsMsg("Playing position is required.");
+    }
+    const userNorm = normalizeProfileUsername(basicsUsername);
+    if (!userNorm) {
+      return setBasicsMsg(
+        `Username must be 3–${PROFILE_USERNAME_MAX_LEN} characters (lowercase letters, digits, underscores).`,
+      );
     }
 
     const identity = profileIdentityColumns({
       firstName: basicsFirstName,
       lastName: basicsLastName,
+      sex: basicsSex as ProfileGender,
       gender: basicsGender as ProfileGender,
       genderOther: basicsGenderOther,
       playingPosition: basicsPlayingPosition,
@@ -403,19 +417,27 @@ export default function ProfilePage() {
       .update({
         first_name: identity.first_name,
         last_name: identity.last_name,
+        sex: identity.sex,
         gender: identity.gender,
         gender_other: identity.gender_other,
         playing_position: identity.playing_position,
+        username: userNorm,
         updated_at: new Date().toISOString(),
       })
       .eq("id", userId);
     setBasicsBusy(false);
 
     if (error) {
+      const code = (error as { code?: string }).code;
+      const dup =
+        code === "23505" ||
+        /profiles_username_lower_unique|duplicate key/i.test(error.message ?? "");
       setBasicsMsg(
-        isMissingProfileColumnError(error.message)
-          ? profileSchemaMismatchUserMessage()
-          : error.message,
+        dup
+          ? "That username is already taken. Try another."
+          : isMissingProfileColumnError(error.message)
+            ? profileSchemaMismatchUserMessage()
+            : error.message,
       );
       return;
     }
@@ -426,9 +448,11 @@ export default function ProfilePage() {
             ...p,
             first_name: identity.first_name,
             last_name: identity.last_name,
+            sex: identity.sex,
             gender: identity.gender,
             gender_other: identity.gender_other,
             playing_position: identity.playing_position,
+            username: userNorm,
           }
         : p,
     );
@@ -504,12 +528,20 @@ export default function ProfilePage() {
             {fieldRow("First name", profile?.first_name)}
             {fieldRow("Last name", profile?.last_name)}
             {fieldRow(
-              "Sex / gender",
+              "Sex",
+              profile?.sex
+                ? PROFILE_GENDER_LABELS[profile.sex as ProfileGender] ??
+                    String(profile.sex)
+                : null,
+            )}
+            {fieldRow(
+              "Gender",
               profile?.gender
                 ? PROFILE_GENDER_LABELS[profile.gender as ProfileGender] ??
                     String(profile.gender)
                 : null,
             )}
+            {fieldRow("Username", profile?.username)}
             {profile?.gender === "other"
               ? fieldRow("Gender description", profile?.gender_other)
               : null}
@@ -564,12 +596,31 @@ export default function ProfilePage() {
 
             <div className="w-full">
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-white/55">
-                Sex / gender
+                Sex
+              </label>
+              <select
+                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-white/25"
+                value={basicsSex}
+                onChange={(e) => setBasicsSex(e.target.value as ProfileGender)}
+                disabled={basicsBusy}
+              >
+                <option value="" disabled>
+                  Select…
+                </option>
+                <option value="male">{PROFILE_GENDER_LABELS.male}</option>
+                <option value="female">{PROFILE_GENDER_LABELS.female}</option>
+                <option value="other">{PROFILE_GENDER_LABELS.other}</option>
+              </select>
+            </div>
+
+            <div className="w-full">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-white/55">
+                Gender
               </label>
               <select
                 className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-white/25"
                 value={basicsGender}
-                onChange={(e) => setBasicsGender(e.target.value as any)}
+                onChange={(e) => setBasicsGender(e.target.value as ProfileGender)}
                 disabled={basicsBusy}
               >
                 <option value="" disabled>
@@ -598,6 +649,16 @@ export default function ProfilePage() {
               onChange={(e) => setBasicsPlayingPosition(e.target.value)}
               disabled={basicsBusy}
               placeholder="Playing position"
+            />
+
+            <input
+              className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+              value={basicsUsername}
+              onChange={(e) => setBasicsUsername(e.target.value)}
+              disabled={basicsBusy}
+              placeholder={`Username (${PROFILE_USERNAME_MAX_LEN} chars max, a–z, 0–9, _)`}
+              autoComplete="username"
+              maxLength={PROFILE_USERNAME_MAX_LEN}
             />
 
             {basicsMsg ? (

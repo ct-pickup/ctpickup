@@ -8,6 +8,19 @@ export const PROFILE_GENDER_LABELS: Record<ProfileGender, string> = {
 
 export const PROFILE_GENDER_OTHER_MAX_LEN = 64;
 export const PROFILE_PLAYING_POSITION_MAX_LEN = 64;
+export const PROFILE_USERNAME_MAX_LEN = 24;
+
+/** Lowercase handle: 3–24 chars, letters, digits, underscore (stored form). */
+export function normalizeProfileUsername(raw: string | null | undefined): string | null {
+  const t = String(raw ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .slice(0, PROFILE_USERNAME_MAX_LEN);
+  if (t.length < 3) return null;
+  if (!/^[a-z0-9_]+$/.test(t)) return null;
+  return t;
+}
 
 export function parseProfileGender(raw: string | null | undefined): ProfileGender | null {
   if (raw === "male" || raw === "female" || raw === "other") return raw;
@@ -31,12 +44,14 @@ export function normalizePlayingPosition(raw: string | null | undefined): string
 export function profileIdentityColumns(args: {
   firstName: string;
   lastName: string;
+  sex: ProfileGender;
   gender: ProfileGender;
   genderOther: string;
   playingPosition: string;
 }): {
   first_name: string;
   last_name: string;
+  sex: ProfileGender;
   gender: ProfileGender;
   gender_other: string | null;
   playing_position: string;
@@ -44,6 +59,7 @@ export function profileIdentityColumns(args: {
   return {
     first_name: args.firstName.trim(),
     last_name: args.lastName.trim(),
+    sex: args.sex,
     gender: args.gender,
     gender_other: args.gender === "other" ? normalizeGenderOther(args.genderOther) : null,
     playing_position: normalizePlayingPosition(args.playingPosition) ?? "",

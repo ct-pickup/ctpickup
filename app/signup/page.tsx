@@ -16,6 +16,7 @@ import {
   signupCopyForIntent,
   signupUrlForIntent,
 } from "@/lib/auth/signupIntent";
+import { friendlySupabaseAuthMessage } from "@/lib/auth/friendlySupabaseAuthMessage";
 import { safeNextPath } from "@/lib/auth/safeNextPath";
 import { APP_HOME_FIRST_VISIT_URL } from "@/lib/siteNav";
 import {
@@ -25,9 +26,20 @@ import {
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 import { useTransitionNav } from "@/components/TransitionNavContext";
+import { EsportsGoaliePreferenceFields } from "@/components/profile/EsportsGoaliePreferenceFields";
+import {
+  bindEsportsPreferenceHandlers,
+  esportsDetailsComplete,
+  profileEsportsPreferenceColumns,
+  type EsportsConsole,
+  type EsportsInterest,
+  type EsportsPlatform,
+} from "@/lib/profilePreferences";
 import {
   PROFILE_GENDER_LABELS,
+  PROFILE_USERNAME_MAX_LEN,
   type ProfileGender,
+  normalizeProfileUsername,
   profileIdentityColumns,
   normalizePlayingPosition,
 } from "@/lib/profileIdentityFields";
@@ -142,12 +154,29 @@ function SignupForm({
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [sex, setSex] = useState<ProfileGender | "">("");
   const [gender, setGender] = useState<ProfileGender | "">("");
   const [genderOther, setGenderOther] = useState("");
   const [playingPosition, setPlayingPosition] = useState("");
+  const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
   const [instagram, setInstagram] = useState("");
   const [waiverAccepted, setWaiverAccepted] = useState(false);
+
+  const [esportsInterest, setEsportsInterest] = useState<EsportsInterest | null>(null);
+  const [esportsPlatform, setEsportsPlatform] = useState<EsportsPlatform | null>(null);
+  const [esportsConsole, setEsportsConsole] = useState<EsportsConsole | null>(null);
+  const [esportsOnlineId, setEsportsOnlineId] = useState("");
+  const { onEsportsInterest, onEsportsPlatform } = useMemo(
+    () =>
+      bindEsportsPreferenceHandlers({
+        setInterest: setEsportsInterest,
+        setPlatform: setEsportsPlatform,
+        setConsole: setEsportsConsole,
+        setOnlineId: setEsportsOnlineId,
+      }),
+    [],
+  );
 
   const emailClean = useMemo(() => email.trim().toLowerCase(), [email]);
 
@@ -164,20 +193,43 @@ function SignupForm({
     return (
       firstName.trim().length > 0 &&
       lastName.trim().length > 0 &&
+      sex !== "" &&
       gender !== "" &&
       Boolean(normalizePlayingPosition(playingPosition))
     );
-  }, [firstName, lastName, gender, playingPosition]);
+  }, [firstName, lastName, sex, gender, playingPosition]);
 
   const canContinueContact = useMemo(() => {
     return phone.trim().length > 0 && instagram.trim().length > 0;
   }, [phone, instagram]);
 
   const canSaveProfile = useMemo(() => {
-    // IMPORTANT: esports / tournament identity is collected only when the user registers.
-    // Basic signup should not require PSN/Xbox/EA or tournament preferences.
-    return canContinueIdentity && canContinueContact && waiverAccepted;
-  }, [canContinueIdentity, canContinueContact, waiverAccepted]);
+    const userOk = Boolean(normalizeProfileUsername(username));
+    const esportsOk =
+      esportsInterest !== null &&
+      esportsDetailsComplete({
+        esports_interest: esportsInterest,
+        esports_platform: esportsPlatform,
+        esports_console: esportsConsole,
+        esports_online_id: esportsOnlineId,
+      });
+    return (
+      canContinueIdentity &&
+      canContinueContact &&
+      userOk &&
+      esportsOk &&
+      waiverAccepted
+    );
+  }, [
+    canContinueIdentity,
+    canContinueContact,
+    username,
+    esportsInterest,
+    esportsPlatform,
+    esportsConsole,
+    esportsOnlineId,
+    waiverAccepted,
+  ]);
 
   async function checkExists() {
     const r = await fetch("/api/auth/email-exists", {
@@ -220,7 +272,7 @@ function SignupForm({
     });
 
     setBusy(false);
-    if (error) return setMsg(error.message);
+    if (error) return setMsg(friendlySupabaseAuthMessage(error.message));
 
     setStage("code");
     setMsg("Code sent. Check your email for an 8-digit code.");
@@ -256,7 +308,7 @@ function SignupForm({
     });
 
     setBusy(false);
-    if (error) return setMsg(error.message);
+    if (error) return setMsg(friendlySupabaseAuthMessage(error.message));
 
     setStage("profile");
     setMsg(null);
@@ -293,9 +345,32 @@ function SignupForm({
         (user.email ?? emailClean).trim().toLowerCase() || null;
       const nowIso = new Date().toISOString();
 
+      const userNorm = normalizeProfileUsername(username);
+      if (!userNorm) {
+        setBusy(false);
+        setMsg(
+          `Username must be 3–${PROFILE_USERNAME_MAX_LEN} characters (lowercase letters, digits, underscores).`,
+        );
+        return;
+      }
+
+      if (esportsInterest === null) {
+        setBusy(false);
+        setMsg("Answer the online tournament question.");
+        return;
+      }
+
+      const prefs = profileEsportsPreferenceColumns({
+        esportsInterest,
+        esportsPlatform,
+        esportsConsole,
+        esportsOnlineId,
+      });
+
       const identity = profileIdentityColumns({
         firstName,
         lastName,
+        sex: sex as ProfileGender,
         gender: gender as ProfileGender,
         genderOther,
         playingPosition,
@@ -307,11 +382,17 @@ function SignupForm({
           email: profileEmail,
           first_name: identity.first_name,
           last_name: identity.last_name,
+          sex: identity.sex,
           gender: identity.gender,
           gender_other: identity.gender_other,
           playing_position: identity.playing_position,
+          username: userNorm,
           phone: phone.trim(),
           instagram: ig,
+          esports_interest: prefs.esports_interest,
+          esports_platform: prefs.esports_platform,
+          esports_console: prefs.esports_console,
+          esports_online_id: prefs.esports_online_id,
           updated_at: nowIso,
         },
         { onConflict: "id" }
@@ -323,10 +404,16 @@ function SignupForm({
           console.error("[signup] Apply profile migrations (see profileSchemaMismatchUserMessage in lib/profileLoad.ts).");
         }
         setBusy(false);
+        const code = (error as { code?: string }).code;
+        const dup =
+          code === "23505" ||
+          /profiles_username_lower_unique|duplicate key/i.test(error.message ?? "");
         setMsg(
-          isMissingProfileColumnError(error.message)
-            ? profileSchemaMismatchUserMessage()
-            : error.message,
+          dup
+            ? "That username is already taken. Try another."
+            : isMissingProfileColumnError(error.message)
+              ? profileSchemaMismatchUserMessage()
+              : error.message,
         );
         return;
       }
@@ -374,9 +461,9 @@ function SignupForm({
           router.push(destination);
         }
       }, 260);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setBusy(false);
-      setMsg(e?.message || "Something went wrong.");
+      setMsg(e instanceof Error ? e.message : "Something went wrong.");
     }
   }
 
@@ -526,12 +613,31 @@ function SignupForm({
 
                     <div className="w-full">
                       <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-white/55">
-                        Sex / gender
+                        Sex
+                      </label>
+                      <select
+                        className={selectFieldClassName}
+                        value={sex}
+                        onChange={(e) => setSex(e.target.value as ProfileGender)}
+                        disabled={busy}
+                      >
+                        <option value="" disabled>
+                          Select…
+                        </option>
+                        <option value="male">{PROFILE_GENDER_LABELS.male}</option>
+                        <option value="female">{PROFILE_GENDER_LABELS.female}</option>
+                        <option value="other">{PROFILE_GENDER_LABELS.other}</option>
+                      </select>
+                    </div>
+
+                    <div className="w-full">
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-white/55">
+                        Gender
                       </label>
                       <select
                         className={selectFieldClassName}
                         value={gender}
-                        onChange={(e) => setGender(e.target.value as any)}
+                        onChange={(e) => setGender(e.target.value as ProfileGender)}
                         disabled={busy}
                       >
                         <option value="" disabled>
@@ -558,6 +664,28 @@ function SignupForm({
                       value={playingPosition}
                       onChange={(e) => setPlayingPosition(e.target.value)}
                       disabled={busy}
+                    />
+
+                    <EsportsGoaliePreferenceFields
+                      variant="signup"
+                      esportsInterest={esportsInterest}
+                      onEsportsInterest={onEsportsInterest}
+                      esportsPlatform={esportsPlatform}
+                      onEsportsPlatform={onEsportsPlatform}
+                      esportsConsole={esportsConsole}
+                      onEsportsConsole={setEsportsConsole}
+                      esportsOnlineId={esportsOnlineId}
+                      onEsportsOnlineIdChange={setEsportsOnlineId}
+                      disabled={busy}
+                    />
+
+                    <Input
+                      placeholder={`Username (${PROFILE_USERNAME_MAX_LEN} chars max, a–z, 0–9, _)`}
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      disabled={busy}
+                      autoComplete="username"
+                      maxLength={PROFILE_USERNAME_MAX_LEN}
                     />
 
                     <Input

@@ -21,7 +21,9 @@ import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 import {
   PROFILE_GENDER_LABELS,
+  PROFILE_USERNAME_MAX_LEN,
   type ProfileGender,
+  normalizeProfileUsername,
   profileIdentityColumns,
   normalizePlayingPosition,
 } from "@/lib/profileIdentityFields";
@@ -37,8 +39,10 @@ export default function OnboardingPage() {
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [sex, setSex] = useState<ProfileGender | "">("");
   const [gender, setGender] = useState<ProfileGender | "">("");
   const [genderOther, setGenderOther] = useState("");
+  const [username, setUsername] = useState("");
   const [playingPosition, setPlayingPosition] = useState("");
   const [instagram, setInstagram] = useState("");
   const [phone, setPhone] = useState("");
@@ -90,7 +94,14 @@ export default function OnboardingPage() {
     const ig = cleanIG(instagram);
     if (!firstName.trim()) return setMsg("First name is required.");
     if (!lastName.trim()) return setMsg("Last name is required.");
-    if (!gender) return setMsg("Sex / gender is required.");
+    if (!sex) return setMsg("Sex is required.");
+    if (!gender) return setMsg("Gender is required.");
+    const userNorm = normalizeProfileUsername(username);
+    if (!userNorm) {
+      return setMsg(
+        `Username must be 3–${PROFILE_USERNAME_MAX_LEN} characters (lowercase letters, digits, underscores).`,
+      );
+    }
     if (!normalizePlayingPosition(playingPosition)) return setMsg("Playing position is required.");
     if (!ig) return setMsg("Instagram is required.");
     if (!phone.trim()) return setMsg("Phone is required.");
@@ -125,6 +136,7 @@ export default function OnboardingPage() {
     const identity = profileIdentityColumns({
       firstName,
       lastName,
+      sex: sex as ProfileGender,
       gender: gender as ProfileGender,
       genderOther,
       playingPosition,
@@ -136,9 +148,11 @@ export default function OnboardingPage() {
         email: profileEmail,
         first_name: identity.first_name,
         last_name: identity.last_name,
+        sex: identity.sex,
         gender: identity.gender,
         gender_other: identity.gender_other,
         playing_position: identity.playing_position,
+        username: userNorm,
         instagram: ig,
         phone: phone.trim(),
         esports_interest: prefs.esports_interest,
@@ -155,10 +169,16 @@ export default function OnboardingPage() {
       if (isMissingProfileColumnError(error.message)) {
         console.error("[onboarding] Apply profile migrations (see lib/profileLoad.ts).");
       }
+      const code = (error as { code?: string }).code;
+      const dup =
+        code === "23505" ||
+        /profiles_username_lower_unique|duplicate key/i.test(error.message ?? "");
       return setMsg(
-        isMissingProfileColumnError(error.message)
-          ? profileSchemaMismatchUserMessage()
-          : error.message,
+        dup
+          ? "That username is already taken. Try another."
+          : isMissingProfileColumnError(error.message)
+            ? profileSchemaMismatchUserMessage()
+            : error.message,
       );
     }
 
@@ -218,12 +238,30 @@ export default function OnboardingPage() {
 
         <div className="w-full">
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600">
-            Sex / gender
+            Sex
+          </label>
+          <select
+            className="rounded-lg border p-3 w-full bg-white"
+            value={sex}
+            onChange={(e) => setSex(e.target.value as ProfileGender)}
+          >
+            <option value="" disabled>
+              Select…
+            </option>
+            <option value="male">{PROFILE_GENDER_LABELS.male}</option>
+            <option value="female">{PROFILE_GENDER_LABELS.female}</option>
+            <option value="other">{PROFILE_GENDER_LABELS.other}</option>
+          </select>
+        </div>
+
+        <div className="w-full">
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600">
+            Gender
           </label>
           <select
             className="rounded-lg border p-3 w-full bg-white"
             value={gender}
-            onChange={(e) => setGender(e.target.value as any)}
+            onChange={(e) => setGender(e.target.value as ProfileGender)}
           >
             <option value="" disabled>
               Select…
@@ -261,6 +299,15 @@ export default function OnboardingPage() {
           onEsportsConsole={setEsportsConsole}
           esportsOnlineId={esportsOnlineId}
           onEsportsOnlineIdChange={setEsportsOnlineId}
+        />
+
+        <input
+          className="rounded-lg border p-3 w-full"
+          placeholder={`Username (${PROFILE_USERNAME_MAX_LEN} chars max, a–z, 0–9, _)`}
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          autoComplete="username"
+          maxLength={PROFILE_USERNAME_MAX_LEN}
         />
 
         <input

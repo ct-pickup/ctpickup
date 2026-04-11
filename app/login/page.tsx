@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { HistoryBack } from "@/components/layout";
+import { friendlySupabaseAuthMessage } from "@/lib/auth/friendlySupabaseAuthMessage";
 import { safeNextPath } from "@/lib/auth/safeNextPath";
 import { signupUrlForIntent } from "@/lib/auth/signupIntent";
 import { APP_HOME_URL } from "@/lib/siteNav";
@@ -75,7 +76,7 @@ function LoginForm() {
     });
 
     setBusy(false);
-    if (error) return setMsg(error.message);
+    if (error) return setMsg(friendlySupabaseAuthMessage(error.message));
 
     setStage("code");
     setMsg("Code sent. Check your email for an 8-digit code.");
@@ -111,7 +112,7 @@ function LoginForm() {
     });
 
     setBusy(false);
-    if (error) return setMsg(error.message);
+    if (error) return setMsg(friendlySupabaseAuthMessage(error.message));
 
     const next = safeNextPath(searchParams.get("next"));
     const target = next ?? APP_HOME_URL;
