@@ -252,6 +252,16 @@ function SignupForm({
     return !!j?.exists;
   }
 
+  /** Shared `signInWithOtp` call (email step + resend). Caller must ensure `supabase` is ready. */
+  function sendSignupOtp() {
+    return supabase!.auth.signInWithOtp({
+      email: emailClean,
+      options: {
+        emailRedirectTo: `${window.location.origin}${signupUrlForIntent(intent)}`,
+      },
+    });
+  }
+
   async function sendCode() {
     if (!emailLooksValid || busy) return;
     if (!isReady || !supabase) {
@@ -279,12 +289,7 @@ function SignupForm({
         return;
       }
 
-      const { error } = await supabase.auth.signInWithOtp({
-        email: emailClean,
-        options: {
-          emailRedirectTo: `${window.location.origin}${signupUrlForIntent(intent)}`,
-        },
-      });
+      const { error } = await sendSignupOtp();
 
       if (error) {
         setMsg(friendlySupabaseAuthMessage(error.message));
@@ -327,18 +332,7 @@ function SignupForm({
     setMsg(null);
 
     try {
-      const exists = await checkExists();
-      if (exists) {
-        setMsg("You already have this account on file. Please log in with that email.");
-        return;
-      }
-
-      const { error } = await supabase.auth.signInWithOtp({
-        email: emailClean,
-        options: {
-          emailRedirectTo: `${window.location.origin}${signupUrlForIntent(intent)}`,
-        },
-      });
+      const { error } = await sendSignupOtp();
 
       if (error) {
         setMsg(friendlySupabaseAuthMessage(error.message));
@@ -346,7 +340,7 @@ function SignupForm({
       }
 
       setResendCooldownSec(OTP_RESEND_COOLDOWN_SEC);
-      setMsg("We sent a new code");
+      setMsg("We sent a new 8-digit code to your email.");
     } catch (e: unknown) {
       setMsg(
         e instanceof Error
@@ -685,7 +679,7 @@ function SignupForm({
                       placeholder="8-digit code"
                       value={code}
                       onChange={(e) => setCode(e.target.value)}
-                      disabled={busy}
+                      disabled={busy || resendBusy}
                       inputMode="numeric"
                       autoComplete="one-time-code"
                       maxLength={16}

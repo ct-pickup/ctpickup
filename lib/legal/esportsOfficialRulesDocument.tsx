@@ -120,12 +120,35 @@ function EsportsOfficialRulesSections1to9() {
         <p className="mt-2">
           Participants must complete the online registration form before the advertised deadline and
           provide accurate, complete information, including legal name, gamertag, contact email, and state
-          of residence. Inaccurate, incomplete, or misleading information may result in rejection of
-          registration or disqualification.
+          of residence. Participants must also maintain accurate contact information on the Platform,
+          including a valid mobile telephone number capable of receiving SMS for tournament-related
+          communications as described in Section 4.4. Inaccurate, incomplete, or misleading information
+          may result in rejection of registration or disqualification.
         </p>
         <h3 className="mt-4 text-sm font-semibold text-white/90">4.3 Entry Fee Refunds</h3>
         <p className="mt-2">
           Entry fee refunds are governed exclusively by Section 9 (Refund Policy).
+        </p>
+        <h3
+          id="tournament-related-sms"
+          className="mt-4 text-sm font-semibold text-white/90"
+        >
+          4.4 Tournament-Related SMS Communications
+        </h3>
+        <p className="mt-2">
+          By registering, each Participant agrees to receive tournament-related text messages (SMS) at the
+          mobile telephone number the Participant provides in connection with registration or maintains on
+          the Participant’s Platform account profile. These messages are for tournament administration and
+          operations only—not for marketing or unrelated promotional purposes. Messages may include,
+          without limitation: group-stage assignments; opponent and pairing information; match times,
+          deadlines, and scheduling changes; check-in or readiness reminders; score reporting instructions;
+          results-related logistics; and other time-sensitive or operational details. Important logistical
+          information may be communicated by SMS in addition to, or instead of, postings on the Organizer’s
+          website or other channels; Participants should not assume that all such information will be fully
+          repeated in these Rules, on the website, or in email. Message and data rates may apply according
+          to the Participant’s carrier plan. Each Participant is solely responsible for providing and
+          maintaining a valid mobile telephone number capable of receiving SMS messages at the number on
+          file.
         </p>
       </section>
 

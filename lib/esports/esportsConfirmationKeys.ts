@@ -5,6 +5,7 @@ export const ESPORTS_CONFIRMATION_KEYS = [
   "agree_official_tournament_rules",
   "agree_terms_and_conditions",
   "agree_privacy_publicity_policy",
+  "agree_tournament_operational_sms",
   "entry_fee_10_nonrefundable",
   "publicity_streaming_consent",
   "platform_account_requirements",

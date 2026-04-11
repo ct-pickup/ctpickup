@@ -367,6 +367,11 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
           <span className="font-semibold text-white">{tournament.title}</span>.
         </div>
         <p className="text-xs leading-relaxed text-white/55">
+          Important tournament details—including opponent and group-stage information—may be sent by text
+          to the mobile number on your account. Check your messages and keep your profile phone number
+          current.
+        </p>
+        <p className="text-xs leading-relaxed text-white/55">
           Refunds: request more than 48 hours before start (see{" "}
           <Link
             href={`${DOC_LINKS.rules}#refund-policy`}
@@ -392,6 +397,10 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
       {paidQuery ? (
         <div className="space-y-2 rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-white/85">
           <p>Payment received—thank you. If this page does not update within a minute, refresh.</p>
+          <p className="text-xs text-white/55">
+            Watch for tournament texts to your profile mobile number (opponents, group stage, schedule
+            updates, and other logistics).
+          </p>
           <p className="text-xs text-white/55">
             Refund rules (48-hour request window, organizer cancel, etc.):{" "}
             <Link
@@ -642,6 +651,29 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
             className="font-medium text-[var(--brand)] underline-offset-4 hover:underline"
           >
             Refund Policy (Official Tournament Rules §§8–9)
+          </Link>
+          .
+        </p>
+      </section>
+
+      <section
+        className="space-y-2 rounded-xl border border-white/12 bg-white/[0.03] px-4 py-3"
+        aria-labelledby="esports-sms-notice-heading"
+      >
+        <h2 id="esports-sms-notice-heading" className="text-sm font-semibold text-white">
+          Tournament text messages
+        </h2>
+        <p className="text-sm leading-relaxed text-white/70">
+          By registering, you agree that we may send tournament-related text messages to the mobile number
+          on your CT Pickup account. These messages can include group-stage assignments, opponent
+          information, match times, schedule updates, check-in reminders, reporting instructions, and other
+          key logistics—sometimes in addition to or instead of the website. They are for running the
+          tournament, not marketing. Message and data rates may apply. Details:{" "}
+          <Link
+            href={`${DOC_LINKS.rules}#tournament-related-sms`}
+            className="font-medium text-[var(--brand)] underline-offset-4 hover:underline"
+          >
+            Official Tournament Rules §4.4
           </Link>
           .
         </p>
