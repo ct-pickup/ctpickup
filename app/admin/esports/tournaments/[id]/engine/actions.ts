@@ -520,7 +520,20 @@ export async function updateMatchAdmin(formData: FormData) {
   const player1_user_id = mustUuid("Player 1", formData.get("player1_user_id"));
   const player2_user_id = mustUuid("Player 2", formData.get("player2_user_id"));
   const scheduled_deadline = String(formData.get("scheduled_deadline") || "").trim() || null;
-  const status = String(formData.get("status") || "").trim() || "scheduled";
+  const statusRaw = String(formData.get("status") || "").trim() || "scheduled";
+  const allowedStatuses = new Set([
+    "scheduled",
+    "awaiting_confirmation",
+    "disputed",
+    "under_review",
+    "completed",
+    "void",
+    "forfeit",
+  ]);
+  if (!allowedStatuses.has(statusRaw)) {
+    throw new Error("Invalid match status.");
+  }
+  const status = statusRaw;
   const winner_user_id = String(formData.get("winner_user_id") || "").trim() || null;
   const score_player1_raw = String(formData.get("score_player1") || "").trim();
   const score_player2_raw = String(formData.get("score_player2") || "").trim();

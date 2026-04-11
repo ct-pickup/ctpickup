@@ -138,6 +138,12 @@ export default async function AdminTournamentEnginePage({
             >
               ← Tournament admin
             </Link>
+            <Link
+              href={`/admin/esports/tournaments/${id}/match-review`}
+              className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-100/90 transition hover:bg-amber-500/15"
+            >
+              Match review
+            </Link>
             <a
               href={`/esports/tournaments/${id}`}
               target="_blank"
@@ -488,12 +494,15 @@ export default async function AdminTournamentEnginePage({
                                 <select
                                   name="status"
                                   defaultValue={m.status}
-                                  className="w-[180px] rounded-md border border-white/15 bg-black/40 px-2 py-1 text-[11px] text-white"
+                                  className="w-[200px] rounded-md border border-white/15 bg-black/40 px-2 py-1 text-[11px] text-white"
                                 >
                                   <option value="scheduled">scheduled</option>
-                                  <option value="reported">reported</option>
+                                  <option value="awaiting_confirmation">awaiting_confirmation</option>
+                                  <option value="disputed">disputed</option>
+                                  <option value="under_review">under_review</option>
                                   <option value="completed">completed</option>
                                   <option value="void">void</option>
+                                  <option value="forfeit">forfeit</option>
                                 </select>
                               </div>
                               <input

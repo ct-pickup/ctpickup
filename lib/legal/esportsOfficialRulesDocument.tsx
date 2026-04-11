@@ -193,6 +193,17 @@ function EsportsOfficialRulesSections1to9() {
           prize. Organizer may require completion of an IRS Form W-9 before releasing a prize and may
           issue any required tax form where applicable.
         </p>
+        <h3 className="mt-4 text-sm font-semibold text-white/90">5.6 Prize Payment Timing; Winner Cooperation</h3>
+        <p className="mt-2">
+          Subject to verification, tax, payment-processor, and compliance requirements, prizes will
+          ordinarily be paid on the Monday immediately following the conclusion of the Tournament. If
+          verification, tax withholding, payment processing, or compliance review is still pending,
+          payment will be made as soon thereafter as reasonably practicable once those requirements are
+          satisfied. Each prize winner must provide any information, documentation, or cooperation
+          reasonably requested by Organizer to complete payment, identity verification, tax reporting, or
+          other lawful requirements. Failure to provide such information within a reasonable time after
+          request may delay or forfeit payment in Organizer’s sole discretion, subject to applicable law.
+        </p>
       </section>
 
       <section>
@@ -200,79 +211,167 @@ function EsportsOfficialRulesSections1to9() {
         <p className="mt-2">
           <span className="font-semibold text-white/90">6.1 General Structure.</span> Each Tournament
           will consist of two phases: (a) a Round Robin Group Stage, followed by (b) a Single-Elimination
-          Playoff Stage. Organizer will determine the exact number of groups and final bracket structure
-          based on the total number of confirmed Participants. The Tournament will include no more than
-          thirty-two (32) Participants. Where reasonably possible, groups will consist of four (4)
-          Participants each. Organizer may publish the final group assignments, schedule, and playoff
-          bracket after registration closes.
+          Playoff Stage. The default group structures and playoff field sizes for each confirmed
+          Participant count are set forth in Section 6.2, subject to Organizer’s authority to adjust for
+          operational, fairness, or integrity reasons as stated in these Rules. The Tournament will
+          include no more than thirty-two (32) Participants. Organizer may publish the final group
+          assignments, schedule, and playoff bracket after registration closes.
         </p>
         <p className="mt-3">
-          <span className="font-semibold text-white/90">6.2 Group Stage.</span> Participants will be
-          placed into groups of approximately equal size. Each Participant will play one (1) match against
-          every other Participant in that Participant’s group, unless Organizer announces a different
-          format in advance. The Group Stage is intended to determine playoff qualification and playoff
-          seeding. All Group Stage matches must be completed within the deadlines announced by Organizer.
+          <span className="font-semibold text-white/90">6.2 Bracket Structures by Confirmed Participant Count.</span>{" "}
+          Unless Organizer publishes a different structure for a specific Tournament before registration
+          opens, the following defaults apply based on the number of confirmed Participants at the close of
+          registration:
+        </p>
+        <ul className="mt-3 list-disc space-y-2 pl-5">
+          <li>
+            (a) <span className="text-white/90">Eight (8) Participants:</span> two (2) groups of four (4);
+            the top two (2) from each group advance; Playoff Stage is a four (4)-Participant
+            single-elimination bracket comprising semifinals and a final.
+          </li>
+          <li>
+            (b) <span className="text-white/90">Nine (9) to ten (10) Participants:</span> two (2) groups
+            of five (5); the top two (2) from each group advance; Playoff Stage is a four (4)-Participant
+            single-elimination bracket comprising semifinals and a final.
+          </li>
+          <li>
+            (c) <span className="text-white/90">Eleven (11) to twelve (12) Participants:</span> three (3)
+            groups of four (4); the three (3) group winners plus the best second-place finisher among all
+            groups (runner-up) advance; Playoff Stage is a four (4)-Participant single-elimination bracket
+            comprising semifinals and a final.
+          </li>
+          <li>
+            (d) <span className="text-white/90">Thirteen (13) to sixteen (16) Participants:</span> four (4)
+            groups of approximately equal size; the top two (2) from each group advance; Playoff Stage is
+            an eight (8)-Participant single-elimination bracket comprising quarterfinals, semifinals, and
+            a final.
+          </li>
+          <li>
+            (e) <span className="text-white/90">Seventeen (17) to twenty (20) Participants:</span> four (4)
+            groups of approximately equal size; the top two (2) from each group advance; Playoff Stage is
+            an eight (8)-Participant single-elimination bracket comprising quarterfinals, semifinals, and
+            a final.
+          </li>
+          <li>
+            (f) <span className="text-white/90">Twenty-one (21) to twenty-four (24) Participants:</span> six
+            (6) groups of approximately equal size; the six (6) group winners plus the two (2) best
+            runners-up among all groups advance; Playoff Stage is an eight (8)-Participant
+            single-elimination bracket comprising quarterfinals, semifinals, and a final.
+          </li>
+          <li>
+            (g) <span className="text-white/90">Twenty-five (25) to twenty-eight (28) Participants:</span>{" "}
+            seven (7) groups of approximately equal size; the seven (7) group winners plus the best
+            runner-up among all groups advance; Playoff Stage is an eight (8)-Participant
+            single-elimination bracket comprising quarterfinals, semifinals, and a final.
+          </li>
+          <li>
+            (h) <span className="text-white/90">Twenty-nine (29) to thirty-two (32) Participants:</span>{" "}
+            eight (8) groups of approximately equal size; the top two (2) from each group advance;
+            Playoff Stage is a sixteen (16)-Participant single-elimination bracket comprising a Round of
+            sixteen (16), quarterfinals, semifinals, and a final.
+          </li>
+        </ul>
+        <p className="mt-3">
+          <span className="font-semibold text-white/90">6.3 Unequal Groups; Comparison of Runners-Up and Wild-Card Candidates.</span>{" "}
+          Where groups differ in size or where one or more Participants must be selected from among
+          non-automatic qualifiers (including, without limitation, “best runner-up” or other wild-card
+          positions described in Section 6.2), Organizer will compare candidates using the following
+          criteria, in this order, applied on a per-match basis where applicable: (a) points per match;
+          (b) goal difference per match; (c) goals scored per match; (d) fewest forfeits or administrative
+          losses; (e) random draw conducted by Organizer. Organizer may apply these criteria in a manner
+          that preserves competitive fairness where multiple candidates or multiple rounds of comparison
+          are required.
         </p>
         <p className="mt-3">
-          <span className="font-semibold text-white/90">6.3 Group Stage Match Scoring.</span> For Group
+          <span className="font-semibold text-white/90">6.4 Group Stage.</span> Participants will be
+          placed into groups of approximately equal size, except where a structure in Section 6.2
+          expressly provides otherwise. Each Participant will play one (1) match against every other
+          Participant in that Participant’s group, unless Organizer announces a different format in
+          advance. The Group Stage is intended to determine playoff qualification and playoff seeding. All
+          Group Stage matches must be completed within the deadlines announced by Organizer.
+        </p>
+        <p className="mt-3">
+          <span className="font-semibold text-white/90">6.5 Group Stage Match Scoring.</span> For Group
           Stage standings, points will be awarded as follows: Win: 3 points; Draw: 1 point; Loss: 0
           points. Organizer may require Participants to submit match scores through the designated
           reporting system immediately after each match, along with screenshots or other proof if
           requested.
         </p>
         <p className="mt-3">
-          <span className="font-semibold text-white/90">6.4 Group Stage Tiebreakers.</span> If two or more
-          Participants finish the Group Stage level on points, standings will be determined using the
-          following tiebreakers, in this order: (a) head-to-head points among tied Participants; (b)
-          head-to-head goal difference among tied Participants; (c) head-to-head goals scored among tied
-          Participants; (d) overall goal difference in all Group Stage matches; (e) overall goals
-          scored in all Group Stage matches; (f) fewest forfeits or administrative losses; (g) random draw
-          conducted by Organizer. If more than two Participants are tied, Organizer may apply the above
-          criteria repeatedly as needed to break the tie.
+          <span className="font-semibold text-white/90">6.6 Group Stage Tiebreakers (Within-Group).</span>{" "}
+          If two or more Participants in the same group finish the Group Stage level on points,
+          standings among those tied Participants will be determined using the following tiebreakers, in
+          this order: (a) head-to-head points among tied Participants; (b) head-to-head goal difference
+          among tied Participants; (c) head-to-head goals scored among tied Participants; (d) overall goal
+          difference in all Group Stage matches; (e) overall goals scored in all Group Stage matches; (f)
+          fewest forfeits or administrative losses; (g) random draw conducted by Organizer. If more than
+          two Participants are tied, Organizer may apply the above criteria repeatedly as needed to break
+          the tie.
         </p>
         <p className="mt-3">
-          <span className="font-semibold text-white/90">6.5 Advancement to Playoffs.</span> The number of
-          Participants who advance from each group to the Playoff Stage will be announced by Organizer
-          before the first Group Stage match begins. Unless Organizer announces otherwise in advance:
-          (a) the top two (2) finishers from each group will qualify for the Playoff Stage; and (b)
-          playoff seeding will be based on Group Stage finish, points earned, and applicable tiebreakers.
-          Organizer may include wild-card spots if needed to create a workable playoff bracket.
+          <span className="font-semibold text-white/90">6.7 Advancement to Playoffs.</span> The number of
+          Participants who advance from each group to the Playoff Stage, and the method for selecting any
+          wild-card or runner-up qualifiers, will conform to Section 6.2 unless Organizer announces a
+          different method before the first Group Stage match begins. Playoff seeding will be based on
+          Group Stage finish, points earned, and applicable tiebreakers, subject to Organizer’s sole
+          discretion for bracket integrity.
         </p>
         <p className="mt-3">
-          <span className="font-semibold text-white/90">6.6 Playoff Stage.</span> The Playoff Stage will
+          <span className="font-semibold text-white/90">6.8 Playoff Stage.</span> The Playoff Stage will
           be conducted as a single-elimination knockout bracket. A Participant who loses a Playoff match
           is eliminated from the Tournament. Organizer may determine playoff seeding in its sole
           discretion using Group Stage performance, including: (a) finishing position within the group;
           (b) total points; (c) goal difference; (d) goals scored; and (e) other applicable tiebreakers.
         </p>
         <p className="mt-3">
-          <span className="font-semibold text-white/90">6.7 Playoff Match Results.</span> If a Playoff
+          <span className="font-semibold text-white/90">6.9 Playoff Match Results.</span> If a Playoff
           match ends level at the end of regulation: (a) extra time will be played if available in the
           selected game settings; and (b) if still level, the match will be decided by penalty kicks.
           There are no draws in the Playoff Stage.
         </p>
         <p className="mt-3">
-          <span className="font-semibold text-white/90">6.8 Scheduling.</span> Organizer will publish a
-          schedule, match windows, or deadlines for each Group Stage round and each Playoff round. Each
-          Participant is responsible for: (a) monitoring Tournament communications; (b) being available
-          during the scheduled match window; (c) responding reasonably and promptly to opponents and
-          Organizer; and (d) completing matches before the applicable deadline. Failure to complete a
-          scheduled match may result in a forfeit, administrative result, or disqualification, in
-          Organizer’s sole discretion.
+          <span className="font-semibold text-white/90">6.10 Scheduling and Self-Scheduling.</span>{" "}
+          Participants are responsible for scheduling each match directly with their opponent within the
+          match window, deadline, or other scheduling framework published or communicated by Organizer for
+          that round or match (including an assigned match day, where applicable). Organizer will publish or
+          communicate the applicable match window, deadline, or assigned match day for each Group Stage
+          round and each Playoff round, as well as any overall Tournament scheduling parameters shown on
+          the Tournament webpage.
         </p>
         <p className="mt-3">
-          <span className="font-semibold text-white/90">6.9 No-Shows and Unplayed Matches.</span> If a
-          Participant fails to appear for a scheduled match within ten (10) minutes of the scheduled
-          start time, Organizer may declare that Participant to have forfeited unless Organizer
-          determines that an extension is warranted. Unless Organizer decides otherwise, a forfeited
-          match will be recorded as: (a) a 3-0 win for the non-offending Participant; and (b) a 0-3 loss
-          for the offending Participant. If both Participants fail to cooperate, fail to schedule in good
-          faith, or otherwise fail to complete a match by the deadline, Organizer may: (a) assign a
-          double forfeit; (b) assign no points to either Participant; (c) assign an administrative draw; or
-          (d) take any other action Organizer considers fair and appropriate.
+          For any match assigned to a particular calendar day, each Participant must initiate contact and
+          respond to the opponent’s scheduling communications no later than four (4) hours after 12:00 p.m.
+          (noon) local time on that assigned day, unless Organizer specifies a different response time in
+          writing for that Tournament or match. A Participant who fails to meet that response obligation
+          may be declared to have forfeited the match or may receive an administrative loss, in
+          Organizer’s sole discretion. If a Participant responds after the response deadline, the opponent
+          is not required to accommodate the late response or to accept a proposed time that does not
+          reasonably fit within the published match window. Organizer may award a forfeit or
+          administrative loss to the Participant who responded timely, even if the non-responsive or late
+          Participant later becomes available. Organizer retains full discretion to resolve scheduling
+          disputes, edge cases, and suspected bad-faith conduct, including by imposing forfeits,
+          administrative results, or other penalties consistent with these Rules.
         </p>
         <p className="mt-3">
-          <span className="font-semibold text-white/90">6.10 Participant Withdrawal During Group Stage.</span>{" "}
+          Each Participant is also responsible for: (a) monitoring Tournament communications; (b) being
+          available during the scheduled match window; (c) cooperating in good faith to finalize a start
+          time; and (d) completing matches before the applicable deadline. Failure to complete a match in
+          accordance with these Rules may result in a forfeit, administrative result, or
+          disqualification, in Organizer’s sole discretion.
+        </p>
+        <p className="mt-3">
+          <span className="font-semibold text-white/90">6.11 No-Shows and Unplayed Matches.</span> If a
+          Participant fails to appear for a scheduled match within ten (10) minutes of the scheduled start
+          time agreed by the Participants (or set by Organizer), Organizer may declare that Participant to
+          have forfeited unless Organizer determines that an extension is warranted. Unless Organizer
+          decides otherwise, a forfeited match will be recorded as: (a) a 3-0 win for the non-offending
+          Participant; and (b) a 0-3 loss for the offending Participant. If both Participants fail to
+          cooperate, fail to schedule in good faith, or otherwise fail to complete a match by the deadline,
+          Organizer may: (a) assign a double forfeit; (b) assign no points to either Participant; (c) assign
+          an administrative draw; or (d) take any other action Organizer considers fair and appropriate.
+        </p>
+        <p className="mt-3">
+          <span className="font-semibold text-white/90">6.12 Participant Withdrawal During Group Stage.</span>{" "}
           If a Participant withdraws, is removed, or is disqualified during the Group Stage, Organizer
           may, in its sole discretion: (a) void that Participant’s unplayed matches; (b) void all of that
           Participant’s prior results; (c) keep completed results in the standings; or (d) apply
@@ -280,17 +379,48 @@ function EsportsOfficialRulesSections1to9() {
           best preserves competitive fairness for the group as a whole.
         </p>
         <p className="mt-3">
-          <span className="font-semibold text-white/90">6.11 Disconnects, Server Issues, and Match Interruptions.</span>{" "}
-          If a disconnect, server failure, or comparable technical issue occurs before halftime, the
-          match will ordinarily be replayed in full unless Organizer directs otherwise. If the
-          interruption occurs after halftime, Organizer may order: (a) a full replay; (b) a partial replay
-          from a recreated scoreline if reasonably possible; (c) the score at interruption to stand; or
-          (d) any other fair corrective action. Participants may be required to provide screenshots,
-          video, or other proof. Repeated technical failures caused by one Participant’s setup may be
-          treated as forfeits.
+          <span className="font-semibold text-white/90">
+            6.13 Disconnects; Connection Quality; Lag; Evidence; and Match Interruptions.
+          </span>{" "}
+          Wired Ethernet or comparable wired local area network (“LAN”) connection to the internet is
+          strongly recommended for all matches. For Playoff Stage matches, wired Ethernet or LAN is
+          mandatory unless Organizer grants a written exception in advance. A single screenshot of a speed
+          test or similar metric is not, by itself, automatic proof that a fault lies with any particular
+          Participant or connection.
         </p>
         <p className="mt-3">
-          <span className="font-semibold text-white/90">6.12 Anti-Manipulation Rules.</span> Participants
+          If a disconnect, server failure, or comparable technical issue occurs before halftime, the match
+          will ordinarily be replayed in full unless Organizer directs otherwise. If the interruption
+          occurs after halftime, Organizer may order: (a) a full replay; (b) a partial replay from a
+          recreated scoreline if reasonably possible; (c) the score at interruption to stand; or (d) any
+          other fair corrective action.
+        </p>
+        <p className="mt-3">
+          If a Participant claims that an opponent’s connection or network conditions materially affected
+          the match, that claim must be raised with Organizer immediately during the match or promptly after
+          the match ends; undue delay may be grounds to deny relief. Organizer may require any Participant
+          accused of contributing to unfair lag or instability to submit, within ten (10) minutes of
+          Organizer’s request, a single continuous video recorded on a phone or other device showing, in
+          sequence: (a) the Participant’s console account or gamertag; (b) the console network settings
+          screen; (c) whether the Participant is using a wired or wireless internet connection; and (d) the
+          console’s built-in connection test or network statistics screen. If Organizer requests such
+          evidence and the Participant refuses or fails to provide it within the stated time, Organizer
+          may impose an administrative loss, forfeit, or other penalty on that Participant. If Organizer
+          determines, after review, that a Participant’s unstable or inappropriate connection materially
+          affected fair play, Organizer may order a replay, a partial replay if appropriate, an
+          administrative result, or a forfeit loss. Repeated connection issues traceable to the same
+          Participant may result in a requirement to use wired internet for future matches; failure to
+          comply may result in disqualification or administrative loss. Organizer may prohibit mobile
+          hotspots, unstable connections, or other non-standard configurations that threaten competitive
+          integrity.
+        </p>
+        <p className="mt-3">
+          Participants may be required to provide screenshots, additional video, or other proof in any
+          dispute. Repeated technical failures caused by one Participant’s setup may be treated as
+          forfeits or administrative losses.
+        </p>
+        <p className="mt-3">
+          <span className="font-semibold text-white/90">6.14 Anti-Manipulation Rules.</span> Participants
           may not intentionally alter competitive integrity, including by: (a) deliberately losing for
           seeding purposes; (b) colluding to produce a preferred result; (c) manipulating scorelines to
           affect tiebreakers; (d) refusing to play in order to help another Participant qualify; or (e)
@@ -298,7 +428,7 @@ function EsportsOfficialRulesSections1to9() {
           disqualify any Participant or group of Participants for suspected manipulation.
         </p>
         <p className="mt-3">
-          <span className="font-semibold text-white/90">6.13 Organizer Authority Over Format Issues.</span>{" "}
+          <span className="font-semibold text-white/90">6.15 Organizer Authority Over Format Issues.</span>{" "}
           Organizer has the sole authority to interpret and apply this Tournament format, including all
           issues relating to: (a) standings; (b) tiebreakers; (c) qualification; (d) seeding; (e)
           forfeits; (f) replays; (g) administrative results; and (h) bracket corrections. All Organizer
@@ -354,16 +484,18 @@ function EsportsOfficialRulesSections1to9() {
           non-refundable except as expressly stated in this Section 9 and in Sections 5.2 and 8.
         </p>
         <p className="mt-3">
-          <span className="text-white/90">Refund requests more than 48 hours before start.</span> You
-          may receive a refund of your entry fee if you submit a refund request to the support email
+          <span className="text-white/90">Refund requests more than 48 hours before competition start.</span>{" "}
+          You may receive a refund of your entry fee if you submit a refund request to the support email
           listed on the Tournament webpage{" "}
           <span className="text-white/90">more than forty-eight (48) hours</span> before the published
-          Tournament start time (as shown on the Tournament webpage).
+          start time of the first scheduled Tournament match or the first official Tournament match window,
+          whichever is earlier or applicable as identified on the Tournament webpage (the “Refund
+          Deadline Clock”).
         </p>
         <p className="mt-3">
-          <span className="text-white/90">Requests within 48 hours of start.</span> If your withdrawal
-          or refund request is received within forty-eight (48) hours of the published Tournament start
-          time, you are not entitled to a refund.
+          <span className="text-white/90">Requests within 48 hours of the Refund Deadline Clock.</span> If
+          your withdrawal or refund request is received within forty-eight (48) hours of the Refund
+          Deadline Clock described above, you are not entitled to a refund.
         </p>
         <p className="mt-3">
           <span className="text-white/90">No-shows and disqualification.</span> If you fail to appear
@@ -377,7 +509,7 @@ function EsportsOfficialRulesSections1to9() {
         </p>
         <p className="mt-3">
           <span className="text-white/90">Rescheduling.</span> If the Tournament runs on revised dates
-          (including where Organizer reschedules under Section 5.2), your fee ordinarily applies to the
+          (including where Organizer reschedules under Section 8), your fee ordinarily applies to the
           rescheduled Tournament; you are not entitled to a refund solely because dates change unless
           Organizer cancels the Tournament under Section 8 or notifies Participants otherwise in writing.
         </p>
