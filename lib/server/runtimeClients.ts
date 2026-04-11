@@ -33,22 +33,28 @@ export function getSupabaseAnon(): SupabaseClient {
   return createClient(url, key);
 }
 
-const stripeApiVersion =
-  (process.env.STRIPE_API_VERSION as Stripe.LatestApiVersion | undefined) ||
-  ("2026-02-25" as Stripe.LatestApiVersion);
+function createStripeFromSecret(secret: string): Stripe {
+  const apiVersion = process.env.STRIPE_API_VERSION?.trim();
+  if (apiVersion) {
+    return new Stripe(secret, {
+      apiVersion: apiVersion as Stripe.LatestApiVersion,
+    });
+  }
+  return new Stripe(secret);
+}
 
-/** Pickup checkout (RSVP / pay) — same API version as tournament + webhooks. */
+/** Pickup checkout (RSVP / pay) — SDK default API version unless STRIPE_API_VERSION is set. */
 export function getStripePickup(): Stripe {
   warnPublishableStripeKeyIfMisconfigured();
   const secret = assertStripeSecretKeyForRuntime();
-  return new Stripe(secret, { apiVersion: stripeApiVersion });
+  return createStripeFromSecret(secret);
 }
 
-/** Tournament checkout + webhooks — respects STRIPE_API_VERSION when set. */
+/** Tournament checkout + webhooks — SDK default unless STRIPE_API_VERSION is set. */
 export function getStripeTournament(): Stripe {
   warnPublishableStripeKeyIfMisconfigured();
   const secret = assertStripeSecretKeyForRuntime();
-  return new Stripe(secret, { apiVersion: stripeApiVersion });
+  return createStripeFromSecret(secret);
 }
 
 export function getStripeWebhookSecret(): string {
