@@ -47,6 +47,7 @@ import {
 
 type Stage = "email" | "code" | "profile";
 
+/** Seconds to wait after a successful OTP send (Continue or Resend) before Resend is enabled again. */
 const OTP_RESEND_COOLDOWN_SEC = 30;
 
 const LEFT_IMAGE = "/signup/left.jpg";
