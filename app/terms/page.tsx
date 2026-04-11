@@ -7,6 +7,7 @@ import {
   Panel,
   TopNav,
 } from "@/components/layout";
+import { SupportEmailLink } from "@/components/SupportEmailLink";
 
 export const metadata: Metadata = {
   title: "Terms | CT Pickup",
@@ -57,7 +58,9 @@ export default function TermsPage() {
             <Link href="/help" className="text-white/75 underline-offset-4 hover:underline">
               Help
             </Link>{" "}
-            or contact organizers through the channels we provide.
+            or email{" "}
+            <SupportEmailLink className="font-medium text-white/75 underline underline-offset-4 hover:text-white/90" />
+            .
           </p>
         </div>
       </Panel>

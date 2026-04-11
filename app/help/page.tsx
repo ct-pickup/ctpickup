@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { SupportEmailLink } from "@/components/SupportEmailLink";
 import {
   AuthenticatedProfileMenu,
   PageShell,
@@ -9,7 +10,6 @@ import {
   TopNav,
 } from "@/components/layout";
 import { EsportsSetupNudgeBar } from "@/components/profile/EsportsSetupNudgeBar";
-import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import {
   filterNavActionsForClient,
@@ -18,7 +18,7 @@ import {
 
 type Msg = {
   role: "user" | "assistant";
-  text: string;
+  text: string | ReactNode;
   actions?: HelpNavAction[];
 };
 
@@ -174,15 +174,28 @@ export default function HelpPage() {
           ...prev,
           {
             role: "assistant",
-            text: "Invalid response from help service. Please try again.",
+            text: (
+              <>
+                Invalid response from help service. Please try again, or email{" "}
+                <SupportEmailLink className="font-medium text-sky-300 underline underline-offset-2 hover:text-sky-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50 rounded-sm" />
+                .
+              </>
+            ),
           },
         ]);
         return;
       }
 
-      const assistantText = r.ok
+      const assistantBody: string | ReactNode = r.ok
         ? String(j?.text || "I couldn’t generate a reply.")
-        : String(j?.error || "Something went wrong.");
+        : (
+            <>
+              {String(j?.error || "Something went wrong.")}{" "}
+              You can also email{" "}
+              <SupportEmailLink className="font-medium text-sky-300 underline underline-offset-2 hover:text-sky-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50 rounded-sm" />
+              .
+            </>
+          );
       const rawActions = r.ok && Array.isArray(j?.actions) ? j.actions : [];
       const actions = filterNavActionsForClient(rawActions, { isAdmin });
 
@@ -190,7 +203,7 @@ export default function HelpPage() {
         ...prev,
         {
           role: "assistant",
-          text: assistantText,
+          text: assistantBody,
           ...(actions.length ? { actions } : {}),
         },
       ]);
@@ -200,7 +213,13 @@ export default function HelpPage() {
         ...prev,
         {
           role: "assistant",
-          text: "Something went wrong connecting to help.",
+          text: (
+            <>
+              Something went wrong connecting to help. You can email{" "}
+              <SupportEmailLink className="font-medium text-sky-300 underline underline-offset-2 hover:text-sky-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50 rounded-sm" />{" "}
+              for assistance.
+            </>
+          ),
         },
       ]);
     } finally {
@@ -234,6 +253,12 @@ export default function HelpPage() {
           </div>
         </div>
 
+        <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm leading-relaxed text-white/80 md:px-5">
+          Need help from a person? Email{" "}
+          <SupportEmailLink className="font-medium text-sky-300 underline underline-offset-2 hover:text-sky-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f10] rounded-sm" />
+          .
+        </p>
+
         <Panel className="space-y-6 p-6 md:p-8">
           <div className="space-y-4">
             {messages.map((m, i) => {
@@ -251,9 +276,15 @@ export default function HelpPage() {
                       : "bg-black/40 text-white border border-white/10",
                   ].join(" ")}
                 >
-                  {m.role === "assistant"
-                    ? assistantTextWithHttpsLinks(m.text)
-                    : m.text}
+                  {m.role === "assistant" ? (
+                    typeof m.text === "string" ? (
+                      assistantTextWithHttpsLinks(m.text)
+                    ) : (
+                      m.text
+                    )
+                  ) : (
+                    m.text
+                  )}
                   {safeActions.length ? (
                     <div className="mt-3 flex flex-wrap gap-2 border-t border-white/10 pt-3">
                       {safeActions.map((a) => (

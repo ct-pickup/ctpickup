@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { SupportEmailLink } from "@/components/SupportEmailLink";
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { HistoryBack } from "@/components/layout";
 import { Input, selectFieldClassName } from "@/components/ui/input";
@@ -148,7 +149,7 @@ function SignupForm({
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [stage, setStage] = useState<Stage>("email");
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<ReactNode | null>(null);
   const [busy, setBusy] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
 
@@ -248,7 +249,12 @@ function SignupForm({
         setMsg("Still connecting. Please try again in a moment.");
       } else {
         setMsg(
-          "Sign-up isn’t available right now (missing Supabase configuration). Please refresh or contact support.",
+          <>
+            Sign-up isn’t available right now (missing Supabase configuration).
+            Please refresh, or email{" "}
+            <SupportEmailLink className="font-medium text-white underline underline-offset-2 hover:text-white/90" />{" "}
+            for help.
+          </>,
         );
       }
       return;
@@ -285,7 +291,12 @@ function SignupForm({
         setMsg("Still connecting. Please try again in a moment.");
       } else {
         setMsg(
-          "Sign-up isn’t available right now (missing Supabase configuration). Please refresh or contact support.",
+          <>
+            Sign-up isn’t available right now (missing Supabase configuration).
+            Please refresh, or email{" "}
+            <SupportEmailLink className="font-medium text-white underline underline-offset-2 hover:text-white/90" />{" "}
+            for help.
+          </>,
         );
       }
       return;
@@ -321,7 +332,12 @@ function SignupForm({
         setMsg("Still connecting. Please try again in a moment.");
       } else {
         setMsg(
-          "Sign-up isn’t available right now (missing Supabase configuration). Please refresh or contact support.",
+          <>
+            Sign-up isn’t available right now (missing Supabase configuration).
+            Please refresh, or email{" "}
+            <SupportEmailLink className="font-medium text-white underline underline-offset-2 hover:text-white/90" />{" "}
+            for help.
+          </>,
         );
       }
       return;
@@ -743,7 +759,7 @@ function SignupForm({
                   <p className="text-sm text-white/70 whitespace-pre-line leading-relaxed">{msg}</p>
                 ) : null}
 
-                {msg?.includes("already have this account") && (
+                {typeof msg === "string" && msg.includes("already have this account") && (
                   <Link
                     href="/login"
                     className="block text-sm text-white/70 hover:text-white hover:underline underline-offset-4"

@@ -112,9 +112,9 @@ function EsportsOfficialRulesSections1to9() {
         <h2 className="text-base font-semibold text-white">4. Registration and Entry Fee</h2>
         <h3 className="mt-3 text-sm font-semibold text-white/90">4.1 Entry Fee</h3>
         <p className="mt-2">
-          Participants may register by paying a non-refundable entry fee of US$10.00 per Tournament.
-          The entry fee is charged for participation in the Tournament and to cover Organizer’s
-          tournament administration and operating costs.
+          Participants may register by paying an entry fee of US$10.00 per Tournament. The entry fee
+          is charged for participation in the Tournament and to cover Organizer’s tournament
+          administration and operating costs. Refunds, if any, are governed by Section 9.
         </p>
         <h3 className="mt-4 text-sm font-semibold text-white/90">4.2 Registration Procedure</h3>
         <p className="mt-2">
@@ -125,7 +125,7 @@ function EsportsOfficialRulesSections1to9() {
         </p>
         <h3 className="mt-4 text-sm font-semibold text-white/90">4.3 Entry Fee Refunds</h3>
         <p className="mt-2">
-          Entry fees are non-refundable except as expressly stated in Section 8 of these Rules.
+          Entry fee refunds are governed exclusively by Section 9 (Refund Policy).
         </p>
       </section>
 
@@ -305,20 +305,69 @@ function EsportsOfficialRulesSections1to9() {
       </section>
 
       <section>
-        <h2 className="text-base font-semibold text-white">8. Cancellation or Modification</h2>
+        <h2 id="cancellation-or-modification" className="text-base font-semibold text-white">
+          8. Cancellation or Modification
+        </h2>
         <p className="mt-2">
           Organizer reserves the right to cancel, suspend, postpone, or modify a Tournament or any part
           of it, for any reason including fraud, technical failure, insufficient participation, platform
           outages, or legal compliance. If a Tournament is canceled before any matches are played, entry
-          fees will be refunded.
+          fees will be refunded, subject to Section 9.
+        </p>
+        <p className="mt-3">
+          If a Tournament is postponed or rescheduled but not canceled, your registration generally
+          remains valid for the new dates; entry fees are not refunded solely because of a schedule
+          change unless Organizer elects otherwise in writing or cancels the Tournament under this
+          Section.
         </p>
       </section>
 
       <section>
-        <h2 className="text-base font-semibold text-white">9. Refund Policy</h2>
+        <h2 id="refund-policy" className="text-base font-semibold text-white">
+          9. Refund Policy
+        </h2>
         <p className="mt-2">
-          Entry fees are non-refundable except in the event of Tournament cancellation before play
-          begins. Participants who withdraw or are disqualified are not entitled to a refund.
+          <span className="text-white/90">General.</span> Tournament registration entry fees are
+          non-refundable except as expressly stated in this Section 9 and in Sections 5.2 and 8.
+        </p>
+        <p className="mt-3">
+          <span className="text-white/90">Refund requests more than 48 hours before start.</span> You
+          may receive a refund of your entry fee if you submit a refund request to the support email
+          listed on the Tournament webpage{" "}
+          <span className="text-white/90">more than forty-eight (48) hours</span> before the published
+          Tournament start time (as shown on the Tournament webpage).
+        </p>
+        <p className="mt-3">
+          <span className="text-white/90">Requests within 48 hours of start.</span> If your withdrawal
+          or refund request is received within forty-eight (48) hours of the published Tournament start
+          time, you are not entitled to a refund.
+        </p>
+        <p className="mt-3">
+          <span className="text-white/90">No-shows and disqualification.</span> If you fail to appear
+          for scheduled play without Organizer approval, or you are disqualified, you are not entitled
+          to a refund.
+        </p>
+        <p className="mt-3">
+          <span className="text-white/90">Tournament canceled before play.</span> If the Organizer
+          cancels the Tournament before any matches are played, entry fees will be refunded as
+          described in Section 8.
+        </p>
+        <p className="mt-3">
+          <span className="text-white/90">Rescheduling.</span> If the Tournament runs on revised dates
+          (including where Organizer reschedules under Section 5.2), your fee ordinarily applies to the
+          rescheduled Tournament; you are not entitled to a refund solely because dates change unless
+          Organizer cancels the Tournament under Section 8 or notifies Participants otherwise in writing.
+        </p>
+        <p className="mt-3">
+          <span className="text-white/90">Duplicate charges and billing mistakes.</span> If you believe
+          you were charged twice or in error for the same Tournament entry, contact the support email
+          listed on the Tournament webpage promptly with the details. Verified duplicate or erroneous
+          charges will be corrected.
+        </p>
+        <p className="mt-3">
+          <span className="text-white/90">Timing and questions.</span> Refunds owed under these Rules
+          are processed as soon as reasonably practicable after a qualifying cancellation or approved
+          refund request. For any refund question, contact the support email on the Tournament webpage.
         </p>
       </section>
     </>

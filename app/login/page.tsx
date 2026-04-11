@@ -8,7 +8,8 @@ import { signupUrlForIntent } from "@/lib/auth/signupIntent";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { useTransitionNav } from "@/components/TransitionNavContext";
-import { Suspense, useMemo, useState } from "react";
+import { SupportEmailLink } from "@/components/SupportEmailLink";
+import { Suspense, useMemo, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 function LoginForm() {
@@ -20,7 +21,7 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [stage, setStage] = useState<"email" | "code">("email");
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<ReactNode | null>(null);
   const [busy, setBusy] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
 
@@ -52,7 +53,12 @@ function LoginForm() {
         setMsg("Still connecting. Please try again in a moment.");
       } else {
         setMsg(
-          "Sign-in isn’t available right now (missing Supabase configuration). Please refresh or contact support.",
+          <>
+            Sign-in isn’t available right now (missing Supabase configuration).
+            Please refresh, or email{" "}
+            <SupportEmailLink className="font-medium text-white underline underline-offset-2 hover:text-white/90" />{" "}
+            for help.
+          </>,
         );
       }
       return;
@@ -89,7 +95,12 @@ function LoginForm() {
         setMsg("Still connecting. Please try again in a moment.");
       } else {
         setMsg(
-          "Sign-in isn’t available right now (missing Supabase configuration). Please refresh or contact support.",
+          <>
+            Sign-in isn’t available right now (missing Supabase configuration).
+            Please refresh, or email{" "}
+            <SupportEmailLink className="font-medium text-white underline underline-offset-2 hover:text-white/90" />{" "}
+            for help.
+          </>,
         );
       }
       return;
@@ -220,7 +231,7 @@ function LoginForm() {
 
           {msg ? <p className="text-sm text-white/70">{msg}</p> : null}
 
-          {msg?.includes("No account on file") && (
+          {typeof msg === "string" && msg.includes("No account on file") && (
             <div className="space-y-2 text-sm text-white/70">
               <p className="text-white/55">Create an account when you are joining:</p>
               <Link

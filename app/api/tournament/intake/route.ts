@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { splitFullNameToFirstLast } from "@/lib/tournament/tourneySubmissionNames";
 import { getOpenAI, getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { SUPPORT_EMAIL_ADDRESS } from "@/lib/supportEmail";
 
 type Collected = {
   full_name?: string;
@@ -61,7 +62,11 @@ function levelVerdict(level?: string): { ok: boolean; unclear: boolean; reason?:
     "just for fun", "sunday league"
   ];
   if (reject.some((w) => s.includes(w))) {
-    return { ok: false, unclear: false, reason: "CT Pickup tournaments are intended for college/former college, high-level club (ECNL, MLS Next), and varsity players. If you do not meet eligibility, email pickupct.com and get a referral from a player. Most likely you will be able to play. No promises." };
+    return {
+      ok: false,
+      unclear: false,
+      reason: `CT Pickup tournaments are intended for college/former college, high-level club (ECNL, MLS Next), and varsity players. If you do not meet eligibility, email ${SUPPORT_EMAIL_ADDRESS} and get a referral from a player. Most likely you will be able to play. No promises.`,
+    };
   }
 
   const accept = [

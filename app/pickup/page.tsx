@@ -9,6 +9,7 @@ import {
 import { EsportsSetupNudgeBar } from "@/components/profile/EsportsSetupNudgeBar";
 import { WaiverAcceptanceModal } from "@/components/waiver/WaiverAcceptanceModal";
 import Link from "next/link";
+import { PICKUP_REFUND_UI_NOTICE } from "@/lib/fees/refundPolicyCopy";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -407,6 +408,12 @@ export default function PickupPage() {
 
               {data.run.status === "active" && data.run.final_slot_id ? (
                 <div className="space-y-4 pt-3">
+                  {Number(data.run.fee_cents) > 0 ? (
+                    <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-4 py-3 text-sm leading-relaxed text-amber-50/95">
+                      <span className="font-semibold text-amber-100">Pickup fees &amp; refunds:</span>{" "}
+                      {PICKUP_REFUND_UI_NOTICE}
+                    </div>
+                  ) : null}
                   <div className="grid gap-3 sm:grid-cols-3">
                     <div className="rounded-xl border border-white/10 bg-black/30 p-5">
                       <div className="text-xs uppercase tracking-widest text-white/55">Confirmed</div>

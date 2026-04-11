@@ -4,6 +4,7 @@ import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
 import { paymentIntentIdFromCheckoutSession } from "@/lib/payments/stripeSessionIds";
 import { recordPlatformCheckoutStarted } from "@/lib/payments/recordCheckoutStarted";
+import { IN_PERSON_TOURNAMENT_CAPTAIN_STRIPE_DESCRIPTION } from "@/lib/fees/refundPolicyCopy";
 import {
   getStripeTournament,
   getSupabaseAdmin,
@@ -106,7 +107,7 @@ export async function POST(req: Request) {
             unit_amount: 25000,
             product_data: {
               name: "CT Pickup Tournament — Captain Payment",
-              description: "5 players × $50. No refunds within 48 hours of kickoff.",
+              description: IN_PERSON_TOURNAMENT_CAPTAIN_STRIPE_DESCRIPTION,
             },
           },
         },

@@ -8,7 +8,7 @@ export const ESPORTS_CONFIRMATION_LABELS: Record<EsportsConfirmationKey, string>
   agree_terms_and_conditions: "I agree to the Terms and Conditions.",
   agree_privacy_publicity_policy: "I agree to the Privacy and Publicity Consent Policy.",
   entry_fee_10_nonrefundable:
-    "I understand the entry fee is $10 and is non-refundable except where the rules say otherwise.",
+    "I understand the $10 entry fee: I may request a refund only if I do so more than 48 hours before the published tournament start; no refund if I request within 48 hours of start, no-show, or disqualification; full refund if the Organizer cancels before play; duplicate or erroneous charges corrected as stated in the Official Tournament Rules.",
   publicity_streaming_consent:
     "I consent to photographs, audio/video recording, livestreaming, and online posting of my gamertag, voice, image, likeness, results, and tournament-related content as described in the Privacy and Publicity Consent Policy.",
   platform_account_requirements:

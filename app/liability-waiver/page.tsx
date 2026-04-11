@@ -7,6 +7,7 @@ import {
   Panel,
   TopNav,
 } from "@/components/layout";
+import { SupportEmailLink } from "@/components/SupportEmailLink";
 import { LiabilityWaiverReturnBack } from "@/components/waiver/LiabilityWaiverReturnBack";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 import { safeWaiverReturnTo } from "@/lib/waiver/safeReturnTo";
@@ -60,7 +61,9 @@ export default async function LiabilityWaiverPage({ searchParams }: PageProps) {
         Questions? Visit{" "}
         <Link href="/help" className="text-white/70 underline-offset-4 hover:underline">
           Help
-        </Link>
+        </Link>{" "}
+        or email{" "}
+        <SupportEmailLink className="text-white/70 underline underline-offset-4 hover:text-white/90" />
         .
       </p>
     </PageShell>

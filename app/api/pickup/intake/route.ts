@@ -8,6 +8,7 @@ import {
   logPublicApiRouteError,
   httpStatusForSupabaseError,
 } from "@/lib/server/publicApiRouteErrors";
+import { SUPPORT_EMAIL_ADDRESS } from "@/lib/supportEmail";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,8 +80,7 @@ function levelVerdict(level?: string): { ok: boolean; unclear: boolean; reason?:
     return {
       ok: false,
       unclear: false,
-      reason:
-        "CT Pickup is intended for college/former college, high-level club (ECNL, MLS Next), and varsity players. If you’re unsure, email pickupct.com and get a referral from a player.",
+      reason: `CT Pickup is intended for college/former college, high-level club (ECNL, MLS Next), and varsity players. If you’re unsure, email ${SUPPORT_EMAIL_ADDRESS} and get a referral from a player.`,
     };
   }
   const accept = [

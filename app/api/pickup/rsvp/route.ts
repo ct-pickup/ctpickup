@@ -3,6 +3,7 @@ import { ensurePickupRunInviteLink } from "@/lib/pickup/ensureRunInviteLink";
 import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
 import { assertPickupStandingAllowsParticipation } from "@/lib/pickup/standing/participationGate";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
+import { PICKUP_FIELD_FEE_STRIPE_DESCRIPTION } from "@/lib/fees/refundPolicyCopy";
 import { paymentIntentIdFromCheckoutSession } from "@/lib/payments/stripeSessionIds";
 import { recordPlatformCheckoutStarted } from "@/lib/payments/recordCheckoutStarted";
 import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
@@ -209,7 +210,10 @@ export async function POST(req: Request) {
           price_data: {
             currency,
             unit_amount: unitAmount,
-            product_data: { name: `CT Pickup Field Fee` },
+            product_data: {
+              name: `CT Pickup Field Fee`,
+              description: PICKUP_FIELD_FEE_STRIPE_DESCRIPTION,
+            },
           },
           quantity: 1,
         },

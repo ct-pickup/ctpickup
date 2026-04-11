@@ -1,6 +1,8 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useMemo } from "react";
+import { SupportEmailLink } from "@/components/SupportEmailLink";
 import {
   AuthenticatedProfileMenu,
   PageShell,
@@ -12,7 +14,7 @@ import {
 type Section = {
   id: string;
   title: string;
-  text: string;
+  content: ReactNode;
 };
 
 export default function InfoPage() {
@@ -21,41 +23,82 @@ export default function InfoPage() {
       {
         id: "pickup",
         title: "Pickup",
-        text:
-          "C2 Pickup runs use a tiered invite system. This is a competitive environment, not casual.\n\nIf a run reaches capacity, you will be confirmed or placed on standby.\n\nStandby players may be moved into Confirmed if spots open up.",
+        content: (
+          <p className="whitespace-pre-line">
+            {`C2 Pickup runs use a tiered invite system. This is a competitive environment, not casual.
+
+If a run reaches capacity, you will be confirmed or placed on standby.
+
+Standby players may be moved into Confirmed if spots open up.`}
+          </p>
+        ),
       },
       {
         id: "eligibility",
         title: "Eligibility",
-        text:
-          "Eligibility: College / Former College / ECNL / MLS Next / Varsity (or equivalent).\n\nIf none, email pickupct@gmail.com for a player referral. Most likely you can play, no promises.\n\nMinimum age: 16.",
+        content: (
+          <div className="space-y-3">
+            <p className="whitespace-pre-line">
+              {`Eligibility: College / Former College / ECNL / MLS Next / Varsity (or equivalent).`}
+            </p>
+            <p>
+              If none, email <SupportEmailLink /> for a player referral. Most
+              likely you can play, no promises.
+            </p>
+            <p>Minimum age: 16.</p>
+          </div>
+        ),
       },
       {
         id: "accounts",
         title: "Accounts",
-        text:
-          "Log in saves your info so you don’t re-enter it every time.\n\n" +
-          "Signing in uses an 8-digit code sent to your email (no password).\n\n" +
-          "It unlocks invite-only details (like exact location when confirmed).\n\n" +
-          "It lets you see Confirmed vs Standby.\n\n" +
-          "It lets you update your profile without DM’ing.",
+        content: (
+          <p className="whitespace-pre-line">
+            {`Log in saves your info so you don’t re-enter it every time.
+
+Signing in uses an 8-digit code sent to your email (no password).
+
+It unlocks invite-only details (like exact location when confirmed).
+
+It lets you see Confirmed vs Standby.
+
+It lets you update your profile without DM’ing.`}
+          </p>
+        ),
       },
       {
         id: "tournaments",
         title: "Tournaments",
-        text:
-          "Captains and players must submit at least 48 hours before the tournament start time.\n\nTeam spots are limited. The Status Board updates as teams are approved/removed.\n\nMinimum roster size is required to submit. Goalkeeper counts toward the total.",
+        content: (
+          <p className="whitespace-pre-line">
+            {`Captains and players must submit at least 48 hours before the tournament start time.
+
+Team spots are limited. The Status Board updates as teams are approved/removed.
+
+Minimum roster size is required to submit. Goalkeeper counts toward the total.`}
+          </p>
+        ),
       },
       {
         id: "submissions",
         title: "Submission Agreement",
-        text:
-          "When you click Make Submission, a required pop-up appears.\n\nYou must read each section, then check the box to confirm you read and agree before submitting.",
+        content: (
+          <p className="whitespace-pre-line">
+            {`When you click Make Submission, a required pop-up appears.
+
+You must read each section, then check the box to confirm you read and agree before submitting.`}
+          </p>
+        ),
       },
       {
         id: "contact",
         title: "Contact",
-        text: "For questions, scheduling, or issues with the site: pickupct@gmail.com",
+        content: (
+          <p>
+            For questions, scheduling, or issues with the site:{" "}
+            <SupportEmailLink />
+          </p>
+        ),
       },
     ],
     []
@@ -97,8 +140,8 @@ export default function InfoPage() {
               <h2 className="text-lg font-semibold uppercase tracking-wide text-white">
                 {sec.title}
               </h2>
-              <div className="whitespace-pre-line text-sm leading-relaxed text-white/75">
-                {sec.text}
+              <div className="text-sm leading-relaxed text-white/75">
+                {sec.content}
               </div>
             </Panel>
           ))}

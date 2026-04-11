@@ -8,6 +8,7 @@ import {
   SectionEyebrow,
   TopNav,
 } from "@/components/layout";
+import { SupportEmailLink } from "@/components/SupportEmailLink";
 import { EsportsRegisterCtaButton } from "@/components/esports/EsportsRegisterCtaButton";
 import { EsportsSetupNudgeBar } from "@/components/profile/EsportsSetupNudgeBar";
 import { KnockoutBracketDisplay } from "@/components/esports/KnockoutBracketDisplay";
@@ -179,8 +180,13 @@ export default async function EsportsTournamentDetailPage({ params }: Props) {
         <Panel className="p-6 md:p-8">
           <h2 className="text-lg font-semibold text-white">Entry fee</h2>
           <p className="mt-3 text-sm text-white/80">
-            <span className="font-semibold text-white">$10 per player</span> — non-refundable
-            except where the Official Tournament Rules say otherwise.
+            <span className="font-semibold text-white">$10 per player</span> — refund if you request more
+            than 48 hours before the published tournament start; no refund within 48 hours of start; full
+            refund if the Organizer cancels before play (
+            <Link href="/legal/esports/official-rules#refund-policy" className="underline-offset-4 hover:underline">
+              rules §9
+            </Link>
+            ).
           </p>
         </Panel>
 
@@ -212,6 +218,11 @@ export default async function EsportsTournamentDetailPage({ params }: Props) {
               </Link>
             </li>
           </ul>
+
+          <p className="mt-6 text-sm leading-relaxed text-white/70">
+            Questions? Email{" "}
+            <SupportEmailLink className="font-medium text-[var(--brand)] underline-offset-4 hover:underline" />.
+          </p>
 
           <div className="mt-8 border-t border-white/10 pt-8">
             <EsportsRegisterCtaButton

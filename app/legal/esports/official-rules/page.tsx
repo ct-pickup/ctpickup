@@ -11,7 +11,8 @@ import { esportsDocVersionLabel } from "@/lib/legal/esportsDocVersions";
 
 export const metadata: Metadata = {
   title: "Official Tournament Rules (Esports) | CT Pickup",
-  description: "Official rules for CT Pickup EA SPORTS FC online tournaments.",
+  description:
+    "Official rules for CT Pickup EA SPORTS FC online tournaments, including registration fees and refunds.",
 };
 
 export default function EsportsOfficialRulesPage() {

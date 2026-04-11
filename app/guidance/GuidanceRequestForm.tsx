@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { SupportEmailLink } from "@/components/SupportEmailLink";
+import { SUPPORT_EMAIL_ADDRESS } from "@/lib/supportEmail";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { WaiverAcceptanceModal } from "@/components/waiver/WaiverAcceptanceModal";
 import type { GuidancePlan } from "@/lib/guidanceRequest";
@@ -17,12 +19,32 @@ type Props = {
   onPlanChange: (p: GuidancePlan) => void;
 };
 
+const errLinkClass =
+  "font-medium text-amber-200 underline underline-offset-2 hover:text-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f10] rounded-sm";
+
+function apiErrorWithMailto(text: string): ReactNode {
+  if (!text.includes(SUPPORT_EMAIL_ADDRESS)) return text;
+  const parts = text.split(SUPPORT_EMAIL_ADDRESS);
+  return (
+    <>
+      {parts.map((part, i) => (
+        <Fragment key={i}>
+          {part}
+          {i < parts.length - 1 ? (
+            <SupportEmailLink className={errLinkClass} />
+          ) : null}
+        </Fragment>
+      ))}
+    </>
+  );
+}
+
 export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
   const { supabase, isReady } = useSupabaseBrowser();
   const [message, setMessage] = useState("");
   const [sportFocus, setSportFocus] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ReactNode | null>(null);
   const [done, setDone] = useState(false);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [waiverModalOpen, setWaiverModalOpen] = useState(false);
@@ -76,9 +98,14 @@ export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
           return;
         }
         setError(
-          typeof j?.error === "string"
-            ? j.error
-            : "Something went wrong. Try again or email pickupct@gmail.com."
+          typeof j?.error === "string" ? (
+            apiErrorWithMailto(j.error)
+          ) : (
+            <>
+              Something went wrong. Try again or email{" "}
+              <SupportEmailLink className={errLinkClass} />.
+            </>
+          ),
         );
         setBusy(false);
         return;
@@ -191,7 +218,7 @@ export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
       {error ? (
         <p className="text-sm text-amber-200/90" role="alert">
           {error}{" "}
-          {error.includes("Sign in") ? (
+          {typeof error === "string" && error.includes("Sign in") ? (
             <Link href="/login" className="underline underline-offset-2">
               Log in
             </Link>

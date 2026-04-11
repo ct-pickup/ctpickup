@@ -3,6 +3,7 @@
 import Link from "next/link";
 import PageTop from "@/components/PageTop";
 import { HistoryBack } from "@/components/layout";
+import { PICKUP_REFUND_UI_NOTICE } from "@/lib/fees/refundPolicyCopy";
 import { APP_HOME_URL } from "@/lib/siteNav";
 
 const upcomingCards = [
@@ -100,6 +101,7 @@ const joinCards = [
       "Confirm Spot for a free run.",
       "Pay & Confirm for a paid run.",
       "For paid runs, a spot is only fully confirmed after successful checkout and payment completion.",
+      `${PICKUP_REFUND_UI_NOTICE}`,
       "Decline / Not Now if they cannot make it.",
     ],
   },
@@ -122,6 +124,7 @@ const joinCards = [
     bullets: [
       "A player may appear as pending payment until payment is successfully completed.",
       "Confirmation is not finalized until payment goes through.",
+      `${PICKUP_REFUND_UI_NOTICE}`,
     ],
   },
 ];

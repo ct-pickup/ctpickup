@@ -11,6 +11,7 @@ import {
 import { EsportsSetupNudgeBar } from "@/components/profile/EsportsSetupNudgeBar";
 import { EmptyStateMessage } from "@/components/EmptyStateMessage";
 import { WaiverAcceptanceModal } from "@/components/waiver/WaiverAcceptanceModal";
+import { IN_PERSON_TOURNAMENT_REFUND_NOTICE_UI } from "@/lib/fees/refundPolicyCopy";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 
 type Prelim = {
@@ -476,6 +477,9 @@ export default function TournamentPage() {
                     the tournament start time.
                   </p>
 
+                  <div className="font-semibold uppercase text-black/90">Entry fees &amp; refunds</div>
+                  <p>{IN_PERSON_TOURNAMENT_REFUND_NOTICE_UI}</p>
+
                   <p>
                     Team spots are limited. Once the maximum number of teams is reached,
                     the tournament is considered full.
@@ -653,6 +657,11 @@ export default function TournamentPage() {
               <div className="mt-6 space-y-5">
                 <div className="rounded-xl border border-black/10 bg-black/5 p-6 text-sm text-black/80 whitespace-pre-line">
                   Your captain interest has been recorded. Your team spot is not confirmed yet. Confirmation only happens after payment, eligibility review, roster verification, and final approval.
+                </div>
+
+                <div className="rounded-xl border border-amber-200/60 bg-amber-50/90 p-4 text-xs leading-relaxed text-black/80">
+                  <span className="font-semibold text-black/90">Before you pay:</span>{" "}
+                  {IN_PERSON_TOURNAMENT_REFUND_NOTICE_UI}
                 </div>
 
                 <div className="flex flex-wrap gap-3">

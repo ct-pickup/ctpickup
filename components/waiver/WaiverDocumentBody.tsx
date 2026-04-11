@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 /**
  * Canonical waiver copy — bump `CURRENT_WAIVER_VERSION` in `lib/waiver/constants.ts` when this changes.
  */
@@ -187,8 +189,30 @@ export function WaiverDocumentBody() {
           14. Payments &amp; Prizes
         </h2>
         <p>
-          All purchases are non-refundable unless otherwise stated. Prizes are subject
-          to verification and eligibility requirements.
+          Unless different terms apply to a specific product you accept at registration or checkout,
+          all purchases are non-refundable unless otherwise stated.{" "}
+          <span className="text-white/90">
+            Tournament and pickup fees are generally non-refundable except as stated in the applicable
+            refund policy: for in-person tournaments, refunds must be requested more than 48 hours before
+            the tournament begins; for pickups, cancellation must be completed before 10:00 PM on the
+            day before the scheduled pickup.
+          </span>{" "}
+          Online esports entry fees and refunds are in the{" "}
+          <Link
+            href="/legal/esports/official-rules#refund-policy"
+            className="text-[var(--brand)] underline-offset-4 hover:underline"
+          >
+            Official Tournament Rules
+          </Link>
+          . Pickup fee details appear on{" "}
+          <Link href="/pickup/how-it-works" className="text-[var(--brand)] underline-offset-4 hover:underline">
+            How pickup works
+          </Link>{" "}
+          and the{" "}
+          <Link href="/rules" className="text-[var(--brand)] underline-offset-4 hover:underline">
+            CT Pickup Rules
+          </Link>
+          . Prizes are subject to verification and eligibility requirements.
         </p>
       </section>
 

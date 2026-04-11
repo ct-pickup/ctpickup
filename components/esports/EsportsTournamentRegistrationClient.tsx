@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { SupportEmailLink } from "@/components/SupportEmailLink";
 import {
   loginUrlForEsportsRegister,
   signupUrlForEsportsRegister,
@@ -365,6 +366,17 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
           You are registered and your entry fee is recorded for{" "}
           <span className="font-semibold text-white">{tournament.title}</span>.
         </div>
+        <p className="text-xs leading-relaxed text-white/55">
+          Refunds: request more than 48 hours before start (see{" "}
+          <Link
+            href={`${DOC_LINKS.rules}#refund-policy`}
+            className="font-medium text-[var(--brand)] underline-offset-4 hover:underline"
+          >
+            Official Tournament Rules §9
+          </Link>
+          ). Questions:{" "}
+          <SupportEmailLink className="font-medium text-[var(--brand)] underline-offset-4 hover:underline" />.
+        </p>
         <Link
           href={`/esports/tournaments/${tournament.id}`}
           className="inline-flex text-sm font-medium text-[var(--brand)] underline-offset-4 hover:underline"
@@ -378,9 +390,19 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
   return (
     <div className="space-y-8">
       {paidQuery ? (
-        <p className="rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-white/85">
-          Payment received—thank you. If this page does not update within a minute, refresh.
-        </p>
+        <div className="space-y-2 rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-white/85">
+          <p>Payment received—thank you. If this page does not update within a minute, refresh.</p>
+          <p className="text-xs text-white/55">
+            Refund rules (48-hour request window, organizer cancel, etc.):{" "}
+            <Link
+              href={`${DOC_LINKS.rules}#refund-policy`}
+              className="font-medium text-[var(--brand)] underline-offset-4 hover:underline"
+            >
+              Official Tournament Rules §§8–9
+            </Link>
+            .
+          </p>
+        </div>
       ) : null}
       {canceledQuery ? (
         <p className="rounded-xl border border-amber-400/25 bg-amber-400/[0.06] px-4 py-3 text-sm text-amber-50/95">
@@ -596,6 +618,33 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
             </Link>
           </li>
         </ul>
+      </section>
+
+      <section
+        className="space-y-2 rounded-xl border border-white/12 bg-white/[0.03] px-4 py-3"
+        aria-labelledby="esports-refund-heading"
+      >
+        <h2 id="esports-refund-heading" className="text-sm font-semibold text-white">
+          Entry fee &amp; refunds
+        </h2>
+        <p className="text-sm leading-relaxed text-white/70">
+          You may request a refund of the $10 fee if you email{" "}
+          <SupportEmailLink className="font-medium text-[var(--brand)] underline-offset-4 hover:underline" />{" "}
+          more than 48 hours before the published tournament start time. Refund requests within 48 hours of
+          the start time are not refunded. No-shows and disqualifications are not refunded. If the Organizer
+          cancels before any matches are played, entry fees are refunded. If the event is rescheduled but
+          not canceled, your registration usually carries over. Verified duplicate or mistaken charges:
+          email{" "}
+          <SupportEmailLink className="font-medium text-[var(--brand)] underline-offset-4 hover:underline" />
+          . Full details:{" "}
+          <Link
+            href={`${DOC_LINKS.rules}#refund-policy`}
+            className="font-medium text-[var(--brand)] underline-offset-4 hover:underline"
+          >
+            Refund Policy (Official Tournament Rules §§8–9)
+          </Link>
+          .
+        </p>
       </section>
 
       <section className="space-y-4">

@@ -7,6 +7,7 @@ import {
   Panel,
   TopNav,
 } from "@/components/layout";
+import { SupportEmailLink } from "@/components/SupportEmailLink";
 
 export const metadata: Metadata = {
   title: "Privacy | CT Pickup",
@@ -51,14 +52,8 @@ export default function PrivacyPage() {
             .
           </p>
           <p className="text-white/55">
-            Contact us via{" "}
-            <a
-              href="mailto:pickupct@gmail.com"
-              className="font-medium text-[var(--brand)] underline-offset-4 hover:underline"
-            >
-              pickupct@gmail.com
-            </a>{" "}
-            for privacy-related requests where applicable.
+            Contact us via <SupportEmailLink /> for privacy-related requests
+            where applicable.
           </p>
         </div>
       </Panel>

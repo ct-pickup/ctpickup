@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { paymentIntentIdFromCheckoutSession } from "@/lib/payments/stripeSessionIds";
 import { recordPlatformCheckoutStarted } from "@/lib/payments/recordCheckoutStarted";
 import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
+import { ESPORTS_ENTRY_FEE_STRIPE_DESCRIPTION } from "@/lib/fees/refundPolicyCopy";
 import { ESPORTS_ENTRY_FEE_CENTS } from "@/lib/esports/constants";
 import { getAuthUserSafe, supabaseServer } from "@/lib/supabase/server";
 import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
@@ -126,6 +127,7 @@ export async function POST(req: Request) {
               unit_amount: ESPORTS_ENTRY_FEE_CENTS,
               product_data: {
                 name: `CT Pickup Esports entry — ${title}`,
+                description: ESPORTS_ENTRY_FEE_STRIPE_DESCRIPTION,
               },
             },
             quantity: 1,

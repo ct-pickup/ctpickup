@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { SUPPORT_EMAIL_ADDRESS } from "@/lib/supportEmail";
 
 export type PickupParticipationGateResult =
   | { ok: true }
@@ -24,10 +25,10 @@ export async function assertPickupStandingAllowsParticipation(
     const tier = String(data.effective_standing || "");
     const reason =
       tier === "suspended" || tier === "banned"
-        ? `Account standing is “${tier}”. Contact staff if you think this is a mistake.`
+        ? `Account standing is “${tier}”. If you think this is a mistake, email ${SUPPORT_EMAIL_ADDRESS}.`
         : !data.waiver_current
           ? "Participation requires an up-to-date waiver."
-          : "Pickup participation is not available for this account right now. Contact staff.";
+          : `Pickup participation is not available for this account right now. Email ${SUPPORT_EMAIL_ADDRESS} or visit /help.`;
     return { ok: false, code: "standing_not_eligible", detail: reason };
   }
 

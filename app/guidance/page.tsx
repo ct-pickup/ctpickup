@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { SupportEmailLink } from "@/components/SupportEmailLink";
 import {
   AuthenticatedProfileMenu,
   PageShell,
@@ -103,6 +104,11 @@ export default function GuidancePage() {
             <p className="text-white/55">
               Optional: a short initial consultation (informal, not licensed)
               to line up on needs before deeper work.
+            </p>
+            <p className="pt-1 text-sm text-white/70 md:text-base">
+              Need help? Email{" "}
+              <SupportEmailLink className="font-medium text-amber-200 underline underline-offset-2 hover:text-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f10] rounded-sm" />
+              .
             </p>
           </div>
         </Panel>

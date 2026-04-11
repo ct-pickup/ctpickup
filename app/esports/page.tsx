@@ -37,8 +37,9 @@ export default function EsportsPage() {
           <p className="max-w-xl text-base leading-relaxed text-white/78 md:text-lg md:leading-8">
             Browse schedules and tournament details anytime. Registering requires an account, full legal
             acceptance (typed signature), and payment of the{" "}
-            <span className="text-white/90">$10 non-refundable entry fee</span> except where the rules
-            say otherwise. Outdoor field tournaments are separate.
+            <span className="text-white/90">$10 entry fee</span> (refund if you request more than 48 hours
+            before the published start; no refund within 48 hours of start; full refund if the Organizer
+            cancels before play—see Official Tournament Rules). Outdoor field tournaments are separate.
           </p>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -131,8 +132,8 @@ export default function EsportsPage() {
             <li className="rounded-xl border border-white/12 bg-white/[0.04] p-5">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-white/90">Entry fee</h3>
               <p className="mt-2 text-sm leading-relaxed text-white/65">
-                $10 per player, collected at registration after legal consent. Non-refundable except where
-                the Official Tournament Rules say otherwise.
+                $10 per player, collected at registration after legal consent. Refunds only if requested
+                more than 48 hours before the published start (see Official Tournament Rules).
               </p>
             </li>
           </ul>

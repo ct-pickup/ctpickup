@@ -6,6 +6,7 @@ import {
   validateSportFocus,
 } from "@/lib/guidanceRequest";
 import { profileDisplayName, type ProfileRow } from "@/lib/profileFields";
+import { SUPPORT_EMAIL_ADDRESS } from "@/lib/supportEmail";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
 
 export const runtime = "nodejs";
@@ -107,8 +108,7 @@ export async function POST(req: Request) {
       console.error("[guidance/request]", error.message);
       return NextResponse.json(
         {
-          error:
-            "Could not save your request. If this keeps happening, email pickupct@gmail.com.",
+          error: `Could not save your request. If this keeps happening, email ${SUPPORT_EMAIL_ADDRESS}.`,
         },
         { status: 500 }
       );

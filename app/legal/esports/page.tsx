@@ -33,7 +33,9 @@ export default function EsportsLegalIndexPage() {
               >
                 Official Tournament Rules
               </Link>
-              <p className="mt-1 text-white/60">Tournament format, prizes, eligibility, arbitration.</p>
+              <p className="mt-1 text-white/60">
+                Tournament format, prizes, eligibility, entry fees, refund policy, arbitration.
+              </p>
             </li>
             <li>
               <Link

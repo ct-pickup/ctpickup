@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   AuthenticatedProfileMenu,
   PageShell,
@@ -26,6 +27,18 @@ export default function RulesPage() {
             <div className="mt-8 max-w-[540px] space-y-8 border-l border-white/15 pl-5 text-base leading-relaxed text-white/80 md:pl-8 md:text-lg">
               <p>
                 CT Pickup is built on intensity, respect, and quality play. Every player who joins is expected to understand the standard and protect the environment. These rules are not optional. They exist to keep the level high, the games competitive, and the experience right for everyone on the field.
+              </p>
+
+              <p className="text-sm text-white/65 md:text-base">
+                <span className="font-semibold text-white/85">Esports (online tournaments):</span>{" "}
+                Registration fees, refunds, and tournament conduct are governed by the separate{" "}
+                <Link
+                  href="/legal/esports/official-rules#refund-policy"
+                  className="text-[var(--brand)] underline-offset-4 hover:underline"
+                >
+                  Official Tournament Rules
+                </Link>{" "}
+                (not this on-field rules page).
               </p>
 
               <div className="space-y-8">
@@ -107,9 +120,22 @@ export default function RulesPage() {
                 </div>
 
                 <div>
-                  <p className="font-semibold text-white">12. No-Shows and Refunds</p>
+                  <p className="font-semibold text-white">12. No-Shows and Refunds (pickups)</p>
                   <p className="mt-2">
-                    If you reserve a spot and do not show up, your payment may be forfeited. Spots are limited, and last-minute no-shows prevent other players from joining. If cancellations are allowed, they must be made within the stated cancellation window. No-shows may also affect future eligibility.
+                    Refunds are available only if cancellation is completed before 10:00 PM on the day
+                    before the scheduled pickup. If you cancel after that time or you no-show, your pickup
+                    fee is not refunded. If the Organizer cancels the pickup, a refund may still be
+                    issued. Verified duplicate or erroneous charges will be corrected. Spots are limited,
+                    and last-minute no-shows prevent other players from joining. No-shows may also affect
+                    future eligibility. For tournament fees (in-person captain registration and online
+                    esports), see checkout and the{" "}
+                    <Link
+                      href="/legal/esports/official-rules#refund-policy"
+                      className="text-[var(--brand)] underline-offset-4 hover:underline"
+                    >
+                      Official Tournament Rules
+                    </Link>{" "}
+                    where applicable.
                   </p>
                 </div>
 

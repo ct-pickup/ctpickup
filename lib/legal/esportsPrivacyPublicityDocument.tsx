@@ -1,3 +1,5 @@
+import { SupportEmailLink } from "@/components/SupportEmailLink";
+
 /**
  * Harmonized Privacy and Publicity Consent Policy (esports).
  * Cross-references Terms + Official Tournament Rules; aligned dispute procedures.
@@ -137,7 +139,11 @@ export function EsportsPrivacyPublicityDocument() {
       <section>
         <h2 className="text-base font-semibold text-white">Your Choices</h2>
         <ul className="mt-3 list-disc space-y-2 pl-5">
-          <li>Participants may update their personal information by contacting pickupct@gmail.com.</li>
+          <li>
+            Participants may update their personal information by contacting{" "}
+            <SupportEmailLink className="font-medium text-sky-300 underline underline-offset-2 hover:text-sky-200" />
+            .
+          </li>
           <li>
             Participants may request deletion of non-mandatory personal data, subject to record-keeping
             requirements.
@@ -178,7 +184,9 @@ export function EsportsPrivacyPublicityDocument() {
       <section>
         <h2 className="text-base font-semibold text-white">Contact</h2>
         <p className="mt-2">
-          For questions or requests regarding privacy, contact pickupct@gmail.com.
+          For questions or requests regarding privacy, contact{" "}
+          <SupportEmailLink className="font-medium text-sky-300 underline underline-offset-2 hover:text-sky-200" />
+          .
         </p>
       </section>
     </div>
