@@ -34,13 +34,30 @@ export function getSupabaseAnon(): SupabaseClient {
 }
 
 function createStripeFromSecret(secret: string): Stripe {
-  const apiVersion = process.env.STRIPE_API_VERSION?.trim();
-  if (apiVersion) {
-    return new Stripe(secret, {
-      apiVersion: apiVersion as Stripe.LatestApiVersion,
-    });
+  const raw = process.env.STRIPE_API_VERSION?.trim();
+  if (!raw) {
+    return new Stripe(secret);
   }
-  return new Stripe(secret);
+  // Bare "2026-02-25" is not accepted by stripe@20 (SDK default is Stripe.API_VERSION, e.g. …clover).
+  // It is a common Vercel mis-set and surfaces as "Invalid Stripe API version: 2026-02-25" on requests.
+  if (raw === "2026-02-25") {
+    console.warn(
+      "[Stripe] Ignoring invalid STRIPE_API_VERSION=2026-02-25 — remove it in Vercel or set the full SDK version string.",
+    );
+    return new Stripe(secret);
+  }
+  try {
+    return new Stripe(secret, {
+      apiVersion: raw as Stripe.LatestApiVersion,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(
+      "[Stripe] STRIPE_API_VERSION is invalid for this SDK; using default. Unset or fix STRIPE_API_VERSION in env.",
+      { apiVersion: raw, message },
+    );
+    return new Stripe(secret);
+  }
 }
 
 /** Pickup checkout (RSVP / pay) — SDK default API version unless STRIPE_API_VERSION is set. */
