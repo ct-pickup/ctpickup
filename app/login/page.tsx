@@ -9,8 +9,10 @@ import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { useTransitionNav } from "@/components/TransitionNavContext";
 import { SupportEmailLink } from "@/components/SupportEmailLink";
-import { Suspense, useMemo, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+
+const OTP_RESEND_COOLDOWN_SEC = 30;
 
 function LoginForm() {
   const router = useRouter();
@@ -23,7 +25,15 @@ function LoginForm() {
   const [stage, setStage] = useState<"email" | "code">("email");
   const [msg, setMsg] = useState<ReactNode | null>(null);
   const [busy, setBusy] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendCooldownSec, setResendCooldownSec] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
+
+  useEffect(() => {
+    if (resendCooldownSec <= 0) return;
+    const id = window.setTimeout(() => setResendCooldownSec((s) => (s <= 1 ? 0 : s - 1)), 1000);
+    return () => window.clearTimeout(id);
+  }, [resendCooldownSec]);
 
   const emailClean = useMemo(() => email.trim().toLowerCase(), [email]);
 
@@ -85,7 +95,50 @@ function LoginForm() {
     if (error) return setMsg(friendlySupabaseAuthMessage(error.message));
 
     setStage("code");
-    setMsg("Code sent. Check your email for an 8-digit code.");
+    setResendCooldownSec(OTP_RESEND_COOLDOWN_SEC);
+    setMsg(null);
+  }
+
+  async function resendCode() {
+    if (!emailLooksValid || resendBusy || resendCooldownSec > 0) return;
+    if (!isReady || !supabase) {
+      if (!isReady) {
+        setMsg("Still connecting. Please try again in a moment.");
+      } else {
+        setMsg(
+          <>
+            Sign-in isn’t available right now (missing Supabase configuration).
+            Please refresh, or email{" "}
+            <SupportEmailLink className="font-medium text-white underline underline-offset-2 hover:text-white/90" />{" "}
+            for help.
+          </>,
+        );
+      }
+      return;
+    }
+
+    setResendBusy(true);
+    setMsg(null);
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: emailClean,
+      options: {
+        emailRedirectTo: `${window.location.origin}${APP_HOME_URL}`,
+      },
+    });
+
+    setResendBusy(false);
+    if (error) return setMsg(friendlySupabaseAuthMessage(error.message));
+
+    setResendCooldownSec(OTP_RESEND_COOLDOWN_SEC);
+    setMsg("We sent a new code");
+  }
+
+  function goBackToEmail() {
+    setStage("email");
+    setCode("");
+    setMsg(null);
+    setResendCooldownSec(0);
   }
 
   async function verifyCode() {
@@ -165,17 +218,33 @@ function LoginForm() {
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-4">
           <div className="space-y-2">
-            <input
-              className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
-              placeholder="you@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={stage === "code" || busy}
-              inputMode="email"
-              autoComplete="email"
-            />
-            {stage === "email" && (
-              <div className="text-xs text-white/45">We’ll never share your email.</div>
+            {stage === "email" ? (
+              <>
+                <input
+                  className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                  placeholder="you@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={busy}
+                  inputMode="email"
+                  autoComplete="email"
+                />
+                <div className="text-xs text-white/45">We’ll never share your email.</div>
+              </>
+            ) : (
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm">
+                <span className="min-w-0 truncate text-white/80" title={emailClean}>
+                  {emailClean}
+                </span>
+                <button
+                  type="button"
+                  className="shrink-0 font-medium text-white/85 underline underline-offset-4 transition hover:text-white disabled:opacity-50"
+                  onClick={goBackToEmail}
+                  disabled={busy || resendBusy}
+                >
+                  Change email
+                </button>
+              </div>
             )}
           </div>
 
@@ -190,6 +259,9 @@ function LoginForm() {
             </button>
           ) : (
             <>
+              <p role="status" className="text-sm text-white/80 leading-relaxed">
+                We sent an 8-digit code to your email. Enter it below to continue.
+              </p>
               <input
                 className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
                 placeholder="8-digit code"
@@ -214,18 +286,20 @@ function LoginForm() {
                 {busy ? "Verifying..." : !isReady ? "Loading…" : "Continue"}
               </button>
 
-              <button
-                type="button"
-                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white/85 hover:bg-white/[0.04]"
-                onClick={() => {
-                  setStage("email");
-                  setCode("");
-                  setMsg(null);
-                }}
-                disabled={busy}
-              >
-                Back
-              </button>
+              {resendCooldownSec > 0 ? (
+                <p className="text-center text-xs text-white/50">
+                  Resend code in {resendCooldownSec}s
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm font-medium text-white/85 hover:bg-white/[0.04] disabled:opacity-50"
+                  onClick={() => void resendCode()}
+                  disabled={resendBusy || busy || !isReady}
+                >
+                  {resendBusy ? "Sending..." : !isReady ? "Loading…" : "Resend code"}
+                </button>
+              )}
             </>
           )}
 

@@ -47,6 +47,8 @@ import {
 
 type Stage = "email" | "code" | "profile";
 
+const OTP_RESEND_COOLDOWN_SEC = 30;
+
 const LEFT_IMAGE = "/signup/left.jpg";
 const RIGHT_IMAGE = "/signup/right.jpg";
 
@@ -151,6 +153,8 @@ function SignupForm({
   const [stage, setStage] = useState<Stage>("email");
   const [msg, setMsg] = useState<ReactNode | null>(null);
   const [busy, setBusy] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendCooldownSec, setResendCooldownSec] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
 
   const [firstName, setFirstName] = useState("");
@@ -178,6 +182,12 @@ function SignupForm({
       }),
     [],
   );
+
+  useEffect(() => {
+    if (resendCooldownSec <= 0) return;
+    const id = window.setTimeout(() => setResendCooldownSec((s) => (s <= 1 ? 0 : s - 1)), 1000);
+    return () => window.clearTimeout(id);
+  }, [resendCooldownSec]);
 
   const emailClean = useMemo(() => email.trim().toLowerCase(), [email]);
 
@@ -262,26 +272,97 @@ function SignupForm({
 
     setBusy(true);
     setMsg(null);
+    try {
+      const exists = await checkExists();
+      if (exists) {
+        setMsg("You already have this account on file. Please log in with that email.");
+        return;
+      }
 
-    const exists = await checkExists();
-    if (exists) {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: emailClean,
+        options: {
+          emailRedirectTo: `${window.location.origin}${signupUrlForIntent(intent)}`,
+        },
+      });
+
+      if (error) {
+        setMsg(friendlySupabaseAuthMessage(error.message));
+        return;
+      }
+
+      setStage("code");
+      setResendCooldownSec(OTP_RESEND_COOLDOWN_SEC);
+      setMsg(null);
+    } catch (e: unknown) {
+      setMsg(
+        e instanceof Error
+          ? e.message
+          : "Something went wrong while sending the code. Please try again.",
+      );
+    } finally {
       setBusy(false);
-      setMsg("You already have this account on file. Please log in with that email.");
+    }
+  }
+
+  async function resendCode() {
+    if (!emailLooksValid || resendBusy || resendCooldownSec > 0) return;
+    if (!isReady || !supabase) {
+      if (!isReady) {
+        setMsg("Still connecting. Please try again in a moment.");
+      } else {
+        setMsg(
+          <>
+            Sign-up isn’t available right now (missing Supabase configuration).
+            Please refresh, or email{" "}
+            <SupportEmailLink className="font-medium text-white underline underline-offset-2 hover:text-white/90" />{" "}
+            for help.
+          </>,
+        );
+      }
       return;
     }
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email: emailClean,
-      options: {
-        emailRedirectTo: `${window.location.origin}${signupUrlForIntent(intent)}`,
-      },
-    });
+    setResendBusy(true);
+    setMsg(null);
 
-    setBusy(false);
-    if (error) return setMsg(friendlySupabaseAuthMessage(error.message));
+    try {
+      const exists = await checkExists();
+      if (exists) {
+        setMsg("You already have this account on file. Please log in with that email.");
+        return;
+      }
 
-    setStage("code");
-    setMsg("Code sent. Check your email for an 8-digit code.");
+      const { error } = await supabase.auth.signInWithOtp({
+        email: emailClean,
+        options: {
+          emailRedirectTo: `${window.location.origin}${signupUrlForIntent(intent)}`,
+        },
+      });
+
+      if (error) {
+        setMsg(friendlySupabaseAuthMessage(error.message));
+        return;
+      }
+
+      setResendCooldownSec(OTP_RESEND_COOLDOWN_SEC);
+      setMsg("We sent a new code");
+    } catch (e: unknown) {
+      setMsg(
+        e instanceof Error
+          ? e.message
+          : "Something went wrong while sending the code. Please try again.",
+      );
+    } finally {
+      setResendBusy(false);
+    }
+  }
+
+  function goBackToEmail() {
+    setStage("email");
+    setCode("");
+    setMsg(null);
+    setResendCooldownSec(0);
   }
 
   async function verifyCode() {
@@ -305,24 +386,35 @@ function SignupForm({
     setBusy(true);
     setMsg(null);
 
-    const token = code.replace(/\D/g, "");
-    if (token.length !== 8) {
+    try {
+      const token = code.replace(/\D/g, "");
+      if (token.length !== 8) {
+        setMsg("Enter the 8-digit code from your email.");
+        return;
+      }
+
+      const { error } = await supabase.auth.verifyOtp({
+        email: emailClean,
+        token,
+        type: "email",
+      });
+
+      if (error) {
+        setMsg(friendlySupabaseAuthMessage(error.message));
+        return;
+      }
+
+      setStage("profile");
+      setMsg(null);
+    } catch (e: unknown) {
+      setMsg(
+        e instanceof Error
+          ? e.message
+          : "Something went wrong while verifying the code. Please try again.",
+      );
+    } finally {
       setBusy(false);
-      setMsg("Enter the 8-digit code from your email.");
-      return;
     }
-
-    const { error } = await supabase.auth.verifyOtp({
-      email: emailClean,
-      token,
-      type: "email",
-    });
-
-    setBusy(false);
-    if (error) return setMsg(friendlySupabaseAuthMessage(error.message));
-
-    setStage("profile");
-    setMsg(null);
   }
 
   async function saveProfileAndContinue() {
@@ -569,6 +661,26 @@ function SignupForm({
 
                 {stage === "code" && (
                   <>
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm">
+                      <span className="min-w-0 truncate text-white/80" title={emailClean}>
+                        {emailClean}
+                      </span>
+                      <button
+                        type="button"
+                        className="shrink-0 font-medium text-white/85 underline underline-offset-4 transition hover:text-white disabled:opacity-50"
+                        onClick={goBackToEmail}
+                        disabled={busy || resendBusy}
+                      >
+                        Change email
+                      </button>
+                    </div>
+
+                    <p
+                      role="status"
+                      className="text-sm text-white/80 leading-relaxed"
+                    >
+                      We sent an 8-digit code to your email. Enter it below to continue.
+                    </p>
                     <Input
                       placeholder="8-digit code"
                       value={code}
@@ -592,18 +704,20 @@ function SignupForm({
                       {busy ? "Verifying..." : !isReady ? "Loading…" : "Continue"}
                     </button>
 
-                    <button
-                      type="button"
-                      className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm text-white/85 hover:bg-white/[0.04]"
-                      onClick={() => {
-                        setStage("email");
-                        setCode("");
-                        setMsg(null);
-                      }}
-                      disabled={busy}
-                    >
-                      Back
-                    </button>
+                    {resendCooldownSec > 0 ? (
+                      <p className="text-center text-xs text-white/50">
+                        Resend code in {resendCooldownSec}s
+                      </p>
+                    ) : (
+                      <button
+                        type="button"
+                        className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm font-medium text-white/85 hover:bg-white/[0.04] disabled:opacity-50"
+                        onClick={() => void resendCode()}
+                        disabled={resendBusy || busy || !isReady}
+                      >
+                        {resendBusy ? "Sending..." : !isReady ? "Loading…" : "Resend code"}
+                      </button>
+                    )}
                   </>
                 )}
 
