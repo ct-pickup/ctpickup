@@ -606,11 +606,17 @@ export function TopNav({
         ref={navRef}
         className={`max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none max-lg:backdrop-blur-none rounded-2xl border border-white/15 bg-white/6 px-3 py-2 backdrop-blur-none sm:px-4 sm:py-2.5 lg:rounded-full lg:border lg:bg-white/6 lg:px-4 lg:py-3 lg:backdrop-blur-sm xl:px-5 ${innerClassName}`}
       >
-        {/* Desktop — lg+ only so all links fit on one row without colliding with logo/profile */}
-        <div className="hidden items-center justify-between gap-3 lg:flex xl:gap-4">
+        {/* Desktop — lg+; 3-column grid keeps brand / links / profile in separate tracks so centered links never paint over the icon */}
+        <div
+          className={`hidden w-full min-w-0 items-center gap-x-2 gap-y-1 sm:gap-x-3 lg:grid xl:gap-x-4 ${
+            showPrimaryNav
+              ? "grid-cols-[auto_minmax(0,1fr)_auto]"
+              : "grid-cols-[auto_auto] justify-between"
+          }`}
+        >
           <Link
             href={brandHref}
-            className="shrink-0 whitespace-nowrap text-xs font-semibold uppercase tracking-[0.18em] text-white/90 xl:text-sm xl:tracking-[0.22em]"
+            className="shrink-0 self-center whitespace-nowrap text-xs font-semibold uppercase tracking-[0.18em] text-white/90 xl:text-sm xl:tracking-[0.22em]"
           >
             CT Pickup
           </Link>
@@ -618,7 +624,7 @@ export function TopNav({
           {showPrimaryNav ? (
             <nav
               aria-label="Primary"
-              className="flex min-w-0 max-w-full flex-1 flex-nowrap items-center justify-center gap-x-2 px-0.5 sm:gap-x-2.5 xl:gap-x-3 2xl:gap-x-4"
+              className="flex w-full min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 px-0.5 sm:gap-x-2.5 sm:gap-y-1 xl:gap-x-3 2xl:gap-x-4"
             >
               <Link href={homeHref} className={homeOn ? linkActive : linkIdle}>
                 Home
