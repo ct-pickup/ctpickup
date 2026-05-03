@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { adminDeleteChatRoomById } from "@/lib/admin/chatRoomDelete";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
@@ -54,5 +55,15 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ roomId: strin
   if (!data) return NextResponse.json({ error: "Room not found" }, { status: 404 });
 
   return NextResponse.json({ ok: true, room: data });
+}
+
+export async function DELETE(_req: Request, ctx: { params: Promise<{ roomId: string }> }) {
+  const guard = await requireAdminBearer(_req);
+  if (!guard.ok) return guard.response;
+
+  const { roomId } = await ctx.params;
+  const result = await adminDeleteChatRoomById(roomId);
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  return NextResponse.json({ ok: true, deleted: result.deleted });
 }
 
