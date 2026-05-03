@@ -19,6 +19,8 @@ export type PublicPickupRunRow = {
   final_slot_id: string | null;
   /** Promoted run for the pickup hub (only one should be true at a time). */
   is_current?: boolean | null;
+  /** NY · CT · NJ · MD — regional featured run; null = legacy / global hub row */
+  service_region?: string | null;
 };
 
 /** Subset returned by /api/pickup/upcoming-list query. */
@@ -31,12 +33,15 @@ export type PublicPickupRunListRow = Pick<
  * Canonical filters for public pickup UIs (same rules as /api/pickup/public):
  * non-canceled runs with a scheduled start_at in the future.
  */
-export function publicUpcomingRunsQuery(admin: SupabaseClient, columns: string) {
-  return admin
+export function publicUpcomingRunsQuery(admin: SupabaseClient, columns: string, serviceRegion?: string | null) {
+  let q = admin
     .from("pickup_runs")
     .select(columns)
     .neq("status", "canceled")
     .not("start_at", "is", null)
-    .gte("start_at", new Date().toISOString())
-    .order("start_at", { ascending: true });
+    .gte("start_at", new Date().toISOString());
+  if (serviceRegion) {
+    q = q.eq("service_region", serviceRegion);
+  }
+  return q.order("start_at", { ascending: true });
 }

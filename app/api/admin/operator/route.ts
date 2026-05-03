@@ -42,17 +42,39 @@ export async function POST(req: Request) {
     const run_id = body.run_id === null || body.run_id === "" ? null : String(body.run_id);
     const now = new Date().toISOString();
 
+    let promotedRegion: string | null = null;
     if (run_id) {
-      const runRes = await admin.from("pickup_runs").select("id,status").eq("id", run_id).maybeSingle();
+      const runRes = await admin.from("pickup_runs").select("id,status,service_region").eq("id", run_id).maybeSingle();
       if (!runRes.data) {
         return NextResponse.json({ error: "Run not found." }, { status: 404 });
       }
       if (runRes.data.status === "canceled") {
         return NextResponse.json({ error: "Cannot promote a canceled run." }, { status: 400 });
       }
+      promotedRegion =
+        runRes.data.service_region === null || runRes.data.service_region === undefined
+          ? null
+          : String(runRes.data.service_region);
     }
 
-    const clear = await admin.from("pickup_runs").update({ is_current: false, updated_at: now }).eq("is_current", true);
+    let clear: { error: { message: string } | null };
+    if (run_id) {
+      if (promotedRegion !== null) {
+        clear = await admin
+          .from("pickup_runs")
+          .update({ is_current: false, updated_at: now })
+          .eq("is_current", true)
+          .eq("service_region", promotedRegion);
+      } else {
+        clear = await admin
+          .from("pickup_runs")
+          .update({ is_current: false, updated_at: now })
+          .eq("is_current", true)
+          .is("service_region", null);
+      }
+    } else {
+      clear = await admin.from("pickup_runs").update({ is_current: false, updated_at: now }).eq("is_current", true);
+    }
     if (clear.error) {
       return NextResponse.json({ error: clear.error.message }, { status: 500 });
     }

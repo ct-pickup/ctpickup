@@ -1,0 +1,12 @@
+# Shrink EAS upload — dependencies install on Expo builders
+node_modules
+.expo
+
+# Git / tooling
+.git
+.gitignore
+
+# Local env (never upload; set vars in EAS dashboard or `npm run eas:push-env`)
+.env
+.env.*
+!.env.example

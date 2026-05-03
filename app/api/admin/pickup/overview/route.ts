@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 
+const HUB_REGIONS = new Set(["NY", "CT", "NJ", "MD"]);
+
 export async function GET(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
 
@@ -16,7 +18,11 @@ export async function GET(req: Request) {
   const prof = await supabaseAdmin.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
   if (!prof.data?.is_admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const runRes = await supabaseAdmin
+  const url = new URL(req.url);
+  const regionRaw = String(url.searchParams.get("region") || "").trim().toUpperCase();
+  const region = regionRaw && HUB_REGIONS.has(regionRaw) ? regionRaw : null;
+
+  let runQuery = supabaseAdmin
     .from("pickup_runs")
     .select("*")
     .neq("status", "canceled")
@@ -24,8 +30,14 @@ export async function GET(req: Request) {
     .order("start_at", { ascending: true })
     .limit(1);
 
+  if (region) {
+    runQuery = runQuery.eq("service_region", region);
+  }
+
+  const runRes = await runQuery;
+
   const run = runRes.data?.[0] || null;
-  if (!run) return NextResponse.json({ run: null, confirmed: [], standby: [] });
+  if (!run) return NextResponse.json({ region, run: null, confirmed: [], standby: [] });
 
   const rsvps = await supabaseAdmin
     .from("pickup_run_rsvps")
@@ -103,6 +115,7 @@ export async function GET(req: Request) {
   };
 
   return NextResponse.json({
+    region,
     run,
     current_waiver_version: CURRENT_WAIVER_VERSION,
     confirmed: (confirmed.data || []).map(mapRow),

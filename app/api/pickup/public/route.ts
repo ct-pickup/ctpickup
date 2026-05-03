@@ -16,6 +16,14 @@ export const dynamic = "force-dynamic";
 
 const ROUTE = "pickup/public";
 
+const HUB_REGION_CODES = new Set(["NY", "CT", "NJ", "MD"]);
+
+function parseHubRegion(param: string | null): string | null {
+  if (!param) return null;
+  const u = param.trim().toUpperCase();
+  return HUB_REGION_CODES.has(u) ? u : null;
+}
+
 function bearer(req: Request) {
   const auth = req.headers.get("authorization") || "";
   return auth.startsWith("Bearer ") ? auth.slice(7) : null;
@@ -75,9 +83,11 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url);
     const runIdParam = url.searchParams.get("run_id");
+    const hubRegion = parseHubRegion(url.searchParams.get("region"));
 
     let run: PublicPickupRunRow | null = await fetchPickupRunCandidate(admin, {
       runId: runIdParam,
+      region: hubRegion,
     });
 
     if (run) {
@@ -90,7 +100,7 @@ export async function GET(req: Request) {
       if (!canView) run = null;
     }
 
-    if (!run && !runIdParam) {
+    if (!run && !runIdParam && !hubRegion) {
       const fb = await fetchFirstPublicUpcomingPickupRun(admin);
       if (fb) run = fb;
     }

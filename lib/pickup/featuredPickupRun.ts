@@ -10,10 +10,11 @@ export type PickupRunAccessContext = {
 
 /**
  * Load the run the hub should consider: explicit run_id, else is_current, else next upcoming (future start_at).
+ * When `region` is set (NY, CT, NJ, MD), only runs tagged with that `service_region` are considered.
  */
 export async function fetchPickupRunCandidate(
   admin: SupabaseClient,
-  opts: { runId?: string | null }
+  opts: { runId?: string | null; region?: string | null }
 ): Promise<PublicPickupRunRow | null> {
   if (opts.runId) {
     const r = await admin
@@ -23,6 +24,22 @@ export async function fetchPickupRunCandidate(
       .neq("status", "canceled")
       .maybeSingle();
     return (r.data as PublicPickupRunRow | null) ?? null;
+  }
+
+  if (opts.region) {
+    const curR = await admin
+      .from("pickup_runs")
+      .select("*")
+      .eq("service_region", opts.region)
+      .eq("is_current", true)
+      .neq("status", "canceled")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (curR.data) return curR.data as PublicPickupRunRow;
+
+    return fetchFirstPublicUpcomingPickupRun(admin, opts.region);
   }
 
   const cur = await admin
@@ -42,9 +59,10 @@ export async function fetchPickupRunCandidate(
 
 /** Next scheduled public run (for hub fallback when the promoted run is invite-only). */
 export async function fetchFirstPublicUpcomingPickupRun(
-  admin: SupabaseClient
+  admin: SupabaseClient,
+  serviceRegion?: string | null,
 ): Promise<PublicPickupRunRow | null> {
-  const res = await publicUpcomingRunsQuery(admin, "*").limit(40);
+  const res = await publicUpcomingRunsQuery(admin, "*", serviceRegion ?? undefined).limit(40);
   const rows = (res.data || []) as unknown as PublicPickupRunRow[];
   return rows.find((r) => r.run_type === "public") ?? null;
 }

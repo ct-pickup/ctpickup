@@ -20,6 +20,10 @@ export async function POST(req: Request) {
   const startAt = String(b.start_at || "");
   if (!startAt) return NextResponse.json({ error: "start_at required" }, { status: 400 });
 
+  const regionRaw = b.service_region != null ? String(b.service_region).trim().toUpperCase() : "";
+  const HUB_REGIONS = new Set(["NY", "CT", "NJ", "MD"]);
+  const service_region = regionRaw && HUB_REGIONS.has(regionRaw) ? regionRaw : null;
+
   const insert = await supabaseAdmin.from("pickup_runs").insert({
     title: b.title || "CT Pickup Run",
     run_type: b.run_type || "select",
@@ -33,6 +37,7 @@ export async function POST(req: Request) {
     invite_phase: 0,
     phase_opened_at: new Date().toISOString(),
     created_by: user.id,
+    service_region,
   }).select("*").single();
 
   if (insert.error) return NextResponse.json({ error: insert.error.message }, { status: 500 });

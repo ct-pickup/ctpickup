@@ -36,6 +36,8 @@ type ProfileRow = {
   confirmed_count: number | null;
   attended_count: number | null;
   strike_count: number | null;
+  pickup_reliability_override_score?: number | null;
+  pickup_reliability_override_reason?: string | null;
 };
 
 function matchesQuery(p: ProfileRow, q: string): boolean {
@@ -77,6 +79,21 @@ function buildRow(
     noShows: strikes,
   });
 
+  const overrideScoreRaw =
+    p.pickup_reliability_override_score === null || p.pickup_reliability_override_score === undefined
+      ? null
+      : Number(p.pickup_reliability_override_score);
+  const overrideScore = overrideScoreRaw === null || Number.isNaN(overrideScoreRaw) ? null : Math.max(0, Math.min(100, overrideScoreRaw));
+  const effectiveScore = overrideScore === null ? reliability.scorePct : overrideScore;
+  const effectiveBucket =
+    effectiveScore == null
+      ? reliability.bucket
+      : effectiveScore >= 85
+        ? "good"
+        : effectiveScore >= 70
+          ? "watch"
+          : "needs_review";
+
   return {
     user_id: p.id,
     first_name: p.first_name,
@@ -87,8 +104,10 @@ function buildRow(
     attended_count: p.attended_count,
     strike_count: p.strike_count,
     reliability_tracked_pickups: reliability.trackedPickups,
-    reliability_score_pct: reliability.scorePct,
-    reliability_bucket: reliability.bucket,
+    reliability_score_pct: effectiveScore,
+    reliability_bucket: effectiveBucket,
+    reliability_override_score_pct: overrideScore,
+    reliability_override_reason: p.pickup_reliability_override_reason ?? null,
     waiver_current: waiverOk,
     standing: s
       ? {
@@ -126,7 +145,7 @@ export async function GET(req: Request) {
   const svc = supabaseService();
 
   const profSelect =
-    "id,first_name,last_name,instagram,email,tier,approved,confirmed_count,attended_count,strike_count";
+    "id,first_name,last_name,instagram,email,tier,approved,confirmed_count,attended_count,strike_count,pickup_reliability_override_score,pickup_reliability_override_reason";
 
   /** Load waiver set for many users */
   async function waiverSetFor(userIds: string[]) {
@@ -360,6 +379,8 @@ type PatchBody = {
   manual_standing?: PickupStandingLevel | null | "";
   manual_reason?: string | null;
   staff_notes?: string | null;
+  reliability_override_score_pct?: number | null | "";
+  reliability_override_reason?: string | null;
 };
 
 export async function PATCH(req: Request) {
@@ -387,6 +408,18 @@ export async function PATCH(req: Request) {
 
   const svc = supabaseService();
   const now = new Date().toISOString();
+
+  const overrideRaw = body?.reliability_override_score_pct;
+  const overrideScore =
+    overrideRaw === undefined
+      ? undefined
+      : overrideRaw === null || overrideRaw === ""
+        ? null
+        : Math.round(Number(overrideRaw));
+
+  if (overrideScore !== undefined && overrideScore !== null && (Number.isNaN(overrideScore) || overrideScore < 0 || overrideScore > 100)) {
+    return NextResponse.json({ error: "invalid reliability_override_score_pct" }, { status: 400 });
+  }
 
   const { data: exists } = await svc.from("pickup_player_standing").select("user_id").eq("user_id", userId).maybeSingle();
 
@@ -465,6 +498,23 @@ export async function PATCH(req: Request) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error("[admin/pickup/standing] recompute", msg);
       return NextResponse.json({ error: "recompute_failed" }, { status: 500 });
+    }
+  }
+
+  if (overrideScore !== undefined) {
+    const upd = await svc
+      .from("profiles")
+      .update({
+        pickup_reliability_override_score: overrideScore,
+        pickup_reliability_override_reason: body?.reliability_override_reason ?? null,
+        pickup_reliability_override_updated_by: gate.userId,
+        pickup_reliability_override_updated_at: now,
+        updated_at: now,
+      })
+      .eq("id", userId);
+    if (upd.error) {
+      console.error("[admin/pickup/standing] reliability override", upd.error.message);
+      return NextResponse.json({ error: "save_failed" }, { status: 500 });
     }
   }
 

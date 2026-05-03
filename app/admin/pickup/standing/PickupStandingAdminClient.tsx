@@ -19,6 +19,8 @@ type StandingRow = {
   reliability_tracked_pickups: number | null;
   reliability_score_pct: number | null;
   reliability_bucket: "building" | "good" | "watch" | "needs_review" | string | null;
+  reliability_override_score_pct?: number | null;
+  reliability_override_reason?: string | null;
   waiver_current: boolean;
   effective_standing: string;
   auto_standing: string;
@@ -85,6 +87,8 @@ export default function PickupStandingAdminClient() {
   const [manual, setManual] = useState<string>("");
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
+  const [relOverride, setRelOverride] = useState<string>("");
+  const [relOverrideReason, setRelOverrideReason] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -148,6 +152,12 @@ export default function PickupStandingAdminClient() {
     setManual(row.manual_override || "");
     setReason(row.standing?.manual_reason || "");
     setNotes(row.standing?.staff_notes || "");
+    setRelOverride(
+      row.reliability_override_score_pct === null || row.reliability_override_score_pct === undefined
+        ? ""
+        : String(Math.round(Number(row.reliability_override_score_pct))),
+    );
+    setRelOverrideReason(row.reliability_override_reason || "");
   }
 
   async function saveEdit(clearOverride: boolean) {
@@ -160,6 +170,8 @@ export default function PickupStandingAdminClient() {
         manual_standing: clearOverride ? null : manual === "" ? null : manual,
         manual_reason: reason.trim() || null,
         staff_notes: notes.trim() || null,
+        reliability_override_score_pct: relOverride.trim() ? Number(relOverride.trim()) : null,
+        reliability_override_reason: relOverrideReason.trim() || null,
       };
       const r = await fetch("/api/admin/pickup/standing", {
         method: "PATCH",
@@ -396,6 +408,34 @@ export default function PickupStandingAdminClient() {
             </p>
 
             <div className="mt-4 space-y-3">
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <div className="text-xs font-semibold text-white/70">Reliability score override</div>
+                <p className="mt-1 text-[11px] leading-relaxed text-white/45">
+                  Optional. Set a manual score (0–100) to override the computed reliability score shown to the player.
+                </p>
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-xs text-white/55">
+                    Override score (0–100)
+                    <input
+                      value={relOverride}
+                      onChange={(e) => setRelOverride(e.target.value)}
+                      className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                      placeholder="(none)"
+                      inputMode="numeric"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs text-white/55">
+                    Override reason (optional)
+                    <input
+                      value={relOverrideReason}
+                      onChange={(e) => setRelOverrideReason(e.target.value)}
+                      className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                      placeholder="Internal note"
+                    />
+                  </label>
+                </div>
+              </div>
+
               <label className="flex flex-col gap-1 text-xs text-white/55">
                 Manual override
                 <select
