@@ -10,11 +10,22 @@ async function jsonOrNull(r: Response): Promise<unknown | null> {
   return await r.json().catch(() => null);
 }
 
-function errFromJson(j: unknown, fallback: string): string {
-  if (j && typeof j === "object" && "error" in j && typeof (j as { error?: unknown }).error === "string") {
-    return (j as { error: string }).error;
+function formatAdminFetchError(r: Response, j: unknown): string {
+  if (j && typeof j === "object") {
+    const o = j as Record<string, unknown>;
+    if (typeof o.error === "string" && o.error.trim()) return o.error.trim();
+    if (typeof o.message === "string" && o.message.trim()) return o.message.trim();
   }
-  return fallback;
+  const st = r.status;
+  const stText = r.statusText?.trim();
+  if (st === 404) {
+    return "Not found (HTTP 404). Deploy the latest site, or check EXPO_PUBLIC_SITE_URL.";
+  }
+  if (st === 405) {
+    return "Method not allowed (HTTP 405). Deploy the latest API (room delete uses POST /delete on older setups).";
+  }
+  if (!st) return "Network error — check connection and EXPO_PUBLIC_SITE_URL.";
+  return stText ? `HTTP ${st} ${stText}` : `HTTP ${st}`;
 }
 
 export type AdminApiResult<T> =
@@ -27,17 +38,23 @@ async function adminFetch<T>(
   init?: RequestInit,
 ): Promise<AdminApiResult<T>> {
   const origin = originOrThrow();
-  const r = await fetch(`${origin}${path}`, {
-    ...init,
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${accessToken}`,
-      ...(init?.headers || {}),
-    },
-    cache: "no-store",
-  });
+  let r: Response;
+  try {
+    r = await fetch(`${origin}${path}`, {
+      ...init,
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        ...(init?.headers || {}),
+      },
+      cache: "no-store",
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, status: 0, error: msg || "Network error" };
+  }
   const j = await jsonOrNull(r);
-  if (!r.ok) return { ok: false, status: r.status, error: errFromJson(j, "request_failed"), detail: j };
+  if (!r.ok) return { ok: false, status: r.status, error: formatAdminFetchError(r, j), detail: j };
   return { ok: true, status: r.status, data: j as T };
 }
 
@@ -213,6 +230,14 @@ export function patchAdminChatRoom(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     },
+  );
+}
+
+export function deleteAdminChatRoom(accessToken: string, roomId: string) {
+  return adminFetch<{ ok: boolean; deleted?: Pick<ChatRoom, "id" | "slug" | "title">; error?: string }>(
+    `/api/admin/chat/rooms/${encodeURIComponent(roomId)}/delete`,
+    accessToken,
+    { method: "POST" },
   );
 }
 

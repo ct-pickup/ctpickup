@@ -1,5 +1,5 @@
 import { useAdminChatRooms } from "@/hooks/useAdminChatRooms";
-import { patchAdminChatRoom, postAdminAnnouncement, postAdminChatRoom, type ChatRoom } from "@/lib/adminApi";
+import { deleteAdminChatRoom, patchAdminChatRoom, postAdminAnnouncement, postAdminChatRoom, type ChatRoom } from "@/lib/adminApi";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -59,6 +59,30 @@ export default function AdminChatScreen() {
     setBusy(null);
     if (!r.ok) return Alert.alert("Update failed", r.error);
     reload();
+  }
+
+  function confirmDelete(room: ChatRoom) {
+    if (!token) return Alert.alert("Not signed in", "Sign in again.");
+    Alert.alert(
+      "Delete room?",
+      `This will permanently delete “${room.title}” and all of its messages.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            setBusy(`delete:${room.id}`);
+            void (async () => {
+              const r = await deleteAdminChatRoom(token, room.id);
+              setBusy(null);
+              if (!r.ok) return Alert.alert("Delete failed", r.error);
+              reload();
+            })();
+          },
+        },
+      ],
+    );
   }
 
   return (
@@ -148,12 +172,14 @@ export default function AdminChatScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Rooms ({rooms.length})</Text>
         {rooms.map((r) => {
-          const isBusy = busy === `toggle:${r.id}`;
+          const isBusyToggle = busy === `toggle:${r.id}`;
+          const isBusyDelete = busy === `delete:${r.id}`;
+          const anyBusy = isBusyToggle || isBusyDelete;
           return (
             <Pressable
               key={r.id}
               onPress={() => router.push({ pathname: "/admin/chat-room", params: { roomId: r.id } })}
-              style={({ pressed }) => [styles.roomRow, pressed && { opacity: 0.9 }]}
+              style={({ pressed }) => [styles.roomRow, pressed && { opacity: 0.9 }, anyBusy && styles.disabled]}
             >
               <View style={{ flex: 1 }}>
                 <Text style={styles.roomTitle}>{r.title}</Text>
@@ -164,12 +190,22 @@ export default function AdminChatScreen() {
               <Pressable
                 onPress={(e) => {
                   e.stopPropagation();
+                  confirmDelete(r);
+                }}
+                disabled={anyBusy}
+                style={({ pressed }) => [styles.smallChip, styles.smallChipDanger, pressed && { opacity: 0.85 }, anyBusy && styles.disabled]}
+              >
+                <Text style={styles.smallChipDangerText}>{isBusyDelete ? "Deleting..." : "Delete"}</Text>
+              </Pressable>
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
                   void toggleActive(r);
                 }}
-                disabled={isBusy}
-                style={({ pressed }) => [styles.smallChip, pressed && { opacity: 0.85 }, isBusy && styles.disabled]}
+                disabled={anyBusy}
+                style={({ pressed }) => [styles.smallChip, pressed && { opacity: 0.85 }, anyBusy && styles.disabled]}
               >
-                <Text style={styles.smallChipText}>{r.is_active ? "Disable" : "Enable"}</Text>
+                <Text style={styles.smallChipText}>{isBusyToggle ? "Saving..." : r.is_active ? "Disable" : "Enable"}</Text>
               </Pressable>
             </Pressable>
           );
@@ -239,6 +275,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.06)",
   },
   smallChipText: { color: "#fff", fontWeight: "900", fontSize: 12 },
+  smallChipDanger: {
+    borderColor: "rgba(248,113,113,0.35)",
+    backgroundColor: "rgba(248,113,113,0.10)",
+  },
+  smallChipDangerText: { color: "#fecaca", fontWeight: "900", fontSize: 12 },
   muted: { marginTop: 10, color: "rgba(255,255,255,0.6)" },
   disabled: { opacity: 0.55 },
 });
