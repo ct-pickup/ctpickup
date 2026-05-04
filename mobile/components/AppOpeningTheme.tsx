@@ -59,7 +59,7 @@ export function AppOpeningTheme() {
 
 function AppOpeningThemeInner({ onDone }: { onDone: () => void }) {
   const { width: windowW } = useWindowDimensions();
-  const wordmarkW = Math.min(320, windowW * 0.88);
+  const iconSize = Math.min(180, windowW * 0.42);
 
   const ripple1Scale = useSharedValue(0.08);
   const ripple1Opacity = useSharedValue(0);
@@ -130,8 +130,8 @@ function AppOpeningThemeInner({ onDone }: { onDone: () => void }) {
         </View>
         <Animated.View style={[styles.brand, brandStyle]}>
           <Image
-            source={require("../assets/images/ct-pickup-wordmark.png")}
-            style={[styles.wordmark, { width: wordmarkW, height: wordmarkW }]}
+            source={require("../assets/images/icon.png")}
+            style={[styles.wordmark, { width: iconSize, height: iconSize }]}
             resizeMode="contain"
             accessibilityLabel="CT Pickup"
           />

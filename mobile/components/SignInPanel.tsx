@@ -3,6 +3,7 @@ import { hasSupabaseEnv, siteOrigin } from "@/lib/env";
 import { checkEmailExistsResult } from "@/lib/siteApi";
 import { useEffect, useMemo, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useRouter } from "expo-router";
 import {
   ActivityIndicator,
   LayoutAnimation,
@@ -30,6 +31,7 @@ type Props = {
 
 export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
   const { supabase } = useAuth();
+  const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -307,6 +309,14 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
                 </View>
               )}
             </Pressable>
+            {signupFlowChoice === "returning" ? (
+              <Pressable
+                style={styles.textBtn}
+                onPress={() => router.push(`/reset-password${emailClean ? `?email=${encodeURIComponent(emailClean)}` : ""}`)}
+              >
+                <Text style={styles.textBtnLabelStrong}>Forgot password?</Text>
+              </Pressable>
+            ) : null}
             {variant === "simple" ? (
               <Pressable
                 style={styles.createAccountRow}

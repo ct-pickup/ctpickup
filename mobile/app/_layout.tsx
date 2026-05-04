@@ -112,6 +112,15 @@ function RootLayoutNav() {
                         }}
                       />
                       <Stack.Screen
+                        name="reset-password"
+                        options={{
+                          headerShown: true,
+                          title: "Reset password",
+                          headerStyle: { backgroundColor: "#0a0a0a" },
+                          headerTintColor: "#fff",
+                        }}
+                      />
+                      <Stack.Screen
                         name="field-tournament"
                         options={{
                           headerShown: true,
