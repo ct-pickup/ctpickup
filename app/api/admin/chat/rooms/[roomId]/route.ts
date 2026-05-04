@@ -5,6 +5,27 @@ import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
 
+export async function GET(_req: Request, ctx: { params: Promise<{ roomId: string }> }) {
+  const guard = await requireAdminBearer(_req);
+  if (!guard.ok) return guard.response;
+
+  const { roomId } = await ctx.params;
+  const id = String(roomId || "").trim();
+  if (!id) return NextResponse.json({ error: "Missing roomId" }, { status: 400 });
+
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin
+    .from("chat_rooms")
+    .select("id,slug,title,is_active,announcements_only,closes_at,created_at,created_by")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Room not found" }, { status: 404 });
+
+  return NextResponse.json({ ok: true, room: data });
+}
+
 export async function PATCH(req: Request, ctx: { params: Promise<{ roomId: string }> }) {
   const guard = await requireAdminBearer(req);
   if (!guard.ok) return guard.response;
@@ -57,11 +78,32 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ roomId: strin
   return NextResponse.json({ ok: true, room: data });
 }
 
-export async function DELETE(_req: Request, ctx: { params: Promise<{ roomId: string }> }) {
-  const guard = await requireAdminBearer(_req);
+export async function DELETE(req: Request, ctx: { params: Promise<{ roomId: string }> }) {
+  const guard = await requireAdminBearer(req);
   if (!guard.ok) return guard.response;
 
   const { roomId } = await ctx.params;
+  const id = String(roomId || "").trim();
+  if (!id) return NextResponse.json({ error: "Missing roomId" }, { status: 400 });
+
+  const messageId = new URL(req.url).searchParams.get("message_id")?.trim();
+  if (messageId) {
+    const admin = getSupabaseAdmin();
+    const { data: row, error: findErr } = await admin
+      .from("chat_messages")
+      .select("id")
+      .eq("id", messageId)
+      .eq("room_id", id)
+      .maybeSingle();
+
+    if (findErr) return NextResponse.json({ error: findErr.message }, { status: 500 });
+    if (!row) return NextResponse.json({ error: "Message not found" }, { status: 404 });
+
+    const { error: delErr } = await admin.from("chat_messages").delete().eq("id", messageId).eq("room_id", id);
+    if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+    return NextResponse.json({ ok: true, deleted_message_id: messageId });
+  }
+
   const result = await adminDeleteChatRoomById(roomId);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ ok: true, deleted: result.deleted });
