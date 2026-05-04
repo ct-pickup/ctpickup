@@ -2,6 +2,7 @@ import { useAccountIntroReplay } from "@/context/AccountIntroReplayContext";
 import { useReplayOpeningTheme } from "@/context/ReplayOpeningThemeContext";
 import { useAdminMode } from "@/context/AdminModeContext";
 import { useAuth } from "@/context/AuthContext";
+import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { useAppLock } from "@/context/AppLockContext";
 import {
   isValidPinFormat,
@@ -29,6 +30,7 @@ export default function AccountScreen() {
   const replayOpeningThemeCtx = useReplayOpeningTheme();
   const { session, isReady, signOut } = useAuth();
   const { enabled: adminModeEnabled, isReady: adminModeReady, setEnabled: setAdminModeEnabled } = useAdminMode();
+  const { isAdmin, isReady: profileAdminReady } = useProfileAdmin();
   const {
     hasPin,
     changePin,
@@ -67,7 +69,7 @@ export default function AccountScreen() {
     if (r.success) await setBiometricsEnabled(true);
   }
 
-  if (!isReady) {
+  if (!isReady || !profileAdminReady) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#fff" />
@@ -83,8 +85,6 @@ export default function AccountScreen() {
       </View>
     );
   }
-
-  const isOmeed = signedEmail.toLowerCase() === "omeedpooya@gmail.com";
 
   return (
     <View style={styles.screen}>
@@ -104,7 +104,7 @@ export default function AccountScreen() {
           </Pressable>
         </View>
 
-        {isOmeed ? (
+        {isAdmin ? (
           <View style={styles.card}>
             <View style={styles.rowBetween}>
               <View style={{ flex: 1, paddingRight: 12 }}>

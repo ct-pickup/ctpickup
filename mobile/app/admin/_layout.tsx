@@ -1,6 +1,30 @@
-import { Stack } from "expo-router";
+import { useAdminMode } from "@/context/AdminModeContext";
+import { useAuth } from "@/context/AuthContext";
+import { useProfileAdmin } from "@/context/ProfileAdminContext";
+import { Redirect, Stack } from "expo-router";
+import { ActivityIndicator, View } from "react-native";
 
 export default function AdminLayout() {
+  const { session, isReady: authReady } = useAuth();
+  const { isAdmin, isReady: profileAdminReady } = useProfileAdmin();
+  const { enabled: adminModeEnabled, isReady: adminModeReady } = useAdminMode();
+
+  if (!authReady || !profileAdminReady || !adminModeReady) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0a0a0a", justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  }
+
+  if (!session?.user?.id) {
+    return <Redirect href="/login" />;
+  }
+
+  if (!isAdmin || !adminModeEnabled) {
+    return <Redirect href="/(tabs)/account" />;
+  }
+
   return (
     <Stack
       screenOptions={{
@@ -18,4 +42,3 @@ export default function AdminLayout() {
     </Stack>
   );
 }
-

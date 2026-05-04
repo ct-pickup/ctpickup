@@ -7,6 +7,7 @@ import { AppLockProvider } from "@/context/AppLockContext";
 import { AccountIntroReplayProvider } from "@/context/AccountIntroReplayContext";
 import { AdminModeProvider } from "@/context/AdminModeContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { ProfileAdminProvider } from "@/context/ProfileAdminContext";
 import { SelectedRegionProvider } from "@/context/SelectedRegionContext";
 import { ReplayOpeningThemeContext } from "@/context/ReplayOpeningThemeContext";
 import { useFonts } from "expo-font";
@@ -72,8 +73,9 @@ function RootLayoutNav() {
   return (
     <ReplayOpeningThemeContext.Provider value={replayOpeningThemeCtx}>
       <AuthProvider>
-        <AdminModeProvider>
-          <SelectedRegionProvider>
+        <ProfileAdminProvider>
+          <AdminModeProvider>
+            <SelectedRegionProvider>
             <AppLockProvider>
               <AccountIntroReplayProvider>
                 <View style={{ flex: 1 }}>
@@ -145,8 +147,9 @@ function RootLayoutNav() {
                 </View>
               </AccountIntroReplayProvider>
             </AppLockProvider>
-          </SelectedRegionProvider>
-        </AdminModeProvider>
+            </SelectedRegionProvider>
+          </AdminModeProvider>
+        </ProfileAdminProvider>
       </AuthProvider>
     </ReplayOpeningThemeContext.Provider>
   );

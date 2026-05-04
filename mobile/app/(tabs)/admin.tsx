@@ -2,19 +2,20 @@ import { Redirect, useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAdminMode } from "@/context/AdminModeContext";
 import { useAuth } from "@/context/AuthContext";
+import { useProfileAdmin } from "@/context/ProfileAdminContext";
 
 export default function AdminScreen() {
   const { session, isReady } = useAuth();
   const { enabled: adminModeEnabled, isReady: adminModeReady } = useAdminMode();
+  const { isAdmin, isReady: profileAdminReady } = useProfileAdmin();
   const router = useRouter();
 
-  const signedEmail = session?.user?.email?.toLowerCase();
-  const isOmeed = signedEmail === "omeedpooya@gmail.com";
+  const signedEmail = session?.user?.email;
 
-  if (!isReady || !adminModeReady) return null;
+  if (!isReady || !adminModeReady || !profileAdminReady) return null;
 
   if (!signedEmail) return <Redirect href="/login" />;
-  if (!isOmeed || !adminModeEnabled) return <Redirect href="/account" />;
+  if (!isAdmin || !adminModeEnabled) return <Redirect href="/account" />;
 
   return (
     <View style={styles.screen}>

@@ -6,6 +6,7 @@ import { ActivityIndicator, View } from "react-native";
 import { useClientOnlyValue } from "@/components/useClientOnlyValue";
 import { useAdminMode } from "@/context/AdminModeContext";
 import { useAuth } from "@/context/AuthContext";
+import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { RunsPickerBridgeProvider } from "@/context/RunsPickerBridge";
 
 function TabBarIcon(props: {
@@ -18,8 +19,9 @@ function TabBarIcon(props: {
 export default function TabLayout() {
   const { session, isReady } = useAuth();
   const { enabled: adminModeEnabled, isReady: adminModeReady } = useAdminMode();
+  const { isAdmin, isReady: profileAdminReady } = useProfileAdmin();
 
-  if (!isReady || !adminModeReady) {
+  if (!isReady || !adminModeReady || !profileAdminReady) {
     return (
       <View style={{ flex: 1, backgroundColor: "#0a0a0a", justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color="#fff" />
@@ -33,14 +35,14 @@ export default function TabLayout() {
 
   return (
     <RunsPickerBridgeProvider>
-      <TabsWithRunsPickerReset adminModeEnabled={adminModeEnabled} signedEmail={session.user.email} />
+      <TabsWithRunsPickerReset adminModeEnabled={adminModeEnabled} isAdmin={isAdmin} />
     </RunsPickerBridgeProvider>
   );
 }
 
-function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; signedEmail: string }) {
+function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; isAdmin: boolean }) {
   const lime = "#a3e635";
-  const showAdmin = props.signedEmail.toLowerCase() === "omeedpooya@gmail.com" && props.adminModeEnabled;
+  const showAdmin = props.isAdmin && props.adminModeEnabled;
 
   return (
     <Tabs

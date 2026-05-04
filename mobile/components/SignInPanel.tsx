@@ -312,7 +312,11 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
             {signupFlowChoice === "returning" ? (
               <Pressable
                 style={styles.textBtn}
-                onPress={() => router.push(`/reset-password${emailClean ? `?email=${encodeURIComponent(emailClean)}` : ""}`)}
+                onPress={() =>
+                  emailClean
+                    ? router.push({ pathname: "/reset-password", params: { email: emailClean } })
+                    : router.push("/reset-password")
+                }
               >
                 <Text style={styles.textBtnLabelStrong}>Forgot password?</Text>
               </Pressable>
