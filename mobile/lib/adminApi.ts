@@ -306,12 +306,53 @@ export type AdminOutdoorTournament = {
   created_at?: string | null;
 };
 
-export function fetchAdminOutdoorTournaments(accessToken: string) {
-  return adminFetch<{ ok: boolean; tournaments: AdminOutdoorTournament[]; error?: string }>(
-    "/api/admin/tournaments",
-    accessToken,
-    { method: "GET" },
-  );
+export type TournamentCaptainRow = {
+  id: string;
+  status: string;
+  captain_name: string | null;
+  team_name: string | null;
+  claim_submitted_at: string | null;
+};
+
+export type TourneySubmissionRow = {
+  id: string;
+  created_at: string;
+  first_name: string | null;
+  last_name: string | null;
+  instagram: string | null;
+  decision: string | null;
+  notes: string | null;
+  reviewed: boolean | null;
+  meta?: unknown;
+};
+
+export type AdminTournamentsPanelResponse = {
+  ok: boolean;
+  tournaments: AdminOutdoorTournament[];
+  active_tournament?: Record<string, unknown> | null;
+  captains?: TournamentCaptainRow[];
+  submissions?: TourneySubmissionRow[];
+  panel_error?: string;
+  error?: string;
+};
+
+export function fetchAdminOutdoorTournaments(
+  accessToken: string,
+  opts?: { region?: string; includePanel?: boolean; submissionDecision?: string },
+) {
+  const u = new URL("/api/admin/tournaments", originOrThrow());
+  if (opts?.region) u.searchParams.set("region", opts.region);
+  if (opts?.includePanel) u.searchParams.set("include", "panel");
+  if (opts?.submissionDecision) u.searchParams.set("decision", opts.submissionDecision);
+  return adminFetch<AdminTournamentsPanelResponse>(u.pathname + u.search, accessToken, { method: "GET" });
+}
+
+export function postAdminTournaments(accessToken: string, body: Record<string, unknown>) {
+  return adminFetch<{ ok: boolean; error?: string; tournament?: unknown }>("/api/admin/tournaments", accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 export function postAdminSetHubTournament(accessToken: string, tournamentId: string | null) {
