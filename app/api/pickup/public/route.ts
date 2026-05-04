@@ -254,6 +254,7 @@ export async function GET(req: Request) {
       status: run.status || "inactive",
       run: {
         id: run.id,
+        status: run.status,
         run_type: run.run_type,
         title: run.title,
         start_at: run.start_at,

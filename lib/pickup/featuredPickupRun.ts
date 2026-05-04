@@ -81,6 +81,24 @@ export async function fetchFirstPublicUpcomingPickupRun(
 }
 
 /**
+ * Latest non-canceled run in a bucket when nothing is promoted (`is_current`) or upcoming-public matched.
+ * Covers: staff created a run but forgot “promote”, missing `service_region`, or start time already passed.
+ */
+async function fetchLatestActivePickupRunForRegionBucket(
+  admin: SupabaseClient,
+  regionCode: string | "global",
+): Promise<PublicPickupRunRow | null> {
+  let q = admin.from("pickup_runs").select("*").in("status", ["planning", "likely_on", "active"]);
+  if (regionCode === "global") {
+    q = q.is("service_region", null);
+  } else {
+    q = q.eq("service_region", regionCode);
+  }
+  const res = await q.order("created_at", { ascending: false }).limit(1).maybeSingle();
+  return (res.data as PublicPickupRunRow | null) ?? null;
+}
+
+/**
  * Whether this client may see the featured run on the hub.
  * - Public runs: visible to everyone (including logged out).
  * - Select runs: require an approved, signed-in user; missing profile tier_rank is treated as PUBLIC (rank 6),
@@ -95,20 +113,22 @@ export async function userCanViewPickupRun(
 ): Promise<boolean> {
   if (ctx.isAdmin) return true;
   if (run.run_type === "public") return true;
-  if (!ctx.userId || !ctx.approved) return false;
+  if (!ctx.userId) return false;
 
   const effectiveRank =
     ctx.tierRank === null || ctx.tierRank === undefined ? 6 : ctx.tierRank;
 
-  const open =
-    run.open_tier_rank === null || run.open_tier_rank === undefined
-      ? null
-      : Number(run.open_tier_rank);
+  const openRaw =
+    run.open_tier_rank === null || run.open_tier_rank === undefined ? null : Number(run.open_tier_rank);
+  // Canonical rules use null only; 0 must never mean “tier zero” (see pickup/public comments).
+  const open = openRaw === null || openRaw === 0 ? null : openRaw;
 
-  // Tier ladder not configured yet — still show the hub so staff-created runs don’t look “missing”.
+  // Tier ladder not configured yet — show the hub to any signed-in player (incl. pending approval).
   if (open === null) {
     return true;
   }
+
+  if (!ctx.approved) return false;
 
   if (effectiveRank > open) return false;
 

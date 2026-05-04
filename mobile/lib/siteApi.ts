@@ -58,7 +58,10 @@ export async function fetchPickupPublic(
   if (opts?.region) {
     u.searchParams.set("region", opts.region);
   }
-  const r = await fetch(u.toString(), { headers });
+  const r = await fetch(u.toString(), {
+    headers: { ...headers, Accept: "application/json" },
+    cache: "no-store",
+  });
   const json = await r.json().catch(() => null);
   return { ok: r.ok, status: r.status, json };
 }

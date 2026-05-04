@@ -19,7 +19,8 @@ export function usePickupPublic(accessToken: string | null) {
       return;
     }
     if (!regionReady) {
-      setLoading(false);
+      // Avoid flashing "no runs" before AsyncStorage region is ready.
+      setLoading(true);
       return;
     }
     setLoading(true);
