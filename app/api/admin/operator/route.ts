@@ -11,6 +11,7 @@ import {
   verifyLinksFromTargets,
 } from "@/lib/admin/publish/publicationResponse";
 import type { PublishTargetsInput } from "@/lib/admin/publish/types";
+import { recordTournamentActivationChange } from "@/lib/admin/surfaceHealth";
 import { enqueueRevalidateAndRun } from "@/lib/admin/sync/enqueueRevalidate";
 import { isPublishLayerAvailable } from "@/lib/admin/publishLayer";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
@@ -121,6 +122,9 @@ export async function POST(req: Request) {
       const { error: actErr } = await admin.from("tournaments").update({ is_active: true }).eq("id", tournament_id);
       if (actErr) return NextResponse.json({ error: actErr.message }, { status: 500 });
     }
+
+    await recordTournamentActivationChange(admin, guard.userId);
+    await enqueueRevalidateAndRun(admin, ["/tournament", "/status/tournament"]);
 
     revalidatePath("/tournament");
     revalidatePath("/admin/tournament");

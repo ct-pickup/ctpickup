@@ -293,3 +293,73 @@ export function postAdminAnnouncement(accessToken: string, body: { room_slug?: s
   );
 }
 
+/** Outdoor / captain tournament hub (`/tournament` on the website). */
+export type AdminOutdoorTournament = {
+  id: string;
+  title: string;
+  slug: string;
+  is_active: boolean;
+  target_teams: number | null;
+  official_threshold: number | null;
+  max_teams: number | null;
+  created_at?: string | null;
+};
+
+export function fetchAdminOutdoorTournaments(accessToken: string) {
+  return adminFetch<{ ok: boolean; tournaments: AdminOutdoorTournament[]; error?: string }>(
+    "/api/admin/tournaments",
+    accessToken,
+    { method: "GET" },
+  );
+}
+
+export function postAdminSetHubTournament(accessToken: string, tournamentId: string | null) {
+  return adminFetch<{
+    ok: boolean;
+    action?: string;
+    effects?: { record: string; detail: string }[];
+    error?: string;
+  }>("/api/admin/operator", accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "set_hub_tournament", tournament_id: tournamentId }),
+  });
+}
+
+export type AdminEsportsTournamentRow = {
+  id: string;
+  title: string;
+  game: string;
+  prize: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  description: string | null;
+  format_summary: string | null;
+  created_at: string;
+};
+
+export function fetchAdminEsportsTournaments(accessToken: string) {
+  return adminFetch<{ ok: boolean; tournaments: AdminEsportsTournamentRow[]; error?: string }>(
+    "/api/admin/esports/tournaments",
+    accessToken,
+    { method: "GET" },
+  );
+}
+
+export function patchAdminEsportsTournamentStatus(
+  accessToken: string,
+  tournamentId: string,
+  status: "upcoming" | "active" | "completed",
+) {
+  return adminFetch<{ ok: boolean; tournament?: Partial<AdminEsportsTournamentRow>; error?: string }>(
+    `/api/admin/esports/tournaments/${encodeURIComponent(tournamentId)}`,
+    accessToken,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    },
+  );
+}
+
