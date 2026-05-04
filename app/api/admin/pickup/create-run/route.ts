@@ -26,7 +26,8 @@ export async function POST(req: Request) {
 
   const insert = await supabaseAdmin.from("pickup_runs").insert({
     title: b.title || "CT Pickup Run",
-    run_type: b.run_type || "select",
+    /** Default public so the regional hub shows the run to everyone; staff may pass `"select"` for invite-only. */
+    run_type: b.run_type || "public",
     status: "planning",
     start_at: startAt,
     capacity: Number(b.capacity || 24),

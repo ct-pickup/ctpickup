@@ -80,7 +80,14 @@ export async function fetchFirstPublicUpcomingPickupRun(
   return rows.find((r) => r.run_type === "public") ?? null;
 }
 
-/** Whether this client may see run details (select runs are restricted). */
+/**
+ * Whether this client may see the featured run on the hub.
+ * - Public runs: visible to everyone (including logged out).
+ * - Select runs: require an approved, signed-in user; missing profile tier_rank is treated as PUBLIC (rank 6),
+ *   matching `/api/pickup/public` invite logic.
+ * - While `open_tier_rank` is still null (planning / before tier waves), approved players can see the run exists.
+ *   Once the tier window is set, select runs require an invite row as before.
+ */
 export async function userCanViewPickupRun(
   admin: SupabaseClient,
   run: PublicPickupRunRow,
@@ -88,13 +95,22 @@ export async function userCanViewPickupRun(
 ): Promise<boolean> {
   if (ctx.isAdmin) return true;
   if (run.run_type === "public") return true;
-  if (!ctx.userId || !ctx.approved || ctx.tierRank === null) return false;
+  if (!ctx.userId || !ctx.approved) return false;
+
+  const effectiveRank =
+    ctx.tierRank === null || ctx.tierRank === undefined ? 6 : ctx.tierRank;
 
   const open =
     run.open_tier_rank === null || run.open_tier_rank === undefined
       ? null
       : Number(run.open_tier_rank);
-  if (open === null || ctx.tierRank > open) return false;
+
+  // Tier ladder not configured yet — still show the hub so staff-created runs don’t look “missing”.
+  if (open === null) {
+    return true;
+  }
+
+  if (effectiveRank > open) return false;
 
   const inv = await admin
     .from("pickup_run_invites")

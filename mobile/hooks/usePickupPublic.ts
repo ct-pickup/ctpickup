@@ -43,8 +43,8 @@ export function usePickupPublic(accessToken: string | null) {
 
   const parsed: PickupPublicPayload = useMemo(() => parsePickupPayload(data), [data]);
   const run = parsed.run && typeof parsed.run === "object" ? parsed.run : null;
-  const hubInactive = parsed.status === "inactive";
-  const noFeaturedRun = hubInactive || run == null;
+  /** API echoes run lifecycle as top-level `status` when a run exists (e.g. planning); only trust `run`. */
+  const noFeaturedRun = run == null;
   const counts = parsed.counts;
   const myStatus: string | null =
     parsed.my_status === undefined || parsed.my_status === null
