@@ -16,6 +16,8 @@ const LIME = "#a3e635";
 
 function fmtMeta(t: AdminOutdoorTournament): string {
   const bits: string[] = [];
+  if (t.service_region) bits.push(`hub ${t.service_region}`);
+  else bits.push("hub all (legacy)");
   if (t.target_teams != null) bits.push(`target ${t.target_teams}`);
   if (t.official_threshold != null) bits.push(`official >=${t.official_threshold}`);
   if (t.max_teams != null) bits.push(`max ${t.max_teams}`);

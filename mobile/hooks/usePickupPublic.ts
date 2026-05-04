@@ -19,6 +19,7 @@ export function usePickupPublic(accessToken: string | null) {
       return;
     }
     if (!regionReady) {
+      setLoading(false);
       return;
     }
     setLoading(true);

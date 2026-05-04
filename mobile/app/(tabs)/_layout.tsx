@@ -6,7 +6,7 @@ import { ActivityIndicator, View } from "react-native";
 import { useClientOnlyValue } from "@/components/useClientOnlyValue";
 import { useAdminMode } from "@/context/AdminModeContext";
 import { useAuth } from "@/context/AuthContext";
-import { RunsPickerBridgeProvider, useRunsPickerBridge } from "@/context/RunsPickerBridge";
+import { RunsPickerBridgeProvider } from "@/context/RunsPickerBridge";
 
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>["name"];
@@ -39,7 +39,6 @@ export default function TabLayout() {
 }
 
 function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; signedEmail: string }) {
-  const { resetToStatePicker } = useRunsPickerBridge();
   const lime = "#a3e635";
   const showAdmin = props.signedEmail.toLowerCase() === "omeedpooya@gmail.com" && props.adminModeEnabled;
 
@@ -68,11 +67,6 @@ function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; signedEmail
           title: "Pickup",
           tabBarLabel: "Pickup",
           tabBarIcon: ({ color }) => <TabBarIcon name="futbol-o" color={color} />,
-        }}
-        listeners={{
-          tabPress: () => {
-            resetToStatePicker();
-          },
         }}
       />
       <Tabs.Screen

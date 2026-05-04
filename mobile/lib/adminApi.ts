@@ -299,6 +299,7 @@ export type AdminOutdoorTournament = {
   title: string;
   slug: string;
   is_active: boolean;
+  service_region?: string | null;
   target_teams: number | null;
   official_threshold: number | null;
   max_teams: number | null;

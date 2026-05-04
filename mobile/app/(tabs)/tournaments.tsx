@@ -1,11 +1,25 @@
 import { FieldTournamentCard } from "@/components/FieldTournamentCard";
+import { RegionsPickerPanel } from "@/components/RegionsPickerPanel";
 import { useAuth } from "@/context/AuthContext";
+import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { useFieldTournament } from "@/hooks/useFieldTournament";
 import { formatTournamentStartEt } from "@/lib/formatTournament";
+import { siteOrigin } from "@/lib/env";
+import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useNavigation } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 type Row = {
   id: string;
@@ -18,15 +32,17 @@ type Row = {
 
 export default function TournamentsScreen() {
   const { supabase, isReady } = useAuth();
+  const { setRegion, region } = useSelectedRegion();
   const { loading: fieldLoading, error: fieldError, payload: fieldPayload } = useFieldTournament();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigation = useNavigation();
+  const [showStatePicker, setShowStatePicker] = useState(true);
 
   useEffect(() => {
     navigation.setOptions?.({
-      title: "Tournaments",
+      title: showStatePicker ? "Tournament by state" : "Tournaments",
       headerTitleAlign: "center",
       headerStyle: {
         backgroundColor: "#0a0a0a",
@@ -36,7 +52,7 @@ export default function TournamentsScreen() {
       headerTintColor: "#fff",
       headerShadowVisible: false,
     });
-  }, [navigation]);
+  }, [navigation, showStatePicker]);
 
   const load = useCallback(async () => {
     if (!supabase) {
@@ -64,17 +80,58 @@ export default function TournamentsScreen() {
     void load();
   }, [load]);
 
+  const onPickState = useCallback(
+    (code: ServiceRegionCode) => {
+      void setRegion(code);
+      setShowStatePicker(false);
+    },
+    [setRegion],
+  );
+
+  const openEsportsDetail = useCallback((id: string) => {
+    const origin = siteOrigin();
+    if (!origin) {
+      Alert.alert("Missing site URL", "Set EXPO_PUBLIC_SITE_URL in mobile/.env to open the web tournament page.");
+      return;
+    }
+    const url = `${origin}/esports/tournaments/${encodeURIComponent(id)}`;
+    void Linking.openURL(url).catch(() => {
+      Alert.alert("Could not open", url);
+    });
+  }, []);
+
   const listHeader = useMemo(
     () => (
       <>
-        <Text style={styles.title}>Tournaments</Text>
-        <Text style={styles.sub}>In-person CT bracket plus EA FC online events — same hub as the site.</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title} numberOfLines={1}>
+            Tournaments
+          </Text>
+          <Pressable
+            onPress={() => setShowStatePicker(true)}
+            style={({ pressed }) => [styles.statesChip, pressed && { opacity: 0.85 }]}
+          >
+            <FontAwesome name="map-marker" size={14} color="#a3e635" />
+            <Text style={styles.statesChipText}> States</Text>
+          </Pressable>
+        </View>
+        <Text style={styles.sub}>
+          In-person bracket for {serviceRegionName(region)} ({region}) plus EA FC online events — same hub as the site.
+        </Text>
         <FieldTournamentCard loading={fieldLoading} error={fieldError} payload={fieldPayload} style={{ marginTop: 18, marginBottom: 22 }} />
         <Text style={styles.sectionEsports}>Esports (online)</Text>
       </>
     ),
-    [fieldLoading, fieldError, fieldPayload]
+    [fieldLoading, fieldError, fieldPayload, region],
   );
+
+  if (showStatePicker) {
+    return (
+      <SafeAreaView style={styles.pickerSafe} edges={["bottom"]}>
+        <RegionsPickerPanel onSelectState={onPickState} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -90,7 +147,12 @@ export default function TournamentsScreen() {
           ListHeaderComponent={listHeader}
           ListEmptyComponent={<Text style={styles.empty}>{error ?? "No upcoming or active esports tournaments."}</Text>}
           renderItem={({ item }) => (
-            <View style={styles.esportsCard}>
+            <Pressable
+              onPress={() => openEsportsDetail(item.id)}
+              style={({ pressed }) => [styles.esportsCard, pressed && { opacity: 0.92 }]}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.title}, open details`}
+            >
               <View style={styles.esportsRow}>
                 <View style={styles.esportsIconWrap}>
                   <FontAwesome name="gamepad" size={18} color="#a3e635" />
@@ -99,6 +161,7 @@ export default function TournamentsScreen() {
                   <Text style={styles.cardTitle}>{item.title}</Text>
                   <Text style={styles.meta}>{item.game}</Text>
                 </View>
+                <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
               </View>
               <View style={{ marginTop: 12 }}>
                 <Text style={styles.meta}>
@@ -113,7 +176,7 @@ export default function TournamentsScreen() {
               <View style={styles.pill}>
                 <Text style={styles.pillText}>{item.status === "active" ? "Live" : "Upcoming"}</Text>
               </View>
-            </View>
+            </Pressable>
           )}
           contentContainerStyle={
             rows.length === 0 ? { flexGrow: 1, paddingTop: 0, paddingBottom: 40 } : { paddingTop: 0, paddingBottom: 40 }
@@ -125,8 +188,27 @@ export default function TournamentsScreen() {
 }
 
 const styles = StyleSheet.create({
+  pickerSafe: { flex: 1, backgroundColor: "#0a0a0a" },
   container: { flex: 1, backgroundColor: "#0a0a0a", paddingHorizontal: 20, paddingTop: 18 },
-  title: { fontSize: 44, fontWeight: "800", color: "#fff", letterSpacing: -0.2 },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 4,
+  },
+  title: { fontSize: 28, fontWeight: "800", color: "#fff", letterSpacing: -0.2, flex: 1, minWidth: 0 },
+  statesChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: "rgba(163,230,53,0.08)",
+  },
+  statesChipText: { fontSize: 13, fontWeight: "800", color: "#a3e635" },
   sub: { marginTop: 10, marginBottom: 4, color: "rgba(255,255,255,0.6)", fontSize: 15, lineHeight: 22 },
   sectionEsports: {
     marginBottom: 14,

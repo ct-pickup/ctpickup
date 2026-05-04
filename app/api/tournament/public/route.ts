@@ -11,6 +11,8 @@ export const dynamic = "force-dynamic";
 
 const ROUTE = "tournament/public";
 
+const HUB_REGIONS = new Set(["NY", "CT", "NJ", "MD"]);
+
 const ACTIVE_CLAIM_STATUSES = [
   "claim_submitted",
   "payment_pending",
@@ -35,7 +37,7 @@ async function expireOverduePaymentHolds(supabase: SupabaseClient, tournamentId:
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   let supabase;
   try {
     supabase = getSupabaseAdmin();
@@ -44,12 +46,57 @@ export async function GET() {
   }
 
   try {
-    const { data: t, error: tErr } = await supabase
-      .from("tournaments")
-      .select("*")
-      .eq("is_active", true)
-      .limit(1)
-      .maybeSingle();
+    const url = new URL(req.url);
+    const regionRaw = String(url.searchParams.get("region") || "").trim().toUpperCase();
+    const region = regionRaw && HUB_REGIONS.has(regionRaw) ? regionRaw : null;
+
+    let t: Record<string, unknown> | null = null;
+    let tErr: { message: string } | null = null;
+
+    if (region) {
+      const r1 = await supabase
+        .from("tournaments")
+        .select("*")
+        .eq("is_active", true)
+        .eq("service_region", region)
+        .maybeSingle();
+      if (r1.error) {
+        tErr = r1.error;
+      } else if (r1.data) {
+        t = r1.data as Record<string, unknown>;
+      } else {
+        const r2 = await supabase
+          .from("tournaments")
+          .select("*")
+          .eq("is_active", true)
+          .is("service_region", null)
+          .maybeSingle();
+        if (r2.error) {
+          tErr = r2.error;
+        } else {
+          t = (r2.data as Record<string, unknown> | null) ?? null;
+        }
+      }
+    } else {
+      const r0 = await supabase
+        .from("tournaments")
+        .select("*")
+        .eq("is_active", true)
+        .is("service_region", null)
+        .maybeSingle();
+      if (r0.error) {
+        tErr = r0.error;
+      } else if (r0.data) {
+        t = r0.data as Record<string, unknown>;
+      } else {
+        const rAny = await supabase.from("tournaments").select("*").eq("is_active", true).limit(1).maybeSingle();
+        if (rAny.error) {
+          tErr = rAny.error;
+        } else {
+          t = (rAny.data as Record<string, unknown> | null) ?? null;
+        }
+      }
+    }
 
     if (tErr) {
       return jsonSupabaseErrorResponse(ROUTE, "tournaments_active", tErr);
@@ -65,12 +112,12 @@ export async function GET() {
       });
     }
 
-    await expireOverduePaymentHolds(supabase, t.id);
+    await expireOverduePaymentHolds(supabase, t.id as string);
 
     const { data: captains, error: cErr } = await supabase
       .from("tournament_captains")
       .select("status")
-      .eq("tournament_id", t.id);
+      .eq("tournament_id", t.id as string);
 
     if (cErr) {
       return jsonSupabaseErrorResponse(ROUTE, "tournament_captains", cErr);
@@ -79,8 +126,10 @@ export async function GET() {
     const claimedTeams = (captains || []).filter((c) => ACTIVE_CLAIM_STATUSES.includes(c.status)).length;
     const confirmedTeams = (captains || []).filter((c) => c.status === "confirmed").length;
 
-    const official = confirmedTeams >= t.official_threshold; // 8
-    const full = confirmedTeams >= t.max_teams; // 12
+    const officialThreshold = Number(t.official_threshold ?? 0);
+    const maxTeams = Number(t.max_teams ?? 0);
+    const official = confirmedTeams >= officialThreshold;
+    const full = confirmedTeams >= maxTeams;
 
     const staffAnnouncement =
       "staff_announcement" in t && typeof (t as { staff_announcement?: unknown }).staff_announcement === "string"
@@ -94,7 +143,7 @@ export async function GET() {
         title: t.title,
         targetTeams: t.target_teams,
         officialThreshold: t.official_threshold,
-        maxTeams: t.max_teams,
+        maxTeams,
         announcement: staffAnnouncement?.trim() ? staffAnnouncement : null,
       },
       claimedTeams,

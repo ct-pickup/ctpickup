@@ -36,6 +36,19 @@ export default function AdminScreen() {
           <Text style={styles.cardTitle}>Chat moderation</Text>
           <Text style={styles.cardBody}>Create/edit rooms, toggle announcements-only, manage room mutes.</Text>
         </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
+          onPress={() => router.push("/admin/tournament")}
+        >
+          <Text style={styles.cardTitle}>Tournament hub</Text>
+          <Text style={styles.cardBody}>Make an outdoor / captain tournament live on the public tournament pages, or take the hub offline.</Text>
+        </Pressable>
+
+        <Pressable style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]} onPress={() => router.push("/admin/esports")}>
+          <Text style={styles.cardTitle}>Esports</Text>
+          <Text style={styles.cardBody}>Start or complete digital tournaments so they appear on the esports hub.</Text>
+        </Pressable>
       </ScrollView>
     </View>
   );

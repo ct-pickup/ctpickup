@@ -62,12 +62,12 @@ export default function RegionDetailScreen() {
           </Text>
         </View>
 
-        <Pressable style={styles.primary} onPress={() => router.navigate("/(tabs)/runs")}>
+        <Pressable style={styles.primary} onPress={() => router.replace("/(tabs)/runs")}>
           <FontAwesome name="futbol-o" size={18} color="#0a0a0a" />
           <Text style={styles.primaryText}> Open Runs</Text>
         </Pressable>
 
-        <Pressable style={styles.secondary} onPress={() => router.navigate("/(tabs)/runs")}>
+        <Pressable style={styles.secondary} onPress={() => router.replace("/(tabs)/runs")}>
           <Text style={styles.secondaryText}>All states</Text>
           <FontAwesome name="map" size={14} color={LIME} style={{ marginLeft: 8 }} />
         </Pressable>

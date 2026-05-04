@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
     .from("tournaments")
-    .select("id,title,slug,is_active,target_teams,official_threshold,max_teams,created_at")
+    .select("id,title,slug,is_active,service_region,target_teams,official_threshold,max_teams,created_at")
     .order("created_at", { ascending: false })
     .limit(200);
 

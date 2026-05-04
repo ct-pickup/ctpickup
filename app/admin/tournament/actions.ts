@@ -6,6 +6,7 @@ import { recordTournamentActivationChange } from "@/lib/admin/surfaceHealth";
 import { enqueueRevalidateAndRun } from "@/lib/admin/sync/enqueueRevalidate";
 import { getAuthUserSafe, supabaseServer } from "@/lib/supabase/server";
 import { supabaseService } from "@/lib/supabase/service";
+import { deactivateActiveTournamentsInRegionBucket } from "@/lib/tournament/deactivateActiveByRegionBucket";
 
 async function assertAdmin(): Promise<string> {
   const supabase = await supabaseServer();
@@ -36,9 +37,16 @@ export async function setActiveTournament(formData: FormData) {
   const id = String(formData.get("tournament_id") || "").trim();
   const svc = supabaseService();
 
-  await deactivateAllTournaments(svc);
-
-  if (id) {
+  if (!id) {
+    await deactivateAllTournaments(svc);
+  } else {
+    const { data: row, error: rErr } = await svc.from("tournaments").select("service_region").eq("id", id).maybeSingle();
+    if (rErr) redirect(`/admin/tournament?e=${encodeURIComponent(rErr.message)}`);
+    if (!row) redirect(`/admin/tournament?e=${encodeURIComponent("Tournament not found.")}`);
+    const sr = (row as { service_region?: string | null }).service_region;
+    const bucket = sr != null && String(sr).trim() !== "" ? String(sr).trim() : null;
+    const { error: dErr } = await deactivateActiveTournamentsInRegionBucket(svc, bucket);
+    if (dErr) redirect(`/admin/tournament?e=${encodeURIComponent(dErr.message)}`);
     const { error } = await svc.from("tournaments").update({ is_active: true }).eq("id", id);
     if (error) redirect(`/admin/tournament?e=${encodeURIComponent(error.message)}`);
   }

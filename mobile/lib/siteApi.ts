@@ -23,12 +23,16 @@ export async function postPickupRsvp(
 }
 
 /** Active in-person (field) tournament hub — same payload as the website tournament page. */
-export async function fetchTournamentPublic(): Promise<{ ok: boolean; status: number; json: unknown }> {
+export async function fetchTournamentPublic(opts?: {
+  region?: string;
+}): Promise<{ ok: boolean; status: number; json: unknown }> {
   const origin = siteOrigin();
   if (!origin) {
     return { ok: false, status: 0, json: { error: "missing_site_url" } };
   }
-  const r = await fetch(`${origin}/api/tournament/public`, {
+  const u = new URL(`${origin}/api/tournament/public`);
+  if (opts?.region) u.searchParams.set("region", opts.region);
+  const r = await fetch(u.toString(), {
     headers: { Accept: "application/json" },
     cache: "no-store",
   });

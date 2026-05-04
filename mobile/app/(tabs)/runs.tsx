@@ -10,7 +10,7 @@ import { fmtPickupDt } from "@/lib/pickupPublic";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -41,14 +41,6 @@ export default function RunsScreen() {
     registerReset(() => setShowStatePicker(true));
     return () => registerReset(null);
   }, [registerReset]);
-
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        setShowStatePicker(true);
-      };
-    }, []),
-  );
 
   useLayoutEffect(() => {
     navigation.setOptions({

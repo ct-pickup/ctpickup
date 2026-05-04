@@ -1,3 +1,4 @@
+import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { fetchTournamentPublic } from "@/lib/siteApi";
 import { siteOrigin } from "@/lib/env";
 import { useCallback, useEffect, useState } from "react";
@@ -55,6 +56,7 @@ function parseFieldPayload(json: unknown): FieldTournamentPayload | null {
 }
 
 export function useFieldTournament() {
+  const { region, ready: regionReady } = useSelectedRegion();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [payload, setPayload] = useState<FieldTournamentPayload | null>(null);
@@ -66,8 +68,13 @@ export function useFieldTournament() {
       setLoading(false);
       return;
     }
+    if (!regionReady) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     setError(null);
-    const r = await fetchTournamentPublic();
+    const r = await fetchTournamentPublic({ region });
     if (!r.ok) {
       setError("Could not load in-person tournament.");
       setPayload(null);
@@ -75,7 +82,7 @@ export function useFieldTournament() {
       setPayload(parseFieldPayload(r.json));
     }
     setLoading(false);
-  }, []);
+  }, [region, regionReady]);
 
   useEffect(() => {
     void reload();
