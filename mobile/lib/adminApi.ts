@@ -183,10 +183,13 @@ export function patchAdminPickupStanding(
   );
 }
 
+export type ChatRoomType = "public" | "announcement" | "group";
+
 export type ChatRoom = {
   id: string;
   slug: string;
   title: string;
+  room_type: ChatRoomType;
   is_active: boolean;
   announcements_only: boolean;
   closes_at: string | null;
@@ -204,16 +207,35 @@ export function fetchAdminChatRooms(accessToken: string) {
 
 export function postAdminChatRoom(
   accessToken: string,
-  body: { slug: string; title: string; is_active?: boolean; announcements_only?: boolean; closes_at?: string | null },
+  body: {
+    slug: string;
+    title: string;
+    room_type?: ChatRoomType;
+    is_active?: boolean;
+    announcements_only?: boolean;
+    closes_at?: string | null;
+    member_user_ids?: string[];
+    member_tier_ranks?: number[];
+  },
 ) {
+  return adminFetch<{
+    ok: boolean;
+    room?: ChatRoom;
+    member_count?: number;
+    member_error?: string;
+    error?: string;
+  }>("/api/admin/chat/rooms", accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function fetchAdminChatRoom(accessToken: string, roomId: string) {
   return adminFetch<{ ok: boolean; room?: ChatRoom; error?: string }>(
-    "/api/admin/chat/rooms",
+    `/api/admin/chat/rooms/${encodeURIComponent(roomId)}`,
     accessToken,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    },
+    { method: "GET" },
   );
 }
 
@@ -238,6 +260,17 @@ export function deleteAdminChatRoom(accessToken: string, roomId: string) {
     `/api/admin/chat/rooms/${encodeURIComponent(roomId)}/delete`,
     accessToken,
     { method: "POST" },
+  );
+}
+
+/** Deletes a single chat message in the room (admin). Uses `DELETE …?message_id=`; room delete uses POST `/delete`. */
+export function deleteAdminChatMessage(accessToken: string, roomId: string, messageId: string) {
+  const u = new URL(`/api/admin/chat/rooms/${encodeURIComponent(roomId)}`, originOrThrow());
+  u.searchParams.set("message_id", messageId);
+  return adminFetch<{ ok: boolean; deleted_message_id?: string; error?: string }>(
+    u.pathname + u.search,
+    accessToken,
+    { method: "DELETE" },
   );
 }
 
@@ -281,16 +314,22 @@ export function deleteAdminChatRoomMute(accessToken: string, roomId: string, use
   return adminFetch<{ ok: boolean; error?: string }>(u.pathname + u.search, accessToken, { method: "DELETE" });
 }
 
-export function postAdminAnnouncement(accessToken: string, body: { room_slug?: string; message: string }) {
-  return adminFetch<{ ok: boolean; pushed?: number; error?: string }>(
-    "/api/admin/chat/announce",
-    accessToken,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    },
-  );
+export function postAdminAnnouncement(
+  accessToken: string,
+  body: { room_id?: string; room_slug?: string; message: string },
+) {
+  return adminFetch<{
+    ok: boolean;
+    pushed?: number;
+    room_id?: string;
+    room_slug?: string;
+    room_type?: string;
+    error?: string;
+  }>("/api/admin/chat/announce", accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 /** Outdoor / captain tournament hub (`/tournament` on the website). */

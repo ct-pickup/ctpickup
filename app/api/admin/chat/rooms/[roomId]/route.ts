@@ -16,7 +16,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ roomId: string
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
     .from("chat_rooms")
-    .select("id,slug,title,is_active,announcements_only,closes_at,created_at,created_by")
+    .select("id,slug,title,room_type,is_active,announcements_only,closes_at,created_at,created_by")
     .eq("id", id)
     .maybeSingle();
 
@@ -69,7 +69,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ roomId: strin
     .from("chat_rooms")
     .update(patch)
     .eq("id", id)
-    .select("id,slug,title,is_active,announcements_only,closes_at,created_at,created_by")
+    .select("id,slug,title,room_type,is_active,announcements_only,closes_at,created_at,created_by")
     .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
