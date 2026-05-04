@@ -4,21 +4,11 @@ import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { useFieldTournament } from "@/hooks/useFieldTournament";
 import { formatTournamentStartEt } from "@/lib/formatTournament";
-import { siteOrigin } from "@/lib/env";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useNavigation } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Linking,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type Row = {
@@ -31,6 +21,7 @@ type Row = {
 };
 
 export default function TournamentsScreen() {
+  const router = useRouter();
   const { supabase, isReady } = useAuth();
   const { setRegion, region } = useSelectedRegion();
   const { loading: fieldLoading, error: fieldError, payload: fieldPayload } = useFieldTournament();
@@ -88,18 +79,6 @@ export default function TournamentsScreen() {
     [setRegion],
   );
 
-  const openEsportsDetail = useCallback((id: string) => {
-    const origin = siteOrigin();
-    if (!origin) {
-      Alert.alert("Missing site URL", "Set EXPO_PUBLIC_SITE_URL in mobile/.env to open the web tournament page.");
-      return;
-    }
-    const url = `${origin}/esports/tournaments/${encodeURIComponent(id)}`;
-    void Linking.openURL(url).catch(() => {
-      Alert.alert("Could not open", url);
-    });
-  }, []);
-
   const listHeader = useMemo(
     () => (
       <>
@@ -118,11 +97,17 @@ export default function TournamentsScreen() {
         <Text style={styles.sub}>
           In-person bracket for {serviceRegionName(region)} ({region}) plus EA FC online events — same hub as the site.
         </Text>
-        <FieldTournamentCard loading={fieldLoading} error={fieldError} payload={fieldPayload} style={{ marginTop: 18, marginBottom: 22 }} />
+        <FieldTournamentCard
+          loading={fieldLoading}
+          error={fieldError}
+          payload={fieldPayload}
+          style={{ marginTop: 18, marginBottom: 22 }}
+          onPress={() => router.push("/field-tournament")}
+        />
         <Text style={styles.sectionEsports}>Esports (online)</Text>
       </>
     ),
-    [fieldLoading, fieldError, fieldPayload, region],
+    [fieldLoading, fieldError, fieldPayload, region, router],
   );
 
   if (showStatePicker) {
@@ -148,7 +133,7 @@ export default function TournamentsScreen() {
           ListEmptyComponent={<Text style={styles.empty}>{error ?? "No upcoming or active esports tournaments."}</Text>}
           renderItem={({ item }) => (
             <Pressable
-              onPress={() => openEsportsDetail(item.id)}
+              onPress={() => router.push(`/esports/${item.id}`)}
               style={({ pressed }) => [styles.esportsCard, pressed && { opacity: 0.92 }]}
               accessibilityRole="button"
               accessibilityLabel={`${item.title}, open details`}

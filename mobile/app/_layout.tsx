@@ -111,6 +111,21 @@ function RootLayoutNav() {
                           title: "CT Pickup",
                         }}
                       />
+                      <Stack.Screen
+                        name="field-tournament"
+                        options={{
+                          headerShown: true,
+                          title: "Tournament",
+                          headerStyle: { backgroundColor: "#0a0a0a" },
+                          headerTintColor: "#fff",
+                        }}
+                      />
+                      <Stack.Screen
+                        name="esports"
+                        options={{
+                          headerShown: false,
+                        }}
+                      />
                     </Stack>
                   </ThemeProvider>
                   <AppOpeningTheme key={openingThemeKey} />

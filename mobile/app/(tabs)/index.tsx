@@ -114,7 +114,7 @@ export default function HomeScreen() {
         loading={fieldTournamentLoading}
         error={fieldTournamentError}
         payload={fieldTournamentPayload}
-        onPress={() => router.push("/(tabs)/tournaments")}
+        onPress={() => router.push("/field-tournament")}
       />
 
       <Text style={[styles.sectionLabel, styles.sectionLabelEsports]}>ESPORTS (ONLINE)</Text>
@@ -156,10 +156,10 @@ export default function HomeScreen() {
         </View>
       ) : (
         <Pressable
-          onPress={() => router.push("/(tabs)/tournaments")}
+          onPress={() => router.push(`/esports/${nextTournament.id}`)}
           style={({ pressed }) => [styles.esportsCard, pressed && { opacity: 0.92 }]}
           accessibilityRole="button"
-          accessibilityLabel={`Next esports tournament: ${nextTournament.title}. Open tournaments tab.`}
+          accessibilityLabel={`Next esports tournament: ${nextTournament.title}. Open details.`}
         >
           <View style={styles.cardGlow} pointerEvents="none" />
           <View style={styles.esportsTopRow}>
