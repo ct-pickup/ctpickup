@@ -438,6 +438,13 @@ export type AdminEsportsTournamentRow = {
   description: string | null;
   format_summary: string | null;
   created_at: string;
+  group_stage_deadline_1?: string | null;
+  group_stage_deadline_2?: string | null;
+  group_stage_final_deadline?: string | null;
+  knockout_start_at?: string | null;
+  quarterfinal_deadline?: string | null;
+  semifinal_deadline?: string | null;
+  final_deadline?: string | null;
 };
 
 export function fetchAdminEsportsTournaments(accessToken: string) {
@@ -448,19 +455,44 @@ export function fetchAdminEsportsTournaments(accessToken: string) {
   );
 }
 
-export function patchAdminEsportsTournamentStatus(
-  accessToken: string,
-  tournamentId: string,
-  status: "upcoming" | "active" | "completed",
-) {
-  return adminFetch<{ ok: boolean; tournament?: Partial<AdminEsportsTournamentRow>; error?: string }>(
+export function postAdminEsportsTournament(accessToken: string, body: Record<string, unknown>) {
+  return adminFetch<{ ok: boolean; tournament?: AdminEsportsTournamentRow; error?: string }>(
+    "/api/admin/esports/tournaments",
+    accessToken,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+/** Full tournament update (includes `title`); use `patchAdminEsportsTournamentStatus` for status-only. */
+export function patchAdminEsportsTournament(accessToken: string, tournamentId: string, body: Record<string, unknown>) {
+  return adminFetch<{ ok: boolean; tournament?: AdminEsportsTournamentRow; error?: string }>(
     `/api/admin/esports/tournaments/${encodeURIComponent(tournamentId)}`,
     accessToken,
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(body),
     },
+  );
+}
+
+export function patchAdminEsportsTournamentStatus(
+  accessToken: string,
+  tournamentId: string,
+  status: "upcoming" | "active" | "completed",
+) {
+  return patchAdminEsportsTournament(accessToken, tournamentId, { status });
+}
+
+export function deleteAdminEsportsTournament(accessToken: string, tournamentId: string) {
+  return adminFetch<{ ok: boolean; deleted_id?: string; error?: string }>(
+    `/api/admin/esports/tournaments/${encodeURIComponent(tournamentId)}`,
+    accessToken,
+    { method: "DELETE" },
   );
 }
 
