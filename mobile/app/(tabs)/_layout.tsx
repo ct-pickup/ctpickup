@@ -77,6 +77,14 @@ function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; signedEmail
         }}
       />
       <Tabs.Screen
+        name="esports"
+        options={{
+          title: "Esports",
+          tabBarLabel: "Esports",
+          tabBarIcon: ({ color }) => <TabBarIcon name="gamepad" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="messages"
         options={{
           title: "Messages",

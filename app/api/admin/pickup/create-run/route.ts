@@ -53,5 +53,40 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
-  return NextResponse.json({ ok: true, run: insert.data });
+
+  const runRow = insert.data as { id: string; service_region?: string | null };
+  const now = new Date().toISOString();
+  const promotedRegion =
+    runRow.service_region === null || runRow.service_region === undefined ? null : String(runRow.service_region);
+
+  let clear: { error: { message: string } | null };
+  if (promotedRegion !== null) {
+    clear = await supabaseAdmin
+      .from("pickup_runs")
+      .update({ is_current: false, updated_at: now })
+      .eq("is_current", true)
+      .eq("service_region", promotedRegion);
+  } else {
+    clear = await supabaseAdmin
+      .from("pickup_runs")
+      .update({ is_current: false, updated_at: now })
+      .eq("is_current", true)
+      .is("service_region", null);
+  }
+  if (clear.error) {
+    return NextResponse.json({ error: clear.error.message }, { status: 500 });
+  }
+
+  const promoted = await supabaseAdmin
+    .from("pickup_runs")
+    .update({ is_current: true, updated_at: now })
+    .eq("id", runRow.id)
+    .select("*")
+    .single();
+
+  if (promoted.error) {
+    return NextResponse.json({ error: promoted.error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, run: promoted.data });
 }

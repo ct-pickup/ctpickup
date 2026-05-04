@@ -43,6 +43,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# accidental duplicate Expo trees (e.g. export / scratch)
+ctpickup-mobile-*/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

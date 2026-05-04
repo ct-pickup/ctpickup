@@ -117,7 +117,15 @@ export default function HomeScreen() {
         onPress={() => router.push("/field-tournament")}
       />
 
-      <Text style={[styles.sectionLabel, styles.sectionLabelEsports]}>ESPORTS (ONLINE)</Text>
+      <Pressable
+        onPress={() => router.push("/(tabs)/esports")}
+        style={({ pressed }) => [styles.esportsSectionHeader, pressed && { opacity: 0.88 }]}
+        accessibilityRole="button"
+        accessibilityLabel="Open Esports tab"
+      >
+        <Text style={styles.sectionLabelEsportsText}>ESPORTS (ONLINE)</Text>
+        <FontAwesome name="chevron-right" size={12} color="rgba(163,230,53,0.75)" />
+      </Pressable>
 
       {nextTournamentLoading ? (
         <View style={styles.esportsCard}>
@@ -289,7 +297,20 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.4)",
   },
   sectionLabelTournament: { marginTop: 32 },
-  sectionLabelEsports: { marginTop: 28 },
+  esportsSectionHeader: {
+    marginTop: 28,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  sectionLabelEsportsText: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    color: "rgba(255,255,255,0.4)",
+  },
   esportsCard: {
     borderRadius: 18,
     padding: 18,

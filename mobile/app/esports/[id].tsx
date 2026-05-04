@@ -1,9 +1,9 @@
 import { useAuth } from "@/context/AuthContext";
 import { formatTournamentStartEt } from "@/lib/formatTournament";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 type Row = Record<string, unknown>;
 
@@ -22,6 +22,7 @@ export default function EsportsDetailScreen() {
   const id = typeof rawId === "string" ? rawId : Array.isArray(rawId) ? rawId[0] : "";
   const { supabase, isReady } = useAuth();
   const navigation = useNavigation();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [row, setRow] = useState<Row | null>(null);
@@ -29,10 +30,37 @@ export default function EsportsDetailScreen() {
   useLayoutEffect(() => {
     const title = row?.title ? s(row.title) : "Esports";
     navigation.setOptions?.({
+      headerShown: true,
       title,
       headerTitleAlign: "center",
+      headerStyle: { backgroundColor: "#0a0a0a" },
+      headerTintColor: "#fff",
+      headerLeft: () => (
+        <Pressable
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/(tabs)/esports");
+            }
+          }}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            paddingLeft: 4,
+            paddingVertical: 8,
+            gap: 6,
+          }}
+          hitSlop={{ top: 12, bottom: 12, left: 8, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel="Back to esports list"
+        >
+          <FontAwesome name="chevron-left" size={18} color="#a3e635" />
+          <Text style={{ color: "#fff", fontSize: 17, fontWeight: "500" }}>Esports</Text>
+        </Pressable>
+      ),
     });
-  }, [navigation, row]);
+  }, [navigation, row, router]);
 
   useEffect(() => {
     if (!isReady || !id) {

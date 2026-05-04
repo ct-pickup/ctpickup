@@ -120,8 +120,15 @@ function RootLayoutNav() {
                           headerTintColor: "#fff",
                         }}
                       />
-                      {/* Nested `app/esports/_layout` draws its own header + back; hide empty wrapper header */}
-                      <Stack.Screen name="esports" options={{ headerShown: false }} />
+                      <Stack.Screen
+                        name="esports/[id]"
+                        options={{
+                          headerShown: true,
+                          title: "Esports",
+                          headerStyle: { backgroundColor: "#0a0a0a" },
+                          headerTintColor: "#fff",
+                        }}
+                      />
                     </Stack>
                   </ThemeProvider>
                   <AppOpeningTheme key={openingThemeKey} />
