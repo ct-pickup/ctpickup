@@ -24,7 +24,7 @@ function formatAdminFetchError(r: Response, j: unknown): string {
   if (st === 405) {
     return "Method not allowed (HTTP 405). Deploy the latest API (room delete uses POST /delete on older setups).";
   }
-  if (!st) return "Network error — check connection and EXPO_PUBLIC_SITE_URL.";
+  if (!st) return "Network error check connection and EXPO_PUBLIC_SITE_URL.";
   return stText ? `HTTP ${st} ${stText}` : `HTTP ${st}`;
 }
 

@@ -139,7 +139,7 @@ export function AppLockOverlay() {
             <View style={styles.card}>
               <Text style={styles.title}>Set your passcode</Text>
               <Text style={styles.sub}>
-                {PASSCODE_REQUIREMENTS} You’ll use it when you return to the app; Face ID or Touch ID can be enabled under
+                {PASSCODE_REQUIREMENTS} You’ll use it when you return to the app Face ID or Touch ID can be enabled under
                 Account after setup.
               </Text>
 

@@ -153,7 +153,7 @@ export default function PublicPlayerProfileScreen() {
         </View>
       ) : null}
 
-      <Text style={styles.note}>Public info only — contact details stay private.</Text>
+      <Text style={styles.note}>Public info only contact details stay private.</Text>
     </ScrollView>
   );
 }

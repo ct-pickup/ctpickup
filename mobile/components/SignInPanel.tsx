@@ -146,7 +146,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
     const isReturning = signupFlowChoice === "returning";
     if (isReturning && !existsResult.exists) {
       setBusy(false);
-      setMsg('No account for this email yet. Tap "New here?" above to create one with an email code — all in this app.');
+      setMsg('No account for this email yet. Tap "New here?" above to create one with an email code all in this app.');
       return;
     }
     if (!isReturning && existsResult.exists) {
@@ -251,7 +251,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
         {!canSignIn ? (
           <View style={styles.configBox}>
             <Text style={styles.configBoxTitle}>Sign-in isn&apos;t wired on this build yet</Text>
-            <Text style={styles.configBoxBody}>Copy from the Next.js app:</Text>
+            <Text style={styles.configBoxBody}>Copy from the Next.js app</Text>
             <Text style={styles.configMono}>EXPO_PUBLIC_SUPABASE_URL{"\n"}EXPO_PUBLIC_SUPABASE_ANON_KEY</Text>
             <Text style={styles.configBoxBody}>into mobile/.env, restart Expo Go or rebuild.</Text>
           </View>

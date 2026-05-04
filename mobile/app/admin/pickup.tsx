@@ -438,7 +438,7 @@ export default function AdminPickupOpsScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.lead}>Runs in {serviceRegionName(region)} — tap a card for slots, outreach, roster, and edits.</Text>
+        <Text style={styles.lead}>Runs in {serviceRegionName(region)} tap a card for slots, outreach, roster, and edits.</Text>
 
         <Text style={styles.segmentLabel}>STATE</Text>
         <View style={styles.segmentRow}>
@@ -507,7 +507,7 @@ export default function AdminPickupOpsScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Create run</Text>
-          <Text style={styles.fieldHint}>New run uses API defaults; refine in the detail sheet after creation.</Text>
+          <Text style={styles.fieldHint}>New run uses API defaults refine in the detail sheet after creation.</Text>
           <Text style={styles.label}>Start at (ISO)</Text>
           <TextInput
             style={styles.input}

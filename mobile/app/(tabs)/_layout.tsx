@@ -7,6 +7,7 @@ import { useClientOnlyValue } from "@/components/useClientOnlyValue";
 import { useAdminMode } from "@/context/AdminModeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
+import { useWaiver } from "@/context/WaiverContext";
 import { RunsPickerBridgeProvider } from "@/context/RunsPickerBridge";
 
 function TabBarIcon(props: {
@@ -20,6 +21,7 @@ export default function TabLayout() {
   const { session, isReady } = useAuth();
   const { enabled: adminModeEnabled, isReady: adminModeReady } = useAdminMode();
   const { isAdmin, isReady: profileAdminReady } = useProfileAdmin();
+  const { waiverAccepted, waiverLoading } = useWaiver();
 
   if (!isReady || !adminModeReady || !profileAdminReady) {
     return (
@@ -31,6 +33,18 @@ export default function TabLayout() {
 
   if (!session?.user?.email) {
     return <Redirect href="/login" />;
+  }
+
+  if (waiverLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0a0a0a", justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  }
+
+  if (!waiverAccepted) {
+    return <Redirect href="/waiver" />;
   }
 
   return (

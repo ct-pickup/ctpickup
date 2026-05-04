@@ -91,14 +91,14 @@ export default function RunsScreen() {
   // tier_rank mapping (locked): 1A=1, 1B=2, 2=3, 3=4, 4=5, PUBLIC=6
   const waveMessage = useMemo<{ text: string; color: string } | null>(() => {
     if (invitedNow) {
-      return { text: "Your wave is open — request your spot now", color: "#a3e635" };
+      return { text: "Your wave is open request your spot now", color: "#a3e635" };
     }
     if (typeof tierRank === "number") {
       if (tierRank <= 2) {
-        return { text: "Your wave isn't open yet — check back soon", color: "rgba(255,255,255,0.72)" };
+        return { text: "Your wave isn't open yet check back soon", color: "rgba(255,255,255,0.72)" };
       }
       if (tierRank >= 3) {
-        return { text: "Open tier pickup — all approved players welcome", color: "rgba(255,255,255,0.72)" };
+        return { text: "Open tier pickup all approved players welcome", color: "rgba(255,255,255,0.72)" };
       }
     }
     return null;
@@ -170,7 +170,7 @@ export default function RunsScreen() {
         </View>
       </View>
       <Text style={styles.sub}>
-        Featured pickup for {serviceRegionName(region)} ({region}) — same account everywhere.
+        Featured pickup for {serviceRegionName(region)} ({region}) same account everywhere.
       </Text>
 
       {loading ? (
@@ -226,7 +226,7 @@ export default function RunsScreen() {
             <View style={styles.standbyBanner}>
               <FontAwesome name="hourglass-half" size={16} color="#fcd34d" />
               <Text style={styles.standbyBannerText}>
-                You&apos;re on standby — we&apos;ll notify you if a spot opens.
+                You&apos;re on standby we&apos;ll notify you if a spot opens.
               </Text>
             </View>
           ) : myStatus === "pending_payment" ? (

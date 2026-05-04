@@ -57,9 +57,9 @@ export function usePickupJoin() {
             st === "confirmed"
               ? "You’re confirmed for this run."
               : st === "standby"
-                ? "You’re on standby — we’ll notify you if a spot opens."
+                ? "You’re on standby we’ll notify you if a spot opens."
                 : st === "pending_payment"
-                  ? "Payment recorded — reopen this screen if status looks stale."
+                  ? "Payment recorded reopen this screen if status looks stale."
                   : "Your RSVP was updated.";
           Alert.alert(title, body);
           await reload();

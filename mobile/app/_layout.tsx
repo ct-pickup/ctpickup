@@ -8,6 +8,7 @@ import { AccountIntroReplayProvider } from "@/context/AccountIntroReplayContext"
 import { AdminModeProvider } from "@/context/AdminModeContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { ProfileAdminProvider } from "@/context/ProfileAdminContext";
+import { WaiverProvider } from "@/context/WaiverContext";
 import { SelectedRegionProvider } from "@/context/SelectedRegionContext";
 import { ReplayOpeningThemeContext } from "@/context/ReplayOpeningThemeContext";
 import { useFonts } from "expo-font";
@@ -73,83 +74,92 @@ function RootLayoutNav() {
   return (
     <ReplayOpeningThemeContext.Provider value={replayOpeningThemeCtx}>
       <AuthProvider>
-        <ProfileAdminProvider>
-          <AdminModeProvider>
-            <SelectedRegionProvider>
-            <AppLockProvider>
-              <AccountIntroReplayProvider>
-                <View style={{ flex: 1 }}>
-                  <PushRegistrar />
-                  <ThemeProvider
-                    value={
-                      colorScheme === "dark"
-                        ? DarkTheme
-                        : {
-                            ...DefaultTheme,
-                            colors: {
-                              ...DefaultTheme.colors,
-                              background: Colors.light.background,
-                              card: Colors.light.background,
-                              primary: CT_PICKUP_LIME,
-                              text: Colors.light.text,
-                              border: "rgba(10,10,10,0.12)",
-                              notification: "#111",
-                            },
-                          }
-                    }
-                  >
-                    <Stack>
-                      <Stack.Screen
-                        name="(tabs)"
-                        options={{
-                          headerShown: false,
-                          title: "Home",
-                        }}
-                      />
-                      <Stack.Screen
-                        name="login"
-                        options={{
-                          headerShown: false,
-                          title: "CT Pickup",
-                        }}
-                      />
-                      <Stack.Screen
-                        name="reset-password"
-                        options={{
-                          headerShown: true,
-                          title: "Reset password",
-                          headerStyle: { backgroundColor: "#0a0a0a" },
-                          headerTintColor: "#fff",
-                        }}
-                      />
-                      <Stack.Screen
-                        name="field-tournament"
-                        options={{
-                          headerShown: true,
-                          title: "Tournament",
-                          headerStyle: { backgroundColor: "#0a0a0a" },
-                          headerTintColor: "#fff",
-                        }}
-                      />
-                      <Stack.Screen
-                        name="esports/[id]"
-                        options={{
-                          headerShown: true,
-                          title: "Esports",
-                          headerStyle: { backgroundColor: "#0a0a0a" },
-                          headerTintColor: "#fff",
-                        }}
-                      />
-                    </Stack>
-                  </ThemeProvider>
-                  <AppOpeningTheme key={openingThemeKey} />
-                  <AppLockOverlay />
-                </View>
-              </AccountIntroReplayProvider>
-            </AppLockProvider>
-            </SelectedRegionProvider>
-          </AdminModeProvider>
-        </ProfileAdminProvider>
+        <WaiverProvider>
+          <ProfileAdminProvider>
+            <AdminModeProvider>
+              <SelectedRegionProvider>
+                <AppLockProvider>
+                  <AccountIntroReplayProvider>
+                    <View style={{ flex: 1 }}>
+                      <PushRegistrar />
+                      <ThemeProvider
+                        value={
+                          colorScheme === "dark"
+                            ? DarkTheme
+                            : {
+                                ...DefaultTheme,
+                                colors: {
+                                  ...DefaultTheme.colors,
+                                  background: Colors.light.background,
+                                  card: Colors.light.background,
+                                  primary: CT_PICKUP_LIME,
+                                  text: Colors.light.text,
+                                  border: "rgba(10,10,10,0.12)",
+                                  notification: "#111",
+                                },
+                              }
+                        }
+                      >
+                        <Stack>
+                          <Stack.Screen
+                            name="(tabs)"
+                            options={{
+                              headerShown: false,
+                              title: "Home",
+                            }}
+                          />
+                          <Stack.Screen
+                            name="login"
+                            options={{
+                              headerShown: false,
+                              title: "CT Pickup",
+                            }}
+                          />
+                          <Stack.Screen
+                            name="waiver"
+                            options={{
+                              headerShown: false,
+                              title: "Waiver",
+                            }}
+                          />
+                          <Stack.Screen
+                            name="reset-password"
+                            options={{
+                              headerShown: true,
+                              title: "Reset password",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                            }}
+                          />
+                          <Stack.Screen
+                            name="field-tournament"
+                            options={{
+                              headerShown: true,
+                              title: "Tournament",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                            }}
+                          />
+                          <Stack.Screen
+                            name="esports/[id]"
+                            options={{
+                              headerShown: true,
+                              title: "Esports",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                            }}
+                          />
+                        </Stack>
+                      </ThemeProvider>
+                      <AppOpeningTheme key={openingThemeKey} />
+                      <AppLockOverlay />
+                    </View>
+                  </AccountIntroReplayProvider>
+                </AppLockProvider>
+              </SelectedRegionProvider>
+            </AdminModeProvider>
+          </ProfileAdminProvider>
+        </WaiverProvider>
       </AuthProvider>
     </ReplayOpeningThemeContext.Provider>
   );

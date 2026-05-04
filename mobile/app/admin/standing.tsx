@@ -179,7 +179,7 @@ export default function AdminStandingScreen() {
         </View>
 
         <Text style={styles.intro}>
-          Effective standing is the manual override when set; otherwise automatic rules apply (no-shows, late
+          Effective standing is the manual override when set otherwise automatic rules apply (no-shows, late
           cancellations, payment issues, waiver). Suspended or banned players cannot RSVP or pay for pickup.
         </Text>
         {currentWaiverVersion ? (

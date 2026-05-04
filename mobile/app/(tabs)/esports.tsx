@@ -66,7 +66,7 @@ export default function EsportsTabScreen() {
     () => (
       <>
         <Text style={styles.title}>Online tournaments</Text>
-        <Text style={styles.sub}>EA FC and other digital events — registration lines up with your pickup account.</Text>
+        <Text style={styles.sub}>EA FC and other digital events registration lines up with your pickup account.</Text>
       </>
     ),
     [],

@@ -201,7 +201,7 @@ export default function AdminTournamentScreen() {
         </View>
 
         <Text style={styles.lead}>
-          Outdoor / captain hub — same controls as the web admin. Filter drafts by state; live hub is one tournament at
+          Outdoor / captain hub same controls as the web admin. Filter drafts by state live hub is one tournament at
           a time.
         </Text>
 
@@ -298,7 +298,7 @@ export default function AdminTournamentScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Create tournament</Text>
-          <Text style={styles.fieldHint}>Creates a draft (not live). Slug is optional — we derive from title if empty.</Text>
+          <Text style={styles.fieldHint}>Creates a draft (not live). Slug is optional we derive from title if empty.</Text>
           <Text style={styles.label}>Title</Text>
           <TextInput
             style={styles.input}

@@ -49,7 +49,7 @@ export function RegionsPickerPanel({ onSelectState }: Props) {
         ))}
       </View>
 
-      <Text style={styles.footerNote}>Featured runs and your RSVP status live on the Runs tab—signed in with your account.</Text>
+      <Text style={styles.footerNote}>Featured runs and your RSVP status live on the Runs tab signed in with your account.</Text>
     </ScrollView>
   );
 }

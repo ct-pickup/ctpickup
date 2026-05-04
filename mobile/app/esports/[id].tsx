@@ -213,9 +213,9 @@ export default function EsportsDetailScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Key deadlines (ET)</Text>
-        <DeadlineRow label="Group stage — deadline 1" value={row.group_stage_deadline_1} />
-        <DeadlineRow label="Group stage — deadline 2" value={row.group_stage_deadline_2} />
-        <DeadlineRow label="Group stage — final" value={row.group_stage_final_deadline} />
+        <DeadlineRow label="Group stage deadline 1" value={row.group_stage_deadline_1} />
+        <DeadlineRow label="Group stage deadline 2" value={row.group_stage_deadline_2} />
+        <DeadlineRow label="Group stage final" value={row.group_stage_final_deadline} />
         <DeadlineRow label="Knockout starts" value={row.knockout_start_at} />
         <DeadlineRow label="Quarterfinal" value={row.quarterfinal_deadline} />
         <DeadlineRow label="Semifinal" value={row.semifinal_deadline} />

@@ -125,7 +125,7 @@ export default function AccountScreen() {
         <Text style={styles.sectionTitle}>App passcode</Text>
         <Text style={styles.sectionSub}>
           A passcode is required on this device when you’re{"\n"}
-          signed in. {PASSCODE_REQUIREMENTS} It locks the app when you leave;{"\n"}
+          signed in. {PASSCODE_REQUIREMENTS} It locks the app when you leave{"\n"}
           Face ID or Touch ID can unlock instead.
         </Text>
 

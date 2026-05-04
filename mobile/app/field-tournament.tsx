@@ -19,7 +19,7 @@ function alertCaptainPayError(errMsg: string) {
   } else if (lower.includes("waiver_required")) {
     Alert.alert("", "Accept the waiver before paying");
   } else if (lower.includes("claim_expired")) {
-    Alert.alert("", "Your claim expired — submit a new one");
+    Alert.alert("", "Your claim expired submit a new one");
   } else {
     Alert.alert("", errMsg);
   }
@@ -93,7 +93,7 @@ export default function FieldTournamentDetailScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.kicker}>HUB · {serviceRegionName(region)}</Text>
       <Text style={styles.lead}>
-        Outdoor bracket hub for this state — team counts and announcements match what staff publish online. Captain claims
+        Outdoor bracket hub for this state team counts and announcements match what staff publish online. Captain claims
         and roster slots follow tournament rules on the server.
       </Text>
 
@@ -111,7 +111,7 @@ export default function FieldTournamentDetailScreen() {
             {payBusy ? (
               <ActivityIndicator color="#111" />
             ) : (
-              <Text style={styles.captainPayBtnText}>Pay captain fee — $250</Text>
+              <Text style={styles.captainPayBtnText}>Pay captain fee $250</Text>
             )}
           </Pressable>
         ) : (
