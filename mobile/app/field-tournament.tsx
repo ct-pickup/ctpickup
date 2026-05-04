@@ -38,8 +38,8 @@ export default function FieldTournamentDetailScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.kicker}>HUB · {serviceRegionName(region)}</Text>
       <Text style={styles.lead}>
-        Same live bracket data as the website for your selected state. RSVP for pickup stays on the Pickup tab;
-        captain claims and team slots follow staff rules on the server.
+        Outdoor bracket hub for this state — team counts and announcements match what staff publish online. Captain claims
+        and roster slots follow tournament rules on the server.
       </Text>
 
       <FieldTournamentCard loading={loading} error={error} payload={payload} style={{ marginTop: 8 }} />
@@ -52,11 +52,10 @@ export default function FieldTournamentDetailScreen() {
       ) : null}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>How this ties together</Text>
+        <Text style={styles.sectionTitle}>About this bracket</Text>
         <Text style={styles.body}>
-          Pickup runs and your reliability score use one account. The outdoor tournament hub shows staff-published bracket
-          status for this region; esports events live under Tournaments. You don’t need to leave the app to see hub status
-          here.
+          This screen is only for the in-person captain bracket. Online EA FC events are listed under the Tournaments tab.
+          When staff post updates above, they appear here too.
         </Text>
       </View>
     </ScrollView>
