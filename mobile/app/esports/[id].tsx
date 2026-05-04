@@ -2,8 +2,9 @@ import { useAuth } from "@/context/AuthContext";
 import { formatTournamentStartEt } from "@/lib/formatTournament";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { useEffect, useLayoutEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 type Row = Record<string, unknown>;
 
@@ -20,12 +21,60 @@ function labelEt(raw: unknown): string {
 export default function EsportsDetailScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = typeof rawId === "string" ? rawId : Array.isArray(rawId) ? rawId[0] : "";
-  const { supabase, isReady } = useAuth();
+  const { supabase, session, isReady } = useAuth();
   const navigation = useNavigation();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [row, setRow] = useState<Row | null>(null);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+
+  async function handleRegister() {
+    const token = session?.access_token;
+    if (!token || !id) return;
+    const base = process.env.EXPO_PUBLIC_SITE_URL?.replace(/\/$/, "");
+    if (!base) {
+      Alert.alert("Configuration error", "Registration is not available right now.");
+      return;
+    }
+
+    setCheckoutBusy(true);
+    try {
+      const res = await fetch(`${base}/api/esports/tournament-registration/checkout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ tournament_id: id }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        checkout_url?: string;
+        error?: string;
+      };
+
+      if (res.ok && data.ok && typeof data.checkout_url === "string" && data.checkout_url) {
+        await WebBrowser.openBrowserAsync(data.checkout_url);
+        return;
+      }
+
+      const errMsg = typeof data.error === "string" ? data.error : `Could not start registration (${res.status}).`;
+      const lower = errMsg.toLowerCase();
+      if (lower.includes("consent")) {
+        Alert.alert("Consent required", "Complete consent on the registration page first");
+      } else if (lower.includes("waiver")) {
+        Alert.alert("Waiver required", "Accept the waiver first");
+      } else {
+        Alert.alert("Can’t register", errMsg);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Network error.";
+      Alert.alert("Can’t register", msg);
+    } finally {
+      setCheckoutBusy(false);
+    }
+  }
 
   useLayoutEffect(() => {
     const title = row?.title ? s(row.title) : "Esports";
@@ -173,10 +222,28 @@ export default function EsportsDetailScreen() {
         <DeadlineRow label="Final" value={row.final_deadline} />
       </View>
 
-      <Text style={styles.footer}>
-        Registration and entry fee checkout use the same account as pickup — when staff enable checkout for this event,
-        you’ll complete consent and payment in a secure flow (same rules as the website).
-      </Text>
+      {(status === "upcoming" || status === "active") ? (
+        session ? (
+          <Pressable
+            style={[styles.registerBtn, checkoutBusy && styles.registerBtnDisabled]}
+            disabled={checkoutBusy}
+            onPress={() => void handleRegister()}
+            accessibilityRole="button"
+            accessibilityLabel="Register and pay for this tournament"
+          >
+            {checkoutBusy ? (
+              <ActivityIndicator color="#111" />
+            ) : (
+              <>
+                <FontAwesome name="credit-card" size={16} color="#111" />
+                <Text style={styles.registerBtnText}> Register & Pay</Text>
+              </>
+            )}
+          </Pressable>
+        ) : (
+          <Text style={styles.signInHint}>Sign in to register</Text>
+        )
+      ) : null}
     </ScrollView>
   );
 }
@@ -234,10 +301,25 @@ const styles = StyleSheet.create({
   deadlineLabel: { color: "rgba(255,255,255,0.55)", fontWeight: "600" },
   body: { fontSize: 15, lineHeight: 23, color: "rgba(255,255,255,0.78)" },
   err: { color: "#fca5a5", fontSize: 15, lineHeight: 22 },
-  footer: {
+  registerBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "stretch",
+    width: "100%",
     marginTop: 28,
-    fontSize: 13,
-    lineHeight: 19,
-    color: "rgba(255,255,255,0.42)",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: "#a3e635",
+  },
+  registerBtnDisabled: { opacity: 0.45 },
+  registerBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  signInHint: {
+    marginTop: 28,
+    fontSize: 14,
+    lineHeight: 20,
+    color: "rgba(255,255,255,0.55)",
+    textAlign: "center",
   },
 });
