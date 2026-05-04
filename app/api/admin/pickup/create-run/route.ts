@@ -40,6 +40,18 @@ export async function POST(req: Request) {
     service_region,
   }).select("*").single();
 
-  if (insert.error) return NextResponse.json({ error: insert.error.message }, { status: 500 });
+  if (insert.error) {
+    const msg = insert.error.message;
+    const missingRegionCol =
+      /service_region/i.test(msg) && (/schema cache/i.test(msg) || /column/i.test(msg) || /Could not find/i.test(msg));
+    return NextResponse.json(
+      {
+        error: missingRegionCol
+          ? `${msg} Apply migration supabase/migrations/20260502130000_pickup_runs_service_region.sql in the Supabase SQL editor, then retry.`
+          : msg,
+      },
+      { status: 500 },
+    );
+  }
   return NextResponse.json({ ok: true, run: insert.data });
 }
