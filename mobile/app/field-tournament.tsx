@@ -1,16 +1,71 @@
 import { FieldTournamentCard } from "@/components/FieldTournamentCard";
+import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { useFieldTournament } from "@/hooks/useFieldTournament";
+import { siteOrigin } from "@/lib/env";
 import { serviceRegionName } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useNavigation } from "expo-router";
-import { useEffect } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import * as WebBrowser from "expo-web-browser";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+
+function alertCaptainPayError(errMsg: string) {
+  const lower = errMsg.toLowerCase();
+  if (lower.includes("no_captain_claim")) {
+    Alert.alert("", "You need to submit a captain claim first");
+  } else if (lower.includes("already_confirmed")) {
+    Alert.alert("", "Your payment is already confirmed");
+  } else if (lower.includes("waiver_required")) {
+    Alert.alert("", "Accept the waiver before paying");
+  } else if (lower.includes("claim_expired")) {
+    Alert.alert("", "Your claim expired — submit a new one");
+  } else {
+    Alert.alert("", errMsg);
+  }
+}
 
 export default function FieldTournamentDetailScreen() {
   const navigation = useNavigation();
   const { region } = useSelectedRegion();
+  const { session } = useAuth();
   const { loading, error, payload } = useFieldTournament();
+  const [payBusy, setPayBusy] = useState(false);
+
+  async function handleCaptainPay() {
+    const token = session?.access_token;
+    if (!token) return;
+    const base = siteOrigin();
+    if (!base) {
+      Alert.alert("", "Set EXPO_PUBLIC_SITE_URL in mobile/.env");
+      return;
+    }
+
+    setPayBusy(true);
+    try {
+      const res = await fetch(`${base}/api/stripe/create-checkout-session`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+
+      if (res.ok && typeof data.url === "string" && data.url) {
+        await WebBrowser.openBrowserAsync(data.url);
+        return;
+      }
+
+      const errMsg =
+        typeof data.error === "string" && data.error.trim()
+          ? data.error.trim()
+          : `Could not start checkout (${res.status}).`;
+      alertCaptainPayError(errMsg);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Network error.";
+      Alert.alert("", msg);
+    } finally {
+      setPayBusy(false);
+    }
+  }
 
   useEffect(() => {
     navigation.setOptions?.({
@@ -43,6 +98,26 @@ export default function FieldTournamentDetailScreen() {
       </Text>
 
       <FieldTournamentCard loading={loading} error={error} payload={payload} style={{ marginTop: 8 }} />
+
+      {payload?.tournament ? (
+        session ? (
+          <Pressable
+            style={[styles.captainPayBtn, payBusy && styles.captainPayBtnDisabled]}
+            disabled={payBusy}
+            onPress={() => void handleCaptainPay()}
+            accessibilityRole="button"
+            accessibilityLabel="Pay captain fee"
+          >
+            {payBusy ? (
+              <ActivityIndicator color="#111" />
+            ) : (
+              <Text style={styles.captainPayBtnText}>Pay captain fee — $250</Text>
+            )}
+          </Pressable>
+        ) : (
+          <Text style={styles.signInToPay}>Sign in to pay</Text>
+        )
+      ) : null}
 
       {payload?.tournament && payload.tournament.announcement ? (
         <View style={styles.note}>
@@ -96,5 +171,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     color: "rgba(255,255,255,0.62)",
+  },
+  captainPayBtn: {
+    marginTop: 16,
+    width: "100%",
+    alignSelf: "stretch",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: "#a3e635",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  captainPayBtnDisabled: { opacity: 0.45 },
+  captainPayBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  signInToPay: {
+    marginTop: 16,
+    fontSize: 14,
+    lineHeight: 20,
+    color: "rgba(255,255,255,0.55)",
+    textAlign: "center",
   },
 });
