@@ -46,7 +46,15 @@ export function usePickupPublic(accessToken: string | null) {
   const run = parsed.run && typeof parsed.run === "object" ? parsed.run : null;
   /** API echoes run lifecycle as top-level `status` when a run exists (e.g. planning); only trust `run`. */
   const noFeaturedRun = run == null;
-  const counts = parsed.counts;
+  const counts = parsed.counts ?? {};
+  const visibility = parsed.visibility ?? {};
+  const me = parsed.me ?? {};
+
+  const invitedNow = visibility.invitedNow === true;
+  const tier = typeof me.tier === "string" && me.tier.length > 0 ? me.tier : null;
+  const tierRank =
+    typeof me.tier_rank === "number" && Number.isFinite(me.tier_rank) ? me.tier_rank : null;
+
   const myStatus: string | null =
     parsed.my_status === undefined || parsed.my_status === null
       ? null
@@ -60,6 +68,11 @@ export function usePickupPublic(accessToken: string | null) {
     data,
     run: run as Record<string, unknown> | null,
     counts,
+    visibility,
+    me,
+    invitedNow,
+    tier,
+    tierRank,
     myStatus,
     noFeaturedRun,
     load,

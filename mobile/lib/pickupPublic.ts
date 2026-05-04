@@ -1,14 +1,30 @@
+export type PickupPublicCounts = {
+  confirmed?: number;
+  standby?: number;
+  pending_payment?: number;
+  tier1Confirmed?: number;
+};
+
+export type PickupPublicVisibility = {
+  invitedNow?: boolean;
+  attendanceVisible?: boolean;
+};
+
+export type PickupPublicMe = {
+  approved?: boolean;
+  is_admin?: boolean;
+  tier?: string | null;
+  tier_rank?: number | null;
+};
+
 export type PickupPublicPayload = {
   status?: string;
   /** Latest RSVP status for the signed-in user (from `/api/pickup/public`). */
   my_status?: string | null;
   run?: Record<string, unknown> | null;
-  counts?: {
-    confirmed?: number;
-    standby?: number;
-    pending_payment?: number;
-    tier1Confirmed?: number;
-  };
+  counts?: PickupPublicCounts;
+  visibility?: PickupPublicVisibility;
+  me?: PickupPublicMe;
 };
 
 export function parsePickupPayload(data: unknown): PickupPublicPayload {

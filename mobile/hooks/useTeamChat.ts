@@ -14,11 +14,16 @@ export type ChatRoomRow = {
   created_at: string;
 };
 
-export function useTeamChatRoom(enabled: boolean, roomSlug: string) {
+export type RoomLookup = { slug: string; id?: null } | { id: string; slug?: null };
+
+export function useTeamChatRoom(enabled: boolean, lookup: RoomLookup) {
   const { supabase, session } = useAuth();
   const [room, setRoom] = useState<ChatRoomRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const slug = lookup.slug ? String(lookup.slug).trim() : "";
+  const id = lookup.id ? String(lookup.id).trim() : "";
 
   useEffect(() => {
     if (!enabled) {
@@ -33,8 +38,7 @@ export function useTeamChatRoom(enabled: boolean, roomSlug: string) {
       setError(null);
       return;
     }
-    const slug = String(roomSlug || "").trim();
-    if (!slug) {
+    if (!slug && !id) {
       setRoom(null);
       setLoading(false);
       setError("Missing room.");
@@ -44,11 +48,11 @@ export function useTeamChatRoom(enabled: boolean, roomSlug: string) {
     setLoading(true);
     setError(null);
     void (async () => {
-      const { data, error: qErr } = await supabase
+      const base = supabase
         .from("chat_rooms")
-        .select("id,slug,title,is_active,announcements_only,closes_at,created_at")
-        .eq("slug", slug)
-        .maybeSingle();
+        .select("id,slug,title,is_active,announcements_only,closes_at,created_at");
+      const query = id ? base.eq("id", id) : base.eq("slug", slug);
+      const { data, error: qErr } = await query.maybeSingle();
       if (cancelled) return;
       if (qErr) {
         setError(qErr.message);
@@ -64,7 +68,7 @@ export function useTeamChatRoom(enabled: boolean, roomSlug: string) {
     return () => {
       cancelled = true;
     };
-  }, [enabled, supabase, session?.user, roomSlug]);
+  }, [enabled, supabase, session?.user, slug, id]);
 
   return { room, loading, error };
 }

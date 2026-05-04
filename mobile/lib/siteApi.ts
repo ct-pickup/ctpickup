@@ -22,6 +22,27 @@ export async function postPickupRsvp(
   return { ok: r.ok, status: r.status, json };
 }
 
+/** Server creates a Stripe Checkout session for a pending-payment RSVP and returns `{ url }`. */
+export async function postPickupPay(
+  accessToken: string,
+  runId: string,
+): Promise<{ ok: boolean; status: number; json: unknown }> {
+  const origin = siteOrigin();
+  if (!origin) {
+    return { ok: false, status: 0, json: { error: "missing_site_url" } };
+  }
+  const r = await fetch(`${origin}/api/pickup/pay`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ run_id: runId }),
+  });
+  const json = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, json };
+}
+
 /** Active in-person (field) tournament hub — same payload as the website tournament page. */
 export async function fetchTournamentPublic(opts?: {
   region?: string;
