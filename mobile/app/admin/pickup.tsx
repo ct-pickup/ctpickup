@@ -1,37 +1,119 @@
-import { useAdminPickupOverview } from "@/hooks/useAdminPickupOverview";
+import { useAuth } from "@/context/AuthContext";
 import {
+  fetchAdminPickupSwitchDetail,
+  fetchAdminPickupSwitchList,
+  type PickupSwitchDetailResponse,
   postAdminCancelRun,
   postAdminCreateRun,
   postAdminLateCancel,
   postAdminMarkAttendance,
+  postAdminPickupSwitch,
   postAdminPromote,
+  postAdminSetHubPickup,
 } from "@/lib/adminApi";
-import { useAuth } from "@/context/AuthContext";
-import { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { siteOrigin } from "@/lib/env";
+import { fmtPickupDt } from "@/lib/pickupPublic";
+import { SERVICE_REGIONS, serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const LIME = "#a3e635";
+
+const LOCATION_PRESETS = {
+  new_haven: `New Haven SoccerRoof
+1018 Sherman Ave, Hamden, CT 06514
+
+Parking
+Parking lot directly outside the building on Sherman Ave (in front of the facility entrance).
+
+Field Number
+Leave blank.`,
+  new_rochelle: `New Rochelle SoccerRoof
+29 LeCount Pl, 3rd Floor, New Rochelle, NY 10801
+
+Parking
+New Roc City Garage - parking garage attached to the New Roc City complex next to the facility.
+
+Field Number
+Leave blank.`,
+} as const;
+
+type LocationPresetKey = keyof typeof LOCATION_PRESETS | "other" | "";
 
 function s(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
 
-function asIdRow(r: Record<string, unknown>): { id: string; full_name: string | null } {
-  const id = s(r.id || r.user_id).trim();
-  const full = s(r.full_name).trim();
-  return { id, full_name: full ? full : null };
+function statusLabel(st: unknown): string {
+  const v = s(st).trim();
+  if (!v) return "UNKNOWN";
+  if (v === "planning") return "PLANNING";
+  if (v === "likely_on") return "LIKELY ON";
+  if (v === "active") return "ACTIVE";
+  return v.toUpperCase();
+}
+
+function runTypeLabel(rt: unknown): string {
+  const v = s(rt).trim();
+  if (v === "select") return "SELECT";
+  if (v === "public") return "PUBLIC";
+  return v ? v.toUpperCase() : "—";
+}
+
+function locationSnippet(loc: unknown, max = 72): string {
+  const t = s(loc).replace(/\s+/g, " ").trim();
+  if (!t) return "No venue text yet";
+  return t.length > max ? `${t.slice(0, max)}…` : t;
+}
+
+function detectPreset(locationPrivate: string): LocationPresetKey {
+  const t = locationPrivate.trim();
+  if (!t) return "";
+  if (t === LOCATION_PRESETS.new_haven.trim()) return "new_haven";
+  if (t === LOCATION_PRESETS.new_rochelle.trim()) return "new_rochelle";
+  return "other";
 }
 
 export default function AdminPickupOpsScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const token = session?.access_token ?? null;
-  const { loading, error, data, reload, region, setRegion } = useAdminPickupOverview("CT");
 
-  const run = (data?.run || null) as Record<string, unknown> | null;
-  const runId = run && typeof run.id === "string" ? (run.id as string) : null;
+  const [region, setRegion] = useState<ServiceRegionCode>("CT");
+  const [runs, setRuns] = useState<Record<string, unknown>[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
 
-  const confirmed = useMemo(() => (Array.isArray(data?.confirmed) ? data!.confirmed : []), [data]);
-  const standby = useMemo(() => (Array.isArray(data?.standby) ? data!.standby : []), [data]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<PickupSwitchDetailResponse | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+
+  const [editTitle, setEditTitle] = useState("");
+  const [editRunType, setEditRunType] = useState<"select" | "public">("select");
+  const [editCapacity, setEditCapacity] = useState("18");
+  const [editFeeDollars, setEditFeeDollars] = useState("0");
+  const [editLocationPrivate, setEditLocationPrivate] = useState("");
+  const [editLocConfirmedOnly, setEditLocConfirmedOnly] = useState(true);
+  const [locationPreset, setLocationPreset] = useState<LocationPresetKey>("");
+
+  const [slotStart, setSlotStart] = useState("");
+  const [slotLabel, setSlotLabel] = useState("");
 
   const [createStartAt, setCreateStartAt] = useState("");
   const [createTitle, setCreateTitle] = useState("");
@@ -39,12 +121,221 @@ export default function AdminPickupOpsScreen() {
 
   const [busy, setBusy] = useState<string | null>(null);
 
+  const loadRuns = useCallback(async () => {
+    if (!token) {
+      setListError("Not signed in.");
+      setRuns([]);
+      return;
+    }
+    setListLoading(true);
+    setListError(null);
+    const r = await fetchAdminPickupSwitchList(token, { region });
+    setListLoading(false);
+    if (!r.ok) {
+      setListError(r.error);
+      setRuns([]);
+      return;
+    }
+    setRuns(r.data.runs || []);
+  }, [token, region]);
+
+  const loadDetail = useCallback(async () => {
+    if (!token || !selectedRunId) {
+      setDetail(null);
+      return;
+    }
+    setDetailLoading(true);
+    setDetailError(null);
+    const r = await fetchAdminPickupSwitchDetail(token, selectedRunId, { region });
+    setDetailLoading(false);
+    if (!r.ok) {
+      setDetailError(r.error);
+      setDetail(null);
+      return;
+    }
+    setDetail(r.data);
+    const run = r.data.run;
+    if (run && typeof run === "object") {
+      setEditTitle(s(run.title) || "CT Pickup Run");
+      setEditRunType(run.run_type === "public" ? "public" : "select");
+      setEditCapacity(String(run.capacity ?? 18));
+      const cents = Number(run.fee_cents ?? 0);
+      setEditFeeDollars(Number.isFinite(cents) ? String(cents / 100) : "0");
+      const loc = s(run.location_private);
+      setEditLocationPrivate(loc);
+      setLocationPreset(detectPreset(loc));
+      setEditLocConfirmedOnly(run.show_location_to_confirmed_only !== false);
+    }
+  }, [token, selectedRunId, region]);
+
+  useEffect(() => {
+    void loadRuns();
+  }, [loadRuns]);
+
+  useEffect(() => {
+    if (!modalOpen || !selectedRunId) return;
+    void loadDetail();
+  }, [modalOpen, selectedRunId, loadDetail]);
+
+  const selectedRun = detail?.run ?? null;
+  const slots = useMemo(() => (Array.isArray(detail?.slots) ? detail!.slots : []) as Record<string, unknown>[], [detail]);
+  const counts = detail?.counts;
+  const confirmed = useMemo(() => (Array.isArray(detail?.confirmed) ? detail!.confirmed : []), [detail]);
+  const standby = useMemo(() => (Array.isArray(detail?.standby) ? detail!.standby : []), [detail]);
+  const auto = detail?.auto_status;
+
   async function requireToken(): Promise<string | null> {
     if (!token) {
       Alert.alert("Not signed in", "Sign in again.");
       return null;
     }
     return token;
+  }
+
+  function openRun(id: string) {
+    setSelectedRunId(id);
+    setModalOpen(true);
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+    setSelectedRunId(null);
+    setDetail(null);
+    setDetailError(null);
+    setSlotStart("");
+    setSlotLabel("");
+  }
+
+  function applyPreset(key: LocationPresetKey) {
+    setLocationPreset(key);
+    if (key === "new_haven") setEditLocationPrivate(LOCATION_PRESETS.new_haven);
+    else if (key === "new_rochelle") setEditLocationPrivate(LOCATION_PRESETS.new_rochelle);
+    else if (key === "other") setEditLocationPrivate("");
+  }
+
+  async function onSaveRun() {
+    const t = await requireToken();
+    if (!t || !selectedRunId) return;
+    setBusy("save");
+    const fee = Math.round(Number(editFeeDollars || 0) * 100);
+    const r = await postAdminPickupSwitch(t, {
+      action: "edit_run",
+      run_id: selectedRunId,
+      title: editTitle.trim(),
+      capacity: Number(editCapacity || 18),
+      fee_cents: Number.isFinite(fee) ? fee : 0,
+      currency: "usd",
+      location_private: editLocationPrivate.trim() || null,
+      show_location_to_confirmed_only: editLocConfirmedOnly,
+      run_type: editRunType,
+    });
+    setBusy(null);
+    if (!r.ok) return Alert.alert("Update failed", r.error);
+    Alert.alert("Saved", "Run details updated.");
+    void loadRuns();
+    void loadDetail();
+  }
+
+  async function onAddSlot() {
+    const t = await requireToken();
+    if (!t || !selectedRunId) return;
+    const start_at = slotStart.trim();
+    if (!start_at) return Alert.alert("Missing time", "Enter kickoff as ISO, e.g. 2026-05-10T18:00:00Z");
+    setBusy("slot");
+    const r = await postAdminPickupSwitch(t, {
+      action: "add_slot",
+      run_id: selectedRunId,
+      start_at,
+      label: slotLabel.trim() || null,
+    });
+    setBusy(null);
+    if (!r.ok) return Alert.alert("Add slot failed", r.error);
+    setSlotStart("");
+    setSlotLabel("");
+    void loadDetail();
+    void loadRuns();
+  }
+
+  async function onFinalizeSlot(slotId: string) {
+    const t = await requireToken();
+    if (!t || !selectedRunId) return;
+    Alert.alert("Finalize this slot?", "Sets run start, opens RSVP timing, and marks run active.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Finalize",
+        onPress: () => {
+          void (async () => {
+            setBusy("finalize");
+            const r = await postAdminPickupSwitch(t, {
+              action: "finalize_slot",
+              run_id: selectedRunId,
+              slot_id: slotId,
+            });
+            setBusy(null);
+            if (!r.ok) return Alert.alert("Finalize failed", r.error);
+            void loadDetail();
+            void loadRuns();
+          })();
+        },
+      },
+    ]);
+  }
+
+  async function onLaunchOutreach() {
+    const t = await requireToken();
+    if (!t || !selectedRunId) return;
+    const origin = siteOrigin();
+    const runLink = origin ? `${origin.replace(/\/$/, "")}/pickup` : "/pickup";
+    const dateOrTbd =
+      selectedRun && s(selectedRun.start_at)
+        ? fmtPickupDt(s(selectedRun.start_at))
+        : auto && s((auto as Record<string, unknown>).anchor_start_at)
+          ? fmtPickupDt(s((auto as Record<string, unknown>).anchor_start_at))
+          : "TBD";
+
+    Alert.alert("Launch outreach?", "Sends Tier-1 SMS for select runs (36h+ before kickoff). Public runs skip invites.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Launch",
+        onPress: () => {
+          void (async () => {
+            setBusy("outreach");
+            const r = await postAdminPickupSwitch(t, {
+              action: "launch_outreach",
+              run_id: selectedRunId,
+              run_link: runLink,
+              date_or_tbd: dateOrTbd,
+            });
+            setBusy(null);
+            if (!r.ok) return Alert.alert("Launch failed", r.error);
+            Alert.alert("Launched", "Outreach started for this run.");
+            void loadDetail();
+            void loadRuns();
+          })();
+        },
+      },
+    ]);
+  }
+
+  async function onPromoteHub() {
+    const t = await requireToken();
+    if (!t || !selectedRunId) return;
+    Alert.alert("Promote to hub?", "This run becomes the featured pickup on the public site for its region.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Promote",
+        onPress: () => {
+          void (async () => {
+            setBusy("hub");
+            const r = await postAdminSetHubPickup(t, selectedRunId);
+            setBusy(null);
+            if (!r.ok) return Alert.alert("Promote failed", r.error);
+            void loadRuns();
+            void loadDetail();
+          })();
+        },
+      },
+    ]);
   }
 
   async function onCreateRun() {
@@ -63,16 +354,15 @@ export default function AdminPickupOpsScreen() {
       capacity: Number(createCapacity || 24),
     });
     setBusy(null);
-    if (!r.ok) {
-      Alert.alert("Create failed", r.error);
-      return;
-    }
+    if (!r.ok) return Alert.alert("Create failed", r.error);
     Alert.alert("Created", "Run created.");
-    reload();
+    setCreateStartAt("");
+    setCreateTitle("");
+    void loadRuns();
   }
 
   async function onCancelRun() {
-    if (!runId) return;
+    if (!selectedRunId) return;
     const t = await requireToken();
     if (!t) return;
     Alert.alert("Cancel run?", "This will cancel the run and attempt refunds if needed.", [
@@ -83,11 +373,12 @@ export default function AdminPickupOpsScreen() {
         onPress: () => {
           void (async () => {
             setBusy("cancel");
-            const r = await postAdminCancelRun(t, { run_id: runId, reason: "Canceled from mobile admin" });
+            const r = await postAdminCancelRun(t, { run_id: selectedRunId, reason: "Canceled from mobile admin" });
             setBusy(null);
             if (!r.ok) return Alert.alert("Cancel failed", r.error);
             Alert.alert("Canceled", "Run canceled.");
-            reload();
+            closeModal();
+            void loadRuns();
           })();
         },
       },
@@ -95,57 +386,71 @@ export default function AdminPickupOpsScreen() {
   }
 
   async function onPromote(userId: string) {
-    if (!runId) return;
+    if (!selectedRunId) return;
     const t = await requireToken();
     if (!t) return;
     setBusy(`promote:${userId}`);
-    const r = await postAdminPromote(t, { run_id: runId, promote_user_id: userId });
+    const r = await postAdminPromote(t, { run_id: selectedRunId, promote_user_id: userId });
     setBusy(null);
     if (!r.ok) return Alert.alert("Promote failed", r.error);
-    reload();
+    void loadDetail();
   }
 
   async function onMarkAttendance(userId: string, attended: boolean) {
-    if (!runId) return;
+    if (!selectedRunId) return;
     const t = await requireToken();
     if (!t) return;
     setBusy(`att:${userId}`);
-    const r = await postAdminMarkAttendance(t, { run_id: runId, attendance: [{ user_id: userId, attended }] });
+    const r = await postAdminMarkAttendance(t, { run_id: selectedRunId, attendance: [{ user_id: userId, attended }] });
     setBusy(null);
     if (!r.ok) return Alert.alert("Save failed", r.error);
-    reload();
+    void loadDetail();
   }
 
   async function onLateCancel(userId: string) {
-    if (!runId) return;
+    if (!selectedRunId) return;
     const t = await requireToken();
     if (!t) return;
     setBusy(`late:${userId}`);
-    const r = await postAdminLateCancel(t, { run_id: runId, user_id: userId, note: "Late cancel (mobile admin)" });
+    const r = await postAdminLateCancel(t, { run_id: selectedRunId, user_id: userId, note: "Late cancel (mobile admin)" });
     setBusy(null);
     if (!r.ok) return Alert.alert("Late cancel failed", r.error);
     Alert.alert("Recorded", "Late cancel recorded.");
-    reload();
+    void loadDetail();
   }
 
-  return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={styles.rowBetween}>
-        <Text style={styles.h1}>Pickup ops</Text>
-        <Pressable onPress={reload} style={({ pressed }) => [styles.chip, pressed && { opacity: 0.85 }]}>
-          <Text style={styles.chipText}>Refresh</Text>
-        </Pressable>
-      </View>
+  const launchBlocked = useMemo(() => {
+    if (!selectedRun) return "Select a run.";
+    if (s(selectedRun.outreach_started_at)) return "Outreach already launched.";
+    if (!auto || !s((auto as Record<string, unknown>).anchor_start_at)) return "Add a kickoff slot first.";
+    const h = (auto as Record<string, unknown>).hours_until_start;
+    if (h === null || h === undefined || Number(h) < 36) return "Kickoff must be at least 36 hours away.";
+    return null;
+  }, [selectedRun, auto]);
 
-      <View style={styles.segmentWrap}>
-        <Text style={styles.segmentLabel}>State</Text>
+  return (
+    <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.rowBetween}>
+          <Text style={styles.h1}>Pickup ops</Text>
+          <Pressable onPress={() => void loadRuns()} style={({ pressed }) => [styles.chip, pressed && { opacity: 0.85 }]}>
+            <Text style={styles.chipText}>Refresh</Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.lead}>Runs in {serviceRegionName(region)} — tap a card for slots, outreach, roster, and edits.</Text>
+
+        <Text style={styles.segmentLabel}>STATE</Text>
         <View style={styles.segmentRow}>
-          {(["NY", "CT", "NJ", "MD"] as const).map((code) => {
+          {SERVICE_REGIONS.map(({ code }) => {
             const active = region === code;
             return (
               <Pressable
                 key={code}
-                onPress={() => setRegion(code)}
+                onPress={() => {
+                  setRegion(code);
+                  if (modalOpen) closeModal();
+                }}
                 style={({ pressed }) => [styles.segment, active && styles.segmentActive, pressed && { opacity: 0.9 }]}
               >
                 <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{code}</Text>
@@ -153,160 +458,423 @@ export default function AdminPickupOpsScreen() {
             );
           })}
         </View>
-      </View>
 
-      {loading ? <ActivityIndicator color="#fff" style={{ marginTop: 10 }} /> : null}
-      {error ? <Text style={styles.err}>{error}</Text> : null}
+        {listLoading ? <ActivityIndicator color="#fff" style={{ marginTop: 16 }} /> : null}
+        {listError ? <Text style={styles.err}>{listError}</Text> : null}
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Create run</Text>
-        <Text style={styles.label}>Start at (ISO)</Text>
-        <TextInput
-          style={styles.input}
-          value={createStartAt}
-          onChangeText={setCreateStartAt}
-          placeholder="2026-05-03T20:00:00Z"
-          placeholderTextColor="rgba(255,255,255,0.35)"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        <View style={styles.twoCol}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.label}>State</Text>
-            <View style={[styles.input, styles.statePill]}>
-              <Text style={styles.statePillText}>{region}</Text>
-            </View>
+        {!listLoading && runs.length === 0 && !listError ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>No runs in this state.</Text>
+            <Text style={styles.emptyBody}>Create one below or switch state.</Text>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.label}>Capacity</Text>
-            <TextInput
-              style={styles.input}
-              value={createCapacity}
-              onChangeText={setCreateCapacity}
-              keyboardType="number-pad"
-              placeholder="24"
-              placeholderTextColor="rgba(255,255,255,0.35)"
-            />
-          </View>
-        </View>
-        <Text style={styles.label}>Title (optional)</Text>
-        <TextInput
-          style={styles.input}
-          value={createTitle}
-          onChangeText={setCreateTitle}
-          placeholder="CT Pickup Run"
-          placeholderTextColor="rgba(255,255,255,0.35)"
-        />
-        <Pressable
-          onPress={() => void onCreateRun()}
-          disabled={busy === "create"}
-          style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busy === "create" && styles.disabled]}
-        >
-          <Text style={styles.primaryText}>{busy === "create" ? "Creating..." : "Create run"}</Text>
-        </Pressable>
-      </View>
+        ) : null}
 
-      <View style={styles.card}>
-        <View style={styles.rowBetween}>
-          <Text style={styles.cardTitle}>Current upcoming run</Text>
-          {runId ? (
+        {runs.map((row) => {
+          const id = s(row.id);
+          if (!id) return null;
+          const isHub = !!row.is_current;
+          return (
             <Pressable
-              onPress={() => void onCancelRun()}
-              disabled={busy === "cancel"}
-              style={({ pressed }) => [styles.dangerChip, pressed && { opacity: 0.85 }, busy === "cancel" && styles.disabled]}
+              key={id}
+              onPress={() => openRun(id)}
+              style={({ pressed }) => [styles.runCard, pressed && { opacity: 0.92 }]}
             >
-              <Text style={styles.dangerChipText}>{busy === "cancel" ? "Canceling..." : "Cancel"}</Text>
+              <View style={styles.runCardTop}>
+                <Text style={styles.runEyebrow}>{runTypeLabel(row.run_type)}</Text>
+                {isHub ? (
+                  <View style={styles.hubPill}>
+                    <Text style={styles.hubPillText}>HUB</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={styles.runTitle}>{s(row.title) || "Pickup run"}</Text>
+              <Text style={styles.runLoc} numberOfLines={2}>
+                {locationSnippet(row.location_private)}
+              </Text>
+              <View style={styles.runMetaRow}>
+                <View style={styles.statusPill}>
+                  <Text style={styles.statusPillText}>{statusLabel(row.status)}</Text>
+                </View>
+                <Text style={styles.runTime}>{fmtPickupDt(s(row.start_at))}</Text>
+              </View>
+              <View style={styles.runChevronRow}>
+                <Text style={styles.runTapHint}>Details</Text>
+                <FontAwesome name="chevron-right" size={12} color="rgba(255,255,255,0.35)" />
+              </View>
             </Pressable>
-          ) : null}
+          );
+        })}
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Create run</Text>
+          <Text style={styles.fieldHint}>New run uses API defaults; refine in the detail sheet after creation.</Text>
+          <Text style={styles.label}>Start at (ISO)</Text>
+          <TextInput
+            style={styles.input}
+            value={createStartAt}
+            onChangeText={setCreateStartAt}
+            placeholder="2026-05-03T20:00:00Z"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <View style={styles.twoCol}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>State</Text>
+              <View style={[styles.input, styles.statePill]}>
+                <Text style={styles.statePillText}>{region}</Text>
+              </View>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>Capacity</Text>
+              <TextInput
+                style={styles.input}
+                value={createCapacity}
+                onChangeText={setCreateCapacity}
+                keyboardType="number-pad"
+                placeholder="24"
+                placeholderTextColor="rgba(255,255,255,0.35)"
+              />
+            </View>
+          </View>
+          <Text style={styles.label}>Title (optional)</Text>
+          <TextInput
+            style={styles.input}
+            value={createTitle}
+            onChangeText={setCreateTitle}
+            placeholder="CT Pickup Run"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+          />
+          <Pressable
+            onPress={() => void onCreateRun()}
+            disabled={busy === "create"}
+            style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busy === "create" && styles.disabled]}
+          >
+            <Text style={styles.primaryText}>{busy === "create" ? "Creating…" : "Create run"}</Text>
+          </Pressable>
         </View>
-        {!run ? (
-          <Text style={styles.muted}>No upcoming run found.</Text>
-        ) : (
-          <>
-            <Text style={styles.mono}>{s(run.title) || "Pickup run"}</Text>
-            <Text style={styles.muted}>Start: {s(run.start_at)}</Text>
-            <Text style={styles.muted}>Status: {s(run.status)}</Text>
-            <Text style={styles.muted}>Capacity: {s(run.capacity)}</Text>
-          </>
-        )}
-      </View>
+      </ScrollView>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Confirmed ({confirmed.length})</Text>
-        {confirmed.length === 0 ? <Text style={styles.muted}>None</Text> : null}
-        {confirmed.map((r) => {
-          const p = asIdRow(r);
-          if (!p.id) return null;
-          const key = `c:${p.id}`;
-          const isBusy = busy === `att:${p.id}` || busy === `late:${p.id}`;
-          return (
-            <View key={key} style={styles.personRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.personName}>{p.full_name ?? p.id}</Text>
-                <Text style={styles.personSub}>{p.id}</Text>
+      <Modal visible={modalOpen} animationType="slide" transparent onRequestClose={closeModal}>
+        <View style={styles.modalRoot}>
+          <Pressable style={styles.modalDismiss} onPress={closeModal} accessibilityLabel="Dismiss" />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={insets.top}
+            style={styles.modalKb}
+          >
+            <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+            <View style={styles.modalGrabRow}>
+              <View style={styles.modalGrab} />
+            </View>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.modalTitle} numberOfLines={2}>
+                  {selectedRun ? s(selectedRun.title) || "Run" : "Run"}
+                </Text>
+                <Text style={styles.modalSub} numberOfLines={1}>
+                  {selectedRun ? `${statusLabel(selectedRun.status)} · ${fmtPickupDt(s(selectedRun.start_at))}` : ""}
+                </Text>
               </View>
-              <Pressable
-                onPress={() => void onMarkAttendance(p.id, true)}
-                disabled={isBusy}
-                style={({ pressed }) => [styles.smallChip, pressed && { opacity: 0.85 }, isBusy && styles.disabled]}
-              >
-                <Text style={styles.smallChipText}>Attended</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => void onMarkAttendance(p.id, false)}
-                disabled={isBusy}
-                style={({ pressed }) => [styles.smallChipAlt, pressed && { opacity: 0.85 }, isBusy && styles.disabled]}
-              >
-                <Text style={styles.smallChipText}>No-show</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => void onLateCancel(p.id)}
-                disabled={isBusy}
-                style={({ pressed }) => [styles.smallChipWarn, pressed && { opacity: 0.85 }, isBusy && styles.disabled]}
-              >
-                <Text style={styles.smallChipText}>Late</Text>
+              <Pressable onPress={closeModal} style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.85 }]}>
+                <FontAwesome name="times" size={18} color="#fff" />
               </Pressable>
             </View>
-          );
-        })}
-      </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Standby ({standby.length})</Text>
-        {standby.length === 0 ? <Text style={styles.muted}>None</Text> : null}
-        {standby.map((r) => {
-          const p = asIdRow(r);
-          if (!p.id) return null;
-          const key = `s:${p.id}`;
-          const isBusy = busy === `promote:${p.id}`;
-          return (
-            <View key={key} style={styles.personRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.personName}>{p.full_name ?? p.id}</Text>
-                <Text style={styles.personSub}>{p.id}</Text>
-              </View>
-              <Pressable
-                onPress={() => void onPromote(p.id)}
-                disabled={isBusy}
-                style={({ pressed }) => [styles.primarySmall, pressed && { opacity: 0.9 }, isBusy && styles.disabled]}
-              >
-                <Text style={styles.primarySmallText}>{isBusy ? "..." : "Promote"}</Text>
-              </Pressable>
+            {detailLoading ? (
+              <ActivityIndicator color="#fff" style={{ marginVertical: 24 }} />
+            ) : detailError ? (
+              <Text style={styles.err}>{detailError}</Text>
+            ) : (
+              <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                {counts ? (
+                  <View style={styles.countRow}>
+                    <View style={styles.countChip}>
+                      <Text style={styles.countChipLabel}>Confirmed</Text>
+                      <Text style={styles.countChipVal}>{counts.confirmed}</Text>
+                    </View>
+                    <View style={styles.countChip}>
+                      <Text style={styles.countChipLabel}>Standby</Text>
+                      <Text style={styles.countChipVal}>{counts.standby}</Text>
+                    </View>
+                    <View style={styles.countChip}>
+                      <Text style={styles.countChipLabel}>Invites</Text>
+                      <Text style={styles.countChipVal}>{counts.invites}</Text>
+                    </View>
+                    <View style={styles.countChip}>
+                      <Text style={styles.countChipLabel}>Pending $</Text>
+                      <Text style={styles.countChipVal}>{counts.pending_payment}</Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                <View style={styles.modalSection}>
+                  <Text style={styles.sectionTitle}>Hub & outreach</Text>
+                  <View style={styles.actionRow}>
+                    <Pressable
+                      onPress={() => void onPromoteHub()}
+                      disabled={busy === "hub" || !selectedRunId}
+                      style={({ pressed }) => [styles.secondaryLime, pressed && { opacity: 0.9 }, busy === "hub" && styles.disabled]}
+                    >
+                      <FontAwesome name="bullhorn" size={14} color={LIME} />
+                      <Text style={styles.secondaryLimeText}>{busy === "hub" ? "…" : "Promote to hub"}</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => void onLaunchOutreach()}
+                      disabled={busy === "outreach" || !!launchBlocked}
+                      style={({ pressed }) => [
+                        styles.secondaryLime,
+                        pressed && { opacity: 0.9 },
+                        (busy === "outreach" || !!launchBlocked) && styles.disabled,
+                      ]}
+                    >
+                      <FontAwesome name="paper-plane" size={14} color={LIME} />
+                      <Text style={styles.secondaryLimeText}>{busy === "outreach" ? "…" : "Launch outreach"}</Text>
+                    </Pressable>
+                  </View>
+                  {launchBlocked ? <Text style={styles.blockHint}>{launchBlocked}</Text> : null}
+                </View>
+
+                <View style={styles.modalSection}>
+                  <Text style={styles.sectionTitle}>Edit run</Text>
+                  <Text style={styles.label}>Title</Text>
+                  <TextInput style={styles.input} value={editTitle} onChangeText={setEditTitle} placeholderTextColor="rgba(255,255,255,0.35)" />
+                  <Text style={styles.label}>Venue preset</Text>
+                  <View style={styles.presetRow}>
+                    {(
+                      [
+                        ["new_haven", "New Haven"],
+                        ["new_rochelle", "New Rochelle"],
+                        ["other", "Other"],
+                      ] as const
+                    ).map(([key, label]) => {
+                      const active = locationPreset === key;
+                      return (
+                        <Pressable
+                          key={key}
+                          onPress={() => applyPreset(key)}
+                          style={({ pressed }) => [styles.presetChip, active && styles.presetChipActive, pressed && { opacity: 0.9 }]}
+                        >
+                          <Text style={[styles.presetChipText, active && styles.presetChipTextActive]}>{label}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <Text style={styles.label}>Location (staff / confirmed)</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={editLocationPrivate}
+                    onChangeText={(v) => {
+                      setEditLocationPrivate(v);
+                      setLocationPreset(detectPreset(v));
+                    }}
+                    placeholder="Venue notes, parking, field #"
+                    placeholderTextColor="rgba(255,255,255,0.35)"
+                    multiline
+                  />
+                  <View style={styles.switchRow}>
+                    <Text style={styles.switchLabel}>Location only after confirm</Text>
+                    <Pressable
+                      onPress={() => setEditLocConfirmedOnly((v) => !v)}
+                      style={[styles.miniToggle, editLocConfirmedOnly && styles.miniToggleOn]}
+                    >
+                      <Text style={styles.miniToggleText}>{editLocConfirmedOnly ? "On" : "Off"}</Text>
+                    </Pressable>
+                  </View>
+                  <Text style={styles.label}>Run type</Text>
+                  <View style={styles.typeRow}>
+                    <Pressable
+                      onPress={() => setEditRunType("select")}
+                      style={[styles.typeChip, editRunType === "select" && styles.typeChipActive]}
+                    >
+                      <Text style={[styles.typeChipText, editRunType === "select" && styles.typeChipTextActive]}>Select</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setEditRunType("public")}
+                      style={[styles.typeChip, editRunType === "public" && styles.typeChipActive]}
+                    >
+                      <Text style={[styles.typeChipText, editRunType === "public" && styles.typeChipTextActive]}>Public</Text>
+                    </Pressable>
+                  </View>
+                  <View style={styles.twoCol}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.label}>Capacity</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={editCapacity}
+                        onChangeText={setEditCapacity}
+                        keyboardType="number-pad"
+                        placeholderTextColor="rgba(255,255,255,0.35)"
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.label}>Fee ($)</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={editFeeDollars}
+                        onChangeText={setEditFeeDollars}
+                        keyboardType="decimal-pad"
+                        placeholderTextColor="rgba(255,255,255,0.35)"
+                      />
+                    </View>
+                  </View>
+                  <Pressable
+                    onPress={() => void onSaveRun()}
+                    disabled={busy === "save"}
+                    style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busy === "save" && styles.disabled]}
+                  >
+                    <Text style={styles.primaryText}>{busy === "save" ? "Saving…" : "Save run"}</Text>
+                  </Pressable>
+                </View>
+
+                <View style={styles.modalSection}>
+                  <Text style={styles.sectionTitle}>Kickoff slots</Text>
+                  {slots.length === 0 ? <Text style={styles.muted}>No slots yet.</Text> : null}
+                  {slots.map((sl, idx) => {
+                    const sid = s(sl.id);
+                    const isFinal = selectedRun && s(selectedRun.final_slot_id) === sid;
+                    return (
+                      <View key={sid || `slot-${idx}`} style={styles.slotRow}>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={styles.slotTime}>{fmtPickupDt(s(sl.start_at))}</Text>
+                          {sl.label ? <Text style={styles.slotLabel}>{s(sl.label)}</Text> : null}
+                          {isFinal ? <Text style={styles.finalTag}>Final</Text> : null}
+                        </View>
+                        {!isFinal ? (
+                          <Pressable
+                            onPress={() => void onFinalizeSlot(sid)}
+                            disabled={busy === "finalize"}
+                            style={({ pressed }) => [styles.slotFinalize, pressed && { opacity: 0.9 }, busy === "finalize" && styles.disabled]}
+                          >
+                            <Text style={styles.slotFinalizeText}>Finalize</Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
+                    );
+                  })}
+                  <Text style={styles.label}>Add slot (ISO start)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={slotStart}
+                    onChangeText={setSlotStart}
+                    placeholder="2026-05-10T18:00:00Z"
+                    placeholderTextColor="rgba(255,255,255,0.35)"
+                    autoCapitalize="none"
+                  />
+                  <Text style={styles.label}>Label (optional)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={slotLabel}
+                    onChangeText={setSlotLabel}
+                    placeholder="Option A"
+                    placeholderTextColor="rgba(255,255,255,0.35)"
+                  />
+                  <Pressable
+                    onPress={() => void onAddSlot()}
+                    disabled={busy === "slot"}
+                    style={({ pressed }) => [styles.secondaryLime, pressed && { opacity: 0.9 }, busy === "slot" && styles.disabled]}
+                  >
+                    <Text style={styles.secondaryLimeText}>{busy === "slot" ? "Adding…" : "Add slot"}</Text>
+                  </Pressable>
+                </View>
+
+                <View style={styles.modalSection}>
+                  <Text style={styles.sectionTitle}>Confirmed ({confirmed.length})</Text>
+                  {confirmed.length === 0 ? <Text style={styles.muted}>None</Text> : null}
+                  {confirmed.map((p) => {
+                    const isBusy = busy === `att:${p.id}` || busy === `late:${p.id}`;
+                    return (
+                      <View key={`c:${p.id}`} style={styles.personRow}>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={styles.personName}>{p.full_name ?? p.id}</Text>
+                          <Text style={styles.personSub} numberOfLines={1}>
+                            {p.id}
+                          </Text>
+                        </View>
+                        <Pressable
+                          onPress={() => void onMarkAttendance(p.id, true)}
+                          disabled={isBusy}
+                          style={({ pressed }) => [styles.smallChip, pressed && { opacity: 0.85 }, isBusy && styles.disabled]}
+                        >
+                          <Text style={styles.smallChipText}>Attended</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => void onMarkAttendance(p.id, false)}
+                          disabled={isBusy}
+                          style={({ pressed }) => [styles.smallChipAlt, pressed && { opacity: 0.85 }, isBusy && styles.disabled]}
+                        >
+                          <Text style={styles.smallChipText}>No-show</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => void onLateCancel(p.id)}
+                          disabled={isBusy}
+                          style={({ pressed }) => [styles.smallChipWarn, pressed && { opacity: 0.85 }, isBusy && styles.disabled]}
+                        >
+                          <Text style={styles.smallChipText}>Late</Text>
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                <View style={styles.modalSection}>
+                  <Text style={styles.sectionTitle}>Standby ({standby.length})</Text>
+                  {standby.length === 0 ? <Text style={styles.muted}>None</Text> : null}
+                  {standby.map((p) => {
+                    const isBusy = busy === `promote:${p.id}`;
+                    return (
+                      <View key={`s:${p.id}`} style={styles.personRow}>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={styles.personName}>{p.full_name ?? p.id}</Text>
+                          <Text style={styles.personSub} numberOfLines={1}>
+                            {p.id}
+                          </Text>
+                        </View>
+                        <Pressable
+                          onPress={() => void onPromote(p.id)}
+                          disabled={isBusy}
+                          style={({ pressed }) => [styles.primarySmall, pressed && { opacity: 0.9 }, isBusy && styles.disabled]}
+                        >
+                          <Text style={styles.primarySmallText}>{isBusy ? "…" : "Promote"}</Text>
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                <Pressable
+                  onPress={() => void onCancelRun()}
+                  disabled={busy === "cancel"}
+                  style={({ pressed }) => [styles.dangerOutline, pressed && { opacity: 0.9 }, busy === "cancel" && styles.disabled]}
+                >
+                  <Text style={styles.dangerOutlineText}>{busy === "cancel" ? "Canceling…" : "Cancel run"}</Text>
+                </Pressable>
+              </ScrollView>
+            )}
             </View>
-          );
-        })}
-      </View>
-    </ScrollView>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#0a0a0a" },
-  content: { padding: 16, paddingBottom: 40 },
-  h1: { fontSize: 28, fontWeight: "800", color: "#fff" },
+  content: { padding: 16, paddingBottom: 48 },
+  h1: { fontSize: 28, fontWeight: "800", color: "#fff", letterSpacing: -0.3 },
+  lead: { marginTop: 8, color: "rgba(255,255,255,0.58)", fontSize: 14, lineHeight: 20 },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
-  segmentWrap: { marginTop: 12 },
-  segmentLabel: { fontSize: 12, fontWeight: "800", color: "rgba(255,255,255,0.6)", letterSpacing: 0.6 },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: "rgba(163,230,53,0.08)",
+  },
+  chipText: { color: LIME, fontWeight: "800", fontSize: 13 },
+  segmentLabel: { marginTop: 18, fontSize: 11, fontWeight: "800", color: "rgba(255,255,255,0.45)", letterSpacing: 1.1 },
   segmentRow: { marginTop: 10, flexDirection: "row", gap: 8 },
   segment: {
     flex: 1,
@@ -320,60 +888,215 @@ const styles = StyleSheet.create({
   segmentActive: { borderColor: "rgba(163,230,53,0.45)", backgroundColor: "rgba(163,230,53,0.10)" },
   segmentText: { color: "rgba(255,255,255,0.7)", fontWeight: "900", fontSize: 12 },
   segmentTextActive: { color: LIME },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  err: { marginTop: 12, color: "#fca5a5", fontSize: 14 },
+  emptyCard: {
+    marginTop: 16,
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  emptyTitle: { color: "#fff", fontWeight: "800", fontSize: 16 },
+  emptyBody: { marginTop: 8, color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
+  runCard: {
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  runCardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
+  runEyebrow: { fontSize: 11, fontWeight: "800", letterSpacing: 1, color: "rgba(163,230,53,0.85)" },
+  hubPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 999,
+    backgroundColor: "rgba(163,230,53,0.15)",
     borderWidth: 1,
     borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.08)",
   },
-  chipText: { color: LIME, fontWeight: "800", fontSize: 13 },
-  dangerChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  hubPillText: { fontSize: 10, fontWeight: "900", color: LIME },
+  runTitle: { fontSize: 18, fontWeight: "800", color: "#fff", letterSpacing: -0.2 },
+  runLoc: { marginTop: 6, fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 18 },
+  runMetaRow: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.35)",
     borderWidth: 1,
-    borderColor: "rgba(248,113,113,0.35)",
-    backgroundColor: "rgba(248,113,113,0.08)",
+    borderColor: "rgba(255,255,255,0.12)",
   },
-  dangerChipText: { color: "rgba(248,113,113,0.95)", fontWeight: "800", fontSize: 13 },
-  err: { marginTop: 10, color: "#fca5a5" },
+  statusPillText: { fontSize: 11, fontWeight: "800", color: "rgba(255,255,255,0.85)" },
+  runTime: { fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: "600" },
+  runChevronRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 6,
+  },
+  runTapHint: { fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.4)" },
   card: {
-    marginTop: 14,
-    padding: 14,
-    borderRadius: 14,
+    marginTop: 18,
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
     backgroundColor: "rgba(255,255,255,0.05)",
   },
   cardTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
+  fieldHint: { marginTop: 6, fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 18 },
   label: { marginTop: 12, fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.55)" },
   input: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: "rgba(255,255,255,0.14)",
     borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     fontSize: 15,
     color: "#fff",
-    backgroundColor: "rgba(0,0,0,0.35)",
+    backgroundColor: "rgba(0,0,0,0.28)",
   },
+  textArea: { minHeight: 100, textAlignVertical: "top" },
   statePill: { justifyContent: "center" },
   statePillText: { color: "#fff", fontWeight: "900", fontSize: 15 },
-  twoCol: { flexDirection: "row", gap: 12, marginTop: 4 },
+  twoCol: { flexDirection: "row", gap: 12 },
   primary: {
     marginTop: 14,
     backgroundColor: LIME,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
   },
   primaryText: { color: "#111", fontWeight: "900", fontSize: 15 },
-  muted: { marginTop: 10, color: "rgba(255,255,255,0.6)" },
-  mono: { marginTop: 10, color: "#fff", fontWeight: "700" },
-  personRow: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 8 },
+  disabled: { opacity: 0.55 },
+  muted: { marginTop: 8, color: "rgba(255,255,255,0.55)", fontSize: 14 },
+  modalRoot: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "flex-end",
+  },
+  modalDismiss: { flex: 1 },
+  modalKb: { maxHeight: "92%" },
+  modalSheet: {
+    maxHeight: "92%",
+    backgroundColor: "#0a0a0a",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  modalGrabRow: { alignItems: "center", paddingVertical: 6 },
+  modalGrab: { width: 40, height: 4, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.2)" },
+  modalHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 8 },
+  modalTitle: { fontSize: 20, fontWeight: "800", color: "#fff" },
+  modalSub: { marginTop: 4, fontSize: 13, color: "rgba(255,255,255,0.5)" },
+  closeBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  countRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
+  countChip: {
+    flexGrow: 1,
+    minWidth: "22%",
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    alignItems: "center",
+  },
+  countChipLabel: { fontSize: 10, fontWeight: "800", color: "rgba(255,255,255,0.45)", letterSpacing: 0.5 },
+  countChipVal: { marginTop: 4, fontSize: 18, fontWeight: "900", color: "#fff" },
+  modalSection: { marginTop: 16, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
+  sectionTitle: { fontSize: 13, fontWeight: "800", color: "rgba(255,255,255,0.85)", letterSpacing: 0.6, marginBottom: 10 },
+  actionRow: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
+  secondaryLime: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: "rgba(163,230,53,0.08)",
+  },
+  secondaryLimeText: { color: LIME, fontWeight: "800", fontSize: 14 },
+  blockHint: { marginTop: 8, fontSize: 12, color: "rgba(251,191,36,0.9)", lineHeight: 17 },
+  presetRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
+  presetChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  presetChipActive: { borderColor: "rgba(163,230,53,0.45)", backgroundColor: "rgba(163,230,53,0.12)" },
+  presetChipText: { fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.65)" },
+  presetChipTextActive: { color: LIME },
+  switchRow: { marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  switchLabel: { flex: 1, fontSize: 13, color: "rgba(255,255,255,0.65)", fontWeight: "600", paddingRight: 12 },
+  miniToggle: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(0,0,0,0.3)",
+  },
+  miniToggleOn: { borderColor: "rgba(163,230,53,0.45)", backgroundColor: "rgba(163,230,53,0.12)" },
+  miniToggleText: { fontWeight: "800", fontSize: 12, color: "#fff" },
+  typeRow: { flexDirection: "row", gap: 10, marginTop: 8 },
+  typeChip: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  typeChipActive: { borderColor: "rgba(163,230,53,0.45)", backgroundColor: "rgba(163,230,53,0.1)" },
+  typeChipText: { fontWeight: "800", color: "rgba(255,255,255,0.55)" },
+  typeChipTextActive: { color: LIME },
+  slotRow: {
+    marginTop: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(0,0,0,0.22)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  slotTime: { fontSize: 14, fontWeight: "800", color: "#fff" },
+  slotLabel: { marginTop: 2, fontSize: 12, color: "rgba(255,255,255,0.5)" },
+  finalTag: { marginTop: 4, fontSize: 11, fontWeight: "800", color: LIME },
+  slotFinalize: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: LIME,
+  },
+  slotFinalizeText: { color: "#111", fontWeight: "900", fontSize: 12 },
+  personRow: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   personName: { color: "#fff", fontWeight: "700" },
   personSub: { marginTop: 2, color: "rgba(255,255,255,0.45)", fontSize: 12 },
   smallChip: {
@@ -408,6 +1131,15 @@ const styles = StyleSheet.create({
     backgroundColor: LIME,
   },
   primarySmallText: { color: "#111", fontWeight: "900", fontSize: 12 },
-  disabled: { opacity: 0.55 },
+  dangerOutline: {
+    marginTop: 20,
+    marginBottom: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.45)",
+    alignItems: "center",
+    backgroundColor: "rgba(248,113,113,0.06)",
+  },
+  dangerOutlineText: { color: "rgba(248,113,113,0.95)", fontWeight: "800", fontSize: 15 },
 });
-

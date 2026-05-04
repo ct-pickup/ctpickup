@@ -327,6 +327,65 @@ export function postAdminSetHubTournament(accessToken: string, tournamentId: str
   });
 }
 
+/** Set which pickup run is featured on the public `/pickup` hub for its region (or clear with `null`). */
+export function postAdminSetHubPickup(accessToken: string, run_id: string | null) {
+  return adminFetch<{
+    ok: boolean;
+    action?: string;
+    effects?: { record: string; detail: string }[];
+    error?: string;
+  }>("/api/admin/operator", accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "set_hub_pickup", run_id }),
+  });
+}
+
+export type PickupSwitchListResponse = {
+  runs: Record<string, unknown>[];
+};
+
+export type PickupSwitchDetailResponse = PickupSwitchListResponse & {
+  run: Record<string, unknown> | null;
+  slots: Record<string, unknown>[];
+  availability: Record<string, unknown>[];
+  invites: Record<string, unknown>[];
+  rsvps: Record<string, unknown>[];
+  confirmed: { id: string; full_name: string | null }[];
+  standby: { id: string; full_name: string | null }[];
+  counts: {
+    invites: number;
+    available: number;
+    declined: number;
+    confirmed: number;
+    standby: number;
+    pending_payment: number;
+  };
+  auto_status: Record<string, unknown>;
+  updates: { global: Record<string, unknown> | null; run: Record<string, unknown> | null };
+};
+
+export function fetchAdminPickupSwitchList(accessToken: string, opts?: { region?: string }) {
+  const u = new URL("/api/pickup/switch", originOrThrow());
+  if (opts?.region) u.searchParams.set("region", opts.region);
+  return adminFetch<PickupSwitchListResponse>(u.pathname + u.search, accessToken, { method: "GET" });
+}
+
+export function fetchAdminPickupSwitchDetail(accessToken: string, runId: string, opts?: { region?: string }) {
+  const u = new URL("/api/pickup/switch", originOrThrow());
+  u.searchParams.set("run_id", runId);
+  if (opts?.region) u.searchParams.set("region", opts.region);
+  return adminFetch<PickupSwitchDetailResponse>(u.pathname + u.search, accessToken, { method: "GET" });
+}
+
+export function postAdminPickupSwitch(accessToken: string, body: Record<string, unknown>) {
+  return adminFetch<Record<string, unknown>>("/api/pickup/switch", accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 export type AdminEsportsTournamentRow = {
   id: string;
   title: string;

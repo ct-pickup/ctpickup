@@ -13,6 +13,8 @@ import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
 
+const HUB_REGIONS = new Set(["NY", "CT", "NJ", "MD"]);
+
 // GET: returns runs list + optional detail (?run_id=...)
 export async function GET(req: Request) {
   const guard = await requireAdminBearer(req);
@@ -22,14 +24,22 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const run_id = url.searchParams.get("run_id");
+  const regionRaw = String(url.searchParams.get("region") || "").trim().toUpperCase();
+  const region = regionRaw && HUB_REGIONS.has(regionRaw) ? regionRaw : null;
 
-  const runsRes = await admin
+  let runsQuery = admin
     .from("pickup_runs")
     .select(
-      "id,title,status,start_at,created_at,run_type,capacity,fee_cents,currency,open_tier_rank,wave1_started_at,likely_on_slot_id,final_slot_id,is_current,outreach_started_at,auto_managed"
+      "id,title,status,start_at,created_at,run_type,capacity,fee_cents,currency,open_tier_rank,wave1_started_at,likely_on_slot_id,final_slot_id,is_current,outreach_started_at,auto_managed,service_region,location_private,show_location_to_confirmed_only,cancellation_deadline",
     )
     .neq("status", "canceled")
     .order("created_at", { ascending: false });
+
+  if (region) {
+    runsQuery = runsQuery.eq("service_region", region);
+  }
+
+  const runsRes = await runsQuery;
 
   const runs = runsRes.data || [];
 
@@ -92,6 +102,26 @@ export async function GET(req: Request) {
     pending_payment: rsvps.filter((r) => r.status === "pending_payment").length,
   };
 
+  const confirmedIds = (rsvps || []).filter((r) => r.status === "confirmed").map((r) => r.user_id);
+  const standbyIds = (rsvps || []).filter((r) => r.status === "standby").map((r) => r.user_id);
+
+  const [confirmedRes, standbyRes] = await Promise.all([
+    confirmedIds.length
+      ? admin.from("profiles").select("id,first_name,last_name").in("id", confirmedIds)
+      : Promise.resolve({ data: [] as { id: string; first_name: string | null; last_name: string | null }[] }),
+    standbyIds.length
+      ? admin.from("profiles").select("id,first_name,last_name").in("id", standbyIds)
+      : Promise.resolve({ data: [] as { id: string; first_name: string | null; last_name: string | null }[] }),
+  ]);
+
+  const mapProfile = (r: { id: string; first_name: string | null; last_name: string | null }) => ({
+    id: r.id,
+    full_name: `${String(r.first_name || "").trim()} ${String(r.last_name || "").trim()}`.trim() || null,
+  });
+
+  const confirmed = (confirmedRes.data || []).map(mapProfile);
+  const standby = (standbyRes.data || []).map(mapProfile);
+
   const auto_status = describePickupAutoStatus(run, slots, availability, rsvps, messages);
 
   return NextResponse.json({
@@ -101,6 +131,8 @@ export async function GET(req: Request) {
     availability,
     invites,
     rsvps,
+    confirmed,
+    standby,
     updates: {
       global: updateGlobal.data?.[0] || null,
       run: updateRun.data?.[0] || null,
@@ -349,6 +381,13 @@ export async function POST(req: Request) {
     if (body.location_private != null) patch.location_private = String(body.location_private);
     if (body.show_location_to_confirmed_only != null)
       patch.show_location_to_confirmed_only = !!body.show_location_to_confirmed_only;
+    if (body.run_type != null) {
+      const rt = String(body.run_type);
+      if (!["select", "public"].includes(rt)) {
+        return NextResponse.json({ error: "run_type must be select or public" }, { status: 400 });
+      }
+      patch.run_type = rt;
+    }
 
     const up = await admin.from("pickup_runs").update(patch).eq("id", run_id);
     if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
