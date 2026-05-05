@@ -33,6 +33,7 @@ export async function postPickupCommit(
   state: "available" | "declined",
   slotId: string | null,
   slotLabel: string | null = null,
+  slotLabelsSelection: string[] | null = null,
 ): Promise<{ ok: boolean; status: number; json: unknown }> {
   const origin = siteOrigin();
   if (!origin) {
@@ -45,6 +46,9 @@ export async function postPickupCommit(
   };
   if (state === "available" && slotLabel) {
     payload.slot_label = slotLabel;
+  }
+  if (state === "available" && slotLabelsSelection && slotLabelsSelection.length > 0) {
+    payload.slot_labels_selection = slotLabelsSelection;
   }
   const r = await fetch(`${origin}/api/pickup/commit`, {
     method: "POST",

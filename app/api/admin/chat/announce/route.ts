@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
+import { sendPushToAll, sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -80,8 +81,8 @@ export async function POST(req: Request) {
   });
   if (ins.error) return NextResponse.json({ error: ins.error.message }, { status: 500 });
 
-  // Build push token list. Group rooms only push to members; otherwise everyone with a token.
-  let tokens: string[] = [];
+  // Group rooms only push to members; announcement rooms push to all registered devices (capped).
+  let userIds: string[] = [];
 
   if (isGroup) {
     const mem = await admin
@@ -90,73 +91,31 @@ export async function POST(req: Request) {
       .eq("room_id", room.id);
     if (mem.error) return NextResponse.json({ error: mem.error.message }, { status: 500 });
 
-    const userIds = (mem.data ?? [])
+    userIds = (mem.data ?? [])
       .map((r) => (r as { user_id?: string }).user_id)
       .filter((u): u is string => typeof u === "string" && u.length > 0);
-
-    if (userIds.length > 0) {
-      const tokensRes = await admin
-        .from("user_push_devices")
-        .select("expo_push_token,user_id")
-        .in("user_id", userIds)
-        .limit(4000);
-      if (tokensRes.error) {
-        return NextResponse.json({ error: tokensRes.error.message }, { status: 500 });
-      }
-      tokens = (tokensRes.data ?? [])
-        .map((r) => (r as { expo_push_token?: unknown }).expo_push_token)
-        .filter((t): t is string => typeof t === "string" && t.length > 10);
-    }
-  } else {
-    const tokensRes = await admin
-      .from("user_push_devices")
-      .select("expo_push_token")
-      .limit(4000);
-    if (tokensRes.error) {
-      return NextResponse.json({ error: tokensRes.error.message }, { status: 500 });
-    }
-    tokens = (tokensRes.data ?? [])
-      .map((r) => (r as { expo_push_token?: unknown }).expo_push_token)
-      .filter((t): t is string => typeof t === "string" && t.length > 10);
   }
 
   const title = room.title || "CT Pickup";
   const bodyText = truncate(message, 160);
 
-  // Expo accepts up to 100 messages per request; chunk.
-  const chunks: string[][] = [];
-  for (let i = 0; i < tokens.length; i += 100) chunks.push(tokens.slice(i, i + 100));
+  const pushPayload = {
+    title,
+    body: bodyText,
+    data: {
+      kind: "announcement",
+      room_slug: room.slug,
+      room_id: room.id,
+      room_type: room.room_type,
+    },
+  };
 
-  const pushResults: { ok: boolean; status?: number; error?: string }[] = [];
+  const pushRes = isGroup
+    ? await sendPushToUsers(admin, userIds, pushPayload)
+    : await sendPushToAll(admin, pushPayload);
 
-  for (const chunk of chunks) {
-    const payload = chunk.map((to) => ({
-      to,
-      title,
-      body: bodyText,
-      sound: "default",
-      data: { kind: "announcement", room_slug: room.slug, room_id: room.id, room_type: room.room_type },
-    }));
-
-    try {
-      const r = await fetch("https://exp.host/--/api/v2/push/send", {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Accept-Encoding": "gzip, deflate",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!r.ok) {
-        const j = await r.json().catch(() => null);
-        pushResults.push({ ok: false, status: r.status, error: j ? JSON.stringify(j) : "push_failed" });
-      } else {
-        pushResults.push({ ok: true, status: r.status });
-      }
-    } catch (e: unknown) {
-      pushResults.push({ ok: false, error: e instanceof Error ? e.message : String(e) });
-    }
+  if (pushRes.lookupError) {
+    return NextResponse.json({ error: pushRes.lookupError }, { status: 500 });
   }
 
   return NextResponse.json({
@@ -164,7 +123,7 @@ export async function POST(req: Request) {
     room_id: room.id,
     room_slug: room.slug,
     room_type: room.room_type,
-    pushed: tokens.length,
-    push_batches: pushResults,
+    pushed: pushRes.tokens,
+    push_batches: pushRes.batches,
   });
 }

@@ -64,16 +64,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Account pending approval." }, { status: 403 });
   }
 
-  // Must have availability available for final slot
+  // Must have availability available for final slot (may be one of several planning rows)
   const myAvail = await admin
     .from("pickup_run_availability")
-    .select("state, slot_id")
+    .select("id")
     .eq("run_id", run.id)
     .eq("user_id", user.id)
+    .eq("state", "available")
+    .eq("slot_id", run.final_slot_id)
+    .limit(1)
     .maybeSingle();
 
-  const eligible =
-    myAvail.data?.state === "available" && myAvail.data?.slot_id === run.final_slot_id;
+  const eligible = !!myAvail.data?.id;
 
   if (!eligible) {
     return NextResponse.json({ error: "Not eligible for this final RSVP." }, { status: 403 });

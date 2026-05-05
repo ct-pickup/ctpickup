@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export async function POST(req: Request) {
@@ -38,9 +39,18 @@ export async function POST(req: Request) {
     .from("pickup_run_rsvps")
     .update({ status: newStatus, updated_at: new Date().toISOString() })
     .eq("run_id", run_id)
-    .eq("user_id", promote_user_id);
+    .eq("user_id", promote_user_id)
+    .select("user_id");
 
   if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
+
+  if ((up.data?.length ?? 0) > 0) {
+    await sendPushToUsers(supabaseAdmin, [promote_user_id], {
+      title: "You got in",
+      body: "You have been promoted from standby to confirmed for the upcoming pickup.",
+      data: { kind: "pickup_promoted", run_id },
+    });
+  }
 
   return NextResponse.json({ ok: true, status: newStatus });
 }

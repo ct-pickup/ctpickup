@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
+import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import {
   getStripePickup,
   getSupabaseAdmin,
@@ -72,6 +73,15 @@ export async function POST(req: Request) {
     } catch (e: any) {
       failed.push({ user_id: r.user_id, error: e?.message || "refund failed" });
     }
+  }
+
+  const canceledUserIds = Array.from(new Set(rsvps.map((r) => r.user_id).filter(Boolean)));
+  if (canceledUserIds.length) {
+    await sendPushToUsers(supabaseAdmin, canceledUserIds, {
+      title: "Pickup canceled",
+      body: "The upcoming pickup run has been canceled.",
+      data: { kind: "pickup_canceled", run_id },
+    });
   }
 
   return NextResponse.json({ ok: true, refunded, failed });

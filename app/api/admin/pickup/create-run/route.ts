@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export async function POST(req: Request) {
@@ -87,6 +88,16 @@ export async function POST(req: Request) {
 
   if (promoted.error) {
     return NextResponse.json({ error: promoted.error.message }, { status: 500 });
+  }
+
+  const approvedRes = await supabaseAdmin.from("profiles").select("id").eq("approved", true);
+  if (!approvedRes.error && (approvedRes.data?.length ?? 0) > 0) {
+    const approvedIds = (approvedRes.data ?? []).map((p) => p.id as string);
+    await sendPushToUsers(supabaseAdmin, approvedIds, {
+      title: "New pickup run",
+      body: "A new pickup run has been posted. Check the app for details.",
+      data: { kind: "pickup_new_run", run_id: runRow.id },
+    });
   }
 
   return NextResponse.json({ ok: true, run: promoted.data });

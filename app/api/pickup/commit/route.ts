@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { assertPickupStandingAllowsParticipation } from "@/lib/pickup/standing/participationGate";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
+import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
@@ -12,6 +14,69 @@ function bearer(req: Request) {
 
 function isTier1(rank: number | null | undefined) {
   return rank === 1 || rank === 2;
+}
+
+async function resolveSlotIdFromLabel(
+  admin: SupabaseClient,
+  run_id: string,
+  start_at: string | null,
+  slot_label: string
+): Promise<{ ok: true; slot_id: string } | { ok: false; error: string; status: number }> {
+  const existing = await admin
+    .from("pickup_run_time_slots")
+    .select("id")
+    .eq("run_id", run_id)
+    .eq("label", slot_label)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing.data?.id) {
+    return { ok: true, slot_id: String(existing.data.id) };
+  }
+
+  const ins = await admin
+    .from("pickup_run_time_slots")
+    .insert({
+      run_id,
+      label: slot_label,
+      start_at,
+    })
+    .select("id")
+    .maybeSingle();
+
+  if (ins.error || !ins.data?.id) {
+    return {
+      ok: false,
+      error: ins.error?.message || "Could not create slot for label.",
+      status: 500,
+    };
+  }
+  return { ok: true, slot_id: String(ins.data.id) };
+}
+
+async function invitedUserIdsForPickupPush(
+  admin: SupabaseClient,
+  run_id: string,
+  run: { run_type: string; open_tier_rank: number | null },
+): Promise<string[]> {
+  const openTier = run.open_tier_rank;
+  if (openTier === null || openTier === undefined) return [];
+
+  const profRes = await admin.from("profiles").select("id").eq("approved", true).lte("tier_rank", openTier);
+
+  if (profRes.error || !(profRes.data?.length ?? 0)) return [];
+
+  const eligibleIds = new Set((profRes.data ?? []).map((p: { id: string }) => p.id));
+
+  if (run.run_type === "public") {
+    return Array.from(eligibleIds);
+  }
+
+  const invRes = await admin.from("pickup_run_invites").select("user_id").eq("run_id", run_id);
+  if (invRes.error || !(invRes.data?.length ?? 0)) return [];
+
+  const invited = new Set((invRes.data ?? []).map((r: { user_id: string }) => r.user_id));
+  return Array.from(eligibleIds).filter((id) => invited.has(id));
 }
 
 export async function POST(req: Request) {
@@ -45,6 +110,17 @@ export async function POST(req: Request) {
       ? body.slot_label.trim()
       : null;
   const state = String(body.state || "declined"); // 'available' | 'declined'
+
+  const rawSel = body.slot_labels_selection;
+  const slot_labels_selection = Array.isArray(rawSel)
+    ? Array.from(
+        new Set(
+          rawSel
+            .map((x: unknown) => (typeof x === "string" ? x.trim() : ""))
+            .filter((s: string) => s.length > 0),
+        ),
+      )
+    : [];
 
   if (!run_id) return NextResponse.json({ error: "Missing run_id" }, { status: 400 });
   if (state === "available" && !slot_id_in && !slot_label_in)
@@ -93,58 +169,111 @@ export async function POST(req: Request) {
     }
   }
 
-  // Resolve target slot_id. If `slot_label` was supplied, look up an existing
-  // slot with that label for this run; otherwise create one so availability has
-  // a stable slot to attach to. Falling back keeps callers that still send
-  // `slot_id` working unchanged.
-  let resolvedSlotId: string | null = null;
-  if (state === "available") {
+  const start_at = run.data.start_at != null ? String(run.data.start_at) : null;
+
+  if (state === "declined") {
+    const del = await admin.from("pickup_run_availability").delete().eq("run_id", run_id).eq("user_id", userId);
+    if (del.error) {
+      return NextResponse.json({ error: del.error.message || "Could not clear availability." }, { status: 500 });
+    }
+    const ins = await admin.from("pickup_run_availability").insert({
+      run_id,
+      user_id: userId,
+      slot_id: null,
+      state: "declined",
+      updated_at: new Date().toISOString(),
+    });
+    if (ins.error) {
+      return NextResponse.json({ error: ins.error.message || "Could not record decline." }, { status: 500 });
+    }
+  } else {
+    // available
+    let resolvedSlotId: string | null = null;
     if (slot_id_in) {
       resolvedSlotId = slot_id_in;
     } else if (slot_label_in) {
-      const existing = await admin
-        .from("pickup_run_time_slots")
-        .select("id")
-        .eq("run_id", run_id)
-        .eq("label", slot_label_in)
-        .limit(1)
-        .maybeSingle();
+      const got = await resolveSlotIdFromLabel(admin, run_id, start_at, slot_label_in);
+      if (!got.ok) return NextResponse.json({ error: got.error }, { status: got.status });
+      resolvedSlotId = got.slot_id;
+    }
 
-      if (existing.data?.id) {
-        resolvedSlotId = String(existing.data.id);
-      } else {
-        const ins = await admin
-          .from("pickup_run_time_slots")
-          .insert({
-            run_id,
-            label: slot_label_in,
-            start_at: run.data.start_at ?? null,
-          })
-          .select("id")
-          .maybeSingle();
+    if (!resolvedSlotId) {
+      return NextResponse.json({ error: "Could not resolve slot." }, { status: 400 });
+    }
 
-        if (ins.error || !ins.data?.id) {
+    const targetLabels =
+      slot_labels_selection.length > 0
+        ? slot_labels_selection
+        : slot_label_in
+          ? [slot_label_in]
+          : [];
+
+    const targetSlotIds: string[] = [];
+    if (targetLabels.length > 0) {
+      for (const lbl of targetLabels) {
+        const got = await resolveSlotIdFromLabel(admin, run_id, start_at, lbl);
+        if (!got.ok) return NextResponse.json({ error: got.error }, { status: got.status });
+        targetSlotIds.push(got.slot_id);
+      }
+    } else {
+      targetSlotIds.push(resolvedSlotId);
+    }
+
+    const targetIdSet = new Set(targetSlotIds);
+
+    const existingAvail = await admin
+      .from("pickup_run_availability")
+      .select("slot_id")
+      .eq("run_id", run_id)
+      .eq("user_id", userId)
+      .eq("state", "available");
+
+    if (existingAvail.error) {
+      return NextResponse.json(
+        { error: existingAvail.error.message || "Could not read availability." },
+        { status: 500 },
+      );
+    }
+
+    for (const row of existingAvail.data || []) {
+      const sid = row.slot_id ? String(row.slot_id) : null;
+      if (sid && !targetIdSet.has(sid)) {
+        const d = await admin
+          .from("pickup_run_availability")
+          .delete()
+          .eq("run_id", run_id)
+          .eq("user_id", userId)
+          .eq("slot_id", sid);
+        if (d.error) {
           return NextResponse.json(
-            { error: ins.error?.message || "Could not create slot for label." },
+            { error: d.error.message || "Could not update availability." },
             { status: 500 },
           );
         }
-        resolvedSlotId = String(ins.data.id);
       }
     }
-  }
 
-  // Upsert availability
-  await admin.from("pickup_run_availability").upsert(
-    {
+    const rm = await admin
+      .from("pickup_run_availability")
+      .delete()
+      .eq("run_id", run_id)
+      .eq("user_id", userId)
+      .eq("slot_id", resolvedSlotId);
+    if (rm.error) {
+      return NextResponse.json({ error: rm.error.message || "Could not update availability." }, { status: 500 });
+    }
+
+    const ins = await admin.from("pickup_run_availability").insert({
       run_id,
       user_id: userId,
-      slot_id: state === "available" ? resolvedSlotId : null,
-      state,
+      slot_id: resolvedSlotId,
+      state: "available",
       updated_at: new Date().toISOString(),
-    },
-    { onConflict: "run_id,user_id" }
-  );
+    });
+    if (ins.error) {
+      return NextResponse.json({ error: ins.error.message || "Could not save availability." }, { status: 500 });
+    }
+  }
 
   // Recompute likely_on:
   // ≥5 tier1 (tier_rank 1,2) available for same slot
@@ -158,7 +287,7 @@ export async function POST(req: Request) {
   const ids = Array.from(new Set(av.map((a) => a.user_id)));
   const profs = ids.length
     ? await admin.from("profiles").select("id, tier_rank").in("id", ids)
-    : { data: [] as any[] };
+    : { data: [] as { id: string; tier_rank: number | null }[] };
 
   const rankMap: Record<string, number> = {};
   for (const p of profs.data || []) rankMap[p.id] = p.tier_rank ?? 6;
@@ -167,7 +296,7 @@ export async function POST(req: Request) {
   for (const a of av) {
     const r = rankMap[a.user_id] ?? 6;
     if (!isTier1(r)) continue;
-    counts[a.slot_id] = (counts[a.slot_id] || 0) + 1;
+    counts[a.slot_id as string] = (counts[a.slot_id as string] || 0) + 1;
   }
 
   // choose the first slot that hits >=5, preferring highest count
@@ -190,6 +319,15 @@ export async function POST(req: Request) {
         updated_at: new Date().toISOString(),
       })
       .eq("id", run_id);
+
+    const invitedIds = await invitedUserIdsForPickupPush(admin, run_id, run.data);
+    if (invitedIds.length) {
+      await sendPushToUsers(admin, invitedIds, {
+        title: "Pickup likely on",
+        body: "Enough players are available. Admin will finalize the time soon.",
+        data: { kind: "pickup_likely_on", run_id },
+      });
+    }
   }
 
   return NextResponse.json({ ok: true });

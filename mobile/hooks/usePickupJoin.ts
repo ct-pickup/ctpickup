@@ -168,13 +168,47 @@ export function usePickupJoin() {
       setAvailabilityBusy(true);
       setPendingSlotKey(state === "available" ? (slotLabel ?? slotId) : null);
       try {
-        const r = await postPickupCommit(accessToken, id, state, slotId, slotLabel);
+        const r = await postPickupCommit(accessToken, id, state, slotId, slotLabel, null);
         const j = r.json as Record<string, unknown>;
         if (r.ok) {
           await reload();
           return;
         }
         Alert.alert("Could not submit", commitErrorMessage(r.status, j));
+      } finally {
+        setAvailabilityBusy(false);
+        setPendingSlotKey(null);
+      }
+    },
+    [],
+  );
+
+  const commitAvailabilitySlots = useCallback(
+    async (
+      accessToken: string | null,
+      runId: unknown,
+      slotLabels: string[],
+      reload: () => void | Promise<void>,
+    ): Promise<boolean> => {
+      const id = typeof runId === "string" ? runId : null;
+      if (!accessToken) {
+        Alert.alert("Session required", "Sign in on this device, then try again.");
+        return false;
+      }
+      if (!id) return false;
+      setAvailabilityBusy(true);
+      setPendingSlotKey("multi");
+      try {
+        for (const label of slotLabels) {
+          const r = await postPickupCommit(accessToken, id, "available", null, label, slotLabels);
+          const j = r.json as Record<string, unknown>;
+          if (!r.ok) {
+            Alert.alert("Could not submit", commitErrorMessage(r.status, j));
+            return false;
+          }
+        }
+        await reload();
+        return true;
       } finally {
         setAvailabilityBusy(false);
         setPendingSlotKey(null);
@@ -192,6 +226,7 @@ export function usePickupJoin() {
     declinePickup,
     availabilityBusy,
     commitAvailability,
+    commitAvailabilitySlots,
     pendingSlotKey,
   };
 }

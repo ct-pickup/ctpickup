@@ -250,6 +250,56 @@ export async function GET(req: Request) {
         ? String(run.location_private)
         : null;
 
+    // Planning poll: user's committed time windows (multiple rows allowed)
+    let planning: {
+      my_availability: { slot_id: string | null; slot_label: string | null; state: string }[];
+    } | null = null;
+    if (
+      userId &&
+      (run.status === "planning" || run.status === "likely_on") &&
+      !run.final_slot_id
+    ) {
+      const minePlan = await admin
+        .from("pickup_run_availability")
+        .select("slot_id,state")
+        .eq("run_id", run.id)
+        .eq("user_id", userId);
+
+      if (minePlan.error) {
+        console.error(`[api/${ROUTE}] pickup_run_availability_mine:`, minePlan.error.message, minePlan.error);
+      }
+
+      const rows = minePlan.data || [];
+      const availRows = rows.filter((r) => r.state === "available" && r.slot_id);
+      let my_availability: { slot_id: string | null; slot_label: string | null; state: string }[] = [];
+
+      if (availRows.length) {
+        const slotIds = Array.from(new Set(availRows.map((r) => String(r.slot_id))));
+        const labelsRes = await admin
+          .from("pickup_run_time_slots")
+          .select("id,label")
+          .eq("run_id", run.id)
+          .in("id", slotIds);
+
+        if (labelsRes.error) {
+          console.error(`[api/${ROUTE}] pickup_run_time_slots_mine:`, labelsRes.error.message, labelsRes.error);
+        }
+
+        const labelById = new Map<string, string | null>();
+        for (const s of labelsRes.data || []) {
+          labelById.set(String(s.id), typeof s.label === "string" ? s.label : null);
+        }
+
+        my_availability = availRows.map((r) => ({
+          slot_id: String(r.slot_id),
+          slot_label: labelById.get(String(r.slot_id)) ?? null,
+          state: "available",
+        }));
+      }
+
+      planning = { my_availability };
+    }
+
     return NextResponse.json({
       status: run.status || "inactive",
       run: {
@@ -283,6 +333,7 @@ export async function GET(req: Request) {
       my_status: myStatus,
       attendees,
       me: { approved, is_admin: isAdmin, tier, tier_rank: tierRank },
+      ...(planning ? { planning } : {}),
     });
   } catch (err) {
     return jsonUnexpectedErrorResponse(ROUTE, "GET", err);

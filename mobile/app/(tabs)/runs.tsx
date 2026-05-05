@@ -11,7 +11,7 @@ import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions"
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
-import { useCallback, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -22,6 +22,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+const LIME = "#a3e635";
 
 /**
  * Fixed availability ranges shown during the planning poll. The `slot_label`
@@ -66,11 +68,15 @@ export default function RunsScreen() {
     declinePickup,
     availabilityBusy,
     commitAvailability,
+    commitAvailabilitySlots,
     pendingSlotKey,
   } = usePickupJoin();
   const { loading: scoreLoading, scorePct, trackedPickups, attendedPickups } = usePickupStandingScore();
 
   const [showStatePicker, setShowStatePicker] = useState(true);
+  const [selectedSlotLabels, setSelectedSlotLabels] = useState<string[]>([]);
+  const [availabilitySubmittedBanner, setAvailabilitySubmittedBanner] = useState(false);
+  const [skipPreselectAfterChange, setSkipPreselectAfterChange] = useState(false);
 
   useLayoutEffect(() => {
     registerReset(() => setShowStatePicker(true));
@@ -124,29 +130,6 @@ export default function RunsScreen() {
     return out;
   }, [dataObj]);
 
-  type MyAvailability = {
-    slot_id: string | null;
-    slot_label: string | null;
-    state: string | null;
-  };
-
-  const planning = useMemo<{ myAvailability: MyAvailability | null }>(() => {
-    const raw = dataObj.planning;
-    if (!raw || typeof raw !== "object") return { myAvailability: null };
-    const p = raw as Record<string, unknown>;
-
-    let myAvailability: MyAvailability | null = null;
-    if (p.my_availability && typeof p.my_availability === "object") {
-      const m = p.my_availability as Record<string, unknown>;
-      myAvailability = {
-        slot_id: typeof m.slot_id === "string" ? m.slot_id : null,
-        slot_label: typeof m.slot_label === "string" ? m.slot_label : null,
-        state: typeof m.state === "string" ? m.state : null,
-      };
-    }
-    return { myAvailability };
-  }, [dataObj]);
-
   type Attendee = { full_name: string; instagram: string | null };
   const attendees = useMemo<Attendee[]>(() => {
     const raw = dataObj.attendees;
@@ -177,6 +160,80 @@ export default function RunsScreen() {
     if (st !== "planning" && st !== "likely_on") return false;
     return run?.final_slot_id == null;
   }, [run]);
+
+  const allowedSlotLabelSet = useMemo(
+    () => new Set<string>(FIXED_AVAILABILITY_RANGES.map((r) => r.slot_label)),
+    [],
+  );
+
+  /** Server `planning.my_availability` may be an array (multi-slot) or a legacy single object. */
+  const preselectedSlotLabels = useMemo(() => {
+    const raw = dataObj.planning;
+    if (!raw || typeof raw !== "object") return [] as string[];
+    const p = raw as Record<string, unknown>;
+    const ma = p.my_availability;
+    const out: string[] = [];
+    const pushIfAllowed = (slotLabel: unknown, state: unknown) => {
+      if (state !== "available") return;
+      if (typeof slotLabel !== "string" || !allowedSlotLabelSet.has(slotLabel)) return;
+      if (!out.includes(slotLabel)) out.push(slotLabel);
+    };
+    if (Array.isArray(ma)) {
+      for (const entry of ma) {
+        if (!entry || typeof entry !== "object") continue;
+        const o = entry as Record<string, unknown>;
+        pushIfAllowed(o.slot_label, o.state);
+      }
+    } else if (ma && typeof ma === "object") {
+      const o = ma as Record<string, unknown>;
+      pushIfAllowed(o.slot_label, o.state);
+    }
+    return out;
+  }, [dataObj, allowedSlotLabelSet]);
+
+  const preselectSig = useMemo(() => [...preselectedSlotLabels].sort().join("|"), [preselectedSlotLabels]);
+
+  useEffect(() => {
+    setAvailabilitySubmittedBanner(false);
+    setSkipPreselectAfterChange(false);
+  }, [runId]);
+
+  useEffect(() => {
+    if (!runId || !showAvailabilityPoll) return;
+    if (availabilitySubmittedBanner) return;
+    if (skipPreselectAfterChange) return;
+    setSelectedSlotLabels([...preselectedSlotLabels]);
+  }, [
+    runId,
+    showAvailabilityPoll,
+    preselectSig,
+    preselectedSlotLabels,
+    availabilitySubmittedBanner,
+    skipPreselectAfterChange,
+  ]);
+
+  const onToggleSlotChip = useCallback(
+    (slotLabel: string) => {
+      if (!invitedNow || availabilityBusy) return;
+      setSelectedSlotLabels((prev) =>
+        prev.includes(slotLabel) ? prev.filter((l) => l !== slotLabel) : [...prev, slotLabel],
+      );
+    },
+    [invitedNow, availabilityBusy],
+  );
+
+  const onSubmitAvailability = useCallback(async () => {
+    if (!runId || !token || selectedSlotLabels.length === 0) return;
+    const labels = [...selectedSlotLabels].sort();
+    const ok = await commitAvailabilitySlots(token, runId, labels, load);
+    if (ok) setAvailabilitySubmittedBanner(true);
+  }, [runId, token, selectedSlotLabels, commitAvailabilitySlots, load]);
+
+  const onChangeAvailability = useCallback(() => {
+    setAvailabilitySubmittedBanner(false);
+    setSkipPreselectAfterChange(true);
+    setSelectedSlotLabels([]);
+  }, []);
 
   const attendanceVisible = visibility?.attendanceVisible === true;
 
@@ -347,55 +404,74 @@ export default function RunsScreen() {
             {showAvailabilityPoll ? (
               <View style={styles.pollSection}>
                 <Text style={styles.pollHeading}>Availability poll</Text>
-                <View style={styles.pollSlotList}>
+                <View style={styles.pollChipRow}>
                   {FIXED_AVAILABILITY_RANGES.map((range) => {
-                    const picked =
-                      planning.myAvailability?.state === "available" &&
-                      planning.myAvailability?.slot_label === range.slot_label;
-                    const slotDisabled = !invitedNow || availabilityBusy || !runId;
-                    const showSpinner =
-                      availabilityBusy && pendingSlotKey === range.slot_label;
+                    const selected = selectedSlotLabels.includes(range.slot_label);
+                    const chipDisabled = !invitedNow || availabilityBusy;
                     return (
                       <Pressable
                         key={range.slot_label}
-                        disabled={slotDisabled}
-                        onPress={() =>
-                          void commitAvailability(
-                            token,
-                            runId,
-                            "available",
-                            null,
-                            load,
-                            range.slot_label,
-                          )
-                        }
+                        disabled={chipDisabled}
+                        onPress={() => onToggleSlotChip(range.slot_label)}
                         style={({ pressed }) => [
-                          styles.slotButton,
-                          picked && styles.slotButtonPicked,
-                          slotDisabled && styles.slotButtonDisabled,
-                          pressed && !slotDisabled && { opacity: 0.85 },
+                          styles.availChip,
+                          selected && styles.availChipSelected,
+                          chipDisabled && styles.availChipDisabled,
+                          pressed && !chipDisabled && { opacity: 0.88 },
                         ]}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected, disabled: chipDisabled }}
+                        accessibilityLabel={`${range.display}${selected ? ", selected" : ""}`}
                       >
-                        <View style={styles.slotButtonRow}>
-                          <Text
-                            style={[styles.slotTime, picked && styles.slotTimePicked]}
-                            numberOfLines={1}
-                          >
-                            {range.display}
-                          </Text>
-                          {showSpinner ? (
-                            <ActivityIndicator color="#a3e635" size="small" />
-                          ) : null}
-                        </View>
+                        <Text
+                          style={[styles.availChipText, selected && styles.availChipTextSelected]}
+                          numberOfLines={1}
+                        >
+                          {range.display}
+                        </Text>
                       </Pressable>
                     );
                   })}
                 </View>
                 <Pressable
-                  disabled={!invitedNow || availabilityBusy || !runId}
-                  onPress={() =>
-                    void commitAvailability(token, runId, "declined", null, load)
+                  disabled={
+                    !invitedNow || availabilityBusy || !runId || selectedSlotLabels.length === 0
                   }
+                  onPress={() => void onSubmitAvailability()}
+                  style={({ pressed }) => [
+                    styles.submitAvailabilityBtn,
+                    (!invitedNow || availabilityBusy || !runId || selectedSlotLabels.length === 0) &&
+                      styles.submitAvailabilityBtnDisabled,
+                    pressed && invitedNow && !availabilityBusy && selectedSlotLabels.length > 0 && {
+                      opacity: 0.9,
+                    },
+                  ]}
+                >
+                  {availabilityBusy && pendingSlotKey === "multi" ? (
+                    <ActivityIndicator color="#111" size="small" />
+                  ) : (
+                    <Text style={styles.submitAvailabilityBtnText}>Submit availability</Text>
+                  )}
+                </Pressable>
+                {availabilitySubmittedBanner ? (
+                  <View style={styles.submittedAvailBanner}>
+                    <FontAwesome name="check-circle" size={18} color="#bbf7d0" />
+                    <Text style={styles.submittedAvailBannerText} numberOfLines={2}>
+                      Availability submitted
+                    </Text>
+                    <Pressable
+                      onPress={onChangeAvailability}
+                      style={({ pressed }) => [styles.changeAvailabilityBtn, pressed && { opacity: 0.85 }]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Change availability selection"
+                    >
+                      <Text style={styles.changeAvailabilityBtnText}>Change</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+                <Pressable
+                  disabled={!invitedNow || availabilityBusy || !runId}
+                  onPress={() => void commitAvailability(token, runId, "declined", null, load)}
                   style={({ pressed }) => [
                     styles.declineSlotButton,
                     (!invitedNow || availabilityBusy || !runId) && styles.declineSlotButtonDisabled,
@@ -635,7 +711,7 @@ const styles = StyleSheet.create({
   attendeeList: { marginTop: 10, gap: 6 },
   attendeeRow: { color: "rgba(255,255,255,0.85)", fontSize: 14, lineHeight: 20 },
   attendeeHandle: { color: "rgba(255,255,255,0.55)" },
-  pollSection: { marginTop: 18, gap: 10 },
+  pollSection: { marginTop: 18, gap: 12 },
   pollHeading: {
     fontSize: 12,
     fontWeight: "700",
@@ -643,31 +719,71 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.8)",
     textTransform: "uppercase",
   },
-  pollSlotList: { gap: 8 },
-  slotButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
+  pollChipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  availChip: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(20,20,20,0.95)",
   },
-  slotButtonPicked: {
-    borderColor: "#a3e635",
-    backgroundColor: "rgba(163,230,53,0.12)",
+  availChipSelected: {
+    borderColor: LIME,
+    backgroundColor: LIME,
   },
-  slotButtonDisabled: { opacity: 0.5 },
-  slotButtonRow: {
+  availChipDisabled: { opacity: 0.45 },
+  availChipText: { color: "rgba(255,255,255,0.92)", fontSize: 13, fontWeight: "700" },
+  availChipTextSelected: { color: "#111" },
+  submitAvailabilityBtn: {
+    alignSelf: "stretch",
+    marginTop: 4,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: LIME,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+  },
+  submitAvailabilityBtnDisabled: { opacity: 0.42 },
+  submitAvailabilityBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  submittedAvailBanner: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: 10,
+    alignSelf: "stretch",
+    marginTop: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(16,185,129,0.45)",
+    backgroundColor: "rgba(16,185,129,0.2)",
   },
-  slotTime: { color: "#fff", fontSize: 15, fontWeight: "600", flexShrink: 1 },
-  slotTimePicked: { color: "#a3e635" },
+  submittedAvailBannerText: {
+    flex: 1,
+    color: "#bbf7d0",
+    fontWeight: "700",
+    fontSize: 14,
+    minWidth: 0,
+  },
+  changeAvailabilityBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(187,247,208,0.45)",
+    backgroundColor: "rgba(0,0,0,0.25)",
+  },
+  changeAvailabilityBtnText: { color: "#ecfccb", fontSize: 13, fontWeight: "800" },
   declineSlotButton: {
     alignSelf: "flex-start",
-    marginTop: 4,
+    marginTop: 6,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 10,
