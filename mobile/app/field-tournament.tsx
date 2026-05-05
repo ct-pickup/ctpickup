@@ -239,14 +239,6 @@ export default function FieldTournamentDetailScreen() {
         </View>
       ) : null}
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About this bracket</Text>
-        <Text style={styles.body}>
-          This screen is only for the in-person captain bracket. Online EA FC events are listed under the Tournaments tab.
-          When staff post updates above, they appear here too.
-        </Text>
-      </View>
-
       <CaptainClaimModal
         visible={claimModalOpen}
         accessToken={session?.access_token ?? null}

@@ -2,6 +2,7 @@ import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Animated,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -52,6 +53,56 @@ type ChatMsg =
 
 function nextId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function TypingIndicator() {
+  const dot1 = useRef(new Animated.Value(0.25)).current;
+  const dot2 = useRef(new Animated.Value(0.25)).current;
+  const dot3 = useRef(new Animated.Value(0.25)).current;
+
+  useEffect(() => {
+    const buildLoop = (dot: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(dot, {
+            toValue: 1,
+            duration: 350,
+            useNativeDriver: true,
+          }),
+          Animated.timing(dot, {
+            toValue: 0.25,
+            duration: 350,
+            useNativeDriver: true,
+          }),
+        ]),
+      );
+
+    const a1 = buildLoop(dot1, 0);
+    const a2 = buildLoop(dot2, 200);
+    const a3 = buildLoop(dot3, 400);
+    a1.start();
+    a2.start();
+    a3.start();
+
+    return () => {
+      a1.stop();
+      a2.stop();
+      a3.stop();
+    };
+  }, [dot1, dot2, dot3]);
+
+  return (
+    <View style={styles.assistantRow}>
+      <View style={styles.assistantCard}>
+        <View style={styles.dotsRow}>
+          <Animated.Text style={[styles.dot, { opacity: dot1 }]}>•</Animated.Text>
+          <Animated.Text style={[styles.dot, { opacity: dot2 }]}>•</Animated.Text>
+          <Animated.Text style={[styles.dot, { opacity: dot3 }]}>•</Animated.Text>
+        </View>
+      </View>
+    </View>
+  );
 }
 
 export default function HelpScreen() {
@@ -223,13 +274,7 @@ export default function HelpScreen() {
               }
               if (m.role === "assistant") {
                 if ("thinking" in m && m.thinking) {
-                  return (
-                    <View key={m.id} style={styles.assistantRow}>
-                      <View style={styles.assistantCard}>
-                        <Text style={styles.thinkingText}>Thinking…</Text>
-                      </View>
-                    </View>
-                  );
+                  return <TypingIndicator key={m.id} />;
                 }
                 const assistantText = "text" in m ? m.text : "";
                 return (
@@ -339,7 +384,18 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 6,
   },
   assistantText: { fontSize: 15, color: "rgba(255,255,255,0.92)", lineHeight: 22 },
-  thinkingText: { fontSize: 15, color: "rgba(255,255,255,0.5)", fontStyle: "italic" },
+  dotsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 2,
+  },
+  dot: {
+    fontSize: 22,
+    lineHeight: 22,
+    color: LIME,
+    fontWeight: "900",
+  },
   composer: {
     paddingHorizontal: 16,
     paddingTop: 10,

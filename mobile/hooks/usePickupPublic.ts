@@ -1,10 +1,13 @@
+import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { siteOrigin } from "@/lib/env";
 import { fetchPickupPublic } from "@/lib/siteApi";
 import { parsePickupPayload, type PickupPublicPayload } from "@/lib/pickupPublic";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 export function usePickupPublic(accessToken: string | null) {
+  const { supabase } = useAuth();
   const { region, ready: regionReady } = useSelectedRegion();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<unknown>(null);
@@ -44,6 +47,56 @@ export function usePickupPublic(accessToken: string | null) {
 
   const parsed: PickupPublicPayload = useMemo(() => parsePickupPayload(data), [data]);
   const run = parsed.run && typeof parsed.run === "object" ? parsed.run : null;
+  const runId = run && typeof (run as { id?: unknown }).id === "string" ? ((run as { id: string }).id) : null;
+
+  // Realtime: refresh when this run's row changes (status, counts, etc.) or
+  // when any RSVP for this run is inserted/updated. We re-`load()` rather than
+  // patching state in place because the public payload aggregates many
+  // server-computed fields (counts, visibility, my_status) that we can't
+  // reliably reconstruct from a single row payload.
+  useEffect(() => {
+    if (!supabase || !runId) return;
+    let runChannel: RealtimeChannel | null = null;
+    let rsvpChannel: RealtimeChannel | null = null;
+
+    runChannel = supabase
+      .channel(`pickup_runs:${runId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "pickup_runs",
+          filter: `id=eq.${runId}`,
+        },
+        () => {
+          void load();
+        },
+      )
+      .subscribe();
+
+    rsvpChannel = supabase
+      .channel(`pickup_run_rsvps:${runId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "pickup_run_rsvps",
+          filter: `run_id=eq.${runId}`,
+        },
+        () => {
+          void load();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      if (runChannel) void supabase.removeChannel(runChannel);
+      if (rsvpChannel) void supabase.removeChannel(rsvpChannel);
+    };
+  }, [supabase, runId, load]);
+
   /** API echoes run lifecycle as top-level `status` when a run exists (e.g. planning); only trust `run`. */
   const noFeaturedRun = run == null;
   const counts = parsed.counts ?? {};

@@ -25,13 +25,16 @@ export default function LoginScreen() {
       <View pointerEvents="none" style={styles.bgGlowA} />
       <View pointerEvents="none" style={styles.bgGlowB} />
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 16) + 10 }]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: Math.max(insets.top, 16) + 10, paddingBottom: Math.max(insets.bottom, 24) + 30 },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.hero}>Welcome back</Text>
-        <Text style={styles.lead}>Enter your email to get a sign-in code</Text>
-
-        <SignInPanel hideHeading variant="premium" />
+        <View style={styles.formWrap}>
+          <Text style={styles.lead}>Enter your email to get a sign-in code</Text>
+          <SignInPanel hideHeading variant="premium" />
+        </View>
       </ScrollView>
     </View>
   );
@@ -58,7 +61,21 @@ const styles = StyleSheet.create({
     borderRadius: 520,
     backgroundColor: "rgba(163,230,53,0.06)",
   },
-  content: { paddingHorizontal: 20, paddingBottom: 54 },
-  hero: { fontSize: 34, fontWeight: "900", color: "#fff", letterSpacing: -0.6, lineHeight: 38 },
-  lead: { marginTop: 10, color: "rgba(255,255,255,0.62)", fontSize: 15.5, lineHeight: 22 },
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    justifyContent: "center",
+  },
+  formWrap: {
+    width: "100%",
+    maxWidth: 420,
+    alignSelf: "center",
+    alignItems: "stretch",
+  },
+  lead: {
+    color: "rgba(255,255,255,0.62)",
+    fontSize: 15.5,
+    lineHeight: 22,
+    textAlign: "center",
+  },
 });

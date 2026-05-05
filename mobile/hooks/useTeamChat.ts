@@ -70,6 +70,37 @@ export function useTeamChatRoom(enabled: boolean, lookup: RoomLookup) {
     };
   }, [enabled, supabase, session?.user, slug, id]);
 
+  // Realtime: when an admin updates room settings (announcements_only,
+  // is_active, closes_at, title), reflect the change immediately without a
+  // manual refresh. We subscribe by `id` once we know it; for slug-only
+  // lookups we wait for the initial fetch to resolve the id.
+  const roomId = room?.id ?? null;
+  useEffect(() => {
+    if (!enabled || !supabase || !roomId) return;
+    const channel = supabase
+      .channel(`chat_rooms:${roomId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "chat_rooms",
+          filter: `id=eq.${roomId}`,
+        },
+        (payload) => {
+          const next = payload.new as ChatRoomRow | null;
+          if (next && next.id === roomId) {
+            setRoom(next);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [enabled, supabase, roomId]);
+
   return { room, loading, error };
 }
 

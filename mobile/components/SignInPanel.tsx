@@ -215,7 +215,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
     <>
       {!hideHeading ? <Text style={[styles.sectionTitle, styles.sectionAboveAuth]}>Sign in</Text> : null}
       {variant === "segmented" || variant === "premium" ? (
-        <View style={styles.segmentRow}>
+        <View style={[styles.segmentRow, variant === "premium" && styles.segmentRowPremium]}>
           <Pressable
             accessibilityRole="button"
             style={[styles.segmentChip, signupFlowChoice === "returning" && styles.segmentChipActive]}
@@ -256,7 +256,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
         {stage === "email" ? (
           <>
             {variant === "premium" ? (
-              <View style={styles.premiumFieldLabelRow}>
+              <View style={[styles.premiumFieldLabelRow, styles.premiumFieldLabelRowCenter]}>
                 <FontAwesome name="envelope-o" size={14} color="rgba(255,255,255,0.55)" />
                 <Text style={styles.premiumFieldLabel}>Email</Text>
               </View>
@@ -365,6 +365,10 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.1)",
     backgroundColor: "rgba(255,255,255,0.04)",
   },
+  segmentRowPremium: {
+    alignSelf: "center",
+    width: "100%",
+  },
   segmentChip: {
     flex: 1,
     paddingVertical: 12,
@@ -424,6 +428,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: { fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.55)" },
   premiumFieldLabelRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  premiumFieldLabelRowCenter: { justifyContent: "center" },
   premiumFieldLabel: { fontSize: 15, fontWeight: "800", color: "rgba(255,255,255,0.9)" },
   input: {
     marginTop: 8,
@@ -440,6 +445,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     borderColor: "rgba(255,255,255,0.08)",
     backgroundColor: "rgba(0,0,0,0.22)",
+    textAlign: "center",
   },
   primaryBtn: {
     marginTop: 16,
@@ -456,6 +462,6 @@ const styles = StyleSheet.create({
   createAccountStrong: { color: "#fff", fontSize: 15, fontWeight: "700" },
   textBtn: { marginTop: 12, alignItems: "center" },
   textBtnLabelStrong: { color: "rgba(255,255,255,0.65)", fontSize: 14.5, fontWeight: "700" },
-  msg: { marginTop: 14, color: "#fca5a5", fontSize: 14 },
+  msg: { marginTop: 14, color: "#fca5a5", fontSize: 14, textAlign: "center" },
   msgMuted: { color: "rgba(252,211,212,0.92)" },
 });

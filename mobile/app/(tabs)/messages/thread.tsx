@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   bubbleMine: { backgroundColor: LIME, borderColor: "rgba(0,0,0,0.2)" },
   bubbleOther: { backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)" },
   bubbleAdmin: {
-    backgroundColor: "rgba(163,230,53,0.06)",
+    backgroundColor: "rgba(163,230,53,0.08)",
     borderColor: "rgba(163,230,53,0.18)",
     borderLeftWidth: 3,
     borderLeftColor: LIME,
