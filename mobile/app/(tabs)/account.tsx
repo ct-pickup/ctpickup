@@ -10,8 +10,11 @@ import {
   PASSCODE_MAX_LEN,
   PASSCODE_REQUIREMENTS,
 } from "@/lib/appLock";
+import { siteOrigin } from "@/lib/env";
+import { fetchPickupStanding } from "@/lib/siteApi";
 import * as LocalAuthentication from "expo-local-authentication";
-import { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -25,10 +28,61 @@ import {
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
+type ProfileRow = {
+  first_name: string | null;
+  last_name: string | null;
+  tier: string | null;
+  tier_rank: number | null;
+  approved: boolean | null;
+  instagram: string | null;
+  phone: string | null;
+  playing_position: string | null;
+  username: string | null;
+};
+
+const TIER_RANK_LABELS: Record<number, string> = {
+  1: "Tier 1A",
+  2: "Tier 1B",
+  3: "Tier 2",
+  4: "Tier 3",
+  5: "Tier 4",
+  6: "Public",
+};
+
+function tierLabel(tier: string | null, tierRank: number | null): string | null {
+  if (tier && String(tier).trim()) return String(tier).trim();
+  if (tierRank == null) return null;
+  return TIER_RANK_LABELS[tierRank] ?? `Tier rank ${tierRank}`;
+}
+
+function cleanInstagram(s: string): string {
+  return s.trim().replace(/^@/, "").replace(/\s+/g, "");
+}
+
+function fullName(p: ProfileRow | null): string | null {
+  if (!p) return null;
+  const a = (p.first_name ?? "").trim();
+  const b = (p.last_name ?? "").trim();
+  const joined = `${a} ${b}`.trim();
+  return joined || null;
+}
+
+function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
+  const v = value != null && String(value).trim() ? String(value).trim() : null;
+  if (!v) return null;
+  return (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{v}</Text>
+    </View>
+  );
+}
+
 export default function AccountScreen() {
+  const router = useRouter();
   const { replay: replayAccountIntro } = useAccountIntroReplay();
   const replayOpeningThemeCtx = useReplayOpeningTheme();
-  const { session, isReady, signOut } = useAuth();
+  const { session, supabase, isReady, signOut } = useAuth();
   const { enabled: adminModeEnabled, isReady: adminModeReady, setEnabled: setAdminModeEnabled } = useAdminMode();
   const { isAdmin, isReady: profileAdminReady } = useProfileAdmin();
   const {
@@ -48,9 +102,203 @@ export default function AccountScreen() {
   const [lockBusy, setLockBusy] = useState(false);
   const [lockMsg, setLockMsg] = useState<string | null>(null);
 
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileErr, setProfileErr] = useState<string | null>(null);
+
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editPlayingPosition, setEditPlayingPosition] = useState("");
+  const [editInstagram, setEditInstagram] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editUsername, setEditUsername] = useState("");
+  const [editBusy, setEditBusy] = useState(false);
+  const [editMsg, setEditMsg] = useState<string | null>(null);
+  const [editOk, setEditOk] = useState(false);
+
+  const [waiverAccepted, setWaiverAccepted] = useState<boolean | null>(null);
+  const [waiverVersion, setWaiverVersion] = useState<string | null>(null);
+  const [waiverLoading, setWaiverLoading] = useState(true);
+
+  const [reliabilityLoading, setReliabilityLoading] = useState(true);
+  const [reliabilityLabel, setReliabilityLabel] = useState<string | null>(null);
+  const [reliabilityScorePct, setReliabilityScorePct] = useState<number | null>(null);
+  const [reliabilitySubtext, setReliabilitySubtext] = useState<string | null>(null);
+
   useEffect(() => {
     void refreshBiometricAvailability();
   }, [refreshBiometricAvailability]);
+
+  const userId = session?.user?.id ?? null;
+  const accessToken = session?.access_token ?? null;
+
+  const loadProfile = useCallback(async () => {
+    if (!supabase || !userId) {
+      setProfileLoading(false);
+      return;
+    }
+    setProfileLoading(true);
+    setProfileErr(null);
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(
+        "first_name,last_name,tier,tier_rank,approved,instagram,phone,playing_position,username",
+      )
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) {
+      setProfileErr(error.message);
+      setProfile(null);
+    } else {
+      setProfile((data as ProfileRow | null) ?? null);
+    }
+    setProfileLoading(false);
+  }, [supabase, userId]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    void loadProfile();
+  }, [isReady, loadProfile]);
+
+  useEffect(() => {
+    if (!profile) return;
+    setEditFirstName(String(profile.first_name ?? ""));
+    setEditLastName(String(profile.last_name ?? ""));
+    setEditPlayingPosition(String(profile.playing_position ?? ""));
+    setEditInstagram(profile.instagram ? String(profile.instagram).replace(/^@/, "") : "");
+    setEditPhone(String(profile.phone ?? ""));
+    setEditUsername(String(profile.username ?? ""));
+  }, [profile]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    const origin = siteOrigin();
+    if (!origin || !accessToken) {
+      setWaiverLoading(false);
+      setWaiverAccepted(null);
+      setWaiverVersion(null);
+      return;
+    }
+    let cancelled = false;
+    setWaiverLoading(true);
+    void (async () => {
+      try {
+        const r = await fetch(`${origin}/api/waiver/status`, {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          cache: "no-store",
+        });
+        const j = (await r.json().catch(() => null)) as
+          | { accepted?: boolean; currentVersion?: string }
+          | null;
+        if (cancelled) return;
+        if (!r.ok || !j) {
+          setWaiverAccepted(null);
+          setWaiverVersion(null);
+        } else {
+          setWaiverAccepted(Boolean(j.accepted));
+          setWaiverVersion(typeof j.currentVersion === "string" ? j.currentVersion : null);
+        }
+      } catch {
+        if (!cancelled) {
+          setWaiverAccepted(null);
+          setWaiverVersion(null);
+        }
+      } finally {
+        if (!cancelled) setWaiverLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isReady, accessToken]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    if (!accessToken) {
+      setReliabilityLoading(false);
+      setReliabilityLabel(null);
+      setReliabilityScorePct(null);
+      setReliabilitySubtext(null);
+      return;
+    }
+    let cancelled = false;
+    setReliabilityLoading(true);
+    void (async () => {
+      const r = await fetchPickupStanding(accessToken);
+      if (cancelled) return;
+      if (r.ok && r.data?.ok && r.data.reliability) {
+        const rel = r.data.reliability;
+        setReliabilityLabel(rel.user_label ?? null);
+        setReliabilityScorePct(rel.score_pct == null ? null : Math.round(Number(rel.score_pct)));
+        setReliabilitySubtext(rel.user_subtext ?? null);
+      } else {
+        setReliabilityLabel(null);
+        setReliabilityScorePct(null);
+        setReliabilitySubtext(null);
+      }
+      setReliabilityLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isReady, accessToken]);
+
+  async function onSaveProfile() {
+    if (!supabase || !userId) return;
+    setEditMsg(null);
+    setEditOk(false);
+
+    const firstName = editFirstName.trim();
+    const lastName = editLastName.trim();
+    const playingPosition = editPlayingPosition.trim();
+    const instagram = cleanInstagram(editInstagram);
+    const phone = editPhone.trim();
+    const username = editUsername.trim();
+
+    setEditBusy(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        first_name: firstName || null,
+        last_name: lastName || null,
+        playing_position: playingPosition || null,
+        instagram: instagram || null,
+        phone: phone || null,
+        username: username || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId);
+    setEditBusy(false);
+
+    if (error) {
+      const code = (error as { code?: string }).code;
+      const dup =
+        code === "23505" ||
+        /profiles_username_lower_unique|duplicate key/i.test(error.message ?? "");
+      setEditMsg(dup ? "That username is already taken. Try another." : error.message);
+      return;
+    }
+
+    setProfile((p) =>
+      p
+        ? {
+            ...p,
+            first_name: firstName || null,
+            last_name: lastName || null,
+            playing_position: playingPosition || null,
+            instagram: instagram || null,
+            phone: phone || null,
+            username: username || null,
+          }
+        : p,
+    );
+    setEditOk(true);
+    setEditMsg("Saved.");
+  }
 
   async function onToggleBiometrics(next: boolean) {
     setLockMsg(null);
@@ -102,6 +350,207 @@ export default function AccountScreen() {
           <Pressable style={styles.outlineBtnLime} onPress={() => void signOut()}>
             <Text style={styles.outlineBtnLimeText}>Sign out</Text>
           </Pressable>
+        </View>
+
+        <Text style={styles.sectionTitle}>Profile</Text>
+        <Text style={styles.sectionSub}>Your roster info from CT Pickup.</Text>
+
+        <View style={styles.card}>
+          {profileLoading ? (
+            <View style={styles.cardLoadingRow}>
+              <ActivityIndicator color="#fff" />
+              <Text style={styles.cardLoadingText}>Loading profile…</Text>
+            </View>
+          ) : profileErr ? (
+            <Text style={styles.cardError}>{profileErr}</Text>
+          ) : !profile ? (
+            <Text style={styles.cardMuted}>No profile found.</Text>
+          ) : (
+            <>
+              <View style={styles.statusRow}>
+                <View
+                  style={[
+                    styles.statusPill,
+                    profile.approved ? styles.statusPillGreen : styles.statusPillAmber,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusPillText,
+                      profile.approved ? styles.statusPillTextGreen : styles.statusPillTextAmber,
+                    ]}
+                  >
+                    {profile.approved ? "Approved" : "Pending approval"}
+                  </Text>
+                </View>
+              </View>
+              <InfoRow label="Full name" value={fullName(profile)} />
+              <InfoRow label="Username" value={profile.username} />
+              <InfoRow label="Playing position" value={profile.playing_position} />
+              <InfoRow
+                label="Instagram"
+                value={profile.instagram ? `@${String(profile.instagram).replace(/^@/, "")}` : null}
+              />
+              <InfoRow label="Phone" value={profile.phone} />
+              <InfoRow label="Tier" value={tierLabel(profile.tier, profile.tier_rank)} />
+            </>
+          )}
+        </View>
+
+        <Text style={styles.sectionTitle}>Edit profile</Text>
+        <Text style={styles.sectionSub}>Update your roster details. Saved instantly.</Text>
+
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>First name</Text>
+          <TextInput
+            style={styles.input}
+            value={editFirstName}
+            onChangeText={setEditFirstName}
+            autoCapitalize="words"
+            autoCorrect={false}
+            placeholder="First name"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            editable={!editBusy}
+          />
+
+          <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Last name</Text>
+          <TextInput
+            style={styles.input}
+            value={editLastName}
+            onChangeText={setEditLastName}
+            autoCapitalize="words"
+            autoCorrect={false}
+            placeholder="Last name"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            editable={!editBusy}
+          />
+
+          <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Playing position</Text>
+          <TextInput
+            style={styles.input}
+            value={editPlayingPosition}
+            onChangeText={setEditPlayingPosition}
+            autoCapitalize="words"
+            autoCorrect={false}
+            placeholder="e.g. Midfielder"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            editable={!editBusy}
+          />
+
+          <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Instagram</Text>
+          <TextInput
+            style={styles.input}
+            value={editInstagram}
+            onChangeText={setEditInstagram}
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder="@handle"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            editable={!editBusy}
+          />
+
+          <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Phone</Text>
+          <TextInput
+            style={styles.input}
+            value={editPhone}
+            onChangeText={setEditPhone}
+            keyboardType="phone-pad"
+            autoCorrect={false}
+            placeholder="Phone number"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            editable={!editBusy}
+          />
+
+          <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Username</Text>
+          <TextInput
+            style={styles.input}
+            value={editUsername}
+            onChangeText={setEditUsername}
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder="username"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            editable={!editBusy}
+          />
+
+          <Pressable
+            style={[styles.primaryBtn, editBusy && styles.disabled]}
+            disabled={editBusy}
+            onPress={() => void onSaveProfile()}
+          >
+            <Text style={styles.primaryBtnText}>{editBusy ? "Saving…" : "Save profile"}</Text>
+          </Pressable>
+          {editMsg ? (
+            <Text style={[styles.msg, editOk ? styles.msgOk : styles.msgMuted]}>{editMsg}</Text>
+          ) : null}
+        </View>
+
+        <Text style={styles.sectionTitle}>Waiver</Text>
+        <View style={styles.card}>
+          {waiverLoading ? (
+            <View style={styles.cardLoadingRow}>
+              <ActivityIndicator color="#fff" />
+              <Text style={styles.cardLoadingText}>Checking waiver…</Text>
+            </View>
+          ) : waiverAccepted ? (
+            <>
+              <View style={styles.statusRow}>
+                <View style={[styles.statusPill, styles.statusPillGreen]}>
+                  <Text style={[styles.statusPillText, styles.statusPillTextGreen]}>
+                    Waiver accepted
+                  </Text>
+                </View>
+              </View>
+              {waiverVersion ? (
+                <Text style={styles.cardSubtle}>Version {waiverVersion}</Text>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <View style={styles.statusRow}>
+                <View style={[styles.statusPill, styles.statusPillAmber]}>
+                  <Text style={[styles.statusPillText, styles.statusPillTextAmber]}>
+                    Waiver required
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.cardSubtle}>
+                Sign the liability waiver to RSVP for pickup and tournaments.
+              </Text>
+              <Pressable
+                style={styles.outlineBtnLime}
+                onPress={() => router.push("/waiver")}
+              >
+                <Text style={styles.outlineBtnLimeText}>Sign waiver</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+
+        <Text style={styles.sectionTitle}>Reliability</Text>
+        <View style={styles.card}>
+          {reliabilityLoading ? (
+            <View style={styles.cardLoadingRow}>
+              <ActivityIndicator color="#fff" />
+              <Text style={styles.cardLoadingText}>Loading score…</Text>
+            </View>
+          ) : reliabilityLabel == null && reliabilityScorePct == null ? (
+            <Text style={styles.cardMuted}>Reliability score isn’t available yet.</Text>
+          ) : (
+            <>
+              <View style={styles.reliabilityHeader}>
+                <Text style={styles.reliabilityLabel}>{reliabilityLabel ?? "Reliability"}</Text>
+                {reliabilityScorePct != null ? (
+                  <View style={styles.scorePill}>
+                    <Text style={styles.scorePillText}>{reliabilityScorePct}%</Text>
+                  </View>
+                ) : null}
+              </View>
+              {reliabilitySubtext ? (
+                <Text style={styles.cardSubtle}>{reliabilitySubtext}</Text>
+              ) : null}
+            </>
+          )}
         </View>
 
         {isAdmin ? (
@@ -432,6 +881,63 @@ const styles = StyleSheet.create({
   textBtnLabelStrong: { color: "#93c5fd", fontSize: 15, fontWeight: "600" },
   msg: { marginTop: 14, color: "#fca5a5", fontSize: 14 },
   msgMuted: { color: "rgba(252,211,212,0.92)" },
+  msgOk: { color: LIME },
+
+  cardLoadingRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  cardLoadingText: { color: "rgba(255,255,255,0.7)", fontSize: 14 },
+  cardMuted: { color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
+  cardError: { color: "#fca5a5", fontSize: 14, lineHeight: 20 },
+  cardSubtle: { marginTop: 10, color: "rgba(255,255,255,0.6)", fontSize: 14, lineHeight: 20 },
+
+  infoRow: {
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.1)",
+  },
+  infoLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: "rgba(255,255,255,0.45)",
+  },
+  infoValue: { marginTop: 4, fontSize: 15, color: "rgba(255,255,255,0.95)", lineHeight: 22 },
+
+  statusRow: { flexDirection: "row", marginBottom: 12 },
+  statusPill: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  statusPillGreen: {
+    borderColor: "rgba(163,230,53,0.45)",
+    backgroundColor: "rgba(163,230,53,0.12)",
+  },
+  statusPillAmber: {
+    borderColor: "rgba(252,211,77,0.45)",
+    backgroundColor: "rgba(252,211,77,0.12)",
+  },
+  statusPillText: { fontSize: 12, fontWeight: "800", letterSpacing: 0.6 },
+  statusPillTextGreen: { color: LIME },
+  statusPillTextAmber: { color: "#fcd34d" },
+
+  reliabilityHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  reliabilityLabel: { color: "#fff", fontSize: 16, fontWeight: "700", flexShrink: 1 },
+  scorePill: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.45)",
+    backgroundColor: "rgba(163,230,53,0.12)",
+  },
+  scorePillText: { color: LIME, fontSize: 14, fontWeight: "800", letterSpacing: 0.4 },
 
   aboutRow: {
     marginTop: 16,
