@@ -96,12 +96,13 @@ export default function TeamChatThreadScreen() {
   const listRef = useRef<FlatList<unknown> | null>(null);
 
   const announcementsOnly = !!room?.announcements_only;
+  /** Group threads use `id` routing; slug threads are announcements / team. */
+  const isGroupRoom = !!trimmedId;
   const canCompose = useMemo(() => {
-    if (!enabled) return false;
     if (!roomId) return false;
-    if (announcementsOnly && isAdmin !== true) return false;
-    return true;
-  }, [enabled, roomId, announcementsOnly, isAdmin]);
+    if (isAdmin === true) return true;
+    return enabled === true && announcementsOnly === false;
+  }, [roomId, isAdmin, enabled, announcementsOnly]);
 
   async function onSend() {
     const body = draft.trim();
@@ -306,13 +307,15 @@ export default function TeamChatThreadScreen() {
         <TextInput
           style={[styles.input, !canCompose && styles.inputDisabled]}
           placeholder={
-            canCompose
+            !canCompose
               ? announcementsOnly
-                ? "Post an announcement…"
-                : "Message the team…"
-              : announcementsOnly
                 ? "Announcements only"
                 : "Chat is unavailable"
+              : isAdmin === true && announcementsOnly
+                ? "Post an announcement"
+                : isGroupRoom
+                  ? "Message the group"
+                  : "Message the team…"
           }
           placeholderTextColor="rgba(255,255,255,0.35)"
           value={draft}
