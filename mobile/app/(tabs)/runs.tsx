@@ -23,6 +23,18 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+/**
+ * Fixed availability ranges shown during the planning poll. The `slot_label`
+ * value is what gets sent to (and matched against) `/api/pickup/commit` —
+ * the server creates a `pickup_run_time_slots` row with that label on first
+ * use and reuses it for subsequent commits.
+ */
+const FIXED_AVAILABILITY_RANGES = [
+  { display: "10am – 12pm", slot_label: "10am-12pm" },
+  { display: "3pm – 5pm", slot_label: "3pm-5pm" },
+  { display: "7pm – 10pm", slot_label: "7pm-10pm" },
+] as const;
+
 export default function RunsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -54,7 +66,7 @@ export default function RunsScreen() {
     declinePickup,
     availabilityBusy,
     commitAvailability,
-    pendingSlotId,
+    pendingSlotKey,
   } = usePickupJoin();
   const { loading: scoreLoading, scorePct, trackedPickups, attendedPickups } = usePickupStandingScore();
 
@@ -112,45 +124,27 @@ export default function RunsScreen() {
     return out;
   }, [dataObj]);
 
-  type SlotCount = {
-    slot_id: string;
-    start_at: string | null;
-    tier1_count: number;
-    total_available: number;
-    label: string | null;
+  type MyAvailability = {
+    slot_id: string | null;
+    slot_label: string | null;
+    state: string | null;
   };
-  type MyAvailability = { slot_id: string | null; state: string | null };
 
-  const planning = useMemo<{ slotCounts: SlotCount[]; myAvailability: MyAvailability | null }>(() => {
+  const planning = useMemo<{ myAvailability: MyAvailability | null }>(() => {
     const raw = dataObj.planning;
-    if (!raw || typeof raw !== "object") return { slotCounts: [], myAvailability: null };
+    if (!raw || typeof raw !== "object") return { myAvailability: null };
     const p = raw as Record<string, unknown>;
-    const slotsRaw = Array.isArray(p.slotCounts) ? p.slotCounts : [];
-    const slotCounts: SlotCount[] = slotsRaw
-      .map((entry) => {
-        if (!entry || typeof entry !== "object") return null;
-        const s = entry as Record<string, unknown>;
-        const slot_id = typeof s.slot_id === "string" ? s.slot_id : null;
-        if (!slot_id) return null;
-        return {
-          slot_id,
-          start_at: typeof s.start_at === "string" ? s.start_at : null,
-          tier1_count: typeof s.tier1_count === "number" ? s.tier1_count : 0,
-          total_available: typeof s.total_available === "number" ? s.total_available : 0,
-          label: typeof s.label === "string" ? s.label : null,
-        } satisfies SlotCount;
-      })
-      .filter((s): s is SlotCount => s !== null);
 
     let myAvailability: MyAvailability | null = null;
     if (p.my_availability && typeof p.my_availability === "object") {
       const m = p.my_availability as Record<string, unknown>;
       myAvailability = {
         slot_id: typeof m.slot_id === "string" ? m.slot_id : null,
+        slot_label: typeof m.slot_label === "string" ? m.slot_label : null,
         state: typeof m.state === "string" ? m.state : null,
       };
     }
-    return { slotCounts, myAvailability };
+    return { myAvailability };
   }, [dataObj]);
 
   type Attendee = { full_name: string; instagram: string | null };
@@ -353,48 +347,50 @@ export default function RunsScreen() {
             {showAvailabilityPoll ? (
               <View style={styles.pollSection}>
                 <Text style={styles.pollHeading}>Availability poll</Text>
-                {planning.slotCounts.length === 0 ? (
-                  <Text style={styles.pollEmpty}>No time slots posted yet.</Text>
-                ) : (
-                  <View style={styles.pollSlotList}>
-                    {planning.slotCounts.map((slot) => {
-                      const picked =
-                        planning.myAvailability?.state === "available" &&
-                        planning.myAvailability?.slot_id === slot.slot_id;
-                      const slotDisabled = !invitedNow || availabilityBusy || !runId;
-                      const showSpinner = availabilityBusy && pendingSlotId === slot.slot_id;
-                      return (
-                        <Pressable
-                          key={slot.slot_id}
-                          disabled={slotDisabled}
-                          onPress={() =>
-                            void commitAvailability(token, runId, "available", slot.slot_id, load)
-                          }
-                          style={({ pressed }) => [
-                            styles.slotButton,
-                            picked && styles.slotButtonPicked,
-                            slotDisabled && styles.slotButtonDisabled,
-                            pressed && !slotDisabled && { opacity: 0.85 },
-                          ]}
-                        >
-                          <View style={styles.slotButtonRow}>
-                            <Text style={styles.slotTime} numberOfLines={1}>
-                              {fmtPickupDt(slot.start_at)}
-                            </Text>
-                            {showSpinner ? (
-                              <ActivityIndicator color="#a3e635" size="small" />
-                            ) : (
-                              <Text style={styles.slotMeta}>
-                                Tier-1 {slot.tier1_count} · Total {slot.total_available}
-                              </Text>
-                            )}
-                          </View>
-                          {slot.label ? <Text style={styles.slotLabel}>{slot.label}</Text> : null}
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                )}
+                <View style={styles.pollSlotList}>
+                  {FIXED_AVAILABILITY_RANGES.map((range) => {
+                    const picked =
+                      planning.myAvailability?.state === "available" &&
+                      planning.myAvailability?.slot_label === range.slot_label;
+                    const slotDisabled = !invitedNow || availabilityBusy || !runId;
+                    const showSpinner =
+                      availabilityBusy && pendingSlotKey === range.slot_label;
+                    return (
+                      <Pressable
+                        key={range.slot_label}
+                        disabled={slotDisabled}
+                        onPress={() =>
+                          void commitAvailability(
+                            token,
+                            runId,
+                            "available",
+                            null,
+                            load,
+                            range.slot_label,
+                          )
+                        }
+                        style={({ pressed }) => [
+                          styles.slotButton,
+                          picked && styles.slotButtonPicked,
+                          slotDisabled && styles.slotButtonDisabled,
+                          pressed && !slotDisabled && { opacity: 0.85 },
+                        ]}
+                      >
+                        <View style={styles.slotButtonRow}>
+                          <Text
+                            style={[styles.slotTime, picked && styles.slotTimePicked]}
+                            numberOfLines={1}
+                          >
+                            {range.display}
+                          </Text>
+                          {showSpinner ? (
+                            <ActivityIndicator color="#a3e635" size="small" />
+                          ) : null}
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
                 <Pressable
                   disabled={!invitedNow || availabilityBusy || !runId}
                   onPress={() =>
@@ -647,7 +643,6 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.8)",
     textTransform: "uppercase",
   },
-  pollEmpty: { color: "rgba(255,255,255,0.6)", fontSize: 14, lineHeight: 20 },
   pollSlotList: { gap: 8 },
   slotButton: {
     paddingVertical: 12,
@@ -669,8 +664,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   slotTime: { color: "#fff", fontSize: 15, fontWeight: "600", flexShrink: 1 },
-  slotMeta: { color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: "600" },
-  slotLabel: { marginTop: 4, color: "rgba(255,255,255,0.55)", fontSize: 12 },
+  slotTimePicked: { color: "#a3e635" },
   declineSlotButton: {
     alignSelf: "flex-start",
     marginTop: 4,

@@ -13,6 +13,14 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View
 
 const LIME = "#a3e635";
 
+const ACTIVE_CLAIM_STATUSES = [
+  "claim_submitted",
+  "payment_pending",
+  "captain_not_verified",
+  "roster_pending",
+  "verification_in_progress",
+] as const;
+
 function alertCaptainPayError(errMsg: string) {
   const lower = errMsg.toLowerCase();
   if (lower.includes("no_captain_claim")) {
@@ -32,10 +40,11 @@ export default function FieldTournamentDetailScreen() {
   const navigation = useNavigation();
   const router = useRouter();
   const { region } = useSelectedRegion();
-  const { session } = useAuth();
+  const { session, supabase } = useAuth();
   const { loading, error, payload, reload } = useFieldTournament();
   const [payBusy, setPayBusy] = useState(false);
   const [claimModalOpen, setClaimModalOpen] = useState(false);
+  const [hasClaim, setHasClaim] = useState(false);
 
   async function handleCaptainPay() {
     const token = session?.access_token;
@@ -98,6 +107,36 @@ export default function FieldTournamentDetailScreen() {
       navigation.setOptions?.({ title: String(t.title).slice(0, 42) });
     }
   }, [navigation, t?.title]);
+
+  const tournamentId = t?.id ?? null;
+  const userId = session?.user?.id ?? null;
+
+  useEffect(() => {
+    if (!supabase || !tournamentId || !userId) {
+      setHasClaim(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data, error: qErr } = await supabase
+        .from("tournament_captains")
+        .select("id, status")
+        .eq("tournament_id", tournamentId)
+        .eq("user_id", userId)
+        .in("status", ACTIVE_CLAIM_STATUSES as unknown as string[])
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      if (qErr) {
+        setHasClaim(false);
+        return;
+      }
+      setHasClaim(!!data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, tournamentId, userId, payload]);
 
   const claimedTeams = payload?.claimedTeams ?? 0;
   const maxTeams = t?.maxTeams ?? 0;
@@ -177,24 +216,20 @@ export default function FieldTournamentDetailScreen() {
         </>
       ) : null}
 
-      {t ? (
-        session ? (
-          <Pressable
-            style={[styles.captainPayBtn, payBusy && styles.captainPayBtnDisabled]}
-            disabled={payBusy}
-            onPress={() => void handleCaptainPay()}
-            accessibilityRole="button"
-            accessibilityLabel="Pay captain fee"
-          >
-            {payBusy ? (
-              <ActivityIndicator color="#111" />
-            ) : (
-              <Text style={styles.captainPayBtnText}>Pay captain fee $250</Text>
-            )}
-          </Pressable>
-        ) : (
-          <Text style={styles.signInToPay}>Sign in to pay</Text>
-        )
+      {t && session && hasClaim ? (
+        <Pressable
+          style={[styles.captainPayBtn, payBusy && styles.captainPayBtnDisabled]}
+          disabled={payBusy}
+          onPress={() => void handleCaptainPay()}
+          accessibilityRole="button"
+          accessibilityLabel="Pay captain fee"
+        >
+          {payBusy ? (
+            <ActivityIndicator color="#111" />
+          ) : (
+            <Text style={styles.captainPayBtnText}>Pay captain fee $250</Text>
+          )}
+        </Pressable>
       ) : null}
 
       {payload?.tournament && payload.tournament.announcement ? (
@@ -343,11 +378,4 @@ const styles = StyleSheet.create({
   },
   captainPayBtnDisabled: { opacity: 0.45 },
   captainPayBtnText: { color: LIME, fontWeight: "800", fontSize: 15 },
-  signInToPay: {
-    marginTop: 16,
-    fontSize: 14,
-    lineHeight: 20,
-    color: "rgba(255,255,255,0.55)",
-    textAlign: "center",
-  },
 });

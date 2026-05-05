@@ -46,7 +46,12 @@ export function usePickupJoin() {
   const [payBusy, setPayBusy] = useState(false);
   const [declineBusy, setDeclineBusy] = useState(false);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
-  const [pendingSlotId, setPendingSlotId] = useState<string | null>(null);
+  /**
+   * Tracks which slot the user is currently committing to so the row can show a
+   * spinner. Holds a `slot_id` when the legacy id-based call is used, or a
+   * `slot_label` when the fixed-range buttons drive the commit.
+   */
+  const [pendingSlotKey, setPendingSlotKey] = useState<string | null>(null);
 
   const joinPickup = useCallback(
     async (accessToken: string | null, runId: unknown, reload: () => void | Promise<void>) => {
@@ -152,6 +157,7 @@ export function usePickupJoin() {
       state: "available" | "declined",
       slotId: string | null,
       reload: () => void | Promise<void>,
+      slotLabel: string | null = null,
     ) => {
       const id = typeof runId === "string" ? runId : null;
       if (!accessToken) {
@@ -160,9 +166,9 @@ export function usePickupJoin() {
       }
       if (!id) return;
       setAvailabilityBusy(true);
-      setPendingSlotId(state === "available" ? slotId : null);
+      setPendingSlotKey(state === "available" ? (slotLabel ?? slotId) : null);
       try {
-        const r = await postPickupCommit(accessToken, id, state, slotId);
+        const r = await postPickupCommit(accessToken, id, state, slotId, slotLabel);
         const j = r.json as Record<string, unknown>;
         if (r.ok) {
           await reload();
@@ -171,7 +177,7 @@ export function usePickupJoin() {
         Alert.alert("Could not submit", commitErrorMessage(r.status, j));
       } finally {
         setAvailabilityBusy(false);
-        setPendingSlotId(null);
+        setPendingSlotKey(null);
       }
     },
     [],
@@ -186,6 +192,6 @@ export function usePickupJoin() {
     declinePickup,
     availabilityBusy,
     commitAvailability,
-    pendingSlotId,
+    pendingSlotKey,
   };
 }

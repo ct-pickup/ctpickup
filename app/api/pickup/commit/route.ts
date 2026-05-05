@@ -39,12 +39,16 @@ export async function POST(req: Request) {
 
   const body = await req.json();
   const run_id = String(body.run_id || "");
-  const slot_id = body.slot_id ? String(body.slot_id) : null;
+  const slot_id_in = body.slot_id ? String(body.slot_id) : null;
+  const slot_label_in =
+    typeof body.slot_label === "string" && body.slot_label.trim().length > 0
+      ? body.slot_label.trim()
+      : null;
   const state = String(body.state || "declined"); // 'available' | 'declined'
 
   if (!run_id) return NextResponse.json({ error: "Missing run_id" }, { status: 400 });
-  if (state === "available" && !slot_id)
-    return NextResponse.json({ error: "Missing slot_id" }, { status: 400 });
+  if (state === "available" && !slot_id_in && !slot_label_in)
+    return NextResponse.json({ error: "Missing slot_id or slot_label" }, { status: 400 });
 
   const prof = await admin
     .from("profiles")
@@ -89,12 +93,53 @@ export async function POST(req: Request) {
     }
   }
 
+  // Resolve target slot_id. If `slot_label` was supplied, look up an existing
+  // slot with that label for this run; otherwise create one so availability has
+  // a stable slot to attach to. Falling back keeps callers that still send
+  // `slot_id` working unchanged.
+  let resolvedSlotId: string | null = null;
+  if (state === "available") {
+    if (slot_id_in) {
+      resolvedSlotId = slot_id_in;
+    } else if (slot_label_in) {
+      const existing = await admin
+        .from("pickup_run_time_slots")
+        .select("id")
+        .eq("run_id", run_id)
+        .eq("label", slot_label_in)
+        .limit(1)
+        .maybeSingle();
+
+      if (existing.data?.id) {
+        resolvedSlotId = String(existing.data.id);
+      } else {
+        const ins = await admin
+          .from("pickup_run_time_slots")
+          .insert({
+            run_id,
+            label: slot_label_in,
+            start_at: run.data.start_at ?? null,
+          })
+          .select("id")
+          .maybeSingle();
+
+        if (ins.error || !ins.data?.id) {
+          return NextResponse.json(
+            { error: ins.error?.message || "Could not create slot for label." },
+            { status: 500 },
+          );
+        }
+        resolvedSlotId = String(ins.data.id);
+      }
+    }
+  }
+
   // Upsert availability
   await admin.from("pickup_run_availability").upsert(
     {
       run_id,
       user_id: userId,
-      slot_id: state === "available" ? slot_id : null,
+      slot_id: state === "available" ? resolvedSlotId : null,
       state,
       updated_at: new Date().toISOString(),
     },

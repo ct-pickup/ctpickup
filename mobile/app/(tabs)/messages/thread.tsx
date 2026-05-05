@@ -1,7 +1,7 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { SignInPanel } from "@/components/SignInPanel";
 import { useAuth } from "@/context/AuthContext";
-import { useTeamChatAccess, useTeamChatMessages, useTeamChatRoom } from "@/hooks/useTeamChat";
+import { useChatAdminUserIds, useTeamChatAccess, useTeamChatMessages, useTeamChatRoom } from "@/hooks/useTeamChat";
 import { ANNOUNCEMENTS_CHAT_SLUG, TEAM_CHAT_SLUG, useUserChatRooms, type ChatRoomSummary } from "@/lib/teamChat";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
@@ -88,6 +88,7 @@ export default function TeamChatThreadScreen() {
   const switchChips = useMemo(() => buildSwitchChips(userRooms), [userRooms]);
 
   const { messages, loading: msgsLoading, error: msgsError, send, currentUserId } = useTeamChatMessages(roomId);
+  const { adminIds } = useChatAdminUserIds(enabled);
 
   const [draft, setDraft] = useState("");
   const [sendBusy, setSendBusy] = useState(false);
@@ -265,11 +266,40 @@ export default function TeamChatThreadScreen() {
         renderItem={({ item }) => {
           const m = item as (typeof messages)[number];
           const mine = !!currentUserId && m.user_id === currentUserId;
+          const senderIsAdmin = adminIds.has(m.user_id);
+          // Admin styling fires when the sender is staff OR the room is announcements-only,
+          // so staff posts stand out in team chat / group rooms the same way they do in
+          // the Announcements room.
+          const adminLook = !mine && (senderIsAdmin || announcementsOnly);
           return (
             <View style={[styles.msgRow, mine ? styles.msgRowMine : styles.msgRowOther]}>
-              {!mine ? <Text style={styles.msgSender}>{m.sender_display_name || "Player"}</Text> : null}
-              <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther]}>
-                <Text style={[styles.bubbleText, mine ? styles.bubbleTextMine : styles.bubbleTextOther]}>{m.body}</Text>
+              {!mine ? (
+                <Text style={[styles.msgSender, adminLook && styles.msgSenderAdmin]}>
+                  {m.sender_display_name || "Player"}
+                </Text>
+              ) : null}
+              <View
+                style={[
+                  styles.bubble,
+                  mine
+                    ? styles.bubbleMine
+                    : adminLook
+                      ? styles.bubbleAdmin
+                      : styles.bubbleOther,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.bubbleText,
+                    mine
+                      ? styles.bubbleTextMine
+                      : adminLook
+                        ? styles.bubbleTextAdmin
+                        : styles.bubbleTextOther,
+                  ]}
+                >
+                  {m.body}
+                </Text>
               </View>
             </View>
           );
@@ -377,6 +407,7 @@ const styles = StyleSheet.create({
   msgRowMine: { alignSelf: "flex-end" },
   msgRowOther: { alignSelf: "flex-start" },
   msgSender: { color: "rgba(255,255,255,0.55)", fontSize: 12, marginBottom: 4, fontWeight: "700" },
+  msgSenderAdmin: { color: LIME },
   bubble: {
     paddingVertical: 10,
     paddingHorizontal: 12,
@@ -385,9 +416,16 @@ const styles = StyleSheet.create({
   },
   bubbleMine: { backgroundColor: LIME, borderColor: "rgba(0,0,0,0.2)" },
   bubbleOther: { backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)" },
+  bubbleAdmin: {
+    backgroundColor: "rgba(163,230,53,0.06)",
+    borderColor: "rgba(163,230,53,0.18)",
+    borderLeftWidth: 3,
+    borderLeftColor: LIME,
+  },
   bubbleText: { fontSize: 15, lineHeight: 20 },
   bubbleTextMine: { color: "#0a0a0a", fontWeight: "700" },
   bubbleTextOther: { color: "rgba(255,255,255,0.88)" },
+  bubbleTextAdmin: { color: "#fff", fontWeight: "600" },
   composer: {
     flexDirection: "row",
     gap: 10,

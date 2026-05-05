@@ -73,6 +73,43 @@ export function useTeamChatRoom(enabled: boolean, lookup: RoomLookup) {
   return { room, loading, error };
 }
 
+/**
+ * Returns the set of user_ids whose profile has `is_admin = true`. Used by the
+ * chat UI to identify staff-authored messages so they can be rendered with the
+ * "announcement" pill (lime border + dark green card + white text) in any
+ * room, not just announcements-only rooms.
+ */
+export function useChatAdminUserIds(enabled: boolean) {
+  const { supabase } = useAuth();
+  const [adminIds, setAdminIds] = useState<Set<string>>(() => new Set());
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!enabled || !supabase) {
+      setAdminIds(new Set());
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    void (async () => {
+      const { data } = await supabase.from("profiles").select("id").eq("is_admin", true);
+      if (cancelled) return;
+      const ids = new Set<string>();
+      for (const row of (data ?? []) as { id: string }[]) {
+        if (row?.id) ids.add(row.id);
+      }
+      setAdminIds(ids);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, supabase]);
+
+  return { adminIds, loading };
+}
+
 export function useTeamChatAccess() {
   const { supabase, session } = useAuth();
   const [allowed, setAllowed] = useState<boolean | null>(null);

@@ -72,6 +72,7 @@ export default function EsportsRegisterScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = typeof rawId === "string" ? rawId : Array.isArray(rawId) ? rawId[0] : "";
   const { supabase, session, isReady } = useAuth();
+  const token = session?.access_token ?? null;
   const navigation = useNavigation();
   const router = useRouter();
 
@@ -230,10 +231,13 @@ export default function EsportsRegisterScreen() {
       setConsentMsg("Enter your full legal name.");
       return;
     }
-    const token = session?.access_token;
+    if (!token) {
+      Alert.alert("Sign in to register");
+      return;
+    }
     const base = siteOrigin();
-    if (!token || !base) {
-      setConsentMsg("Sign in and set EXPO_PUBLIC_SITE_URL in mobile/.env.");
+    if (!base) {
+      setConsentMsg("Set EXPO_PUBLIC_SITE_URL in mobile/.env to your deployed API host.");
       return;
     }
 
@@ -334,10 +338,13 @@ export default function EsportsRegisterScreen() {
 
   async function payEntryFee() {
     if (payBusy) return;
-    const token = session?.access_token;
+    if (!token) {
+      Alert.alert("Sign in to register");
+      return;
+    }
     const base = siteOrigin();
-    if (!token || !base) {
-      Alert.alert("Can’t pay", "Sign in and set EXPO_PUBLIC_SITE_URL in mobile/.env.");
+    if (!base) {
+      Alert.alert("Can’t pay", "Set EXPO_PUBLIC_SITE_URL in mobile/.env to your deployed API host.");
       return;
     }
     setPayBusy(true);

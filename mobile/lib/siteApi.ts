@@ -22,16 +22,29 @@ export async function postPickupRsvp(
   return { ok: r.ok, status: r.status, json };
 }
 
-/** Planning-phase availability commit (slot pick or decline). Mirrors the website's `submitAvailability`. */
+/**
+ * Planning-phase availability commit (slot pick or decline). Mirrors the website's `submitAvailability`.
+ * Either `slotId` or `slotLabel` may be supplied for `available`. When only `slotLabel` is sent,
+ * the server resolves (or creates) a `pickup_run_time_slots` row for that run + label.
+ */
 export async function postPickupCommit(
   accessToken: string,
   runId: string,
   state: "available" | "declined",
   slotId: string | null,
+  slotLabel: string | null = null,
 ): Promise<{ ok: boolean; status: number; json: unknown }> {
   const origin = siteOrigin();
   if (!origin) {
     return { ok: false, status: 0, json: { error: "missing_site_url" } };
+  }
+  const payload: Record<string, unknown> = {
+    run_id: runId,
+    state,
+    slot_id: state === "available" ? slotId : null,
+  };
+  if (state === "available" && slotLabel) {
+    payload.slot_label = slotLabel;
   }
   const r = await fetch(`${origin}/api/pickup/commit`, {
     method: "POST",
@@ -39,11 +52,7 @@ export async function postPickupCommit(
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      run_id: runId,
-      slot_id: state === "available" ? slotId : null,
-      state,
-    }),
+    body: JSON.stringify(payload),
   });
   const json = await r.json().catch(() => ({}));
   return { ok: r.ok, status: r.status, json };
