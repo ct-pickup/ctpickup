@@ -252,23 +252,16 @@ export async function POST(req: Request) {
       }
     }
 
-    const rm = await admin
-      .from("pickup_run_availability")
-      .delete()
-      .eq("run_id", run_id)
-      .eq("user_id", userId)
-      .eq("slot_id", resolvedSlotId);
-    if (rm.error) {
-      return NextResponse.json({ error: rm.error.message || "Could not update availability." }, { status: 500 });
-    }
-
-    const ins = await admin.from("pickup_run_availability").insert({
-      run_id,
-      user_id: userId,
-      slot_id: resolvedSlotId,
-      state: "available",
-      updated_at: new Date().toISOString(),
-    });
+    const ins = await admin.from("pickup_run_availability").upsert(
+      {
+        run_id,
+        user_id: userId,
+        slot_id: resolvedSlotId,
+        state: "available",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "run_id,user_id,slot_id" },
+    );
     if (ins.error) {
       return NextResponse.json({ error: ins.error.message || "Could not save availability." }, { status: 500 });
     }
