@@ -6,7 +6,7 @@ import { useFieldTournament } from "@/hooks/useFieldTournament";
 import { siteOrigin } from "@/lib/env";
 import { serviceRegionName } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useNavigation } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -30,6 +30,7 @@ function alertCaptainPayError(errMsg: string) {
 
 export default function FieldTournamentDetailScreen() {
   const navigation = useNavigation();
+  const router = useRouter();
   const { region } = useSelectedRegion();
   const { session } = useAuth();
   const { loading, error, payload, reload } = useFieldTournament();
@@ -117,6 +118,21 @@ export default function FieldTournamentDetailScreen() {
       </Text>
 
       <FieldTournamentCard loading={loading} error={error} payload={payload} style={{ marginTop: 8 }} />
+
+      <Pressable
+        style={({ pressed }) => [styles.statusLinkRow, pressed && { opacity: 0.9 }]}
+        onPress={() => (router.push as (href: string) => void)("/tournament-status")}
+        accessibilityRole="button"
+        accessibilityLabel="Tournament status"
+      >
+        <View style={styles.statusLinkLeft}>
+          <View style={styles.statusLinkIconWrap}>
+            <FontAwesome name="trophy" size={16} color="rgba(255,255,255,0.8)" />
+          </View>
+          <Text style={styles.statusLinkText}>Tournament status</Text>
+        </View>
+        <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+      </Pressable>
 
       {t ? (
         <View style={styles.statsRow}>
@@ -218,6 +234,30 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: "rgba(255,255,255,0.58)",
   },
+  statusLinkRow: {
+    marginTop: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  statusLinkLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  statusLinkIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(163,230,53,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.35)",
+  },
+  statusLinkText: { fontSize: 15, fontWeight: "700", color: "rgba(255,255,255,0.9)" },
   statsRow: {
     marginTop: 14,
     flexDirection: "row",

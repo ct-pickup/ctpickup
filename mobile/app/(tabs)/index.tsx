@@ -6,15 +6,7 @@ import { formatTournamentStartEt } from "@/lib/formatTournament";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useRouter } from "expo-router";
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const LIME = "#a3e635";
@@ -66,12 +58,14 @@ export default function HomeScreen() {
       contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 12) + 8 }]}
     >
       <View style={styles.topRow}>
-        <Image
-          source={require("../../assets/images/ct-pickup-wordmark.png")}
-          style={styles.wordmark}
-          resizeMode="contain"
-          accessibilityLabel="CT Pickup"
-        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Help"
+          onPress={() => (router.push as (href: string) => void)("/help")}
+          style={({ pressed }) => [styles.profileBtn, pressed && { opacity: 0.92 }]}
+        >
+          <FontAwesome name="question" size={16} color={LIME} />
+        </Pressable>
         <View style={styles.topMiddle}>
           <Text style={styles.welcomeLine} numberOfLines={1}>
             Welcome back, <Text style={styles.welcomeName}>{welcome}</Text>
@@ -223,7 +217,6 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 24,
   },
-  wordmark: { width: 86, height: 28, flexShrink: 0 },
   topMiddle: { flex: 1, minWidth: 0, alignItems: "center" },
   welcomeLine: {
     flexShrink: 1,

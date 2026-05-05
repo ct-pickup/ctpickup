@@ -21,7 +21,7 @@ export type FieldTournamentPayload = {
   full: boolean;
 };
 
-function parseFieldPayload(json: unknown): FieldTournamentPayload | null {
+export function parseFieldPayload(json: unknown): FieldTournamentPayload | null {
   if (!json || typeof json !== "object") return null;
   const o = json as Record<string, unknown>;
   const t = o.tournament;

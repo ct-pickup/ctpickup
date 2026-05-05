@@ -168,6 +168,15 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
+                            name="tournament-status"
+                            options={{
+                              headerShown: true,
+                              title: "Tournament status",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                            }}
+                          />
+                          <Stack.Screen
                             name="help"
                             options={{
                               headerShown: true,
