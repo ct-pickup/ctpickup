@@ -80,7 +80,31 @@ export function usePickupPublic(accessToken: string | null) {
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
+          schema: "public",
+          table: "pickup_run_rsvps",
+          filter: `run_id=eq.${runId}`,
+        },
+        () => {
+          void load();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "pickup_run_rsvps",
+          filter: `run_id=eq.${runId}`,
+        },
+        () => {
+          void load();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
           schema: "public",
           table: "pickup_run_rsvps",
           filter: `run_id=eq.${runId}`,

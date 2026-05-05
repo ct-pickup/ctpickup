@@ -20,37 +20,53 @@ async function resolveSlotIdFromLabel(
   admin: SupabaseClient,
   run_id: string,
   start_at: string | null,
-  slot_label: string
-): Promise<{ ok: true; slot_id: string } | { ok: false; error: string; status: number }> {
+  slot_label: string,
+): Promise<string> {
   const existing = await admin
     .from("pickup_run_time_slots")
     .select("id")
     .eq("run_id", run_id)
     .eq("label", slot_label)
-    .limit(1)
     .maybeSingle();
 
-  if (existing.data?.id) {
-    return { ok: true, slot_id: String(existing.data.id) };
+  if (existing.error) {
+    throw new Error(existing.error.message || "Could not look up slot for label.");
+  }
+  if (existing.data?.id != null) {
+    return String(existing.data.id);
   }
 
-  const upserted = await admin
+  const inserted = await admin
     .from("pickup_run_time_slots")
-    .upsert(
-      { run_id, label: slot_label, start_at },
-      { onConflict: "run_id,start_at" },
-    )
+    .insert({ run_id, label: slot_label, start_at })
     .select("id")
-    .maybeSingle();
+    .single();
 
-  if (upserted.error || !upserted.data?.id) {
-    return {
-      ok: false,
-      error: upserted.error?.message || "Could not create slot for label.",
-      status: 500,
-    };
+  if (!inserted.error && inserted.data?.id != null) {
+    return String(inserted.data.id);
   }
-  return { ok: true, slot_id: String(upserted.data.id) };
+
+  const dup =
+    inserted.error?.code === "23505" ||
+    (inserted.error?.message?.toLowerCase().includes("duplicate") ?? false);
+
+  if (dup) {
+    const again = await admin
+      .from("pickup_run_time_slots")
+      .select("id")
+      .eq("run_id", run_id)
+      .eq("label", slot_label)
+      .maybeSingle();
+
+    if (again.error) {
+      throw new Error(again.error.message || "Could not load slot after duplicate insert.");
+    }
+    if (again.data?.id != null) {
+      return String(again.data.id);
+    }
+  }
+
+  throw new Error(inserted.error?.message || "Could not create slot for label.");
 }
 
 async function invitedUserIdsForPickupPush(
@@ -191,9 +207,12 @@ export async function POST(req: Request) {
     if (slot_id_in) {
       resolvedSlotId = slot_id_in;
     } else if (slot_label_in) {
-      const got = await resolveSlotIdFromLabel(admin, run_id, start_at, slot_label_in);
-      if (!got.ok) return NextResponse.json({ error: got.error }, { status: got.status });
-      resolvedSlotId = got.slot_id;
+      try {
+        resolvedSlotId = await resolveSlotIdFromLabel(admin, run_id, start_at, slot_label_in);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Could not resolve slot.";
+        return NextResponse.json({ error: msg }, { status: 500 });
+      }
     }
 
     if (!resolvedSlotId) {
@@ -210,9 +229,12 @@ export async function POST(req: Request) {
     const targetSlotIds: string[] = [];
     if (targetLabels.length > 0) {
       for (const lbl of targetLabels) {
-        const got = await resolveSlotIdFromLabel(admin, run_id, start_at, lbl);
-        if (!got.ok) return NextResponse.json({ error: got.error }, { status: got.status });
-        targetSlotIds.push(got.slot_id);
+        try {
+          targetSlotIds.push(await resolveSlotIdFromLabel(admin, run_id, start_at, lbl));
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : "Could not resolve slot.";
+          return NextResponse.json({ error: msg }, { status: 500 });
+        }
       }
     } else {
       targetSlotIds.push(resolvedSlotId);

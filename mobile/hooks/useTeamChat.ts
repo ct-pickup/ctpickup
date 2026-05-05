@@ -209,7 +209,7 @@ export function useTeamChatMessages(roomId: string | null) {
     let ch: RealtimeChannel | null = null;
 
     ch = supabase
-      .channel(`chat_messages:${roomId}`)
+      .channel(`chat-messages:${roomId}`)
       .on(
         "postgres_changes",
         {
@@ -224,6 +224,19 @@ export function useTeamChatMessages(roomId: string | null) {
             if (prev.some((m) => m.id === row.id)) return prev;
             return [...prev, row];
           });
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "chat_messages",
+          filter: `room_id=eq.${roomId}`,
+        },
+        (payload) => {
+          const row = payload.new as ChatMessageRow;
+          setMessages((prev) => prev.map((m) => (m.id === row.id ? row : m)));
         },
       )
       .subscribe();

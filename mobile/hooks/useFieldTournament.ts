@@ -1,6 +1,8 @@
+import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { fetchTournamentPublic } from "@/lib/siteApi";
 import { siteOrigin } from "@/lib/env";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useCallback, useEffect, useState } from "react";
 
 export type FieldTournamentSummary = {
@@ -56,6 +58,7 @@ export function parseFieldPayload(json: unknown): FieldTournamentPayload | null 
 }
 
 export function useFieldTournament() {
+  const { supabase } = useAuth();
   const { region, ready: regionReady } = useSelectedRegion();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +90,32 @@ export function useFieldTournament() {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  const tournamentId = payload?.tournament?.id?.trim() ? payload.tournament.id : null;
+
+  useEffect(() => {
+    if (!supabase || !tournamentId) return;
+
+    const channel = supabase
+      .channel(`field-tournament:${tournamentId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "tournaments",
+          filter: `id=eq.${tournamentId}`,
+        },
+        () => {
+          void reload();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [supabase, tournamentId, reload]);
 
   return { loading, error, payload, reload };
 }
