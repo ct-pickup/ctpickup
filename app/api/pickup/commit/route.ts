@@ -34,24 +34,23 @@ async function resolveSlotIdFromLabel(
     return { ok: true, slot_id: String(existing.data.id) };
   }
 
-  const ins = await admin
+  const upserted = await admin
     .from("pickup_run_time_slots")
-    .insert({
-      run_id,
-      label: slot_label,
-      start_at,
-    })
+    .upsert(
+      { run_id, label: slot_label, start_at },
+      { onConflict: "run_id,start_at" },
+    )
     .select("id")
     .maybeSingle();
 
-  if (ins.error || !ins.data?.id) {
+  if (upserted.error || !upserted.data?.id) {
     return {
       ok: false,
-      error: ins.error?.message || "Could not create slot for label.",
+      error: upserted.error?.message || "Could not create slot for label.",
       status: 500,
     };
   }
-  return { ok: true, slot_id: String(ins.data.id) };
+  return { ok: true, slot_id: String(upserted.data.id) };
 }
 
 async function invitedUserIdsForPickupPush(
