@@ -34,16 +34,28 @@ export default function RunsScreen() {
   const {
     loading,
     error,
+    data,
     run,
     noFeaturedRun,
     load,
     myStatus,
     counts,
+    visibility,
     invitedNow,
     tier,
     tierRank,
   } = usePickupPublic(token);
-  const { joinBusy, joinPickup, payBusy, payPickup } = usePickupJoin();
+  const {
+    joinBusy,
+    joinPickup,
+    payBusy,
+    payPickup,
+    declineBusy,
+    declinePickup,
+    availabilityBusy,
+    commitAvailability,
+    pendingSlotId,
+  } = usePickupJoin();
   const { loading: scoreLoading, scorePct, trackedPickups, attendedPickups } = usePickupStandingScore();
 
   const [showStatePicker, setShowStatePicker] = useState(true);
@@ -79,13 +91,100 @@ export default function RunsScreen() {
     return rt === "select" ? "SELECT PICKUP" : "PUBLIC PICKUP";
   }, [run]);
 
-  const myLine = useMemo(() => {
-    if (!myStatus) return null;
-    if (myStatus === "confirmed") return "Your status: confirmed";
-    if (myStatus === "standby") return "Your status: standby";
-    if (myStatus === "pending_payment") return "Your status: payment pending";
-    return `Your status: ${myStatus}`;
-  }, [myStatus]);
+  // Surfaces from the raw payload that the typed wrapper doesn't expose yet
+  // (planning poll, attendees, location, updates). All optional and defensively typed.
+  const dataObj = useMemo(
+    () => (data && typeof data === "object" ? (data as Record<string, unknown>) : {}),
+    [data],
+  );
+
+  const updateMessages = useMemo(() => {
+    const out: { key: string; text: string }[] = [];
+    const pick = (raw: unknown): string | null => {
+      if (!raw || typeof raw !== "object") return null;
+      const m = (raw as { message?: unknown }).message;
+      return typeof m === "string" && m.trim().length > 0 ? m : null;
+    };
+    const g = pick(dataObj.globalUpdate);
+    if (g) out.push({ key: "global", text: g });
+    const r = pick(dataObj.runUpdate);
+    if (r) out.push({ key: "run", text: r });
+    return out;
+  }, [dataObj]);
+
+  type SlotCount = {
+    slot_id: string;
+    start_at: string | null;
+    tier1_count: number;
+    total_available: number;
+    label: string | null;
+  };
+  type MyAvailability = { slot_id: string | null; state: string | null };
+
+  const planning = useMemo<{ slotCounts: SlotCount[]; myAvailability: MyAvailability | null }>(() => {
+    const raw = dataObj.planning;
+    if (!raw || typeof raw !== "object") return { slotCounts: [], myAvailability: null };
+    const p = raw as Record<string, unknown>;
+    const slotsRaw = Array.isArray(p.slotCounts) ? p.slotCounts : [];
+    const slotCounts: SlotCount[] = slotsRaw
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") return null;
+        const s = entry as Record<string, unknown>;
+        const slot_id = typeof s.slot_id === "string" ? s.slot_id : null;
+        if (!slot_id) return null;
+        return {
+          slot_id,
+          start_at: typeof s.start_at === "string" ? s.start_at : null,
+          tier1_count: typeof s.tier1_count === "number" ? s.tier1_count : 0,
+          total_available: typeof s.total_available === "number" ? s.total_available : 0,
+          label: typeof s.label === "string" ? s.label : null,
+        } satisfies SlotCount;
+      })
+      .filter((s): s is SlotCount => s !== null);
+
+    let myAvailability: MyAvailability | null = null;
+    if (p.my_availability && typeof p.my_availability === "object") {
+      const m = p.my_availability as Record<string, unknown>;
+      myAvailability = {
+        slot_id: typeof m.slot_id === "string" ? m.slot_id : null,
+        state: typeof m.state === "string" ? m.state : null,
+      };
+    }
+    return { slotCounts, myAvailability };
+  }, [dataObj]);
+
+  type Attendee = { full_name: string; instagram: string | null };
+  const attendees = useMemo<Attendee[]>(() => {
+    const raw = dataObj.attendees;
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") return null;
+        const a = entry as Record<string, unknown>;
+        const name = typeof a.full_name === "string" && a.full_name.trim().length > 0 ? a.full_name : "Player";
+        const instagram = typeof a.instagram === "string" && a.instagram.length > 0 ? a.instagram : null;
+        return { full_name: name, instagram } satisfies Attendee;
+      })
+      .filter((a): a is Attendee => a !== null);
+  }, [dataObj]);
+
+  const locationText = useMemo(() => {
+    const v = dataObj.location;
+    return typeof v === "string" && v.trim().length > 0 ? v : null;
+  }, [dataObj]);
+
+  const cancellationDeadline = useMemo(() => {
+    const v = run?.cancellation_deadline;
+    return typeof v === "string" && v.length > 0 ? v : null;
+  }, [run]);
+
+  const showAvailabilityPoll = useMemo(() => {
+    const st = run?.status;
+    if (st !== "planning" && st !== "likely_on") return false;
+    return run?.final_slot_id == null;
+  }, [run]);
+
+  const attendanceVisible = visibility?.attendanceVisible === true;
 
   // Wave-specific messaging using API visibility + me fields.
   // tier_rank mapping (locked): 1A=1, 1B=2, 2=3, 3=4, 4=5, PUBLIC=6
@@ -187,80 +286,204 @@ export default function RunsScreen() {
           </View>
         </View>
       ) : (
-        <View style={styles.card}>
-          <View style={styles.cardEyebrowRow}>
-            <Text style={styles.cardEyebrow}>{runTypeLabel || "PICKUP"}</Text>
-            {tierBadgeLabel ? (
-              <View style={styles.tierBadge}>
-                <Text style={styles.tierBadgeText}>{tierBadgeLabel}</Text>
-              </View>
-            ) : null}
-          </View>
-          <Text style={styles.cardTitle}>{typeof run?.title === "string" && run.title ? run.title : "Pickup run"}</Text>
-          {myLine ? <Text style={styles.myStatus}>{myLine}</Text> : null}
-          <View style={styles.pill}>
-            <Text style={styles.pillText}>{statusLabel}</Text>
-          </View>
-          {countChips.length > 0 ? (
-            <View style={styles.countChipsRow}>
-              {countChips.map((chip) => (
-                <View key={chip.key} style={styles.countChip}>
-                  <Text style={styles.countChipText}>{chip.label}</Text>
+        <>
+          {updateMessages.length > 0 ? (
+            <View style={styles.updatesCard}>
+              {updateMessages.map((u) => (
+                <View key={u.key} style={styles.updateBlock}>
+                  <Text style={styles.cardEyebrow}>UPDATE</Text>
+                  <Text style={styles.updateText}>{u.text}</Text>
                 </View>
               ))}
             </View>
           ) : null}
-          <Text style={styles.row}>Start: {fmtPickupDt(typeof run?.start_at === "string" ? run.start_at : null)}</Text>
-          {typeof run?.location_text === "string" && run.location_text ? (
-            <Text style={styles.row}>Location: {run.location_text}</Text>
-          ) : null}
-          {waveMessage ? (
-            <Text style={[styles.hint, { color: waveMessage.color }]}>{waveMessage.text}</Text>
-          ) : null}
-          {myStatus === "confirmed" ? (
-            <View style={styles.confirmedBanner}>
-              <FontAwesome name="check-circle" size={18} color="#bbf7d0" />
-              <Text style={styles.confirmedBannerText}>You&apos;re in! See you on the field.</Text>
+
+          <View style={styles.card}>
+            <View style={styles.cardEyebrowRow}>
+              <Text style={styles.cardEyebrow}>{runTypeLabel || "PICKUP"}</Text>
+              {tierBadgeLabel ? (
+                <View style={styles.tierBadge}>
+                  <Text style={styles.tierBadgeText}>{tierBadgeLabel}</Text>
+                </View>
+              ) : null}
             </View>
-          ) : myStatus === "standby" ? (
-            <View style={styles.standbyBanner}>
-              <FontAwesome name="hourglass-half" size={16} color="#fcd34d" />
-              <Text style={styles.standbyBannerText}>
-                You&apos;re on standby we&apos;ll notify you if a spot opens.
+            <Text style={styles.cardTitle}>{typeof run?.title === "string" && run.title ? run.title : "Pickup run"}</Text>
+            <View style={styles.pill}>
+              <Text style={styles.pillText}>{statusLabel}</Text>
+            </View>
+            {countChips.length > 0 ? (
+              <View style={styles.countChipsRow}>
+                {countChips.map((chip) => (
+                  <View key={chip.key} style={styles.countChip}>
+                    <Text style={styles.countChipText}>{chip.label}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+            <Text style={styles.row}>Start: {fmtPickupDt(typeof run?.start_at === "string" ? run.start_at : null)}</Text>
+            {typeof run?.location_text === "string" && run.location_text ? (
+              <Text style={styles.row}>Location: {run.location_text}</Text>
+            ) : null}
+            {waveMessage ? (
+              <Text style={[styles.hint, { color: waveMessage.color }]}>{waveMessage.text}</Text>
+            ) : null}
+
+            {showAvailabilityPoll ? (
+              <View style={styles.pollSection}>
+                <Text style={styles.pollHeading}>Availability poll</Text>
+                {planning.slotCounts.length === 0 ? (
+                  <Text style={styles.pollEmpty}>No time slots posted yet.</Text>
+                ) : (
+                  <View style={styles.pollSlotList}>
+                    {planning.slotCounts.map((slot) => {
+                      const picked =
+                        planning.myAvailability?.state === "available" &&
+                        planning.myAvailability?.slot_id === slot.slot_id;
+                      const slotDisabled = !invitedNow || availabilityBusy || !runId;
+                      const showSpinner = availabilityBusy && pendingSlotId === slot.slot_id;
+                      return (
+                        <Pressable
+                          key={slot.slot_id}
+                          disabled={slotDisabled}
+                          onPress={() =>
+                            void commitAvailability(token, runId, "available", slot.slot_id, load)
+                          }
+                          style={({ pressed }) => [
+                            styles.slotButton,
+                            picked && styles.slotButtonPicked,
+                            slotDisabled && styles.slotButtonDisabled,
+                            pressed && !slotDisabled && { opacity: 0.85 },
+                          ]}
+                        >
+                          <View style={styles.slotButtonRow}>
+                            <Text style={styles.slotTime} numberOfLines={1}>
+                              {fmtPickupDt(slot.start_at)}
+                            </Text>
+                            {showSpinner ? (
+                              <ActivityIndicator color="#a3e635" size="small" />
+                            ) : (
+                              <Text style={styles.slotMeta}>
+                                Tier-1 {slot.tier1_count} · Total {slot.total_available}
+                              </Text>
+                            )}
+                          </View>
+                          {slot.label ? <Text style={styles.slotLabel}>{slot.label}</Text> : null}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+                <Pressable
+                  disabled={!invitedNow || availabilityBusy || !runId}
+                  onPress={() =>
+                    void commitAvailability(token, runId, "declined", null, load)
+                  }
+                  style={({ pressed }) => [
+                    styles.declineSlotButton,
+                    (!invitedNow || availabilityBusy || !runId) && styles.declineSlotButtonDisabled,
+                    pressed && invitedNow && !availabilityBusy && { opacity: 0.85 },
+                  ]}
+                >
+                  <Text style={styles.declineSlotText}>Decline</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            {myStatus === "confirmed" ? (
+              <>
+                <View style={styles.confirmedBanner}>
+                  <FontAwesome name="check-circle" size={18} color="#bbf7d0" />
+                  <Text style={styles.confirmedBannerText}>You&apos;re in. See you on the field.</Text>
+                </View>
+                <Pressable
+                  disabled={declineBusy || !runId}
+                  onPress={() => void declinePickup(token, runId, load)}
+                  style={({ pressed }) => [
+                    styles.cancelSpotButton,
+                    (declineBusy || !runId) && styles.cancelSpotButtonDisabled,
+                    pressed && !declineBusy && runId && { opacity: 0.85 },
+                  ]}
+                >
+                  {declineBusy ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.cancelSpotText}>Cancel spot</Text>
+                  )}
+                </Pressable>
+              </>
+            ) : myStatus === "standby" ? (
+              <View style={styles.standbyBanner}>
+                <FontAwesome name="hourglass-half" size={16} color="#fcd34d" />
+                <Text style={styles.standbyBannerText}>
+                  You&apos;re on standby we&apos;ll notify you if a spot opens.
+                </Text>
+              </View>
+            ) : myStatus === "pending_payment" ? (
+              <Pressable
+                style={[styles.primaryPay, payDisabled && styles.primaryJoinDisabled]}
+                disabled={payDisabled}
+                onPress={() => void payPickup(token, runId, load)}
+              >
+                {payBusy ? (
+                  <ActivityIndicator color="#111" />
+                ) : (
+                  <>
+                    <FontAwesome name="credit-card" size={16} color="#111" />
+                    <Text style={styles.primaryJoinText}> Complete payment</Text>
+                  </>
+                )}
+              </Pressable>
+            ) : !showAvailabilityPoll ? (
+              <Pressable
+                style={[styles.primaryJoin, joinDisabled && styles.primaryJoinDisabled]}
+                disabled={joinDisabled}
+                onPress={() => void joinPickup(token, runId, load)}
+              >
+                {joinBusy ? (
+                  <ActivityIndicator color="#111" />
+                ) : (
+                  <>
+                    <FontAwesome name="bolt" size={16} color="#111" />
+                    <Text style={styles.primaryJoinText}> Request a spot</Text>
+                  </>
+                )}
+              </Pressable>
+            ) : null}
+
+            {cancellationDeadline ? (
+              <Text style={styles.deadlineText}>
+                Cancellation deadline: {fmtPickupDt(cancellationDeadline)}
               </Text>
+            ) : null}
+          </View>
+
+          {attendanceVisible ? (
+            <View style={styles.subCard}>
+              <Text style={styles.subCardHeading}>Attendance</Text>
+              {attendees.length === 0 ? (
+                <Text style={styles.subCardBody}>No confirmed players shown yet.</Text>
+              ) : (
+                <View style={styles.attendeeList}>
+                  {attendees.map((a, idx) => (
+                    <Text key={`${a.full_name}-${idx}`} style={styles.attendeeRow}>
+                      {a.full_name}
+                      {a.instagram ? (
+                        <Text style={styles.attendeeHandle}> (@{a.instagram})</Text>
+                      ) : null}
+                    </Text>
+                  ))}
+                </View>
+              )}
             </View>
-          ) : myStatus === "pending_payment" ? (
-            <Pressable
-              style={[styles.primaryPay, payDisabled && styles.primaryJoinDisabled]}
-              disabled={payDisabled}
-              onPress={() => void payPickup(token, runId, load)}
-            >
-              {payBusy ? (
-                <ActivityIndicator color="#111" />
-              ) : (
-                <>
-                  <FontAwesome name="credit-card" size={16} color="#111" />
-                  <Text style={styles.primaryJoinText}> Complete payment</Text>
-                </>
-              )}
-            </Pressable>
-          ) : (
-            <Pressable
-              style={[styles.primaryJoin, joinDisabled && styles.primaryJoinDisabled]}
-              disabled={joinDisabled}
-              onPress={() => void joinPickup(token, runId, load)}
-            >
-              {joinBusy ? (
-                <ActivityIndicator color="#111" />
-              ) : (
-                <>
-                  <FontAwesome name="bolt" size={16} color="#111" />
-                  <Text style={styles.primaryJoinText}> Request a spot</Text>
-                </>
-              )}
-            </Pressable>
-          )}
-        </View>
+          ) : null}
+
+          {locationText ? (
+            <View style={styles.subCard}>
+              <Text style={styles.subCardHeading}>Location</Text>
+              <Text style={styles.subCardBody}>{locationText}</Text>
+            </View>
+          ) : null}
+        </>
       )}
     </ScrollView>
   );
@@ -339,6 +562,103 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cardEyebrow: { fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.55)", letterSpacing: 1 },
+  updatesCard: {
+    marginTop: 20,
+    padding: 18,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(0,0,0,0.4)",
+    gap: 14,
+  },
+  updateBlock: { gap: 6 },
+  updateText: { color: "#fff", fontSize: 14, lineHeight: 21 },
+  subCard: {
+    marginTop: 16,
+    padding: 18,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  subCardHeading: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1,
+    color: "rgba(255,255,255,0.7)",
+    textTransform: "uppercase",
+  },
+  subCardBody: {
+    marginTop: 8,
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  attendeeList: { marginTop: 10, gap: 6 },
+  attendeeRow: { color: "rgba(255,255,255,0.85)", fontSize: 14, lineHeight: 20 },
+  attendeeHandle: { color: "rgba(255,255,255,0.55)" },
+  pollSection: { marginTop: 18, gap: 10 },
+  pollHeading: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1,
+    color: "rgba(255,255,255,0.8)",
+    textTransform: "uppercase",
+  },
+  pollEmpty: { color: "rgba(255,255,255,0.6)", fontSize: 14, lineHeight: 20 },
+  pollSlotList: { gap: 8 },
+  slotButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  slotButtonPicked: {
+    borderColor: "#a3e635",
+    backgroundColor: "rgba(163,230,53,0.12)",
+  },
+  slotButtonDisabled: { opacity: 0.5 },
+  slotButtonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  slotTime: { color: "#fff", fontSize: 15, fontWeight: "600", flexShrink: 1 },
+  slotMeta: { color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: "600" },
+  slotLabel: { marginTop: 4, color: "rgba(255,255,255,0.55)", fontSize: 12 },
+  declineSlotButton: {
+    alignSelf: "flex-start",
+    marginTop: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  declineSlotButtonDisabled: { opacity: 0.45 },
+  declineSlotText: { color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: "700" },
+  cancelSpotButton: {
+    alignSelf: "flex-start",
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  cancelSpotButtonDisabled: { opacity: 0.45 },
+  cancelSpotText: { color: "#fff", fontSize: 13, fontWeight: "700" },
+  deadlineText: {
+    marginTop: 14,
+    color: "rgba(255,255,255,0.65)",
+    fontSize: 13,
+    lineHeight: 19,
+  },
   tierBadge: {
     paddingHorizontal: 10,
     paddingVertical: 3,
@@ -349,7 +669,6 @@ const styles = StyleSheet.create({
   },
   tierBadgeText: { color: "#a3e635", fontSize: 12, fontWeight: "800", letterSpacing: 0.5 },
   cardTitle: { marginTop: 8, fontSize: 20, fontWeight: "600", color: "#fff" },
-  myStatus: { marginTop: 10, fontSize: 14, fontWeight: "600", color: "#a3e635" },
   pill: {
     alignSelf: "flex-start",
     marginTop: 12,

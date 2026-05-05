@@ -1,4 +1,4 @@
-import { postPickupPay, postPickupRsvp } from "@/lib/siteApi";
+import { postPickupCommit, postPickupPay, postPickupRsvp } from "@/lib/siteApi";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useState } from "react";
 import { Alert } from "react-native";
@@ -26,9 +26,27 @@ function payErrorMessage(status: number, j: Record<string, unknown>): string {
   return `Could not start checkout (${status}).`;
 }
 
+/** Maps `/api/pickup/commit` errors to a user-readable message; falls back to a generic line. */
+function commitErrorMessage(status: number, j: Record<string, unknown>): string {
+  const error = typeof j.error === "string" ? j.error : "";
+  const detail = typeof j.detail === "string" ? j.detail : "";
+  if (error === "waiver_required") {
+    return "Please accept the waiver on the CT Pickup site, then try again.";
+  }
+  if (error === "standing_not_eligible") {
+    return detail || "Pickup participation is not available for your account right now.";
+  }
+  if (detail) return detail;
+  if (error) return error;
+  return `Could not submit availability (${status}).`;
+}
+
 export function usePickupJoin() {
   const [joinBusy, setJoinBusy] = useState(false);
   const [payBusy, setPayBusy] = useState(false);
+  const [declineBusy, setDeclineBusy] = useState(false);
+  const [availabilityBusy, setAvailabilityBusy] = useState(false);
+  const [pendingSlotId, setPendingSlotId] = useState<string | null>(null);
 
   const joinPickup = useCallback(
     async (accessToken: string | null, runId: unknown, reload: () => void | Promise<void>) => {
@@ -102,5 +120,72 @@ export function usePickupJoin() {
     [],
   );
 
-  return { joinBusy, joinPickup, payBusy, payPickup };
+  const declinePickup = useCallback(
+    async (accessToken: string | null, runId: unknown, reload: () => void | Promise<void>) => {
+      const id = typeof runId === "string" ? runId : null;
+      if (!accessToken) {
+        Alert.alert("Session required", "Sign in on this device, then try again.");
+        return;
+      }
+      if (!id) return;
+      setDeclineBusy(true);
+      try {
+        const r = await postPickupRsvp(accessToken, id, "decline");
+        const j = r.json as Record<string, unknown>;
+        if (r.ok) {
+          await reload();
+          return;
+        }
+        const msg = typeof j.error === "string" ? j.error : `Could not cancel spot (${r.status}).`;
+        Alert.alert("Could not cancel", msg);
+      } finally {
+        setDeclineBusy(false);
+      }
+    },
+    [],
+  );
+
+  const commitAvailability = useCallback(
+    async (
+      accessToken: string | null,
+      runId: unknown,
+      state: "available" | "declined",
+      slotId: string | null,
+      reload: () => void | Promise<void>,
+    ) => {
+      const id = typeof runId === "string" ? runId : null;
+      if (!accessToken) {
+        Alert.alert("Session required", "Sign in on this device, then try again.");
+        return;
+      }
+      if (!id) return;
+      setAvailabilityBusy(true);
+      setPendingSlotId(state === "available" ? slotId : null);
+      try {
+        const r = await postPickupCommit(accessToken, id, state, slotId);
+        const j = r.json as Record<string, unknown>;
+        if (r.ok) {
+          await reload();
+          return;
+        }
+        Alert.alert("Could not submit", commitErrorMessage(r.status, j));
+      } finally {
+        setAvailabilityBusy(false);
+        setPendingSlotId(null);
+      }
+    },
+    [],
+  );
+
+  return {
+    joinBusy,
+    joinPickup,
+    payBusy,
+    payPickup,
+    declineBusy,
+    declinePickup,
+    availabilityBusy,
+    commitAvailability,
+    pendingSlotId,
+  };
 }

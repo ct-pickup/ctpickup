@@ -22,6 +22,33 @@ export async function postPickupRsvp(
   return { ok: r.ok, status: r.status, json };
 }
 
+/** Planning-phase availability commit (slot pick or decline). Mirrors the website's `submitAvailability`. */
+export async function postPickupCommit(
+  accessToken: string,
+  runId: string,
+  state: "available" | "declined",
+  slotId: string | null,
+): Promise<{ ok: boolean; status: number; json: unknown }> {
+  const origin = siteOrigin();
+  if (!origin) {
+    return { ok: false, status: 0, json: { error: "missing_site_url" } };
+  }
+  const r = await fetch(`${origin}/api/pickup/commit`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      run_id: runId,
+      slot_id: state === "available" ? slotId : null,
+      state,
+    }),
+  });
+  const json = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, json };
+}
+
 /** Server creates a Stripe Checkout session for a pending-payment RSVP and returns `{ url }`. */
 export async function postPickupPay(
   accessToken: string,
@@ -58,6 +85,61 @@ export async function fetchTournamentPublic(opts?: {
     cache: "no-store",
   });
   const json = await r.json().catch(() => null);
+  return { ok: r.ok, status: r.status, json };
+}
+
+/** Records a tournament rules + media-consent agreement (mirrors the website's submitAgreement). */
+export async function postTournamentConsent(
+  accessToken: string,
+  body: {
+    full_name: string;
+    signed_name: string;
+    page: string;
+    consent_version: string;
+  },
+): Promise<{ ok: boolean; status: number; json: unknown }> {
+  const origin = siteOrigin();
+  if (!origin) {
+    return { ok: false, status: 0, json: { error: "missing_site_url" } };
+  }
+  const r = await fetch(`${origin}/api/tournament/consent`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const json = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, json };
+}
+
+export type CaptainClaimSubmission = {
+  captainName: string;
+  captainInstagram: string;
+  teamName: string;
+  expectedPlayers: number;
+  prelimRoster: { fullName: string; instagram: string }[];
+};
+
+/** Submits a captain's tournament claim (rules consent must already be on file server-side). */
+export async function postTournamentCaptainSubmitClaim(
+  accessToken: string,
+  payload: CaptainClaimSubmission,
+): Promise<{ ok: boolean; status: number; json: unknown }> {
+  const origin = siteOrigin();
+  if (!origin) {
+    return { ok: false, status: 0, json: { error: "missing_site_url" } };
+  }
+  const r = await fetch(`${origin}/api/tournament/captain/submit-claim`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  const json = await r.json().catch(() => ({}));
   return { ok: r.ok, status: r.status, json };
 }
 
