@@ -267,25 +267,21 @@ export default function TeamChatThreadScreen() {
           const m = item as (typeof messages)[number];
           const mine = !!currentUserId && m.user_id === currentUserId;
           const senderIsAdmin = adminIds.has(m.user_id);
-          // Admin styling fires when the sender is staff OR the room is announcements-only,
-          // so staff posts stand out in team chat / group rooms the same way they do in
-          // the Announcements room.
-          const adminLook = !mine && (senderIsAdmin || announcementsOnly);
+          // Announcements room: every message from others is staff-shaped.
+          // Group/team (announcements_only false): admin card only when sender is staff.
+          const isAdminMessage = !mine && (announcementsOnly || senderIsAdmin);
+
           return (
             <View style={[styles.msgRow, mine ? styles.msgRowMine : styles.msgRowOther]}>
               {!mine ? (
-                <Text style={[styles.msgSender, adminLook && styles.msgSenderAdmin]}>
+                <Text style={isAdminMessage ? styles.msgSenderAdmin : styles.msgSenderOther}>
                   {m.sender_display_name || "Player"}
                 </Text>
               ) : null}
               <View
                 style={[
                   styles.bubble,
-                  mine
-                    ? styles.bubbleMine
-                    : adminLook
-                      ? styles.bubbleAdmin
-                      : styles.bubbleOther,
+                  mine ? styles.bubbleMine : isAdminMessage ? styles.bubbleAdmin : styles.bubbleOther,
                 ]}
               >
                 <Text
@@ -293,7 +289,7 @@ export default function TeamChatThreadScreen() {
                     styles.bubbleText,
                     mine
                       ? styles.bubbleTextMine
-                      : adminLook
+                      : isAdminMessage
                         ? styles.bubbleTextAdmin
                         : styles.bubbleTextOther,
                   ]}
@@ -406,8 +402,18 @@ const styles = StyleSheet.create({
   msgRow: { marginBottom: 10, maxWidth: "92%" },
   msgRowMine: { alignSelf: "flex-end" },
   msgRowOther: { alignSelf: "flex-start" },
-  msgSender: { color: "rgba(255,255,255,0.55)", fontSize: 12, marginBottom: 4, fontWeight: "700" },
-  msgSenderAdmin: { color: LIME },
+  msgSenderOther: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 12,
+    marginBottom: 4,
+    fontWeight: "700",
+  },
+  msgSenderAdmin: {
+    color: LIME,
+    fontSize: 12,
+    marginBottom: 4,
+    fontWeight: "800",
+  },
   bubble: {
     paddingVertical: 10,
     paddingHorizontal: 12,
@@ -418,14 +424,14 @@ const styles = StyleSheet.create({
   bubbleOther: { backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)" },
   bubbleAdmin: {
     backgroundColor: "rgba(163,230,53,0.08)",
-    borderColor: "rgba(163,230,53,0.18)",
+    borderColor: "rgba(255,255,255,0.1)",
     borderLeftWidth: 3,
     borderLeftColor: LIME,
   },
   bubbleText: { fontSize: 15, lineHeight: 20 },
   bubbleTextMine: { color: "#0a0a0a", fontWeight: "700" },
-  bubbleTextOther: { color: "rgba(255,255,255,0.88)" },
-  bubbleTextAdmin: { color: "#fff", fontWeight: "600" },
+  bubbleTextOther: { color: "rgba(255,255,255,0.72)", fontWeight: "500" },
+  bubbleTextAdmin: { color: "#ffffff", fontWeight: "600" },
   composer: {
     flexDirection: "row",
     gap: 10,

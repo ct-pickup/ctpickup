@@ -183,10 +183,10 @@ export default function EsportsDetailScreen() {
           style={styles.playBtn}
           onPress={() => router.push(`/esports/play/${id}`)}
           accessibilityRole="button"
-          accessibilityLabel="Open tournament play and matches"
+          accessibilityLabel="View tournament bracket"
         >
-          <FontAwesome name="gamepad" size={16} color="#111" />
-          <Text style={styles.playBtnText}> Play</Text>
+          <FontAwesome name="sitemap" size={16} color="#111" />
+          <Text style={styles.playBtnText}> View bracket</Text>
         </Pressable>
       ) : null}
 

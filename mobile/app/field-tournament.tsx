@@ -13,13 +13,34 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View
 
 const LIME = "#a3e635";
 
-const ACTIVE_CLAIM_STATUSES = [
-  "claim_submitted",
-  "payment_pending",
-  "captain_not_verified",
+const PROCESSING_STATUSES = new Set([
+  "payment_received",
   "roster_pending",
   "verification_in_progress",
-] as const;
+  "flagged_for_review",
+]);
+
+type CaptainClaimSnapshot = {
+  status: string;
+  payment_due_at: string | null;
+};
+
+function formatPaymentDueAt(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
 
 function alertCaptainPayError(errMsg: string) {
   const lower = errMsg.toLowerCase();
@@ -44,7 +65,8 @@ export default function FieldTournamentDetailScreen() {
   const { loading, error, payload, reload } = useFieldTournament();
   const [payBusy, setPayBusy] = useState(false);
   const [claimModalOpen, setClaimModalOpen] = useState(false);
-  const [hasClaim, setHasClaim] = useState(false);
+  const [captainClaim, setCaptainClaim] = useState<CaptainClaimSnapshot | null>(null);
+  const [captainClaimLoading, setCaptainClaimLoading] = useState(false);
 
   async function handleCaptainPay() {
     const token = session?.access_token;
@@ -113,25 +135,39 @@ export default function FieldTournamentDetailScreen() {
 
   useEffect(() => {
     if (!supabase || !tournamentId || !userId) {
-      setHasClaim(false);
+      setCaptainClaim(null);
+      setCaptainClaimLoading(false);
       return;
     }
     let cancelled = false;
+    setCaptainClaimLoading(true);
     void (async () => {
       const { data, error: qErr } = await supabase
         .from("tournament_captains")
-        .select("id, status")
+        .select("status, payment_due_at")
         .eq("tournament_id", tournamentId)
         .eq("user_id", userId)
-        .in("status", ACTIVE_CLAIM_STATUSES as unknown as string[])
-        .limit(1)
         .maybeSingle();
       if (cancelled) return;
+      setCaptainClaimLoading(false);
       if (qErr) {
-        setHasClaim(false);
+        setCaptainClaim(null);
         return;
       }
-      setHasClaim(!!data);
+      if (!data) {
+        setCaptainClaim(null);
+        return;
+      }
+      const due =
+        typeof data.payment_due_at === "string"
+          ? data.payment_due_at
+          : data.payment_due_at != null
+            ? String(data.payment_due_at)
+            : null;
+      setCaptainClaim({
+        status: String(data.status ?? ""),
+        payment_due_at: due,
+      });
     })();
     return () => {
       cancelled = true;
@@ -143,6 +179,37 @@ export default function FieldTournamentDetailScreen() {
   const spotsRemaining = Math.max(0, maxTeams - claimedTeams);
   const slotsFull = !!t && (spotsRemaining <= 0 || !!payload?.full);
   const claimDisabled = !t || slotsFull;
+
+  const paymentDueMs =
+    captainClaim?.payment_due_at != null ? new Date(captainClaim.payment_due_at).getTime() : NaN;
+  const paymentWindowOpen =
+    captainClaim?.status === "payment_pending" &&
+    Number.isFinite(paymentDueMs) &&
+    paymentDueMs > Date.now();
+
+  const awaitingStaff =
+    !!captainClaim &&
+    (captainClaim.status === "claim_submitted" || captainClaim.status === "captain_not_verified");
+
+  const showProcessing =
+    !!captainClaim && PROCESSING_STATUSES.has(captainClaim.status);
+
+  const showExpiredReclaimCard =
+    !!session &&
+    !!captainClaim &&
+    (captainClaim.status === "released_expired" ||
+      (captainClaim.status === "payment_pending" && !paymentWindowOpen));
+
+  /** Avoid flashing "Claim" before the Supabase captain row loads for signed-in users. */
+  const sessionClaimReady = !userId || !captainClaimLoading;
+
+  const showClaimButton =
+    !claimDisabled &&
+    sessionClaimReady &&
+    (!session ||
+      !captainClaim ||
+      captainClaim.status === "released_expired" ||
+      (captainClaim.status === "payment_pending" && !paymentWindowOpen));
 
   function openClaimModal() {
     if (!session) {
@@ -199,37 +266,79 @@ export default function FieldTournamentDetailScreen() {
 
       {t ? (
         <>
-          <Pressable
-            style={[styles.claimBtn, claimDisabled && styles.claimBtnDisabled]}
-            disabled={claimDisabled}
-            onPress={openClaimModal}
-            accessibilityRole="button"
-            accessibilityLabel="Claim a team"
-          >
-            <Text style={styles.claimBtnText}>Claim a team</Text>
-          </Pressable>
+          {session && captainClaimLoading ? (
+            <ActivityIndicator style={{ marginTop: 14 }} color={LIME} />
+          ) : null}
+
+          {session && captainClaim?.status === "confirmed" ? (
+            <View style={styles.confirmedBanner}>
+              <Text style={styles.confirmedBannerText}>Your team is confirmed</Text>
+            </View>
+          ) : null}
+
+          {session && awaitingStaff ? (
+            <View style={styles.claimStatusCard}>
+              <Text style={styles.claimStatusCardText}>
+                Your captain claim has been submitted. Staff will verify and contact you.
+              </Text>
+            </View>
+          ) : null}
+
+          {session && showProcessing ? (
+            <View style={styles.claimStatusCard}>
+              <Text style={styles.claimStatusCardText}>Your captain registration is in progress.</Text>
+            </View>
+          ) : null}
+
+          {session && paymentWindowOpen && captainClaim?.payment_due_at ? (
+            <View style={styles.claimStatusCard}>
+              <Text style={styles.claimStatusCardText}>
+                You have an active captain claim. Complete your payment before the deadline.
+              </Text>
+              <Text style={styles.paymentDueLine}>
+                Payment due by {formatPaymentDueAt(captainClaim.payment_due_at)}
+              </Text>
+              <Pressable
+                style={[styles.captainPayBtnInCard, payBusy && styles.captainPayBtnDisabled]}
+                disabled={payBusy}
+                onPress={() => void handleCaptainPay()}
+                accessibilityRole="button"
+                accessibilityLabel="Pay captain fee"
+              >
+                {payBusy ? (
+                  <ActivityIndicator color="#111" />
+                ) : (
+                  <Text style={styles.captainPayBtnTextDark}>Pay captain fee $250</Text>
+                )}
+              </Pressable>
+            </View>
+          ) : null}
+
+          {session && showExpiredReclaimCard ? (
+            <View style={styles.claimStatusCard}>
+              <Text style={styles.claimStatusCardText}>
+                Your claim expired. You can submit a new one.
+              </Text>
+            </View>
+          ) : null}
+
+          {showClaimButton ? (
+            <Pressable
+              style={[styles.claimBtn, claimDisabled && styles.claimBtnDisabled]}
+              disabled={claimDisabled}
+              onPress={openClaimModal}
+              accessibilityRole="button"
+              accessibilityLabel="Claim a team"
+            >
+              <Text style={styles.claimBtnText}>Claim a team</Text>
+            </Pressable>
+          ) : null}
           {slotsFull ? (
             <Text style={styles.claimSubText}>Captain slots are full.</Text>
           ) : !session ? (
             <Text style={styles.claimSubText}>Sign in to submit a captain claim.</Text>
           ) : null}
         </>
-      ) : null}
-
-      {t && session && hasClaim ? (
-        <Pressable
-          style={[styles.captainPayBtn, payBusy && styles.captainPayBtnDisabled]}
-          disabled={payBusy}
-          onPress={() => void handleCaptainPay()}
-          accessibilityRole="button"
-          accessibilityLabel="Pay captain fee"
-        >
-          {payBusy ? (
-            <ActivityIndicator color="#111" />
-          ) : (
-            <Text style={styles.captainPayBtnText}>Pay captain fee $250</Text>
-          )}
-        </Pressable>
       ) : null}
 
       {payload?.tournament && payload.tournament.announcement ? (
@@ -355,19 +464,51 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: "rgba(255,255,255,0.62)",
   },
-  captainPayBtn: {
-    marginTop: 12,
+  captainPayBtnInCard: {
+    marginTop: 14,
     width: "100%",
     alignSelf: "stretch",
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: LIME,
     alignItems: "center",
     justifyContent: "center",
   },
   captainPayBtnDisabled: { opacity: 0.45 },
-  captainPayBtnText: { color: LIME, fontWeight: "800", fontSize: 15 },
+  captainPayBtnTextDark: { color: "#111", fontWeight: "800", fontSize: 15 },
+  confirmedBanner: {
+    marginTop: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.45)",
+    backgroundColor: "rgba(163,230,53,0.12)",
+  },
+  confirmedBannerText: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: LIME,
+    textAlign: "center",
+  },
+  claimStatusCard: {
+    marginTop: 14,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  claimStatusCardText: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: "rgba(255,255,255,0.82)",
+  },
+  paymentDueLine: {
+    marginTop: 10,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.55)",
+  },
 });
