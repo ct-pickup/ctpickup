@@ -170,7 +170,7 @@ export function CaptainClaimModal({
         expectedPlayers: expectedPlayersNum,
         prelimRoster: prelim
           .map((p) => ({ fullName: p.fullName.trim(), instagram: p.instagram.trim() }))
-          .filter((p) => p.fullName.length >= 2 && p.instagram.length >= 2),
+          .filter((p) => p.fullName.length > 0 || p.instagram.length > 0),
       });
       if (!r.ok) {
         const j = (r.json ?? {}) as Record<string, unknown>;
@@ -406,6 +406,7 @@ function FormStep({
   onUpdatePrelim: (i: number, key: keyof PrelimEntry, value: string) => void;
   onSubmit: () => void;
 }) {
+  const addDisabled = prelim.length >= 12;
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
       <View style={styles.formCard}>
@@ -449,47 +450,51 @@ function FormStep({
           keyboardType="number-pad"
           placeholderTextColor="rgba(255,255,255,0.35)"
         />
-      </View>
-
-      <View style={styles.formCard}>
-        <Text style={styles.formCardTitle}>Preliminary roster (optional)</Text>
-        <Text style={styles.fieldHint}>
-          Early entries are not verified registration. You can add players later.
+        <View style={styles.rosterHeaderRow}>
+          <Text style={styles.rosterHeading}>Early roster (optional)</Text>
+          <Text style={styles.rosterCount}>{prelim.length}/12</Text>
+        </View>
+        <Text style={styles.rosterSubtext}>
+          Add players you plan to bring. This is preliminary only and does not confirm them.
         </Text>
 
         {prelim.map((row, i) => (
           <View key={`prelim-${i}`} style={styles.prelimRow}>
-            <View style={{ flex: 1, gap: 8 }}>
-              <TextInput
-                style={styles.input}
-                value={row.fullName}
-                onChangeText={(v) => onUpdatePrelim(i, "fullName", v)}
-                placeholder="Full name"
-                placeholderTextColor="rgba(255,255,255,0.35)"
-                autoCapitalize="words"
-              />
-              <TextInput
-                style={styles.input}
-                value={row.instagram}
-                onChangeText={(v) => onUpdatePrelim(i, "instagram", v)}
-                placeholder="Instagram"
-                placeholderTextColor="rgba(255,255,255,0.35)"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
+            <TextInput
+              style={[styles.input, styles.prelimInput]}
+              value={row.fullName}
+              onChangeText={(v) => onUpdatePrelim(i, "fullName", v)}
+              placeholder="Full name"
+              placeholderTextColor="rgba(255,255,255,0.35)"
+              autoCapitalize="words"
+            />
+            <TextInput
+              style={[styles.input, styles.prelimInput]}
+              value={row.instagram}
+              onChangeText={(v) => onUpdatePrelim(i, "instagram", v)}
+              placeholder="Instagram"
+              placeholderTextColor="rgba(255,255,255,0.35)"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
             <Pressable
               onPress={() => onRemovePrelim(i)}
-              style={styles.removeBtn}
+              style={styles.removeTextBtn}
               accessibilityRole="button"
               accessibilityLabel="Remove player"
             >
-              <FontAwesome name="trash-o" size={16} color="rgba(255,255,255,0.75)" />
+              <Text style={styles.removeTextBtnText}>Remove</Text>
             </Pressable>
           </View>
         ))}
 
-        <Pressable onPress={onAddPrelim} style={styles.addBtn} accessibilityRole="button">
+        <Pressable
+          onPress={onAddPrelim}
+          disabled={addDisabled}
+          style={[styles.addBtn, addDisabled && styles.addBtnDisabled]}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: addDisabled }}
+        >
           <FontAwesome name="plus" size={12} color={LIME} />
           <Text style={styles.addBtnText}>Add player</Text>
         </Pressable>
@@ -658,17 +663,21 @@ const styles = StyleSheet.create({
   },
   label: { marginTop: 4, fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.55)" },
   fieldHint: { fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 18 },
-  prelimRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
-  removeBtn: {
-    width: 40,
-    height: 88,
+  rosterHeaderRow: { marginTop: 12, flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
+  rosterHeading: { fontSize: 13, fontWeight: "800", color: "rgba(255,255,255,0.9)" },
+  rosterCount: { fontSize: 12, fontWeight: "700", color: "rgba(163,230,53,0.75)" },
+  rosterSubtext: { fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 18, marginTop: 6 },
+  prelimRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
+  prelimInput: { flex: 1, minWidth: 0 },
+  removeTextBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 10,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.14)",
-    alignItems: "center",
-    justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.03)",
   },
+  removeTextBtnText: { color: "rgba(255,255,255,0.8)", fontWeight: "800", fontSize: 12 },
   addBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -680,7 +689,9 @@ const styles = StyleSheet.create({
     borderColor: "rgba(163,230,53,0.35)",
     backgroundColor: "rgba(163,230,53,0.06)",
     alignSelf: "flex-start",
+    marginTop: 12,
   },
+  addBtnDisabled: { opacity: 0.45 },
   addBtnText: { color: LIME, fontWeight: "700", fontSize: 13 },
   successCard: {
     padding: 18,

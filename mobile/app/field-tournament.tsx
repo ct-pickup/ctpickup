@@ -54,6 +54,11 @@ export default function FieldTournamentDetailScreen() {
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
 
+      if (!res.ok) {
+        Alert.alert("Payment error", `Status ${res.status}: ${JSON.stringify(data)}`);
+        return;
+      }
+
       if (res.ok && typeof data.url === "string" && data.url) {
         await WebBrowser.openBrowserAsync(data.url);
         return;
