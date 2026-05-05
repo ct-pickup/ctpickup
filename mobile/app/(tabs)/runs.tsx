@@ -271,6 +271,28 @@ export default function RunsScreen() {
       <Text style={styles.sub}>
         Featured pickup for {serviceRegionName(region)} ({region}) same account everywhere.
       </Text>
+      <View style={styles.linkRow}>
+        <Pressable
+          onPress={() => (router.push as (href: string) => void)("/how-pickup-works")}
+          style={({ pressed }) => [styles.howItWorksRow, pressed && { opacity: 0.7 }]}
+          accessibilityRole="link"
+          accessibilityLabel="How it works"
+        >
+          <FontAwesome name="info-circle" size={14} color="#a3e635" />
+          <Text style={styles.howItWorksText}>How it works</Text>
+          <FontAwesome name="angle-right" size={16} color="rgba(163,230,53,0.7)" />
+        </Pressable>
+        <Pressable
+          onPress={() => (router.push as (href: string) => void)("/pickup-status")}
+          style={({ pressed }) => [styles.howItWorksRow, pressed && { opacity: 0.7 }]}
+          accessibilityRole="link"
+          accessibilityLabel="Pickup status"
+        >
+          <FontAwesome name="bullhorn" size={14} color="#a3e635" />
+          <Text style={styles.howItWorksText}>Pickup status</Text>
+          <FontAwesome name="angle-right" size={16} color="rgba(163,230,53,0.7)" />
+        </Pressable>
+      </View>
 
       {loading ? (
         <ActivityIndicator size="large" color="#fff" style={{ marginTop: 24 }} />
@@ -521,6 +543,26 @@ const styles = StyleSheet.create({
   },
   statesChipText: { fontSize: 13, fontWeight: "800", color: "#a3e635" },
   sub: { marginTop: 10, color: "rgba(255,255,255,0.72)", fontSize: 15, lineHeight: 22 },
+  linkRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 10,
+  },
+  howItWorksRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: "rgba(163,230,53,0.08)",
+  },
+  howItWorksText: { color: "#a3e635", fontSize: 13, fontWeight: "800" },
   card: {
     marginTop: 20,
     padding: 18,

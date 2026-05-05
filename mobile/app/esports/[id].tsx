@@ -2,9 +2,8 @@ import { useAuth } from "@/context/AuthContext";
 import { formatTournamentStartEt } from "@/lib/formatTournament";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
 import { useEffect, useLayoutEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 type Row = Record<string, unknown>;
 
@@ -27,53 +26,10 @@ export default function EsportsDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [row, setRow] = useState<Row | null>(null);
-  const [checkoutBusy, setCheckoutBusy] = useState(false);
 
-  async function handleRegister() {
-    const token = session?.access_token;
-    if (!token || !id) return;
-    const base = process.env.EXPO_PUBLIC_SITE_URL?.replace(/\/$/, "");
-    if (!base) {
-      Alert.alert("Configuration error", "Registration is not available right now.");
-      return;
-    }
-
-    setCheckoutBusy(true);
-    try {
-      const res = await fetch(`${base}/api/esports/tournament-registration/checkout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ tournament_id: id }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        checkout_url?: string;
-        error?: string;
-      };
-
-      if (res.ok && data.ok && typeof data.checkout_url === "string" && data.checkout_url) {
-        await WebBrowser.openBrowserAsync(data.checkout_url);
-        return;
-      }
-
-      const errMsg = typeof data.error === "string" ? data.error : `Could not start registration (${res.status}).`;
-      const lower = errMsg.toLowerCase();
-      if (lower.includes("consent")) {
-        Alert.alert("Consent required", "Complete consent on the registration page first");
-      } else if (lower.includes("waiver")) {
-        Alert.alert("Waiver required", "Accept the waiver first");
-      } else {
-        Alert.alert("Can’t register", errMsg);
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Network error.";
-      Alert.alert("Can’t register", msg);
-    } finally {
-      setCheckoutBusy(false);
-    }
+  function goToRegister() {
+    if (!id) return;
+    router.push(`/esports/register/${id}`);
   }
 
   useLayoutEffect(() => {
@@ -225,20 +181,13 @@ export default function EsportsDetailScreen() {
       {(status === "upcoming" || status === "active") ? (
         session ? (
           <Pressable
-            style={[styles.registerBtn, checkoutBusy && styles.registerBtnDisabled]}
-            disabled={checkoutBusy}
-            onPress={() => void handleRegister()}
+            style={styles.registerBtn}
+            onPress={goToRegister}
             accessibilityRole="button"
-            accessibilityLabel="Register and pay for this tournament"
+            accessibilityLabel="Register for this tournament"
           >
-            {checkoutBusy ? (
-              <ActivityIndicator color="#111" />
-            ) : (
-              <>
-                <FontAwesome name="credit-card" size={16} color="#111" />
-                <Text style={styles.registerBtnText}> Register & Pay</Text>
-              </>
-            )}
+            <FontAwesome name="credit-card" size={16} color="#111" />
+            <Text style={styles.registerBtnText}> Register</Text>
           </Pressable>
         ) : (
           <Text style={styles.signInHint}>Sign in to register</Text>
@@ -313,7 +262,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "#a3e635",
   },
-  registerBtnDisabled: { opacity: 0.45 },
   registerBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
   signInHint: {
     marginTop: 28,

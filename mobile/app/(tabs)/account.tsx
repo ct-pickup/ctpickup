@@ -709,6 +709,15 @@ export default function AccountScreen() {
           </Pressable>
         </>
       ) : null}
+        <Pressable style={styles.aboutRow} onPress={() => (router.push as (href: string) => void)("/rules")}>
+          <View style={styles.aboutLeft}>
+            <View style={styles.aboutIconWrap}>
+              <FontAwesome name="list-alt" size={18} color="rgba(255,255,255,0.75)" />
+            </View>
+            <Text style={styles.aboutText}>Rules</Text>
+          </View>
+          <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+        </Pressable>
         <Pressable style={styles.aboutRow} onPress={() => {}}>
           <View style={styles.aboutLeft}>
             <View style={styles.aboutIconWrap}>

@@ -123,6 +123,15 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
+                            name="rules"
+                            options={{
+                              headerShown: true,
+                              title: "Rules",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                            }}
+                          />
+                          <Stack.Screen
                             name="reset-password"
                             options={{
                               headerShown: true,
@@ -141,10 +150,37 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
+                            name="how-pickup-works"
+                            options={{
+                              headerShown: true,
+                              title: "How pickup works",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                            }}
+                          />
+                          <Stack.Screen
+                            name="pickup-status"
+                            options={{
+                              headerShown: true,
+                              title: "Pickup status",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                            }}
+                          />
+                          <Stack.Screen
                             name="esports/[id]"
                             options={{
                               headerShown: true,
                               title: "Esports",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                            }}
+                          />
+                          <Stack.Screen
+                            name="esports/register/[id]"
+                            options={{
+                              headerShown: true,
+                              title: "Register",
                               headerStyle: { backgroundColor: "#0a0a0a" },
                               headerTintColor: "#fff",
                             }}
