@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { getSupabaseAnon } from "@/lib/server/runtimeClients";
 import { supabaseService } from "@/lib/supabase/service";
 import { getAuthUserSafe, supabaseServer } from "@/lib/supabase/server";
+import type { User } from "@supabase/supabase-js";
 
 const AGREEMENT_TITLE = "Tournament Rules and Eligibility";
 const AGREEMENT_TEXT = `
@@ -24,11 +26,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing full_name" }, { status: 400 });
     }
 
-    const server = await supabaseServer();
-    const user = await getAuthUserSafe(server);
+    const token = req.headers.get("authorization")?.replace("Bearer ", "") || "";
 
-    if (!user) {
-      return NextResponse.json({ error: "You must be logged in." }, { status: 401 });
+    let user: User | null = null;
+    if (token) {
+      const anon = getSupabaseAnon();
+      const { data, error } = await anon.auth.getUser(token);
+      if (error || !data?.user) {
+        return NextResponse.json({ error: "You must be logged in." }, { status: 401 });
+      }
+      user = data.user;
+    } else {
+      const server = await supabaseServer();
+      user = await getAuthUserSafe(server);
+      if (!user) {
+        return NextResponse.json({ error: "You must be logged in." }, { status: 401 });
+      }
     }
 
     const userAgent = req.headers.get("user-agent");
