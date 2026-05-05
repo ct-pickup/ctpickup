@@ -187,19 +187,30 @@ export async function POST(req: Request) {
   const start_at = run.data.start_at != null ? String(run.data.start_at) : null;
 
   if (state === "declined") {
-    const del = await admin.from("pickup_run_availability").delete().eq("run_id", run_id).eq("user_id", userId);
-    if (del.error) {
-      return NextResponse.json({ error: del.error.message || "Could not clear availability." }, { status: 500 });
+    const cleared = await admin
+      .from("pickup_run_availability")
+      .delete()
+      .eq("run_id", run_id)
+      .eq("user_id", userId);
+    if (cleared.error) {
+      return NextResponse.json(
+        { error: cleared.error.message || "Could not clear availability." },
+        { status: 500 },
+      );
     }
-    const ins = await admin.from("pickup_run_availability").insert({
+    const declinedAt = new Date().toISOString();
+    const declined = await admin.from("pickup_run_availability").insert({
       run_id,
       user_id: userId,
       slot_id: null,
       state: "declined",
-      updated_at: new Date().toISOString(),
+      updated_at: declinedAt,
     });
-    if (ins.error) {
-      return NextResponse.json({ error: ins.error.message || "Could not record decline." }, { status: 500 });
+    if (declined.error) {
+      return NextResponse.json(
+        { error: declined.error.message || "Could not record decline." },
+        { status: 500 },
+      );
     }
   } else {
     // available
@@ -240,7 +251,7 @@ export async function POST(req: Request) {
       targetSlotIds.push(resolvedSlotId);
     }
 
-    const targetIdSet = new Set(targetSlotIds);
+    const targetIdSet = new Set([...targetSlotIds, resolvedSlotId]);
 
     const existingAvail = await admin
       .from("pickup_run_availability")
@@ -274,16 +285,25 @@ export async function POST(req: Request) {
       }
     }
 
-    const ins = await admin.from("pickup_run_availability").upsert(
-      {
-        run_id,
-        user_id: userId,
-        slot_id: resolvedSlotId,
-        state: "available",
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "run_id,user_id,slot_id" },
+    const slotIdsToUpsert = Array.from(new Set([...targetSlotIds, resolvedSlotId])).filter(
+      (id): id is string => typeof id === "string" && id.length > 0,
     );
+    if (slotIdsToUpsert.length === 0) {
+      return NextResponse.json({ error: "Could not resolve slot." }, { status: 400 });
+    }
+
+    const updatedAt = new Date().toISOString();
+    const upsertRows = slotIdsToUpsert.map((slot_id) => ({
+      run_id,
+      user_id: userId,
+      slot_id,
+      state: "available" as const,
+      updated_at: updatedAt,
+    }));
+
+    const ins = await admin
+      .from("pickup_run_availability")
+      .upsert(upsertRows, { onConflict: "run_id,user_id,slot_id" });
     if (ins.error) {
       return NextResponse.json({ error: ins.error.message || "Could not save availability." }, { status: 500 });
     }

@@ -3,7 +3,7 @@ import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { fetchTournamentPublic } from "@/lib/siteApi";
 import { siteOrigin } from "@/lib/env";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type FieldTournamentSummary = {
   id: string;
@@ -93,29 +93,56 @@ export function useFieldTournament() {
 
   const tournamentId = payload?.tournament?.id?.trim() ? payload.tournament.id : null;
 
+  const reloadRef = useRef(reload);
+  reloadRef.current = reload;
+
   useEffect(() => {
     if (!supabase || !tournamentId) return;
 
-    const channel = supabase
-      .channel(`field-tournament:${tournamentId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "tournaments",
-          filter: `id=eq.${tournamentId}`,
-        },
-        () => {
-          void reload();
-        },
-      )
-      .subscribe();
+    const topic = `field-tournament:${tournamentId}`;
+    const realtimeTopic = `realtime:${topic}`;
+    let cancelled = false;
+    const subscribed = { current: null as RealtimeChannel | null };
+
+    void (async () => {
+      const stale = supabase.getChannels().find((c) => c.topic === realtimeTopic);
+      if (stale) {
+        await supabase.removeChannel(stale);
+      }
+      if (cancelled) return;
+
+      const channel = supabase
+        .channel(topic)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "tournaments",
+            filter: `id=eq.${tournamentId}`,
+          },
+          () => {
+            void reloadRef.current();
+          },
+        )
+        .subscribe();
+
+      if (cancelled) {
+        await supabase.removeChannel(channel);
+        return;
+      }
+      subscribed.current = channel;
+    })();
 
     return () => {
-      void supabase.removeChannel(channel);
+      cancelled = true;
+      const ch = subscribed.current;
+      subscribed.current = null;
+      if (ch) {
+        void supabase.removeChannel(ch);
+      }
     };
-  }, [supabase, tournamentId, reload]);
+  }, [supabase, tournamentId]);
 
   return { loading, error, payload, reload };
 }
