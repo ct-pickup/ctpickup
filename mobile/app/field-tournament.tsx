@@ -1,3 +1,4 @@
+import { CaptainClaimModal } from "@/components/CaptainClaimModal";
 import { FieldTournamentCard } from "@/components/FieldTournamentCard";
 import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
@@ -9,6 +10,8 @@ import { useNavigation } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+
+const LIME = "#a3e635";
 
 function alertCaptainPayError(errMsg: string) {
   const lower = errMsg.toLowerCase();
@@ -29,8 +32,9 @@ export default function FieldTournamentDetailScreen() {
   const navigation = useNavigation();
   const { region } = useSelectedRegion();
   const { session } = useAuth();
-  const { loading, error, payload } = useFieldTournament();
+  const { loading, error, payload, reload } = useFieldTournament();
   const [payBusy, setPayBusy] = useState(false);
+  const [claimModalOpen, setClaimModalOpen] = useState(false);
 
   async function handleCaptainPay() {
     const token = session?.access_token;
@@ -89,6 +93,21 @@ export default function FieldTournamentDetailScreen() {
     }
   }, [navigation, t?.title]);
 
+  const claimedTeams = payload?.claimedTeams ?? 0;
+  const maxTeams = t?.maxTeams ?? 0;
+  const spotsRemaining = Math.max(0, maxTeams - claimedTeams);
+  const slotsFull = !!t && (spotsRemaining <= 0 || !!payload?.full);
+  const claimDisabled = !t || slotsFull;
+
+  function openClaimModal() {
+    if (!session) {
+      Alert.alert("", "Sign in to claim a captain spot.");
+      return;
+    }
+    if (claimDisabled) return;
+    setClaimModalOpen(true);
+  }
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.kicker}>HUB · {serviceRegionName(region)}</Text>
@@ -99,7 +118,45 @@ export default function FieldTournamentDetailScreen() {
 
       <FieldTournamentCard loading={loading} error={error} payload={payload} style={{ marginTop: 8 }} />
 
-      {payload?.tournament ? (
+      {t ? (
+        <View style={styles.statsRow}>
+          <View style={styles.chip}>
+            <Text style={styles.chipLabel}>Minimum to confirm</Text>
+            <Text style={styles.chipValue}>{t.officialThreshold || "—"}</Text>
+          </View>
+          <View style={styles.chip}>
+            <Text style={styles.chipLabel}>Teams claimed</Text>
+            <Text style={styles.chipValue}>
+              {claimedTeams} / {maxTeams || "—"}
+            </Text>
+          </View>
+          <View style={styles.chip}>
+            <Text style={styles.chipLabel}>Spots remaining</Text>
+            <Text style={styles.chipValue}>{spotsRemaining}</Text>
+          </View>
+        </View>
+      ) : null}
+
+      {t ? (
+        <>
+          <Pressable
+            style={[styles.claimBtn, claimDisabled && styles.claimBtnDisabled]}
+            disabled={claimDisabled}
+            onPress={openClaimModal}
+            accessibilityRole="button"
+            accessibilityLabel="Claim a team"
+          >
+            <Text style={styles.claimBtnText}>Claim a team</Text>
+          </Pressable>
+          {slotsFull ? (
+            <Text style={styles.claimSubText}>Captain slots are full.</Text>
+          ) : !session ? (
+            <Text style={styles.claimSubText}>Sign in to submit a captain claim.</Text>
+          ) : null}
+        </>
+      ) : null}
+
+      {t ? (
         session ? (
           <Pressable
             style={[styles.captainPayBtn, payBusy && styles.captainPayBtnDisabled]}
@@ -133,6 +190,15 @@ export default function FieldTournamentDetailScreen() {
           When staff post updates above, they appear here too.
         </Text>
       </View>
+
+      <CaptainClaimModal
+        visible={claimModalOpen}
+        accessToken={session?.access_token ?? null}
+        payBusy={payBusy}
+        onClose={() => setClaimModalOpen(false)}
+        onClaimRecorded={() => void reload()}
+        onProceedToPay={handleCaptainPay}
+      />
     </ScrollView>
   );
 }
@@ -151,6 +217,51 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: "rgba(255,255,255,0.58)",
+  },
+  statsRow: {
+    marginTop: 14,
+    flexDirection: "row",
+    gap: 8,
+  },
+  chip: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  chipLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    color: "rgba(255,255,255,0.55)",
+    textTransform: "uppercase",
+  },
+  chipValue: {
+    marginTop: 6,
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  claimBtn: {
+    marginTop: 14,
+    width: "100%",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: LIME,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  claimBtnDisabled: { opacity: 0.45 },
+  claimBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  claimSubText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "rgba(255,255,255,0.5)",
+    textAlign: "center",
   },
   note: {
     marginTop: 18,
@@ -173,18 +284,20 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.62)",
   },
   captainPayBtn: {
-    marginTop: 16,
+    marginTop: 12,
     width: "100%",
     alignSelf: "stretch",
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: "#a3e635",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.35)",
     alignItems: "center",
     justifyContent: "center",
   },
   captainPayBtnDisabled: { opacity: 0.45 },
-  captainPayBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  captainPayBtnText: { color: LIME, fontWeight: "800", fontSize: 15 },
   signInToPay: {
     marginTop: 16,
     fontSize: 14,
