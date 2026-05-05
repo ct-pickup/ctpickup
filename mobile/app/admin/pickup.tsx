@@ -88,6 +88,18 @@ function detectPreset(locationPrivate: string): LocationPresetKey {
   return "other";
 }
 
+/** field_cost in dollars; returns fee in whole dollars (ceil). */
+function feePerPlayerDollars(fieldCostDollars: number, expectedPlayers: number): number | null {
+  if (!Number.isFinite(fieldCostDollars) || !Number.isFinite(expectedPlayers) || expectedPlayers <= 0) return null;
+  return Math.ceil(fieldCostDollars / expectedPlayers);
+}
+
+function feeCentsFromCalculator(fieldCostDollars: number, expectedPlayers: number): number {
+  const per = feePerPlayerDollars(fieldCostDollars, expectedPlayers);
+  if (per == null) return 0;
+  return per * 100;
+}
+
 export default function AdminPickupOpsScreen() {
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
@@ -107,7 +119,9 @@ export default function AdminPickupOpsScreen() {
   const [editTitle, setEditTitle] = useState("");
   const [editRunType, setEditRunType] = useState<"select" | "public">("select");
   const [editCapacity, setEditCapacity] = useState("18");
-  const [editFeeDollars, setEditFeeDollars] = useState("0");
+  const [editFieldCost, setEditFieldCost] = useState("");
+  const [editHours, setEditHours] = useState("2");
+  const [editExpectedPlayers, setEditExpectedPlayers] = useState("18");
   const [editLocationPrivate, setEditLocationPrivate] = useState("");
   const [editLocConfirmedOnly, setEditLocConfirmedOnly] = useState(true);
   const [locationPreset, setLocationPreset] = useState<LocationPresetKey>("");
@@ -118,6 +132,9 @@ export default function AdminPickupOpsScreen() {
   const [createStartAt, setCreateStartAt] = useState("");
   const [createTitle, setCreateTitle] = useState("");
   const [createCapacity, setCreateCapacity] = useState("24");
+  const [createFieldCost, setCreateFieldCost] = useState("");
+  const [createHours, setCreateHours] = useState("2");
+  const [createExpectedPlayers, setCreateExpectedPlayers] = useState("24");
 
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -158,9 +175,15 @@ export default function AdminPickupOpsScreen() {
     if (run && typeof run === "object") {
       setEditTitle(s(run.title) || "CT Pickup Run");
       setEditRunType(run.run_type === "public" ? "public" : "select");
-      setEditCapacity(String(run.capacity ?? 18));
+      const cap = Number(run.capacity ?? 18);
+      setEditCapacity(String(cap));
       const cents = Number(run.fee_cents ?? 0);
-      setEditFeeDollars(Number.isFinite(cents) ? String(cents / 100) : "0");
+      const feeDollars = Number.isFinite(cents) ? cents / 100 : 0;
+      setEditExpectedPlayers(String(cap));
+      setEditFieldCost(
+        Number.isFinite(cents) && cap > 0 && Number.isFinite(feeDollars) ? String(feeDollars * cap) : "",
+      );
+      setEditHours("2");
       const loc = s(run.location_private);
       setEditLocationPrivate(loc);
       setLocationPreset(detectPreset(loc));
@@ -183,6 +206,15 @@ export default function AdminPickupOpsScreen() {
   const confirmed = useMemo(() => (Array.isArray(detail?.confirmed) ? detail!.confirmed : []), [detail]);
   const standby = useMemo(() => (Array.isArray(detail?.standby) ? detail!.standby : []), [detail]);
   const auto = detail?.auto_status;
+
+  const createFeePreview = useMemo(
+    () => feePerPlayerDollars(Number(createFieldCost), Number(createExpectedPlayers)),
+    [createFieldCost, createExpectedPlayers],
+  );
+  const editFeePreview = useMemo(
+    () => feePerPlayerDollars(Number(editFieldCost), Number(editExpectedPlayers)),
+    [editFieldCost, editExpectedPlayers],
+  );
 
   async function requireToken(): Promise<string | null> {
     if (!token) {
@@ -217,13 +249,23 @@ export default function AdminPickupOpsScreen() {
     const t = await requireToken();
     if (!t || !selectedRunId) return;
     setBusy("save");
-    const fee = Math.round(Number(editFeeDollars || 0) * 100);
+    const fc = Number(editFieldCost);
+    const ep = Number(editExpectedPlayers);
+    if (!Number.isFinite(fc) || fc < 0) {
+      setBusy(null);
+      return Alert.alert("Invalid field cost", "Enter a valid number for field cost ($).");
+    }
+    if (!Number.isFinite(ep) || ep <= 0 || !Number.isInteger(ep)) {
+      setBusy(null);
+      return Alert.alert("Invalid expected players", "Enter a positive whole number of players splitting the cost.");
+    }
+    const fee_cents = feeCentsFromCalculator(fc, ep);
     const r = await postAdminPickupSwitch(t, {
       action: "edit_run",
       run_id: selectedRunId,
       title: editTitle.trim(),
       capacity: Number(editCapacity || 18),
-      fee_cents: Number.isFinite(fee) ? fee : 0,
+      fee_cents,
       currency: "usd",
       location_private: editLocationPrivate.trim() || null,
       show_location_to_confirmed_only: editLocConfirmedOnly,
@@ -346,18 +388,31 @@ export default function AdminPickupOpsScreen() {
       Alert.alert("Missing start time", "Enter an ISO string like 2026-05-03T20:00:00Z");
       return;
     }
+    const fc = Number(createFieldCost);
+    const ep = Number(createExpectedPlayers);
+    if (!Number.isFinite(fc) || fc < 0) {
+      return Alert.alert("Invalid field cost", "Enter a valid number for field cost ($).");
+    }
+    if (!Number.isFinite(ep) || ep <= 0 || !Number.isInteger(ep)) {
+      return Alert.alert("Invalid expected players", "Enter a positive whole number of players splitting the cost.");
+    }
+    const fee_cents = feeCentsFromCalculator(fc, ep);
     setBusy("create");
     const r = await postAdminCreateRun(t, {
       start_at,
       title: createTitle.trim() || undefined,
       service_region: region,
       capacity: Number(createCapacity || 24),
+      fee_cents,
     });
     setBusy(null);
     if (!r.ok) return Alert.alert("Create failed", r.error);
     Alert.alert("Created", "Run created.");
     setCreateStartAt("");
     setCreateTitle("");
+    setCreateFieldCost("");
+    setCreateHours("2");
+    setCreateExpectedPlayers(createCapacity.trim() || "24");
     void loadRuns();
   }
 
@@ -537,6 +592,39 @@ export default function AdminPickupOpsScreen() {
               />
             </View>
           </View>
+          <Text style={styles.label}>Field cost ($)</Text>
+          <TextInput
+            style={styles.input}
+            value={createFieldCost}
+            onChangeText={setCreateFieldCost}
+            keyboardType="decimal-pad"
+            placeholder="0"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+          />
+          <Text style={styles.label}>Hours</Text>
+          <TextInput
+            style={styles.input}
+            value={createHours}
+            onChangeText={setCreateHours}
+            keyboardType="number-pad"
+            placeholder="2"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+          />
+          <Text style={styles.label}>Expected players</Text>
+          <TextInput
+            style={styles.input}
+            value={createExpectedPlayers}
+            onChangeText={setCreateExpectedPlayers}
+            keyboardType="number-pad"
+            placeholder={createCapacity.trim() || "24"}
+            placeholderTextColor="rgba(255,255,255,0.35)"
+          />
+          <Text style={styles.feePerPlayerLine}>
+            Fee per player:{" "}
+            <Text style={createFeePreview != null ? styles.feePerPlayerValue : styles.feePerPlayerPlaceholder}>
+              {createFeePreview != null ? `$${createFeePreview.toFixed(2)}` : "—"}
+            </Text>
+          </Text>
           <Text style={styles.label}>Title (optional)</Text>
           <TextInput
             style={styles.input}
@@ -696,28 +784,45 @@ export default function AdminPickupOpsScreen() {
                       <Text style={[styles.typeChipText, editRunType === "public" && styles.typeChipTextActive]}>Public</Text>
                     </Pressable>
                   </View>
-                  <View style={styles.twoCol}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.label}>Capacity</Text>
-                      <TextInput
-                        style={styles.input}
-                        value={editCapacity}
-                        onChangeText={setEditCapacity}
-                        keyboardType="number-pad"
-                        placeholderTextColor="rgba(255,255,255,0.35)"
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.label}>Fee ($)</Text>
-                      <TextInput
-                        style={styles.input}
-                        value={editFeeDollars}
-                        onChangeText={setEditFeeDollars}
-                        keyboardType="decimal-pad"
-                        placeholderTextColor="rgba(255,255,255,0.35)"
-                      />
-                    </View>
-                  </View>
+                  <Text style={styles.label}>Capacity</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editCapacity}
+                    onChangeText={setEditCapacity}
+                    keyboardType="number-pad"
+                    placeholderTextColor="rgba(255,255,255,0.35)"
+                  />
+                  <Text style={styles.label}>Field cost ($)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editFieldCost}
+                    onChangeText={setEditFieldCost}
+                    keyboardType="decimal-pad"
+                    placeholderTextColor="rgba(255,255,255,0.35)"
+                  />
+                  <Text style={styles.label}>Hours</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editHours}
+                    onChangeText={setEditHours}
+                    keyboardType="number-pad"
+                    placeholder="2"
+                    placeholderTextColor="rgba(255,255,255,0.35)"
+                  />
+                  <Text style={styles.label}>Expected players</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editExpectedPlayers}
+                    onChangeText={setEditExpectedPlayers}
+                    keyboardType="number-pad"
+                    placeholderTextColor="rgba(255,255,255,0.35)"
+                  />
+                  <Text style={styles.feePerPlayerLine}>
+                    Fee per player:{" "}
+                    <Text style={editFeePreview != null ? styles.feePerPlayerValue : styles.feePerPlayerPlaceholder}>
+                      {editFeePreview != null ? `$${editFeePreview.toFixed(2)}` : "—"}
+                    </Text>
+                  </Text>
                   <Pressable
                     onPress={() => void onSaveRun()}
                     disabled={busy === "save"}
@@ -965,6 +1070,9 @@ const styles = StyleSheet.create({
   statePill: { justifyContent: "center" },
   statePillText: { color: "#fff", fontWeight: "900", fontSize: 15 },
   twoCol: { flexDirection: "row", gap: 12 },
+  feePerPlayerLine: { marginTop: 12, fontSize: 15, fontWeight: "700", color: "rgba(255,255,255,0.7)" },
+  feePerPlayerValue: { color: LIME, fontWeight: "900" },
+  feePerPlayerPlaceholder: { color: "rgba(255,255,255,0.35)", fontWeight: "700" },
   primary: {
     marginTop: 14,
     backgroundColor: LIME,
