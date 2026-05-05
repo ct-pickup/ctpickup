@@ -203,6 +203,15 @@ function RootLayoutNav() {
                               headerTintColor: "#fff",
                             }}
                           />
+                          <Stack.Screen
+                            name="esports/play/[id]"
+                            options={{
+                              headerShown: true,
+                              title: "Tournament play",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                            }}
+                          />
                         </Stack>
                       </ThemeProvider>
                       <AppOpeningTheme key={openingThemeKey} />

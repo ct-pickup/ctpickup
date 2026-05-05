@@ -178,10 +178,22 @@ export default function EsportsDetailScreen() {
         <DeadlineRow label="Final" value={row.final_deadline} />
       </View>
 
+      {status === "active" ? (
+        <Pressable
+          style={styles.playBtn}
+          onPress={() => router.push(`/esports/play/${id}`)}
+          accessibilityRole="button"
+          accessibilityLabel="Open tournament play and matches"
+        >
+          <FontAwesome name="gamepad" size={16} color="#111" />
+          <Text style={styles.playBtnText}> Play</Text>
+        </Pressable>
+      ) : null}
+
       {(status === "upcoming" || status === "active") ? (
         session ? (
           <Pressable
-            style={styles.registerBtn}
+            style={[styles.registerBtn, status === "active" ? styles.registerBtnBelowPlay : null]}
             onPress={goToRegister}
             accessibilityRole="button"
             accessibilityLabel="Register for this tournament"
@@ -250,6 +262,19 @@ const styles = StyleSheet.create({
   deadlineLabel: { color: "rgba(255,255,255,0.55)", fontWeight: "600" },
   body: { fontSize: 15, lineHeight: 23, color: "rgba(255,255,255,0.78)" },
   err: { color: "#fca5a5", fontSize: 15, lineHeight: 22 },
+  playBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "stretch",
+    width: "100%",
+    marginTop: 28,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: "#a3e635",
+  },
+  playBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
   registerBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -262,6 +287,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "#a3e635",
   },
+  registerBtnBelowPlay: { marginTop: 12 },
   registerBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
   signInHint: {
     marginTop: 28,
