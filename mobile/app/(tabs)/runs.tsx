@@ -394,6 +394,22 @@ export default function RunsScreen() {
               </View>
             ) : null}
             <Text style={styles.row}>Start: {fmtPickupDt(typeof run?.start_at === "string" ? run.start_at : null)}</Text>
+            {(() => {
+              const fc = run?.fee_cents;
+              if (typeof fc !== "number" || !Number.isFinite(fc) || fc <= 0) return null;
+              const dollars = (fc / 100).toFixed(2);
+              return (
+                <View style={styles.feeBlock}>
+                  <Text style={styles.feeLine}>
+                    Field fee: <Text style={styles.feeAmount}>${dollars}</Text> per person
+                  </Text>
+                  <Text style={styles.feeNote}>
+                    Final fee is based on confirmed attendance up to the session cap. If fewer players confirm, the fee may
+                    be higher. Refunds available if canceled before 10:00 PM the night before.
+                  </Text>
+                </View>
+              );
+            })()}
             {typeof run?.location_text === "string" && run.location_text ? (
               <Text style={styles.row}>Location: {run.location_text}</Text>
             ) : null}
@@ -849,6 +865,15 @@ const styles = StyleSheet.create({
   },
   countChipText: { color: "rgba(255,255,255,0.78)", fontSize: 12, fontWeight: "600" },
   row: { marginTop: 10, color: "rgba(255,255,255,0.85)", fontSize: 15 },
+  feeBlock: { marginTop: 10 },
+  feeLine: { color: "rgba(255,255,255,0.85)", fontSize: 15, lineHeight: 22 },
+  feeAmount: { color: LIME, fontWeight: "700" },
+  feeNote: {
+    marginTop: 6,
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 12,
+    lineHeight: 17,
+  },
   hint: { marginTop: 14, color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
   primaryJoin: {
     flexDirection: "row",
