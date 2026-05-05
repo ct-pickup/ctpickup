@@ -3,7 +3,6 @@ import { hasSupabaseEnv, siteOrigin } from "@/lib/env";
 import { checkEmailExistsResult } from "@/lib/siteApi";
 import { useEffect, useMemo, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useRouter } from "expo-router";
 import {
   ActivityIndicator,
   LayoutAnimation,
@@ -31,7 +30,6 @@ type Props = {
 
 export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
   const { supabase } = useAuth();
-  const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -241,13 +239,6 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
       ) : null}
 
       <View style={[styles.card, variant === "premium" && styles.cardPremium]}>
-        {signupFlowChoice === "new" && variant === "segmented" ? (
-          <Text style={styles.mutedP}>
-            We&apos;ll email you a code to create your account without leaving the app. You can finish profile details from another
-            CT Pickup client when you&apos;re ready.
-          </Text>
-        ) : null}
-
         {!canSignIn ? (
           <View style={styles.configBox}>
             <Text style={styles.configBoxTitle}>Sign-in isn&apos;t wired on this build yet</Text>
@@ -262,7 +253,6 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
           </View>
         ) : null}
 
-        {variant === "segmented" ? <Text style={styles.stepSubtitle}>{stage === "email" ? "Step 1 of 2" : "Step 2 of 2"}</Text> : null}
         {stage === "email" ? (
           <>
             {variant === "premium" ? (
@@ -273,12 +263,8 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
             ) : (
               <Text style={styles.fieldLabel}>Email</Text>
             )}
-            {variant === "segmented" ? (
-              <Text style={styles.trustLine}>
-                {signupFlowChoice === "new"
-                  ? "We'll send an 8-digit code to verify and start your account (no SMS)."
-                  : "We'll send a one-time login code (no SMS)."}
-              </Text>
+            {variant !== "premium" ? (
+              <Text style={styles.trustLine}>Enter your email to get a sign-in code</Text>
             ) : null}
             <TextInput
               style={[styles.input, variant === "premium" && styles.inputPremium]}
@@ -309,18 +295,6 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
                 </View>
               )}
             </Pressable>
-            {signupFlowChoice === "returning" ? (
-              <Pressable
-                style={styles.textBtn}
-                onPress={() =>
-                  emailClean
-                    ? router.push({ pathname: "/reset-password", params: { email: emailClean } })
-                    : router.push("/reset-password")
-                }
-              >
-                <Text style={styles.textBtnLabelStrong}>Forgot password?</Text>
-              </Pressable>
-            ) : null}
             {variant === "simple" ? (
               <Pressable
                 style={styles.createAccountRow}
@@ -340,23 +314,6 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
               <Pressable style={styles.secondaryBtn} onPress={() => void submitSendCode()}>
                 <Text style={styles.secondaryBtnText}>Try again</Text>
               </Pressable>
-            ) : null}
-
-            {variant === "premium" ? (
-              <View style={styles.premiumMetaRow}>
-                <View style={styles.premiumMetaItem}>
-                  <FontAwesome name="shield" size={12} color="rgba(255,255,255,0.35)" />
-                  <Text style={styles.premiumMetaText}>Verified runs</Text>
-                </View>
-                <View style={styles.premiumMetaItem}>
-                  <FontAwesome name="graduation-cap" size={12} color="rgba(255,255,255,0.35)" />
-                  <Text style={styles.premiumMetaText}>College players</Text>
-                </View>
-                <View style={styles.premiumMetaItem}>
-                  <FontAwesome name="trophy" size={12} color="rgba(255,255,255,0.35)" />
-                  <Text style={styles.premiumMetaText}>Competitive pickup</Text>
-                </View>
-              </View>
             ) : null}
           </>
         ) : (
@@ -420,15 +377,6 @@ const styles = StyleSheet.create({
   segmentChipActive: { borderColor: "rgba(163,230,53,0.35)", backgroundColor: "rgba(163,230,53,0.14)" },
   segmentChipText: { color: "rgba(255,255,255,0.62)", fontSize: 14.5, fontWeight: "700" },
   segmentChipTextActive: { color: "#fff" },
-  mutedP: { color: "rgba(255,255,255,0.72)", fontSize: 14, lineHeight: 21, marginBottom: 16 },
-  stepSubtitle: {
-    marginBottom: 14,
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    color: "rgba(255,255,255,0.45)",
-  },
   trustLine: { marginTop: 6, fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 18 },
   configBox: {
     marginBottom: 16,
@@ -510,15 +458,4 @@ const styles = StyleSheet.create({
   textBtnLabelStrong: { color: "rgba(255,255,255,0.65)", fontSize: 14.5, fontWeight: "700" },
   msg: { marginTop: 14, color: "#fca5a5", fontSize: 14 },
   msgMuted: { color: "rgba(252,211,212,0.92)" },
-  premiumMetaRow: {
-    marginTop: 18,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.08)",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  premiumMetaItem: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
-  premiumMetaText: { color: "rgba(255,255,255,0.42)", fontSize: 12.5, fontWeight: "700" },
 });

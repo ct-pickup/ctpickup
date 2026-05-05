@@ -4,15 +4,14 @@ import { recordPlatformCheckoutStarted } from "@/lib/payments/recordCheckoutStar
 import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
 import { ESPORTS_ENTRY_FEE_STRIPE_DESCRIPTION } from "@/lib/fees/refundPolicyCopy";
 import { ESPORTS_ENTRY_FEE_CENTS } from "@/lib/esports/constants";
-import { getAuthUserSafe, supabaseServer } from "@/lib/supabase/server";
+import { resolveRouteAuth } from "@/lib/supabase/server";
 import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const server = await supabaseServer();
-    const user = await getAuthUserSafe(server);
+    const { user } = await resolveRouteAuth(req);
     if (!user) {
       return NextResponse.json({ error: "You must be logged in." }, { status: 401 });
     }

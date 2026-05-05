@@ -1,4 +1,4 @@
-import type { SupabaseClient, User } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
@@ -16,6 +16,44 @@ export async function getAuthUserSafe(client: SupabaseClient): Promise<User | nu
   } catch {
     return null;
   }
+}
+
+/** JWT from Authorization: Bearer (native apps); null if missing/malformed. */
+function bearerJwtFromRequest(req: Request): string | null {
+  const header = req.headers.get("authorization");
+  if (!header?.startsWith("Bearer ")) return null;
+  const token = header.slice(7).trim();
+  return token || null;
+}
+
+/**
+ * API route helpers: prefers Bearer JWT (mobile) so RLS-aware queries match the logged-in user;
+ * otherwise uses SSR cookies (browser).
+ */
+export async function resolveRouteAuth(req: Request): Promise<{ supabase: SupabaseClient; user: User | null }> {
+  const jwt = bearerJwtFromRequest(req);
+  const env = getSupabasePublicEnv();
+  if (!env) {
+    throw new Error(
+      "Missing Supabase env. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_URL and SUPABASE_ANON_KEY).",
+    );
+  }
+
+  if (jwt) {
+    const supabase = createClient(env.url, env.anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { headers: { Authorization: `Bearer ${jwt}` } },
+    });
+    const { data, error } = await supabase.auth.getUser(jwt);
+    if (error || !data?.user) {
+      return { supabase, user: null };
+    }
+    return { supabase, user: data.user };
+  }
+
+  const supabase = await supabaseServer();
+  const user = await getAuthUserSafe(supabase);
+  return { supabase, user };
 }
 
 /**

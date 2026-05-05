@@ -6,15 +6,14 @@ import {
   esportsConfirmationsComplete,
   type EsportsConfirmations,
 } from "@/lib/esports/esportsRegistrationConfirmations";
-import { getAuthUserSafe, supabaseServer } from "@/lib/supabase/server";
+import { resolveRouteAuth } from "@/lib/supabase/server";
 import { checkRateLimit, requestIp } from "@/lib/server/rateLimit";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const server = await supabaseServer();
-    const user = await getAuthUserSafe(server);
+    const { supabase: server, user } = await resolveRouteAuth(req);
     if (!user) {
       return NextResponse.json({ error: "You must be logged in." }, { status: 401 });
     }

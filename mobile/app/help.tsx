@@ -17,12 +17,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const BG = "#0a0a0a";
 const LIME = "#a3e635";
 const WORD_LIMIT = 50;
-const SUPPORT_EMAIL = "support@ctpickup.net";
+const SUPPORT_EMAIL = "pickupct@gmail.com";
 
 const EXAMPLE_CHIPS = [
   "How do I join a tournament?",
   "How do I join pickup?",
-  "Where do I find training?",
+  "What is my tier?",
 ] as const;
 
 function countWords(text: string): number {
@@ -119,7 +119,7 @@ export default function HelpScreen() {
         headers.Authorization = `Bearer ${accessToken}`;
       }
 
-      const r = await fetch(`${origin}/api/help/chat`, {
+      const r = await fetch(`${origin}/api/mobile/help`, {
         method: "POST",
         headers,
         body: JSON.stringify({ question: text }),
