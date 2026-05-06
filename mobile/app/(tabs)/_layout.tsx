@@ -1,11 +1,12 @@
 import React from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { Redirect, Tabs } from "expo-router";
+import { Redirect, Tabs, type Href } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 
 import { useClientOnlyValue } from "@/components/useClientOnlyValue";
 import { useAdminMode } from "@/context/AdminModeContext";
 import { useAuth } from "@/context/AuthContext";
+import { useProfileCompletionGate } from "@/context/ProfileCompletionContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { useWaiver } from "@/context/WaiverContext";
 import { RunsPickerBridgeProvider } from "@/context/RunsPickerBridge";
@@ -22,6 +23,7 @@ export default function TabLayout() {
   const { enabled: adminModeEnabled, isReady: adminModeReady } = useAdminMode();
   const { isAdmin, isReady: profileAdminReady } = useProfileAdmin();
   const { waiverAccepted, waiverLoading } = useWaiver();
+  const { profileGateLoading, profileNeedsCompletion } = useProfileCompletionGate();
 
   if (!isReady || !adminModeReady || !profileAdminReady) {
     return (
@@ -45,6 +47,18 @@ export default function TabLayout() {
 
   if (!waiverAccepted) {
     return <Redirect href="/waiver" />;
+  }
+
+  if (profileGateLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0a0a0a", justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  }
+
+  if (profileNeedsCompletion) {
+    return <Redirect href={"/complete-profile" as Href} />;
   }
 
   return (

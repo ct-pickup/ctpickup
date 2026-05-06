@@ -7,6 +7,7 @@ import { AppLockProvider } from "@/context/AppLockContext";
 import { AccountIntroReplayProvider } from "@/context/AccountIntroReplayContext";
 import { AdminModeProvider } from "@/context/AdminModeContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { ProfileCompletionProvider } from "@/context/ProfileCompletionContext";
 import { ProfileAdminProvider } from "@/context/ProfileAdminContext";
 import { WaiverProvider } from "@/context/WaiverContext";
 import { SelectedRegionProvider } from "@/context/SelectedRegionContext";
@@ -75,33 +76,34 @@ function RootLayoutNav() {
     <ReplayOpeningThemeContext.Provider value={replayOpeningThemeCtx}>
       <AuthProvider>
         <WaiverProvider>
-          <ProfileAdminProvider>
-            <AdminModeProvider>
-              <SelectedRegionProvider>
-                <AppLockProvider>
-                  <AccountIntroReplayProvider>
-                    <View style={{ flex: 1 }}>
-                      <PushRegistrar />
-                      <ThemeProvider
-                        value={
-                          colorScheme === "dark"
-                            ? DarkTheme
-                            : {
-                                ...DefaultTheme,
-                                colors: {
-                                  ...DefaultTheme.colors,
-                                  background: Colors.light.background,
-                                  card: Colors.light.background,
-                                  primary: CT_PICKUP_LIME,
-                                  text: Colors.light.text,
-                                  border: "rgba(10,10,10,0.12)",
-                                  notification: "#111",
-                                },
-                              }
-                        }
-                      >
-                        <Stack>
-                          <Stack.Screen
+          <ProfileCompletionProvider>
+            <ProfileAdminProvider>
+              <AdminModeProvider>
+                <SelectedRegionProvider>
+                  <AppLockProvider>
+                    <AccountIntroReplayProvider>
+                      <View style={{ flex: 1 }}>
+                        <PushRegistrar />
+                        <ThemeProvider
+                          value={
+                            colorScheme === "dark"
+                              ? DarkTheme
+                              : {
+                                  ...DefaultTheme,
+                                  colors: {
+                                    ...DefaultTheme.colors,
+                                    background: Colors.light.background,
+                                    card: Colors.light.background,
+                                    primary: CT_PICKUP_LIME,
+                                    text: Colors.light.text,
+                                    border: "rgba(10,10,10,0.12)",
+                                    notification: "#111",
+                                  },
+                                }
+                          }
+                        >
+                          <Stack>
+                            <Stack.Screen
                             name="(tabs)"
                             options={{
                               headerShown: false,
@@ -120,6 +122,15 @@ function RootLayoutNav() {
                             options={{
                               headerShown: false,
                               title: "Waiver",
+                            }}
+                          />
+                          <Stack.Screen
+                            name="complete-profile"
+                            options={{
+                              headerShown: false,
+                              title: "Complete profile",
+                              gestureEnabled: false,
+                              headerBackVisible: false,
                             }}
                           />
                           <Stack.Screen
@@ -211,17 +222,18 @@ function RootLayoutNav() {
                               headerStyle: { backgroundColor: "#0a0a0a" },
                               headerTintColor: "#fff",
                             }}
-                          />
-                        </Stack>
-                      </ThemeProvider>
-                      <AppOpeningTheme key={openingThemeKey} />
-                      <AppLockOverlay />
-                    </View>
-                  </AccountIntroReplayProvider>
-                </AppLockProvider>
-              </SelectedRegionProvider>
-            </AdminModeProvider>
-          </ProfileAdminProvider>
+                            />
+                          </Stack>
+                        </ThemeProvider>
+                        <AppOpeningTheme key={openingThemeKey} />
+                        <AppLockOverlay />
+                      </View>
+                    </AccountIntroReplayProvider>
+                  </AppLockProvider>
+                </SelectedRegionProvider>
+              </AdminModeProvider>
+            </ProfileAdminProvider>
+          </ProfileCompletionProvider>
         </WaiverProvider>
       </AuthProvider>
     </ReplayOpeningThemeContext.Provider>
