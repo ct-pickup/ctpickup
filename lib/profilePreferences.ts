@@ -22,7 +22,7 @@ export const PLAYER_ESPORTS_GOALIE_COPY = {
 export const ESPORTS_ONLINE_ID_MAX_LEN = 64;
 
 export type EsportsInterest = "yes" | "no" | "later";
-export type EsportsPlatform = "xbox" | "playstation";
+export type EsportsPlatform = "xbox" | "playstation" | "ps5" | "pc";
 export type EsportsConsole = "xbox_series_xs" | "xbox_one" | "ps5" | "ps4";
 
 export const ESPORTS_INTEREST_LABELS: Record<EsportsInterest, string> = {
@@ -34,6 +34,8 @@ export const ESPORTS_INTEREST_LABELS: Record<EsportsInterest, string> = {
 export const ESPORTS_PLATFORM_LABELS: Record<EsportsPlatform, string> = {
   xbox: "Xbox",
   playstation: "PlayStation",
+  ps5: "PS5",
+  pc: "PC",
 };
 
 export const ESPORTS_CONSOLE_LABELS: Record<EsportsConsole, string> = {
@@ -45,6 +47,7 @@ export const ESPORTS_CONSOLE_LABELS: Record<EsportsConsole, string> = {
 
 export function consolesForPlatform(p: EsportsPlatform): EsportsConsole[] {
   if (p === "xbox") return ["xbox_series_xs", "xbox_one"];
+  if (p === "pc") return [];
   return ["ps5", "ps4"];
 }
 
@@ -54,7 +57,7 @@ export function parseEsportsInterest(raw: string | null | undefined): EsportsInt
 }
 
 export function parseEsportsPlatform(raw: string | null | undefined): EsportsPlatform | null {
-  if (raw === "xbox" || raw === "playstation") return raw;
+  if (raw === "xbox" || raw === "playstation" || raw === "ps5" || raw === "pc") return raw;
   return null;
 }
 
@@ -71,9 +74,9 @@ export function parseEsportsConsole(raw: string | null | undefined): EsportsCons
 }
 
 export function onlineIdLabelForPlatform(p: EsportsPlatform): string {
-  return p === "xbox"
-    ? PLAYER_ESPORTS_GOALIE_COPY.questionOnlineIdXbox
-    : PLAYER_ESPORTS_GOALIE_COPY.questionOnlineIdPlaystation;
+  if (p === "xbox") return PLAYER_ESPORTS_GOALIE_COPY.questionOnlineIdXbox;
+  if (p === "pc") return "What is your PC username / online ID?";
+  return PLAYER_ESPORTS_GOALIE_COPY.questionOnlineIdPlaystation;
 }
 
 /** Trim + max length; empty input → null for persistence. */
@@ -96,9 +99,10 @@ export function esportsDetailsComplete(args: {
   esports_online_id?: string | null | undefined;
 }): boolean {
   if (args.esports_interest !== "yes") return true;
-  if (!parseEsportsPlatform(args.esports_platform) || !parseEsportsConsole(args.esports_console)) {
-    return false;
-  }
+  if (!parseEsportsPlatform(args.esports_platform)) return false;
+  const legacyConsole = parseEsportsConsole(args.esports_console);
+  const consoleText = String(args.esports_console ?? "").trim();
+  if (!legacyConsole && !consoleText) return false;
   return Boolean(normalizeEsportsOnlineId(args.esports_online_id ?? null));
 }
 
@@ -135,9 +139,11 @@ export function formatEsportsSummary(row: {
   if (i === "later") return "Decide later — finish in Profile (profile icon)";
   const plat = parseEsportsPlatform(row.esports_platform ?? null);
   const con = parseEsportsConsole(row.esports_console ?? null);
+  const conFree = String(row.esports_console ?? "").trim();
   const oid = normalizeEsportsOnlineId(row.esports_online_id ?? null);
-  if (!plat || !con) return "Interested — add platform below";
-  const base = `${ESPORTS_PLATFORM_LABELS[plat]} · ${ESPORTS_CONSOLE_LABELS[con]}`;
+  if (!plat || (!con && !conFree)) return "Interested — add platform below";
+  const consoleLabel = con ? ESPORTS_CONSOLE_LABELS[con] : conFree;
+  const base = `${ESPORTS_PLATFORM_LABELS[plat]} · ${consoleLabel}`;
   if (!oid) return `${base} — add gamertag / online ID below`;
   return `${base} · ${oid}`;
 }
