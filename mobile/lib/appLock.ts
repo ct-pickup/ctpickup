@@ -5,6 +5,19 @@ const K_SALT = "ctpickup_app_lock_salt_v1";
 const K_HASH = "ctpickup_app_lock_hash_v1";
 const K_BIO = "ctpickup_app_lock_biometrics_v1";
 
+/** Per-user: set after first background while signed in without a PIN — defer enrollment until then. */
+function enrollmentEligibleKey(userId: string): string {
+  return `ctpickup_app_lock_enroll_eligible_v1_${userId}`;
+}
+
+export async function isPinEnrollmentEligibleForUser(userId: string): Promise<boolean> {
+  return (await SecureStore.getItemAsync(enrollmentEligibleKey(userId))) === "1";
+}
+
+export async function markPinEnrollmentEligibleForUser(userId: string): Promise<void> {
+  await SecureStore.setItemAsync(enrollmentEligibleKey(userId), "1");
+}
+
 /** Minimum length after trim. */
 export const PASSCODE_MIN_LEN = 8;
 /** Maximum length stored / entered. */

@@ -6,6 +6,8 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
+  type AppStateStatus,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -18,7 +20,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
+  isPinEnrollmentEligibleForUser,
   isValidPinFormat,
+  markPinEnrollmentEligibleForUser,
   normalizePasscode,
   PASSCODE_MAX_LEN,
   PASSCODE_REQUIREMENTS,
@@ -47,7 +51,50 @@ export function AppLockOverlay() {
   const [enrollErr, setEnrollErr] = useState<string | null>(null);
   const [enrollBusy, setEnrollBusy] = useState(false);
 
-  const needsEnrollment = Boolean(session?.user) && !hasPin;
+  /** Don’t block first launch after sign-in; allow enrollment only after a real session (see effects below). */
+  const [pinEnrollmentEligible, setPinEnrollmentEligible] = useState(false);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+
+  const userId = session?.user?.id ?? null;
+
+  useEffect(() => {
+    if (!userId) {
+      setPinEnrollmentEligible(false);
+      return;
+    }
+    let cancelled = false;
+    void isPinEnrollmentEligibleForUser(userId).then((ok) => {
+      if (!cancelled) setPinEnrollmentEligible(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  /** First background while signed in without a PIN counts as having completed an initial session. */
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => {
+      const prev = appStateRef.current;
+      appStateRef.current = next;
+      if (!userId || hasPin) return;
+      if (prev?.match(/inactive|active/) && next === "background") {
+        void markPinEnrollmentEligibleForUser(userId).then(() => setPinEnrollmentEligible(true));
+      }
+    });
+    return () => sub.remove();
+  }, [userId, hasPin]);
+
+  /** Fallback: long foreground session without leaving the app still qualifies for enrollment. */
+  useEffect(() => {
+    if (!userId || hasPin || pinEnrollmentEligible) return;
+    const SESSION_MS = 120_000;
+    const t = setTimeout(() => {
+      void markPinEnrollmentEligibleForUser(userId).then(() => setPinEnrollmentEligible(true));
+    }, SESSION_MS);
+    return () => clearTimeout(t);
+  }, [userId, hasPin, pinEnrollmentEligible]);
+
+  const needsEnrollment = Boolean(session?.user) && !hasPin && pinEnrollmentEligible;
   const visible = hasPin && isLocked;
 
   useEffect(() => {

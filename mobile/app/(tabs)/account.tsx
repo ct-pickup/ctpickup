@@ -571,125 +571,123 @@ export default function AccountScreen() {
           </View>
         ) : null}
 
-        <Text style={styles.sectionTitle}>App passcode</Text>
-        <Text style={styles.sectionSub}>
-          A passcode is required on this device when you’re{"\n"}
-          signed in. {PASSCODE_REQUIREMENTS} It locks the app when you leave{"\n"}
-          Face ID or Touch ID can unlock instead.
-        </Text>
+        {hasPin ? (
+          <>
+            <Text style={styles.sectionTitle}>App passcode</Text>
+            <Text style={styles.sectionSub}>
+              A passcode is required on this device when you’re{"\n"}
+              signed in. {PASSCODE_REQUIREMENTS} It locks the app when you leave{"\n"}
+              Face ID or Touch ID can unlock instead.
+            </Text>
 
-        {!hasPin ? (
-          <Text style={styles.noteMuted}>
-            You’ll be prompted to create your passcode after sign-in before using the app.
-          </Text>
-        ) : null}
-
-        {hasPin && lockUi === "idle" ? (
-          <View style={styles.card}>
-            <View style={styles.rowBetween}>
-              <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={styles.fieldLabelStrong}>Face ID / Touch ID</Text>
-                <Text style={styles.bioHint}>Unlock without typing your passcode.</Text>
+            {lockUi === "idle" ? (
+              <View style={styles.card}>
+                <View style={styles.rowBetween}>
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={styles.fieldLabelStrong}>Face ID / Touch ID</Text>
+                    <Text style={styles.bioHint}>Unlock without typing your passcode.</Text>
+                  </View>
+                  <Switch
+                    value={biometricsEnabled}
+                    onValueChange={(v) => void onToggleBiometrics(v)}
+                    disabled={!biometricsAvailable && !biometricsEnabled}
+                    trackColor={{ false: "rgba(255,255,255,0.18)", true: LIME }}
+                    thumbColor="#f4f4f5"
+                  />
+                </View>
+                {!biometricsAvailable ? (
+                  <Text style={styles.warn}>Set up Face ID or Touch ID in iOS Settings to use this.</Text>
+                ) : null}
+                <Pressable
+                  style={styles.secondaryBtn}
+                  onPress={() => {
+                    setLockUi("change");
+                    setLockMsg(null);
+                  }}
+                >
+                  <Text style={styles.secondaryBtnText}>Change passcode</Text>
+                </Pressable>
+                <Pressable style={styles.textBtn} onPress={() => lockNow()}>
+                  <Text style={styles.textBtnLabel}>Lock app now</Text>
+                </Pressable>
               </View>
-              <Switch
-                value={biometricsEnabled}
-                onValueChange={(v) => void onToggleBiometrics(v)}
-                disabled={!biometricsAvailable && !biometricsEnabled}
-                trackColor={{ false: "rgba(255,255,255,0.18)", true: LIME }}
-                thumbColor="#f4f4f5"
-              />
-            </View>
-            {!biometricsAvailable ? <Text style={styles.warn}>Set up Face ID or Touch ID in iOS Settings to use this.</Text> : null}
-            <Pressable
-              style={styles.secondaryBtn}
-              onPress={() => {
-                setLockUi("change");
-                setLockMsg(null);
-              }}
-            >
-              <Text style={styles.secondaryBtnText}>Change passcode</Text>
-            </Pressable>
-            <Pressable style={styles.textBtn} onPress={() => lockNow()}>
-              <Text style={styles.textBtnLabel}>Lock app now</Text>
-            </Pressable>
-          </View>
+            ) : (
+              <View style={styles.card}>
+                <Text style={styles.fieldLabel}>Current passcode</Text>
+                <TextInput
+                  style={styles.input}
+                  maxLength={PASSCODE_MAX_LEN}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={changeOld}
+                  onChangeText={(t) => setChangeOld(t.slice(0, PASSCODE_MAX_LEN))}
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                />
+                <Text style={[styles.fieldLabel, { marginTop: 12 }]}>New passcode</Text>
+                <TextInput
+                  style={styles.input}
+                  maxLength={PASSCODE_MAX_LEN}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={changeNewA}
+                  onChangeText={(t) => setChangeNewA(t.slice(0, PASSCODE_MAX_LEN))}
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                />
+                <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Confirm new</Text>
+                <TextInput
+                  style={styles.input}
+                  maxLength={PASSCODE_MAX_LEN}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={changeNewB}
+                  onChangeText={(t) => setChangeNewB(t.slice(0, PASSCODE_MAX_LEN))}
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                />
+                <Pressable
+                  style={[styles.primaryBtn, lockBusy && styles.disabled]}
+                  disabled={lockBusy}
+                  onPress={() => {
+                    void (async () => {
+                      setLockMsg(null);
+                      if (!normalizePasscode(changeOld)) {
+                        setLockMsg("Enter your current passcode.");
+                        return;
+                      }
+                      if (!isValidPinFormat(changeNewA) || !isValidPinFormat(changeNewB)) {
+                        setLockMsg(PASSCODE_REQUIREMENTS);
+                        return;
+                      }
+                      if (normalizePasscode(changeNewA) !== normalizePasscode(changeNewB)) {
+                        setLockMsg("New passcodes don’t match.");
+                        return;
+                      }
+                      setLockBusy(true);
+                      const ok = await changePin(changeOld, changeNewA);
+                      setLockBusy(false);
+                      if (!ok) {
+                        setLockMsg("Current passcode incorrect.");
+                        return;
+                      }
+                      setChangeOld("");
+                      setChangeNewA("");
+                      setChangeNewB("");
+                      setLockUi("idle");
+                    })();
+                  }}
+                >
+                  <Text style={styles.primaryBtnText}>Update passcode</Text>
+                </Pressable>
+                <Pressable style={styles.textBtn} onPress={() => { setLockUi("idle"); setLockMsg(null); }}>
+                  <Text style={styles.textBtnLabel}>Cancel</Text>
+                </Pressable>
+                {lockMsg ? <Text style={styles.msg}>{lockMsg}</Text> : null}
+              </View>
+            )}
+          </>
         ) : null}
-
-      {hasPin && lockUi === "change" ? (
-        <View style={styles.card}>
-          <Text style={styles.fieldLabel}>Current passcode</Text>
-          <TextInput
-            style={styles.input}
-            maxLength={PASSCODE_MAX_LEN}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-            value={changeOld}
-            onChangeText={(t) => setChangeOld(t.slice(0, PASSCODE_MAX_LEN))}
-            placeholderTextColor="rgba(255,255,255,0.35)"
-          />
-          <Text style={[styles.fieldLabel, { marginTop: 12 }]}>New passcode</Text>
-          <TextInput
-            style={styles.input}
-            maxLength={PASSCODE_MAX_LEN}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-            value={changeNewA}
-            onChangeText={(t) => setChangeNewA(t.slice(0, PASSCODE_MAX_LEN))}
-            placeholderTextColor="rgba(255,255,255,0.35)"
-          />
-          <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Confirm new</Text>
-          <TextInput
-            style={styles.input}
-            maxLength={PASSCODE_MAX_LEN}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-            value={changeNewB}
-            onChangeText={(t) => setChangeNewB(t.slice(0, PASSCODE_MAX_LEN))}
-            placeholderTextColor="rgba(255,255,255,0.35)"
-          />
-          <Pressable
-            style={[styles.primaryBtn, lockBusy && styles.disabled]}
-            disabled={lockBusy}
-            onPress={() => {
-              void (async () => {
-                setLockMsg(null);
-                if (!normalizePasscode(changeOld)) {
-                  setLockMsg("Enter your current passcode.");
-                  return;
-                }
-                if (!isValidPinFormat(changeNewA) || !isValidPinFormat(changeNewB)) {
-                  setLockMsg(PASSCODE_REQUIREMENTS);
-                  return;
-                }
-                if (normalizePasscode(changeNewA) !== normalizePasscode(changeNewB)) {
-                  setLockMsg("New passcodes don’t match.");
-                  return;
-                }
-                setLockBusy(true);
-                const ok = await changePin(changeOld, changeNewA);
-                setLockBusy(false);
-                if (!ok) {
-                  setLockMsg("Current passcode incorrect.");
-                  return;
-                }
-                setChangeOld("");
-                setChangeNewA("");
-                setChangeNewB("");
-                setLockUi("idle");
-              })();
-            }}
-          >
-            <Text style={styles.primaryBtnText}>Update passcode</Text>
-          </Pressable>
-          <Pressable style={styles.textBtn} onPress={() => { setLockUi("idle"); setLockMsg(null); }}>
-            <Text style={styles.textBtnLabel}>Cancel</Text>
-          </Pressable>
-          {lockMsg ? <Text style={styles.msg}>{lockMsg}</Text> : null}
-        </View>
-      ) : null}
 
       {__DEV__ ? (
         <>
@@ -756,7 +754,6 @@ const styles = StyleSheet.create({
   sectionTitle: { marginTop: 28, fontSize: 20, fontWeight: "800", color: "#fff" },
   sectionAboveAuth: { marginTop: 20 },
   sectionSub: { marginTop: 8, color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
-  noteMuted: { marginTop: 14, color: "rgba(255,255,255,0.45)", fontSize: 14, lineHeight: 20 },
   infoBanner: {
     marginTop: 16,
     padding: 14,
