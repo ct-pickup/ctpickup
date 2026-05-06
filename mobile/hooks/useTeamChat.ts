@@ -105,33 +105,57 @@ export function useTeamChatRoom(enabled: boolean, lookup: RoomLookup) {
   return { room, loading, error };
 }
 
+/** Matches `chat_messages_set_sender_display` in `20260502160000_team_chat.sql`. */
+function profileToChatSenderDisplay(first: string | null | undefined, last: string | null | undefined): string {
+  const s = `${String(first ?? "").trim()} ${String(last ?? "").trim()}`.trim();
+  return s || "Player";
+}
+
+/** Case- and inner-whitespace-insensitive compare for chat sender labels. */
+export function normalizeChatSenderDisplayForMatch(s: string): string {
+  return s.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
 /**
  * Returns the set of user_ids whose profile has `is_admin = true`. Used by the
  * chat UI to identify staff-authored messages so they can be rendered with the
  * "announcement" pill (lime border + dark green card + white text) in any
  * room, not just announcements-only rooms.
+ *
+ * Also returns normalized display names for every admin profile (same string
+ * shape as `chat_messages.sender_display_name`) so slug rooms can label staff
+ * as "Admin" when the denormalized name matches.
  */
 export function useChatAdminUserIds(enabled: boolean) {
   const { supabase } = useAuth();
   const [adminIds, setAdminIds] = useState<Set<string>>(() => new Set());
+  const [adminSenderDisplayNorms, setAdminSenderDisplayNorms] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!enabled || !supabase) {
       setAdminIds(new Set());
+      setAdminSenderDisplayNorms(new Set());
       setLoading(false);
       return;
     }
     let cancelled = false;
     setLoading(true);
     void (async () => {
-      const { data } = await supabase.from("profiles").select("id").eq("is_admin", true);
+      const { data } = await supabase.from("profiles").select("id,first_name,last_name").eq("is_admin", true);
       if (cancelled) return;
       const ids = new Set<string>();
-      for (const row of (data ?? []) as { id: string }[]) {
+      const norms = new Set<string>();
+      for (const row of (data ?? []) as { id: string; first_name: string | null; last_name: string | null }[]) {
         if (row?.id) ids.add(row.id);
+        const fn = String(row.first_name ?? "").trim();
+        const ln = String(row.last_name ?? "").trim();
+        if (fn || ln) {
+          norms.add(normalizeChatSenderDisplayForMatch(profileToChatSenderDisplay(row.first_name, row.last_name)));
+        }
       }
       setAdminIds(ids);
+      setAdminSenderDisplayNorms(norms);
       setLoading(false);
     })();
     return () => {
@@ -139,7 +163,7 @@ export function useChatAdminUserIds(enabled: boolean) {
     };
   }, [enabled, supabase]);
 
-  return { adminIds, loading };
+  return { adminIds, adminSenderDisplayNorms, loading };
 }
 
 export function useTeamChatAccess() {

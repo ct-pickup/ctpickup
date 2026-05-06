@@ -1,7 +1,13 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { SignInPanel } from "@/components/SignInPanel";
 import { useAuth } from "@/context/AuthContext";
-import { useChatAdminUserIds, useTeamChatAccess, useTeamChatMessages, useTeamChatRoom } from "@/hooks/useTeamChat";
+import {
+  normalizeChatSenderDisplayForMatch,
+  useChatAdminUserIds,
+  useTeamChatAccess,
+  useTeamChatMessages,
+  useTeamChatRoom,
+} from "@/hooks/useTeamChat";
 import { ANNOUNCEMENTS_CHAT_SLUG, TEAM_CHAT_SLUG, useUserChatRooms, type ChatRoomSummary } from "@/lib/teamChat";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
@@ -88,7 +94,7 @@ export default function TeamChatThreadScreen() {
   const switchChips = useMemo(() => buildSwitchChips(userRooms), [userRooms]);
 
   const { messages, loading: msgsLoading, error: msgsError, send, currentUserId } = useTeamChatMessages(roomId);
-  const { adminIds } = useChatAdminUserIds(enabled);
+  const { adminIds, adminSenderDisplayNorms } = useChatAdminUserIds(enabled);
 
   const [draft, setDraft] = useState("");
   const [sendBusy, setSendBusy] = useState(false);
@@ -272,12 +278,27 @@ export default function TeamChatThreadScreen() {
           // Group/team (announcements_only false): admin card only when sender is staff.
           const isAdminMessage = !mine && (announcementsOnly || senderIsAdmin);
 
+          const senderDisplayNorm = normalizeChatSenderDisplayForMatch(m.sender_display_name || "");
+          const senderNameMatchesAdmin =
+            senderDisplayNorm.length > 0 && adminSenderDisplayNorms.has(senderDisplayNorm);
+
+          let senderLabel: string | null = null;
+          if (!mine) {
+            if (announcementsOnly) {
+              senderLabel = "Admin";
+            } else if (isGroupRoom) {
+              senderLabel = m.sender_display_name || "Player";
+            } else if (senderNameMatchesAdmin) {
+              senderLabel = "Admin";
+            } else {
+              senderLabel = m.sender_display_name || "Player";
+            }
+          }
+
           return (
             <View style={[styles.msgRow, mine ? styles.msgRowMine : styles.msgRowOther]}>
-              {!mine ? (
-                <Text style={isAdminMessage ? styles.msgSenderAdmin : styles.msgSenderOther}>
-                  {m.sender_display_name || "Player"}
-                </Text>
+              {!mine && senderLabel != null ? (
+                <Text style={isAdminMessage ? styles.msgSenderAdmin : styles.msgSenderOther}>{senderLabel}</Text>
               ) : null}
               <View
                 style={[
