@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { staffInsertChatMessageAndPush } from "@/lib/chat/staffInsertChatMessageAndPush";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
@@ -53,6 +54,48 @@ export async function POST(req: Request) {
   if (!guard.ok) return guard.response;
 
   const body = await req.json().catch(() => ({}));
+  const action = String(body.action || "").trim();
+
+  if (action === "post_message") {
+    const room_id = String(body.room_id || "").trim();
+    const message = String(body.message || "").trim();
+    if (!room_id) return NextResponse.json({ error: "room_id required" }, { status: 400 });
+    if (!message) return NextResponse.json({ error: "message required" }, { status: 400 });
+
+    const admin = getSupabaseAdmin();
+    const r = await admin.from("chat_rooms").select(ROOM_SELECT).eq("id", room_id).maybeSingle();
+
+    if (r.error) return NextResponse.json({ error: r.error.message }, { status: 500 });
+    const room = r.data as {
+      id: string;
+      slug: string;
+      title: string;
+      room_type: string | null;
+      announcements_only: boolean;
+    } | null;
+
+    if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
+
+    const isGroup = room.room_type === "group";
+    if (!isGroup && !room.announcements_only) {
+      return NextResponse.json({ error: "Room must be announcement or group" }, { status: 409 });
+    }
+
+    const { insertError, push } = await staffInsertChatMessageAndPush(admin, guard.userId, room, message);
+    if (insertError) return NextResponse.json({ error: insertError }, { status: 500 });
+    if (!push) return NextResponse.json({ error: "push_failed" }, { status: 500 });
+    if (push.lookupError) return NextResponse.json({ error: push.lookupError }, { status: 500 });
+
+    return NextResponse.json({
+      ok: true,
+      room_id: room.id,
+      room_slug: room.slug,
+      room_type: room.room_type,
+      pushed: push.tokens,
+      push_batches: push.batches,
+    });
+  }
+
   const slug = String(body.slug || "").trim();
   const title = String(body.title || "").trim();
 

@@ -12,7 +12,9 @@ import {
 } from "@/lib/admin/publish/publicationResponse";
 import type { PublishTargetsInput } from "@/lib/admin/publish/types";
 import { recordTournamentActivationChange } from "@/lib/admin/surfaceHealth";
-import { deactivateActiveTournamentsInRegionBucket } from "@/lib/tournament/deactivateActiveByRegionBucket";
+import { fetchApprovedUserIds } from "@/lib/push/approvedUserIds";
+import { sendPushToUsers } from "@/lib/push/sendExpoPush";
+import { setOutdoorTournamentHub } from "@/lib/tournament/setOutdoorTournamentHub";
 import { enqueueRevalidateAndRun } from "@/lib/admin/sync/enqueueRevalidate";
 import { isPublishLayerAvailable } from "@/lib/admin/publishLayer";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
@@ -111,22 +113,20 @@ export async function POST(req: Request) {
     const tournament_id =
       body.tournament_id === null || body.tournament_id === "" ? null : String(body.tournament_id);
 
-    if (!tournament_id) {
-      const { data: all, error: listErr } = await admin.from("tournaments").select("id");
-      if (listErr) return NextResponse.json({ error: listErr.message }, { status: 500 });
-      for (const r of all ?? []) {
-        const { error: uErr } = await admin.from("tournaments").update({ is_active: false }).eq("id", r.id);
-        if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
-      }
-    } else {
-      const rowRes = await admin.from("tournaments").select("service_region").eq("id", tournament_id).maybeSingle();
-      if (!rowRes.data) return NextResponse.json({ error: "Tournament not found." }, { status: 404 });
-      const sr = rowRes.data.service_region;
-      const bucket = sr != null && String(sr).trim() !== "" ? String(sr).trim() : null;
-      const { error: dErr } = await deactivateActiveTournamentsInRegionBucket(admin, bucket);
-      if (dErr) return NextResponse.json({ error: dErr.message }, { status: 500 });
-      const { error: actErr } = await admin.from("tournaments").update({ is_active: true }).eq("id", tournament_id);
-      if (actErr) return NextResponse.json({ error: actErr.message }, { status: 500 });
+    const hub = await setOutdoorTournamentHub(admin, tournament_id);
+    if (!hub.ok) {
+      const st = hub.error === "Tournament not found." ? 404 : 500;
+      return NextResponse.json({ error: hub.error }, { status: st });
+    }
+
+    if (tournament_id) {
+      const idsRes = await fetchApprovedUserIds(admin);
+      if ("error" in idsRes) return NextResponse.json({ error: idsRes.error }, { status: 500 });
+      await sendPushToUsers(admin, idsRes.ids, {
+        title: "Tournament is live",
+        body: "A new captain tournament is open. Claim your team spot now.",
+        data: { kind: "tournament_live", tournament_id },
+      });
     }
 
     await recordTournamentActivationChange(admin, guard.userId);

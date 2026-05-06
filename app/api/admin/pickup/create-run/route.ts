@@ -93,9 +93,11 @@ export async function POST(req: Request) {
   const approvedRes = await supabaseAdmin.from("profiles").select("id").eq("approved", true);
   if (!approvedRes.error && (approvedRes.data?.length ?? 0) > 0) {
     const approvedIds = (approvedRes.data ?? []).map((p) => p.id as string);
+    const regionLabel =
+      promotedRegion !== null ? promotedRegion : "your region";
     await sendPushToUsers(supabaseAdmin, approvedIds, {
       title: "New pickup run",
-      body: "A new pickup run has been posted. Check the app for details.",
+      body: `A new pickup run has been posted for ${regionLabel}. Check the app for details.`,
       data: { kind: "pickup_new_run", run_id: runRow.id },
     });
   }

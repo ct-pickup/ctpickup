@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
+import { notifyEsportsBecameActive } from "@/lib/esports/notifyEsportsBecameActive";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -96,6 +97,9 @@ export async function POST(req: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const inserted = data as { id: string; status?: string };
+  await notifyEsportsBecameActive(admin, inserted.id, undefined, String(inserted.status || ""));
 
   revalidatePath("/esports/tournaments");
   revalidatePath("/admin/esports");

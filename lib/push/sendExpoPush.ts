@@ -17,7 +17,7 @@ export type SendPushResult = {
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 const BATCH_SIZE = 100;
-/** Matches app/api/admin/chat/announce — cap bulk token reads. */
+/** Matches app/api/admin/chat/announce — bulk sends; bodies truncated to 100 chars in that route. */
 const MAX_TOKEN_QUERY = 4000;
 const USER_ID_IN_CHUNK = 200;
 

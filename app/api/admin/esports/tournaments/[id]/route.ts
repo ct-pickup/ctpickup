@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
+import { notifyEsportsBecameActive } from "@/lib/esports/notifyEsportsBecameActive";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -53,6 +54,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       return NextResponse.json({ error: "status must be upcoming, active, or completed" }, { status: 400 });
     }
 
+    const prevRes = await admin.from("esports_tournaments").select("status").eq("id", id).maybeSingle();
+    if (!prevRes.data) return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+    const prevStatus = (prevRes.data as { status?: string }).status;
+
     const { data, error } = await admin
       .from("esports_tournaments")
       .update({ status })
@@ -62,6 +67,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!data) return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+
+    await notifyEsportsBecameActive(admin, id, prevStatus, String(data.status || ""));
 
     revalidatePath("/esports/tournaments");
     revalidatePath("/admin/esports");
@@ -96,6 +103,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     deadlines[k] = v.value;
   }
 
+  const prevFullRes = await admin.from("esports_tournaments").select("status").eq("id", id).maybeSingle();
+  if (!prevFullRes.data) return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+  const prevFullStatus = (prevFullRes.data as { status?: string }).status;
+
   const { data, error } = await admin
     .from("esports_tournaments")
     .update({
@@ -115,6 +126,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+
+  await notifyEsportsBecameActive(admin, id, prevFullStatus, String(data.status || ""));
 
   revalidatePath("/esports/tournaments");
   revalidatePath("/admin/esports");

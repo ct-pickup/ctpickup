@@ -1,5 +1,6 @@
 import { useAdminOutdoorTournaments } from "@/hooks/useAdminOutdoorTournaments";
 import {
+  deleteAdminTournament,
   postAdminSetHubTournament,
   postAdminTournaments,
   type AdminOutdoorTournament,
@@ -125,6 +126,15 @@ export default function AdminTournamentScreen() {
       tournamentId ? "Live" : "Offline",
       tournamentId ? "This tournament is now live on the public tournament hub." : "No tournament is live on the hub.",
     );
+  }
+
+  async function deleteTournament(id: string) {
+    if (!token) return Alert.alert("Not signed in", "Sign in again.");
+    setBusy(`del:${id}`);
+    const r = await deleteAdminTournament(token, id);
+    setBusy(null);
+    if (!r.ok) return Alert.alert("Delete failed", r.error);
+    reload();
   }
 
   const setDraft = useCallback((id: string, patch: Partial<{ decision: Decision; notes: string; reviewed: boolean }>) => {
@@ -255,7 +265,8 @@ export default function AdminTournamentScreen() {
           <Text style={styles.cardTitle}>Tournaments ({tournaments.length})</Text>
           {tournaments.map((t) => {
             const isLive = !!t.is_active;
-            const isRowBusy = busy === `hub:${t.id}`;
+            const isHubBusy = busy === `hub:${t.id}`;
+            const isDelBusy = busy === `del:${t.id}`;
             return (
               <View key={t.id} style={styles.roomRow}>
                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -267,29 +278,48 @@ export default function AdminTournamentScreen() {
                     {t.slug || "—"} · {fmtMeta(t)}
                   </Text>
                 </View>
-                {!isLive ? (
+                <View style={styles.roomActions}>
+                  {!isLive ? (
+                    <Pressable
+                      onPress={() =>
+                        Alert.alert("Make live?", `Set “${t.title}” as the only live tournament on the hub?`, [
+                          { text: "Cancel", style: "cancel" },
+                          { text: "Make live", onPress: () => void setHub(t.id) },
+                        ])
+                      }
+                      disabled={busy !== null}
+                      style={({ pressed }) => [
+                        styles.smallChip,
+                        styles.smallChipPrimary,
+                        pressed && { opacity: 0.85 },
+                        busy !== null && styles.disabled,
+                      ]}
+                    >
+                      <Text style={styles.smallChipPrimaryText}>{isHubBusy ? "…" : "Make live"}</Text>
+                    </Pressable>
+                  ) : (
+                    <View style={styles.smallChipMuted}>
+                      <Text style={styles.smallChipMutedText}>Hub</Text>
+                    </View>
+                  )}
                   <Pressable
                     onPress={() =>
-                      Alert.alert("Make live?", `Set “${t.title}” as the only live tournament on the hub?`, [
+                      Alert.alert("Delete tournament?", "This cannot be undone.", [
                         { text: "Cancel", style: "cancel" },
-                        { text: "Make live", onPress: () => void setHub(t.id) },
+                        { text: "Delete", style: "destructive", onPress: () => void deleteTournament(t.id) },
                       ])
                     }
                     disabled={busy !== null}
                     style={({ pressed }) => [
                       styles.smallChip,
-                      styles.smallChipPrimary,
+                      styles.smallChipDanger,
                       pressed && { opacity: 0.85 },
                       busy !== null && styles.disabled,
                     ]}
                   >
-                    <Text style={styles.smallChipPrimaryText}>{isRowBusy ? "…" : "Make live"}</Text>
+                    <Text style={styles.smallChipDangerText}>{isDelBusy ? "…" : "Delete"}</Text>
                   </Pressable>
-                ) : (
-                  <View style={styles.smallChipMuted}>
-                    <Text style={styles.smallChipMutedText}>Hub</Text>
-                  </View>
-                )}
+                </View>
               </View>
             );
           })}
@@ -571,6 +601,7 @@ const styles = StyleSheet.create({
   },
   primaryText: { color: "#111", fontWeight: "900", fontSize: 15 },
   roomRow: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 10 },
+  roomActions: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0 },
   roomTitle: { color: "#fff", fontWeight: "800" },
   liveBadge: { color: LIME, fontWeight: "900" },
   roomSub: { marginTop: 2, color: "rgba(255,255,255,0.5)", fontSize: 12, lineHeight: 16 },
@@ -596,6 +627,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.04)",
   },
   smallChipMutedText: { color: "rgba(255,255,255,0.45)", fontWeight: "800", fontSize: 12 },
+  smallChipDanger: {
+    borderColor: "rgba(248,113,113,0.5)",
+    backgroundColor: "rgba(248,113,113,0.12)",
+  },
+  smallChipDangerText: { color: "#fca5a5", fontWeight: "900", fontSize: 12 },
   muted: { marginTop: 10, color: "rgba(255,255,255,0.6)" },
   disabled: { opacity: 0.55 },
   dangerOutline: {

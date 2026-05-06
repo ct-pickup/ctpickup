@@ -394,6 +394,14 @@ export function postAdminTournaments(accessToken: string, body: Record<string, u
   });
 }
 
+export function deleteAdminTournament(accessToken: string, id: string) {
+  return adminFetch<{ ok: boolean; error?: string }>("/api/admin/tournaments", accessToken, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
+}
+
 export function postAdminSetHubTournament(accessToken: string, tournamentId: string | null) {
   return adminFetch<{
     ok: boolean;

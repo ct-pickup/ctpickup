@@ -9,6 +9,7 @@ import {
 } from "@/lib/pickup/autoRunCheckpoints";
 import { insertInvitesForTierRanks, sendPickupInviteSms } from "@/lib/pickup/pickupInvites";
 import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
+import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -362,6 +363,21 @@ export async function POST(req: Request) {
       .eq("id", run_id);
 
     if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
+
+    const rsvpRes = await admin
+      .from("pickup_run_rsvps")
+      .select("user_id")
+      .eq("run_id", run_id)
+      .eq("status", "confirmed");
+
+    if (!rsvpRes.error && (rsvpRes.data?.length ?? 0) > 0) {
+      const confirmedIds = (rsvpRes.data ?? []).map((r) => r.user_id as string);
+      await sendPushToUsers(admin, confirmedIds, {
+        title: "Pickup confirmed",
+        body: "Your pickup is confirmed. Check the app for location and time.",
+        data: { kind: "pickup_finalized", run_id },
+      });
+    }
 
     revalidatePath("/pickup");
     revalidatePath("/status/pickup");

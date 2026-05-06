@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
 import { getSupabaseAdmin, getSupabaseAnon } from "@/lib/server/runtimeClients";
 
@@ -108,6 +109,13 @@ export async function POST(req: Request) {
     .single();
 
   if (capErr) return NextResponse.json({ error: capErr.message }, { status: 500 });
+  if (!cap) return NextResponse.json({ error: "Upsert returned no row" }, { status: 500 });
+
+  await sendPushToUsers(admin, [u.user.id], {
+    title: "Captain claim received",
+    body: "Your captain claim has been submitted. Staff will verify and contact you.",
+    data: { kind: "captain_claim_submitted", tournament_id: t.id, captain_id: cap.id },
+  });
 
   // Replace prelim roster entries
   await admin.from("tournament_roster_prelim").delete().eq("captain_id", cap.id);

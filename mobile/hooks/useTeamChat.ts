@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { postChatMessageViaApi } from "@/lib/chatApi";
 import { CHAT_PROFANITY_USER_MESSAGE, messageContainsProfanity } from "@/lib/chatProfanity";
 import { type ChatMessageRow } from "@/lib/teamChat";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -172,6 +173,7 @@ export function useTeamChatAccess() {
 export function useTeamChatMessages(roomId: string | null) {
   const { supabase, session } = useAuth();
   const uid = session?.user?.id ?? null;
+  const accessToken = session?.access_token ?? null;
   const [messages, setMessages] = useState<ChatMessageRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -249,20 +251,17 @@ export function useTeamChatMessages(roomId: string | null) {
   const send = useCallback(
     async (body: string) => {
       const trimmed = body.trim();
-      if (!supabase || !roomId || !uid || trimmed.length === 0) return { ok: false as const, error: "missing" };
+      if (!roomId || !uid || trimmed.length === 0) return { ok: false as const, error: "missing" };
+      if (!accessToken) return { ok: false as const, error: "missing" };
       if (messageContainsProfanity(trimmed)) return { ok: false as const, error: CHAT_PROFANITY_USER_MESSAGE };
-      const { error: insErr } = await supabase.from("chat_messages").insert({
-        room_id: roomId,
-        user_id: uid,
-        body: trimmed,
-      });
-      if (insErr) {
-        const msg = insErr.message?.includes("Profanity is not allowed") ? CHAT_PROFANITY_USER_MESSAGE : insErr.message;
+      const api = await postChatMessageViaApi(accessToken, roomId, trimmed);
+      if (!api.ok) {
+        const msg = api.error?.includes("Profanity is not allowed") ? CHAT_PROFANITY_USER_MESSAGE : api.error;
         return { ok: false as const, error: msg };
       }
       return { ok: true as const };
     },
-    [supabase, roomId, uid],
+    [roomId, uid, accessToken],
   );
 
   return {

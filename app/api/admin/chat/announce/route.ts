@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { staffInsertChatMessageAndPush } from "@/lib/chat/staffInsertChatMessageAndPush";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
-import { sendPushToAll, sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -23,12 +23,6 @@ type RoomRow = {
 
 const ROOM_SELECT = "id,slug,title,room_type,announcements_only,is_active,closes_at";
 
-function truncate(s: string, max: number) {
-  const t = s.trim();
-  if (t.length <= max) return t;
-  return t.slice(0, Math.max(0, max - 1)).trimEnd() + "…";
-}
-
 function isUuid(v: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 }
@@ -49,7 +43,6 @@ export async function POST(req: Request) {
 
   const admin = getSupabaseAdmin();
 
-  // Resolve target room: prefer room_id, then room_slug, then fall back to legacy "announcements" slug.
   let room: RoomRow | null = null;
   if (roomIdInput) {
     const r = await admin.from("chat_rooms").select(ROOM_SELECT).eq("id", roomIdInput).maybeSingle();
@@ -66,56 +59,15 @@ export async function POST(req: Request) {
 
   const isGroup = room.room_type === "group";
 
-  // Announce-only and Group rooms are both valid push targets. Public rooms are not.
   if (!isGroup && !room.announcements_only) {
-    return NextResponse.json(
-      { error: "Room must be announcement or group" },
-      { status: 409 },
-    );
+    return NextResponse.json({ error: "Room must be announcement or group" }, { status: 409 });
   }
 
-  const ins = await admin.from("chat_messages").insert({
-    room_id: room.id,
-    user_id: guard.userId,
-    body: message,
-  });
-  if (ins.error) return NextResponse.json({ error: ins.error.message }, { status: 500 });
-
-  // Group rooms only push to members; announcement rooms push to all registered devices (capped).
-  let userIds: string[] = [];
-
-  if (isGroup) {
-    const mem = await admin
-      .from("chat_room_members")
-      .select("user_id")
-      .eq("room_id", room.id);
-    if (mem.error) return NextResponse.json({ error: mem.error.message }, { status: 500 });
-
-    userIds = (mem.data ?? [])
-      .map((r) => (r as { user_id?: string }).user_id)
-      .filter((u): u is string => typeof u === "string" && u.length > 0);
-  }
-
-  const title = room.title || "CT Pickup";
-  const bodyText = truncate(message, 160);
-
-  const pushPayload = {
-    title,
-    body: bodyText,
-    data: {
-      kind: "announcement",
-      room_slug: room.slug,
-      room_id: room.id,
-      room_type: room.room_type,
-    },
-  };
-
-  const pushRes = isGroup
-    ? await sendPushToUsers(admin, userIds, pushPayload)
-    : await sendPushToAll(admin, pushPayload);
-
-  if (pushRes.lookupError) {
-    return NextResponse.json({ error: pushRes.lookupError }, { status: 500 });
+  const { insertError, push } = await staffInsertChatMessageAndPush(admin, guard.userId, room, message);
+  if (insertError) return NextResponse.json({ error: insertError }, { status: 500 });
+  if (!push) return NextResponse.json({ error: "push_failed" }, { status: 500 });
+  if (push.lookupError) {
+    return NextResponse.json({ error: push.lookupError }, { status: 500 });
   }
 
   return NextResponse.json({
@@ -123,7 +75,7 @@ export async function POST(req: Request) {
     room_id: room.id,
     room_slug: room.slug,
     room_type: room.room_type,
-    pushed: pushRes.tokens,
-    push_batches: pushRes.batches,
+    pushed: push.tokens,
+    push_batches: push.batches,
   });
 }

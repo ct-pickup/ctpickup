@@ -1,6 +1,10 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { enqueueRevalidateAndRun } from "@/lib/admin/sync/enqueueRevalidate";
+import { fetchApprovedUserIds } from "@/lib/push/approvedUserIds";
+import { sendPushToUsers } from "@/lib/push/sendExpoPush";
+import { recordTournamentActivationChange } from "@/lib/admin/surfaceHealth";
+import { setOutdoorTournamentHub } from "@/lib/tournament/setOutdoorTournamentHub";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
@@ -166,6 +170,37 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, tournament: created });
   }
 
+  if (action === "set_hub") {
+    const tournament_id =
+      body.tournament_id === null || body.tournament_id === "" ? null : String(body.tournament_id);
+
+    const hub = await setOutdoorTournamentHub(admin, tournament_id);
+    if (!hub.ok) {
+      const st = hub.error === "Tournament not found." ? 404 : 500;
+      return NextResponse.json({ error: hub.error }, { status: st });
+    }
+
+    if (tournament_id) {
+      const idsRes = await fetchApprovedUserIds(admin);
+      if ("error" in idsRes) return NextResponse.json({ error: idsRes.error }, { status: 500 });
+      await sendPushToUsers(admin, idsRes.ids, {
+        title: "Tournament is live",
+        body: "A new captain tournament is open. Claim your team spot now.",
+        data: { kind: "tournament_live", tournament_id },
+      });
+    }
+
+    await recordTournamentActivationChange(admin, guard.userId);
+    await enqueueRevalidateAndRun(admin, ["/tournament", "/status/tournament"]);
+
+    revalidatePath("/tournament");
+    revalidatePath("/admin/tournament");
+    revalidatePath("/admin/relationships");
+    revalidatePath("/admin");
+
+    return NextResponse.json({ ok: true });
+  }
+
   if (action === "update_submission") {
     const id = String(body.submission_id || "").trim();
     const decision = String(body.decision || "pending").trim().toLowerCase();
@@ -193,4 +228,25 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+}
+
+export async function DELETE(req: Request) {
+  const guard = await requireAdminBearer(req);
+  if (!guard.ok) return guard.response;
+
+  const body = await req.json().catch(() => ({}));
+  const id = String(body.id || "").trim();
+  if (!id) return NextResponse.json({ error: "Missing id." }, { status: 400 });
+
+  const admin = getSupabaseAdmin();
+  const { data: deleted, error } = await admin.from("tournaments").delete().eq("id", id).select("id").maybeSingle();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!deleted) return NextResponse.json({ error: "Tournament not found." }, { status: 404 });
+
+  revalidatePath("/admin/tournament");
+  await enqueueRevalidateAndRun(admin, ["/tournament", "/status/tournament"]);
+  revalidatePath("/tournament");
+
+  return NextResponse.json({ ok: true });
 }
