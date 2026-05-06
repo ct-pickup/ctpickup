@@ -42,11 +42,17 @@ type FieldKey =
   | "last_name"
   | "gender"
   | "playing_position"
+  | "instagram"
+  | "phone"
   | "username"
   | "esports_interest"
   | "esports_platform"
   | "esports_console"
   | "esports_online_id";
+
+function cleanInstagram(s: string): string {
+  return s.trim().replace(/^@/, "").replace(/\s+/g, "");
+}
 
 function labelFor<T extends { value: string; label: string }>(options: readonly T[], value: string | null): string {
   if (!value) return "";
@@ -110,6 +116,8 @@ export default function CompleteProfileScreen() {
   const [lastName, setLastName] = useState("");
   const [gender, setGender] = useState<GenderValue | null>(null);
   const [playingPosition, setPlayingPosition] = useState("");
+  const [instagram, setInstagram] = useState("");
+  const [phone, setPhone] = useState("");
   const [username, setUsername] = useState("");
   const [esportsInterest, setEsportsInterest] = useState<boolean | null>(null);
   const [esportsPlatform, setEsportsPlatform] = useState<PlatformValue | null>(null);
@@ -125,7 +133,16 @@ export default function CompleteProfileScreen() {
   const signedEmail = session?.user?.email ?? "";
 
   const canContinue = useMemo(() => {
-    if (!firstName.trim() || !lastName.trim() || !gender || !playingPosition.trim() || !username.trim()) return false;
+    if (
+      !firstName.trim() ||
+      !lastName.trim() ||
+      !gender ||
+      !playingPosition.trim() ||
+      !cleanInstagram(instagram) ||
+      !phone.trim() ||
+      !username.trim()
+    )
+      return false;
     if (esportsInterest === null) return false;
     if (esportsInterest === true) {
       if (!esportsPlatform || !esportsConsole.trim() || !esportsOnlineId.trim()) return false;
@@ -136,6 +153,8 @@ export default function CompleteProfileScreen() {
     lastName,
     gender,
     playingPosition,
+    instagram,
+    phone,
     username,
     esportsInterest,
     esportsPlatform,
@@ -149,6 +168,8 @@ export default function CompleteProfileScreen() {
     if (!lastName.trim()) e.last_name = "Required";
     if (!gender) e.gender = "Required";
     if (!playingPosition.trim()) e.playing_position = "Required";
+    if (!cleanInstagram(instagram)) e.instagram = "Required";
+    if (!phone.trim()) e.phone = "Required";
     if (!username.trim()) e.username = "Required";
     if (esportsInterest === null) e.esports_interest = "Required";
     if (esportsInterest === true) {
@@ -162,6 +183,8 @@ export default function CompleteProfileScreen() {
     lastName,
     gender,
     playingPosition,
+    instagram,
+    phone,
     username,
     esportsInterest,
     esportsPlatform,
@@ -176,6 +199,8 @@ export default function CompleteProfileScreen() {
     const fn = firstName.trim();
     const ln = lastName.trim();
     const pos = playingPosition.trim();
+    const ig = cleanInstagram(instagram);
+    const ph = phone.trim();
     const un = username.trim();
     const userId = session?.user?.id;
 
@@ -190,6 +215,8 @@ export default function CompleteProfileScreen() {
       last_name: ln,
       gender,
       playing_position: pos,
+      instagram: ig,
+      phone: ph,
       username: un,
       email: signedEmail,
       esports_interest: esportsYes ? "yes" : "no",
@@ -227,6 +254,8 @@ export default function CompleteProfileScreen() {
     lastName,
     gender,
     playingPosition,
+    instagram,
+    phone,
     username,
     esportsInterest,
     esportsPlatform,
@@ -368,6 +397,34 @@ export default function CompleteProfileScreen() {
               autoCapitalize="words"
             />
             {liveErrors.playing_position ? <Text style={styles.errText}>{liveErrors.playing_position}</Text> : null}
+          </View>
+
+          <View style={styles.fieldBlock}>
+            <Text style={styles.label}>Instagram</Text>
+            <TextInput
+              style={[styles.input, liveErrors.instagram ? styles.inputErr : null]}
+              placeholder="@handle"
+              placeholderTextColor="rgba(255,255,255,0.35)"
+              value={instagram}
+              onChangeText={setInstagram}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {liveErrors.instagram ? <Text style={styles.errText}>{liveErrors.instagram}</Text> : null}
+          </View>
+
+          <View style={styles.fieldBlock}>
+            <Text style={styles.label}>Phone number</Text>
+            <TextInput
+              style={[styles.input, liveErrors.phone ? styles.inputErr : null]}
+              placeholder="Phone number"
+              placeholderTextColor="rgba(255,255,255,0.35)"
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+              autoCorrect={false}
+            />
+            {liveErrors.phone ? <Text style={styles.errText}>{liveErrors.phone}</Text> : null}
           </View>
 
           <View style={styles.fieldBlock}>
