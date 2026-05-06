@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   KeyboardAvoidingView,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -231,14 +230,9 @@ export default function HelpScreen() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         >
-          <Pressable
-            onPress={() => void Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}
-            style={styles.supportPressable}
-          >
-            <Text style={styles.supportText}>
-              Need help from a person? Email {SUPPORT_EMAIL}
-            </Text>
-          </Pressable>
+          <Text style={styles.supportText}>
+            Email us at {SUPPORT_EMAIL}
+          </Text>
 
           <Text style={styles.title}>What can I help you with?</Text>
 
@@ -325,8 +319,9 @@ const styles = StyleSheet.create({
   screen: { backgroundColor: BG },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingTop: 16 },
-  supportPressable: { alignSelf: "flex-start", marginBottom: 16 },
   supportText: {
+    alignSelf: "flex-start",
+    marginBottom: 16,
     fontSize: 14,
     lineHeight: 20,
     color: LIME,
