@@ -16,7 +16,7 @@ function destinationQuery(v: (typeof CT_PICKUP_VENUES)[number]): string {
   return `${v.venue}, ${v.address}`;
 }
 
-/** POST body: `{ zip_code }`. Optional header `Authorization: Bearer …` (accepted; not required). */
+/** POST body: `{ zip_code }`, optional `{ departure_time }` (Unix seconds for Distance Matrix `departure_time`). Optional header `Authorization: Bearer …` (accepted; not required). */
 export async function POST(req: Request) {
   const key = process.env.GOOGLE_MAPS_API_KEY?.trim();
   if (!key) {
@@ -30,10 +30,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
 
-  const zipRaw = typeof body === "object" && body !== null && "zip_code" in body ? String((body as { zip_code?: unknown }).zip_code ?? "") : "";
+  const bodyObj = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : null;
+  const zipRaw = bodyObj && "zip_code" in bodyObj ? String(bodyObj.zip_code ?? "") : "";
   const digits = zipRaw.replace(/\D/g, "").slice(0, 5);
   if (digits.length !== 5) {
     return NextResponse.json({ error: "invalid_zip_code", venues: [] as VenueDistanceRow[] }, { status: 400 });
+  }
+
+  let departureParam = "now";
+  if (bodyObj && "departure_time" in bodyObj && bodyObj.departure_time != null) {
+    const raw = bodyObj.departure_time;
+    const n = typeof raw === "number" ? raw : Number(raw);
+    if (Number.isFinite(n) && n > 0) {
+      departureParam = String(Math.floor(n));
+    }
   }
 
   const origin = `${digits}, USA`;
@@ -43,7 +53,7 @@ export async function POST(req: Request) {
   url.searchParams.set("origins", origin);
   url.searchParams.set("destinations", destinations);
   url.searchParams.set("mode", "driving");
-  url.searchParams.set("departure_time", "now");
+  url.searchParams.set("departure_time", departureParam);
   url.searchParams.set("traffic_model", "best_guess");
   url.searchParams.set("units", "imperial");
   url.searchParams.set("key", key);

@@ -53,6 +53,7 @@ export async function getNearestVenuesFromApi(
   zipCode: string,
   siteUrl: string,
   token?: string | null,
+  departureTime?: number,
 ): Promise<VenueDistanceRow[]> {
   const digits = zipCode.replace(/\D/g, "").slice(0, 5);
   if (digits.length !== 5) return [];
@@ -65,11 +66,16 @@ export async function getNearestVenuesFromApi(
   const t = token?.trim();
   if (t) headers.Authorization = `Bearer ${t}`;
 
+  const payload: { zip_code: string; departure_time?: number } = { zip_code: digits };
+  if (departureTime !== undefined && Number.isFinite(departureTime)) {
+    payload.departure_time = Math.floor(departureTime);
+  }
+
   try {
     const r = await fetch(`${origin}/api/venue/distances`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ zip_code: digits }),
+      body: JSON.stringify(payload),
       cache: "no-store",
     });
     const json = (await r.json().catch(() => null)) as unknown;

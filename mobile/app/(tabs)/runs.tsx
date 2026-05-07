@@ -6,8 +6,11 @@ import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { usePickupJoin } from "@/hooks/usePickupJoin";
 import { usePickupPublic } from "@/hooks/usePickupPublic";
 import { usePickupStandingScore } from "@/hooks/usePickupStandingScore";
+import { siteOrigin } from "@/lib/env";
 import { fmtPickupDt } from "@/lib/pickupPublic";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
+import { getNearestVenuesFromApi } from "@/lib/venueDistance";
+import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
@@ -49,7 +52,7 @@ export default function RunsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { height: windowHeight } = useWindowDimensions();
-  const { session } = useAuth();
+  const { session, supabase } = useAuth();
   const { setRegion, region } = useSelectedRegion();
   const { registerReset } = useRunsPickerBridge();
   const token = session?.access_token ?? null;
@@ -84,11 +87,72 @@ export default function RunsScreen() {
   const [selectedSlotLabels, setSelectedSlotLabels] = useState<string[]>([]);
   const [availabilitySubmittedBanner, setAvailabilitySubmittedBanner] = useState(false);
   const [skipPreselectAfterChange, setSkipPreselectAfterChange] = useState(false);
+  const [profileZipDigits, setProfileZipDigits] = useState<string | null>(null);
+  const [runVenueDriveMinutes, setRunVenueDriveMinutes] = useState<number | null>(null);
 
   useLayoutEffect(() => {
     registerReset(() => setShowStatePicker(true));
     return () => registerReset(null);
   }, [registerReset]);
+
+  useEffect(() => {
+    if (!supabase || !session?.user?.id) {
+      setProfileZipDigits(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await supabase.from("profiles").select("zip_code").eq("id", session.user.id).maybeSingle();
+      if (cancelled) return;
+      if (error || !data) {
+        setProfileZipDigits(null);
+        return;
+      }
+      const z = typeof data.zip_code === "string" ? data.zip_code.replace(/\D/g, "").slice(0, 5) : "";
+      setProfileZipDigits(z.length === 5 ? z : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, session?.user?.id]);
+
+  useEffect(() => {
+    const origin = siteOrigin();
+    const srRaw = run?.service_region;
+    const sr =
+      typeof srRaw === "string" && srRaw.trim().length > 0 ? srRaw.trim().toUpperCase() : "";
+    const startRaw = run?.start_at;
+    const startAt = typeof startRaw === "string" && startRaw.length > 0 ? startRaw : null;
+
+    if (!profileZipDigits || !origin || !sr || !startAt || run == null) {
+      setRunVenueDriveMinutes(null);
+      return;
+    }
+
+    const ms = new Date(startAt).getTime();
+    if (!Number.isFinite(ms)) {
+      setRunVenueDriveMinutes(null);
+      return;
+    }
+    const departureSecs = Math.floor(ms / 1000);
+
+    let cancelled = false;
+    void (async () => {
+      const rows = await getNearestVenuesFromApi(profileZipDigits, origin, token, departureSecs);
+      if (cancelled) return;
+      const forRegion = rows.filter((r) => serviceRegionForVenueName(r.venue) === sr);
+      if (forRegion.length === 0) {
+        setRunVenueDriveMinutes(null);
+        return;
+      }
+      forRegion.sort((a, b) => a.estimatedMinutes - b.estimatedMinutes);
+      setRunVenueDriveMinutes(forRegion[0]!.estimatedMinutes);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profileZipDigits, token, run?.service_region, run?.start_at]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -425,6 +489,9 @@ export default function RunsScreen() {
               if (!loc) return null;
               return <Text style={styles.row}>Location: {loc}</Text>;
             })()}
+            {runVenueDriveMinutes != null ? (
+              <Text style={styles.driveEstimate}>🚗 ~{runVenueDriveMinutes} min drive</Text>
+            ) : null}
             {waveMessage ? (
               <Text style={[styles.hint, { color: waveMessage.color }]}>{waveMessage.text}</Text>
             ) : null}
@@ -868,6 +935,12 @@ const styles = StyleSheet.create({
   },
   countChipText: { color: "rgba(255,255,255,0.78)", fontSize: 12, fontWeight: "600" },
   row: { marginTop: 10, color: "rgba(255,255,255,0.85)", fontSize: 15 },
+  driveEstimate: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "rgba(255,255,255,0.55)",
+    lineHeight: 16,
+  },
   feeBlock: { marginTop: 10 },
   feeLine: { color: "rgba(255,255,255,0.85)", fontSize: 15, lineHeight: 22 },
   feeAmount: { color: LIME, fontWeight: "700" },

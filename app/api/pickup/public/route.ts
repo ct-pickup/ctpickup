@@ -335,6 +335,7 @@ export async function GET(req: Request) {
         likely_on_at: run.likely_on_at,
         likely_on_slot_id: run.likely_on_slot_id,
         final_slot_id: run.final_slot_id,
+        service_region: run.service_region ?? null,
       },
       visibility: { invitedNow, attendanceVisible },
       counts: {
