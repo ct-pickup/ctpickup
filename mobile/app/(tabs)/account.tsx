@@ -18,6 +18,7 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -127,6 +128,8 @@ export default function AccountScreen() {
   const [reliabilityLabel, setReliabilityLabel] = useState<string | null>(null);
   const [reliabilityScorePct, setReliabilityScorePct] = useState<number | null>(null);
   const [reliabilitySubtext, setReliabilitySubtext] = useState<string | null>(null);
+
+  const [deleteAccountBusy, setDeleteAccountBusy] = useState(false);
 
   useEffect(() => {
     void refreshBiometricAvailability();
@@ -783,6 +786,71 @@ export default function AccountScreen() {
           </View>
           <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
         </Pressable>
+
+        <Text style={[styles.sectionTitle, styles.dangerSectionTitle]}>Danger zone</Text>
+        <Text style={styles.sectionSub}>
+          Permanently remove your account and associated data from CT Pickup.
+        </Text>
+        <Pressable
+          style={[styles.deleteAccountBtn, deleteAccountBusy && styles.disabled]}
+          disabled={deleteAccountBusy || !accessToken}
+          onPress={() => {
+            const origin = siteOrigin();
+            if (!origin || !accessToken) {
+              Alert.alert("Can’t delete account", "Missing server URL or session. Try again after signing in.");
+              return;
+            }
+            Alert.alert(
+              "Delete your account?",
+              "This will permanently delete your account and all your data. This cannot be undone.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete",
+                  style: "destructive",
+                  onPress: () => {
+                    void (async () => {
+                      setDeleteAccountBusy(true);
+                      try {
+                        const r = await fetch(`${origin}/api/account/delete`, {
+                          method: "DELETE",
+                          headers: {
+                            Accept: "application/json",
+                            Authorization: `Bearer ${accessToken}`,
+                          },
+                          cache: "no-store",
+                        });
+                        if (!r.ok) {
+                          const j = (await r.json().catch(() => null)) as { error?: string } | null;
+                          Alert.alert(
+                            "Couldn’t delete account",
+                            typeof j?.error === "string" ? j.error : "Something went wrong. Try again later.",
+                          );
+                          return;
+                        }
+                        await signOut();
+                        router.replace("/login");
+                      } catch {
+                        Alert.alert("Couldn’t delete account", "Check your connection and try again.");
+                      } finally {
+                        setDeleteAccountBusy(false);
+                      }
+                    })();
+                  },
+                },
+              ],
+            );
+          }}
+        >
+          {deleteAccountBusy ? (
+            <View style={styles.deleteAccountBtnBusy}>
+              <ActivityIndicator color="#fff" />
+              <Text style={styles.deleteAccountBtnText}>Deleting…</Text>
+            </View>
+          ) : (
+            <Text style={styles.deleteAccountBtnText}>Delete account</Text>
+          )}
+        </Pressable>
       </ScrollView>
     </View>
   );
@@ -1028,4 +1096,15 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.1)",
   },
   aboutText: { fontSize: 15, fontWeight: "700", color: "rgba(255,255,255,0.9)" },
+
+  dangerSectionTitle: { marginTop: 32, color: "#fca5a5" },
+  deleteAccountBtn: {
+    marginTop: 14,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: "#dc2626",
+  },
+  deleteAccountBtnBusy: { flexDirection: "row", alignItems: "center", gap: 10 },
+  deleteAccountBtnText: { color: "#fff", fontWeight: "800", fontSize: 16 },
 });
