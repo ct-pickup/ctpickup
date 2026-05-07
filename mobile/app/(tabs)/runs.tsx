@@ -25,6 +25,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const LIME = "#a3e635";
 
+/** Remove tier labels (e.g. "Tier 1A") from copy shown on the public run card. */
+function stripTierLabelsFromPlayerText(s: string): string {
+  return s
+    .replace(/\b[Tt]ier\s*\d+[A-Za-z]?\b/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 /**
  * Fixed availability ranges shown during the planning poll. The `slot_label`
  * value is what gets sent to (and matched against) `/api/pickup/commit` —
@@ -56,7 +64,6 @@ export default function RunsScreen() {
     counts,
     visibility,
     invitedNow,
-    tier,
     tierRank,
   } = usePickupPublic(token);
   const {
@@ -124,9 +131,15 @@ export default function RunsScreen() {
       return typeof m === "string" && m.trim().length > 0 ? m : null;
     };
     const g = pick(dataObj.globalUpdate);
-    if (g) out.push({ key: "global", text: g });
+    if (g) {
+      const t = stripTierLabelsFromPlayerText(g);
+      if (t.length > 0) out.push({ key: "global", text: t });
+    }
     const r = pick(dataObj.runUpdate);
-    if (r) out.push({ key: "run", text: r });
+    if (r) {
+      const t = stripTierLabelsFromPlayerText(r);
+      if (t.length > 0) out.push({ key: "run", text: t });
+    }
     return out;
   }, [dataObj]);
 
@@ -147,7 +160,9 @@ export default function RunsScreen() {
 
   const locationText = useMemo(() => {
     const v = dataObj.location;
-    return typeof v === "string" && v.trim().length > 0 ? v : null;
+    if (typeof v !== "string" || v.trim().length === 0) return null;
+    const cleaned = stripTierLabelsFromPlayerText(v);
+    return cleaned.length > 0 ? cleaned : null;
   }, [dataObj]);
 
   const cancellationDeadline = useMemo(() => {
@@ -237,24 +252,22 @@ export default function RunsScreen() {
 
   const attendanceVisible = visibility?.attendanceVisible === true;
 
-  // Wave-specific messaging using API visibility + me fields.
-  // tier_rank mapping (locked): 1A=1, 1B=2, 2=3, 3=4, 4=5, PUBLIC=6
+  // Wave hint: no tier names on the public card; server still gates actions via invitedNow / tier_rank.
   const waveMessage = useMemo<{ text: string; color: string } | null>(() => {
     if (invitedNow) {
-      return { text: "Your wave is open request your spot now", color: "#a3e635" };
+      return { text: "Your wave is open, request your spot now", color: "#a3e635" };
     }
     if (typeof tierRank === "number") {
-      if (tierRank <= 2) {
-        return { text: "Your wave isn't open yet check back soon", color: "rgba(255,255,255,0.72)" };
-      }
-      if (tierRank >= 3) {
-        return { text: "Open tier pickup all approved players welcome", color: "rgba(255,255,255,0.72)" };
-      }
+      return { text: "Check back soon", color: "rgba(255,255,255,0.72)" };
     }
     return null;
   }, [invitedNow, tierRank]);
 
-  const tierBadgeLabel = useMemo(() => (tier ? `Tier ${tier}` : null), [tier]);
+  const runTitleDisplay = useMemo(() => {
+    const raw = typeof run?.title === "string" && run.title ? run.title : "Pickup run";
+    const cleaned = stripTierLabelsFromPlayerText(raw);
+    return cleaned.length > 0 ? cleaned : "Pickup run";
+  }, [run]);
 
   const countChips = useMemo(() => {
     const c = counts ?? {};
@@ -374,13 +387,8 @@ export default function RunsScreen() {
           <View style={styles.card}>
             <View style={styles.cardEyebrowRow}>
               <Text style={styles.cardEyebrow}>{runTypeLabel || "PICKUP"}</Text>
-              {tierBadgeLabel ? (
-                <View style={styles.tierBadge}>
-                  <Text style={styles.tierBadgeText}>{tierBadgeLabel}</Text>
-                </View>
-              ) : null}
             </View>
-            <Text style={styles.cardTitle}>{typeof run?.title === "string" && run.title ? run.title : "Pickup run"}</Text>
+            <Text style={styles.cardTitle}>{runTitleDisplay}</Text>
             <View style={styles.pill}>
               <Text style={styles.pillText}>{statusLabel}</Text>
             </View>
@@ -410,9 +418,13 @@ export default function RunsScreen() {
                 </View>
               );
             })()}
-            {typeof run?.location_text === "string" && run.location_text ? (
-              <Text style={styles.row}>Location: {run.location_text}</Text>
-            ) : null}
+            {(() => {
+              const raw = typeof run?.location_text === "string" ? run.location_text.trim() : "";
+              if (!raw) return null;
+              const loc = stripTierLabelsFromPlayerText(raw);
+              if (!loc) return null;
+              return <Text style={styles.row}>Location: {loc}</Text>;
+            })()}
             {waveMessage ? (
               <Text style={[styles.hint, { color: waveMessage.color }]}>{waveMessage.text}</Text>
             ) : null}
@@ -827,15 +839,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
-  tierBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.12)",
-  },
-  tierBadgeText: { color: "#a3e635", fontSize: 12, fontWeight: "800", letterSpacing: 0.5 },
   cardTitle: { marginTop: 8, fontSize: 20, fontWeight: "600", color: "#fff" },
   pill: {
     alignSelf: "flex-start",

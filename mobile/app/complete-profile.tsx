@@ -2,6 +2,7 @@ import { useProfileCompletionGate } from "@/context/ProfileCompletionContext";
 import { useAuth } from "@/context/AuthContext";
 import { useWaiver } from "@/context/WaiverContext";
 import { CT_PICKUP_LIME } from "@/constants/Colors";
+import { getNearestVenues } from "@/lib/venueDistance";
 import { Redirect, useRouter, type Href } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -44,6 +45,7 @@ type FieldKey =
   | "playing_position"
   | "instagram"
   | "phone"
+  | "zip_code"
   | "username"
   | "esports_interest"
   | "esports_platform"
@@ -118,6 +120,7 @@ export default function CompleteProfileScreen() {
   const [playingPosition, setPlayingPosition] = useState("");
   const [instagram, setInstagram] = useState("");
   const [phone, setPhone] = useState("");
+  const [zipCode, setZipCode] = useState("");
   const [username, setUsername] = useState("");
   const [esportsInterest, setEsportsInterest] = useState<boolean | null>(null);
   const [esportsPlatform, setEsportsPlatform] = useState<PlatformValue | null>(null);
@@ -129,8 +132,14 @@ export default function CompleteProfileScreen() {
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [postSaveVenues, setPostSaveVenues] = useState<
+    ReturnType<typeof getNearestVenues> | null
+  >(null);
 
   const signedEmail = session?.user?.email ?? "";
+
+  const zipDigits = zipCode.replace(/\D/g, "").slice(0, 5);
+  const zipOk = zipDigits.length === 5;
 
   const canContinue = useMemo(() => {
     if (
@@ -140,6 +149,7 @@ export default function CompleteProfileScreen() {
       !playingPosition.trim() ||
       !cleanInstagram(instagram) ||
       !phone.trim() ||
+      !zipOk ||
       !username.trim()
     )
       return false;
@@ -155,6 +165,7 @@ export default function CompleteProfileScreen() {
     playingPosition,
     instagram,
     phone,
+    zipOk,
     username,
     esportsInterest,
     esportsPlatform,
@@ -170,6 +181,8 @@ export default function CompleteProfileScreen() {
     if (!playingPosition.trim()) e.playing_position = "Required";
     if (!cleanInstagram(instagram)) e.instagram = "Required";
     if (!phone.trim()) e.phone = "Required";
+    if (!zipDigits) e.zip_code = "Required";
+    else if (!zipOk) e.zip_code = "Enter a 5-digit zip";
     if (!username.trim()) e.username = "Required";
     if (esportsInterest === null) e.esports_interest = "Required";
     if (esportsInterest === true) {
@@ -185,6 +198,8 @@ export default function CompleteProfileScreen() {
     playingPosition,
     instagram,
     phone,
+    zipDigits,
+    zipOk,
     username,
     esportsInterest,
     esportsPlatform,
@@ -201,6 +216,7 @@ export default function CompleteProfileScreen() {
     const pos = playingPosition.trim();
     const ig = cleanInstagram(instagram);
     const ph = phone.trim();
+    const zc = zipDigits;
     const un = username.trim();
     const userId = session?.user?.id;
 
@@ -217,6 +233,7 @@ export default function CompleteProfileScreen() {
       playing_position: pos,
       instagram: ig,
       phone: ph,
+      zip_code: zc,
       username: un,
       email: signedEmail,
       esports_interest: esportsYes ? "yes" : "no",
@@ -246,8 +263,7 @@ export default function CompleteProfileScreen() {
       return;
     }
 
-    refreshProfileCompletion();
-    (router.replace as (href: string) => void)("/(tabs)");
+    setPostSaveVenues(getNearestVenues(zc));
   }, [
     canContinue,
     firstName,
@@ -256,6 +272,7 @@ export default function CompleteProfileScreen() {
     playingPosition,
     instagram,
     phone,
+    zipDigits,
     username,
     esportsInterest,
     esportsPlatform,
@@ -264,9 +281,12 @@ export default function CompleteProfileScreen() {
     signedEmail,
     session?.user?.id,
     supabase,
-    router,
-    refreshProfileCompletion,
   ]);
+
+  const onContinueToApp = useCallback(() => {
+    refreshProfileCompletion();
+    (router.replace as (href: string) => void)("/(tabs)");
+  }, [refreshProfileCompletion, router]);
 
   function setInterest(next: boolean) {
     setEsportsInterest(next);
@@ -334,8 +354,33 @@ export default function CompleteProfileScreen() {
             },
           ]}
         >
-          <Text style={styles.title}>Complete your profile</Text>
-          <Text style={styles.subtitle}>We need a few details before you get started.</Text>
+          {postSaveVenues ? (
+            <>
+              <Text style={styles.title}>Profile saved</Text>
+              <Text style={styles.subtitle}>You&apos;re ready to find pickup and events.</Text>
+
+              <View style={styles.nearestCard}>
+                <Text style={styles.nearestCardTitle}>Your nearest locations:</Text>
+                {postSaveVenues.length === 0 ? (
+                  <Text style={styles.nearestEmpty}>No estimates for this zip — you can update it anytime in Account.</Text>
+                ) : (
+                  postSaveVenues.map((row) => (
+                    <View key={row.venue} style={styles.nearestRow}>
+                      <Text style={styles.nearestVenueName}>{row.venue}</Text>
+                      <Text style={styles.nearestEta}>~{row.estimatedMinutes} min drive</Text>
+                    </View>
+                  ))
+                )}
+              </View>
+
+              <Pressable style={styles.primaryBtn} onPress={onContinueToApp}>
+                <Text style={styles.primaryBtnText}>Continue</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={styles.title}>Complete your profile</Text>
+              <Text style={styles.subtitle}>We need a few details before you get started.</Text>
 
           <View style={styles.fieldBlock}>
             <Text style={styles.label}>First name</Text>
@@ -425,6 +470,21 @@ export default function CompleteProfileScreen() {
               autoCorrect={false}
             />
             {liveErrors.phone ? <Text style={styles.errText}>{liveErrors.phone}</Text> : null}
+          </View>
+
+          <View style={styles.fieldBlock}>
+            <Text style={styles.label}>Zip code</Text>
+            <TextInput
+              style={[styles.input, liveErrors.zip_code ? styles.inputErr : null]}
+              placeholder="5-digit zip"
+              placeholderTextColor="rgba(255,255,255,0.35)"
+              value={zipCode}
+              onChangeText={(t) => setZipCode(t.replace(/\D/g, "").slice(0, 5))}
+              keyboardType="numeric"
+              maxLength={5}
+              autoCorrect={false}
+            />
+            {liveErrors.zip_code ? <Text style={styles.errText}>{liveErrors.zip_code}</Text> : null}
           </View>
 
           <View style={styles.fieldBlock}>
@@ -543,6 +603,8 @@ export default function CompleteProfileScreen() {
               <Text style={[styles.primaryBtnText, btnLocked && styles.primaryBtnTextDisabled]}>Continue</Text>
             )}
           </Pressable>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -697,6 +759,47 @@ const styles = StyleSheet.create({
   },
   primaryBtnTextDisabled: {
     color: "rgba(255,255,255,0.35)",
+  },
+  nearestCard: {
+    marginTop: 22,
+    padding: 18,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.28)",
+    backgroundColor: "rgba(163,230,53,0.08)",
+  },
+  nearestCardTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: LIME,
+    letterSpacing: 0.3,
+    marginBottom: 14,
+  },
+  nearestRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.12)",
+  },
+  nearestVenueName: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.92)",
+    lineHeight: 21,
+  },
+  nearestEta: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: LIME,
+  },
+  nearestEmpty: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "rgba(255,255,255,0.55)",
   },
   modalRoot: {
     flex: 1,

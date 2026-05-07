@@ -54,6 +54,29 @@ Leave blank.`,
 
 type LocationPresetKey = keyof typeof LOCATION_PRESETS | "other" | "";
 
+type VenueFeePreset = {
+  id: string;
+  label: string;
+  region: ServiceRegionCode;
+  /** Whole dollars; 0 means do not auto-fill field cost (manual entry). */
+  priceDollars: number;
+  address: string;
+};
+
+const VENUE_FEE_PRESETS: VenueFeePreset[] = [
+  { id: "nj_meadow_5v5", label: "Sofive Meadowlands 5v5", region: "NJ", priceDollars: 162, address: "2 Palmer Terrace, Carlstadt, NJ 07072" },
+  { id: "nj_meadow_7v7", label: "Sofive Meadowlands 7v7", region: "NJ", priceDollars: 338, address: "2 Palmer Terrace, Carlstadt, NJ 07072" },
+  { id: "nj_cherry_5v5", label: "Sofive Cherry Hill 5v5", region: "NJ", priceDollars: 192, address: "650 Kresson Rd, Cherry Hill, NJ 08034" },
+  { id: "nj_cherry_7v7", label: "Sofive Cherry Hill 7v7", region: "NJ", priceDollars: 338, address: "650 Kresson Rd, Cherry Hill, NJ 08034" },
+  { id: "ny_brooklyn", label: "Sofive Brooklyn", region: "NY", priceDollars: 173, address: "2015 Pitkin Ave, Brooklyn, NY 11207" },
+  { id: "ny_hudson", label: "Hudson Sports", region: "NY", priceDollars: 131, address: "Warwick, NY" },
+  { id: "md_rockville", label: "Sofive Rockville", region: "MD", priceDollars: 165, address: "1008 Westmore Ave, Rockville, MD 20850" },
+  { id: "md_jessup", label: "SoccerDome Jessup", region: "MD", priceDollars: 113, address: "7330 Montevideo Road, Jessup, MD 20794" },
+  { id: "md_harmans", label: "SoccerDome Harmans", region: "MD", priceDollars: 113, address: "7447 Shipley Avenue, Harmans, MD 21077" },
+  { id: "ct_nh", label: "New Haven SoccerRoof", region: "CT", priceDollars: 0, address: "1018 Sherman Ave, Hamden, CT" },
+  { id: "ct_nr", label: "New Rochelle SoccerRoof", region: "CT", priceDollars: 0, address: "29 LeCount Pl, New Rochelle, NY" },
+];
+
 function s(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
@@ -135,8 +158,18 @@ export default function AdminPickupOpsScreen() {
   const [createFieldCost, setCreateFieldCost] = useState("");
   const [createHours, setCreateHours] = useState("2");
   const [createExpectedPlayers, setCreateExpectedPlayers] = useState("24");
+  const [createLocationText, setCreateLocationText] = useState("");
+  const [createSelectedVenueFeePresetId, setCreateSelectedVenueFeePresetId] = useState<string | null>(null);
+  const [editSelectedVenueFeePresetId, setEditSelectedVenueFeePresetId] = useState<string | null>(null);
 
   const [busy, setBusy] = useState<string | null>(null);
+
+  const venueFeePresetsForRegion = useMemo(() => VENUE_FEE_PRESETS.filter((p) => p.region === region), [region]);
+
+  useEffect(() => {
+    setCreateSelectedVenueFeePresetId(null);
+    setEditSelectedVenueFeePresetId(null);
+  }, [region]);
 
   const loadRuns = useCallback(async () => {
     if (!token) {
@@ -171,6 +204,7 @@ export default function AdminPickupOpsScreen() {
       return;
     }
     setDetail(r.data);
+    setEditSelectedVenueFeePresetId(null);
     const run = r.data.run;
     if (run && typeof run === "object") {
       setEditTitle(s(run.title) || "CT Pickup Run");
@@ -239,6 +273,7 @@ export default function AdminPickupOpsScreen() {
   }
 
   function applyPreset(key: LocationPresetKey) {
+    setEditSelectedVenueFeePresetId(null);
     setLocationPreset(key);
     if (key === "new_haven") setEditLocationPrivate(LOCATION_PRESETS.new_haven);
     else if (key === "new_rochelle") setEditLocationPrivate(LOCATION_PRESETS.new_rochelle);
@@ -404,6 +439,7 @@ export default function AdminPickupOpsScreen() {
       service_region: region,
       capacity: Number(createCapacity || 24),
       fee_cents,
+      location_text: createLocationText.trim() || undefined,
     });
     setBusy(null);
     if (!r.ok) return Alert.alert("Create failed", r.error);
@@ -413,6 +449,8 @@ export default function AdminPickupOpsScreen() {
     setCreateFieldCost("");
     setCreateHours("2");
     setCreateExpectedPlayers(createCapacity.trim() || "24");
+    setCreateLocationText("");
+    setCreateSelectedVenueFeePresetId(null);
     void loadRuns();
   }
 
@@ -592,11 +630,23 @@ export default function AdminPickupOpsScreen() {
               />
             </View>
           </View>
+          <VenueFeePresetRow
+            presets={venueFeePresetsForRegion}
+            selectedId={createSelectedVenueFeePresetId}
+            onSelect={(p) => {
+              setCreateSelectedVenueFeePresetId(p.id);
+              setCreateLocationText(p.address);
+              if (p.priceDollars > 0) setCreateFieldCost(String(p.priceDollars));
+            }}
+          />
           <Text style={styles.label}>Field cost ($)</Text>
           <TextInput
             style={styles.input}
             value={createFieldCost}
-            onChangeText={setCreateFieldCost}
+            onChangeText={(v) => {
+              setCreateFieldCost(v);
+              setCreateSelectedVenueFeePresetId(null);
+            }}
             keyboardType="decimal-pad"
             placeholder="0"
             placeholderTextColor="rgba(255,255,255,0.35)"
@@ -625,6 +675,18 @@ export default function AdminPickupOpsScreen() {
               {createFeePreview != null ? `$${createFeePreview.toFixed(2)}` : "—"}
             </Text>
           </Text>
+          <Text style={styles.label}>Location (staff)</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={createLocationText}
+            onChangeText={(v) => {
+              setCreateLocationText(v);
+              setCreateSelectedVenueFeePresetId(null);
+            }}
+            placeholder="Address and venue notes"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            multiline
+          />
           <Text style={styles.label}>Title (optional)</Text>
           <TextInput
             style={styles.input}
@@ -727,7 +789,7 @@ export default function AdminPickupOpsScreen() {
                   <Text style={styles.sectionTitle}>Edit run</Text>
                   <Text style={styles.label}>Title</Text>
                   <TextInput style={styles.input} value={editTitle} onChangeText={setEditTitle} placeholderTextColor="rgba(255,255,255,0.35)" />
-                  <Text style={styles.label}>Venue preset</Text>
+                  <Text style={styles.label}>Location template</Text>
                   <View style={styles.presetRow}>
                     {(
                       [
@@ -755,6 +817,7 @@ export default function AdminPickupOpsScreen() {
                     onChangeText={(v) => {
                       setEditLocationPrivate(v);
                       setLocationPreset(detectPreset(v));
+                      setEditSelectedVenueFeePresetId(null);
                     }}
                     placeholder="Venue notes, parking, field #"
                     placeholderTextColor="rgba(255,255,255,0.35)"
@@ -792,11 +855,24 @@ export default function AdminPickupOpsScreen() {
                     keyboardType="number-pad"
                     placeholderTextColor="rgba(255,255,255,0.35)"
                   />
+                  <VenueFeePresetRow
+                    presets={venueFeePresetsForRegion}
+                    selectedId={editSelectedVenueFeePresetId}
+                    onSelect={(p) => {
+                      setEditSelectedVenueFeePresetId(p.id);
+                      setEditLocationPrivate(p.address);
+                      setLocationPreset(detectPreset(p.address));
+                      if (p.priceDollars > 0) setEditFieldCost(String(p.priceDollars));
+                    }}
+                  />
                   <Text style={styles.label}>Field cost ($)</Text>
                   <TextInput
                     style={styles.input}
                     value={editFieldCost}
-                    onChangeText={setEditFieldCost}
+                    onChangeText={(v) => {
+                      setEditFieldCost(v);
+                      setEditSelectedVenueFeePresetId(null);
+                    }}
                     keyboardType="decimal-pad"
                     placeholderTextColor="rgba(255,255,255,0.35)"
                   />
@@ -1250,4 +1326,63 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(248,113,113,0.06)",
   },
   dangerOutlineText: { color: "rgba(248,113,113,0.95)", fontWeight: "800", fontSize: 15 },
+  venueFeePresetScroll: { marginTop: 8 },
+  venueFeePresetScrollContent: { flexDirection: "row", alignItems: "center", gap: 8, paddingRight: 4 },
+  venueFeePresetChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    flexShrink: 0,
+  },
+  venueFeePresetChipActive: {
+    borderColor: "rgba(163,230,53,0.55)",
+    backgroundColor: "rgba(163,230,53,0.18)",
+  },
+  venueFeePresetChipText: { fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.65)" },
+  venueFeePresetChipTextActive: { color: LIME },
 });
+
+function VenueFeePresetRow({
+  presets,
+  selectedId,
+  onSelect,
+}: {
+  presets: VenueFeePreset[];
+  selectedId: string | null;
+  onSelect: (p: VenueFeePreset) => void;
+}) {
+  if (presets.length === 0) return null;
+  return (
+    <>
+      <Text style={styles.label}>Venue preset</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        nestedScrollEnabled
+        style={styles.venueFeePresetScroll}
+        contentContainerStyle={styles.venueFeePresetScrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {presets.map((p) => {
+          const active = selectedId === p.id;
+          return (
+            <Pressable
+              key={p.id}
+              onPress={() => onSelect(p)}
+              style={({ pressed }) => [
+                styles.venueFeePresetChip,
+                active && styles.venueFeePresetChipActive,
+                pressed && { opacity: 0.9 },
+              ]}
+            >
+              <Text style={[styles.venueFeePresetChipText, active && styles.venueFeePresetChipTextActive]}>{p.label}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </>
+  );
+}

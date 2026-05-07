@@ -36,6 +36,7 @@ type ProfileRow = {
   approved: boolean | null;
   instagram: string | null;
   phone: string | null;
+  zip_code: string | null;
   playing_position: string | null;
   username: string | null;
 };
@@ -111,6 +112,7 @@ export default function AccountScreen() {
   const [editPlayingPosition, setEditPlayingPosition] = useState("");
   const [editInstagram, setEditInstagram] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editZipCode, setEditZipCode] = useState("");
   const [editUsername, setEditUsername] = useState("");
   const [editBusy, setEditBusy] = useState(false);
   const [editMsg, setEditMsg] = useState<string | null>(null);
@@ -142,7 +144,7 @@ export default function AccountScreen() {
     const { data, error } = await supabase
       .from("profiles")
       .select(
-        "first_name,last_name,tier,tier_rank,approved,instagram,phone,playing_position,username",
+        "first_name,last_name,tier,tier_rank,approved,instagram,phone,zip_code,playing_position,username",
       )
       .eq("id", userId)
       .maybeSingle();
@@ -167,6 +169,7 @@ export default function AccountScreen() {
     setEditPlayingPosition(String(profile.playing_position ?? ""));
     setEditInstagram(profile.instagram ? String(profile.instagram).replace(/^@/, "") : "");
     setEditPhone(String(profile.phone ?? ""));
+    setEditZipCode(String(profile.zip_code ?? "").replace(/\D/g, "").slice(0, 5));
     setEditUsername(String(profile.username ?? ""));
   }, [profile]);
 
@@ -257,6 +260,7 @@ export default function AccountScreen() {
     const playingPosition = editPlayingPosition.trim();
     const instagram = cleanInstagram(editInstagram);
     const phone = editPhone.trim();
+    const zipDigits = editZipCode.replace(/\D/g, "").slice(0, 5);
     const username = editUsername.trim();
 
     setEditBusy(true);
@@ -268,6 +272,7 @@ export default function AccountScreen() {
         playing_position: playingPosition || null,
         instagram: instagram || null,
         phone: phone || null,
+        zip_code: zipDigits.length === 5 ? zipDigits : null,
         username: username || null,
         updated_at: new Date().toISOString(),
       })
@@ -292,6 +297,7 @@ export default function AccountScreen() {
             playing_position: playingPosition || null,
             instagram: instagram || null,
             phone: phone || null,
+            zip_code: zipDigits.length === 5 ? zipDigits : null,
             username: username || null,
           }
         : p,
@@ -392,6 +398,7 @@ export default function AccountScreen() {
                 value={profile.instagram ? `@${String(profile.instagram).replace(/^@/, "")}` : null}
               />
               <InfoRow label="Phone" value={profile.phone} />
+              <InfoRow label="Zip code" value={profile.zip_code} />
               <InfoRow label="Tier" value={tierLabel(profile.tier, profile.tier_rank)} />
             </>
           )}
@@ -457,6 +464,19 @@ export default function AccountScreen() {
             keyboardType="phone-pad"
             autoCorrect={false}
             placeholder="Phone number"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            editable={!editBusy}
+          />
+
+          <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Zip code</Text>
+          <TextInput
+            style={styles.input}
+            value={editZipCode}
+            onChangeText={(t) => setEditZipCode(t.replace(/\D/g, "").slice(0, 5))}
+            keyboardType="numeric"
+            maxLength={5}
+            autoCorrect={false}
+            placeholder="5-digit zip"
             placeholderTextColor="rgba(255,255,255,0.35)"
             editable={!editBusy}
           />
