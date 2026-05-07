@@ -225,6 +225,7 @@ export default function CompleteProfileScreen() {
       return;
     }
 
+    const nearestVenues = getNearestVenues(zc);
     const esportsYes = esportsInterest === true;
     const payload: Record<string, unknown> = {
       first_name: fn,
@@ -234,6 +235,7 @@ export default function CompleteProfileScreen() {
       instagram: ig,
       phone: ph,
       zip_code: zc,
+      nearest_venue: nearestVenues[0]?.venue ?? null,
       username: un,
       email: signedEmail,
       esports_interest: esportsYes ? "yes" : "no",
@@ -263,7 +265,7 @@ export default function CompleteProfileScreen() {
       return;
     }
 
-    setPostSaveVenues(getNearestVenues(zc));
+    setPostSaveVenues(nearestVenues);
   }, [
     canContinue,
     firstName,

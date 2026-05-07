@@ -118,3 +118,9 @@ export function getNearestVenues(zipCode: string): { venue: string; address: str
     estimatedMinutes,
   }));
 }
+
+/** Closest venue display name for a 5-digit US ZIP, or null when unknown / no rows. */
+export function nearestVenueNameFromZip(zipCode: string): string | null {
+  const rows = getNearestVenues(zipCode);
+  return rows[0]?.venue ?? null;
+}

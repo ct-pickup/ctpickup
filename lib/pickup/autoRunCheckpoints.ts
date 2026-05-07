@@ -247,7 +247,14 @@ export async function processAutoPickupRun(
       if (open < 6) {
         const nextOpen = Math.min(6, open + 1);
         const newTier = nextOpen;
-        const inv = await insertInvitesForTierRanks(admin, runId, [newTier], 2, isoNow);
+        const inv = await insertInvitesForTierRanks(
+          admin,
+          runId,
+          [newTier],
+          2,
+          isoNow,
+          (run.service_region as string | null | undefined) ?? null,
+        );
         if (!inv.ok) {
           messages.push(`24h checkpoint: invite insert failed: ${inv.error}`);
         } else {
@@ -280,7 +287,14 @@ export async function processAutoPickupRun(
       if (open < 6) {
         const nextOpen = Math.min(6, open + 1);
         const newTier = nextOpen;
-        const inv = await insertInvitesForTierRanks(admin, runId, [newTier], 3, isoNow);
+        const inv = await insertInvitesForTierRanks(
+          admin,
+          runId,
+          [newTier],
+          3,
+          isoNow,
+          (run.service_region as string | null | undefined) ?? null,
+        );
         if (!inv.ok) {
           messages.push(`12h checkpoint: invite insert failed: ${inv.error}`);
         } else {

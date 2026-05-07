@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { assertPickupStandingAllowsParticipation } from "@/lib/pickup/standing/participationGate";
+import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
@@ -72,16 +73,26 @@ async function resolveSlotIdFromLabel(
 async function invitedUserIdsForPickupPush(
   admin: SupabaseClient,
   run_id: string,
-  run: { run_type: string; open_tier_rank: number | null },
+  run: { run_type: string; open_tier_rank: number | null; service_region?: string | null },
 ): Promise<string[]> {
   const openTier = run.open_tier_rank;
   if (openTier === null || openTier === undefined) return [];
 
-  const profRes = await admin.from("profiles").select("id").eq("approved", true).lte("tier_rank", openTier);
+  const profRes = await admin
+    .from("profiles")
+    .select("id,nearest_venue")
+    .eq("approved", true)
+    .lte("tier_rank", openTier);
 
   if (profRes.error || !(profRes.data?.length ?? 0)) return [];
 
-  const eligibleIds = new Set((profRes.data ?? []).map((p: { id: string }) => p.id));
+  const eligibleIds = new Set(
+    (profRes.data ?? [])
+      .filter((p: { id: string; nearest_venue: string | null }) =>
+        profileMatchesRunServiceRegion(p.nearest_venue, run.service_region),
+      )
+      .map((p: { id: string }) => p.id),
+  );
 
   if (run.run_type === "public") {
     return Array.from(eligibleIds);
@@ -143,7 +154,7 @@ export async function POST(req: Request) {
 
   const prof = await admin
     .from("profiles")
-    .select("approved, tier_rank")
+    .select("approved, tier_rank, nearest_venue")
     .eq("id", userId)
     .maybeSingle();
 
@@ -160,6 +171,10 @@ export async function POST(req: Request) {
   }
   if (run.data.final_slot_id) {
     return NextResponse.json({ error: "Run already finalized." }, { status: 403 });
+  }
+
+  if (!profileMatchesRunServiceRegion(prof.data.nearest_venue, run.data.service_region)) {
+    return NextResponse.json({ error: "This run is not available for your region." }, { status: 403 });
   }
 
   // Must be invited (Wave 1 only)

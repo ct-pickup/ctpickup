@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion";
 import { sendSms } from "@/lib/twilio/sendSms";
 
 export type InvitePlayer = {
@@ -13,25 +14,28 @@ export async function insertInvitesForTierRanks(
   run_id: string,
   tierRanks: number[],
   wave: number,
-  now: string
+  now: string,
+  service_region?: string | null,
 ): Promise<{ ok: false; error: string } | { ok: true; newlyInvited: InvitePlayer[] }> {
   const uniqTiers = Array.from(new Set(tierRanks)).filter((n) => Number.isFinite(n));
   if (!uniqTiers.length) return { ok: true, newlyInvited: [] };
 
   const ppl = await admin
     .from("profiles")
-    .select("id,tier_rank,approved,instagram,phone")
+    .select("id,tier_rank,approved,instagram,phone,nearest_venue")
     .in("tier_rank", uniqTiers)
     .eq("approved", true);
 
   if (ppl.error) return { ok: false, error: ppl.error.message };
 
-  const candidates: InvitePlayer[] = (ppl.data || []).map((p) => ({
-    user_id: p.id,
-    tier_rank: p.tier_rank ?? 6,
-    instagram: p.instagram || null,
-    phone: p.phone || null,
-  }));
+  const candidates: InvitePlayer[] = (ppl.data || [])
+    .filter((p) => profileMatchesRunServiceRegion(p.nearest_venue, service_region))
+    .map((p) => ({
+      user_id: p.id,
+      tier_rank: p.tier_rank ?? 6,
+      instagram: p.instagram || null,
+      phone: p.phone || null,
+    }));
 
   const rows = candidates.map((p) => ({
     run_id,

@@ -274,7 +274,14 @@ export async function POST(req: Request) {
     const runType = String(run.run_type || "select");
 
     if (runType === "select") {
-      const inv = await insertInvitesForTierRanks(admin, run_id, [1, 2], 1, now);
+      const inv = await insertInvitesForTierRanks(
+        admin,
+        run_id,
+        [1, 2],
+        1,
+        now,
+        run.service_region ?? null,
+      );
       if (!inv.ok) return NextResponse.json({ error: inv.error }, { status: 500 });
 
       const runDateOrTbd = body.date_or_tbd ? String(body.date_or_tbd) : "TBD";

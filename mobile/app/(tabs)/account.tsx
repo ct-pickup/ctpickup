@@ -11,6 +11,7 @@ import {
   PASSCODE_REQUIREMENTS,
 } from "@/lib/appLock";
 import { siteOrigin } from "@/lib/env";
+import { nearestVenueNameFromZip } from "@/lib/venueDistance";
 import { fetchPickupStanding } from "@/lib/siteApi";
 import * as LocalAuthentication from "expo-local-authentication";
 import { useRouter } from "expo-router";
@@ -263,6 +264,9 @@ export default function AccountScreen() {
     const zipDigits = editZipCode.replace(/\D/g, "").slice(0, 5);
     const username = editUsername.trim();
 
+    const zipStored = zipDigits.length === 5 ? zipDigits : null;
+    const nearestVenue = zipStored ? nearestVenueNameFromZip(zipStored) : null;
+
     setEditBusy(true);
     const { error } = await supabase
       .from("profiles")
@@ -272,7 +276,8 @@ export default function AccountScreen() {
         playing_position: playingPosition || null,
         instagram: instagram || null,
         phone: phone || null,
-        zip_code: zipDigits.length === 5 ? zipDigits : null,
+        zip_code: zipStored,
+        nearest_venue: nearestVenue,
         username: username || null,
         updated_at: new Date().toISOString(),
       })

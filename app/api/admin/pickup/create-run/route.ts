@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
@@ -90,9 +91,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: promoted.error.message }, { status: 500 });
   }
 
-  const approvedRes = await supabaseAdmin.from("profiles").select("id").eq("approved", true);
+  const approvedRes = await supabaseAdmin
+    .from("profiles")
+    .select("id,nearest_venue")
+    .eq("approved", true);
   if (!approvedRes.error && (approvedRes.data?.length ?? 0) > 0) {
-    const approvedIds = (approvedRes.data ?? []).map((p) => p.id as string);
+    const approvedIds = (approvedRes.data ?? [])
+      .filter((p) => profileMatchesRunServiceRegion(p.nearest_venue, promotedRegion))
+      .map((p) => p.id as string);
     const regionLabel =
       promotedRegion !== null ? promotedRegion : "your region";
     await sendPushToUsers(supabaseAdmin, approvedIds, {

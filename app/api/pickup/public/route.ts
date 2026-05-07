@@ -10,6 +10,7 @@ import {
   jsonUnexpectedErrorResponse,
 } from "@/lib/server/publicApiRouteErrors";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,6 +52,7 @@ export async function GET(req: Request) {
     let isAdmin = false;
     let tier: string | null = null;
     let tierRank: number | null = null;
+    let nearestVenue: string | null = null;
     if (token) {
       const u = await admin.auth.getUser(token);
       if (u.error) {
@@ -63,7 +65,7 @@ export async function GET(req: Request) {
       if (userId) {
         const prof = await admin
           .from("profiles")
-          .select("approved,is_admin,tier,tier_rank,first_name,last_name,instagram")
+          .select("approved,is_admin,tier,tier_rank,first_name,last_name,instagram,nearest_venue")
           .eq("id", userId)
           .maybeSingle();
 
@@ -78,6 +80,10 @@ export async function GET(req: Request) {
           prof.data?.tier_rank === null || prof.data?.tier_rank === undefined
             ? null
             : Number(prof.data?.tier_rank);
+        nearestVenue =
+          prof.data?.nearest_venue != null && String(prof.data.nearest_venue).trim()
+            ? String(prof.data.nearest_venue).trim()
+            : null;
       }
     }
 
@@ -159,6 +165,7 @@ export async function GET(req: Request) {
     // - user must be approved
     // - run.open_tier_rank must be non-null (starts null; do NOT use 0)
     // - tier_rank <= open_tier_rank
+    // - nearest_venue region matches run.service_region when both are set (missing nearest_venue still eligible)
     // - invite row exists in pickup_run_invites for (run_id,user_id)
     let invitedNow = false;
 
@@ -170,7 +177,13 @@ export async function GET(req: Request) {
     const effectiveTierRank =
       tierRank === null || tierRank === undefined ? 6 : tierRank;
 
-    if (userId && approved && runOpenTierRank !== null && effectiveTierRank <= runOpenTierRank) {
+    if (
+      userId &&
+      approved &&
+      runOpenTierRank !== null &&
+      effectiveTierRank <= runOpenTierRank &&
+      profileMatchesRunServiceRegion(nearestVenue, run.service_region)
+    ) {
       if (run.run_type === "public") {
         invitedNow = true;
       } else {
