@@ -1,12 +1,19 @@
 import { SignInPanel } from "@/components/SignInPanel";
 import { useAuth } from "@/context/AuthContext";
-import { Redirect } from "expo-router";
+import { useRouter } from "expo-router";
+import { useLayoutEffect } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
   const { session, isReady } = useAuth();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  useLayoutEffect(() => {
+    if (!isReady || !session?.user?.email) return;
+    router.replace("/(tabs)");
+  }, [isReady, session?.user?.email, router]);
 
   if (!isReady) {
     return (
@@ -17,7 +24,11 @@ export default function LoginScreen() {
   }
 
   if (session?.user?.email) {
-    return <Redirect href="/(tabs)" />;
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
   }
 
   return (

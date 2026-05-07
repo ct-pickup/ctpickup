@@ -1,6 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { hasSupabaseEnv, siteOrigin } from "@/lib/env";
 import { checkEmailExistsResult } from "@/lib/siteApi";
+import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import {
@@ -29,7 +30,8 @@ type Props = {
 };
 
 export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
-  const { supabase } = useAuth();
+  const router = useRouter();
+  const { supabase, refreshSession } = useAuth();
 
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -187,17 +189,40 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
       token,
       type: "email",
     });
-    setBusy(false);
     if (error) {
+      setBusy(false);
       setMsg(error.message);
       return;
     }
-    animatePanel();
-    setStage("email");
-    setCode("");
-    setEmail("");
-    setResendCooldownSec(0);
-    clearAuthHints();
+    const { data: sessionPayload, error: sessionErr } = await supabase.auth.getSession();
+    if (sessionErr) {
+      setBusy(false);
+      setMsg(sessionErr.message);
+      return;
+    }
+    if (!sessionPayload.session) {
+      setBusy(false);
+      setMsg("Could not load your session. Try again.");
+      return;
+    }
+    await refreshSession();
+    // One yield so React commits session before (tabs) mounts; avoids Redirect → /login when session is still stale.
+    await Promise.resolve();
+    router.replace("/(tabs)");
+    setBusy(false);
+
+    setTimeout(() => {
+      void (async () => {
+        try {
+          const { data } = await supabase.auth.getSession();
+          if (data.session) {
+            router.replace("/(tabs)");
+          }
+        } catch {
+          /* ignore */
+        }
+      })();
+    }, 500);
   }
 
   function selectReturning(fromSegment = false) {
@@ -327,7 +352,13 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
               keyboardType="number-pad"
               maxLength={12}
               value={code}
-              onChangeText={setCode}
+              onChangeText={(t) => setCode(t)}
+              autoCorrect={false}
+              autoCapitalize="none"
+              spellCheck={false}
+              textContentType={Platform.OS === "ios" ? "oneTimeCode" : undefined}
+              autoComplete={Platform.OS === "android" ? "sms-otp" : "one-time-code"}
+              blurOnSubmit={false}
             />
             <Pressable style={[styles.primaryBtn, busy && styles.disabled]} disabled={busy || !canSignIn} onPress={() => void verifyCode()}>
               {busy ? <ActivityIndicator color="#111" /> : <Text style={styles.primaryBtnText}>Verify</Text>}

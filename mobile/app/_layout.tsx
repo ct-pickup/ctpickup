@@ -12,8 +12,9 @@ import { ProfileAdminProvider } from "@/context/ProfileAdminContext";
 import { WaiverProvider } from "@/context/WaiverContext";
 import { SelectedRegionProvider } from "@/context/SelectedRegionContext";
 import { ReplayOpeningThemeContext } from "@/context/ReplayOpeningThemeContext";
+import { authRouteRef } from "@/lib/authRouteRef";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
@@ -27,6 +28,14 @@ export { ErrorBoundary } from "expo-router";
 export const unstable_settings = {
   initialRouteName: "(tabs)",
 };
+
+function AuthRouteTracker() {
+  const pathname = usePathname();
+  useEffect(() => {
+    authRouteRef.current = pathname ?? "";
+  }, [pathname]);
+  return null;
+}
 
 let splashPrepared = false;
 
@@ -75,6 +84,7 @@ function RootLayoutNav() {
   return (
     <ReplayOpeningThemeContext.Provider value={replayOpeningThemeCtx}>
       <AuthProvider>
+        <AuthRouteTracker />
         <WaiverProvider>
           <ProfileCompletionProvider>
             <ProfileAdminProvider>

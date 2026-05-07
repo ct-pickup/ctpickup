@@ -1,5 +1,7 @@
+import { authRouteRef } from "@/lib/authRouteRef";
 import { getMobileSupabaseClient } from "@/lib/supabase";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
+import { router } from "expo-router";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 type AuthContextValue = {
@@ -7,6 +9,8 @@ type AuthContextValue = {
   session: Session | null;
   isReady: boolean;
   signOut: () => Promise<void>;
+  /** Re-read session from Supabase (e.g. after verifyOtp) so React state matches storage on all devices. */
+  refreshSession: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -26,8 +30,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = client.auth.onAuthStateChange((_event, next) => {
+    } = client.auth.onAuthStateChange((event, next) => {
       setSession(next);
+      if (event === "SIGNED_IN" && next?.user?.email) {
+        const path = authRouteRef.current;
+        const onLoginScreen = path === "/login" || path.endsWith("/login");
+        if (onLoginScreen) {
+          router.replace("/(tabs)");
+        }
+      }
     });
 
     void (async () => {
@@ -44,14 +55,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  const refreshSession = useCallback(async () => {
+    if (!supabase) return;
+    try {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session ?? null);
+    } catch (e) {
+      console.warn("[auth] refreshSession getSession failed:", e);
+    }
+  }, [supabase]);
+
   const signOut = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
   }, [supabase]);
 
   const value = useMemo(
-    () => ({ supabase, session, isReady, signOut }),
-    [supabase, session, isReady, signOut],
+    () => ({ supabase, session, isReady, signOut, refreshSession }),
+    [supabase, session, isReady, signOut, refreshSession],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
