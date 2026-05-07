@@ -1,19 +1,26 @@
 import { SignInPanel } from "@/components/SignInPanel";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "expo-router";
-import { useLayoutEffect } from "react";
+import { useNavigationContainerRef, useRouter } from "expo-router";
+import { useEffect } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
   const { session, isReady } = useAuth();
   const router = useRouter();
+  const navigationRef = useNavigationContainerRef();
   const insets = useSafeAreaInsets();
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!isReady || !session?.user?.email) return;
-    router.replace("/(tabs)");
-  }, [isReady, session?.user?.email, router]);
+    if (!navigationRef.isReady()) return;
+
+    const id = setTimeout(() => {
+      router.replace("/(tabs)");
+    }, 100);
+
+    return () => clearTimeout(id);
+  }, [isReady, session?.user?.email, router, navigationRef]);
 
   if (!isReady) {
     return (

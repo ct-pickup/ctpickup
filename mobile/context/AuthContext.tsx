@@ -1,8 +1,8 @@
 import { authRouteRef } from "@/lib/authRouteRef";
 import { getMobileSupabaseClient } from "@/lib/supabase";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
-import { router } from "expo-router";
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { router, useNavigationContainerRef } from "expo-router";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 type AuthContextValue = {
   supabase: SupabaseClient | null;
@@ -19,6 +19,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const navigationRef = useNavigationContainerRef();
+  const replaceTabsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const client = getMobileSupabaseClient();
@@ -36,7 +38,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const path = authRouteRef.current;
         const onLoginScreen = path === "/login" || path.endsWith("/login");
         if (onLoginScreen) {
-          router.replace("/(tabs)");
+          if (!navigationRef.isReady()) return;
+          if (replaceTabsTimeoutRef.current !== null) {
+            clearTimeout(replaceTabsTimeoutRef.current);
+          }
+          replaceTabsTimeoutRef.current = setTimeout(() => {
+            replaceTabsTimeoutRef.current = null;
+            router.replace("/(tabs)");
+          }, 100);
         }
       }
     });
@@ -52,8 +61,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })();
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      subscription.unsubscribe();
+      if (replaceTabsTimeoutRef.current !== null) {
+        clearTimeout(replaceTabsTimeoutRef.current);
+        replaceTabsTimeoutRef.current = null;
+      }
+    };
+  }, [navigationRef]);
 
   const refreshSession = useCallback(async () => {
     if (!supabase) return;
