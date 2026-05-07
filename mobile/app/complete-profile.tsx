@@ -2,7 +2,8 @@ import { useProfileCompletionGate } from "@/context/ProfileCompletionContext";
 import { useAuth } from "@/context/AuthContext";
 import { useWaiver } from "@/context/WaiverContext";
 import { CT_PICKUP_LIME } from "@/constants/Colors";
-import { getNearestVenues } from "@/lib/venueDistance";
+import { siteOrigin } from "@/lib/env";
+import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
 import { Redirect, useRouter, type Href } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -132,9 +133,7 @@ export default function CompleteProfileScreen() {
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [postSaveVenues, setPostSaveVenues] = useState<
-    ReturnType<typeof getNearestVenues> | null
-  >(null);
+  const [postSaveVenues, setPostSaveVenues] = useState<VenueDistanceRow[] | null>(null);
 
   const signedEmail = session?.user?.email ?? "";
 
@@ -145,10 +144,8 @@ export default function CompleteProfileScreen() {
     if (
       !firstName.trim() ||
       !lastName.trim() ||
-      !gender ||
       !playingPosition.trim() ||
       !cleanInstagram(instagram) ||
-      !phone.trim() ||
       !zipOk ||
       !username.trim()
     )
@@ -161,10 +158,8 @@ export default function CompleteProfileScreen() {
   }, [
     firstName,
     lastName,
-    gender,
     playingPosition,
     instagram,
-    phone,
     zipOk,
     username,
     esportsInterest,
@@ -177,10 +172,8 @@ export default function CompleteProfileScreen() {
     const e: Partial<Record<FieldKey, string>> = {};
     if (!firstName.trim()) e.first_name = "Required";
     if (!lastName.trim()) e.last_name = "Required";
-    if (!gender) e.gender = "Required";
     if (!playingPosition.trim()) e.playing_position = "Required";
     if (!cleanInstagram(instagram)) e.instagram = "Required";
-    if (!phone.trim()) e.phone = "Required";
     if (!zipDigits) e.zip_code = "Required";
     else if (!zipOk) e.zip_code = "Enter a 5-digit zip";
     if (!username.trim()) e.username = "Required";
@@ -194,10 +187,8 @@ export default function CompleteProfileScreen() {
   }, [
     firstName,
     lastName,
-    gender,
     playingPosition,
     instagram,
-    phone,
     zipDigits,
     zipOk,
     username,
@@ -215,7 +206,7 @@ export default function CompleteProfileScreen() {
     const ln = lastName.trim();
     const pos = playingPosition.trim();
     const ig = cleanInstagram(instagram);
-    const ph = phone.trim();
+    const ph = phone.trim() || null;
     const zc = zipDigits;
     const un = username.trim();
     const userId = session?.user?.id;
@@ -225,47 +216,58 @@ export default function CompleteProfileScreen() {
       return;
     }
 
-    const nearestVenues = getNearestVenues(zc);
-    const esportsYes = esportsInterest === true;
-    const payload: Record<string, unknown> = {
-      first_name: fn,
-      last_name: ln,
-      gender,
-      playing_position: pos,
-      instagram: ig,
-      phone: ph,
-      zip_code: zc,
-      nearest_venue: nearestVenues[0]?.venue ?? null,
-      username: un,
-      email: signedEmail,
-      esports_interest: esportsYes ? "yes" : "no",
-      updated_at: new Date().toISOString(),
-    };
-
-    if (esportsYes) {
-      payload.esports_platform = esportsPlatform;
-      payload.esports_console = esportsConsole.trim();
-      payload.esports_online_id = esportsOnlineId.trim();
-    } else {
-      payload.esports_platform = null;
-      payload.esports_console = null;
-      payload.esports_online_id = null;
-    }
-
     setBusy(true);
-    const { error } = await supabase.from("profiles").update(payload).eq("id", userId);
-    setBusy(false);
+    try {
+      let nearestVenues: VenueDistanceRow[] = [];
+      const origin = siteOrigin();
+      if (origin) {
+        nearestVenues = await getNearestVenuesFromApi(zc, origin, session?.access_token);
+      }
+      if (nearestVenues.length === 0) {
+        nearestVenues = getNearestVenues(zc);
+      }
 
-    if (error) {
-      const code = (error as { code?: string }).code;
-      const dup =
-        code === "23505" ||
-        /profiles_username_lower_unique|duplicate key/i.test(error.message ?? "");
-      setSubmitError(dup ? "That username is already taken. Try another." : error.message);
-      return;
+      const esportsYes = esportsInterest === true;
+      const payload: Record<string, unknown> = {
+        first_name: fn,
+        last_name: ln,
+        gender: gender ?? null,
+        playing_position: pos,
+        instagram: ig,
+        phone: ph,
+        zip_code: zc,
+        nearest_venue: nearestVenues[0]?.venue ?? null,
+        username: un,
+        email: signedEmail,
+        esports_interest: esportsYes ? "yes" : "no",
+        updated_at: new Date().toISOString(),
+      };
+
+      if (esportsYes) {
+        payload.esports_platform = esportsPlatform;
+        payload.esports_console = esportsConsole.trim();
+        payload.esports_online_id = esportsOnlineId.trim();
+      } else {
+        payload.esports_platform = null;
+        payload.esports_console = null;
+        payload.esports_online_id = null;
+      }
+
+      const { error } = await supabase.from("profiles").update(payload).eq("id", userId);
+
+      if (error) {
+        const code = (error as { code?: string }).code;
+        const dup =
+          code === "23505" ||
+          /profiles_username_lower_unique|duplicate key/i.test(error.message ?? "");
+        setSubmitError(dup ? "That username is already taken. Try another." : error.message);
+        return;
+      }
+
+      setPostSaveVenues(nearestVenues);
+    } finally {
+      setBusy(false);
     }
-
-    setPostSaveVenues(nearestVenues);
   }, [
     canContinue,
     firstName,
@@ -282,6 +284,7 @@ export default function CompleteProfileScreen() {
     esportsOnlineId,
     signedEmail,
     session?.user?.id,
+    session?.access_token,
     supabase,
   ]);
 
@@ -420,17 +423,16 @@ export default function CompleteProfileScreen() {
           </View>
 
           <View style={styles.fieldBlock}>
-            <Text style={styles.label}>Gender</Text>
+            <Text style={styles.label}>Gender (optional)</Text>
             <Pressable
               onPress={() => setGenderPickerOpen(true)}
-              style={[styles.input, styles.selectTrigger, liveErrors.gender ? styles.inputErr : null]}
+              style={[styles.input, styles.selectTrigger]}
             >
               <Text style={gender ? styles.selectValue : styles.selectPlaceholder}>
                 {gender ? labelFor(GENDER_OPTIONS, gender) : "Choose…"}
               </Text>
               <Text style={styles.selectChevron}>▾</Text>
             </Pressable>
-            {liveErrors.gender ? <Text style={styles.errText}>{liveErrors.gender}</Text> : null}
           </View>
 
           <View style={styles.fieldBlock}>
@@ -461,9 +463,9 @@ export default function CompleteProfileScreen() {
           </View>
 
           <View style={styles.fieldBlock}>
-            <Text style={styles.label}>Phone number</Text>
+            <Text style={styles.label}>Phone number (optional)</Text>
             <TextInput
-              style={[styles.input, liveErrors.phone ? styles.inputErr : null]}
+              style={styles.input}
               placeholder="Phone number"
               placeholderTextColor="rgba(255,255,255,0.35)"
               value={phone}
@@ -471,7 +473,6 @@ export default function CompleteProfileScreen() {
               keyboardType="phone-pad"
               autoCorrect={false}
             />
-            {liveErrors.phone ? <Text style={styles.errText}>{liveErrors.phone}</Text> : null}
           </View>
 
           <View style={styles.fieldBlock}>

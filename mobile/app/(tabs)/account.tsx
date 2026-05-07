@@ -11,7 +11,7 @@ import {
   PASSCODE_REQUIREMENTS,
 } from "@/lib/appLock";
 import { siteOrigin } from "@/lib/env";
-import { nearestVenueNameFromZip } from "@/lib/venueDistance";
+import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
 import { fetchPickupStanding } from "@/lib/siteApi";
 import * as LocalAuthentication from "expo-local-authentication";
 import { useRouter } from "expo-router";
@@ -265,50 +265,64 @@ export default function AccountScreen() {
     const username = editUsername.trim();
 
     const zipStored = zipDigits.length === 5 ? zipDigits : null;
-    const nearestVenue = zipStored ? nearestVenueNameFromZip(zipStored) : null;
 
     setEditBusy(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        first_name: firstName || null,
-        last_name: lastName || null,
-        playing_position: playingPosition || null,
-        instagram: instagram || null,
-        phone: phone || null,
-        zip_code: zipStored,
-        nearest_venue: nearestVenue,
-        username: username || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", userId);
-    setEditBusy(false);
+    try {
+      let nearestVenues: VenueDistanceRow[] = [];
+      if (zipStored) {
+        const origin = siteOrigin();
+        if (origin) {
+          nearestVenues = await getNearestVenuesFromApi(zipStored, origin, accessToken);
+        }
+        if (nearestVenues.length === 0) {
+          nearestVenues = getNearestVenues(zipStored);
+        }
+      }
+      const nearestVenue = nearestVenues[0]?.venue ?? null;
 
-    if (error) {
-      const code = (error as { code?: string }).code;
-      const dup =
-        code === "23505" ||
-        /profiles_username_lower_unique|duplicate key/i.test(error.message ?? "");
-      setEditMsg(dup ? "That username is already taken. Try another." : error.message);
-      return;
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          first_name: firstName || null,
+          last_name: lastName || null,
+          playing_position: playingPosition || null,
+          instagram: instagram || null,
+          phone: phone || null,
+          zip_code: zipStored,
+          nearest_venue: nearestVenue,
+          username: username || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+
+      if (error) {
+        const code = (error as { code?: string }).code;
+        const dup =
+          code === "23505" ||
+          /profiles_username_lower_unique|duplicate key/i.test(error.message ?? "");
+        setEditMsg(dup ? "That username is already taken. Try another." : error.message);
+        return;
+      }
+
+      setProfile((p) =>
+        p
+          ? {
+              ...p,
+              first_name: firstName || null,
+              last_name: lastName || null,
+              playing_position: playingPosition || null,
+              instagram: instagram || null,
+              phone: phone || null,
+              zip_code: zipDigits.length === 5 ? zipDigits : null,
+              username: username || null,
+            }
+          : p,
+      );
+      setEditOk(true);
+      setEditMsg("Saved.");
+    } finally {
+      setEditBusy(false);
     }
-
-    setProfile((p) =>
-      p
-        ? {
-            ...p,
-            first_name: firstName || null,
-            last_name: lastName || null,
-            playing_position: playingPosition || null,
-            instagram: instagram || null,
-            phone: phone || null,
-            zip_code: zipDigits.length === 5 ? zipDigits : null,
-            username: username || null,
-          }
-        : p,
-    );
-    setEditOk(true);
-    setEditMsg("Saved.");
   }
 
   async function onToggleBiometrics(next: boolean) {
@@ -503,7 +517,14 @@ export default function AccountScreen() {
             disabled={editBusy}
             onPress={() => void onSaveProfile()}
           >
-            <Text style={styles.primaryBtnText}>{editBusy ? "Saving…" : "Save profile"}</Text>
+            {editBusy ? (
+              <View style={styles.saveBtnBusy}>
+                <ActivityIndicator color="#111" />
+                <Text style={styles.primaryBtnText}>Saving…</Text>
+              </View>
+            ) : (
+              <Text style={styles.primaryBtnText}>Save profile</Text>
+            )}
           </Pressable>
           {editMsg ? (
             <Text style={[styles.msg, editOk ? styles.msgOk : styles.msgMuted]}>{editMsg}</Text>
@@ -908,6 +929,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   primaryBtnText: { color: "#111", fontWeight: "700", fontSize: 16 },
+  saveBtnBusy: { flexDirection: "row", alignItems: "center", gap: 10 },
   disabled: { opacity: 0.5 },
   outlineBtnLime: {
     marginTop: 16,
