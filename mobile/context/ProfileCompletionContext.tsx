@@ -9,6 +9,8 @@ type ProfileCompletionContextValue = {
   profileNeedsCompletion: boolean;
   /** Re-run profile completion check (e.g. after saving on complete-profile). */
   refreshProfileCompletion: () => Promise<void>;
+  /** Mark profile complete locally without a Supabase round-trip (e.g. after successful save). */
+  markProfileComplete: () => void;
 };
 
 const ProfileCompletionContext = createContext<ProfileCompletionContextValue | undefined>(undefined);
@@ -44,6 +46,11 @@ export function ProfileCompletionProvider({ children }: { children: React.ReactN
       (fn == null || String(fn).trim() === "") && (un == null || String(un).trim() === "");
     setProfileNeedsCompletion(needsCompletion);
   }, [supabase, session?.user?.id]);
+
+  const markProfileComplete = useCallback(() => {
+    setProfileNeedsCompletion(false);
+    setProfileGateLoading(false);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,8 +90,9 @@ export function ProfileCompletionProvider({ children }: { children: React.ReactN
       profileGateLoading,
       profileNeedsCompletion,
       refreshProfileCompletion,
+      markProfileComplete,
     }),
-    [profileGateLoading, profileNeedsCompletion, refreshProfileCompletion],
+    [profileGateLoading, profileNeedsCompletion, refreshProfileCompletion, markProfileComplete],
   );
 
   return <ProfileCompletionContext.Provider value={value}>{children}</ProfileCompletionContext.Provider>;

@@ -162,7 +162,7 @@ export default function CompleteProfileScreen() {
   const insets = useSafeAreaInsets();
   const { session, supabase, isReady } = useAuth();
   const { waiverAccepted, waiverLoading } = useWaiver();
-  const { refreshProfileCompletion, profileGateLoading, profileNeedsCompletion } = useProfileCompletionGate();
+  const { markProfileComplete, profileGateLoading, profileNeedsCompletion } = useProfileCompletionGate();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -342,10 +342,10 @@ export default function CompleteProfileScreen() {
     supabase,
   ]);
 
-  const onContinueToApp = useCallback(async () => {
-    await refreshProfileCompletion();
+  const onContinueToApp = useCallback(() => {
+    markProfileComplete();
     router.replace("/(tabs)" as Href);
-  }, [refreshProfileCompletion, router]);
+  }, [markProfileComplete, router]);
 
   function setInterest(next: boolean) {
     setEsportsInterest(next);
