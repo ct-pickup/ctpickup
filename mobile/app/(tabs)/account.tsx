@@ -19,7 +19,6 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -130,12 +129,12 @@ export default function AccountScreen() {
     } else {
       setProfile((data as ProfileRow | null) ?? null);
     }
-  }, [supabase, userId]);
+  }, [supabase, session?.user?.id]);
 
   useEffect(() => {
-    if (!isReady) return;
+    if (!isReady || !session?.user?.id || !supabase) return;
     void loadProfile();
-  }, [isReady, loadProfile]);
+  }, [isReady, supabase, session?.user?.id, loadProfile]);
 
   useEffect(() => {
     if (!profile) return;
@@ -731,7 +730,7 @@ export default function AccountScreen() {
         <Pressable
           style={styles.aboutRow}
           onPress={() => {
-            void Linking.openURL("https://ctpickup.net/privacy");
+            (router.push as (href: string) => void)("/privacy-policy");
           }}
         >
           <View style={styles.aboutLeft}>
@@ -742,7 +741,15 @@ export default function AccountScreen() {
           </View>
           <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
         </Pressable>
-        <Pressable style={styles.aboutRow} onPress={() => {}}>
+        <Pressable
+          style={styles.aboutRow}
+          onPress={() => {
+            Alert.alert(
+              "CT Pickup",
+              "Version 1.0.0 — Competitive pickup soccer platform for CT, NY, NJ and MD. Built by CT Pickup LLC.",
+            );
+          }}
+        >
           <View style={styles.aboutLeft}>
             <View style={styles.aboutIconWrap}>
               <FontAwesome name="info-circle" size={18} color="rgba(255,255,255,0.75)" />

@@ -207,6 +207,15 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
+                            name="privacy-policy"
+                            options={{
+                              headerShown: true,
+                              title: "Privacy Policy",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                            }}
+                          />
+                          <Stack.Screen
                             name="esports/[id]"
                             options={{
                               headerShown: true,
