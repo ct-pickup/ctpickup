@@ -63,6 +63,17 @@ function cleanInstagram(s: string): string {
   return s.trim().replace(/^@/, "").replace(/\s+/g, "");
 }
 
+function formatProfileSaveError(err: unknown): string {
+  if (err && typeof err === "object" && "message" in err) {
+    const o = err as { message?: string; details?: string; hint?: string; code?: string };
+    const parts = [o.message, o.details, o.hint].filter((s) => typeof s === "string" && s.trim());
+    if (parts.length) return parts.join(" — ");
+    if (o.code) return `Error code ${o.code}`;
+  }
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
+
 function fullName(p: ProfileRow | null): string | null {
   if (!p) return null;
   const a = (p.first_name ?? "").trim();
@@ -256,9 +267,18 @@ export default function AccountScreen() {
   }, [isReady, accessToken]);
 
   async function onSaveProfile() {
-    if (!supabase || !userId) return;
+    const authUserId = session?.user?.id ?? null;
     setEditMsg(null);
     setEditOk(false);
+
+    if (!supabase) {
+      setEditMsg("Supabase client is not available. Check app configuration.");
+      return;
+    }
+    if (!authUserId) {
+      setEditMsg("Could not read your user id from the session. Try signing out and signing in again.");
+      return;
+    }
 
     const firstName = editFirstName.trim();
     const lastName = editLastName.trim();
@@ -284,7 +304,7 @@ export default function AccountScreen() {
       }
       const nearestVenue = nearestVenues[0]?.venue ?? null;
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .update({
           first_name: firstName || null,
@@ -297,14 +317,26 @@ export default function AccountScreen() {
           username: username || null,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", userId);
+        .eq("id", authUserId)
+        .select("id");
 
       if (error) {
+        console.log("[onSaveProfile] supabase.from('profiles').update error", error);
         const code = (error as { code?: string }).code;
         const dup =
           code === "23505" ||
           /profiles_username_lower_unique|duplicate key/i.test(error.message ?? "");
-        setEditMsg(dup ? "That username is already taken. Try another." : error.message);
+        setEditMsg(
+          dup ? "That username is already taken. Try another." : formatProfileSaveError(error),
+        );
+        return;
+      }
+
+      if (!data?.length) {
+        console.log("[onSaveProfile] update returned 0 rows", { authUserId });
+        setEditMsg(
+          "Save did not update any profile row (no match or not permitted). If you see “No profile found” above, your account may be missing a profile row.",
+        );
         return;
       }
 
@@ -324,6 +356,9 @@ export default function AccountScreen() {
       );
       setEditOk(true);
       setEditMsg("Saved.");
+    } catch (e) {
+      console.log("[onSaveProfile] exception", e);
+      setEditMsg(formatProfileSaveError(e));
     } finally {
       setEditBusy(false);
     }
@@ -382,7 +417,6 @@ export default function AccountScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>Profile</Text>
-        <Text style={styles.sectionSub}>Your roster info from CT Pickup.</Text>
 
         <View style={styles.card}>
           {profileLoading ? (
@@ -428,7 +462,6 @@ export default function AccountScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>Edit profile</Text>
-        <Text style={styles.sectionSub}>Update your roster details. Saved instantly.</Text>
 
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>First name</Text>
