@@ -34,7 +34,16 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "load_failed" }, { status: 500 });
   }
 
-  const profBy = new Map(((profRes as any).data || []).map((p: any) => [String(p.id), p]));
+  type ProfileLite = {
+    id?: string | number | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    instagram?: string | null;
+    tier?: string | null;
+    tier_rank?: number | null;
+  };
+
+  const profBy = new Map<string, ProfileLite>(((profRes as any).data || []).map((p: any) => [String(p.id), p]));
 
   const rows = suggestions.map((s: any) => {
     const p = profBy.get(String(s.user_id)) || null;
