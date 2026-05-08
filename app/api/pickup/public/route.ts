@@ -141,6 +141,8 @@ export async function GET(req: Request) {
     const rsvpRows = rsvpRes.data || [];
     const confirmedRows = rsvpRows.filter((r) => r.status === "confirmed");
     const standbyRows = rsvpRows.filter((r) => r.status === "standby");
+    const waitlistRows = rsvpRows.filter((r) => r.status === "waitlist");
+    const pendingConfirmRows = rsvpRows.filter((r) => r.status === "pending_confirm");
     const pendingRows = rsvpRows.filter((r) => r.status === "pending_payment");
 
     // Tier-1 confirmed count using profiles.tier_rank (canonical)
@@ -218,10 +220,11 @@ export async function GET(req: Request) {
 
     // My status: latest row for this user
     let myStatus: string | null = null;
+    let myWaitlistPosition: number | null = null;
     if (userId) {
       const mine = await admin
         .from("pickup_run_rsvps")
-        .select("status,updated_at,created_at")
+        .select("status,waitlist_position,updated_at,created_at")
         .eq("run_id", run.id)
         .eq("user_id", userId)
         .order("updated_at", { ascending: false })
@@ -233,6 +236,10 @@ export async function GET(req: Request) {
       }
 
       myStatus = mine.data?.[0]?.status || null;
+      myWaitlistPosition =
+        mine.data?.[0]?.waitlist_position === null || mine.data?.[0]?.waitlist_position === undefined
+          ? null
+          : Number(mine.data?.[0]?.waitlist_position);
     }
 
     // Attendees list (confirmed only) if visible
@@ -341,10 +348,13 @@ export async function GET(req: Request) {
       counts: {
         confirmed: confirmedRows.length,
         standby: standbyRows.length,
+        waitlist: waitlistRows.length,
+        pending_confirm: pendingConfirmRows.length,
         pending_payment: pendingRows.length,
         tier1Confirmed,
       },
       my_status: myStatus,
+      my_waitlist_position: myWaitlistPosition,
       attendees,
       me: { approved, is_admin: isAdmin, tier, tier_rank: tierRank },
       ...(planning ? { planning } : {}),

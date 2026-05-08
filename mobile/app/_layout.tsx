@@ -242,6 +242,86 @@ function RootLayoutNav() {
                               headerTintColor: "#fff",
                             }}
                             />
+                          <Stack.Screen
+                            name="players"
+                            options={{
+                              headerShown: true,
+                              title: "Players",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="player/[id]"
+                            options={{
+                              headerShown: true,
+                              title: "Profile",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="leaderboards"
+                            options={{
+                              headerShown: true,
+                              title: "Leaderboards",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="run-history"
+                            options={{
+                              headerShown: true,
+                              title: "Run history",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="run/[id]"
+                            options={{
+                              headerShown: true,
+                              title: "Run",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="admin/run-result"
+                            options={{
+                              headerShown: true,
+                              title: "Run result",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="admin/analytics"
+                            options={{
+                              headerShown: true,
+                              title: "Analytics",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="admin/tier-suggestions"
+                            options={{
+                              headerShown: true,
+                              title: "Tier Suggestions",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                              headerShadowVisible: false,
+                            }}
+                          />
                           </Stack>
                         </ThemeProvider>
                         <AppOpeningTheme key={openingThemeKey} />

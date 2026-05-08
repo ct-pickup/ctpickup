@@ -1,6 +1,8 @@
 export type PickupPublicCounts = {
   confirmed?: number;
   standby?: number;
+  waitlist?: number;
+  pending_confirm?: number;
   pending_payment?: number;
   tier1Confirmed?: number;
 };
@@ -21,6 +23,8 @@ export type PickupPublicPayload = {
   status?: string;
   /** Latest RSVP status for the signed-in user (from `/api/pickup/public`). */
   my_status?: string | null;
+  /** Waitlist position when `my_status === "waitlist"` (1-indexed). */
+  my_waitlist_position?: number | null;
   run?: Record<string, unknown> | null;
   counts?: PickupPublicCounts;
   visibility?: PickupPublicVisibility;

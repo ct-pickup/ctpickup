@@ -19,6 +19,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -29,6 +30,66 @@ import {
   View,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+
+const POSITION_OPTIONS = [
+  { value: "Goalkeeper" as const, label: "Goalkeeper" },
+  { value: "Defender" as const, label: "Defender" },
+  { value: "Midfielder" as const, label: "Midfielder" },
+  { value: "Attacker" as const, label: "Attacker" },
+];
+
+type PositionValue = (typeof POSITION_OPTIONS)[number]["value"];
+
+function labelFor<T extends { value: string; label: string }>(options: readonly T[], value: string | null): string {
+  if (!value) return "";
+  return options.find((o) => o.value === value)?.label ?? value;
+}
+
+type SelectModalProps<T extends string> = {
+  visible: boolean;
+  title: string;
+  options: readonly { value: T; label: string }[];
+  value: T | null;
+  onSelect: (v: T) => void;
+  onClose: () => void;
+};
+
+function SelectModal<T extends string>({ visible, title, options, value, onSelect, onClose }: SelectModalProps<T>) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalRoot}>
+        <Pressable style={styles.modalBackdrop} onPress={onClose} accessibilityLabel="Close picker" />
+        <View style={styles.modalCardWrap} pointerEvents="box-none">
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{title}</Text>
+            {options.map((opt) => {
+              const selected = value === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  onPress={() => {
+                    onSelect(opt.value);
+                    onClose();
+                  }}
+                  style={({ pressed }) => [
+                    styles.modalRow,
+                    selected && styles.modalRowSelected,
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <Text style={[styles.modalRowText, selected && styles.modalRowTextSelected]}>{opt.label}</Text>
+                </Pressable>
+              );
+            })}
+            <Pressable onPress={onClose} style={({ pressed }) => [styles.modalCancel, pressed && { opacity: 0.85 }]}>
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 type ProfileRow = {
   first_name: string | null;
@@ -86,7 +147,7 @@ export default function AccountScreen() {
 
   const [editFirstName, setEditFirstName] = useState("");
   const [editLastName, setEditLastName] = useState("");
-  const [editPlayingPosition, setEditPlayingPosition] = useState("");
+  const [editPlayingPosition, setEditPlayingPosition] = useState<PositionValue | null>(null);
   const [editInstagram, setEditInstagram] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editZipCode, setEditZipCode] = useState("");
@@ -94,6 +155,7 @@ export default function AccountScreen() {
   const [editBusy, setEditBusy] = useState(false);
   const [editMsg, setEditMsg] = useState<string | null>(null);
   const [editOk, setEditOk] = useState(false);
+  const [positionPickerOpen, setPositionPickerOpen] = useState(false);
 
   const [waiverAccepted, setWaiverAccepted] = useState<boolean | null>(null);
   const [waiverVersion, setWaiverVersion] = useState<string | null>(null);
@@ -140,7 +202,10 @@ export default function AccountScreen() {
     if (!profile) return;
     setEditFirstName(String(profile.first_name ?? ""));
     setEditLastName(String(profile.last_name ?? ""));
-    setEditPlayingPosition(String(profile.playing_position ?? ""));
+    const rawPos = String(profile.playing_position ?? "").trim();
+    setEditPlayingPosition(
+      (POSITION_OPTIONS as readonly { value: string }[]).some((o) => o.value === rawPos) ? (rawPos as PositionValue) : null,
+    );
     setEditInstagram(profile.instagram ? String(profile.instagram).replace(/^@/, "") : "");
     setEditPhone(String(profile.phone ?? ""));
     setEditZipCode(String(profile.zip_code ?? "").replace(/\D/g, "").slice(0, 5));
@@ -243,7 +308,7 @@ export default function AccountScreen() {
 
     const firstName = editFirstName.trim();
     const lastName = editLastName.trim();
-    const playingPosition = editPlayingPosition.trim();
+    const playingPosition = editPlayingPosition;
     const instagram = cleanInstagram(editInstagram);
     const phone = editPhone.trim();
     const zipDigits = editZipCode.replace(/\D/g, "").slice(0, 5);
@@ -270,7 +335,7 @@ export default function AccountScreen() {
         .update({
           first_name: firstName || null,
           last_name: lastName || null,
-          playing_position: playingPosition || null,
+          playing_position: playingPosition ?? null,
           instagram: instagram || null,
           phone: phone || null,
           zip_code: zipStored,
@@ -307,7 +372,7 @@ export default function AccountScreen() {
               ...p,
               first_name: firstName || null,
               last_name: lastName || null,
-              playing_position: playingPosition || null,
+              playing_position: playingPosition ?? null,
               instagram: instagram || null,
               phone: phone || null,
               zip_code: zipDigits.length === 5 ? zipDigits : null,
@@ -405,16 +470,21 @@ export default function AccountScreen() {
           />
 
           <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Playing position</Text>
-          <TextInput
-            style={styles.input}
-            value={editPlayingPosition}
-            onChangeText={setEditPlayingPosition}
-            autoCapitalize="words"
-            autoCorrect={false}
-            placeholder="e.g. Midfielder"
-            placeholderTextColor="rgba(255,255,255,0.35)"
-            editable={!editBusy}
-          />
+          <Pressable
+            onPress={() => setPositionPickerOpen(true)}
+            disabled={editBusy}
+            style={({ pressed }) => [
+              styles.input,
+              styles.selectTrigger,
+              pressed && !editBusy ? { opacity: 0.92 } : null,
+              editBusy ? { opacity: 0.6 } : null,
+            ]}
+          >
+            <Text style={editPlayingPosition ? styles.selectValue : styles.selectPlaceholder}>
+              {editPlayingPosition ? labelFor(POSITION_OPTIONS, editPlayingPosition) : "Choose…"}
+            </Text>
+            <Text style={styles.selectChevron}>▾</Text>
+          </Pressable>
 
           <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Instagram</Text>
           <TextInput
@@ -483,6 +553,15 @@ export default function AccountScreen() {
             <Text style={[styles.msg, editOk ? styles.msgOk : styles.msgMuted]}>{editMsg}</Text>
           ) : null}
         </View>
+
+        <SelectModal<PositionValue>
+          visible={positionPickerOpen}
+          title="Playing position"
+          options={POSITION_OPTIONS}
+          value={editPlayingPosition}
+          onSelect={setEditPlayingPosition}
+          onClose={() => setPositionPickerOpen(false)}
+        />
 
         <Text style={styles.sectionTitle}>Waiver</Text>
         <View style={styles.card}>
@@ -741,6 +820,16 @@ export default function AccountScreen() {
           </View>
           <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
         </Pressable>
+
+        <Pressable style={styles.aboutRow} onPress={() => (router.push as (href: string) => void)("/run-history")}>
+          <View style={styles.aboutLeft}>
+            <View style={styles.aboutIconWrap}>
+              <FontAwesome name="history" size={18} color="rgba(255,255,255,0.75)" />
+            </View>
+            <Text style={styles.aboutText}>Run history</Text>
+          </View>
+          <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+        </Pressable>
         <Pressable
           style={styles.aboutRow}
           onPress={() => {
@@ -961,6 +1050,24 @@ const styles = StyleSheet.create({
     color: "#fff",
     backgroundColor: "rgba(0,0,0,0.35)",
   },
+  selectTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  selectPlaceholder: {
+    fontSize: 16,
+    color: "rgba(255,255,255,0.35)",
+  },
+  selectValue: {
+    fontSize: 16,
+    color: "#fff",
+  },
+  selectChevron: {
+    fontSize: 14,
+    color: LIME,
+    marginLeft: 8,
+  },
   primaryBtn: {
     marginTop: 16,
     backgroundColor: "#f5f5f5",
@@ -1064,4 +1171,41 @@ const styles = StyleSheet.create({
   },
   deleteAccountBtnBusy: { flexDirection: "row", alignItems: "center", gap: 10 },
   deleteAccountBtnText: { color: "#fff", fontWeight: "800", fontSize: 16 },
+
+  modalRoot: { flex: 1 },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.65)",
+  },
+  modalCardWrap: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    paddingHorizontal: 28,
+  },
+  modalCard: {
+    backgroundColor: "#141414",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.25)",
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  modalTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: LIME,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  modalRow: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginHorizontal: 4,
+  },
+  modalRowSelected: { backgroundColor: "rgba(163,230,53,0.12)" },
+  modalRowText: { fontSize: 16, color: "rgba(255,255,255,0.85)" },
+  modalRowTextSelected: { color: LIME, fontWeight: "700" },
+  modalCancel: { marginTop: 4, paddingVertical: 14, alignItems: "center" },
+  modalCancelText: { fontSize: 15, fontWeight: "600", color: "rgba(255,255,255,0.45)" },
 });

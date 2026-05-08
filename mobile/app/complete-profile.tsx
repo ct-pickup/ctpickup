@@ -36,8 +36,16 @@ const PLATFORM_OPTIONS = [
   { value: "pc" as const, label: "PC" },
 ];
 
+const POSITION_OPTIONS = [
+  { value: "Goalkeeper" as const, label: "Goalkeeper" },
+  { value: "Defender" as const, label: "Defender" },
+  { value: "Midfielder" as const, label: "Midfielder" },
+  { value: "Attacker" as const, label: "Attacker" },
+];
+
 type GenderValue = (typeof GENDER_OPTIONS)[number]["value"];
 type PlatformValue = (typeof PLATFORM_OPTIONS)[number]["value"];
+type PositionValue = (typeof POSITION_OPTIONS)[number]["value"];
 
 type FieldKey =
   | "first_name"
@@ -167,7 +175,7 @@ export default function CompleteProfileScreen() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [gender, setGender] = useState<GenderValue | null>(null);
-  const [playingPosition, setPlayingPosition] = useState("");
+  const [playingPosition, setPlayingPosition] = useState<PositionValue | null>(null);
   const [instagram, setInstagram] = useState("");
   const [phone, setPhone] = useState("");
   const [zipCode, setZipCode] = useState("");
@@ -179,6 +187,7 @@ export default function CompleteProfileScreen() {
 
   const [genderPickerOpen, setGenderPickerOpen] = useState(false);
   const [platformPickerOpen, setPlatformPickerOpen] = useState(false);
+  const [positionPickerOpen, setPositionPickerOpen] = useState(false);
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -193,7 +202,7 @@ export default function CompleteProfileScreen() {
     if (
       !firstName.trim() ||
       !lastName.trim() ||
-      !playingPosition.trim() ||
+      !playingPosition ||
       !cleanInstagram(instagram) ||
       !zipOk ||
       !username.trim()
@@ -221,7 +230,7 @@ export default function CompleteProfileScreen() {
     const e: Partial<Record<FieldKey, string>> = {};
     if (!firstName.trim()) e.first_name = "Required";
     if (!lastName.trim()) e.last_name = "Required";
-    if (!playingPosition.trim()) e.playing_position = "Required";
+    if (!playingPosition) e.playing_position = "Required";
     if (!cleanInstagram(instagram)) e.instagram = "Required";
     if (!zipDigits) e.zip_code = "Required";
     else if (!zipOk) e.zip_code = "Enter a 5-digit zip";
@@ -258,7 +267,7 @@ export default function CompleteProfileScreen() {
 
     const fn = firstName.trim();
     const ln = lastName.trim();
-    const pos = playingPosition.trim();
+    const pos = playingPosition;
     const ig = cleanInstagram(instagram);
     const ph = phone.trim() || null;
     const zc = zipDigits;
@@ -509,14 +518,15 @@ export default function CompleteProfileScreen() {
 
           <View style={styles.fieldBlock}>
             <Text style={styles.label}>Playing position</Text>
-            <TextInput
-              style={[styles.input, liveErrors.playing_position ? styles.inputErr : null]}
-              placeholder="e.g. CM, ST, CB"
-              placeholderTextColor="rgba(255,255,255,0.35)"
-              value={playingPosition}
-              onChangeText={setPlayingPosition}
-              autoCapitalize="words"
-            />
+            <Pressable
+              onPress={() => setPositionPickerOpen(true)}
+              style={[styles.input, styles.selectTrigger, liveErrors.playing_position ? styles.inputErr : null]}
+            >
+              <Text style={playingPosition ? styles.selectValue : styles.selectPlaceholder}>
+                {playingPosition ? labelFor(POSITION_OPTIONS, playingPosition) : "Choose…"}
+              </Text>
+              <Text style={styles.selectChevron}>▾</Text>
+            </Pressable>
             {liveErrors.playing_position ? <Text style={styles.errText}>{liveErrors.playing_position}</Text> : null}
           </View>
 
@@ -663,6 +673,14 @@ export default function CompleteProfileScreen() {
             value={esportsPlatform}
             onSelect={setEsportsPlatform}
             onClose={() => setPlatformPickerOpen(false)}
+          />
+          <SelectModal<PositionValue>
+            visible={positionPickerOpen}
+            title="Playing position"
+            options={POSITION_OPTIONS}
+            value={playingPosition}
+            onSelect={setPlayingPosition}
+            onClose={() => setPositionPickerOpen(false)}
           />
 
           {submitError ? <Text style={styles.submitErr}>{submitError}</Text> : null}

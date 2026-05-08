@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { recomputePickupStandingForUser } from "@/lib/pickup/standing/recomputePickupStanding";
+import { promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 /**
@@ -48,6 +49,29 @@ export async function POST(req: Request) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[late-cancel] recompute:", msg);
     return NextResponse.json({ error: "recompute_failed" }, { status: 500 });
+  }
+
+  // Free the slot (if any) and promote next waitlist player.
+  // We do this after standing recompute so "late_cancel" incident is captured either way.
+  const current = await admin
+    .from("pickup_run_rsvps")
+    .select("status")
+    .eq("run_id", run_id)
+    .eq("user_id", user_id)
+    .maybeSingle();
+
+  const prev = current.data?.status || null;
+  if (prev === "confirmed" || prev === "pending_confirm" || prev === "pending_payment") {
+    await admin
+      .from("pickup_run_rsvps")
+      .update({ status: "late_canceled", updated_at: new Date().toISOString() })
+      .eq("run_id", run_id)
+      .eq("user_id", user_id);
+
+    await promoteNextWaitlistPlayer(admin, run_id, {
+      requestedBy: user.id,
+      reason: "admin_late_cancel",
+    });
   }
 
   return NextResponse.json({ ok: true });

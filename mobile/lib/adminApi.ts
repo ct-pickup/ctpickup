@@ -73,6 +73,50 @@ export function fetchAdminPickupOverview(accessToken: string, opts?: { region?: 
   return adminFetch<PickupOverviewResponse>(u.pathname + u.search, accessToken, { method: "GET" });
 }
 
+export type PickupAnalyticsResponse = {
+  ok: boolean;
+  overall: {
+    lookback_days: number;
+    total_runs_created: number;
+    avg_attendance: number | null;
+    rsvp_to_attended_pct: number | null;
+    no_show_rate_pct: number | null;
+    late_cancel_rate_pct: number | null;
+  };
+  per_region: {
+    region: string;
+    runs_created: number;
+    avg_attendance: number | null;
+    rsvp_to_attended_pct: number | null;
+    no_show_rate_pct: number | null;
+    late_cancel_rate_pct: number | null;
+  }[];
+  top_reliable: {
+    user_id: string;
+    full_name: string;
+    tracked_pickups: number;
+    reliability_score_pct: number;
+    no_show_count: number;
+    late_cancel_count: number;
+  }[];
+  bottom_reliable: {
+    user_id: string;
+    full_name: string;
+    tracked_pickups: number;
+    reliability_score_pct: number;
+    no_show_count: number;
+    late_cancel_count: number;
+  }[];
+  error?: string;
+};
+
+export function fetchAdminPickupAnalytics(accessToken: string, opts?: { region?: string }) {
+  const origin = originOrThrow();
+  const u = new URL("/api/admin/pickup/analytics", origin);
+  if (opts?.region) u.searchParams.set("region", opts.region);
+  return adminFetch<PickupAnalyticsResponse>(u.pathname + u.search, accessToken, { method: "GET" });
+}
+
 export function postAdminCreateRun(
   accessToken: string,
   body: {
@@ -138,6 +182,78 @@ export function postAdminLateCancel(accessToken: string, body: { run_id: string;
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+export function postAdminPickupResult(
+  accessToken: string,
+  body: {
+    run_id: string;
+    total_teams: 2 | 3;
+    winning_team: "A" | "B" | "C";
+    team_assignments: { user_id: string; team: "A" | "B" | "C" }[];
+    player_of_day?: string | null;
+    defender_of_day?: string | null;
+    midfielder_of_day?: string | null;
+    attacker_of_day?: string | null;
+  },
+) {
+  return adminFetch<{ ok: boolean; error?: string }>("/api/admin/pickup/result", accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export type TierSuggestionRow = {
+  id: string;
+  user_id: string;
+  current_tier: string | null;
+  suggested_tier: string;
+  reason: string | null;
+  runs_attended: number;
+  attendance_rate: number;
+  no_show_count: number;
+  created_at: string;
+  reviewed: boolean;
+  accepted: boolean | null;
+  profile: {
+    id: string;
+    full_name: string;
+    instagram: string | null;
+    tier: string | null;
+    tier_rank: number | null;
+  } | null;
+};
+
+export type TierSuggestionsListResponse = {
+  ok: boolean;
+  suggestions: TierSuggestionRow[];
+  pending_count: number;
+  error?: string;
+};
+
+export function fetchAdminTierSuggestions(accessToken: string) {
+  return adminFetch<TierSuggestionsListResponse>("/api/admin/tier-suggestions", accessToken, { method: "GET" });
+}
+
+export function postAdminRunTierSuggestionAlgorithm(accessToken: string) {
+  return adminFetch<{ ok: boolean; inserted: number; candidates: number; error?: string }>(
+    "/api/admin/tier-suggestions/run",
+    accessToken,
+    { method: "POST" },
+  );
+}
+
+export function postAdminReviewTierSuggestion(accessToken: string, id: string, accepted: boolean) {
+  return adminFetch<{ ok: boolean; accepted: boolean; error?: string }>(
+    `/api/admin/tier-suggestions/${encodeURIComponent(id)}/review`,
+    accessToken,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accepted }),
+    },
+  );
 }
 
 export type StandingListResponse = {

@@ -58,14 +58,32 @@ export default function HomeScreen() {
       contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 12) + 8 }]}
     >
       <View style={styles.topRow}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Help"
-          onPress={() => (router.push as (href: string) => void)("/help")}
-          style={({ pressed }) => [styles.profileBtn, pressed && { opacity: 0.92 }]}
-        >
-          <FontAwesome name="question" size={16} color={LIME} />
-        </Pressable>
+        <View style={styles.topLeft}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Help"
+            onPress={() => (router.push as (href: string) => void)("/help")}
+            style={({ pressed }) => [styles.profileBtn, pressed && { opacity: 0.92 }]}
+          >
+            <FontAwesome name="question" size={16} color={LIME} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Search players"
+            onPress={() => (router.push as (href: string) => void)("/players")}
+            style={({ pressed }) => [styles.profileBtn, pressed && { opacity: 0.92 }]}
+          >
+            <FontAwesome name="search" size={16} color={LIME} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Leaderboards"
+            onPress={() => (router.push as (href: string) => void)("/leaderboards")}
+            style={({ pressed }) => [styles.profileBtn, pressed && { opacity: 0.92 }]}
+          >
+            <FontAwesome name="trophy" size={16} color={LIME} />
+          </Pressable>
+        </View>
         <View style={styles.topMiddle}>
           <Text style={styles.welcomeLine} numberOfLines={1}>
             Welcome back, <Text style={styles.welcomeName}>{welcome}</Text>
@@ -217,6 +235,7 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 24,
   },
+  topLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   topMiddle: { flex: 1, minWidth: 0, alignItems: "center" },
   welcomeLine: {
     flexShrink: 1,

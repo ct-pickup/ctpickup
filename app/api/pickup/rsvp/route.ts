@@ -7,6 +7,7 @@ import { PICKUP_FIELD_FEE_STRIPE_DESCRIPTION } from "@/lib/fees/refundPolicyCopy
 import { paymentIntentIdFromCheckoutSession } from "@/lib/payments/stripeSessionIds";
 import { recordPlatformCheckoutStarted } from "@/lib/payments/recordCheckoutStarted";
 import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
 
 export const runtime = "nodejs";
 
@@ -109,38 +110,89 @@ export async function POST(req: Request) {
         user_id: user.id,
         tier_at_time: prof.data?.tier || null,
         status: newStatus,
+        waitlist_position: null,
+        waitlist_offered_at: null,
+        waitlist_expires_at: null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "run_id,user_id" }
     );
+
+    // If this user was holding a reserved slot, immediately promote next waitlist player.
+    const prev = existing.data?.status || null;
+    if (prev === "confirmed" || prev === "pending_confirm") {
+      await promoteNextWaitlistPlayer(admin, String(run.id), {
+        requestedBy: user.id,
+        reason: prev === "confirmed" ? "player_cancel" : "player_decline_offer",
+      });
+    }
 
     return NextResponse.json({ ok: true, status: newStatus });
   }
 
   // JOIN
-  const confirmedCountRes = await admin
+  // Capacity check should include "reserved" statuses, not just confirmed.
+  // Otherwise a waitlist offer could be issued while the run is "full".
+  const reservedCountRes = await admin
     .from("pickup_run_rsvps")
     .select("id", { count: "exact", head: true })
     .eq("run_id", run.id)
-    .eq("status", "confirmed");
+    .in("status", ["confirmed", "pending_confirm", "pending_payment"]);
 
-  const confirmedCount = confirmedCountRes.count || 0;
+  const reservedCount = reservedCountRes.count || 0;
   const capacity = Number(run.capacity || 0);
-  const hasSlot = confirmedCount < capacity;
+  const hasSlot = reservedCount < capacity;
 
   if (!hasSlot) {
+    // Place on waitlist with next position.
+    const maxPosRes = await admin
+      .from("pickup_run_rsvps")
+      .select("waitlist_position")
+      .eq("run_id", run.id)
+      .eq("status", "waitlist")
+      .order("waitlist_position", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const maxPos =
+      maxPosRes.data?.waitlist_position === null || maxPosRes.data?.waitlist_position === undefined
+        ? 0
+        : Number(maxPosRes.data?.waitlist_position);
+
+    const nextPos = (Number.isFinite(maxPos) ? maxPos : 0) + 1;
+
     await admin.from("pickup_run_rsvps").upsert(
       {
         run_id: run.id,
         user_id: user.id,
         tier_at_time: prof.data?.tier || null,
-        status: "standby",
+        status: "waitlist",
+        waitlist_position: nextPos,
+        waitlist_offered_at: null,
+        waitlist_expires_at: null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "run_id,user_id" }
     );
     await ensurePickupRunInviteLink(admin, run.id, user.id);
-    return NextResponse.json({ ok: true, status: "standby" });
+    return NextResponse.json({ ok: true, status: "waitlist", waitlist_position: nextPos });
+  }
+
+  // If the player has a waitlist offer ("pending_confirm"), allow them to confirm even when
+  // the run is at capacity because their offer reserved the spot.
+  if (existing.data?.status === "pending_confirm") {
+    const expiresAt = existing.data?.waitlist_expires_at ? new Date(existing.data.waitlist_expires_at).getTime() : null;
+    if (expiresAt && Date.now() > expiresAt) {
+      // Offer expired; treat as decline.
+      await admin.from("pickup_run_rsvps").update({
+        status: "declined",
+        waitlist_offered_at: null,
+        waitlist_expires_at: null,
+        waitlist_position: null,
+        updated_at: new Date().toISOString(),
+      }).eq("run_id", run.id).eq("user_id", user.id);
+      return NextResponse.json({ error: "Waitlist offer expired." }, { status: 410 });
+    }
   }
 
   const feeCents = Number(run.fee_cents || 0);
@@ -151,6 +203,9 @@ export async function POST(req: Request) {
         user_id: user.id,
         tier_at_time: prof.data?.tier || null,
         status: "confirmed",
+        waitlist_position: null,
+        waitlist_offered_at: null,
+        waitlist_expires_at: null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "run_id,user_id" }
@@ -280,6 +335,9 @@ export async function POST(req: Request) {
       tier_at_time: prof.data?.tier || null,
       status: "pending_payment",
       checkout_session_id: session.id,
+      waitlist_position: null,
+      waitlist_offered_at: null,
+      waitlist_expires_at: null,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "run_id,user_id" }

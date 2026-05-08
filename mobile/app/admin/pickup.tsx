@@ -1,5 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import {
+  fetchAdminTierSuggestions,
+  postAdminRunTierSuggestionAlgorithm,
   fetchAdminPickupSwitchDetail,
   fetchAdminPickupSwitchList,
   type PickupSwitchDetailResponse,
@@ -30,6 +32,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 
 const LIME = "#a3e635";
 
@@ -127,6 +130,7 @@ export default function AdminPickupOpsScreen() {
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const token = session?.access_token ?? null;
+  const router = useRouter();
 
   const [region, setRegion] = useState<ServiceRegionCode>("CT");
   const [runs, setRuns] = useState<Record<string, unknown>[]>([]);
@@ -163,6 +167,7 @@ export default function AdminPickupOpsScreen() {
   const [editSelectedVenueFeePresetId, setEditSelectedVenueFeePresetId] = useState<string | null>(null);
 
   const [busy, setBusy] = useState<string | null>(null);
+  const [tierBadge, setTierBadge] = useState<number>(0);
 
   const venueFeePresetsForRegion = useMemo(() => VENUE_FEE_PRESETS.filter((p) => p.region === region), [region]);
 
@@ -188,6 +193,19 @@ export default function AdminPickupOpsScreen() {
     }
     setRuns(r.data.runs || []);
   }, [token, region]);
+
+  const loadTierBadge = useCallback(async () => {
+    if (!token) {
+      setTierBadge(0);
+      return;
+    }
+    const r = await fetchAdminTierSuggestions(token);
+    if (!r.ok) {
+      setTierBadge(0);
+      return;
+    }
+    setTierBadge(Number(r.data.pending_count || 0));
+  }, [token]);
 
   const loadDetail = useCallback(async () => {
     if (!token || !selectedRunId) {
@@ -228,6 +246,10 @@ export default function AdminPickupOpsScreen() {
   useEffect(() => {
     void loadRuns();
   }, [loadRuns]);
+
+  useEffect(() => {
+    void loadTierBadge();
+  }, [loadTierBadge]);
 
   useEffect(() => {
     if (!modalOpen || !selectedRunId) return;
@@ -512,6 +534,27 @@ export default function AdminPickupOpsScreen() {
     void loadDetail();
   }
 
+  async function onRunPromotionAlgorithm() {
+    const t = await requireToken();
+    if (!t) return;
+    Alert.alert("Run promotion algorithm?", "Scans last 30 days and creates tier review suggestions.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Run",
+        onPress: () => {
+          void (async () => {
+            setBusy("tierAlgo");
+            const r = await postAdminRunTierSuggestionAlgorithm(t);
+            setBusy(null);
+            if (!r.ok) return Alert.alert("Run failed", r.error);
+            Alert.alert("Done", `${r.data.inserted} suggestions created.`);
+            void loadTierBadge();
+          })();
+        },
+      },
+    ]);
+  }
+
   const launchBlocked = useMemo(() => {
     if (!selectedRun) return "Select a run.";
     if (s(selectedRun.outreach_started_at)) return "Outreach already launched.";
@@ -532,6 +575,38 @@ export default function AdminPickupOpsScreen() {
         </View>
 
         <Text style={styles.lead}>Runs in {serviceRegionName(region)} tap a card for slots, outreach, roster, and edits.</Text>
+
+        <View style={styles.quickLinksRow}>
+          <Pressable
+            onPress={() => router.push("/admin/analytics")}
+            style={({ pressed }) => [styles.quickLink, pressed && { opacity: 0.9 }]}
+          >
+            <FontAwesome name="bar-chart" size={14} color={LIME} />
+            <Text style={styles.quickLinkText}>Analytics</Text>
+            <FontAwesome name="angle-right" size={16} color="rgba(163,230,53,0.7)" />
+          </Pressable>
+          <Pressable
+            onPress={() => router.push("/admin/tier-suggestions")}
+            style={({ pressed }) => [styles.quickLink, pressed && { opacity: 0.9 }]}
+          >
+            <FontAwesome name="level-up" size={14} color={LIME} />
+            <Text style={styles.quickLinkText}>Tier Suggestions</Text>
+            {tierBadge > 0 ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{tierBadge}</Text>
+              </View>
+            ) : null}
+            <FontAwesome name="angle-right" size={16} color="rgba(163,230,53,0.7)" />
+          </Pressable>
+          <Pressable
+            onPress={() => void onRunPromotionAlgorithm()}
+            disabled={busy === "tierAlgo"}
+            style={({ pressed }) => [styles.quickLink, pressed && { opacity: 0.9 }, busy === "tierAlgo" && styles.disabled]}
+          >
+            <FontAwesome name="play" size={14} color={LIME} />
+            <Text style={styles.quickLinkText}>Run Promotion Algorithm</Text>
+          </Pressable>
+        </View>
 
         <Text style={styles.segmentLabel}>STATE</Text>
         <View style={styles.segmentRow}>
@@ -566,6 +641,7 @@ export default function AdminPickupOpsScreen() {
           const id = s(row.id);
           if (!id) return null;
           const isHub = !!row.is_current;
+          const isCompleted = s(row.status).trim() === "completed";
           return (
             <Pressable
               key={id}
@@ -591,8 +667,22 @@ export default function AdminPickupOpsScreen() {
                 <Text style={styles.runTime}>{fmtPickupDt(s(row.start_at))}</Text>
               </View>
               <View style={styles.runChevronRow}>
-                <Text style={styles.runTapHint}>Details</Text>
-                <FontAwesome name="chevron-right" size={12} color="rgba(255,255,255,0.35)" />
+                <View style={styles.runChevronLeft}>
+                  <Text style={styles.runTapHint}>Details</Text>
+                  <FontAwesome name="chevron-right" size={12} color="rgba(255,255,255,0.35)" />
+                </View>
+
+                {isCompleted ? (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      (router.push as (href: string) => void)(`/admin/run-result?run_id=${encodeURIComponent(id)}`);
+                    }}
+                    style={({ pressed }) => [styles.markResultBtn, pressed && { opacity: 0.9 }]}
+                  >
+                    <Text style={styles.markResultBtnText}>Mark result</Text>
+                  </Pressable>
+                ) : null}
               </View>
             </Pressable>
           );
@@ -1055,6 +1145,29 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(163,230,53,0.08)",
   },
   chipText: { color: LIME, fontWeight: "800", fontSize: 13 },
+  quickLinksRow: { marginTop: 14, flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  quickLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: "rgba(163,230,53,0.08)",
+  },
+  quickLinkText: { color: LIME, fontWeight: "900", fontSize: 13 },
+  badge: {
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 6,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: LIME,
+  },
+  badgeText: { color: "#111", fontWeight: "900", fontSize: 12 },
   segmentLabel: { marginTop: 18, fontSize: 11, fontWeight: "800", color: "rgba(255,255,255,0.45)", letterSpacing: 1.1 },
   segmentRow: { marginTop: 10, flexDirection: "row", gap: 8 },
   segment: {
@@ -1119,7 +1232,17 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     gap: 6,
   },
+  runChevronLeft: { flexDirection: "row", alignItems: "center", gap: 6, marginRight: "auto" },
   runTapHint: { fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.4)" },
+  markResultBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: "rgba(163,230,53,0.10)",
+  },
+  markResultBtnText: { color: LIME, fontWeight: "900", fontSize: 12 },
   card: {
     marginTop: 18,
     padding: 16,

@@ -187,6 +187,13 @@ export default function RunsScreen() {
     [data],
   );
 
+  const myWaitlistPosition: number | null = useMemo(() => {
+    const v = (dataObj as Record<string, unknown>)?.my_waitlist_position;
+    if (v === null || v === undefined) return null;
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? n : null;
+  }, [dataObj]);
+
   const updateMessages = useMemo(() => {
     const out: { key: string; text: string }[] = [];
     const pick = (raw: unknown): string | null => {
@@ -338,6 +345,7 @@ export default function RunsScreen() {
     const items: { key: string; label: string }[] = [];
     if (typeof c.confirmed === "number") items.push({ key: "confirmed", label: `${c.confirmed} confirmed` });
     if (typeof c.standby === "number") items.push({ key: "standby", label: `${c.standby} standby` });
+    if (typeof c.waitlist === "number") items.push({ key: "waitlist", label: `${c.waitlist} waitlist` });
     if (typeof c.pending_payment === "number") items.push({ key: "pending", label: `${c.pending_payment} pending` });
     return items;
   }, [counts]);
@@ -605,6 +613,13 @@ export default function RunsScreen() {
                 <FontAwesome name="hourglass-half" size={16} color="#fcd34d" />
                 <Text style={styles.standbyBannerText}>
                   You&apos;re on standby we&apos;ll notify you if a spot opens.
+                </Text>
+              </View>
+            ) : myStatus === "waitlist" ? (
+              <View style={styles.standbyBanner}>
+                <FontAwesome name="list-ol" size={16} color="#fcd34d" />
+                <Text style={styles.standbyBannerText}>
+                  You&apos;re #{myWaitlistPosition ?? "—"} on waitlist.
                 </Text>
               </View>
             ) : myStatus === "pending_payment" ? (

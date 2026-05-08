@@ -10,6 +10,7 @@ import {
 } from "@/lib/pickup/autoRunConfig";
 import { insertInvitesForTierRanks, sendPickupInviteSms } from "@/lib/pickup/pickupInvites";
 import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
+import { expireWaitlistOffersAndPromote } from "@/lib/pickup/waitlist";
 
 function isTier1(rank: number) {
   return rank === 1 || rank === 2;
@@ -396,6 +397,15 @@ export async function processAutoPickupRun(
 }
 
 export async function processAllAutoPickupRuns(admin: SupabaseClient): Promise<{ processed: number }> {
+  // Waitlist housekeeping (cron is configured to run every 5 minutes).
+  // Expire any outstanding offers and promote next players.
+  try {
+    await expireWaitlistOffersAndPromote(admin);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[pickup-auto] waitlist-expire:", msg);
+  }
+
   const res = await admin
     .from("pickup_runs")
     .select("id")

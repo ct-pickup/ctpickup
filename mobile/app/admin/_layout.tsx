@@ -34,6 +34,8 @@ export default function AdminLayout() {
       }}
     >
       <Stack.Screen name="pickup" options={{ title: "Pickup ops" }} />
+      <Stack.Screen name="analytics" options={{ title: "Analytics" }} />
+      <Stack.Screen name="tier-suggestions" options={{ title: "Tier Suggestions" }} />
       <Stack.Screen name="standing" options={{ title: "Standing" }} />
       <Stack.Screen name="chat" options={{ title: "Chat moderation" }} />
       <Stack.Screen name="chat-room" options={{ title: "Room" }} />
