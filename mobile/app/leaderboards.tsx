@@ -190,18 +190,16 @@ export default function LeaderboardsScreen() {
       }
 
       // For win/award leaderboards, compute from assignments + results.
-      const assignRes = await supabase
+      const { data: assignments, error: assignmentsError } = await supabase
         .from("pickup_run_team_assignments")
-        .select(
-          "user_id,team,run_id,pickup_run_results(winning_team,player_of_day,defender_of_day,midfielder_of_day,attacker_of_day)",
-        )
+        .select("user_id,team,run_id")
         .in("user_id", ids)
         .limit(8000);
 
       if (loadSeq.current !== seq) return;
-      if (assignRes.error || !assignRes.data) {
+      if (assignmentsError || !assignments) {
         setRows([]);
-        setErr(assignRes.error?.message ?? "Couldn’t load stats.");
+        setErr(assignmentsError?.message ?? "Couldn’t load stats.");
         setLoading(false);
         return;
       }
@@ -211,21 +209,53 @@ export default function LeaderboardsScreen() {
         base.set(p.id, { played: 0, wins: 0, potd: 0, def: 0, mid: 0, att: 0 });
       }
 
-      for (const row of assignRes.data as unknown as Array<{
-        user_id: string;
-        team: Team;
-        pickup_run_results?: {
+      const assignmentRows = assignments as unknown as Array<{ user_id: string; team: Team; run_id: string }>;
+      const runIds = Array.from(new Set(assignmentRows.map((r) => r.run_id).filter(Boolean)));
+
+      const CHUNK = 250;
+      const resultsByRunId = new Map<
+        string,
+        {
           winning_team: Team | null;
           player_of_day: string | null;
           defender_of_day: string | null;
           midfielder_of_day: string | null;
           attacker_of_day: string | null;
-        } | null;
-      }>) {
+        }
+      >();
+
+      for (let i = 0; i < runIds.length; i += CHUNK) {
+        const chunk = runIds.slice(i, i + CHUNK);
+        const { data: resRows, error: resErr } = await supabase
+          .from("pickup_run_results")
+          .select("run_id,winning_team,player_of_day,defender_of_day,midfielder_of_day,attacker_of_day")
+          .in("run_id", chunk);
+        if (loadSeq.current !== seq) return;
+        if (resErr || !resRows) continue;
+        for (const r of resRows as unknown as Array<{
+          run_id: string;
+          winning_team: Team | null;
+          player_of_day: string | null;
+          defender_of_day: string | null;
+          midfielder_of_day: string | null;
+          attacker_of_day: string | null;
+        }>) {
+          if (!r?.run_id) continue;
+          resultsByRunId.set(r.run_id, {
+            winning_team: r.winning_team ?? null,
+            player_of_day: r.player_of_day ?? null,
+            defender_of_day: r.defender_of_day ?? null,
+            midfielder_of_day: r.midfielder_of_day ?? null,
+            attacker_of_day: r.attacker_of_day ?? null,
+          });
+        }
+      }
+
+      for (const row of assignmentRows) {
         const uid = row.user_id;
         const agg = base.get(uid);
         if (!agg) continue;
-        const res = row.pickup_run_results;
+        const res = resultsByRunId.get(row.run_id) ?? null;
         if (!res?.winning_team) continue;
         agg.played += 1;
         if (row.team === res.winning_team) agg.wins += 1;
