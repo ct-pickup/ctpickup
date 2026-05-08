@@ -5,6 +5,7 @@ export type CtPickupVenue = {
 };
 
 export const CT_PICKUP_VENUES: readonly CtPickupVenue[] = [
+  // NJ
   {
     venue: "Sofive Meadowlands",
     address: "2 Palmer Terrace, Carlstadt, NJ 07072",
@@ -13,6 +14,7 @@ export const CT_PICKUP_VENUES: readonly CtPickupVenue[] = [
     venue: "Sofive Cherry Hill",
     address: "650 Kresson Rd, Cherry Hill, NJ 08034",
   },
+  // NY
   {
     venue: "Sofive Brooklyn",
     address: "2015 Pitkin Ave, Brooklyn, NY 11207",
@@ -21,6 +23,11 @@ export const CT_PICKUP_VENUES: readonly CtPickupVenue[] = [
     venue: "Hudson Sports Complex",
     address: "Warwick, NY",
   },
+  {
+    venue: "New Rochelle SoccerRoof",
+    address: "29 LeCount Pl, New Rochelle, NY",
+  },
+  // MD
   {
     venue: "Sofive Rockville",
     address: "1008 Westmore Ave, Rockville, MD 20850",
@@ -33,12 +40,9 @@ export const CT_PICKUP_VENUES: readonly CtPickupVenue[] = [
     venue: "SoccerDome Harmans",
     address: "7447 Shipley Avenue, Harmans, MD 21077",
   },
+  // CT
   {
     venue: "New Haven SoccerRoof",
     address: "1018 Sherman Ave, Hamden, CT",
-  },
-  {
-    venue: "New Rochelle SoccerRoof",
-    address: "29 LeCount Pl, New Rochelle, NY",
   },
 ];

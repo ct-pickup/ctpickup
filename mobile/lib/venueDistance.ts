@@ -14,15 +14,19 @@ const FAR_MINUTES = 45;
 
 /** Venue coordinates for straight-line fallback when `/api/venue/distances` fails. */
 const CT_PICKUP_VENUE_COORDS: readonly { venue: string; address: string; lat: number; lng: number }[] = [
+  // NJ
   { venue: "Sofive Meadowlands", address: "2 Palmer Terrace, Carlstadt, NJ 07072", lat: 40.8419, lng: -74.0835 },
   { venue: "Sofive Cherry Hill", address: "650 Kresson Rd, Cherry Hill, NJ 08034", lat: 39.9047, lng: -74.9547 },
+  // NY
   { venue: "Sofive Brooklyn", address: "2015 Pitkin Ave, Brooklyn, NY 11207", lat: 40.6747, lng: -73.8948 },
   { venue: "Hudson Sports Complex", address: "Warwick, NY", lat: 41.2565, lng: -74.3596 },
+  { venue: "New Rochelle SoccerRoof", address: "29 LeCount Pl, New Rochelle, NY", lat: 40.9115, lng: -73.7824 },
+  // MD
   { venue: "Sofive Rockville", address: "1008 Westmore Ave, Rockville, MD 20850", lat: 39.084, lng: -77.1528 },
   { venue: "SoccerDome Jessup", address: "7330 Montevideo Road, Jessup, MD 20794", lat: 39.1499, lng: -76.7927 },
   { venue: "SoccerDome Harmans", address: "7447 Shipley Avenue, Harmans, MD 21077", lat: 39.1619, lng: -76.6978 },
+  // CT
   { venue: "New Haven SoccerRoof", address: "1018 Sherman Ave, Hamden, CT", lat: 41.3839, lng: -72.9028 },
-  { venue: "New Rochelle SoccerRoof", address: "29 LeCount Pl, New Rochelle, NY", lat: 40.9115, lng: -73.7824 },
 ];
 
 function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {

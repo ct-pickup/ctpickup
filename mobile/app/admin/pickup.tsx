@@ -143,7 +143,7 @@ export default function AdminPickupOpsScreen() {
   const [editRunType, setEditRunType] = useState<"select" | "public">("select");
   const [editCapacity, setEditCapacity] = useState("18");
   const [editFieldCost, setEditFieldCost] = useState("");
-  const [editHours, setEditHours] = useState("2");
+  const [editHours, setEditHours] = useState("1.5");
   const [editExpectedPlayers, setEditExpectedPlayers] = useState("18");
   const [editLocationPrivate, setEditLocationPrivate] = useState("");
   const [editLocConfirmedOnly, setEditLocConfirmedOnly] = useState(true);
@@ -156,7 +156,7 @@ export default function AdminPickupOpsScreen() {
   const [createTitle, setCreateTitle] = useState("");
   const [createCapacity, setCreateCapacity] = useState("24");
   const [createFieldCost, setCreateFieldCost] = useState("");
-  const [createHours, setCreateHours] = useState("2");
+  const [createHours, setCreateHours] = useState("1.5");
   const [createExpectedPlayers, setCreateExpectedPlayers] = useState("24");
   const [createLocationText, setCreateLocationText] = useState("");
   const [createSelectedVenueFeePresetId, setCreateSelectedVenueFeePresetId] = useState<string | null>(null);
@@ -217,7 +217,7 @@ export default function AdminPickupOpsScreen() {
       setEditFieldCost(
         Number.isFinite(cents) && cap > 0 && Number.isFinite(feeDollars) ? String(feeDollars * cap) : "",
       );
-      setEditHours("2");
+      setEditHours("1.5");
       const loc = s(run.location_private);
       setEditLocationPrivate(loc);
       setLocationPreset(detectPreset(loc));
@@ -447,7 +447,7 @@ export default function AdminPickupOpsScreen() {
     setCreateStartAt("");
     setCreateTitle("");
     setCreateFieldCost("");
-    setCreateHours("2");
+    setCreateHours("1.5");
     setCreateExpectedPlayers(createCapacity.trim() || "24");
     setCreateLocationText("");
     setCreateSelectedVenueFeePresetId(null);
@@ -657,7 +657,7 @@ export default function AdminPickupOpsScreen() {
             value={createHours}
             onChangeText={setCreateHours}
             keyboardType="number-pad"
-            placeholder="2"
+            placeholder="1.5"
             placeholderTextColor="rgba(255,255,255,0.35)"
           />
           <Text style={styles.label}>Expected players</Text>
@@ -882,7 +882,7 @@ export default function AdminPickupOpsScreen() {
                     value={editHours}
                     onChangeText={setEditHours}
                     keyboardType="number-pad"
-                    placeholder="2"
+                    placeholder="1.5"
                     placeholderTextColor="rgba(255,255,255,0.35)"
                   />
                   <Text style={styles.label}>Expected players</Text>
