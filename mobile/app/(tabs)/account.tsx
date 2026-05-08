@@ -226,7 +226,6 @@ export default function AccountScreen() {
   }, [isReady, accessToken]);
 
   async function onSaveProfile() {
-    const authUserId = session?.user?.id ?? null;
     setEditMsg(null);
     setEditOk(false);
 
@@ -234,8 +233,12 @@ export default function AccountScreen() {
       setEditMsg("Supabase client is not available. Check app configuration.");
       return;
     }
-    if (!authUserId) {
-      setEditMsg("Could not read your user id from the session. Try signing out and signing in again.");
+
+    const authUserId = session?.user?.id;
+    console.log("[save] authUserId:", authUserId, "session user id:", session?.user?.id);
+    const userId = session?.user?.id;
+    if (!userId) {
+      setEditMsg("Not signed in.");
       return;
     }
 
@@ -276,7 +279,7 @@ export default function AccountScreen() {
           username: username || null,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", authUserId)
+        .eq("id", userId)
         .select("id");
 
       if (error) {
@@ -292,7 +295,7 @@ export default function AccountScreen() {
       }
 
       if (!data?.length) {
-        console.log("[onSaveProfile] update returned 0 rows", { authUserId });
+        console.log("[onSaveProfile] update returned 0 rows", { userId });
         setEditMsg(
           "Save did not update any profile row (no match or not permitted). Your account may be missing a profile row.",
         );
