@@ -62,6 +62,55 @@ function labelFor<T extends { value: string; label: string }>(options: readonly 
   return options.find((o) => o.value === value)?.label ?? value;
 }
 
+const NEAREST_STATE_ORDER = ["CT", "NY", "NJ", "MD"] as const;
+const NEAREST_UNDER_MINUTES = 45;
+
+function stateCodeFromVenueAddress(address: string): (typeof NEAREST_STATE_ORDER)[number] | null {
+  const m = address.match(/\b(CT|NY|NJ|MD)\b/);
+  return m && (NEAREST_STATE_ORDER as readonly string[]).includes(m[1])
+    ? (m[1] as (typeof NEAREST_STATE_ORDER)[number])
+    : null;
+}
+
+function nearestVenueSections(rows: VenueDistanceRow[]): { header: string; venues: VenueDistanceRow[] }[] {
+  if (rows.length === 0) return [];
+
+  const anyUnder45 = rows.some((r) => r.estimatedMinutes < NEAREST_UNDER_MINUTES);
+  const byState = new Map<string, VenueDistanceRow[]>();
+
+  for (const row of rows) {
+    const code = stateCodeFromVenueAddress(row.address) ?? "OTHER";
+    const bucket = byState.get(code) ?? [];
+    bucket.push(row);
+    byState.set(code, bucket);
+  }
+
+  for (const [, list] of byState) {
+    list.sort((a, b) => a.estimatedMinutes - b.estimatedMinutes);
+  }
+
+  const out: { header: string; venues: VenueDistanceRow[] }[] = [];
+
+  const includeState = (venues: VenueDistanceRow[] | undefined): venues is VenueDistanceRow[] => {
+    if (!venues?.length) return false;
+    if (!anyUnder45) return true;
+    return venues.some((r) => r.estimatedMinutes < NEAREST_UNDER_MINUTES);
+  };
+
+  for (const code of NEAREST_STATE_ORDER) {
+    const venues = byState.get(code);
+    if (!includeState(venues)) continue;
+    out.push({ header: code, venues });
+  }
+
+  const other = byState.get("OTHER");
+  if (includeState(other)) {
+    out.push({ header: "Other", venues: other });
+  }
+
+  return out;
+}
+
 type SelectModalProps<T extends string> = {
   visible: boolean;
   title: string;
@@ -198,6 +247,11 @@ export default function CompleteProfileScreen() {
     esportsOnlineId,
   ]);
 
+  const postSaveVenueSections = useMemo(
+    () => (postSaveVenues && postSaveVenues.length > 0 ? nearestVenueSections(postSaveVenues) : []),
+    [postSaveVenues],
+  );
+
   const onContinue = useCallback(async () => {
     setSubmitError(null);
     if (!canContinue) return;
@@ -288,11 +342,11 @@ export default function CompleteProfileScreen() {
     supabase,
   ]);
 
-  const onContinueToApp = useCallback(async () => {
-    await refreshProfileCompletion();
+  const onContinueToApp = useCallback(() => {
+    refreshProfileCompletion();
     setTimeout(() => {
       (router.replace as (href: string) => void)("/(tabs)");
-    }, 600);
+    }, 1200);
   }, [refreshProfileCompletion, router]);
 
   function setInterest(next: boolean) {
@@ -371,10 +425,22 @@ export default function CompleteProfileScreen() {
                 {postSaveVenues.length === 0 ? (
                   <Text style={styles.nearestEmpty}>No estimates for this zip — you can update it anytime in Account.</Text>
                 ) : (
-                  postSaveVenues.map((row) => (
-                    <View key={row.venue} style={styles.nearestRow}>
-                      <Text style={styles.nearestVenueName}>{row.venue}</Text>
-                      <Text style={styles.nearestEta}>~{row.estimatedMinutes} min drive</Text>
+                  postSaveVenueSections.map((section, si) => (
+                    <View key={section.header}>
+                      <Text
+                        style={[
+                          styles.nearestSectionHeader,
+                          si === 0 ? styles.nearestSectionHeaderFirst : styles.nearestSectionHeaderAfter,
+                        ]}
+                      >
+                        {section.header}
+                      </Text>
+                      {section.venues.map((row) => (
+                        <View key={`${section.header}-${row.venue}`} style={styles.nearestRow}>
+                          <Text style={styles.nearestVenueName}>{row.venue}</Text>
+                          <Text style={styles.nearestEta}>~{row.estimatedMinutes} min drive</Text>
+                        </View>
+                      ))}
                     </View>
                   ))
                 )}
@@ -779,6 +845,19 @@ const styles = StyleSheet.create({
     color: LIME,
     letterSpacing: 0.3,
     marginBottom: 14,
+  },
+  nearestSectionHeader: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: LIME,
+    letterSpacing: 0.45,
+    marginBottom: 6,
+  },
+  nearestSectionHeaderFirst: {
+    marginTop: 0,
+  },
+  nearestSectionHeaderAfter: {
+    marginTop: 14,
   },
   nearestRow: {
     flexDirection: "row",

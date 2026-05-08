@@ -23,7 +23,7 @@ export function ProfileCompletionProvider({ children }: { children: React.ReactN
 
   const refreshProfileCompletion = useMemo(
     () => () => {
-      setTimeout(() => setTick((t) => t + 1), 800);
+      setTimeout(() => setTick((t) => t + 1), 500);
     },
     [],
   );
