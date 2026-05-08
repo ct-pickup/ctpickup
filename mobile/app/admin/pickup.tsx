@@ -7,6 +7,7 @@ import {
   type PickupSwitchDetailResponse,
   postAdminCancelRun,
   postAdminCreateRun,
+  postAdminEndRun,
   postAdminLateCancel,
   postAdminMarkAttendance,
   postAdminPickupSwitch,
@@ -500,6 +501,31 @@ export default function AdminPickupOpsScreen() {
     ]);
   }
 
+  async function onEndRun(runId: string) {
+    const t = await requireToken();
+    if (!t) return;
+    Alert.alert("End this run?", "This will mark the run as completed so you can enter results.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "End run",
+        style: "destructive",
+        onPress: () => {
+          void (async () => {
+            setBusy(`end:${runId}`);
+            const r = await postAdminEndRun(t, { run_id: runId });
+            setBusy(null);
+            if (!r.ok) return Alert.alert("End run failed", r.error);
+            setRuns((prev) =>
+              prev.map((row) => (s(row.id) === runId ? { ...row, status: "completed", is_completed: true } : row)),
+            );
+            void loadRuns();
+            if (selectedRunId === runId) void loadDetail();
+          })();
+        },
+      },
+    ]);
+  }
+
   async function onPromote(userId: string) {
     if (!selectedRunId) return;
     const t = await requireToken();
@@ -641,9 +667,10 @@ export default function AdminPickupOpsScreen() {
           const id = s(row.id);
           if (!id) return null;
           const isHub = !!row.is_current;
-          const isCompleted = s(row.status).trim() === "completed";
+          const isCompleted = row.is_completed === true || s(row.status).trim() === "completed";
           const startAtMs = Date.parse(s(row.start_at));
           const startAtPassed = Number.isFinite(startAtMs) && startAtMs <= Date.now();
+          const canEnd = startAtPassed && !isCompleted;
           return (
             <Pressable
               key={id}
@@ -668,23 +695,45 @@ export default function AdminPickupOpsScreen() {
                 </View>
                 <Text style={styles.runTime}>{fmtPickupDt(s(row.start_at))}</Text>
               </View>
+
+              {startAtPassed ? (
+                <View style={styles.runActionRow}>
+                  {canEnd ? (
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        void onEndRun(id);
+                      }}
+                      disabled={busy === `end:${id}`}
+                      style={({ pressed }) => [
+                        styles.endRunBtn,
+                        pressed && { opacity: 0.9 },
+                        busy === `end:${id}` && styles.disabled,
+                      ]}
+                    >
+                      <Text style={styles.endRunBtnText}>{busy === `end:${id}` ? "Ending…" : "End Run"}</Text>
+                    </Pressable>
+                  ) : null}
+
+                  {isCompleted ? (
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        (router.push as (href: string) => void)(`/admin/run-result?run_id=${encodeURIComponent(id)}`);
+                      }}
+                      style={({ pressed }) => [styles.markResultBtn, pressed && { opacity: 0.9 }]}
+                    >
+                      <Text style={styles.markResultBtnText}>Mark Result</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              ) : null}
+
               <View style={styles.runChevronRow}>
                 <View style={styles.runChevronLeft}>
                   <Text style={styles.runTapHint}>Details</Text>
                   <FontAwesome name="chevron-right" size={12} color="rgba(255,255,255,0.35)" />
                 </View>
-
-                {isCompleted && startAtPassed ? (
-                  <Pressable
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      (router.push as (href: string) => void)(`/admin/run-result?run_id=${encodeURIComponent(id)}`);
-                    }}
-                    style={({ pressed }) => [styles.markResultBtn, pressed && { opacity: 0.9 }]}
-                  >
-                    <Text style={styles.markResultBtnText}>Mark Result</Text>
-                  </Pressable>
-                ) : null}
               </View>
             </Pressable>
           );
@@ -1236,6 +1285,23 @@ const styles = StyleSheet.create({
   },
   runChevronLeft: { flexDirection: "row", alignItems: "center", gap: 6, marginRight: "auto" },
   runTapHint: { fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.4)" },
+  runActionRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  endRunBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.55)",
+    backgroundColor: "rgba(248,113,113,0.10)",
+  },
+  endRunBtnText: { color: "rgba(255,255,255,0.92)", fontWeight: "900", fontSize: 12 },
   markResultBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,

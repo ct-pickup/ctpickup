@@ -204,6 +204,18 @@ export function postAdminPickupResult(
   });
 }
 
+export function postAdminEndRun(accessToken: string, body: { run_id: string }) {
+  return adminFetch<{ ok: boolean; run?: Record<string, unknown>; mode?: string; error?: string }>(
+    "/api/admin/pickup/end-run",
+    accessToken,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
 export type TierSuggestionRow = {
   id: string;
   user_id: string;
