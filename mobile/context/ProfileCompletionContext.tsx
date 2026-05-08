@@ -1,6 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 import { useWaiver } from "@/context/WaiverContext";
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 type ProfileCompletionContextValue = {
   /** True while checking whether profile fields are set (only after waiver is resolved). */
@@ -8,7 +8,7 @@ type ProfileCompletionContextValue = {
   /** True when signed-in user must complete profile before tabs (both first_name and username empty). */
   profileNeedsCompletion: boolean;
   /** Re-run profile completion check (e.g. after saving on complete-profile). */
-  refreshProfileCompletion: () => void;
+  refreshProfileCompletion: () => Promise<void>;
 };
 
 const ProfileCompletionContext = createContext<ProfileCompletionContextValue | undefined>(undefined);
@@ -17,16 +17,33 @@ const ProfileCompletionContext = createContext<ProfileCompletionContextValue | u
 export function ProfileCompletionProvider({ children }: { children: React.ReactNode }) {
   const { session, supabase, isReady } = useAuth();
   const { waiverAccepted, waiverLoading } = useWaiver();
-  const [tick, setTick] = useState(0);
   const [profileGateLoading, setProfileGateLoading] = useState(true);
   const [profileNeedsCompletion, setProfileNeedsCompletion] = useState(false);
 
-  const refreshProfileCompletion = useMemo(
-    () => () => {
-      setTimeout(() => setTick((t) => t + 1), 500);
-    },
-    [],
-  );
+  const refreshProfileCompletion = useCallback(async () => {
+    if (!supabase || !session?.user?.id) {
+      setProfileNeedsCompletion(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("first_name, username")
+      .eq("id", session.user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.warn("[profile-completion] profiles lookup failed:", error.message);
+      setProfileNeedsCompletion(false);
+      return;
+    }
+
+    const fn = data?.first_name;
+    const un = data?.username;
+    const needsCompletion =
+      (fn == null || String(fn).trim() === "") && (un == null || String(un).trim() === "");
+    setProfileNeedsCompletion(needsCompletion);
+  }, [supabase, session?.user?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,33 +68,15 @@ export function ProfileCompletionProvider({ children }: { children: React.ReactN
     setProfileGateLoading(true);
 
     void (async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("first_name, username")
-        .eq("id", session.user.id)
-        .maybeSingle();
-
+      await refreshProfileCompletion();
       if (cancelled) return;
-
-      if (error) {
-        console.warn("[profile-completion] profiles lookup failed:", error.message);
-        setProfileNeedsCompletion(false);
-        setProfileGateLoading(false);
-        return;
-      }
-
-      const fn = data?.first_name as string | null | undefined;
-      const un = data?.username as string | null | undefined;
-      const firstEmpty = fn == null || String(fn).trim() === "";
-      const userEmpty = un == null || String(un).trim() === "";
-      setProfileNeedsCompletion(firstEmpty && userEmpty);
       setProfileGateLoading(false);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [isReady, supabase, session?.user?.id, waiverLoading, waiverAccepted, tick]);
+  }, [isReady, supabase, session?.user?.id, waiverLoading, waiverAccepted, refreshProfileCompletion]);
 
   const value = useMemo(
     () => ({

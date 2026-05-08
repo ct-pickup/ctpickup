@@ -342,11 +342,9 @@ export default function CompleteProfileScreen() {
     supabase,
   ]);
 
-  const onContinueToApp = useCallback(() => {
-    refreshProfileCompletion();
-    setTimeout(() => {
-      (router.replace as (href: string) => void)("/(tabs)");
-    }, 1200);
+  const onContinueToApp = useCallback(async () => {
+    await refreshProfileCompletion();
+    router.replace("/(tabs)" as Href);
   }, [refreshProfileCompletion, router]);
 
   function setInterest(next: boolean) {
@@ -446,7 +444,7 @@ export default function CompleteProfileScreen() {
                 )}
               </View>
 
-              <Pressable style={styles.primaryBtn} onPress={onContinueToApp}>
+              <Pressable style={styles.primaryBtn} onPress={() => void onContinueToApp()}>
                 <Text style={styles.primaryBtnText}>Continue</Text>
               </Pressable>
             </>
