@@ -44,21 +44,6 @@ type ProfileRow = {
   username: string | null;
 };
 
-const TIER_RANK_LABELS: Record<number, string> = {
-  1: "Tier 1A",
-  2: "Tier 1B",
-  3: "Tier 2",
-  4: "Tier 3",
-  5: "Tier 4",
-  6: "Public",
-};
-
-function tierLabel(tier: string | null, tierRank: number | null): string | null {
-  if (tier && String(tier).trim()) return String(tier).trim();
-  if (tierRank == null) return null;
-  return TIER_RANK_LABELS[tierRank] ?? `Tier rank ${tierRank}`;
-}
-
 function cleanInstagram(s: string): string {
   return s.trim().replace(/^@/, "").replace(/\s+/g, "");
 }
@@ -72,25 +57,6 @@ function formatProfileSaveError(err: unknown): string {
   }
   if (err instanceof Error) return err.message;
   return String(err);
-}
-
-function fullName(p: ProfileRow | null): string | null {
-  if (!p) return null;
-  const a = (p.first_name ?? "").trim();
-  const b = (p.last_name ?? "").trim();
-  const joined = `${a} ${b}`.trim();
-  return joined || null;
-}
-
-function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
-  const v = value != null && String(value).trim() ? String(value).trim() : null;
-  if (!v) return null;
-  return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{v}</Text>
-    </View>
-  );
 }
 
 export default function AccountScreen() {
@@ -118,8 +84,6 @@ export default function AccountScreen() {
   const [lockMsg, setLockMsg] = useState<string | null>(null);
 
   const [profile, setProfile] = useState<ProfileRow | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [profileErr, setProfileErr] = useState<string | null>(null);
 
   const [editFirstName, setEditFirstName] = useState("");
   const [editLastName, setEditLastName] = useState("");
@@ -152,11 +116,8 @@ export default function AccountScreen() {
 
   const loadProfile = useCallback(async () => {
     if (!supabase || !userId) {
-      setProfileLoading(false);
       return;
     }
-    setProfileLoading(true);
-    setProfileErr(null);
     const { data, error } = await supabase
       .from("profiles")
       .select(
@@ -165,12 +126,10 @@ export default function AccountScreen() {
       .eq("id", userId)
       .maybeSingle();
     if (error) {
-      setProfileErr(error.message);
       setProfile(null);
     } else {
       setProfile((data as ProfileRow | null) ?? null);
     }
-    setProfileLoading(false);
   }, [supabase, userId]);
 
   useEffect(() => {
@@ -335,7 +294,7 @@ export default function AccountScreen() {
       if (!data?.length) {
         console.log("[onSaveProfile] update returned 0 rows", { authUserId });
         setEditMsg(
-          "Save did not update any profile row (no match or not permitted). If you see “No profile found” above, your account may be missing a profile row.",
+          "Save did not update any profile row (no match or not permitted). Your account may be missing a profile row.",
         );
         return;
       }
@@ -414,51 +373,6 @@ export default function AccountScreen() {
           <Pressable style={styles.outlineBtnLime} onPress={() => void signOut()}>
             <Text style={styles.outlineBtnLimeText}>Sign out</Text>
           </Pressable>
-        </View>
-
-        <Text style={styles.sectionTitle}>Profile</Text>
-
-        <View style={styles.card}>
-          {profileLoading ? (
-            <View style={styles.cardLoadingRow}>
-              <ActivityIndicator color="#fff" />
-              <Text style={styles.cardLoadingText}>Loading profile…</Text>
-            </View>
-          ) : profileErr ? (
-            <Text style={styles.cardError}>{profileErr}</Text>
-          ) : !profile ? (
-            <Text style={styles.cardMuted}>No profile found.</Text>
-          ) : (
-            <>
-              <View style={styles.statusRow}>
-                <View
-                  style={[
-                    styles.statusPill,
-                    profile.approved ? styles.statusPillGreen : styles.statusPillAmber,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.statusPillText,
-                      profile.approved ? styles.statusPillTextGreen : styles.statusPillTextAmber,
-                    ]}
-                  >
-                    {profile.approved ? "Approved" : "Pending approval"}
-                  </Text>
-                </View>
-              </View>
-              <InfoRow label="Full name" value={fullName(profile)} />
-              <InfoRow label="Username" value={profile.username} />
-              <InfoRow label="Playing position" value={profile.playing_position} />
-              <InfoRow
-                label="Instagram"
-                value={profile.instagram ? `@${String(profile.instagram).replace(/^@/, "")}` : null}
-              />
-              <InfoRow label="Phone" value={profile.phone} />
-              <InfoRow label="Zip code" value={profile.zip_code} />
-              <InfoRow label="Tier" value={tierLabel(profile.tier, profile.tier_rank)} />
-            </>
-          )}
         </View>
 
         <Text style={styles.sectionTitle}>Edit profile</Text>
@@ -1067,22 +981,7 @@ const styles = StyleSheet.create({
   cardLoadingRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   cardLoadingText: { color: "rgba(255,255,255,0.7)", fontSize: 14 },
   cardMuted: { color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
-  cardError: { color: "#fca5a5", fontSize: 14, lineHeight: 20 },
   cardSubtle: { marginTop: 10, color: "rgba(255,255,255,0.6)", fontSize: 14, lineHeight: 20 },
-
-  infoRow: {
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255,255,255,0.1)",
-  },
-  infoLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    color: "rgba(255,255,255,0.45)",
-  },
-  infoValue: { marginTop: 4, fontSize: 15, color: "rgba(255,255,255,0.95)", lineHeight: 22 },
 
   statusRow: { flexDirection: "row", marginBottom: 12 },
   statusPill: {
