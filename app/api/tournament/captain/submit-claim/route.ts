@@ -21,6 +21,8 @@ export async function POST(req: Request) {
   const admin = getSupabaseAdmin();
   const anon = getSupabaseAnon();
 
+  const nowMs = Date.now();
+
   const token = req.headers.get("authorization")?.replace("Bearer ", "") || "";
   if (!token) return NextResponse.json({ error: "missing_auth" }, { status: 401 });
 
@@ -56,6 +58,19 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   if (!t) return NextResponse.json({ error: "no_active_tournament" }, { status: 404 });
+
+  // Claims closed within 24h of tournament start
+  const startAtMs =
+    typeof (t as any)?.start_at === "string" ? new Date((t as any).start_at).getTime() : NaN;
+  if (Number.isFinite(startAtMs)) {
+    const cutoffMs = startAtMs - 24 * 60 * 60 * 1000;
+    if (cutoffMs < nowMs) {
+      return NextResponse.json(
+        { error: "Claims are closed within 24 hours of the tournament. Roster is now free-for-all." },
+        { status: 403 }
+      );
+    }
+  }
 
   // Capacity: block new claims if claimed >= target
   const { data: allCaps } = await admin

@@ -642,6 +642,8 @@ export default function AdminPickupOpsScreen() {
           if (!id) return null;
           const isHub = !!row.is_current;
           const isCompleted = s(row.status).trim() === "completed";
+          const startAtMs = Date.parse(s(row.start_at));
+          const startAtPassed = Number.isFinite(startAtMs) && startAtMs <= Date.now();
           return (
             <Pressable
               key={id}
@@ -672,7 +674,7 @@ export default function AdminPickupOpsScreen() {
                   <FontAwesome name="chevron-right" size={12} color="rgba(255,255,255,0.35)" />
                 </View>
 
-                {isCompleted ? (
+                {isCompleted && startAtPassed ? (
                   <Pressable
                     onPress={(e) => {
                       e.stopPropagation();
@@ -680,7 +682,7 @@ export default function AdminPickupOpsScreen() {
                     }}
                     style={({ pressed }) => [styles.markResultBtn, pressed && { opacity: 0.9 }]}
                   >
-                    <Text style={styles.markResultBtnText}>Mark result</Text>
+                    <Text style={styles.markResultBtnText}>Mark Result</Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -1239,10 +1241,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.10)",
+    borderColor: LIME,
+    backgroundColor: LIME,
   },
-  markResultBtnText: { color: LIME, fontWeight: "900", fontSize: 12 },
+  markResultBtnText: { color: "#111", fontWeight: "900", fontSize: 12 },
   card: {
     marginTop: 18,
     padding: 16,

@@ -180,6 +180,14 @@ export default function FieldTournamentDetailScreen() {
   const slotsFull = !!t && (spotsRemaining <= 0 || !!payload?.full);
   const claimDisabled = !t || slotsFull;
 
+  const claimsClosed = (() => {
+    const startAt = (t as any)?.start_at;
+    if (typeof startAt !== "string" || !startAt) return false;
+    const startMs = new Date(startAt).getTime();
+    if (!Number.isFinite(startMs)) return false;
+    return startMs - 24 * 60 * 60 * 1000 < Date.now();
+  })();
+
   const paymentDueMs =
     captainClaim?.payment_due_at != null ? new Date(captainClaim.payment_due_at).getTime() : NaN;
   const paymentWindowOpen =
@@ -205,6 +213,7 @@ export default function FieldTournamentDetailScreen() {
 
   const showClaimButton =
     !claimDisabled &&
+    !claimsClosed &&
     sessionClaimReady &&
     (!session ||
       !captainClaim ||
@@ -335,6 +344,8 @@ export default function FieldTournamentDetailScreen() {
           ) : null}
           {slotsFull ? (
             <Text style={styles.claimSubText}>Captain slots are full.</Text>
+          ) : claimsClosed ? (
+            <Text style={styles.claimSubText}>Claims closed — free-for-all roster</Text>
           ) : !session ? (
             <Text style={styles.claimSubText}>Sign in to submit a captain claim.</Text>
           ) : null}
@@ -351,6 +362,7 @@ export default function FieldTournamentDetailScreen() {
       <CaptainClaimModal
         visible={claimModalOpen}
         accessToken={session?.access_token ?? null}
+        tournamentStartAt={typeof (t as any)?.start_at === "string" ? (t as any).start_at : null}
         payBusy={payBusy}
         onClose={() => setClaimModalOpen(false)}
         onClaimRecorded={() => void reload()}

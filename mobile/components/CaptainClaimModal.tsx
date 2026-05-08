@@ -29,6 +29,7 @@ type PrelimEntry = { fullName: string; instagram: string };
 type Props = {
   visible: boolean;
   accessToken: string | null;
+  tournamentStartAt: string | null;
   onClose: () => void;
   onClaimRecorded?: () => void;
   onProceedToPay: () => void | Promise<void>;
@@ -58,6 +59,7 @@ function describeClaimError(status: number, error: string, fallback: string): { 
 export function CaptainClaimModal({
   visible,
   accessToken,
+  tournamentStartAt,
   onClose,
   onClaimRecorded,
   onProceedToPay,
@@ -106,6 +108,13 @@ export function CaptainClaimModal({
     !Number.isFinite(expectedPlayersNum) ||
     expectedPlayersNum < 5 ||
     expectedPlayersNum > 25;
+
+  const claimsClosed = useMemo(() => {
+    if (!tournamentStartAt) return false;
+    const startMs = new Date(tournamentStartAt).getTime();
+    if (!Number.isFinite(startMs)) return false;
+    return startMs - 24 * 60 * 60 * 1000 < Date.now();
+  }, [tournamentStartAt]);
 
   function onRulesScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
@@ -228,6 +237,7 @@ export function CaptainClaimModal({
             typedName={typedName}
             onChangeName={setTypedName}
             consentBusy={consentBusy}
+            claimsClosed={claimsClosed}
             onSubmit={() => void submitConsent()}
           />
         ) : null}
@@ -241,6 +251,7 @@ export function CaptainClaimModal({
             prelim={prelim}
             submitBusy={submitBusy}
             disabled={submitClaimDisabled}
+            claimsClosed={claimsClosed}
             onChangeCaptainName={setCaptainName}
             onChangeCaptainIg={setCaptainIg}
             onChangeTeamName={setTeamName}
@@ -272,6 +283,7 @@ function RulesStep({
   typedName,
   onChangeName,
   consentBusy,
+  claimsClosed,
   onSubmit,
 }: {
   rulesRead: boolean;
@@ -281,9 +293,10 @@ function RulesStep({
   typedName: string;
   onChangeName: (v: string) => void;
   consentBusy: boolean;
+  claimsClosed: boolean;
   onSubmit: () => void;
 }) {
-  const submitDisabled = !rulesRead || !agreed || !typedName.trim() || consentBusy;
+  const submitDisabled = claimsClosed || !rulesRead || !agreed || !typedName.trim() || consentBusy;
   return (
     <View style={styles.flex}>
       <ScrollView
@@ -334,6 +347,9 @@ function RulesStep({
       </ScrollView>
 
       <View style={styles.footer}>
+        {claimsClosed ? (
+          <Text style={styles.claimsClosedText}>Claims closed — free-for-all roster</Text>
+        ) : null}
         <Pressable
           onPress={onToggleAgreed}
           style={styles.checkboxRow}
@@ -381,6 +397,7 @@ function FormStep({
   prelim,
   submitBusy,
   disabled,
+  claimsClosed,
   onChangeCaptainName,
   onChangeCaptainIg,
   onChangeTeamName,
@@ -397,6 +414,7 @@ function FormStep({
   prelim: PrelimEntry[];
   submitBusy: boolean;
   disabled: boolean;
+  claimsClosed: boolean;
   onChangeCaptainName: (v: string) => void;
   onChangeCaptainIg: (v: string) => void;
   onChangeTeamName: (v: string) => void;
@@ -500,18 +518,24 @@ function FormStep({
         </Pressable>
       </View>
 
-      <Pressable
-        onPress={onSubmit}
-        disabled={disabled}
-        style={[styles.primaryBtn, disabled && styles.primaryBtnDisabled]}
-        accessibilityRole="button"
-      >
-        {submitBusy ? (
-          <ActivityIndicator color="#0a0a0a" />
-        ) : (
-          <Text style={styles.primaryBtnText}>Claim Your Captain Spot</Text>
-        )}
-      </Pressable>
+      {claimsClosed ? (
+        <View style={styles.claimsClosedCard}>
+          <Text style={styles.claimsClosedTitle}>Claims closed — free-for-all roster</Text>
+        </View>
+      ) : (
+        <Pressable
+          onPress={onSubmit}
+          disabled={disabled}
+          style={[styles.primaryBtn, disabled && styles.primaryBtnDisabled]}
+          accessibilityRole="button"
+        >
+          {submitBusy ? (
+            <ActivityIndicator color="#0a0a0a" />
+          ) : (
+            <Text style={styles.primaryBtnText}>Claim Your Captain Spot</Text>
+          )}
+        </Pressable>
+      )}
     </ScrollView>
   );
 }
@@ -605,6 +629,7 @@ const styles = StyleSheet.create({
     borderTopColor: "rgba(255,255,255,0.1)",
     backgroundColor: "#0a0a0a",
   },
+  claimsClosedText: { fontSize: 13, fontWeight: "800", color: "rgba(251,191,36,0.95)" },
   checkboxRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   checkbox: {
     width: 22,
@@ -712,4 +737,15 @@ const styles = StyleSheet.create({
   },
   refundTitle: { fontSize: 13, fontWeight: "800", color: "rgba(251,191,36,0.95)", letterSpacing: 0.4 },
   refundBody: { fontSize: 13, lineHeight: 19, color: "rgba(255,255,255,0.78)" },
+  claimsClosedCard: {
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(251,191,36,0.32)",
+    backgroundColor: "rgba(251,191,36,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  claimsClosedTitle: { color: "rgba(251,191,36,0.95)", fontWeight: "800", fontSize: 14 },
 });
