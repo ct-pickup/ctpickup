@@ -89,23 +89,23 @@ function nearestVenueSections(rows: VenueDistanceRow[]): { header: string; venue
     list.sort((a, b) => a.estimatedMinutes - b.estimatedMinutes);
   }
 
-  const out: { header: string; venues: VenueDistanceRow[] }[] = [];
+  if (anyUnder45) {
+    for (const [code, list] of byState) {
+      const filtered = list.filter((r) => r.estimatedMinutes < NEAREST_UNDER_MINUTES);
+      if (filtered.length) {
+        byState.set(code, filtered);
+      } else {
+        byState.delete(code);
+      }
+    }
+  }
 
-  const includeState = (venues: VenueDistanceRow[] | undefined): venues is VenueDistanceRow[] => {
-    if (!venues?.length) return false;
-    if (!anyUnder45) return true;
-    return venues.some((r) => r.estimatedMinutes < NEAREST_UNDER_MINUTES);
-  };
+  const out: { header: string; venues: VenueDistanceRow[] }[] = [];
 
   for (const code of NEAREST_STATE_ORDER) {
     const venues = byState.get(code);
-    if (!includeState(venues)) continue;
+    if (!venues?.length) continue;
     out.push({ header: code, venues });
-  }
-
-  const other = byState.get("OTHER");
-  if (includeState(other)) {
-    out.push({ header: "Other", venues: other });
   }
 
   return out;
@@ -433,10 +433,16 @@ export default function CompleteProfileScreen() {
                       >
                         {section.header}
                       </Text>
-                      {section.venues.map((row) => (
-                        <View key={`${section.header}-${row.venue}`} style={styles.nearestRow}>
-                          <Text style={styles.nearestVenueName}>{row.venue}</Text>
-                          <Text style={styles.nearestEta}>~{row.estimatedMinutes} min drive</Text>
+                      {section.venues.map((row, ri) => (
+                        <View
+                          key={`${section.header}-${row.venue}`}
+                          style={[styles.nearestRow, ri === section.venues.length - 1 ? styles.nearestRowLast : null]}
+                        >
+                          <View style={styles.nearestRowLeft}>
+                            <Text style={styles.nearestVenueName}>{row.venue}</Text>
+                            <Text style={styles.nearestVenueAddress}>{row.address}</Text>
+                          </View>
+                          <Text style={styles.nearestEta}>~{row.estimatedMinutes} min</Text>
                         </View>
                       ))}
                     </View>
@@ -834,8 +840,8 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.28)",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.05)",
   },
   nearestCardTitle: {
     fontSize: 15,
@@ -866,12 +872,23 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(255,255,255,0.12)",
   },
-  nearestVenueName: {
+  nearestRowLast: {
+    borderBottomWidth: 0,
+  },
+  nearestRowLeft: {
     flex: 1,
+    gap: 4,
+  },
+  nearestVenueName: {
     fontSize: 15,
     fontWeight: "700",
-    color: "rgba(255,255,255,0.92)",
+    color: "#fff",
     lineHeight: 21,
+  },
+  nearestVenueAddress: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: "rgba(255,255,255,0.6)",
   },
   nearestEta: {
     fontSize: 14,

@@ -1,40 +1,170 @@
-import { useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
-import { WebView } from "react-native-webview";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useRouter } from "expo-router";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const PRIVACY_URL = "https://ctpickup.net/privacy";
 const BG = "#0a0a0a";
 const LIME = "#a3e635";
 
+type PolicyPoint = {
+  title: string;
+  body: string;
+};
+
+const POLICY_POINTS: PolicyPoint[] = [
+  {
+    title: "What we collect",
+    body:
+      "We collect information you provide (such as your name, email, and profile details) and information needed to run CT Pickup (such as registrations, attendance, and app settings).",
+  },
+  {
+    title: "How we use your information",
+    body:
+      "We use your information to operate the app, manage pickups and tournaments, communicate essential updates, provide support, and improve the platform experience.",
+  },
+  {
+    title: "Payments",
+    body:
+      "If you make purchases, payment processing may be handled by third-party providers. We do not store your full payment card details on our servers.",
+  },
+  {
+    title: "Location",
+    body:
+      "We may use coarse location or region selection to show relevant pickups and experiences. You can control location permissions in your device settings.",
+  },
+  {
+    title: "Sharing",
+    body:
+      "We do not sell your personal information. We may share information with service providers that help us run the app (for example, hosting and analytics) or when required by law.",
+  },
+  {
+    title: "Communications",
+    body:
+      "We may send account-related messages (like confirmations, reminders, and important policy updates). You can opt out of non-essential marketing communications where applicable.",
+  },
+  {
+    title: "Data retention",
+    body:
+      "We keep information only as long as needed for the purposes described above, including maintaining records of activity and complying with legal obligations.",
+  },
+  {
+    title: "Security",
+    body:
+      "We take reasonable steps to protect your information, but no system can be guaranteed 100% secure. Use a strong password and keep your account access secure.",
+  },
+  {
+    title: "Children",
+    body:
+      "CT Pickup is intended for users age 13 and older. If you believe a child has provided personal information, contact us so we can address it.",
+  },
+  {
+    title: "Changes",
+    body:
+      "We may update this policy from time to time. Continued use of the app after changes means you accept the updated policy.",
+  },
+  {
+    title: "Contact",
+    body:
+      "If you have questions about privacy or data handling, contact CT Pickup support through the app or via the contact method listed on our website.",
+  },
+];
+
 export default function PrivacyPolicyScreen() {
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const bottomPad = Math.max(insets.bottom, 16) + 24;
 
   return (
-    <View style={styles.container}>
-      <WebView
-        source={{ uri: PRIVACY_URL }}
-        style={styles.webview}
-        onLoadStart={() => setLoading(true)}
-        onLoadEnd={() => setLoading(false)}
-        onError={() => setLoading(false)}
-        backgroundColor={BG}
-      />
-      {loading ? (
-        <View style={styles.loaderWrap} pointerEvents="none">
-          <ActivityIndicator size="large" color={LIME} />
+    <View style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: Math.max(insets.top, 16), paddingBottom: bottomPad },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Pressable
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/(tabs)");
+            }
+          }}
+          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.9 }]}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <FontAwesome name="chevron-left" size={18} color={LIME} />
+          <Text style={styles.backText}>Back</Text>
+        </Pressable>
+
+        <Text style={styles.docTitle}>Privacy Policy</Text>
+        <Text style={styles.docSubtitle}>How CT Pickup collects, uses, and protects information.</Text>
+
+        <View style={styles.list}>
+          {POLICY_POINTS.map((p) => (
+            <View key={p.title} style={styles.card}>
+              <Text style={styles.cardTitle}>{p.title}</Text>
+              <Text style={styles.cardBody}>{p.body}</Text>
+            </View>
+          ))}
         </View>
-      ) : null}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
-  webview: { flex: 1, backgroundColor: BG },
-  loaderWrap: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "center",
+  screen: { flex: 1, backgroundColor: BG },
+  scrollContent: { paddingHorizontal: 20 },
+  backBtn: {
+    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: BG,
+    gap: 8,
+    paddingLeft: 2,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  backText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  docTitle: {
+    color: "#fff",
+    fontSize: 28,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+    marginBottom: 8,
+  },
+  docSubtitle: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  list: { gap: 12 },
+  card: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  cardTitle: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+    marginBottom: 8,
+    textTransform: "capitalize",
+  },
+  cardBody: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 14,
+    lineHeight: 21,
   },
 });
