@@ -288,9 +288,11 @@ export default function CompleteProfileScreen() {
     supabase,
   ]);
 
-  const onContinueToApp = useCallback(() => {
-    refreshProfileCompletion();
-    (router.replace as (href: string) => void)("/(tabs)");
+  const onContinueToApp = useCallback(async () => {
+    await refreshProfileCompletion();
+    setTimeout(() => {
+      (router.replace as (href: string) => void)("/(tabs)");
+    }, 600);
   }, [refreshProfileCompletion, router]);
 
   function setInterest(next: boolean) {
