@@ -70,11 +70,11 @@ const VENUE_FEE_PRESETS: VenueFeePreset[] = [
   { id: "nj_cherry_7v7", label: "Sofive Cherry Hill 7v7", region: "NJ", priceDollars: 338, address: "650 Kresson Rd, Cherry Hill, NJ 08034" },
   { id: "ny_brooklyn", label: "Sofive Brooklyn", region: "NY", priceDollars: 173, address: "2015 Pitkin Ave, Brooklyn, NY 11207" },
   { id: "ny_hudson", label: "Hudson Sports", region: "NY", priceDollars: 131, address: "Warwick, NY" },
+  { id: "ny_rochelle", label: "New Rochelle SoccerRoof", region: "NY", priceDollars: 278, address: "29 LeCount Pl, New Rochelle, NY" },
   { id: "md_rockville", label: "Sofive Rockville", region: "MD", priceDollars: 165, address: "1008 Westmore Ave, Rockville, MD 20850" },
   { id: "md_jessup", label: "SoccerDome Jessup", region: "MD", priceDollars: 113, address: "7330 Montevideo Road, Jessup, MD 20794" },
   { id: "md_harmans", label: "SoccerDome Harmans", region: "MD", priceDollars: 113, address: "7447 Shipley Avenue, Harmans, MD 21077" },
-  { id: "ct_nh", label: "New Haven SoccerRoof", region: "CT", priceDollars: 0, address: "1018 Sherman Ave, Hamden, CT" },
-  { id: "ct_nr", label: "New Rochelle SoccerRoof", region: "CT", priceDollars: 0, address: "29 LeCount Pl, New Rochelle, NY" },
+  { id: "ct_nh", label: "New Haven SoccerRoof", region: "CT", priceDollars: 150, address: "1018 Sherman Ave, Hamden, CT" },
 ];
 
 function s(v: unknown): string {

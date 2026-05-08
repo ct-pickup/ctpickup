@@ -209,7 +209,7 @@ function RootLayoutNav() {
                           <Stack.Screen
                             name="privacy-policy"
                             options={{
-                              headerShown: true,
+                              headerShown: false,
                               title: "Privacy Policy",
                               headerStyle: { backgroundColor: "#0a0a0a" },
                               headerTintColor: "#fff",

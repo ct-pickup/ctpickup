@@ -1,5 +1,5 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -76,28 +76,22 @@ export default function PrivacyPolicyScreen() {
 
   return (
     <View style={styles.screen}>
+      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingTop: Math.max(insets.top, 16), paddingBottom: bottomPad },
-        ]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPad }]}
         showsVerticalScrollIndicator={false}
       >
         <Pressable
           onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace("/(tabs)");
-            }
+            router.back();
           }}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.9 }]}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel="Home"
         >
           <FontAwesome name="chevron-left" size={18} color={LIME} />
-          <Text style={styles.backText}>Back</Text>
+          <Text style={styles.backText}>Home</Text>
         </Pressable>
 
         <Text style={styles.docTitle}>Privacy Policy</Text>
@@ -118,7 +112,7 @@ export default function PrivacyPolicyScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG },
-  scrollContent: { paddingHorizontal: 20 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 20 },
   backBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -160,7 +154,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0.2,
     marginBottom: 8,
-    textTransform: "capitalize",
   },
   cardBody: {
     color: "rgba(255,255,255,0.75)",
