@@ -3,9 +3,9 @@ import { useWaiver } from "@/context/WaiverContext";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 type ProfileCompletionContextValue = {
-  /** True while checking whether `profiles.first_name` is set (only after waiver is resolved). */
+  /** True while checking whether profile fields are set (only after waiver is resolved). */
   profileGateLoading: boolean;
-  /** True when signed-in user must complete profile before tabs. */
+  /** True when signed-in user must complete profile before tabs (both first_name and username empty). */
   profileNeedsCompletion: boolean;
   /** Re-run profile completion check (e.g. after saving on complete-profile). */
   refreshProfileCompletion: () => void;
@@ -23,7 +23,7 @@ export function ProfileCompletionProvider({ children }: { children: React.ReactN
 
   const refreshProfileCompletion = useMemo(
     () => () => {
-      setTick((t) => t + 1);
+      setTimeout(() => setTick((t) => t + 1), 800);
     },
     [],
   );
@@ -53,7 +53,7 @@ export function ProfileCompletionProvider({ children }: { children: React.ReactN
     void (async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("first_name")
+        .select("first_name, username")
         .eq("id", session.user.id)
         .maybeSingle();
 
@@ -67,8 +67,10 @@ export function ProfileCompletionProvider({ children }: { children: React.ReactN
       }
 
       const fn = data?.first_name as string | null | undefined;
-      const empty = fn == null || String(fn).trim() === "";
-      setProfileNeedsCompletion(empty);
+      const un = data?.username as string | null | undefined;
+      const firstEmpty = fn == null || String(fn).trim() === "";
+      const userEmpty = un == null || String(un).trim() === "";
+      setProfileNeedsCompletion(firstEmpty && userEmpty);
       setProfileGateLoading(false);
     })();
 
