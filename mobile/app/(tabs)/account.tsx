@@ -19,6 +19,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -774,6 +775,20 @@ export default function AccountScreen() {
               <FontAwesome name="question-circle" size={18} color="rgba(255,255,255,0.75)" />
             </View>
             <Text style={styles.aboutText}>Help</Text>
+          </View>
+          <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+        </Pressable>
+        <Pressable
+          style={styles.aboutRow}
+          onPress={() => {
+            void Linking.openURL("https://ctpickup.net/privacy");
+          }}
+        >
+          <View style={styles.aboutLeft}>
+            <View style={styles.aboutIconWrap}>
+              <FontAwesome name="shield" size={18} color="rgba(255,255,255,0.75)" />
+            </View>
+            <Text style={styles.aboutText}>Privacy Policy</Text>
           </View>
           <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
         </Pressable>
