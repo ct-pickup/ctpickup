@@ -594,7 +594,7 @@ export default function PickupOperatorClient() {
               <div className="flex flex-wrap items-center gap-2 text-sm text-white/70">
                 <span>{labelPickupRunStatus(String(selectedRun.status))}</span>
                 <span>·</span>
-                <span>{fmt(selectedRun.start_at)}</span>
+                <span>{fmt(selectedRun.start_at as string | null)}</span>
                 {selectedRun.is_current ? <span className="text-emerald-200/90">· on hub</span> : null}
               </div>
               <div className="text-xs text-white/40">Run ID: {String(selectedRun.id)}</div>
