@@ -1357,6 +1357,30 @@ export default function AdminPickupOpsScreen() {
 
                     <View style={styles.modalSection}>
                       <Text style={styles.sectionTitle}>Roster</Text>
+                      <Text style={styles.rosterSubheading}>Availability ({detail?.counts?.available ?? 0} responses)</Text>
+                  {(detail?.availability ?? []).length === 0 ? (
+                    <Text style={styles.muted}>No availability submitted yet.</Text>
+                  ) : null}
+                  {(detail?.availability as Record<string, unknown>[] ?? []).map((a, idx) => {
+                    const uid = String(a.user_id || "");
+                    const slotId = String(a.slot_id || "");
+                    const state = String(a.state || "");
+                    const slot = slots.find((sl) => String(sl.id) === slotId);
+                    const slotLabel = slot ? (String(slot.label || "") || String(slot.start_at || "")) : slotId;
+                    const player = [...confirmed, ...standby].find((p) => p.id === uid);
+                    const name = player?.full_name || uid;
+                    return (
+                      <View key={`avail-${idx}`} style={[styles.personRow, { opacity: state === "declined" ? 0.45 : 1 }]}>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={styles.personName}>{name}</Text>
+                          <Text style={styles.personSub}>{slotLabel}</Text>
+                        </View>
+                        <View style={{ backgroundColor: state === "available" ? "rgba(163,230,53,0.15)" : "rgba(255,255,255,0.08)", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                          <Text style={{ color: state === "available" ? "#a3e635" : "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: "700" }}>{state}</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
                       <Text style={styles.rosterSubheading}>Kickoff slots</Text>
                   {slots.length === 0 ? <Text style={styles.muted}>No slots yet.</Text> : null}
                   {slots.map((sl, idx) => {
