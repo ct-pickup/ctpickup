@@ -244,8 +244,10 @@ export default function RunsScreen() {
   const showAvailabilityPoll = useMemo(() => {
     const st = run?.status;
     if (st !== "planning" && st !== "likely_on") return false;
-    return run?.final_slot_id == null;
-  }, [run]);
+    if (run?.final_slot_id != null) return false;
+    if (run?.run_type === "select" && !invitedNow) return false;
+    return true;
+  }, [run, invitedNow]);
 
   const allowedSlotLabelSet = useMemo(
     () => new Set<string>(FIXED_AVAILABILITY_RANGES.map((r) => r.slot_label)),
