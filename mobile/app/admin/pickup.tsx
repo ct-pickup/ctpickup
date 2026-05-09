@@ -178,6 +178,7 @@ export default function AdminPickupOpsScreen() {
 
   const [editTitle, setEditTitle] = useState("");
   const [editRunType, setEditRunType] = useState<"select" | "public">("select");
+  const [createRunType, setCreateRunType] = useState<"select" | "public">("public");
   const [editCapacity, setEditCapacity] = useState("18");
   const [editFieldCost, setEditFieldCost] = useState("");
   const [editHours, setEditHours] = useState("1.5");
@@ -523,6 +524,7 @@ export default function AdminPickupOpsScreen() {
       capacity: Number(createCapacity || 24),
       fee_cents,
       location_text: createLocationText.trim() || undefined,
+      run_type: createRunType,
     });
     setBusy(null);
     if (!r.ok) return Alert.alert("Create failed", r.error);
@@ -768,6 +770,21 @@ export default function AdminPickupOpsScreen() {
         placeholder="CT Pickup Run"
         placeholderTextColor="rgba(255,255,255,0.35)"
       />
+      <Text style={styles.label}>Run type</Text>
+      <View style={{ flexDirection: "row", gap: 10, marginBottom: 12 }}>
+        <Pressable
+          onPress={() => setCreateRunType("select")}
+          style={[styles.typeChip, createRunType === "select" && styles.typeChipActive]}
+        >
+          <Text style={[styles.typeChipText, createRunType === "select" && styles.typeChipTextActive]}>Select</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setCreateRunType("public")}
+          style={[styles.typeChip, createRunType === "public" && styles.typeChipActive]}
+        >
+          <Text style={[styles.typeChipText, createRunType === "public" && styles.typeChipTextActive]}>Public</Text>
+        </Pressable>
+      </View>
       <Pressable
         onPress={() => void onCreateRun()}
         disabled={busy === "create"}
