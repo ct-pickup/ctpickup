@@ -48,7 +48,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return NextResponse.json({ error: "You do not have access to this match." }, { status: 403 });
     }
 
-    const form = await req.formData();
+    const form = await req.formData() as any;
     const file = form.get("file");
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "Expected multipart field \"file\"." }, { status: 400 });

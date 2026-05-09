@@ -86,7 +86,7 @@ type PickupSwitchDetail = {
 export default function PickupOperatorClient() {
   const { supabase, isReady } = useSupabaseBrowser();
   const [token, setToken] = useState<string | null>(null);
-  const [runs, setRuns] = useState<Record<string, string>[]>([]);
+  const [runs, setRuns] = useState<Record<string, any>[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string>("");
   const [detail, setDetail] = useState<PickupSwitchDetail | null>(null);
   const [opCtx, setOpCtx] = useState<PickupOperatorBundle | null>(null);
@@ -624,7 +624,7 @@ export default function PickupOperatorClient() {
               ).map(({ key: k, label }) => (
                 <div key={k} className="rounded-lg border border-white/10 bg-black/40 py-2">
                   <div className="text-[10px] uppercase tracking-wider text-white/45">{label}</div>
-                  <div className="text-lg font-semibold text-white">{detail.counts[k]}</div>
+                  <div className="text-lg font-semibold text-white">{detail.counts?[k]}</div>
                 </div>
               ))}
             </div>
@@ -636,8 +636,8 @@ export default function PickupOperatorClient() {
               <div className="mt-2 space-y-1 text-xs">
                 <div>Next: {auto.next_step}</div>
                 <div className="font-mono text-white/55">
-                  24h {fmt(auto.checkpoints?.cp_24h_at)} · 12h {fmt(auto.checkpoints?.cp_12h_at)} · 6h{" "}
-                  {fmt(auto.checkpoints?.cp_6h_at)} · 1h {fmt(auto.checkpoints?.cp_1h_at)}
+                  24h {fmt((auto as any).checkpoints?.cp_24h_at)} · 12h {fmt((auto as any).checkpoints?.cp_12h_at)} · 6h{" "}
+                  {fmt((auto as any).checkpoints?.cp_6h_at)} · 1h {fmt((auto as any).checkpoints?.cp_1h_at)}
                 </div>
               </div>
             </details>
