@@ -603,8 +603,8 @@ export default function PickupOperatorClient() {
 
           {selectedRun && !selectedRun.is_current && selectedRun.status !== "canceled" ? (
             <PromotePickupRunButton
-              runId={selectedRun.id}
-              title={selectedRun.title}
+              runId={selectedRun.id as string}
+              title={selectedRun.title as string}
               onApplied={() => {
                 void load();
                 if (selectedRunId) void loadDetail(selectedRunId);
@@ -634,7 +634,7 @@ export default function PickupOperatorClient() {
             <details className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white/75">
               <summary className="cursor-pointer text-white/85">Auto pipeline</summary>
               <div className="mt-2 space-y-1 text-xs">
-                <div>Next: {auto.next_step}</div>
+                <div>Next: {String(auto.next_step)}</div>
                 <div className="font-mono text-white/55">
                   24h {fmt((auto as any).checkpoints?.cp_24h_at)} · 12h {fmt((auto as any).checkpoints?.cp_12h_at)} · 6h{" "}
                   {fmt((auto as any).checkpoints?.cp_6h_at)} · 1h {fmt((auto as any).checkpoints?.cp_1h_at)}
@@ -713,7 +713,7 @@ export default function PickupOperatorClient() {
                 className="w-full rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
               >
                 <option value="">Slot…</option>
-                {detail.slots.map((s: { id: string; start_at: string; label?: string }) => (
+                {(detail.slots as { id: string; start_at: string; label?: string }[]).map((s) => (
                   <option key={s.id} value={s.id}>
                     {fmt(s.start_at)} {s.label ? `· ${s.label}` : ""}
                   </option>
