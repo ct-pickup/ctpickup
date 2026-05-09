@@ -624,7 +624,7 @@ export default function PickupOperatorClient() {
               ).map(({ key: k, label }) => (
                 <div key={k} className="rounded-lg border border-white/10 bg-black/40 py-2">
                   <div className="text-[10px] uppercase tracking-wider text-white/45">{label}</div>
-                  <div className="text-lg font-semibold text-white">{detail.counts?[k]}</div>
+                  <div className="text-lg font-semibold text-white">{detail.counts?.[k]}</div>
                 </div>
               ))}
             </div>
