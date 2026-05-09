@@ -2,7 +2,7 @@ import { SignInPanel } from "@/components/SignInPanel";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigationContainerRef, useRouter } from "expo-router";
 import { useEffect } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
@@ -42,18 +42,23 @@ export default function LoginScreen() {
     <View style={styles.screen}>
       <View pointerEvents="none" style={styles.bgGlowA} />
       <View pointerEvents="none" style={styles.bgGlowB} />
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: Math.max(insets.top, 16) + 10, paddingBottom: Math.max(insets.bottom, 24) + 30 },
-        ]}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.formWrap}>
-          <Text style={styles.lead}>Enter your email to get a sign-in code</Text>
-          <SignInPanel hideHeading variant="premium" />
-        </View>
-      </ScrollView>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.screen}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingTop: Math.max(insets.top, 16) + 10,
+              paddingBottom: 200,
+            },
+          ]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.formWrap}>
+            <Text style={styles.lead}>Enter your email to get a sign-in code</Text>
+            <SignInPanel hideHeading variant="premium" />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

@@ -171,9 +171,15 @@ export default function ResetPasswordScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 16) + 10, paddingBottom: Math.max(insets.bottom, 16) + 24 }]}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: Math.max(insets.top, 16) + 10,
+            paddingBottom: 200,
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.title}>{mode === "set" ? "Set a new password" : "Reset password"}</Text>

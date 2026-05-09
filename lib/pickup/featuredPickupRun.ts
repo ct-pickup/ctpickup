@@ -88,7 +88,7 @@ async function fetchLatestActivePickupRunForRegionBucket(
   admin: SupabaseClient,
   regionCode: string | "global",
 ): Promise<PublicPickupRunRow | null> {
-  let q = admin.from("pickup_runs").select("*").in("status", ["planning", "likely_on", "active"]);
+  let q = admin.from("pickup_runs").select("*").in("status", ["planning", "likely_on", "active", "in_progress"]);
   if (regionCode === "global") {
     q = q.is("service_region", null);
   } else {

@@ -169,8 +169,8 @@ export default function AdminStandingScreen() {
   }
 
   return (
-    <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 200 }]} keyboardShouldPersistTaps="handled">
         <View style={styles.rowBetween}>
           <Text style={styles.h1}>Standing</Text>
           <Pressable onPress={reload} style={({ pressed }) => [styles.chip, pressed && { opacity: 0.85 }]}>
@@ -332,7 +332,7 @@ export default function AdminStandingScreen() {
         <View style={styles.modalRoot}>
           <Pressable style={styles.modalDismiss} onPress={closeEdit} accessibilityLabel="Dismiss" />
           <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
             keyboardVerticalOffset={insets.top}
             style={styles.modalKb}
           >
@@ -341,7 +341,11 @@ export default function AdminStandingScreen() {
                 <View style={styles.modalGrab} />
               </View>
               {editing ? (
-                <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <ScrollView
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ paddingBottom: 200 }}
+                >
                   <View style={styles.modalHeader}>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={styles.modalTitle} numberOfLines={2}>
@@ -490,7 +494,7 @@ export default function AdminStandingScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -13,7 +13,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Pressable,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -232,16 +234,20 @@ export default function AdminChatScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={styles.rowBetween}>
-        <Text style={styles.h1}>Chat</Text>
-        <Pressable onPress={reload} style={({ pressed }) => [styles.chip, pressed && { opacity: 0.85 }]}>
-          <Text style={styles.chipText}>Refresh</Text>
-        </Pressable>
-      </View>
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: 200 }]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.rowBetween}>
+          <Text style={styles.h1}>Chat</Text>
+          <Pressable onPress={reload} style={({ pressed }) => [styles.chip, pressed && { opacity: 0.85 }]}>
+            <Text style={styles.chipText}>Refresh</Text>
+          </Pressable>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Create room</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Create room</Text>
 
         <Text style={styles.label}>Room ID</Text>
         <TextInput
@@ -370,8 +376,10 @@ export default function AdminChatScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Post announcement</Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Post announcement</Text>
         <Text style={styles.bodyMuted}>
           Sends to the announcements-only room and triggers a push notification for everyone with notifications enabled.
         </Text>
@@ -404,11 +412,13 @@ export default function AdminChatScreen() {
         </Pressable>
       </View>
 
-      {loading ? <ActivityIndicator color="#fff" style={{ marginTop: 10 }} /> : null}
-      {error ? <Text style={styles.err}>{error}</Text> : null}
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Rooms ({rooms.length})</Text>
+        {loading ? <ActivityIndicator color="#fff" style={{ marginTop: 10 }} /> : null}
+        {error ? <Text style={styles.err}>{error}</Text> : null}
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Rooms ({rooms.length})</Text>
         {rooms.map((r) => {
           const isBusyToggle = busy === `toggle:${r.id}`;
           const isBusyDelete = busy === `delete:${r.id}`;
@@ -448,9 +458,10 @@ export default function AdminChatScreen() {
             </Pressable>
           );
         })}
-        {rooms.length === 0 ? <Text style={styles.muted}>No rooms.</Text> : null}
-      </View>
-    </ScrollView>
+          {rooms.length === 0 ? <Text style={styles.muted}>No rooms.</Text> : null}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

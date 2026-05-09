@@ -241,12 +241,12 @@ export default function PlayersScreen() {
     <View style={styles.screen}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
       >
         <ScrollView
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingBottom: 200 }]}
           contentInsetAdjustmentBehavior="automatic"
         >
           <View style={styles.searchRow}>

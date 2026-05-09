@@ -409,7 +409,7 @@ export default function CompleteProfileScreen() {
       <View pointerEvents="none" style={styles.bgGlowB} />
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
       >
         <ScrollView
@@ -418,7 +418,7 @@ export default function CompleteProfileScreen() {
             styles.content,
             {
               paddingTop: Math.max(insets.top, 16) + 12,
-              paddingBottom: Math.max(insets.bottom, 24) + 24,
+              paddingBottom: 200,
             },
           ]}
         >

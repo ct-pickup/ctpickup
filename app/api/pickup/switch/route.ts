@@ -11,10 +11,46 @@ import { insertInvitesForTierRanks, sendPickupInviteSms } from "@/lib/pickup/pic
 import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
 const HUB_REGIONS = new Set(["NY", "CT", "NJ", "MD"]);
+
+type ListCounts = { confirmed: number; standby: number; invites: number; pending_payment: number };
+
+function emptyListCounts(): ListCounts {
+  return { confirmed: 0, standby: 0, invites: 0, pending_payment: 0 };
+}
+
+async function advanceActiveRunsToInProgress(
+  admin: SupabaseClient,
+  runRows: Array<{ id: string; status: string | null; start_at: string | null; is_completed?: boolean | null }>,
+): Promise<void> {
+  const nowMs = Date.now();
+  const ids: string[] = [];
+  for (const r of runRows) {
+    if (r.is_completed) continue;
+    if (String(r.status) !== "active") continue;
+    const t = r.start_at ? Date.parse(String(r.start_at)) : NaN;
+    if (!Number.isFinite(t) || t > nowMs) continue;
+    ids.push(r.id);
+  }
+  if (!ids.length) return;
+  const iso = new Date().toISOString();
+  await admin.from("pickup_runs").update({ status: "in_progress", updated_at: iso }).in("id", ids).eq("status", "active");
+}
+
+async function enrichRunsWithResultFlags(
+  admin: SupabaseClient,
+  runs: Array<Record<string, unknown>>,
+): Promise<Array<Record<string, unknown>>> {
+  const ids = runs.map((r) => String(r.id || "")).filter(Boolean);
+  if (!ids.length) return runs;
+  const res = await admin.from("pickup_run_results").select("run_id").in("run_id", ids);
+  const have = new Set((res.data || []).map((x: { run_id: string }) => x.run_id));
+  return runs.map((r) => ({ ...r, has_result: have.has(String(r.id)) }));
+}
 
 // GET: returns runs list + optional detail (?run_id=...)
 export async function GET(req: Request) {
@@ -42,14 +78,79 @@ export async function GET(req: Request) {
 
   const runsRes = await runsQuery;
 
-  const runs = runsRes.data || [];
+  let runs = runsRes.data || [];
 
-  if (!run_id) return NextResponse.json({ runs });
+  if (!run_id) {
+    await advanceActiveRunsToInProgress(
+      admin,
+      runs as Array<{ id: string; status: string | null; start_at: string | null; is_completed?: boolean | null }>,
+    );
+    runs = runs.map((r) => {
+      const row = r as {
+        id: string;
+        status: string | null;
+        start_at: string | null;
+        is_completed?: boolean | null;
+      };
+      const t = row.start_at ? Date.parse(String(row.start_at)) : NaN;
+      if (row.is_completed) return r;
+      if (String(row.status) !== "active" || !Number.isFinite(t) || t > Date.now()) return r;
+      return { ...r, status: "in_progress" };
+    });
+
+    const runIds = runs.map((r) => r.id).filter((id): id is string => typeof id === "string" && id.length > 0);
+    const countsByRun = new Map<string, ListCounts>();
+    for (const id of runIds) countsByRun.set(id, emptyListCounts());
+
+    if (runIds.length) {
+      const [rsvpsRes, invitesRes] = await Promise.all([
+        admin.from("pickup_run_rsvps").select("run_id,status").in("run_id", runIds),
+        admin.from("pickup_run_invites").select("run_id").in("run_id", runIds),
+      ]);
+
+      for (const row of rsvpsRes.data || []) {
+        const id = row.run_id as string;
+        const c = countsByRun.get(id) ?? emptyListCounts();
+        const st = String(row.status || "");
+        if (st === "confirmed") c.confirmed += 1;
+        else if (st === "standby") c.standby += 1;
+        else if (st === "pending_payment") c.pending_payment += 1;
+        countsByRun.set(id, c);
+      }
+      for (const row of invitesRes.data || []) {
+        const id = row.run_id as string;
+        const c = countsByRun.get(id) ?? emptyListCounts();
+        c.invites += 1;
+        countsByRun.set(id, c);
+      }
+    }
+
+    const enrichedRuns = runs.map((r) => {
+      const id = r.id as string;
+      return { ...r, list_counts: countsByRun.get(id) ?? emptyListCounts() };
+    });
+
+    const withResults = await enrichRunsWithResultFlags(admin, enrichedRuns as Array<Record<string, unknown>>);
+    return NextResponse.json({ runs: withResults });
+  }
+
+  const peek = await admin
+    .from("pickup_runs")
+    .select("id,status,start_at,is_completed")
+    .eq("id", run_id)
+    .maybeSingle();
+  if (peek.data) {
+    await advanceActiveRunsToInProgress(admin, [peek.data as { id: string; status: string | null; start_at: string | null; is_completed?: boolean | null }]);
+  }
 
   const { messages } = await processAutoPickupRun(admin, run_id);
 
   const runRes = await admin.from("pickup_runs").select("*").eq("id", run_id).maybeSingle();
-  const run = runRes.data;
+  const runRaw = runRes.data;
+  const resultPeek = runRaw?.id
+    ? await admin.from("pickup_run_results").select("run_id").eq("run_id", runRaw.id).maybeSingle()
+    : { data: null };
+  const run = runRaw ? { ...runRaw, has_result: !!resultPeek.data } : null;
 
   const slotsRes = await admin
     .from("pickup_run_time_slots")
@@ -149,6 +250,7 @@ type Action =
   | "open_wave1"
   | "launch_outreach"
   | "finalize_slot"
+  | "start_run_now"
   | "edit_run"
   | "post_update"
   | "cancel_run";
@@ -385,6 +487,49 @@ export async function POST(req: Request) {
         data: { kind: "pickup_finalized", run_id },
       });
     }
+
+    revalidatePath("/pickup");
+    revalidatePath("/status/pickup");
+
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === "start_run_now") {
+    const run_id = String(body.run_id || "");
+    if (!run_id) return NextResponse.json({ error: "Missing run_id" }, { status: 400 });
+
+    const runRes = await admin.from("pickup_runs").select("id,status,start_at,is_completed").eq("id", run_id).maybeSingle();
+    const row = runRes.data;
+    if (!row) return NextResponse.json({ error: "Run not found" }, { status: 404 });
+    if (row.is_completed) return NextResponse.json({ error: "Run is already completed." }, { status: 400 });
+
+    const st = String(row.status || "");
+    if (st === "in_progress") return NextResponse.json({ ok: true });
+    if (st !== "active") {
+      return NextResponse.json({ error: "Run must be confirmed (active) before it can start." }, { status: 400 });
+    }
+
+    const startMs = row.start_at ? Date.parse(String(row.start_at)) : NaN;
+    if (!Number.isFinite(startMs)) {
+      return NextResponse.json({ error: "Run needs a scheduled kickoff time." }, { status: 400 });
+    }
+
+    const now = Date.now();
+    const oneH = 60 * 60 * 1000;
+    if (now < startMs - oneH || now > startMs + oneH) {
+      return NextResponse.json(
+        { error: "Start Run Now is only available within 1 hour before or after kickoff." },
+        { status: 400 },
+      );
+    }
+
+    const up = await admin
+      .from("pickup_runs")
+      .update({ status: "in_progress", updated_at: new Date().toISOString() })
+      .eq("id", run_id)
+      .eq("status", "active");
+
+    if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
 
     revalidatePath("/pickup");
     revalidatePath("/status/pickup");

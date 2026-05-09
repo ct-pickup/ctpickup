@@ -321,9 +321,13 @@ export default function EsportsPlayScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={styles.heroTitle}>Tournament play</Text>
-      <Text style={styles.heroSubtitle}>Report results and confirm scores</Text>
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: 200 }]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.heroTitle}>Tournament play</Text>
+        <Text style={styles.heroSubtitle}>Report results and confirm scores</Text>
 
       {matches.length === 0 ? (
         <Text style={styles.empty}>No matches yet for this tournament</Text>
@@ -423,7 +427,7 @@ export default function EsportsPlayScreen() {
       )}
 
       <Modal visible={reportModalMatch != null} animationType="slide" transparent onRequestClose={() => setReportModalMatch(null)}>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.modalBackdrop}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.modalBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => !submitBusy && setReportModalMatch(null)} />
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Report result</Text>
@@ -470,7 +474,8 @@ export default function EsportsPlayScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

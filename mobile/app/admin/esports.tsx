@@ -338,14 +338,17 @@ export default function AdminEsportsScreen() {
   const listEmpty = useMemo(() => !loading && tournaments.length === 0, [loading, tournaments.length]);
 
   return (
-    <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.rowBetween}>
-          <Text style={styles.h1}>Esports</Text>
-          <Pressable onPress={reload} style={({ pressed }) => [styles.chip, pressed && { opacity: 0.85 }]}>
-            <Text style={styles.chipText}>Refresh</Text>
-          </Pressable>
-        </View>
+    <KeyboardAvoidingView
+      style={[styles.screen, { paddingBottom: insets.bottom }]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 200 }]} keyboardShouldPersistTaps="handled">
+          <View style={styles.rowBetween}>
+            <Text style={styles.h1}>Esports</Text>
+            <Pressable onPress={reload} style={({ pressed }) => [styles.chip, pressed && { opacity: 0.85 }]}>
+              <Text style={styles.chipText}>Refresh</Text>
+            </Pressable>
+          </View>
 
         <Text style={styles.lead}>
           Create and edit digital tournaments (ISO datetimes). Use Upcoming / Start / Complete to control the public
@@ -455,7 +458,7 @@ export default function AdminEsportsScreen() {
         <View style={styles.modalRoot}>
           <Pressable style={styles.modalDismiss} onPress={closeModal} accessibilityLabel="Dismiss" />
           <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
             keyboardVerticalOffset={insets.top}
             style={styles.modalKb}
           >
@@ -471,7 +474,11 @@ export default function AdminEsportsScreen() {
                   <FontAwesome name="times" size={18} color="#fff" />
                 </Pressable>
               </View>
-              <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 200 }}
+              >
                 <FormFields form={editForm} setForm={setEditForm} showStatusPicker />
                 <Pressable
                   onPress={() => void onSaveEdit()}
@@ -501,7 +508,7 @@ export default function AdminEsportsScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

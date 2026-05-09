@@ -407,10 +407,10 @@ export default function EsportsRegisterScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.screen}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 200 }]} keyboardShouldPersistTaps="handled">
         <Text style={styles.kicker}>ESPORTS · ENTRY</Text>
         <Text style={styles.title}>{tournament.title ?? "Esports tournament"}</Text>
         <Text style={styles.subTitle}>

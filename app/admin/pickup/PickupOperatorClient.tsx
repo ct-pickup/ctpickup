@@ -11,10 +11,22 @@ import {
 } from "@/components/admin/operator/OperatorSections";
 import { PromotePickupRunButton } from "@/components/admin/PromotePickupRunButton";
 import type { PickupOperatorBundle } from "@/lib/admin/operatorContext";
+import {
+  defaultPickupWorkflowTab,
+  derivePickupLifecycleStage,
+  pickupLifecycleStageLabel,
+  pickupWorkflowTabForRun,
+  showEndRunButton,
+  showMarkResultButton,
+  showStartRunNowButton,
+  type PickupWorkflowTab,
+} from "@/lib/admin/pickupRunLifecycle";
 import { labelPickupRunStatus } from "@/lib/admin/staffStatusLabels";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { useCallback, useEffect, useMemo, useState } from "react";
+
+const LIME = "#a3e635";
 
 function fmt(dt: string | null) {
   if (!dt) return "—";
@@ -64,12 +76,19 @@ function pickupNextSteps(
   return out;
 }
 
+type PickupSwitchDetail = {
+  run?: Record<string, unknown> | null;
+  slots?: Array<Record<string, unknown>>;
+  counts?: Record<string, number>;
+  auto_status?: Record<string, unknown>;
+};
+
 export default function PickupOperatorClient() {
   const { supabase, isReady } = useSupabaseBrowser();
   const [token, setToken] = useState<string | null>(null);
-  const [runs, setRuns] = useState<any[]>([]);
+  const [runs, setRuns] = useState<Record<string, unknown>[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string>("");
-  const [detail, setDetail] = useState<any | null>(null);
+  const [detail, setDetail] = useState<PickupSwitchDetail | null>(null);
   const [opCtx, setOpCtx] = useState<PickupOperatorBundle | null>(null);
   const [opCtxErr, setOpCtxErr] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -79,6 +98,7 @@ export default function PickupOperatorClient() {
     handles: string[];
     dm_template: string;
   } | null>(null);
+  const [workflowTabOverride, setWorkflowTabOverride] = useState<PickupWorkflowTab | null>(null);
 
   const [title, setTitle] = useState("CT Pickup Run");
   const [runType, setRunType] = useState<"select" | "public">("select");
@@ -111,7 +131,7 @@ export default function PickupOperatorClient() {
       const r = await fetch(`/api/pickup/switch?run_id=${encodeURIComponent(runId)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const j = await r.json();
+      const j = (await r.json()) as PickupSwitchDetail;
       setDetail(j);
       setFinalSlotId("");
     },
@@ -201,9 +221,48 @@ export default function PickupOperatorClient() {
     }
   }
 
+  async function endRunNow(runId: string) {
+    if (!token) return;
+    if (!window.confirm("End this pickup run? You can mark results after.")) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await fetch("/api/admin/pickup/end-run", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ run_id: runId }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setMsg(j?.error || "Could not end run.");
+        return;
+      }
+      setMsg("Run ended.");
+      await load();
+      if (selectedRunId === runId) await loadDetail(runId);
+      await loadOperatorCtx();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const selectedRun = useMemo(() => detail?.run || null, [detail]);
   const auto = detail?.auto_status;
   const hubRun = runs.find((r: { is_current?: boolean }) => r.is_current);
+
+  const workflowTabCounts = useMemo(() => {
+    const c = { upcoming: 0, in_progress: 0, completed: 0 };
+    for (const r of runs) {
+      c[pickupWorkflowTabForRun(r)]++;
+    }
+    return c;
+  }, [runs]);
+
+  const workflowTab = workflowTabOverride ?? defaultPickupWorkflowTab(workflowTabCounts);
+
+  const visibleRuns = useMemo(() => {
+    return runs.filter((r) => pickupWorkflowTabForRun(r) === workflowTab);
+  }, [runs, workflowTab]);
 
   const launchBlockedReason = useMemo(() => {
     if (!selectedRun) return "Select a run.";
@@ -389,8 +448,133 @@ export default function PickupOperatorClient() {
         </section>
 
         <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="text-xs font-semibold uppercase tracking-wider text-white/45">Pickup run</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-white/45">Pickup runs</div>
+          <div className="flex flex-wrap gap-2">
+            {(["upcoming", "in_progress", "completed"] as const).map((tab) => {
+              const active = workflowTab === tab;
+              const count = workflowTabCounts[tab];
+              const label =
+                tab === "upcoming" ? "Upcoming" : tab === "in_progress" ? "In progress" : "Completed";
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setWorkflowTabOverride(tab)}
+                  className={[
+                    "rounded-full border px-4 py-2 text-xs font-semibold transition-colors",
+                    active
+                      ? "bg-[#a3e63514] text-[#d9f99d]"
+                      : "border-white/15 bg-black/30 text-white/70 hover:border-white/25",
+                  ].join(" ")}
+                  style={active ? { borderColor: `${LIME}55` } : undefined}
+                >
+                  {label}
+                  <span className="ml-1.5 text-white/45">({count})</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {visibleRuns.length === 0 ? (
+              <div className="rounded-lg border border-white/10 bg-black/25 px-4 py-6 text-sm text-white/55 sm:col-span-2">
+                No runs in this tab.
+              </div>
+            ) : (
+              visibleRuns.map((r: Record<string, unknown>) => {
+                const id = String(r.id || "");
+                if (!id) return null;
+                const selected = selectedRunId === id;
+                const stage = derivePickupLifecycleStage({
+                  status: r.status as string,
+                  is_current: !!r.is_current,
+                  outreach_started_at: r.outreach_started_at as string | null,
+                  is_completed: r.is_completed === true,
+                  has_result: r.has_result === true,
+                });
+                const pillLabel = pickupLifecycleStageLabel(stage);
+                return (
+                  <div
+                    key={id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedRunId(id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedRunId(id);
+                      }
+                    }}
+                    className={[
+                      "cursor-pointer rounded-xl border p-4 text-left transition-colors",
+                      selected
+                        ? "border-[#a3e63555] bg-[#a3e63510]"
+                        : "border-white/10 bg-black/30 hover:border-white/20",
+                    ].join(" ")}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold text-white">{String(r.title || "Pickup run")}</div>
+                        <div className="mt-1 text-xs text-white/50">{fmt(r.start_at as string | null)}</div>
+                      </div>
+                      {r.is_current ? (
+                        <span className="shrink-0 rounded-full border border-[#a3e63544] bg-[#a3e63512] px-2 py-0.5 text-[10px] font-bold text-[#d9f99d]">
+                          HUB
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-3 inline-flex rounded-full border border-white/12 bg-black/40 px-3 py-1 text-[11px] font-semibold text-white/85">
+                      {pillLabel}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {showStartRunNowButton({
+                        status: r.status as string,
+                        is_completed: r.is_completed === true,
+                        start_at: r.start_at as string | null,
+                      }) ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void act({ action: "start_run_now", run_id: id });
+                          }}
+                          className="rounded-full border border-[#a3e63555] bg-[#a3e63514] px-3 py-1.5 text-[11px] font-semibold text-[#d9f99d] disabled:opacity-50"
+                        >
+                          Start Run Now
+                        </button>
+                      ) : null}
+                      {showEndRunButton({ status: r.status as string, is_completed: r.is_completed === true }) ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void endRunNow(id);
+                          }}
+                          className="rounded-full border border-red-400/40 bg-red-500/10 px-3 py-1.5 text-[11px] font-semibold text-red-200 disabled:opacity-50"
+                        >
+                          End Run
+                        </button>
+                      ) : null}
+                      {showMarkResultButton({ is_completed: r.is_completed === true }) ? (
+                        <Link
+                          href={`/admin/run-result?run_id=${encodeURIComponent(id)}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center rounded-full bg-[#a3e635] px-3 py-1.5 text-[11px] font-semibold text-black"
+                        >
+                          Mark Result
+                        </Link>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
+            <div className="text-xs font-semibold uppercase tracking-wider text-white/45">Selected run</div>
             <select
               value={selectedRunId}
               onChange={(e) => setSelectedRunId(e.target.value)}

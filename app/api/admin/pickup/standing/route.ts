@@ -25,6 +25,19 @@ function parseFilter(raw: string | null): ListFilter {
   return "all";
 }
 
+function supabaseErrorJson(err: unknown) {
+  if (!err || typeof err !== "object") return { error: "load_failed" };
+  const e = err as Record<string, unknown>;
+  const message =
+    typeof e.message === "string" && e.message.trim() ? e.message.trim() : "load_failed";
+  return {
+    error: message,
+    code: typeof e.code === "string" ? e.code : undefined,
+    details: typeof e.details === "string" ? e.details : undefined,
+    hint: typeof e.hint === "string" ? e.hint : undefined,
+  };
+}
+
 type ProfileRow = {
   id: string;
   first_name: string | null;
@@ -196,8 +209,8 @@ export async function GET(req: Request) {
       .range(offset, offset + limit - 1);
 
     if (stErr) {
-      console.error("[admin/pickup/standing] standing slice", stErr.message);
-      return NextResponse.json({ error: "load_failed" }, { status: 500 });
+      console.error("[admin/pickup/standing] standing slice", stErr);
+      return NextResponse.json(supabaseErrorJson(stErr), { status: 500 });
     }
 
     const ids = (stRows || []).map((r) => r.user_id as string);
@@ -213,8 +226,8 @@ export async function GET(req: Request) {
 
     const { data: pRows, error: pErr } = await svc.from("profiles").select(profSelect).in("id", ids);
     if (pErr) {
-      console.error("[admin/pickup/standing] profiles", pErr.message);
-      return NextResponse.json({ error: "load_failed" }, { status: 500 });
+      console.error("[admin/pickup/standing] profiles", pErr);
+      return NextResponse.json(supabaseErrorJson(pErr), { status: 500 });
     }
 
     const pBy = new Map((pRows || []).map((p) => [(p as ProfileRow).id, p as ProfileRow]));
@@ -254,8 +267,8 @@ export async function GET(req: Request) {
       .limit(1500);
 
     if (apErr) {
-      console.error("[admin/pickup/standing] approved list", apErr.message);
-      return NextResponse.json({ error: "load_failed" }, { status: 500 });
+      console.error("[admin/pickup/standing] approved list", apErr);
+      return NextResponse.json(supabaseErrorJson(apErr), { status: 500 });
     }
 
     const missing = (allApproved || [])
@@ -288,8 +301,8 @@ export async function GET(req: Request) {
       .limit(1500);
 
     if (apErr) {
-      console.error("[admin/pickup/standing] good filter", apErr.message);
-      return NextResponse.json({ error: "load_failed" }, { status: 500 });
+      console.error("[admin/pickup/standing] good filter", apErr);
+      return NextResponse.json(supabaseErrorJson(apErr), { status: 500 });
     }
 
     const list = (approved || []) as ProfileRow[];
@@ -340,8 +353,8 @@ export async function GET(req: Request) {
 
   const { data: profData, error: pErr } = await profQuery;
   if (pErr) {
-    console.error("[admin/pickup/standing] profiles", pErr.message);
-    return NextResponse.json({ error: "load_failed" }, { status: 500 });
+    console.error("[admin/pickup/standing] profiles", pErr);
+    return NextResponse.json(supabaseErrorJson(pErr), { status: 500 });
   }
 
   profs = (profData || []) as ProfileRow[];

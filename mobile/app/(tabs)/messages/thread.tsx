@@ -200,7 +200,7 @@ export default function TeamChatThreadScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.screen}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 84 : 0}
     >
       <ScrollView
@@ -262,7 +262,7 @@ export default function TeamChatThreadScreen() {
         }}
         data={messages}
         keyExtractor={(m) => m.id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: 200 }]}
         onContentSizeChange={() => {
           try {
             listRef.current?.scrollToEnd({ animated: false });

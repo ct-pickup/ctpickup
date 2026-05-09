@@ -13,7 +13,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Pressable,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -297,179 +299,189 @@ export default function AdminChatRoomScreen() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={styles.rowBetween}>
-        <Text style={styles.h1}>Room</Text>
-        <Pressable onPress={reload} style={({ pressed }) => [styles.chip, pressed && { opacity: 0.85 }]}>
-          <Text style={styles.chipText}>Refresh</Text>
-        </Pressable>
-      </View>
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: 200 }]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.rowBetween}>
+          <Text style={styles.h1}>Room</Text>
+          <Pressable onPress={reload} style={({ pressed }) => [styles.chip, pressed && { opacity: 0.85 }]}>
+            <Text style={styles.chipText}>Refresh</Text>
+          </Pressable>
+        </View>
 
-      <Text style={styles.muted}>
-        {room ? `${room.title} · ${room.slug}` : "—"} · id: {roomId || "—"}
-      </Text>
+        <Text style={styles.muted}>
+          {room ? `${room.title} · ${room.slug}` : "—"} · id: {roomId || "—"}
+        </Text>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Room controls</Text>
-        {loading && !room ? <ActivityIndicator color="#fff" style={{ marginTop: 12 }} /> : null}
-        {roomLoadErr ? <Text style={styles.err}>{roomLoadErr}</Text> : null}
-        {room ? (
-          <>
-            <View style={[styles.rowBetween, { marginTop: 12 }]}>
-              <Text style={styles.labelInline}>Active (is_active)</Text>
-              <Switch
-                value={draftActive}
-                onValueChange={setDraftActive}
-                trackColor={{ false: "rgba(255,255,255,0.18)", true: LIME }}
-                thumbColor="#f4f4f5"
-              />
-            </View>
-            <View style={[styles.rowBetween, { marginTop: 12 }]}>
-              <Text style={styles.labelInline}>Announcements only</Text>
-              <Switch
-                value={draftAnnOnly}
-                onValueChange={setDraftAnnOnly}
-                trackColor={{ false: "rgba(255,255,255,0.18)", true: LIME }}
-                thumbColor="#f4f4f5"
-              />
-            </View>
-            <Text style={styles.label}>closes_at (ISO, optional)</Text>
-            <TextInput
-              style={styles.input}
-              value={draftClosesAt}
-              onChangeText={setDraftClosesAt}
-              placeholder="2026-05-04T18:00:00.000Z or leave empty"
-              placeholderTextColor="rgba(255,255,255,0.35)"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <Pressable
-              onPress={() => void saveRoomControls()}
-              disabled={busyRoomSave}
-              style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busyRoomSave && styles.disabled]}
-            >
-              <Text style={styles.primaryText}>{busyRoomSave ? "Saving..." : "Save"}</Text>
-            </Pressable>
-          </>
-        ) : !roomLoadErr && !loading ? (
-          <Text style={styles.muted}>No room data.</Text>
-        ) : null}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Recent messages ({messages.length})</Text>
-        <Text style={styles.bodyMuted}>Last 20 in this room (oldest first).</Text>
-        {msgErr ? <Text style={styles.err}>{msgErr}</Text> : null}
-        {messages.length === 0 && !msgErr ? <Text style={styles.muted}>None</Text> : null}
-        {messages.map((m) => {
-          const delBusy = busy === `delmsg:${m.id}`;
-          return (
-            <View key={m.id} style={styles.msgRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.msgName}>{m.sender_display_name || "—"}</Text>
-                <Text style={styles.msgBody}>{m.body}</Text>
-                <Text style={styles.msgTime}>{formatMsgTime(m.created_at)}</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Room controls</Text>
+          {loading && !room ? <ActivityIndicator color="#fff" style={{ marginTop: 12 }} /> : null}
+          {roomLoadErr ? <Text style={styles.err}>{roomLoadErr}</Text> : null}
+          {room ? (
+            <>
+              <View style={[styles.rowBetween, { marginTop: 12 }]}>
+                <Text style={styles.labelInline}>Active (is_active)</Text>
+                <Switch
+                  value={draftActive}
+                  onValueChange={setDraftActive}
+                  trackColor={{ false: "rgba(255,255,255,0.18)", true: LIME }}
+                  thumbColor="#f4f4f5"
+                />
               </View>
-              <Pressable
-                onPress={() => confirmDeleteMessage(m)}
-                disabled={delBusy}
-                style={({ pressed }) => [styles.smallChip, styles.smallChipDanger, pressed && { opacity: 0.85 }, delBusy && styles.disabled]}
-              >
-                <Text style={styles.smallChipDangerText}>{delBusy ? "..." : "Delete"}</Text>
-              </Pressable>
-            </View>
-          );
-        })}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Mute user</Text>
-        <Text style={styles.label}>Find user</Text>
-        <TextInput
-          style={styles.input}
-          value={profileQuery}
-          onChangeText={setProfileQuery}
-          placeholder="First name, last name, or email"
-          placeholderTextColor="rgba(255,255,255,0.35)"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        {profileSearchBusy ? <ActivityIndicator color="#fff" style={{ marginTop: 8 }} /> : null}
-        {profileHits.length > 0 ? (
-          <View style={styles.hitBox}>
-            {profileHits.map((p) => (
-              <Pressable
-                key={p.id}
-                onPress={() => pickProfile(p)}
-                style={({ pressed }) => [styles.hitRow, pressed && { opacity: 0.85 }]}
-              >
-                <Text style={styles.hitTitle}>{displayName(p)}</Text>
-                <Text style={styles.hitSub}>{p.email || p.id}</Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-        <Text style={styles.label}>User id</Text>
-        <TextInput
-          style={styles.input}
-          value={userId}
-          onChangeText={setUserId}
-          placeholder="Supabase user id (uuid)"
-          placeholderTextColor="rgba(255,255,255,0.35)"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        <Text style={styles.label}>Reason (optional)</Text>
-        <TextInput
-          style={styles.input}
-          value={reason}
-          onChangeText={setReason}
-          placeholder="Spam, abuse…"
-          placeholderTextColor="rgba(255,255,255,0.35)"
-        />
-        <Pressable
-          onPress={() => void muteNow()}
-          disabled={busy === "mute"}
-          style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busy === "mute" && styles.disabled]}
-        >
-          <Text style={styles.primaryText}>{busy === "mute" ? "Muting..." : "Mute"}</Text>
-        </Pressable>
-      </View>
-
-      {error ? <Text style={styles.err}>{error}</Text> : null}
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Active mutes ({mutes.length})</Text>
-        {mutes.length === 0 ? <Text style={styles.muted}>None</Text> : null}
-        {mutes.map((m) => {
-          const isBusy = busy === `unmute:${m.user_id}`;
-          return (
-            <View key={m.id} style={styles.muteRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.muteUser}>{m.user_id}</Text>
-                <Text style={styles.muteSub}>
-                  {m.reason ? `Reason: ${m.reason} · ` : ""}
-                  {m.muted_until ? `Until: ${m.muted_until} · ` : ""}
-                  Created: {m.created_at}
-                </Text>
+              <View style={[styles.rowBetween, { marginTop: 12 }]}>
+                <Text style={styles.labelInline}>Announcements only</Text>
+                <Switch
+                  value={draftAnnOnly}
+                  onValueChange={setDraftAnnOnly}
+                  trackColor={{ false: "rgba(255,255,255,0.18)", true: LIME }}
+                  thumbColor="#f4f4f5"
+                />
               </View>
+              <Text style={styles.label}>closes_at (ISO, optional)</Text>
+              <TextInput
+                style={styles.input}
+                value={draftClosesAt}
+                onChangeText={setDraftClosesAt}
+                placeholder="2026-05-04T18:00:00.000Z or leave empty"
+                placeholderTextColor="rgba(255,255,255,0.35)"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
               <Pressable
-                onPress={() =>
-                  Alert.alert("Unmute?", "Remove the mute for this user in this room.", [
-                    { text: "Nevermind", style: "cancel" },
-                    { text: "Unmute", style: "destructive", onPress: () => void unmute(m.user_id) },
-                  ])
-                }
-                disabled={isBusy}
-                style={({ pressed }) => [styles.smallChip, pressed && { opacity: 0.85 }, isBusy && styles.disabled]}
+                onPress={() => void saveRoomControls()}
+                disabled={busyRoomSave}
+                style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busyRoomSave && styles.disabled]}
               >
-                <Text style={styles.smallChipText}>{isBusy ? "..." : "Unmute"}</Text>
+                <Text style={styles.primaryText}>{busyRoomSave ? "Saving..." : "Save"}</Text>
               </Pressable>
+            </>
+          ) : !roomLoadErr && !loading ? (
+            <Text style={styles.muted}>No room data.</Text>
+          ) : null}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Recent messages ({messages.length})</Text>
+          <Text style={styles.bodyMuted}>Last 20 in this room (oldest first).</Text>
+          {msgErr ? <Text style={styles.err}>{msgErr}</Text> : null}
+          {messages.length === 0 && !msgErr ? <Text style={styles.muted}>None</Text> : null}
+          {messages.map((m) => {
+            const delBusy = busy === `delmsg:${m.id}`;
+            return (
+              <View key={m.id} style={styles.msgRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.msgName}>{m.sender_display_name || "—"}</Text>
+                  <Text style={styles.msgBody}>{m.body}</Text>
+                  <Text style={styles.msgTime}>{formatMsgTime(m.created_at)}</Text>
+                </View>
+                <Pressable
+                  onPress={() => confirmDeleteMessage(m)}
+                  disabled={delBusy}
+                  style={({ pressed }) => [
+                    styles.smallChip,
+                    styles.smallChipDanger,
+                    pressed && { opacity: 0.85 },
+                    delBusy && styles.disabled,
+                  ]}
+                >
+                  <Text style={styles.smallChipDangerText}>{delBusy ? "..." : "Delete"}</Text>
+                </Pressable>
+              </View>
+            );
+          })}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Mute user</Text>
+          <Text style={styles.label}>Find user</Text>
+          <TextInput
+            style={styles.input}
+            value={profileQuery}
+            onChangeText={setProfileQuery}
+            placeholder="First name, last name, or email"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {profileSearchBusy ? <ActivityIndicator color="#fff" style={{ marginTop: 8 }} /> : null}
+          {profileHits.length > 0 ? (
+            <View style={styles.hitBox}>
+              {profileHits.map((p) => (
+                <Pressable
+                  key={p.id}
+                  onPress={() => pickProfile(p)}
+                  style={({ pressed }) => [styles.hitRow, pressed && { opacity: 0.85 }]}
+                >
+                  <Text style={styles.hitTitle}>{displayName(p)}</Text>
+                  <Text style={styles.hitSub}>{p.email || p.id}</Text>
+                </Pressable>
+              ))}
             </View>
-          );
-        })}
-      </View>
-    </ScrollView>
+          ) : null}
+          <Text style={styles.label}>User id</Text>
+          <TextInput
+            style={styles.input}
+            value={userId}
+            onChangeText={setUserId}
+            placeholder="Supabase user id (uuid)"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Text style={styles.label}>Reason (optional)</Text>
+          <TextInput
+            style={styles.input}
+            value={reason}
+            onChangeText={setReason}
+            placeholder="Spam, abuse…"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+          />
+          <Pressable
+            onPress={() => void muteNow()}
+            disabled={busy === "mute"}
+            style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busy === "mute" && styles.disabled]}
+          >
+            <Text style={styles.primaryText}>{busy === "mute" ? "Muting..." : "Mute"}</Text>
+          </Pressable>
+        </View>
+
+        {error ? <Text style={styles.err}>{error}</Text> : null}
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Active mutes ({mutes.length})</Text>
+          {mutes.length === 0 ? <Text style={styles.muted}>None</Text> : null}
+          {mutes.map((m) => {
+            const isBusy = busy === `unmute:${m.user_id}`;
+            return (
+              <View key={m.id} style={styles.muteRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.muteUser}>{m.user_id}</Text>
+                  <Text style={styles.muteSub}>
+                    {m.reason ? `Reason: ${m.reason} · ` : ""}
+                    {m.muted_until ? `Until: ${m.muted_until} · ` : ""}
+                    Created: {m.created_at}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() =>
+                    Alert.alert("Unmute?", "Remove the mute for this user in this room.", [
+                      { text: "Nevermind", style: "cancel" },
+                      { text: "Unmute", style: "destructive", onPress: () => void unmute(m.user_id) },
+                    ])
+                  }
+                  disabled={isBusy}
+                  style={({ pressed }) => [styles.smallChip, pressed && { opacity: 0.85 }, isBusy && styles.disabled]}
+                >
+                  <Text style={styles.smallChipText}>{isBusy ? "..." : "Unmute"}</Text>
+                </Pressable>
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -13,7 +13,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Pressable,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -201,312 +203,315 @@ export default function AdminTournamentScreen() {
   }
 
   return (
-    <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.rowBetween}>
-          <Text style={styles.h1}>Tournaments</Text>
-          <Pressable onPress={reload} style={({ pressed }) => [styles.chip, pressed && { opacity: 0.85 }]}>
-            <Text style={styles.chipText}>Refresh</Text>
-          </Pressable>
-        </View>
-
-        <Text style={styles.lead}>
-          Outdoor / captain hub same controls as the web admin. Filter drafts by state live hub is one tournament at
-          a time.
-        </Text>
-
-        <Text style={styles.segmentLabel}>STATE (LIST FILTER)</Text>
-        <View style={styles.segmentRow}>
-          {SERVICE_REGIONS.map(({ code }) => {
-            const active = region === code;
-            return (
-              <Pressable
-                key={code}
-                onPress={() => setRegion(code)}
-                style={({ pressed }) => [styles.segment, active && styles.segmentActive, pressed && { opacity: 0.9 }]}
-              >
-                <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{code}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <Text style={styles.filterHint}>Showing tournaments for {serviceRegionName(region)}.</Text>
-
-        {activeTournament ? (
-          <View style={styles.liveBanner}>
-            <FontAwesome name="star" size={14} color={LIME} />
-            <Text style={styles.liveBannerText}>
-              Live on hub: <Text style={styles.liveBannerStrong}>{activeTitle || "—"}</Text>
-              {activeTournament.service_region ? ` · ${s(activeTournament.service_region)}` : ""}
-            </Text>
+    <KeyboardAvoidingView
+      style={[styles.screen, { paddingBottom: insets.bottom }]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 200 }]} keyboardShouldPersistTaps="handled">
+          <View style={styles.rowBetween}>
+            <Text style={styles.h1}>Tournaments</Text>
+            <Pressable onPress={reload} style={({ pressed }) => [styles.chip, pressed && { opacity: 0.85 }]}>
+              <Text style={styles.chipText}>Refresh</Text>
+            </Pressable>
           </View>
-        ) : null}
 
-        {hasLive ? (
-          <Pressable
-            onPress={() =>
-              Alert.alert("Take hub offline?", "Players will not see a live tournament on the public pages.", [
-                { text: "Cancel", style: "cancel" },
-                { text: "Take offline", style: "destructive", onPress: () => void setHub(null) },
-              ])
-            }
-            disabled={busy !== null}
-            style={({ pressed }) => [styles.dangerOutline, pressed && { opacity: 0.9 }, busy !== null && styles.disabled]}
-          >
-            <Text style={styles.dangerOutlineText}>{busy === "hub:clear" ? "Working…" : "Take all offline"}</Text>
-          </Pressable>
-        ) : null}
+          <Text style={styles.lead}>
+            Outdoor / captain hub same controls as the web admin. Filter drafts by state live hub is one tournament at
+            a time.
+          </Text>
 
-        {loading ? <ActivityIndicator color="#fff" style={{ marginTop: 16 }} /> : null}
-        {error ? <Text style={styles.err}>{error}</Text> : null}
-        {panelError ? <Text style={styles.warn}>{panelError}</Text> : null}
+          <Text style={styles.segmentLabel}>STATE (LIST FILTER)</Text>
+          <View style={styles.segmentRow}>
+            {SERVICE_REGIONS.map(({ code }) => {
+              const active = region === code;
+              return (
+                <Pressable
+                  key={code}
+                  onPress={() => setRegion(code)}
+                  style={({ pressed }) => [styles.segment, active && styles.segmentActive, pressed && { opacity: 0.9 }]}
+                >
+                  <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{code}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={styles.filterHint}>Showing tournaments for {serviceRegionName(region)}.</Text>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Tournaments ({tournaments.length})</Text>
-          {tournaments.map((t) => {
-            const isLive = !!t.is_active;
-            const isHubBusy = busy === `hub:${t.id}`;
-            const isDelBusy = busy === `del:${t.id}`;
-            return (
-              <View key={t.id} style={styles.roomRow}>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.roomTitle}>
-                    {t.title || "Untitled"}
-                    {isLive ? <Text style={styles.liveBadge}> · LIVE</Text> : null}
-                  </Text>
-                  <Text style={styles.roomSub} numberOfLines={2}>
-                    {t.slug || "—"} · {fmtMeta(t)}
-                  </Text>
-                </View>
-                <View style={styles.roomActions}>
-                  {!isLive ? (
+          {activeTournament ? (
+            <View style={styles.liveBanner}>
+              <FontAwesome name="star" size={14} color={LIME} />
+              <Text style={styles.liveBannerText}>
+                Live on hub: <Text style={styles.liveBannerStrong}>{activeTitle || "—"}</Text>
+                {activeTournament.service_region ? ` · ${s(activeTournament.service_region)}` : ""}
+              </Text>
+            </View>
+          ) : null}
+
+          {hasLive ? (
+            <Pressable
+              onPress={() =>
+                Alert.alert("Take hub offline?", "Players will not see a live tournament on the public pages.", [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Take offline", style: "destructive", onPress: () => void setHub(null) },
+                ])
+              }
+              disabled={busy !== null}
+              style={({ pressed }) => [styles.dangerOutline, pressed && { opacity: 0.9 }, busy !== null && styles.disabled]}
+            >
+              <Text style={styles.dangerOutlineText}>{busy === "hub:clear" ? "Working…" : "Take all offline"}</Text>
+            </Pressable>
+          ) : null}
+
+          {loading ? <ActivityIndicator color="#fff" style={{ marginTop: 16 }} /> : null}
+          {error ? <Text style={styles.err}>{error}</Text> : null}
+          {panelError ? <Text style={styles.warn}>{panelError}</Text> : null}
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Tournaments ({tournaments.length})</Text>
+            {tournaments.map((t) => {
+              const isLive = !!t.is_active;
+              const isHubBusy = busy === `hub:${t.id}`;
+              const isDelBusy = busy === `del:${t.id}`;
+              return (
+                <View key={t.id} style={styles.roomRow}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.roomTitle}>
+                      {t.title || "Untitled"}
+                      {isLive ? <Text style={styles.liveBadge}> · LIVE</Text> : null}
+                    </Text>
+                    <Text style={styles.roomSub} numberOfLines={2}>
+                      {t.slug || "—"} · {fmtMeta(t)}
+                    </Text>
+                  </View>
+                  <View style={styles.roomActions}>
+                    {!isLive ? (
+                      <Pressable
+                        onPress={() =>
+                          Alert.alert("Make live?", `Set “${t.title}” as the only live tournament on the hub?`, [
+                            { text: "Cancel", style: "cancel" },
+                            { text: "Make live", onPress: () => void setHub(t.id) },
+                          ])
+                        }
+                        disabled={busy !== null}
+                        style={({ pressed }) => [
+                          styles.smallChip,
+                          styles.smallChipPrimary,
+                          pressed && { opacity: 0.85 },
+                          busy !== null && styles.disabled,
+                        ]}
+                      >
+                        <Text style={styles.smallChipPrimaryText}>{isHubBusy ? "…" : "Make live"}</Text>
+                      </Pressable>
+                    ) : (
+                      <View style={styles.smallChipMuted}>
+                        <Text style={styles.smallChipMutedText}>Hub</Text>
+                      </View>
+                    )}
                     <Pressable
                       onPress={() =>
-                        Alert.alert("Make live?", `Set “${t.title}” as the only live tournament on the hub?`, [
+                        Alert.alert("Delete tournament?", "This cannot be undone.", [
                           { text: "Cancel", style: "cancel" },
-                          { text: "Make live", onPress: () => void setHub(t.id) },
+                          { text: "Delete", style: "destructive", onPress: () => void deleteTournament(t.id) },
                         ])
                       }
                       disabled={busy !== null}
                       style={({ pressed }) => [
                         styles.smallChip,
-                        styles.smallChipPrimary,
+                        styles.smallChipDanger,
                         pressed && { opacity: 0.85 },
                         busy !== null && styles.disabled,
                       ]}
                     >
-                      <Text style={styles.smallChipPrimaryText}>{isHubBusy ? "…" : "Make live"}</Text>
+                      <Text style={styles.smallChipDangerText}>{isDelBusy ? "…" : "Delete"}</Text>
                     </Pressable>
-                  ) : (
-                    <View style={styles.smallChipMuted}>
-                      <Text style={styles.smallChipMutedText}>Hub</Text>
-                    </View>
-                  )}
+                  </View>
+                </View>
+              );
+            })}
+            {tournaments.length === 0 && !loading ? <Text style={styles.muted}>No tournaments in this state yet.</Text> : null}
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Create tournament</Text>
+            <Text style={styles.fieldHint}>Creates a draft (not live). Slug is optional we derive from title if empty.</Text>
+            <Text style={styles.label}>Title</Text>
+            <TextInput
+              style={styles.input}
+              value={createTitle}
+              onChangeText={setCreateTitle}
+              placeholder="Spring invitational"
+              placeholderTextColor="rgba(255,255,255,0.35)"
+            />
+            <Text style={styles.label}>URL name (slug)</Text>
+            <TextInput
+              style={styles.input}
+              value={createSlug}
+              onChangeText={setCreateSlug}
+              placeholder="spring-2026"
+              placeholderTextColor="rgba(255,255,255,0.35)"
+              autoCapitalize="none"
+            />
+            <Text style={styles.label}>Service region</Text>
+            <View style={styles.presetRow}>
+              {SERVICE_REGIONS.map(({ code }) => {
+                const active = createRegion === code;
+                return (
                   <Pressable
-                    onPress={() =>
-                      Alert.alert("Delete tournament?", "This cannot be undone.", [
-                        { text: "Cancel", style: "cancel" },
-                        { text: "Delete", style: "destructive", onPress: () => void deleteTournament(t.id) },
-                      ])
-                    }
-                    disabled={busy !== null}
-                    style={({ pressed }) => [
-                      styles.smallChip,
-                      styles.smallChipDanger,
-                      pressed && { opacity: 0.85 },
-                      busy !== null && styles.disabled,
-                    ]}
+                    key={code}
+                    onPress={() => setCreateRegion(code)}
+                    style={({ pressed }) => [styles.presetChip, active && styles.presetChipActive, pressed && { opacity: 0.9 }]}
                   >
-                    <Text style={styles.smallChipDangerText}>{isDelBusy ? "…" : "Delete"}</Text>
+                    <Text style={[styles.presetChipText, active && styles.presetChipTextActive]}>{code}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={styles.twoCol}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Target teams</Text>
+                <TextInput
+                  style={styles.input}
+                  value={createTarget}
+                  onChangeText={setCreateTarget}
+                  keyboardType="number-pad"
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Official threshold</Text>
+                <TextInput
+                  style={styles.input}
+                  value={createOfficial}
+                  onChangeText={setCreateOfficial}
+                  keyboardType="number-pad"
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                />
+              </View>
+            </View>
+            <Text style={styles.label}>Max teams</Text>
+            <TextInput
+              style={styles.input}
+              value={createMax}
+              onChangeText={setCreateMax}
+              keyboardType="number-pad"
+              placeholderTextColor="rgba(255,255,255,0.35)"
+            />
+            <Pressable
+              onPress={() => void onCreateTournament()}
+              disabled={busy === "create"}
+              style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busy === "create" && styles.disabled]}
+            >
+              <Text style={styles.primaryText}>{busy === "create" ? "Creating…" : "Create draft"}</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Captain claims</Text>
+            {!activeTournament ? (
+              <Text style={styles.muted}>Make a tournament live to load captain claims for the active hub tournament.</Text>
+            ) : captains.length === 0 ? (
+              <Text style={styles.muted}>No captain claims yet.</Text>
+            ) : (
+              captains.map((c) => (
+                <View key={c.id} style={styles.captainRow}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <View style={styles.captainTop}>
+                      <View style={[styles.badge, statusBadgeStyle(c.status)]}>
+                        <Text style={styles.badgeText}>{c.status || "—"}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.captainName}>{c.captain_name || "—"}</Text>
+                    <Text style={styles.captainTeam}>{c.team_name || "—"}</Text>
+                    <Text style={styles.captainMeta}>Submitted {fmtDate(c.claim_submitted_at)}</Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+
+          <View style={styles.card}>
+            <View style={styles.cardHeaderRow}>
+              <Text style={styles.cardTitle}>Tournament signups</Text>
+            </View>
+            <Text style={styles.fieldHint}>Filter affects the list only. Save updates one row at a time.</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChips} keyboardShouldPersistTaps="handled">
+              {(["all", ...DECISIONS] as const).map((f) => {
+                const active = signupFilter === f;
+                const label = f === "all" ? "All" : f;
+                return (
+                  <Pressable
+                    key={f}
+                    onPress={() => setSignupFilter(f)}
+                    style={({ pressed }) => [styles.filterChip, active && styles.filterChipActive, pressed && { opacity: 0.9 }]}
+                  >
+                    <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {submissions.length === 0 ? <Text style={styles.muted}>No signups for this filter.</Text> : null}
+            {submissions.map((r) => {
+              const d = drafts[r.id] ?? {
+                decision: (DECISIONS.includes(r.decision as Decision) ? r.decision : "pending") as Decision,
+                notes: r.notes ?? "",
+                reviewed: !!r.reviewed,
+              };
+              const rowBusy = busy === `sub:${r.id}`;
+              return (
+                <View key={r.id} style={styles.subRow}>
+                  <Text style={styles.subName}>{displaySubmissionName(r)}</Text>
+                  <Text style={styles.subIg}>{r.instagram || "—"}</Text>
+                  <Text style={styles.subDate}>{fmtDate(r.created_at)}</Text>
+                  <Text style={styles.label}>Decision</Text>
+                  <View style={styles.decisionRow}>
+                    {DECISIONS.map((dec) => {
+                      const on = d.decision === dec;
+                      return (
+                        <Pressable
+                          key={dec}
+                          onPress={() => setDraft(r.id, { decision: dec })}
+                          style={({ pressed }) => [
+                            styles.decChip,
+                            on && styles.decChipActive,
+                            pressed && { opacity: 0.9 },
+                          ]}
+                        >
+                          <Text style={[styles.decChipText, on && styles.decChipTextActive]}>{dec}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <Text style={styles.label}>Notes</Text>
+                  <TextInput
+                    style={[styles.input, styles.notesInput]}
+                    value={d.notes}
+                    onChangeText={(t) => setDraft(r.id, { notes: t })}
+                    placeholder="Staff notes"
+                    placeholderTextColor="rgba(255,255,255,0.35)"
+                    multiline
+                  />
+                  <Pressable
+                    onPress={() => setDraft(r.id, { reviewed: !d.reviewed })}
+                    style={styles.reviewRow}
+                  >
+                    <View style={[styles.reviewToggle, d.reviewed && styles.reviewToggleOn]}>
+                      <Text style={styles.reviewToggleText}>{d.reviewed ? "Reviewed" : "Not reviewed"}</Text>
+                    </View>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => void saveSubmission(r.id)}
+                    disabled={rowBusy}
+                    style={({ pressed }) => [styles.saveBtn, pressed && { opacity: 0.9 }, rowBusy && styles.disabled]}
+                  >
+                    <Text style={styles.saveBtnText}>{rowBusy ? "Saving…" : "Save"}</Text>
                   </Pressable>
                 </View>
-              </View>
-            );
-          })}
-          {tournaments.length === 0 && !loading ? <Text style={styles.muted}>No tournaments in this state yet.</Text> : null}
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Create tournament</Text>
-          <Text style={styles.fieldHint}>Creates a draft (not live). Slug is optional we derive from title if empty.</Text>
-          <Text style={styles.label}>Title</Text>
-          <TextInput
-            style={styles.input}
-            value={createTitle}
-            onChangeText={setCreateTitle}
-            placeholder="Spring invitational"
-            placeholderTextColor="rgba(255,255,255,0.35)"
-          />
-          <Text style={styles.label}>URL name (slug)</Text>
-          <TextInput
-            style={styles.input}
-            value={createSlug}
-            onChangeText={setCreateSlug}
-            placeholder="spring-2026"
-            placeholderTextColor="rgba(255,255,255,0.35)"
-            autoCapitalize="none"
-          />
-          <Text style={styles.label}>Service region</Text>
-          <View style={styles.presetRow}>
-            {SERVICE_REGIONS.map(({ code }) => {
-              const active = createRegion === code;
-              return (
-                <Pressable
-                  key={code}
-                  onPress={() => setCreateRegion(code)}
-                  style={({ pressed }) => [styles.presetChip, active && styles.presetChipActive, pressed && { opacity: 0.9 }]}
-                >
-                  <Text style={[styles.presetChipText, active && styles.presetChipTextActive]}>{code}</Text>
-                </Pressable>
               );
             })}
           </View>
-          <View style={styles.twoCol}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Target teams</Text>
-              <TextInput
-                style={styles.input}
-                value={createTarget}
-                onChangeText={setCreateTarget}
-                keyboardType="number-pad"
-                placeholderTextColor="rgba(255,255,255,0.35)"
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Official threshold</Text>
-              <TextInput
-                style={styles.input}
-                value={createOfficial}
-                onChangeText={setCreateOfficial}
-                keyboardType="number-pad"
-                placeholderTextColor="rgba(255,255,255,0.35)"
-              />
-            </View>
-          </View>
-          <Text style={styles.label}>Max teams</Text>
-          <TextInput
-            style={styles.input}
-            value={createMax}
-            onChangeText={setCreateMax}
-            keyboardType="number-pad"
-            placeholderTextColor="rgba(255,255,255,0.35)"
-          />
-          <Pressable
-            onPress={() => void onCreateTournament()}
-            disabled={busy === "create"}
-            style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busy === "create" && styles.disabled]}
-          >
-            <Text style={styles.primaryText}>{busy === "create" ? "Creating…" : "Create draft"}</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Captain claims</Text>
-          {!activeTournament ? (
-            <Text style={styles.muted}>Make a tournament live to load captain claims for the active hub tournament.</Text>
-          ) : captains.length === 0 ? (
-            <Text style={styles.muted}>No captain claims yet.</Text>
-          ) : (
-            captains.map((c) => (
-              <View key={c.id} style={styles.captainRow}>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <View style={styles.captainTop}>
-                    <View style={[styles.badge, statusBadgeStyle(c.status)]}>
-                      <Text style={styles.badgeText}>{c.status || "—"}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.captainName}>{c.captain_name || "—"}</Text>
-                  <Text style={styles.captainTeam}>{c.team_name || "—"}</Text>
-                  <Text style={styles.captainMeta}>Submitted {fmtDate(c.claim_submitted_at)}</Text>
-                </View>
-              </View>
-            ))
-          )}
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>Tournament signups</Text>
-          </View>
-          <Text style={styles.fieldHint}>Filter affects the list only. Save updates one row at a time.</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChips}>
-            {(["all", ...DECISIONS] as const).map((f) => {
-              const active = signupFilter === f;
-              const label = f === "all" ? "All" : f;
-              return (
-                <Pressable
-                  key={f}
-                  onPress={() => setSignupFilter(f)}
-                  style={({ pressed }) => [styles.filterChip, active && styles.filterChipActive, pressed && { opacity: 0.9 }]}
-                >
-                  <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>{label}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
-          {submissions.length === 0 ? <Text style={styles.muted}>No signups for this filter.</Text> : null}
-          {submissions.map((r) => {
-            const d = drafts[r.id] ?? {
-              decision: (DECISIONS.includes(r.decision as Decision) ? r.decision : "pending") as Decision,
-              notes: r.notes ?? "",
-              reviewed: !!r.reviewed,
-            };
-            const rowBusy = busy === `sub:${r.id}`;
-            return (
-              <View key={r.id} style={styles.subRow}>
-                <Text style={styles.subName}>{displaySubmissionName(r)}</Text>
-                <Text style={styles.subIg}>{r.instagram || "—"}</Text>
-                <Text style={styles.subDate}>{fmtDate(r.created_at)}</Text>
-                <Text style={styles.label}>Decision</Text>
-                <View style={styles.decisionRow}>
-                  {DECISIONS.map((dec) => {
-                    const on = d.decision === dec;
-                    return (
-                      <Pressable
-                        key={dec}
-                        onPress={() => setDraft(r.id, { decision: dec })}
-                        style={({ pressed }) => [
-                          styles.decChip,
-                          on && styles.decChipActive,
-                          pressed && { opacity: 0.9 },
-                        ]}
-                      >
-                        <Text style={[styles.decChipText, on && styles.decChipTextActive]}>{dec}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                <Text style={styles.label}>Notes</Text>
-                <TextInput
-                  style={[styles.input, styles.notesInput]}
-                  value={d.notes}
-                  onChangeText={(t) => setDraft(r.id, { notes: t })}
-                  placeholder="Staff notes"
-                  placeholderTextColor="rgba(255,255,255,0.35)"
-                  multiline
-                />
-                <Pressable
-                  onPress={() => setDraft(r.id, { reviewed: !d.reviewed })}
-                  style={styles.reviewRow}
-                >
-                  <View style={[styles.reviewToggle, d.reviewed && styles.reviewToggleOn]}>
-                    <Text style={styles.reviewToggleText}>{d.reviewed ? "Reviewed" : "Not reviewed"}</Text>
-                  </View>
-                </Pressable>
-                <Pressable
-                  onPress={() => void saveSubmission(r.id)}
-                  disabled={rowBusy}
-                  style={({ pressed }) => [styles.saveBtn, pressed && { opacity: 0.9 }, rowBusy && styles.disabled]}
-                >
-                  <Text style={styles.saveBtnText}>{rowBusy ? "Saving…" : "Save"}</Text>
-                </Pressable>
-              </View>
-            );
-          })}
-        </View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

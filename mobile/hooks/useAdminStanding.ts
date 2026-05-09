@@ -94,7 +94,24 @@ export function useAdminStanding(): State {
         });
         if (cancelled) return;
         if (!r.ok) {
-          setError(r.error);
+          const detail =
+            r.detail && typeof r.detail === "object"
+              ? (r.detail as Record<string, unknown>)
+              : null;
+          const detailMsgParts = [
+            typeof detail?.error === "string" ? detail.error : null,
+            typeof detail?.details === "string" ? detail.details : null,
+            typeof detail?.hint === "string" ? detail.hint : null,
+            typeof detail?.code === "string" ? `code=${detail.code}` : null,
+          ].filter(Boolean) as string[];
+
+          console.error("[admin/standing] load failed", {
+            status: r.status,
+            error: r.error,
+            detail: r.detail,
+          });
+
+          setError(detailMsgParts.length ? detailMsgParts.join("\n") : r.error);
           setRows([]);
           return;
         }

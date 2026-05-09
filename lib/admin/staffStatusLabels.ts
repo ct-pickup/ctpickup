@@ -63,6 +63,8 @@ export function labelPickupRunStatus(raw: string | null | undefined): string {
   if (s === "planning") return "Planning";
   if (s === "likely_on") return "Likely on";
   if (s === "active") return "Active";
+  if (s === "in_progress") return "In progress";
+  if (s === "completed") return "Completed";
   if (s === "canceled" || s === "cancelled") return "Canceled";
   if (s === "draft") return "Draft";
   if (!s) return "—";

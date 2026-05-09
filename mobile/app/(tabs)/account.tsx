@@ -19,6 +19,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -426,12 +427,16 @@ export default function AccountScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Account</Text>
-        <Text style={styles.sub}>
-          Email sign-in, push, and your device passcode{"\n"}
-          (same one-time email code Supabase sends you).
-        </Text>
+      <KeyboardAvoidingView style={styles.scroll} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: 200 }]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.title}>Account</Text>
+          <Text style={styles.sub}>
+            Email sign-in, push, and your device passcode{"\n"}
+            (same one-time email code Supabase sends you).
+          </Text>
 
         <View style={[styles.card, styles.cardLime]}>
           <Text style={styles.signedLabel}>SIGNED IN</Text>
@@ -912,7 +917,8 @@ export default function AccountScreen() {
             <Text style={styles.deleteAccountBtnText}>Delete account</Text>
           )}
         </Pressable>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

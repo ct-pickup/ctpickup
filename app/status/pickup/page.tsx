@@ -40,6 +40,11 @@ function formatNY(ts: string) {
 }
 
 function pillForRunStatus(status: string) {
+  if (status === "in_progress")
+    return {
+      label: "In progress",
+      cls: "border-lime-400/30 bg-lime-400/15 text-lime-200",
+    };
   if (status === "active")
     return {
       label: "Active",
@@ -93,7 +98,7 @@ async function loadData() {
     const runRes = await supabase
       .from("pickup_runs")
       .select("id, title, status, start_at, created_at, run_type")
-      .in("status", ["planning", "likely_on", "active"])
+      .in("status", ["planning", "likely_on", "active", "in_progress"])
       .eq("run_type", "public")
       .order("start_at", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false })

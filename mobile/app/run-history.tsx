@@ -68,36 +68,93 @@ export default function RunHistoryScreen() {
       setLoading(true);
       setErr(null);
 
-      const { data, error } = await supabase
+      // NOTE: Don't use Supabase relational selects from assignments into results.
+      // Both tables reference pickup_runs.id via run_id, not each other.
+      const { data: assignments, error: assignmentsError } = await supabase
         .from("pickup_run_team_assignments")
-        .select(
-          "run_id,team,pickup_runs(start_at,location_private,service_region),pickup_run_results(winning_team,player_of_day,defender_of_day,midfielder_of_day,attacker_of_day)",
-        )
+        .select("run_id,team")
         .eq("user_id", tokenUserId)
         .order("created_at", { ascending: false })
         .limit(250);
 
       if (cancelled) return;
-      if (error || !data) {
+      if (assignmentsError || !assignments) {
         setRows([]);
-        setErr(error?.message ?? "Couldn’t load history.");
+        setErr(assignmentsError?.message ?? "Couldn’t load history.");
         setLoading(false);
         return;
       }
 
-      const out: HistoryRow[] = (data as unknown as Array<{
-        run_id: string;
-        team: Team;
-        pickup_runs?: { start_at: string | null; location_private: string | null; service_region: string | null } | null;
-        pickup_run_results?: {
+      const assignmentRows = assignments as unknown as Array<{ run_id: string; team: Team }>;
+      const runIds = Array.from(new Set(assignmentRows.map((r) => r.run_id).filter(Boolean)));
+
+      const CHUNK = 250;
+      const runsById = new Map<
+        string,
+        { start_at: string | null; location_private: string | null; service_region: string | null }
+      >();
+      const resultsByRunId = new Map<
+        string,
+        {
           winning_team: Team | null;
           player_of_day: string | null;
           defender_of_day: string | null;
           midfielder_of_day: string | null;
           attacker_of_day: string | null;
-        } | null;
-      }>).map((r) => {
-        const res = r.pickup_run_results ?? null;
+        }
+      >();
+
+      for (let i = 0; i < runIds.length; i += CHUNK) {
+        const chunk = runIds.slice(i, i + CHUNK);
+        const { data: runRows, error: runsErr } = await supabase
+          .from("pickup_runs")
+          .select("id,start_at,location_private,service_region")
+          .in("id", chunk);
+        if (cancelled) return;
+        if (!runsErr && runRows) {
+          for (const row of runRows as unknown as Array<{
+            id: string;
+            start_at: string | null;
+            location_private: string | null;
+            service_region: string | null;
+          }>) {
+            if (!row?.id) continue;
+            runsById.set(row.id, {
+              start_at: row.start_at ?? null,
+              location_private: row.location_private ?? null,
+              service_region: row.service_region ?? null,
+            });
+          }
+        }
+        const { data: resRows, error: resErr } = await supabase
+          .from("pickup_run_results")
+          .select("run_id,winning_team,player_of_day,defender_of_day,midfielder_of_day,attacker_of_day")
+          .in("run_id", chunk);
+        if (cancelled) return;
+        if (!resErr && resRows) {
+          for (const r of resRows as unknown as Array<{
+            run_id: string;
+            winning_team: Team | null;
+            player_of_day: string | null;
+            defender_of_day: string | null;
+            midfielder_of_day: string | null;
+            attacker_of_day: string | null;
+          }>) {
+            if (!r?.run_id) continue;
+            resultsByRunId.set(r.run_id, {
+              winning_team: r.winning_team ?? null,
+              player_of_day: r.player_of_day ?? null,
+              defender_of_day: r.defender_of_day ?? null,
+              midfielder_of_day: r.midfielder_of_day ?? null,
+              attacker_of_day: r.attacker_of_day ?? null,
+            });
+          }
+        }
+      }
+
+      const out: HistoryRow[] = assignmentRows.map((r) => {
+        const run = runsById.get(r.run_id) ?? null;
+        const res = resultsByRunId.get(r.run_id) ?? null;
         const awards: string[] = [];
         if (res?.player_of_day === tokenUserId) awards.push("POTD");
         if (res?.defender_of_day === tokenUserId) awards.push("DEF");
@@ -106,9 +163,9 @@ export default function RunHistoryScreen() {
         return {
           run_id: r.run_id,
           team: r.team,
-          start_at: r.pickup_runs?.start_at ?? null,
-          location_private: r.pickup_runs?.location_private ?? null,
-          service_region: r.pickup_runs?.service_region ?? null,
+          start_at: run?.start_at ?? null,
+          location_private: run?.location_private ?? null,
+          service_region: run?.service_region ?? null,
           winning_team: (res?.winning_team ?? null) as Team | null,
           awards,
         };

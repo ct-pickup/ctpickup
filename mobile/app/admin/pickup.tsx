@@ -15,7 +15,17 @@ import {
   postAdminSetHubPickup,
 } from "@/lib/adminApi";
 import { siteOrigin } from "@/lib/env";
-import { fmtPickupDt } from "@/lib/pickupPublic";
+import { fmtPickupDt, fmtPickupTime } from "@/lib/pickupPublic";
+import {
+  defaultPickupWorkflowTab,
+  derivePickupLifecycleStage,
+  pickupLifecycleStageLabel,
+  pickupWorkflowTabForRun,
+  showEndRunButton,
+  showMarkResultButton,
+  showStartRunNowButton,
+  type PickupWorkflowTab,
+} from "@/lib/pickupRunLifecycle";
 import { SERVICE_REGIONS, serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -30,6 +40,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -85,26 +96,43 @@ function s(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
 
-function statusLabel(st: unknown): string {
-  const v = s(st).trim();
-  if (!v) return "UNKNOWN";
-  if (v === "planning") return "PLANNING";
-  if (v === "likely_on") return "LIKELY ON";
-  if (v === "active") return "ACTIVE";
-  return v.toUpperCase();
+function listCountsFromRow(row: Record<string, unknown>): {
+  confirmed: number;
+  standby: number;
+  invites: number;
+  pending_payment: number;
+} {
+  const raw = row.list_counts;
+  if (!raw || typeof raw !== "object") {
+    return { confirmed: 0, standby: 0, invites: 0, pending_payment: 0 };
+  }
+  const o = raw as Record<string, unknown>;
+  return {
+    confirmed: Number(o.confirmed ?? 0) || 0,
+    standby: Number(o.standby ?? 0) || 0,
+    invites: Number(o.invites ?? 0) || 0,
+    pending_payment: Number(o.pending_payment ?? 0) || 0,
+  };
 }
 
-function runTypeLabel(rt: unknown): string {
-  const v = s(rt).trim();
-  if (v === "select") return "SELECT";
-  if (v === "public") return "PUBLIC";
-  return v ? v.toUpperCase() : "—";
+function launchBlockedForListRow(row: Record<string, unknown>): string | null {
+  if (s(row.outreach_started_at)) return "Outreach already launched.";
+  const start = s(row.start_at);
+  if (!start) return "Add a kickoff slot first.";
+  const ms = Date.parse(start);
+  if (!Number.isFinite(ms)) return "Add a kickoff slot first.";
+  const h = (ms - Date.now()) / 3600000;
+  if (h < 36) return "Kickoff must be at least 36 hours away.";
+  return null;
 }
 
-function locationSnippet(loc: unknown, max = 72): string {
-  const t = s(loc).replace(/\s+/g, " ").trim();
-  if (!t) return "No venue text yet";
-  return t.length > max ? `${t.slice(0, max)}…` : t;
+function fmtPickupDateOnly(dt: string | null | undefined): string {
+  if (!dt) return "TBD";
+  try {
+    return new Date(dt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  } catch {
+    return "TBD";
+  }
 }
 
 function detectPreset(locationPrivate: string): LocationPresetKey {
@@ -129,6 +157,7 @@ function feeCentsFromCalculator(fieldCostDollars: number, expectedPlayers: numbe
 
 export default function AdminPickupOpsScreen() {
   const insets = useSafeAreaInsets();
+  const { height: winH } = useWindowDimensions();
   const { session } = useAuth();
   const token = session?.access_token ?? null;
   const router = useRouter();
@@ -137,6 +166,9 @@ export default function AdminPickupOpsScreen() {
   const [runs, setRuns] = useState<Record<string, unknown>[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
+  const [workflowTabOverride, setWorkflowTabOverride] = useState<PickupWorkflowTab | null>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editSectionExpanded, setEditSectionExpanded] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -171,6 +203,14 @@ export default function AdminPickupOpsScreen() {
   const [tierBadge, setTierBadge] = useState<number>(0);
 
   const venueFeePresetsForRegion = useMemo(() => VENUE_FEE_PRESETS.filter((p) => p.region === region), [region]);
+
+  const workflowTabCounts = useMemo(() => {
+    const c = { upcoming: 0, in_progress: 0, completed: 0 };
+    for (const row of runs) {
+      c[pickupWorkflowTabForRun(row)]++;
+    }
+    return c;
+  }, [runs]);
 
   useEffect(() => {
     setCreateSelectedVenueFeePresetId(null);
@@ -283,6 +323,7 @@ export default function AdminPickupOpsScreen() {
 
   function openRun(id: string) {
     setSelectedRunId(id);
+    setEditSectionExpanded(false);
     setModalOpen(true);
   }
 
@@ -293,6 +334,7 @@ export default function AdminPickupOpsScreen() {
     setDetailError(null);
     setSlotStart("");
     setSlotLabel("");
+    setEditSectionExpanded(false);
   }
 
   function applyPreset(key: LocationPresetKey) {
@@ -381,14 +423,20 @@ export default function AdminPickupOpsScreen() {
     ]);
   }
 
-  async function onLaunchOutreach() {
+  async function onLaunchOutreach(opts?: { runId: string; row?: Record<string, unknown> }) {
     const t = await requireToken();
-    if (!t || !selectedRunId) return;
+    const runId = opts?.runId ?? selectedRunId;
+    if (!t || !runId) return;
+    const block = opts?.row ? launchBlockedForListRow(opts.row) : launchBlocked;
+    if (block) {
+      return Alert.alert("Cannot launch", block);
+    }
     const origin = siteOrigin();
     const runLink = origin ? `${origin.replace(/\/$/, "")}/pickup` : "/pickup";
+    const runForDate = opts?.row ?? selectedRun;
     const dateOrTbd =
-      selectedRun && s(selectedRun.start_at)
-        ? fmtPickupDt(s(selectedRun.start_at))
+      runForDate && s(runForDate.start_at)
+        ? fmtPickupDt(s(runForDate.start_at))
         : auto && s((auto as Record<string, unknown>).anchor_start_at)
           ? fmtPickupDt(s((auto as Record<string, unknown>).anchor_start_at))
           : "TBD";
@@ -402,7 +450,7 @@ export default function AdminPickupOpsScreen() {
             setBusy("outreach");
             const r = await postAdminPickupSwitch(t, {
               action: "launch_outreach",
-              run_id: selectedRunId,
+              run_id: runId,
               run_link: runLink,
               date_or_tbd: dateOrTbd,
             });
@@ -417,9 +465,10 @@ export default function AdminPickupOpsScreen() {
     ]);
   }
 
-  async function onPromoteHub() {
+  async function onPromoteHub(opts?: { runId: string }) {
     const t = await requireToken();
-    if (!t || !selectedRunId) return;
+    const runId = opts?.runId ?? selectedRunId;
+    if (!t || !runId) return;
     Alert.alert("Promote to hub?", "This run becomes the featured pickup on the public site for its region.", [
       { text: "Cancel", style: "cancel" },
       {
@@ -427,7 +476,7 @@ export default function AdminPickupOpsScreen() {
         onPress: () => {
           void (async () => {
             setBusy("hub");
-            const r = await postAdminSetHubPickup(t, selectedRunId);
+            const r = await postAdminSetHubPickup(t, runId);
             setBusy(null);
             if (!r.ok) return Alert.alert("Promote failed", r.error);
             void loadRuns();
@@ -474,6 +523,7 @@ export default function AdminPickupOpsScreen() {
     setCreateExpectedPlayers(createCapacity.trim() || "24");
     setCreateLocationText("");
     setCreateSelectedVenueFeePresetId(null);
+    setCreateModalOpen(false);
     void loadRuns();
   }
 
@@ -504,7 +554,7 @@ export default function AdminPickupOpsScreen() {
   async function onEndRun(runId: string) {
     const t = await requireToken();
     if (!t) return;
-    Alert.alert("End this run?", "This will mark the run as completed so you can enter results.", [
+    Alert.alert("End this pickup run? You can mark results after.", "", [
       { text: "Cancel", style: "cancel" },
       {
         text: "End run",
@@ -524,6 +574,20 @@ export default function AdminPickupOpsScreen() {
         },
       },
     ]);
+  }
+
+  async function onStartRunNow(runId: string) {
+    const t = await requireToken();
+    if (!t) return;
+    setBusy(`start:${runId}`);
+    const r = await postAdminPickupSwitch(t, { action: "start_run_now", run_id: runId });
+    setBusy(null);
+    if (!r.ok) return Alert.alert("Couldn’t start run", r.error);
+    setRuns((prev) =>
+      prev.map((row) => (s(row.id) === runId ? { ...row, status: "in_progress" } : row)),
+    );
+    void loadRuns();
+    if (selectedRunId === runId) void loadDetail();
   }
 
   async function onPromote(userId: string) {
@@ -590,9 +654,125 @@ export default function AdminPickupOpsScreen() {
     return null;
   }, [selectedRun, auto]);
 
+  const workflowTab = workflowTabOverride ?? defaultPickupWorkflowTab(workflowTabCounts);
+
+  const filteredRuns = useMemo(() => {
+    return runs.filter((row) => pickupWorkflowTabForRun(row) === workflowTab);
+  }, [runs, workflowTab]);
+
+  const createForm = (
+    <>
+      <Text style={styles.fieldHint}>New run uses API defaults; refine in the detail sheet after creation.</Text>
+      <Text style={styles.label}>Start at (ISO)</Text>
+      <TextInput
+        style={styles.input}
+        value={createStartAt}
+        onChangeText={setCreateStartAt}
+        placeholder="2026-05-03T20:00:00Z"
+        placeholderTextColor="rgba(255,255,255,0.35)"
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
+      <View style={styles.twoCol}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.label}>State</Text>
+          <View style={[styles.input, styles.statePill]}>
+            <Text style={styles.statePillText}>{region}</Text>
+          </View>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.label}>Capacity</Text>
+          <TextInput
+            style={styles.input}
+            value={createCapacity}
+            onChangeText={setCreateCapacity}
+            keyboardType="number-pad"
+            placeholder="24"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+          />
+        </View>
+      </View>
+      <VenueFeePresetRow
+        presets={venueFeePresetsForRegion}
+        selectedId={createSelectedVenueFeePresetId}
+        onSelect={(p) => {
+          setCreateSelectedVenueFeePresetId(p.id);
+          setCreateLocationText(p.address);
+          if (p.priceDollars > 0) setCreateFieldCost(String(p.priceDollars));
+        }}
+      />
+      <Text style={styles.label}>Field cost ($)</Text>
+      <TextInput
+        style={styles.input}
+        value={createFieldCost}
+        onChangeText={(v) => {
+          setCreateFieldCost(v);
+          setCreateSelectedVenueFeePresetId(null);
+        }}
+        keyboardType="decimal-pad"
+        placeholder="0"
+        placeholderTextColor="rgba(255,255,255,0.35)"
+      />
+      <Text style={styles.label}>Hours</Text>
+      <TextInput
+        style={styles.input}
+        value={createHours}
+        onChangeText={setCreateHours}
+        keyboardType="number-pad"
+        placeholder="1.5"
+        placeholderTextColor="rgba(255,255,255,0.35)"
+      />
+      <Text style={styles.label}>Expected players</Text>
+      <TextInput
+        style={styles.input}
+        value={createExpectedPlayers}
+        onChangeText={setCreateExpectedPlayers}
+        keyboardType="number-pad"
+        placeholder={createCapacity.trim() || "24"}
+        placeholderTextColor="rgba(255,255,255,0.35)"
+      />
+      <Text style={styles.feePerPlayerLine}>
+        Fee per player:{" "}
+        <Text style={createFeePreview != null ? styles.feePerPlayerValue : styles.feePerPlayerPlaceholder}>
+          {createFeePreview != null ? `$${createFeePreview.toFixed(2)}` : "—"}
+        </Text>
+      </Text>
+      <Text style={styles.label}>Location (staff)</Text>
+      <TextInput
+        style={[styles.input, styles.textArea]}
+        value={createLocationText}
+        onChangeText={(v) => {
+          setCreateLocationText(v);
+          setCreateSelectedVenueFeePresetId(null);
+        }}
+        placeholder="Address and venue notes"
+        placeholderTextColor="rgba(255,255,255,0.35)"
+        multiline
+      />
+      <Text style={styles.label}>Title (optional)</Text>
+      <TextInput
+        style={styles.input}
+        value={createTitle}
+        onChangeText={setCreateTitle}
+        placeholder="CT Pickup Run"
+        placeholderTextColor="rgba(255,255,255,0.35)"
+      />
+      <Pressable
+        onPress={() => void onCreateRun()}
+        disabled={busy === "create"}
+        style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busy === "create" && styles.disabled]}
+      >
+        <Text style={styles.primaryText}>{busy === "create" ? "Creating…" : "Create run"}</Text>
+      </Pressable>
+    </>
+  );
+
   return (
     <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: 200 }]}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.rowBetween}>
           <Text style={styles.h1}>Pickup ops</Text>
           <Pressable onPress={() => void loadRuns()} style={({ pressed }) => [styles.chip, pressed && { opacity: 0.85 }]}>
@@ -600,39 +780,43 @@ export default function AdminPickupOpsScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.lead}>Runs in {serviceRegionName(region)} tap a card for slots, outreach, roster, and edits.</Text>
+        <Text style={styles.lead}>Runs in {serviceRegionName(region)} — open a card for roster, slots, and outreach.</Text>
 
-        <View style={styles.quickLinksRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.toolbarScroll}
+          contentContainerStyle={styles.toolbarScrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
           <Pressable
             onPress={() => router.push("/admin/analytics")}
-            style={({ pressed }) => [styles.quickLink, pressed && { opacity: 0.9 }]}
+            style={({ pressed }) => [styles.toolbarChip, pressed && { opacity: 0.9 }]}
           >
-            <FontAwesome name="bar-chart" size={14} color={LIME} />
-            <Text style={styles.quickLinkText}>Analytics</Text>
-            <FontAwesome name="angle-right" size={16} color="rgba(163,230,53,0.7)" />
+            <FontAwesome name="bar-chart" size={13} color={LIME} />
+            <Text style={styles.toolbarChipText}>Analytics</Text>
           </Pressable>
           <Pressable
             onPress={() => router.push("/admin/tier-suggestions")}
-            style={({ pressed }) => [styles.quickLink, pressed && { opacity: 0.9 }]}
+            style={({ pressed }) => [styles.toolbarChip, pressed && { opacity: 0.9 }]}
           >
-            <FontAwesome name="level-up" size={14} color={LIME} />
-            <Text style={styles.quickLinkText}>Tier Suggestions</Text>
+            <FontAwesome name="level-up" size={13} color={LIME} />
+            <Text style={styles.toolbarChipText}>Tier Suggestions</Text>
             {tierBadge > 0 ? (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{tierBadge}</Text>
+              <View style={styles.toolbarBadge}>
+                <Text style={styles.toolbarBadgeText}>{tierBadge > 99 ? "99+" : tierBadge}</Text>
               </View>
             ) : null}
-            <FontAwesome name="angle-right" size={16} color="rgba(163,230,53,0.7)" />
           </Pressable>
           <Pressable
             onPress={() => void onRunPromotionAlgorithm()}
             disabled={busy === "tierAlgo"}
-            style={({ pressed }) => [styles.quickLink, pressed && { opacity: 0.9 }, busy === "tierAlgo" && styles.disabled]}
+            style={({ pressed }) => [styles.toolbarChip, pressed && { opacity: 0.9 }, busy === "tierAlgo" && styles.disabled]}
           >
-            <FontAwesome name="play" size={14} color={LIME} />
-            <Text style={styles.quickLinkText}>Run Promotion Algorithm</Text>
+            <FontAwesome name="play" size={12} color={LIME} />
+            <Text style={styles.toolbarChipText}>Run promotion</Text>
           </Pressable>
-        </View>
+        </ScrollView>
 
         <Text style={styles.segmentLabel}>STATE</Text>
         <View style={styles.segmentRow}>
@@ -643,11 +827,37 @@ export default function AdminPickupOpsScreen() {
                 key={code}
                 onPress={() => {
                   setRegion(code);
+                  setWorkflowTabOverride(null);
                   if (modalOpen) closeModal();
                 }}
                 style={({ pressed }) => [styles.segment, active && styles.segmentActive, pressed && { opacity: 0.9 }]}
               >
                 <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{code}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text style={styles.segmentLabel}>WORKFLOW</Text>
+        <View style={styles.workflowTabRow}>
+          {(
+            [
+              ["upcoming", "Upcoming"],
+              ["in_progress", "In Progress"],
+              ["completed", "Completed"],
+            ] as const
+          ).map(([key, label]) => {
+            const active = workflowTab === key;
+            const n = workflowTabCounts[key];
+            return (
+              <Pressable
+                key={key}
+                onPress={() => setWorkflowTabOverride(key)}
+                style={({ pressed }) => [styles.workflowTab, active && styles.workflowTabActive, pressed && { opacity: 0.9 }]}
+              >
+                <Text style={[styles.workflowTabText, active && styles.workflowTabTextActive]} numberOfLines={1}>
+                  {label} ({n})
+                </Text>
               </Pressable>
             );
           })}
@@ -659,275 +869,348 @@ export default function AdminPickupOpsScreen() {
         {!listLoading && runs.length === 0 && !listError ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>No runs in this state.</Text>
-            <Text style={styles.emptyBody}>Create one below or switch state.</Text>
+            <Text style={styles.emptyBody}>Use + to create a run or switch state.</Text>
           </View>
         ) : null}
 
-        {runs.map((row) => {
+        {!listLoading && runs.length > 0 && filteredRuns.length === 0 && !listError ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>Nothing in this stage.</Text>
+            <Text style={styles.emptyBody}>Try another workflow tab.</Text>
+          </View>
+        ) : null}
+
+        {filteredRuns.map((row) => {
           const id = s(row.id);
           if (!id) return null;
-          const isHub = !!row.is_current;
-          const isCompleted = row.is_completed === true || s(row.status).trim() === "completed";
-          const startAtMs = Date.parse(s(row.start_at));
-          const startAtPassed = Number.isFinite(startAtMs) && startAtMs <= Date.now();
-          const canEnd = startAtPassed && !isCompleted;
+          const reg = s(row.service_region).trim().toUpperCase();
+          const regionLabel = reg && SERVICE_REGIONS.some((r) => r.code === reg) ? reg : region;
+          const lc = listCountsFromRow(row);
+          const listLaunchBlock = launchBlockedForListRow(row);
+          const lcStage = derivePickupLifecycleStage({
+            status: s(row.status),
+            is_current: row.is_current === true,
+            outreach_started_at: s(row.outreach_started_at) || null,
+            is_completed: row.is_completed === true,
+            has_result: row.has_result === true,
+          });
+          const stageLabel = pickupLifecycleStageLabel(lcStage);
+
           return (
             <Pressable
               key={id}
               onPress={() => openRun(id)}
               style={({ pressed }) => [styles.runCard, pressed && { opacity: 0.92 }]}
             >
-              <View style={styles.runCardTop}>
-                <Text style={styles.runEyebrow}>{runTypeLabel(row.run_type)}</Text>
-                {isHub ? (
-                  <View style={styles.hubPill}>
-                    <Text style={styles.hubPillText}>HUB</Text>
-                  </View>
-                ) : null}
-              </View>
               <Text style={styles.runTitle}>{s(row.title) || "Pickup run"}</Text>
-              <Text style={styles.runLoc} numberOfLines={2}>
-                {locationSnippet(row.location_private)}
-              </Text>
-              <View style={styles.runMetaRow}>
-                <View style={styles.statusPill}>
-                  <Text style={styles.statusPillText}>{statusLabel(row.status)}</Text>
+              <Text style={styles.runDateLine}>{fmtPickupDateOnly(s(row.start_at))}</Text>
+              <Text style={styles.runTimeLine}>{s(row.start_at) ? fmtPickupTime(s(row.start_at)) : "Time TBD"}</Text>
+
+              <View style={styles.runBadgesRow}>
+                <View style={styles.regionBadge}>
+                  <Text style={styles.regionBadgeText}>{regionLabel}</Text>
                 </View>
-                <Text style={styles.runTime}>{fmtPickupDt(s(row.start_at))}</Text>
+                <View style={styles.workflowPill}>
+                  <Text style={styles.workflowPillText}>{stageLabel}</Text>
+                </View>
               </View>
 
-              {startAtPassed ? (
-                <View style={styles.runActionRow}>
-                  {canEnd ? (
+              <View style={styles.quickStatsRow}>
+                <View style={styles.quickStat}>
+                  <Text style={styles.quickStatVal}>{lc.confirmed}</Text>
+                  <Text style={styles.quickStatLbl}>Confirmed</Text>
+                </View>
+                <View style={styles.quickStat}>
+                  <Text style={styles.quickStatVal}>{lc.standby}</Text>
+                  <Text style={styles.quickStatLbl}>Standby</Text>
+                </View>
+                <View style={styles.quickStat}>
+                  <Text style={styles.quickStatVal}>{lc.invites}</Text>
+                  <Text style={styles.quickStatLbl}>Invites</Text>
+                </View>
+                <View style={styles.quickStat}>
+                  <Text style={styles.quickStatVal}>{lc.pending_payment}</Text>
+                  <Text style={styles.quickStatLbl}>Pending $</Text>
+                </View>
+              </View>
+
+              <View style={styles.cardActionRow}>
+                {lcStage === "planning" ? (
+                  <>
                     <Pressable
                       onPress={(e) => {
                         e.stopPropagation();
-                        void onEndRun(id);
+                        void onPromoteHub({ runId: id });
                       }}
-                      disabled={busy === `end:${id}`}
+                      disabled={busy === "hub"}
+                      style={({ pressed }) => [styles.cardBtnSecondary, pressed && { opacity: 0.9 }, busy === "hub" && styles.disabled]}
+                    >
+                      <FontAwesome name="bullhorn" size={12} color={LIME} />
+                      <Text style={styles.cardBtnSecondaryText}>Promote to Hub</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        openRun(id);
+                      }}
+                      style={({ pressed }) => [styles.cardBtnSecondary, pressed && { opacity: 0.9 }]}
+                    >
+                      <FontAwesome name="pencil" size={12} color={LIME} />
+                      <Text style={styles.cardBtnSecondaryText}>Edit</Text>
+                    </Pressable>
+                  </>
+                ) : null}
+                {lcStage === "hub" || lcStage === "outreach" ? (
+                  <>
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        void onLaunchOutreach({ runId: id, row });
+                      }}
+                      disabled={busy === "outreach" || !!listLaunchBlock}
                       style={({ pressed }) => [
-                        styles.endRunBtn,
+                        styles.cardBtnSecondary,
                         pressed && { opacity: 0.9 },
-                        busy === `end:${id}` && styles.disabled,
+                        (busy === "outreach" || !!listLaunchBlock) && styles.disabled,
                       ]}
                     >
-                      <Text style={styles.endRunBtnText}>{busy === `end:${id}` ? "Ending…" : "End Run"}</Text>
+                      <FontAwesome name="paper-plane" size={12} color={LIME} />
+                      <Text style={styles.cardBtnSecondaryText}>{busy === "outreach" ? "…" : "Launch outreach"}</Text>
                     </Pressable>
-                  ) : null}
-
-                  {isCompleted ? (
                     <Pressable
                       onPress={(e) => {
                         e.stopPropagation();
-                        (router.push as (href: string) => void)(`/admin/run-result?run_id=${encodeURIComponent(id)}`);
+                        openRun(id);
                       }}
-                      style={({ pressed }) => [styles.markResultBtn, pressed && { opacity: 0.9 }]}
+                      style={({ pressed }) => [styles.cardBtnSecondary, pressed && { opacity: 0.9 }]}
                     >
-                      <Text style={styles.markResultBtnText}>Mark Result</Text>
+                      <FontAwesome name="pencil" size={12} color={LIME} />
+                      <Text style={styles.cardBtnSecondaryText}>Edit</Text>
                     </Pressable>
-                  ) : null}
-                </View>
-              ) : null}
-
-              <View style={styles.runChevronRow}>
-                <View style={styles.runChevronLeft}>
-                  <Text style={styles.runTapHint}>Details</Text>
-                  <FontAwesome name="chevron-right" size={12} color="rgba(255,255,255,0.35)" />
-                </View>
+                  </>
+                ) : null}
+                {lcStage === "confirmed" ? (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      openRun(id);
+                    }}
+                    style={({ pressed }) => [styles.cardBtnSecondary, pressed && { opacity: 0.9 }]}
+                  >
+                    <FontAwesome name="pencil" size={12} color={LIME} />
+                    <Text style={styles.cardBtnSecondaryText}>Edit</Text>
+                  </Pressable>
+                ) : null}
+                {showStartRunNowButton({
+                  status: s(row.status),
+                  is_completed: row.is_completed === true,
+                  start_at: s(row.start_at) || null,
+                }) ? (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      void onStartRunNow(id);
+                    }}
+                    disabled={busy === `start:${id}`}
+                    style={({ pressed }) => [
+                      styles.cardBtnSecondary,
+                      pressed && { opacity: 0.9 },
+                      busy === `start:${id}` && styles.disabled,
+                    ]}
+                  >
+                    <Text style={styles.cardBtnSecondaryText}>{busy === `start:${id}` ? "…" : "Start Run Now"}</Text>
+                  </Pressable>
+                ) : null}
+                {showEndRunButton({ status: s(row.status), is_completed: row.is_completed === true }) ? (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      void onEndRun(id);
+                    }}
+                    disabled={busy === `end:${id}`}
+                    style={({ pressed }) => [
+                      styles.cardBtnDanger,
+                      pressed && { opacity: 0.9 },
+                      busy === `end:${id}` && styles.disabled,
+                    ]}
+                  >
+                    <Text style={styles.cardBtnDangerText}>{busy === `end:${id}` ? "Ending…" : "End Run"}</Text>
+                  </Pressable>
+                ) : null}
+                {showMarkResultButton({ is_completed: row.is_completed === true }) ? (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      (router.push as (href: string) => void)(`/admin/run-result?run_id=${encodeURIComponent(id)}`);
+                    }}
+                    style={({ pressed }) => [styles.cardBtnLime, pressed && { opacity: 0.9 }]}
+                  >
+                    <Text style={styles.cardBtnLimeText}>Mark Result</Text>
+                  </Pressable>
+                ) : null}
               </View>
+
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  openRun(id);
+                }}
+                style={styles.detailsChevronRow}
+              >
+                <Text style={styles.runTapHint}>Details</Text>
+                <FontAwesome name="chevron-right" size={12} color="rgba(255,255,255,0.35)" />
+              </Pressable>
             </Pressable>
           );
         })}
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Create run</Text>
-          <Text style={styles.fieldHint}>New run uses API defaults refine in the detail sheet after creation.</Text>
-          <Text style={styles.label}>Start at (ISO)</Text>
-          <TextInput
-            style={styles.input}
-            value={createStartAt}
-            onChangeText={setCreateStartAt}
-            placeholder="2026-05-03T20:00:00Z"
-            placeholderTextColor="rgba(255,255,255,0.35)"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          <View style={styles.twoCol}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.label}>State</Text>
-              <View style={[styles.input, styles.statePill]}>
-                <Text style={styles.statePillText}>{region}</Text>
-              </View>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Capacity</Text>
-              <TextInput
-                style={styles.input}
-                value={createCapacity}
-                onChangeText={setCreateCapacity}
-                keyboardType="number-pad"
-                placeholder="24"
-                placeholderTextColor="rgba(255,255,255,0.35)"
-              />
-            </View>
-          </View>
-          <VenueFeePresetRow
-            presets={venueFeePresetsForRegion}
-            selectedId={createSelectedVenueFeePresetId}
-            onSelect={(p) => {
-              setCreateSelectedVenueFeePresetId(p.id);
-              setCreateLocationText(p.address);
-              if (p.priceDollars > 0) setCreateFieldCost(String(p.priceDollars));
-            }}
-          />
-          <Text style={styles.label}>Field cost ($)</Text>
-          <TextInput
-            style={styles.input}
-            value={createFieldCost}
-            onChangeText={(v) => {
-              setCreateFieldCost(v);
-              setCreateSelectedVenueFeePresetId(null);
-            }}
-            keyboardType="decimal-pad"
-            placeholder="0"
-            placeholderTextColor="rgba(255,255,255,0.35)"
-          />
-          <Text style={styles.label}>Hours</Text>
-          <TextInput
-            style={styles.input}
-            value={createHours}
-            onChangeText={setCreateHours}
-            keyboardType="number-pad"
-            placeholder="1.5"
-            placeholderTextColor="rgba(255,255,255,0.35)"
-          />
-          <Text style={styles.label}>Expected players</Text>
-          <TextInput
-            style={styles.input}
-            value={createExpectedPlayers}
-            onChangeText={setCreateExpectedPlayers}
-            keyboardType="number-pad"
-            placeholder={createCapacity.trim() || "24"}
-            placeholderTextColor="rgba(255,255,255,0.35)"
-          />
-          <Text style={styles.feePerPlayerLine}>
-            Fee per player:{" "}
-            <Text style={createFeePreview != null ? styles.feePerPlayerValue : styles.feePerPlayerPlaceholder}>
-              {createFeePreview != null ? `$${createFeePreview.toFixed(2)}` : "—"}
-            </Text>
-          </Text>
-          <Text style={styles.label}>Location (staff)</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={createLocationText}
-            onChangeText={(v) => {
-              setCreateLocationText(v);
-              setCreateSelectedVenueFeePresetId(null);
-            }}
-            placeholder="Address and venue notes"
-            placeholderTextColor="rgba(255,255,255,0.35)"
-            multiline
-          />
-          <Text style={styles.label}>Title (optional)</Text>
-          <TextInput
-            style={styles.input}
-            value={createTitle}
-            onChangeText={setCreateTitle}
-            placeholder="CT Pickup Run"
-            placeholderTextColor="rgba(255,255,255,0.35)"
-          />
-          <Pressable
-            onPress={() => void onCreateRun()}
-            disabled={busy === "create"}
-            style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busy === "create" && styles.disabled]}
-          >
-            <Text style={styles.primaryText}>{busy === "create" ? "Creating…" : "Create run"}</Text>
-          </Pressable>
-        </View>
       </ScrollView>
+
+      <Pressable
+        onPress={() => setCreateModalOpen(true)}
+        style={({ pressed }) => [styles.fab, { bottom: 20 + insets.bottom }, pressed && { opacity: 0.92 }]}
+        accessibilityLabel="Create run"
+      >
+        <FontAwesome name="plus" size={26} color="#111" />
+      </Pressable>
+
+      <Modal visible={createModalOpen} animationType="slide" transparent onRequestClose={() => setCreateModalOpen(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={styles.modalDismiss} onPress={() => setCreateModalOpen(false)} accessibilityLabel="Dismiss" />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={insets.top}
+            style={styles.createModalKb}
+          >
+            <View style={[styles.createModalSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+              <View style={styles.modalGrabRow}>
+                <View style={styles.modalGrab} />
+              </View>
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.modalTitle}>Create run</Text>
+                </View>
+                <Pressable
+                  onPress={() => setCreateModalOpen(false)}
+                  style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.85 }]}
+                >
+                  <FontAwesome name="times" size={18} color="#fff" />
+                </Pressable>
+              </View>
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 200 }}
+              >
+                {createForm}
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
 
       <Modal visible={modalOpen} animationType="slide" transparent onRequestClose={closeModal}>
         <View style={styles.modalRoot}>
           <Pressable style={styles.modalDismiss} onPress={closeModal} accessibilityLabel="Dismiss" />
           <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
             keyboardVerticalOffset={insets.top}
             style={styles.modalKb}
           >
-            <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-            <View style={styles.modalGrabRow}>
-              <View style={styles.modalGrab} />
-            </View>
-            <View style={styles.modalHeader}>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.modalTitle} numberOfLines={2}>
-                  {selectedRun ? s(selectedRun.title) || "Run" : "Run"}
-                </Text>
-                <Text style={styles.modalSub} numberOfLines={1}>
-                  {selectedRun ? `${statusLabel(selectedRun.status)} · ${fmtPickupDt(s(selectedRun.start_at))}` : ""}
-                </Text>
+            <View style={[styles.modalSheet, { paddingBottom: 0, maxHeight: winH * 0.92 }]}>
+              <View style={styles.modalGrabRow}>
+                <View style={styles.modalGrab} />
               </View>
-              <Pressable onPress={closeModal} style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.85 }]}>
-                <FontAwesome name="times" size={18} color="#fff" />
-              </Pressable>
-            </View>
-
-            {detailLoading ? (
-              <ActivityIndicator color="#fff" style={{ marginVertical: 24 }} />
-            ) : detailError ? (
-              <Text style={styles.err}>{detailError}</Text>
-            ) : (
-              <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                {counts ? (
-                  <View style={styles.countRow}>
-                    <View style={styles.countChip}>
-                      <Text style={styles.countChipLabel}>Confirmed</Text>
-                      <Text style={styles.countChipVal}>{counts.confirmed}</Text>
-                    </View>
-                    <View style={styles.countChip}>
-                      <Text style={styles.countChipLabel}>Standby</Text>
-                      <Text style={styles.countChipVal}>{counts.standby}</Text>
-                    </View>
-                    <View style={styles.countChip}>
-                      <Text style={styles.countChipLabel}>Invites</Text>
-                      <Text style={styles.countChipVal}>{counts.invites}</Text>
-                    </View>
-                    <View style={styles.countChip}>
-                      <Text style={styles.countChipLabel}>Pending $</Text>
-                      <Text style={styles.countChipVal}>{counts.pending_payment}</Text>
-                    </View>
-                  </View>
-                ) : null}
-
-                <View style={styles.modalSection}>
-                  <Text style={styles.sectionTitle}>Hub & outreach</Text>
-                  <View style={styles.actionRow}>
-                    <Pressable
-                      onPress={() => void onPromoteHub()}
-                      disabled={busy === "hub" || !selectedRunId}
-                      style={({ pressed }) => [styles.secondaryLime, pressed && { opacity: 0.9 }, busy === "hub" && styles.disabled]}
-                    >
-                      <FontAwesome name="bullhorn" size={14} color={LIME} />
-                      <Text style={styles.secondaryLimeText}>{busy === "hub" ? "…" : "Promote to hub"}</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => void onLaunchOutreach()}
-                      disabled={busy === "outreach" || !!launchBlocked}
-                      style={({ pressed }) => [
-                        styles.secondaryLime,
-                        pressed && { opacity: 0.9 },
-                        (busy === "outreach" || !!launchBlocked) && styles.disabled,
-                      ]}
-                    >
-                      <FontAwesome name="paper-plane" size={14} color={LIME} />
-                      <Text style={styles.secondaryLimeText}>{busy === "outreach" ? "…" : "Launch outreach"}</Text>
-                    </Pressable>
-                  </View>
-                  {launchBlocked ? <Text style={styles.blockHint}>{launchBlocked}</Text> : null}
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.modalTitle} numberOfLines={2}>
+                    {selectedRun ? s(selectedRun.title) || "Run" : "Run"}
+                  </Text>
+                  <Text style={styles.modalSub} numberOfLines={2}>
+                    {selectedRun
+                      ? `${workflowStage(selectedRun as Record<string, unknown>)} · ${fmtPickupDt(s(selectedRun.start_at))}`
+                      : ""}
+                  </Text>
                 </View>
+                <Pressable onPress={closeModal} style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.85 }]}>
+                  <FontAwesome name="times" size={18} color="#fff" />
+                </Pressable>
+              </View>
 
-                <View style={styles.modalSection}>
-                  <Text style={styles.sectionTitle}>Edit run</Text>
+              {detailLoading ? (
+                <ActivityIndicator color="#fff" style={{ marginVertical: 24 }} />
+              ) : detailError ? (
+                <Text style={styles.err}>{detailError}</Text>
+              ) : (
+                <>
+                  <ScrollView
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    style={{ maxHeight: winH * 0.58 }}
+                    nestedScrollEnabled
+                    contentContainerStyle={{ paddingBottom: 200 }}
+                  >
+                    {counts ? (
+                      <View style={styles.countRow}>
+                        <View style={styles.countChip}>
+                          <Text style={styles.countChipLabel}>Confirmed</Text>
+                          <Text style={styles.countChipVal}>{counts.confirmed}</Text>
+                        </View>
+                        <View style={styles.countChip}>
+                          <Text style={styles.countChipLabel}>Standby</Text>
+                          <Text style={styles.countChipVal}>{counts.standby}</Text>
+                        </View>
+                        <View style={styles.countChip}>
+                          <Text style={styles.countChipLabel}>Invites</Text>
+                          <Text style={styles.countChipVal}>{counts.invites}</Text>
+                        </View>
+                        <View style={styles.countChip}>
+                          <Text style={styles.countChipLabel}>Pending $</Text>
+                          <Text style={styles.countChipVal}>{counts.pending_payment}</Text>
+                        </View>
+                      </View>
+                    ) : null}
+
+                    <View style={styles.modalSection}>
+                      <Text style={styles.sectionTitle}>Hub & outreach</Text>
+                      <View style={styles.actionRow}>
+                        <Pressable
+                          onPress={() => void onPromoteHub()}
+                          disabled={busy === "hub" || !selectedRunId}
+                          style={({ pressed }) => [styles.secondaryLime, pressed && { opacity: 0.9 }, busy === "hub" && styles.disabled]}
+                        >
+                          <FontAwesome name="bullhorn" size={14} color={LIME} />
+                          <Text style={styles.secondaryLimeText}>{busy === "hub" ? "…" : "Promote to hub"}</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => void onLaunchOutreach()}
+                          disabled={busy === "outreach" || !!launchBlocked}
+                          style={({ pressed }) => [
+                            styles.secondaryLime,
+                            pressed && { opacity: 0.9 },
+                            (busy === "outreach" || !!launchBlocked) && styles.disabled,
+                          ]}
+                        >
+                          <FontAwesome name="paper-plane" size={14} color={LIME} />
+                          <Text style={styles.secondaryLimeText}>{busy === "outreach" ? "…" : "Launch outreach"}</Text>
+                        </Pressable>
+                      </View>
+                      {launchBlocked ? <Text style={styles.blockHint}>{launchBlocked}</Text> : null}
+                    </View>
+
+                    <View style={styles.modalSection}>
+                      <Pressable
+                        onPress={() => setEditSectionExpanded((v) => !v)}
+                        style={({ pressed }) => [styles.editDetailsToggle, pressed && { opacity: 0.9 }]}
+                      >
+                        <Text style={styles.editDetailsToggleText}>Edit details</Text>
+                        <FontAwesome
+                          name={editSectionExpanded ? "chevron-up" : "chevron-down"}
+                          size={14}
+                          color="rgba(255,255,255,0.5)"
+                        />
+                      </Pressable>
+                      {editSectionExpanded ? (
+                        <>
                   <Text style={styles.label}>Title</Text>
                   <TextInput style={styles.input} value={editTitle} onChangeText={setEditTitle} placeholderTextColor="rgba(255,255,255,0.35)" />
                   <Text style={styles.label}>Location template</Text>
@@ -1040,17 +1323,13 @@ export default function AdminPickupOpsScreen() {
                       {editFeePreview != null ? `$${editFeePreview.toFixed(2)}` : "—"}
                     </Text>
                   </Text>
-                  <Pressable
-                    onPress={() => void onSaveRun()}
-                    disabled={busy === "save"}
-                    style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busy === "save" && styles.disabled]}
-                  >
-                    <Text style={styles.primaryText}>{busy === "save" ? "Saving…" : "Save run"}</Text>
-                  </Pressable>
-                </View>
+                        </>
+                      ) : null}
+                    </View>
 
-                <View style={styles.modalSection}>
-                  <Text style={styles.sectionTitle}>Kickoff slots</Text>
+                    <View style={styles.modalSection}>
+                      <Text style={styles.sectionTitle}>Roster</Text>
+                      <Text style={styles.rosterSubheading}>Kickoff slots</Text>
                   {slots.length === 0 ? <Text style={styles.muted}>No slots yet.</Text> : null}
                   {slots.map((sl, idx) => {
                     const sid = s(sl.id);
@@ -1098,10 +1377,8 @@ export default function AdminPickupOpsScreen() {
                   >
                     <Text style={styles.secondaryLimeText}>{busy === "slot" ? "Adding…" : "Add slot"}</Text>
                   </Pressable>
-                </View>
 
-                <View style={styles.modalSection}>
-                  <Text style={styles.sectionTitle}>Confirmed ({confirmed.length})</Text>
+                      <Text style={[styles.rosterSubheading, { marginTop: 14 }]}>RSVPs · Confirmed ({confirmed.length})</Text>
                   {confirmed.length === 0 ? <Text style={styles.muted}>None</Text> : null}
                   {confirmed.map((p) => {
                     const isBusy = busy === `att:${p.id}` || busy === `late:${p.id}`;
@@ -1137,10 +1414,8 @@ export default function AdminPickupOpsScreen() {
                       </View>
                     );
                   })}
-                </View>
 
-                <View style={styles.modalSection}>
-                  <Text style={styles.sectionTitle}>Standby ({standby.length})</Text>
+                      <Text style={[styles.rosterSubheading, { marginTop: 14 }]}>RSVPs · Standby ({standby.length})</Text>
                   {standby.length === 0 ? <Text style={styles.muted}>None</Text> : null}
                   {standby.map((p) => {
                     const isBusy = busy === `promote:${p.id}`;
@@ -1162,17 +1437,32 @@ export default function AdminPickupOpsScreen() {
                       </View>
                     );
                   })}
-                </View>
+                    </View>
 
-                <Pressable
-                  onPress={() => void onCancelRun()}
-                  disabled={busy === "cancel"}
-                  style={({ pressed }) => [styles.dangerOutline, pressed && { opacity: 0.9 }, busy === "cancel" && styles.disabled]}
-                >
-                  <Text style={styles.dangerOutlineText}>{busy === "cancel" ? "Canceling…" : "Cancel run"}</Text>
-                </Pressable>
-              </ScrollView>
-            )}
+                    <Pressable
+                      onPress={() => void onCancelRun()}
+                      disabled={busy === "cancel"}
+                      style={({ pressed }) => [styles.dangerOutline, pressed && { opacity: 0.9 }, busy === "cancel" && styles.disabled]}
+                    >
+                      <Text style={styles.dangerOutlineText}>{busy === "cancel" ? "Canceling…" : "Cancel run"}</Text>
+                    </Pressable>
+                  </ScrollView>
+                  <View style={[styles.modalSaveFooter, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+                    <Pressable
+                      onPress={() => void onSaveRun()}
+                      disabled={busy === "save"}
+                      style={({ pressed }) => [
+                        styles.primary,
+                        styles.primaryInFooter,
+                        pressed && { opacity: 0.9 },
+                        busy === "save" && styles.disabled,
+                      ]}
+                    >
+                      <Text style={styles.primaryText}>{busy === "save" ? "Saving…" : "Save"}</Text>
+                    </Pressable>
+                  </View>
+                </>
+              )}
             </View>
           </KeyboardAvoidingView>
         </View>
@@ -1196,29 +1486,43 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(163,230,53,0.08)",
   },
   chipText: { color: LIME, fontWeight: "800", fontSize: 13 },
-  quickLinksRow: { marginTop: 14, flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  quickLink: {
+  toolbarScroll: { marginTop: 12 },
+  toolbarScrollContent: { flexDirection: "row", alignItems: "center", gap: 8, paddingRight: 8 },
+  toolbarChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 11,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: "rgba(163,230,53,0.35)",
     backgroundColor: "rgba(163,230,53,0.08)",
   },
-  quickLinkText: { color: LIME, fontWeight: "900", fontSize: 13 },
-  badge: {
-    minWidth: 22,
-    height: 22,
-    paddingHorizontal: 6,
+  toolbarChipText: { color: LIME, fontWeight: "800", fontSize: 12 },
+  toolbarBadge: {
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: LIME,
   },
-  badgeText: { color: "#111", fontWeight: "900", fontSize: 12 },
+  toolbarBadgeText: { color: "#111", fontWeight: "900", fontSize: 10 },
+  workflowTabRow: { marginTop: 10, flexDirection: "row", gap: 6 },
+  workflowTab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    alignItems: "center",
+  },
+  workflowTabActive: { borderColor: "rgba(163,230,53,0.45)", backgroundColor: "rgba(163,230,53,0.10)" },
+  workflowTabText: { color: "rgba(255,255,255,0.55)", fontWeight: "800", fontSize: 11, textAlign: "center" },
+  workflowTabTextActive: { color: LIME },
   segmentLabel: { marginTop: 18, fontSize: 11, fontWeight: "800", color: "rgba(255,255,255,0.45)", letterSpacing: 1.1 },
   segmentRow: { marginTop: 10, flexDirection: "row", gap: 8 },
   segment: {
@@ -1252,21 +1556,20 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.1)",
     backgroundColor: "rgba(255,255,255,0.05)",
   },
-  runCardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
-  runEyebrow: { fontSize: 11, fontWeight: "800", letterSpacing: 1, color: "rgba(163,230,53,0.85)" },
-  hubPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  runTitle: { fontSize: 18, fontWeight: "800", color: "#fff", letterSpacing: -0.2 },
+  runDateLine: { marginTop: 6, fontSize: 14, fontWeight: "700", color: "rgba(255,255,255,0.75)" },
+  runTimeLine: { marginTop: 2, fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.45)" },
+  runBadgesRow: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  regionBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: "rgba(163,230,53,0.15)",
+    backgroundColor: "rgba(163,230,53,0.12)",
     borderWidth: 1,
     borderColor: "rgba(163,230,53,0.35)",
   },
-  hubPillText: { fontSize: 10, fontWeight: "900", color: LIME },
-  runTitle: { fontSize: 18, fontWeight: "800", color: "#fff", letterSpacing: -0.2 },
-  runLoc: { marginTop: 6, fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 18 },
-  runMetaRow: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
-  statusPill: {
+  regionBadgeText: { fontSize: 11, fontWeight: "900", color: LIME },
+  workflowPill: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
@@ -1274,43 +1577,94 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
   },
-  statusPillText: { fontSize: 11, fontWeight: "800", color: "rgba(255,255,255,0.85)" },
-  runTime: { fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: "600" },
-  runChevronRow: {
+  workflowPillText: { fontSize: 11, fontWeight: "800", color: "rgba(255,255,255,0.88)" },
+  quickStatsRow: {
     marginTop: 12,
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 6,
-  },
-  runChevronLeft: { flexDirection: "row", alignItems: "center", gap: 6, marginRight: "auto" },
-  runTapHint: { fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.4)" },
-  runActionRow: {
-    marginTop: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 10,
     flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "space-between",
   },
-  endRunBtn: {
-    paddingHorizontal: 12,
+  quickStat: {
+    flexGrow: 1,
+    minWidth: "22%",
     paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(0,0,0,0.2)",
+    alignItems: "center",
+  },
+  quickStatVal: { fontSize: 16, fontWeight: "900", color: "#fff" },
+  quickStatLbl: { marginTop: 2, fontSize: 9, fontWeight: "800", color: "rgba(255,255,255,0.4)", letterSpacing: 0.3 },
+  cardActionRow: { marginTop: 14, flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },
+  cardBtnSecondary: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(248,113,113,0.55)",
-    backgroundColor: "rgba(248,113,113,0.10)",
+    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: "rgba(163,230,53,0.08)",
   },
-  endRunBtnText: { color: "rgba(255,255,255,0.92)", fontWeight: "900", fontSize: 12 },
-  markResultBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  cardBtnSecondaryText: { color: LIME, fontWeight: "800", fontSize: 12 },
+  cardBtnDanger: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.45)",
+    backgroundColor: "rgba(248,113,113,0.12)",
+  },
+  cardBtnDangerText: { color: "rgba(254,202,202,0.95)", fontWeight: "900", fontSize: 13 },
+  cardBtnLime: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: LIME,
     borderWidth: 1,
     borderColor: LIME,
-    backgroundColor: LIME,
   },
-  markResultBtnText: { color: "#111", fontWeight: "900", fontSize: 12 },
+  cardBtnLimeText: { color: "#111", fontWeight: "900", fontSize: 13 },
+  detailsChevronRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+  },
+  runTapHint: { fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.4)" },
+  fab: {
+    position: "absolute",
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 999,
+    backgroundColor: LIME,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.6)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  createModalKb: { maxHeight: "92%", width: "100%", justifyContent: "flex-end" },
+  createModalSheet: {
+    backgroundColor: "#0a0a0a",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    maxHeight: "88%",
+  },
   card: {
     marginTop: 18,
     padding: 16,
@@ -1347,6 +1701,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
   },
+  primaryInFooter: { marginTop: 0 },
   primaryText: { color: "#111", fontWeight: "900", fontSize: 15 },
   disabled: { opacity: 0.55 },
   muted: { marginTop: 8, color: "rgba(255,255,255,0.55)", fontSize: 14 },
@@ -1398,6 +1753,27 @@ const styles = StyleSheet.create({
   countChipVal: { marginTop: 4, fontSize: 18, fontWeight: "900", color: "#fff" },
   modalSection: { marginTop: 16, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
   sectionTitle: { fontSize: 13, fontWeight: "800", color: "rgba(255,255,255,0.85)", letterSpacing: 0.6, marginBottom: 10 },
+  editDetailsToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+    paddingVertical: 4,
+  },
+  editDetailsToggleText: { fontSize: 13, fontWeight: "800", color: "rgba(255,255,255,0.85)", letterSpacing: 0.6 },
+  rosterSubheading: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "rgba(163,230,53,0.85)",
+    letterSpacing: 0.4,
+    marginBottom: 6,
+  },
+  modalSaveFooter: {
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.08)",
+    paddingTop: 12,
+    backgroundColor: "#0a0a0a",
+  },
   actionRow: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
   secondaryLime: {
     flexDirection: "row",

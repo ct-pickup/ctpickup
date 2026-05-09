@@ -58,7 +58,9 @@ export function describePickupAutoStatus(
 
   let nextStep = "—";
   const st = run.status as string;
-  if (st === "active") {
+  if (st === "in_progress") {
+    nextStep = "Run is in progress.";
+  } else if (st === "active") {
     nextStep = "Run is active (finalized).";
   } else if (st === "canceled") {
     nextStep = "Run canceled.";
@@ -199,7 +201,7 @@ export async function processAutoPickupRun(
   const run = runRes.data as Record<string, unknown> | null;
   if (!run || !(run.auto_managed as boolean)) return { messages };
 
-  if ((run.status as string) === "canceled" || (run.status as string) === "active") {
+  if ((run.status as string) === "canceled" || (run.status as string) === "active" || (run.status as string) === "in_progress") {
     return { messages };
   }
   if (run.final_slot_id) return { messages };
