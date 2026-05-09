@@ -268,7 +268,7 @@ export default function PickupOperatorClient() {
     if (!selectedRun) return "Select a run.";
     if (selectedRun.outreach_started_at) return "Outreach already launched.";
     if (!auto?.anchor_start_at) return "Add at least one slot with kickoff time.";
-    const h = auto.hours_until_start;
+    const h = auto.hours_until_start as number | null | undefined;
     if (h === null || h === undefined || h < 36) return "Kickoff must be at least 36 hours away.";
     return null;
   }, [selectedRun, auto]);
