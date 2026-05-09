@@ -38,6 +38,33 @@ function supabaseErrorJson(err: unknown) {
   };
 }
 
+function unknownErrorJson(err: unknown) {
+  if (err instanceof Error) {
+    return {
+      error: err.message || "load_failed",
+      name: err.name,
+      stack: err.stack,
+    };
+  }
+  return { error: typeof err === "string" ? err : "load_failed" };
+}
+
+function errorResponse(where: string, err: unknown) {
+  const supa = supabaseErrorJson(err);
+  const other = unknownErrorJson(err);
+  return NextResponse.json(
+    {
+      where,
+      // prefer Supabase-shaped details when present, but always include stack if we have it
+      ...supa,
+      stack: (other as any).stack,
+      name: (other as any).name,
+      raw: supa.error === "load_failed" ? other : undefined,
+    },
+    { status: 500 },
+  );
+}
+
 type ProfileRow = {
   id: string;
   first_name: string | null;
@@ -146,74 +173,303 @@ function buildRow(
 }
 
 export async function GET(req: Request) {
-  const gate = await requireAdminBearer(req);
-  if (!gate.ok) return gate.response;
+  try {
+    console.log("[admin/pickup/standing][GET] start", { url: req.url });
 
-  const url = new URL(req.url);
-  const filter = parseFilter(url.searchParams.get("filter"));
-  const q = (url.searchParams.get("q") || "").trim();
-  const limit = Math.min(120, Math.max(1, Number(url.searchParams.get("limit") || 60)));
-  const offset = Math.max(0, Number(url.searchParams.get("offset") || 0));
+    const gate = await requireAdminBearer(req);
+    if (!gate.ok) return gate.response;
 
-  const svc = supabaseService();
+    const url = new URL(req.url);
+    const filter = parseFilter(url.searchParams.get("filter"));
+    const q = (url.searchParams.get("q") || "").trim();
+    const limit = Math.min(120, Math.max(1, Number(url.searchParams.get("limit") || 60)));
+    const offset = Math.max(0, Number(url.searchParams.get("offset") || 0));
 
-  const profSelect =
-    "id,first_name,last_name,instagram,email,tier,approved,confirmed_count,attended_count,strike_count,pickup_reliability_override_score,pickup_reliability_override_reason";
+    const svc = supabaseService();
 
-  /** Load waiver set for many users */
-  async function waiverSetFor(userIds: string[]) {
-    if (!userIds.length) return new Set<string>();
-    const { data } = await svc
-      .from("user_waiver_acceptance")
-      .select("user_id")
-      .eq("version", CURRENT_WAIVER_VERSION)
-      .in("user_id", userIds);
-    return new Set((data || []).map((r) => r.user_id));
-  }
+    const profSelect =
+      "id,first_name,last_name,instagram,email,tier,approved,confirmed_count,attended_count,strike_count,pickup_reliability_override_score,pickup_reliability_override_reason";
 
-  async function standingMapFor(userIds: string[]) {
-    if (!userIds.length) return new Map<string, Record<string, unknown>>();
-    const { data } = await svc.from("pickup_player_standing").select("*").in("user_id", userIds);
-    return new Map((data || []).map((r) => [r.user_id as string, r as Record<string, unknown>]));
-  }
-
-  async function lateCancelMapFor(userIds: string[]) {
-    if (!userIds.length) return new Map<string, number>();
-    const { data, error } = await svc
-      .from("pickup_reliability_incidents")
-      .select("user_id")
-      .eq("kind", "late_cancel")
-      .in("user_id", userIds);
-
-    if (error) {
-      console.error("[admin/pickup/standing] late_cancel incidents", error.message);
-      return new Map<string, number>();
+    /** Load waiver set for many users */
+    async function waiverSetFor(userIds: string[]) {
+      if (!userIds.length) return new Set<string>();
+      try {
+        console.log("[admin/pickup/standing][GET] about to query .from(user_waiver_acceptance) waiverSetFor", {
+          count: userIds.length,
+          version: CURRENT_WAIVER_VERSION,
+        });
+        const { data, error } = await svc
+          .from("user_waiver_acceptance")
+          .select("user_id")
+          .eq("version", CURRENT_WAIVER_VERSION)
+          .in("user_id", userIds);
+        if (error) throw error;
+        return new Set((data || []).map((r) => r.user_id));
+      } catch (err: unknown) {
+        console.error("[admin/pickup/standing][GET] waiverSetFor failed", err);
+        throw { where: "GET/waiverSetFor:user_waiver_acceptance", err };
+      }
     }
 
-    const map = new Map<string, number>();
-    for (const r of data || []) {
-      const uid = String((r as any).user_id);
-      map.set(uid, (map.get(uid) || 0) + 1);
-    }
-    return map;
-  }
-
-  let profs: ProfileRow[] = [];
-
-  if (filter === "warning" || filter === "suspended" || filter === "banned") {
-    const { data: stRows, error: stErr } = await svc
-      .from("pickup_player_standing")
-      .select("*")
-      .eq("effective_standing", filter)
-      .order("updated_at", { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (stErr) {
-      console.error("[admin/pickup/standing] standing slice", stErr);
-      return NextResponse.json(supabaseErrorJson(stErr), { status: 500 });
+    async function standingMapFor(userIds: string[]) {
+      if (!userIds.length) return new Map<string, Record<string, unknown>>();
+      try {
+        console.log("[admin/pickup/standing][GET] about to query .from(pickup_player_standing) standingMapFor", {
+          count: userIds.length,
+        });
+        const { data, error } = await svc
+          .from("pickup_player_standing")
+          .select("*")
+          .in("user_id", userIds);
+        if (error) throw error;
+        return new Map(
+          (data || []).map((r) => [r.user_id as string, r as Record<string, unknown>]),
+        );
+      } catch (err: unknown) {
+        console.error("[admin/pickup/standing][GET] standingMapFor failed", err);
+        throw { where: "GET/standingMapFor:pickup_player_standing", err };
+      }
     }
 
-    const ids = (stRows || []).map((r) => r.user_id as string);
+    async function lateCancelMapFor(userIds: string[]) {
+      if (!userIds.length) return new Map<string, number>();
+      try {
+        console.log(
+          "[admin/pickup/standing][GET] about to query .from(pickup_reliability_incidents) lateCancelMapFor",
+          { count: userIds.length },
+        );
+        const { data, error } = await svc
+          .from("pickup_reliability_incidents")
+          .select("user_id")
+          .eq("kind", "late_cancel")
+          .in("user_id", userIds);
+
+        if (error) throw error;
+
+        const map = new Map<string, number>();
+        for (const r of data || []) {
+          const uid = String((r as any).user_id);
+          map.set(uid, (map.get(uid) || 0) + 1);
+        }
+        return map;
+      } catch (err: unknown) {
+        console.error("[admin/pickup/standing][GET] lateCancelMapFor failed", err);
+        throw { where: "GET/lateCancelMapFor:pickup_reliability_incidents", err };
+      }
+    }
+
+    let profs: ProfileRow[] = [];
+
+    if (filter === "warning" || filter === "suspended" || filter === "banned") {
+      try {
+        console.log(
+          "[admin/pickup/standing][GET] about to query .from(pickup_player_standing) standing slice",
+          { filter, limit, offset },
+        );
+        const { data: stRows, error: stErr } = await svc
+          .from("pickup_player_standing")
+          .select("*")
+          .eq("effective_standing", filter)
+          .order("updated_at", { ascending: false })
+          .range(offset, offset + limit - 1);
+
+        if (stErr) throw stErr;
+
+        const ids = (stRows || []).map((r) => r.user_id as string);
+        if (!ids.length) {
+          return NextResponse.json({
+            filter,
+            limit,
+            offset,
+            rows: [],
+            currentWaiverVersion: CURRENT_WAIVER_VERSION,
+          });
+        }
+
+        console.log("[admin/pickup/standing][GET] about to query .from(profiles) profiles by ids", {
+          count: ids.length,
+        });
+        const { data: pRows, error: pErr } = await svc
+          .from("profiles")
+          .select(profSelect)
+          .in("id", ids);
+        if (pErr) throw pErr;
+
+        const pBy = new Map((pRows || []).map((p) => [(p as ProfileRow).id, p as ProfileRow]));
+        const waived = await waiverSetFor(ids);
+        const lateMap = await lateCancelMapFor(ids);
+        const rows = (stRows || [])
+          .map((st) => {
+            const p = pBy.get(st.user_id as string);
+            if (!p) return null;
+            if (!matchesQuery(p, q)) return null;
+            return buildRow(
+              p,
+              st as Record<string, unknown>,
+              waived.has(p.id),
+              lateMap.get(p.id) ?? 0,
+            );
+          })
+          .filter(Boolean);
+
+        return NextResponse.json({
+          filter,
+          limit,
+          offset,
+          rows,
+          currentWaiverVersion: CURRENT_WAIVER_VERSION,
+        });
+      } catch (err: unknown) {
+        console.error("[admin/pickup/standing][GET] standing filter branch failed", err);
+        return errorResponse(
+          filter === "warning" || filter === "suspended" || filter === "banned"
+            ? `GET/filter:${filter}`
+            : "GET/filter:standing",
+          (err as any)?.err ?? err,
+        );
+      }
+    }
+
+    if (filter === "missing_waiver") {
+      try {
+        console.log(
+          "[admin/pickup/standing][GET] about to query .from(user_waiver_acceptance) waivedRows",
+          { version: CURRENT_WAIVER_VERSION },
+        );
+        const { data: waivedRows, error: waivedErr } = await svc
+          .from("user_waiver_acceptance")
+          .select("user_id")
+          .eq("version", CURRENT_WAIVER_VERSION);
+        if (waivedErr) throw waivedErr;
+
+        const waived = new Set((waivedRows || []).map((r) => r.user_id));
+
+        console.log("[admin/pickup/standing][GET] about to query .from(profiles) approved list", {
+          limit: 1500,
+        });
+        const { data: allApproved, error: apErr } = await svc
+          .from("profiles")
+          .select(profSelect)
+          .eq("approved", true)
+          .order("last_name", { ascending: true, nullsFirst: false })
+          .limit(1500);
+
+        if (apErr) throw apErr;
+
+        const missing = (allApproved || [])
+          .map((p) => p as ProfileRow)
+          .filter((p) => !waived.has(p.id))
+          .filter((p) => matchesQuery(p, q));
+
+        const slice = missing.slice(offset, offset + limit);
+        const ids = slice.map((p) => p.id);
+        const stMap = await standingMapFor(ids);
+        const lateMap = await lateCancelMapFor(ids);
+        const rows = slice.map((p) =>
+          buildRow(p, stMap.get(p.id) || null, false, lateMap.get(p.id) ?? 0),
+        );
+
+        return NextResponse.json({
+          filter,
+          limit,
+          offset,
+          rows,
+          currentWaiverVersion: CURRENT_WAIVER_VERSION,
+          total_estimate: missing.length,
+        });
+      } catch (err: unknown) {
+        console.error("[admin/pickup/standing][GET] missing_waiver branch failed", err);
+        const where = (err as any)?.where ?? "GET/filter:missing_waiver";
+        return errorResponse(where, (err as any)?.err ?? err);
+      }
+    }
+
+    if (filter === "good") {
+      try {
+        console.log("[admin/pickup/standing][GET] about to query .from(profiles) good filter approved", {
+          limit: 1500,
+        });
+        const { data: approved, error: apErr } = await svc
+          .from("profiles")
+          .select(profSelect)
+          .eq("approved", true)
+          .order("last_name", { ascending: true, nullsFirst: false })
+          .limit(1500);
+
+        if (apErr) throw apErr;
+
+        const list = (approved || []) as ProfileRow[];
+        const ids = list.map((p) => p.id);
+        const [waivedSet, stMap, lateMap] = await Promise.all([
+          waiverSetFor(ids),
+          standingMapFor(ids),
+          lateCancelMapFor(ids),
+        ]);
+
+        const goodList = list
+          .filter((p) => waivedSet.has(p.id))
+          .filter((p) => {
+            const s = stMap.get(p.id);
+            const eff = (s?.effective_standing as string) || "good";
+            return eff === "good";
+          })
+          .filter((p) => matchesQuery(p, q));
+
+        const slice = goodList.slice(offset, offset + limit);
+        const rows = slice.map((p) =>
+          buildRow(p, stMap.get(p.id) || null, true, lateMap.get(p.id) ?? 0),
+        );
+
+        return NextResponse.json({
+          filter,
+          limit,
+          offset,
+          rows,
+          currentWaiverVersion: CURRENT_WAIVER_VERSION,
+          total_estimate: goodList.length,
+        });
+      } catch (err: unknown) {
+        console.error("[admin/pickup/standing][GET] good branch failed", err);
+        const where = (err as any)?.where ?? "GET/filter:good";
+        return errorResponse(where, (err as any)?.err ?? err);
+      }
+    }
+
+    // filter === "all"
+    let profQuery = (() => {
+      console.log("[admin/pickup/standing][GET] about to build query .from(profiles) all", {
+        limit,
+        offset,
+        q: q || null,
+      });
+      return svc
+        .from("profiles")
+        .select(profSelect)
+        .eq("approved", true)
+        .order("last_name", { ascending: true, nullsFirst: false })
+        .range(offset, offset + limit - 1);
+    })();
+
+    if (q) {
+      const esc = q.replace(/%/g, "\\%").replace(/_/g, "\\_");
+      const like = `%${esc}%`;
+      profQuery = profQuery.or(
+        `first_name.ilike.${like},last_name.ilike.${like},instagram.ilike.${like},email.ilike.${like}`,
+      );
+    }
+
+    try {
+      const { data: profData, error: pErr } = await profQuery;
+      if (pErr) throw pErr;
+
+      profs = (profData || []) as ProfileRow[];
+    } catch (err: unknown) {
+      console.error("[admin/pickup/standing][GET] profiles(all) failed", err);
+      return errorResponse("GET/filter:all profiles", err);
+    }
+
+    const ids = profs.map((p) => p.id);
+
     if (!ids.length) {
       return NextResponse.json({
         filter,
@@ -224,167 +480,41 @@ export async function GET(req: Request) {
       });
     }
 
-    const { data: pRows, error: pErr } = await svc.from("profiles").select(profSelect).in("id", ids);
-    if (pErr) {
-      console.error("[admin/pickup/standing] profiles", pErr);
-      return NextResponse.json(supabaseErrorJson(pErr), { status: 500 });
+    let waivedSet: Set<string>;
+    let stMap: Map<string, Record<string, unknown>>;
+    let lateMap: Map<string, number>;
+    try {
+      [waivedSet, stMap, lateMap] = await Promise.all([
+        waiverSetFor(ids),
+        standingMapFor(ids),
+        lateCancelMapFor(ids),
+      ]);
+    } catch (err: unknown) {
+      console.error("[admin/pickup/standing][GET] parallel maps failed", err);
+      const where = (err as any)?.where ?? (err as any)?.err?.where ?? "GET/filter:all maps";
+      return errorResponse(where, (err as any)?.err ?? err);
     }
 
-    const pBy = new Map((pRows || []).map((p) => [(p as ProfileRow).id, p as ProfileRow]));
-    const waived = await waiverSetFor(ids);
-    const lateMap = await lateCancelMapFor(ids);
-    const rows = (stRows || [])
-      .map((st) => {
-        const p = pBy.get(st.user_id as string);
-        if (!p) return null;
-        if (!matchesQuery(p, q)) return null;
-        return buildRow(p, st as Record<string, unknown>, waived.has(p.id), lateMap.get(p.id) ?? 0);
-      })
-      .filter(Boolean);
-
-    return NextResponse.json({
-      filter,
-      limit,
-      offset,
-      rows,
-      currentWaiverVersion: CURRENT_WAIVER_VERSION,
-    });
-  }
-
-  if (filter === "missing_waiver") {
-    const { data: waivedRows } = await svc
-      .from("user_waiver_acceptance")
-      .select("user_id")
-      .eq("version", CURRENT_WAIVER_VERSION);
-
-    const waived = new Set((waivedRows || []).map((r) => r.user_id));
-
-    const { data: allApproved, error: apErr } = await svc
-      .from("profiles")
-      .select(profSelect)
-      .eq("approved", true)
-      .order("last_name", { ascending: true, nullsFirst: false })
-      .limit(1500);
-
-    if (apErr) {
-      console.error("[admin/pickup/standing] approved list", apErr);
-      return NextResponse.json(supabaseErrorJson(apErr), { status: 500 });
-    }
-
-    const missing = (allApproved || [])
-      .map((p) => p as ProfileRow)
-      .filter((p) => !waived.has(p.id))
-      .filter((p) => matchesQuery(p, q));
-
-    const slice = missing.slice(offset, offset + limit);
-    const ids = slice.map((p) => p.id);
-    const stMap = await standingMapFor(ids);
-    const lateMap = await lateCancelMapFor(ids);
-    const rows = slice.map((p) => buildRow(p, stMap.get(p.id) || null, false, lateMap.get(p.id) ?? 0));
-
-    return NextResponse.json({
-      filter,
-      limit,
-      offset,
-      rows,
-      currentWaiverVersion: CURRENT_WAIVER_VERSION,
-      total_estimate: missing.length,
-    });
-  }
-
-  if (filter === "good") {
-    const { data: approved, error: apErr } = await svc
-      .from("profiles")
-      .select(profSelect)
-      .eq("approved", true)
-      .order("last_name", { ascending: true, nullsFirst: false })
-      .limit(1500);
-
-    if (apErr) {
-      console.error("[admin/pickup/standing] good filter", apErr);
-      return NextResponse.json(supabaseErrorJson(apErr), { status: 500 });
-    }
-
-    const list = (approved || []) as ProfileRow[];
-    const ids = list.map((p) => p.id);
-    const [waivedSet, stMap, lateMap] = await Promise.all([
-      waiverSetFor(ids),
-      standingMapFor(ids),
-      lateCancelMapFor(ids),
-    ]);
-
-    const goodList = list
-      .filter((p) => waivedSet.has(p.id))
-      .filter((p) => {
-        const s = stMap.get(p.id);
-        const eff = (s?.effective_standing as string) || "good";
-        return eff === "good";
-      })
-      .filter((p) => matchesQuery(p, q));
-
-    const slice = goodList.slice(offset, offset + limit);
-    const rows = slice.map((p) => buildRow(p, stMap.get(p.id) || null, true, lateMap.get(p.id) ?? 0));
-
-    return NextResponse.json({
-      filter,
-      limit,
-      offset,
-      rows,
-      currentWaiverVersion: CURRENT_WAIVER_VERSION,
-      total_estimate: goodList.length,
-    });
-  }
-
-  // filter === "all"
-  let profQuery = svc
-    .from("profiles")
-    .select(profSelect)
-    .eq("approved", true)
-    .order("last_name", { ascending: true, nullsFirst: false })
-    .range(offset, offset + limit - 1);
-
-  if (q) {
-    const esc = q.replace(/%/g, "\\%").replace(/_/g, "\\_");
-    const like = `%${esc}%`;
-    profQuery = profQuery.or(
-      `first_name.ilike.${like},last_name.ilike.${like},instagram.ilike.${like},email.ilike.${like}`,
+    const rows = profs.map((p) =>
+      buildRow(p, stMap.get(p.id) || null, waivedSet.has(p.id), lateMap.get(p.id) ?? 0),
     );
-  }
 
-  const { data: profData, error: pErr } = await profQuery;
-  if (pErr) {
-    console.error("[admin/pickup/standing] profiles", pErr);
-    return NextResponse.json(supabaseErrorJson(pErr), { status: 500 });
-  }
-
-  profs = (profData || []) as ProfileRow[];
-  const ids = profs.map((p) => p.id);
-
-  if (!ids.length) {
     return NextResponse.json({
       filter,
       limit,
       offset,
-      rows: [],
+      rows,
       currentWaiverVersion: CURRENT_WAIVER_VERSION,
     });
+  } catch (err: unknown) {
+    const where = (err as any)?.where ?? "GET/top-level";
+    const inner = (err as any)?.err ?? err;
+    console.error("[admin/pickup/standing][GET] top-level failed", inner);
+    if (inner instanceof Error) {
+      console.error("[admin/pickup/standing][GET] top-level stack", inner.stack);
+    }
+    return errorResponse(where, inner);
   }
-
-  const [waivedSet, stMap, lateMap] = await Promise.all([
-    waiverSetFor(ids),
-    standingMapFor(ids),
-    lateCancelMapFor(ids),
-  ]);
-
-  const rows = profs.map((p) => buildRow(p, stMap.get(p.id) || null, waivedSet.has(p.id), lateMap.get(p.id) ?? 0));
-
-  return NextResponse.json({
-    filter,
-    limit,
-    offset,
-    rows,
-    currentWaiverVersion: CURRENT_WAIVER_VERSION,
-  });
 }
 
 type PatchBody = {

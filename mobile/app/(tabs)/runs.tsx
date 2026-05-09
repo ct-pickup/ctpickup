@@ -418,16 +418,6 @@ export default function RunsScreen() {
           <Text style={styles.howItWorksText}>How it works</Text>
           <FontAwesome name="angle-right" size={16} color="rgba(163,230,53,0.7)" />
         </Pressable>
-        <Pressable
-          onPress={() => (router.push as (href: string) => void)("/pickup-status")}
-          style={({ pressed }) => [styles.howItWorksRow, pressed && { opacity: 0.7 }]}
-          accessibilityRole="link"
-          accessibilityLabel="Pickup status"
-        >
-          <FontAwesome name="bullhorn" size={14} color="#a3e635" />
-          <Text style={styles.howItWorksText}>Pickup status</Text>
-          <FontAwesome name="angle-right" size={16} color="rgba(163,230,53,0.7)" />
-        </Pressable>
       </View>
 
       {loading ? (
