@@ -28,6 +28,10 @@ export default function AdminScreen() {
           <Text style={styles.cardBody}>Create runs, view roster, promote standby, mark attendance, record late cancels.</Text>
         </Pressable>
 
+        <Pressable style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]} onPress={() => router.push("/admin/members")}>
+          <Text style={styles.cardTitle}>Members</Text>
+          <Text style={styles.cardBody}>View new signups, approve accounts, and set player tiers.</Text>
+        </Pressable>
         <Pressable style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]} onPress={() => router.push("/admin/standing")}>
           <Text style={styles.cardTitle}>Standing</Text>
           <Text style={styles.cardBody}>Search players, set manual standing overrides, reliability score overrides, staff notes.</Text>
