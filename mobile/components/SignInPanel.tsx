@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import {
   ActivityIndicator,
+  Alert,
   LayoutAnimation,
   Platform,
   Pressable,
@@ -102,12 +103,45 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
   }, [emailClean]);
 
   async function postSignInOtp(skipExistsGate: boolean, _flow: OtpFlow): Promise<boolean> {
-    if (!supabase) return false;
-    const { error } = await supabase.auth.signInWithOtp({
-      email: emailClean,
-    });
-    if (error) {
-      setMsg(error.message);
+    if (!supabase) {
+      setMsg("Sign-in isn't ready yet on this build.");
+      console.error("[auth] signInWithOtp: missing supabase client", { email: emailClean });
+      return false;
+    }
+    try {
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email: emailClean,
+        options: {
+          // Some Supabase email templates include a confirmation link; this helps ensure the link is valid.
+          emailRedirectTo: siteOrigin() ? `${siteOrigin()}/login` : undefined,
+        },
+      });
+
+      if (error) {
+        const userMsg =
+          /rate limit/i.test(error.message ?? "") || (error as { status?: number }).status === 429
+            ? "Too many requests. Please wait a moment and try again."
+            : "We couldn’t send the code right now. Please try again.";
+        setMsg(userMsg);
+        Alert.alert("Couldn’t send code", userMsg);
+        console.error("[auth] signInWithOtp error", {
+          error,
+          email: emailClean,
+          hasData: !!data,
+        });
+        return false;
+      }
+
+      // Supabase can't guarantee delivery here; but reaching this point means the request was accepted.
+      console.log("[auth] signInWithOtp accepted", {
+        email: emailClean,
+        hasData: !!data,
+      });
+    } catch (e) {
+      const userMsg = "We couldn’t send the code right now. Please try again.";
+      setMsg(userMsg);
+      Alert.alert("Couldn’t send code", userMsg);
+      console.error("[auth] signInWithOtp threw", { error: e, email: emailClean });
       return false;
     }
     if (!skipExistsGate) {
@@ -128,7 +162,18 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
     setBusy(true);
     setMsg(null);
     clearAuthHints();
-    const existsResult = await checkEmailExistsResult(emailClean);
+    let existsResult: Awaited<ReturnType<typeof checkEmailExistsResult>> | null = null;
+    try {
+      existsResult = await checkEmailExistsResult(emailClean);
+    } catch (e) {
+      setBusy(false);
+      setShowSendRetry(true);
+      const userMsg = "Could not reach CT Pickup. Check your connection and try again.";
+      setMsg(userMsg);
+      Alert.alert("Network error", userMsg);
+      console.error("[auth] checkEmailExistsResult threw", { error: e, email: emailClean });
+      return;
+    }
     if (!existsResult.ok) {
       setBusy(false);
       const reason = existsResult.reason;
@@ -140,6 +185,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
       } else {
         setMsg("Could not verify that email right now. Try again in a moment.");
       }
+      console.error("[auth] checkEmailExistsResult failed", { email: emailClean, reason });
       return;
     }
 
@@ -184,32 +230,53 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
       setMsg("Enter the 8-digit code from your email.");
       return;
     }
-    const { error } = await supabase.auth.verifyOtp({
-      email: emailClean,
-      token,
-      type: "email",
-    });
-    if (error) {
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: emailClean,
+        token,
+        type: "email",
+      });
+      if (error) {
+        const userMsg =
+          /expired/i.test(error.message ?? "") ? "That code expired. Tap “Resend code” and try again." : "Invalid code. Please try again.";
+        setBusy(false);
+        setMsg(userMsg);
+        Alert.alert("Couldn’t verify code", userMsg);
+        console.error("[auth] verifyOtp error", { error, email: emailClean });
+        return;
+      }
+
+      const { data: sessionPayload, error: sessionErr } = await supabase.auth.getSession();
+      if (sessionErr) {
+        setBusy(false);
+        const userMsg = "Signed in, but couldn’t load your session. Please try again.";
+        setMsg(userMsg);
+        Alert.alert("Session error", userMsg);
+        console.error("[auth] getSession error after verifyOtp", { error: sessionErr, email: emailClean });
+        return;
+      }
+      if (!sessionPayload.session) {
+        setBusy(false);
+        const userMsg = "Signed in, but couldn’t load your session. Please try again.";
+        setMsg(userMsg);
+        Alert.alert("Session error", userMsg);
+        console.error("[auth] missing session after verifyOtp", { email: emailClean });
+        return;
+      }
+
+      await refreshSession();
+      // One yield so React commits session before (tabs) mounts; avoids Redirect → /login when session is still stale.
+      await Promise.resolve();
+      router.replace("/(tabs)");
       setBusy(false);
-      setMsg(error.message);
+    } catch (e) {
+      setBusy(false);
+      const userMsg = "Something went wrong while signing in. Please try again.";
+      setMsg(userMsg);
+      Alert.alert("Sign-in error", userMsg);
+      console.error("[auth] verify flow threw", { error: e, email: emailClean });
       return;
     }
-    const { data: sessionPayload, error: sessionErr } = await supabase.auth.getSession();
-    if (sessionErr) {
-      setBusy(false);
-      setMsg(sessionErr.message);
-      return;
-    }
-    if (!sessionPayload.session) {
-      setBusy(false);
-      setMsg("Could not load your session. Try again.");
-      return;
-    }
-    await refreshSession();
-    // One yield so React commits session before (tabs) mounts; avoids Redirect → /login when session is still stale.
-    await Promise.resolve();
-    router.replace("/(tabs)");
-    setBusy(false);
 
     setTimeout(() => {
       void (async () => {
@@ -219,7 +286,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
             router.replace("/(tabs)");
           }
         } catch {
-          /* ignore */
+          // best-effort fallback; ignore
         }
       })();
     }, 500);

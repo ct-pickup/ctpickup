@@ -8,6 +8,7 @@ import { Redirect, useRouter, type Href } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -171,6 +172,7 @@ export default function CompleteProfileScreen() {
   const { session, supabase, isReady } = useAuth();
   const { waiverAccepted, waiverLoading } = useWaiver();
   const { markProfileComplete, profileGateLoading, profileNeedsCompletion } = useProfileCompletionGate();
+  const isIPad = Platform.OS === "ios" && Platform.isPad;
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -261,9 +263,38 @@ export default function CompleteProfileScreen() {
     [postSaveVenues],
   );
 
+  const firstLiveErrorMessage = useMemo(() => {
+    const ordered: FieldKey[] = [
+      "first_name",
+      "last_name",
+      "playing_position",
+      "instagram",
+      "zip_code",
+      "username",
+      "esports_interest",
+      "esports_platform",
+      "esports_console",
+      "esports_online_id",
+    ];
+    for (const k of ordered) {
+      const m = liveErrors[k];
+      if (m) return m === "Required" ? "Please fill out all required fields." : m;
+    }
+    return null;
+  }, [liveErrors]);
+
   const onContinue = useCallback(async () => {
     setSubmitError(null);
-    if (!canContinue) return;
+    if (!canContinue) {
+      const m = firstLiveErrorMessage ?? "Please check the form and try again.";
+      setSubmitError(m);
+      Alert.alert("Missing info", m);
+      console.error("[complete-profile] validation failed", {
+        email: signedEmail,
+        liveErrors,
+      });
+      return;
+    }
 
     const fn = firstName.trim();
     const ln = lastName.trim();
@@ -276,6 +307,11 @@ export default function CompleteProfileScreen() {
 
     if (!supabase || !userId) {
       setSubmitError("Session expired. Please sign in again.");
+      console.error("[complete-profile] missing supabase or userId", {
+        hasSupabase: !!supabase,
+        userId,
+        email: signedEmail,
+      });
       return;
     }
 
@@ -283,11 +319,21 @@ export default function CompleteProfileScreen() {
     try {
       let nearestVenues: VenueDistanceRow[] = [];
       const origin = siteOrigin();
-      if (origin) {
-        nearestVenues = await getNearestVenuesFromApi(zc, origin, session?.access_token);
-      }
-      if (nearestVenues.length === 0) {
-        nearestVenues = getNearestVenues(zc);
+      try {
+        if (origin) {
+          nearestVenues = await getNearestVenuesFromApi(zc, origin, session?.access_token);
+        }
+        if (nearestVenues.length === 0) {
+          nearestVenues = getNearestVenues(zc);
+        }
+      } catch (e) {
+        console.error("[complete-profile] nearest venues lookup failed; continuing without venues", {
+          error: e,
+          zip: zc,
+          origin,
+          hasAccessToken: !!session?.access_token,
+        });
+        nearestVenues = [];
       }
 
       const esportsYes = esportsInterest === true;
@@ -316,23 +362,56 @@ export default function CompleteProfileScreen() {
         payload.esports_online_id = null;
       }
 
-      const { error } = await supabase.from("profiles").update(payload).eq("id", userId);
+      try {
+        const { error } = await supabase.from("profiles").update(payload).eq("id", userId);
 
-      if (error) {
-        const code = (error as { code?: string }).code;
-        const dup =
-          code === "23505" ||
-          /profiles_username_lower_unique|duplicate key/i.test(error.message ?? "");
-        setSubmitError(dup ? "That username is already taken. Try another." : error.message);
+        if (error) {
+          const code = (error as { code?: string }).code;
+          const dup =
+            code === "23505" ||
+            /profiles_username_lower_unique|duplicate key/i.test(error.message ?? "");
+          const userMsg = dup
+            ? "That username is already taken. Try another."
+            : "We couldn’t save your profile right now. Please try again.";
+          setSubmitError(userMsg);
+          Alert.alert("Couldn’t save profile", userMsg);
+          console.error("[complete-profile] supabase profiles.update failed", {
+            error,
+            code,
+            userId,
+            email: signedEmail,
+            payloadKeys: Object.keys(payload),
+          });
+          return;
+        }
+      } catch (e) {
+        const userMsg = "We couldn’t save your profile right now. Please try again.";
+        setSubmitError(userMsg);
+        Alert.alert("Couldn’t save profile", userMsg);
+        console.error("[complete-profile] supabase call threw", {
+          error: e,
+          userId,
+          email: signedEmail,
+        });
         return;
       }
 
       setPostSaveVenues(nearestVenues);
+    } catch (e) {
+      const userMsg = "Something went wrong while saving your profile. Please try again.";
+      setSubmitError(userMsg);
+      Alert.alert("Error", userMsg);
+      console.error("[complete-profile] unexpected error", {
+        error: e,
+        userId: session?.user?.id,
+        email: signedEmail,
+      });
     } finally {
       setBusy(false);
     }
   }, [
     canContinue,
+    firstLiveErrorMessage,
     firstName,
     lastName,
     gender,
@@ -346,6 +425,7 @@ export default function CompleteProfileScreen() {
     esportsConsole,
     esportsOnlineId,
     signedEmail,
+    liveErrors,
     session?.user?.id,
     session?.access_token,
     supabase,
@@ -409,8 +489,8 @@ export default function CompleteProfileScreen() {
       <View pointerEvents="none" style={styles.bgGlowB} />
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
+        behavior={Platform.OS === "ios" ? (isIPad ? "height" : "padding") : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? (isIPad ? 0 : 8) : 0}
       >
         <ScrollView
           keyboardShouldPersistTaps="handled"

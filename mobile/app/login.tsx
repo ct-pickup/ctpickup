@@ -10,6 +10,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const navigationRef = useNavigationContainerRef();
   const insets = useSafeAreaInsets();
+  const isIPad = Platform.OS === "ios" && Platform.isPad;
 
   useEffect(() => {
     if (!isReady || !session?.user?.email) return;
@@ -42,7 +43,11 @@ export default function LoginScreen() {
     <View style={styles.screen}>
       <View pointerEvents="none" style={styles.bgGlowA} />
       <View pointerEvents="none" style={styles.bgGlowB} />
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.screen}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? (isIPad ? "height" : "padding") : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? (isIPad ? 0 : 8) : 0}
+        style={styles.screen}
+      >
         <ScrollView
           contentContainerStyle={[
             styles.content,
