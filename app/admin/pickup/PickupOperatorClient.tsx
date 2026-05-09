@@ -297,7 +297,7 @@ export default function PickupOperatorClient() {
     );
   }
 
-  const hubTitle = hubRun?.title || hubRun?.id || "—";
+  const hubTitle = (hubRun?.title || hubRun?.id || "—") as string;
   const publishHref = selectedRunId ? `/admin/publish?run=${encodeURIComponent(selectedRunId)}` : "/admin/publish";
 
   return (
