@@ -818,6 +818,12 @@ export default function AdminPickupOpsScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <Pressable
+            onPress={() => router.push("/admin/members")}
+            style={({ pressed }) => [styles.toolbarChip, pressed && { opacity: 0.9 }]}>
+            <FontAwesome name="users" size={13} color={LIME} />
+            <Text style={styles.toolbarChipText}>Members</Text>
+          </Pressable>
+          <Pressable
             onPress={() => router.push("/admin/analytics")}
             style={({ pressed }) => [styles.toolbarChip, pressed && { opacity: 0.9 }]}
           >
