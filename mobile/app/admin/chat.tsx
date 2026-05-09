@@ -376,8 +376,6 @@ export default function AdminChatScreen() {
         </Pressable>
       </View>
 
-        </View>
-
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Post announcement</Text>
         <Text style={styles.bodyMuted}>
@@ -411,8 +409,6 @@ export default function AdminChatScreen() {
           <Text style={styles.primaryText}>{busy === "announce" ? "Sending..." : "Send announcement"}</Text>
         </Pressable>
       </View>
-
-        </View>
 
         {loading ? <ActivityIndicator color="#fff" style={{ marginTop: 10 }} /> : null}
         {error ? <Text style={styles.err}>{error}</Text> : null}
