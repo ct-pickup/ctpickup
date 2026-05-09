@@ -86,7 +86,7 @@ type PickupSwitchDetail = {
 export default function PickupOperatorClient() {
   const { supabase, isReady } = useSupabaseBrowser();
   const [token, setToken] = useState<string | null>(null);
-  const [runs, setRuns] = useState<Record<string, unknown>[]>([]);
+  const [runs, setRuns] = useState<Record<string, string>[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string>("");
   const [detail, setDetail] = useState<PickupSwitchDetail | null>(null);
   const [opCtx, setOpCtx] = useState<PickupOperatorBundle | null>(null);
