@@ -29,6 +29,11 @@ export const unstable_settings = {
   initialRouteName: "(tabs)",
 };
 
+// Must run before first render.
+void SplashScreen.preventAutoHideAsync().catch(() => {
+  // Expo Go / fast-refresh can race the native splash registration; ignore.
+});
+
 function AuthRouteTracker() {
   const pathname = usePathname();
   useEffect(() => {
@@ -37,21 +42,11 @@ function AuthRouteTracker() {
   return null;
 }
 
-let splashPrepared = false;
-
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
     ...FontAwesome.font,
   });
-
-  useEffect(() => {
-    if (splashPrepared) return;
-    splashPrepared = true;
-    void SplashScreen.preventAutoHideAsync().catch(() => {
-      // Expo Go / fast-refresh can race the native splash registration; ignore.
-    });
-  }, []);
 
   useEffect(() => {
     if (error) throw error;

@@ -298,6 +298,17 @@ export default function AdminPickupOpsScreen() {
   }, [modalOpen, selectedRunId, loadDetail]);
 
   const selectedRun = detail?.run ?? null;
+  const selectedRunStageLabel = useMemo(() => {
+    if (!selectedRun || typeof selectedRun !== "object") return "";
+    const stage = derivePickupLifecycleStage({
+      status: s((selectedRun as Record<string, unknown>).status),
+      is_current: (selectedRun as Record<string, unknown>).is_current === true,
+      outreach_started_at: s((selectedRun as Record<string, unknown>).outreach_started_at) || null,
+      is_completed: (selectedRun as Record<string, unknown>).is_completed === true,
+      has_result: (selectedRun as Record<string, unknown>).has_result === true,
+    });
+    return pickupLifecycleStageLabel(stage);
+  }, [selectedRun]);
   const slots = useMemo(() => (Array.isArray(detail?.slots) ? detail!.slots : []) as Record<string, unknown>[], [detail]);
   const counts = detail?.counts;
   const confirmed = useMemo(() => (Array.isArray(detail?.confirmed) ? detail!.confirmed : []), [detail]);
@@ -1127,7 +1138,7 @@ export default function AdminPickupOpsScreen() {
                   </Text>
                   <Text style={styles.modalSub} numberOfLines={2}>
                     {selectedRun
-                      ? `${workflowStage(selectedRun as Record<string, unknown>)} · ${fmtPickupDt(s(selectedRun.start_at))}`
+                      ? `${selectedRunStageLabel} · ${fmtPickupDt(s(selectedRun.start_at))}`
                       : ""}
                   </Text>
                 </View>
