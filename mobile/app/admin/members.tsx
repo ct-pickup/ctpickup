@@ -90,21 +90,20 @@ export default function AdminMembersScreen() {
     }
   }
 
-  const renderItem = ({ item }: { item: Member }) => {
+  const renderItem = ({ item }: { it Member }) => {
     const name = [item.first_name, item.last_name].filter(Boolean).join(" ") || item.username || item.id;
     const joined = new Date(item.created_at).toLocaleDateString();
     const isBusy = busy?.endsWith(item.id);
+    const subLine1 = [item.username ? "@" + item.username : null, item.instagram ? "ig: " + item.instagram : null].filter(Boolean).join(" · ");
+    const subLine2 = (item.playing_position || "No position") + " · " + (item.zip_code || "No zip") + " · Joined " + joined;
     return (
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>{name}</Text>
-            <Text style={styles.sub}>
-              {[item.username ? `@${item.username}` : null, item.instagram ? `ig: ${item.instagram}` : null].filter(Boolean).join(" · ")}
-            </Text>
-            <Text style={styles.sub}>
-              {`${item.playing_position || "No position"} · ${item.zip_code || "No zip"} · Joined ${joined}`}
-            </Text>        </View>
+            <Text style={styles.sub}>{subLine1}</Text>
+            <Text style={styles.sub}>{subLine2}</Text>
+          </View>
           <Pressable
             onPress={() => void toggleApproved(item.id, item.approved)}
             disabled={isBusy}
