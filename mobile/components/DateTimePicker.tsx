@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-const LIME = "#a3e635";
-
 type Props = {
   value: string;
   onChange: (iso: string) => void;
@@ -11,42 +9,47 @@ type Props = {
 
 function pad(n: number) { return String(n).padStart(2, "0"); }
 
+function isDST(y: number, m: number, d: number) {
+  const date = new Date(y, m, d);
+  const march = new Date(y, 2, 1);
+  const nov = new Date(y, 10, 1);
+  const dstStart = new Date(y, 2, 8 + (7 - march.getDay()) % 7);
+  const dstEnd = new Date(y, 10, 1 + (7 - nov.getDay()) % 7);
+  return date >= dstStart && date < dstEnd;
+}
+
 export default function DateTimePicker({ value, onChange, label }: Props) {
   const [open, setOpen] = useState(false);
   const parsed = value ? new Date(value) : new Date();
-  const [year, setYear] = useState(parsed.getFullYear());
-  const [month, setMonth] = useState(parsed.getMonth() + 1);
-  const [day, setDay] = useState(parsed.getDate());
-  const [hour, setHour] = useState(parsed.getHours());
-  const [minute, setMinute] = useState(parsed.getMinutes());
+
+  // Convert UTC stored value to ET for display
+  const etOffset = isDST(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()) ? 4 : 5;
+  const etDate = new Date(parsed.getTime() - etOffset * 60 * 60 * 1000);
+
+  const [year, setYear] = useState(value ? etDate.getUTCFullYear() : new Date().getFullYear());
+  const [month, setMonth] = useState(value ? etDate.getUTCMonth() + 1 : new Date().getMonth() + 1);
+  const [day, setDay] = useState(value ? etDate.getUTCDate() : new Date().getDate());
+  const [hour12, setHour12] = useState(value ? (etDate.getUTCHours() % 12 || 12) : 6);
+  const [ampm, setAmpm] = useState(value ? (etDate.getUTCHours() >= 12 ? "PM" : "AM") : "PM");
+  const [minute, setMinute] = useState(value ? etDate.getUTCMinutes() : 0);
 
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const years = Array.from({ length: 3 }, (_, i) => new Date().getFullYear() + i);
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
-  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const hours12 = Array.from({ length: 12 }, (_, i) => i + 1);
   const minutes = [0, 15, 30, 45];
 
   function confirm() {
-    // ET = UTC-4 (EDT summer) / UTC-5 (EST winter)
-    const etOffset = isDST(year, month - 1, day) ? 4 : 5;
-    const utcMs = Date.UTC(year, month - 1, day, hour + etOffset, minute, 0);
-    const iso = new Date(utcMs).toISOString().slice(0, 19) + "Z";
-    onChange(iso);
+    let h = hour12 % 12;
+    if (ampm === "PM") h += 12;
+    const offset = isDST(year, month - 1, day) ? 4 : 5;
+    const utcMs = Date.UTC(year, month - 1, day, h + offset, minute, 0);
+    onChange(new Date(utcMs).toISOString().slice(0, 19) + "Z");
     setOpen(false);
   }
 
-  function isDST(y: number, m: number, d: number) {
-    // DST: second Sunday in March to first Sunday in November
-    const date = new Date(y, m, d);
-    const march = new Date(y, 2, 1);
-    const nov = new Date(y, 10, 1);
-    const dstStart = new Date(y, 2, 8 + (7 - march.getDay()) % 7);
-    const dstEnd = new Date(y, 10, 1 + (7 - nov.getDay()) % 7);
-    return date >= dstStart && date < dstEnd;
-  }
-
   const display = value
-    ? months[month - 1] + " " + day + ", " + year + " at " + pad(hour) + ":" + pad(minute)
+    ? months[month - 1] + " " + day + ", " + year + " at " + hour12 + ":" + pad(minute) + " " + ampm + " ET"
     : "Tap to set date & time";
 
   return (
@@ -59,10 +62,10 @@ export default function DateTimePicker({ value, onChange, label }: Props) {
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
         <View style={styles.overlay}>
           <View style={styles.sheet}>
-            <Text style={styles.title}>Select date & time</Text>
+            <Text style={styles.title}>Select date & time (ET)</Text>
             <View style={styles.row}>
               <View style={styles.col}>
-                <Text style={styles.colLabel}>Month</Text>
+                <Text style={styles.colLabel}>Month<ext>
                 <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
                   {months.map((m, i) => (
                     <Pressable key={m} onPress={() => setMonth(i + 1)} style={[styles.item, month === i + 1 ? styles.itemActive : null]}>
@@ -94,9 +97,9 @@ export default function DateTimePicker({ value, onChange, label }: Props) {
               <View style={styles.col}>
                 <Text style={styles.colLabel}>Hour</Text>
                 <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-                  {hours.map((h) => (
-                    <Pressable key={h} onPress={() => setHour(h)} style={[styles.item, hour === h ? styles.itemActive : null]}>
-                      <Text style={[styles.itemText, hour === h ? styles.itemTextActive : null]}>{pad(h)}</Text>
+                  {hours12.map((h) => (
+                    <Pressable key={h} onPress={() => setHour12(h)} style={[styles.item, hour12 === h ? styles.itemActive : null]}>
+                      <Text style={[styles.itemText, hour12 === h ? styles.itemTextActive : null]}>{String(h)}</Text>
                     </Pressable>
                   ))}
                 </ScrollView>
@@ -107,6 +110,16 @@ export default function DateTimePicker({ value, onChange, label }: Props) {
                   {minutes.map((m) => (
                     <Pressable key={m} onPress={() => setMinute(m)} style={[styles.item, minute === m ? styles.itemActive : null]}>
                       <Text style={[styles.itemText, minute === m ? styles.itemTextActive : null]}>{pad(m)}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+              <View style={styles.col}>
+                <Text style={styles.colLabel}>AM/PM</Text>
+                <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+                  {["AM", "PM"].map((a) => (
+                    <Pressable key={a} onPress={() => setAmpm(a)} style={[styles.item, ampm === a ? styles.itemActive : null]}>
+                      <Text style={[styles.itemText, ampm === a ? styles.itemTextActive : null]}>{a}</Text>
                     </Pressable>
                   ))}
                 </ScrollView>
@@ -134,7 +147,7 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
   sheet: { backgroundColor: "#111", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 },
   title: { color: "#fff", fontSize: 17, fontWeight: "700", marginBottom: 16, textAlign: "center" },
-  row: { flexDirection: "row", gap: 8, height: 200 },
+  row: { flexDirection: "row", gap: 6, height: 200 },
   col: { flex: 1 },
   colLabel: { color: "rgba(255,255,255,0.45)", fontSize: 10, textAlign: "center", marginBottom: 4 },
   scroll: { flex: 1 },
