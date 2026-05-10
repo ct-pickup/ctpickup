@@ -167,6 +167,40 @@ export async function GET(req: Request) {
 
   const availability = availRes.data || [];
 
+  // Enrich availability with profile info
+  const availUserIds = Array.from(new Set(availability.map((a: { user_id: string }) => a.user_id)));
+  const availProfiles = availUserIds.length
+    ? await admin
+        .from("profiles")
+        .select("id,first_name,last_name,username,tier,tier_rank,playing_position,instagram")
+        .in("id", availUserIds)
+    : { data: [] };
+  const availProfileMap = new Map((availProfiles.data || []).map((p: { id: string }) => [p.id, p]));
+  const availabilityEnriched = availability.map((a: { user_id: string }) => {
+    const p = availProfileMap.get(a.user_id) as
+      | {
+          first_name: string | null;
+          last_name: string | null;
+          username: string | null;
+          tier: string | null;
+          tier_rank: number | null;
+          playing_position: string | null;
+          instagram: string | null;
+        }
+      | undefined;
+    return {
+      ...a,
+      full_name: p
+        ? `${p.first_name || ""} ${p.last_name || ""}`.trim() || p.username || null
+        : null,
+      username: p?.username ?? null,
+      tier: p?.tier ?? null,
+      tier_rank: p?.tier_rank ?? null,
+      playing_position: p?.playing_position ?? null,
+      instagram: p?.instagram ?? null,
+    };
+  });
+
   const inviteRes = await admin
     .from("pickup_run_invites")
     .select("user_id,invited_at")
@@ -230,7 +264,7 @@ export async function GET(req: Request) {
     runs,
     run,
     slots,
-    availability,
+    availability: availabilityEnriched,
     invites,
     rsvps,
     confirmed,
