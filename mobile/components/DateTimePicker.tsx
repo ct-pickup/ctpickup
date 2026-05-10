@@ -66,7 +66,7 @@ export default function DateTimePicker({ value, onChange, label }: Props) {
                 <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
                   {months.map((m, i) => (
                     <Pressable key={m} onPress={() => setMonth(i + 1)} style={[styles.item, month === i + 1 ? styles.itemActive : null]}>
-                      <Text style={[styles.itemText,onth === i + 1 ? styles.itemTextActive : null]}>{m}</Text>
+                      <Text style={[styles.itemText, month === i + 1 ? styles.itemTextActive : null]}>{m}</Text>
                     </Pressable>
                   ))}
                 </ScrollView>
