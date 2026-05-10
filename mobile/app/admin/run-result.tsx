@@ -134,10 +134,7 @@ export default function AdminRunResultScreen() {
       if (positions.includes(pos)) grouped[pos].push(p);
       else unassigned.push(p);
     }
-    // Shuffle each group
-    for (const pos of positions) {
-      grouped[pos].sort(() => Math.random() - 0.5);
-    }
+    for (const pos of positions) grouped[pos].sort(() => Math.random() - 0.5);
     unassigned.sort(() => Math.random() - 0.5);
     const allOrdered = [...grouped["Goalkeeper"], ...grouped["Defender"], ...grouped["Midfielder"], ...grouped["Attacker"], ...unassigned];
     const teamLabels: Team[] = numTeams === 3 ? ["A", "B", "C"] : ["A", "B"];
@@ -321,7 +318,10 @@ export default function AdminRunResultScreen() {
       </View>
 
       <Pressable
-        onPress={() => setTeamByUser(generateTeams(confirmed, totalTeams))}
+        onPress={() => {
+          void hapticTap();
+          setTeamByUser(generateTeams(confirmed, totalTeams));
+        }}
         style={({ pressed }) => [styles.generateBtn, pressed && { opacity: 0.9 }]}
       >
         <Text style={styles.generateBtnText}>⚡ Auto-assign teams by position</Text>

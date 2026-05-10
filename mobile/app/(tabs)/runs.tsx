@@ -303,8 +303,8 @@ export default function RunsScreen() {
 
   const onToggleSlotChip = useCallback(
     (slotLabel: string) => {
-      if (!invitedNow || availabilityBusy) return;
       void hapticTap();
+      if (!invitedNow || availabilityBusy) return;
       setSelectedSlotLabels((prev) =>
         prev.includes(slotLabel) ? prev.filter((l) => l !== slotLabel) : [...prev, slotLabel],
       );
