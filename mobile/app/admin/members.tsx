@@ -90,7 +90,7 @@ export default function AdminMembersScreen() {
     }
   }
 
-  const renderItem = ({ item }: { it Member }) => {
+  const renderItem = ({ item }: { item: Member }) => {
     const name = [item.first_name, item.last_name].filter(Boolean).join(" ") || item.username || item.id;
     const joined = new Date(item.created_at).toLocaleDateString();
     const isBusy = busy?.endsWith(item.id);
