@@ -27,9 +27,22 @@ export default function DateTimePicker({ value, onChange, label }: Props) {
   const minutes = [0, 15, 30, 45];
 
   function confirm() {
-    const d = new Date(year, month - 1, day, hour, minute, 0);
-    onChange(d.toISOString().slice(0, 19) + "Z");
+    // ET = UTC-4 (EDT summer) / UTC-5 (EST winter)
+    const etOffset = isDST(year, month - 1, day) ? 4 : 5;
+    const utcMs = Date.UTC(year, month - 1, day, hour + etOffset, minute, 0);
+    const iso = new Date(utcMs).toISOString().slice(0, 19) + "Z";
+    onChange(iso);
     setOpen(false);
+  }
+
+  function isDST(y: number, m: number, d: number) {
+    // DST: second Sunday in March to first Sunday in November
+    const date = new Date(y, m, d);
+    const march = new Date(y, 2, 1);
+    const nov = new Date(y, 10, 1);
+    const dstStart = new Date(y, 2, 8 + (7 - march.getDay()) % 7);
+    const dstEnd = new Date(y, 10, 1 + (7 - nov.getDay()) % 7);
+    return date >= dstStart && date < dstEnd;
   }
 
   const display = value
