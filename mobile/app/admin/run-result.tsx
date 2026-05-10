@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { hapticWhistle, hapticTap } from "@/lib/haptics";
 import { fetchAdminPickupSwitchDetail, postAdminPickupResult } from "@/lib/adminApi";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -253,6 +254,7 @@ export default function AdminRunResultScreen() {
       return Alert.alert("Awards must be from roster", "Award winners must be selected from confirmed players.");
     }
 
+    void hapticWhistle();
     setSubmitting(true);
     const r = await postAdminPickupResult(token, {
       run_id: runId,
@@ -362,22 +364,34 @@ export default function AdminRunResultScreen() {
         <AwardRow
           label="Player of the Day"
           valueLabel={playerOfDay ? nameFor(confirmed.find((p) => p.id === playerOfDay) || { id: playerOfDay, full_name: null }) : "None"}
-          onPress={() => setPicker({ kind: "award", which: "player" })}
+          onPress={() => {
+            void hapticTap();
+            setPicker({ kind: "award", which: "player" });
+          }}
         />
         <AwardRow
           label="Defender of the Day"
           valueLabel={defenderOfDay ? nameFor(confirmed.find((p) => p.id === defenderOfDay) || { id: defenderOfDay, full_name: null }) : "None"}
-          onPress={() => setPicker({ kind: "award", which: "defender" })}
+          onPress={() => {
+            void hapticTap();
+            setPicker({ kind: "award", which: "defender" });
+          }}
         />
         <AwardRow
           label="Midfielder of the Day"
           valueLabel={midfielderOfDay ? nameFor(confirmed.find((p) => p.id === midfielderOfDay) || { id: midfielderOfDay, full_name: null }) : "None"}
-          onPress={() => setPicker({ kind: "award", which: "midfielder" })}
+          onPress={() => {
+            void hapticTap();
+            setPicker({ kind: "award", which: "midfielder" });
+          }}
         />
         <AwardRow
           label="Attacker of the Day"
           valueLabel={attackerOfDay ? nameFor(confirmed.find((p) => p.id === attackerOfDay) || { id: attackerOfDay, full_name: null }) : "None"}
-          onPress={() => setPicker({ kind: "award", which: "attacker" })}
+          onPress={() => {
+            void hapticTap();
+            setPicker({ kind: "award", which: "attacker" });
+          }}
         />
       </View>
 

@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
+import { hapticTap, hapticError } from "@/lib/haptics";
 import { siteOrigin } from "@/lib/env";
 
 const LIME = "#a3e635";
@@ -91,6 +92,7 @@ export default function AdminMembersScreen() {
   }
 
   async function setTier(userId: string, tier_rank: number, tierLabel: string) {
+    void hapticTap();
     setBusy("tier:" + userId);
     const ok = await patchMember(userId, { tier_rank, tier: tierLabel });
     if (ok) setMembers((p) => p.map((m) => m.id === userId ? { ...m, tier_rank, tier: tierLabel } : m));
@@ -119,6 +121,7 @@ export default function AdminMembersScreen() {
     if (!currentlyBanned) {
       const reason = banReason[userId] || "";
       if (!reason.trim()) { Alert.alert("Required", "Enter a ban reason first."); return; }
+      void hapticError();
       Alert.alert("Ban player?", "They will receive a push notification.", [
         { text: "Cancel", style: "cancel" },
         {

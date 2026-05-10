@@ -7,6 +7,7 @@ import { usePickupJoin } from "@/hooks/usePickupJoin";
 import { usePickupPublic } from "@/hooks/usePickupPublic";
 import { usePickupStandingScore } from "@/hooks/usePickupStandingScore";
 import { siteOrigin } from "@/lib/env";
+import { hapticGoal, hapticKick, hapticTap } from "@/lib/haptics";
 import { fmtPickupDt } from "@/lib/pickupPublic";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import { getNearestVenuesFromApi } from "@/lib/venueDistance";
@@ -303,6 +304,7 @@ export default function RunsScreen() {
   const onToggleSlotChip = useCallback(
     (slotLabel: string) => {
       if (!invitedNow || availabilityBusy) return;
+      void hapticTap();
       setSelectedSlotLabels((prev) =>
         prev.includes(slotLabel) ? prev.filter((l) => l !== slotLabel) : [...prev, slotLabel],
       );
@@ -313,6 +315,7 @@ export default function RunsScreen() {
   const onSubmitAvailability = useCallback(async () => {
     if (!runId || !token || selectedSlotLabels.length === 0) return;
     const labels = [...selectedSlotLabels].sort();
+    void hapticKick();
     const ok = await commitAvailabilitySlots(token, runId, labels, load);
     if (ok) setAvailabilitySubmittedBanner(true);
   }, [runId, token, selectedSlotLabels, commitAvailabilitySlots, load]);
@@ -633,7 +636,10 @@ export default function RunsScreen() {
               <Pressable
                 style={[styles.primaryJoin, joinDisabled && styles.primaryJoinDisabled]}
                 disabled={joinDisabled}
-                onPress={() => void joinPickup(token, runId, load)}
+                onPress={() => {
+                  void hapticGoal();
+                  void joinPickup(token, runId, load);
+                }}
               >
                 {joinBusy ? (
                   <ActivityIndicator color="#111" />
