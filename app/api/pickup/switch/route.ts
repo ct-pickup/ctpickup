@@ -390,10 +390,48 @@ export async function POST(req: Request) {
       const runLink = body.run_link ? String(body.run_link) : "/pickup";
       const dm_template = `Hey — we’re looking to put together a CT Pickup run for ${runDateOrTbd}.\n\nPlease check the website for all details, updates, and to submit your availability:\n${runLink}\n\nThis invite was sent to Tier 1 players first and is an automated message.`;
 
-      const { sms_sent: smsSent, sms_failed: smsFailed } = await sendPickupInviteSms(
-        inv.newlyInvited,
-        dm_template
-      );
+      const userId = guard.userId;
+
+      // Create or find a group chat room for this run
+      const roomSlug = `pickup-run-${run_id}`;
+      const runTitle = run.title || "Pickup Run";
+      const existingRoom = await admin.from("chat_rooms").select("id").eq("slug", roomSlug).maybeSingle();
+      let roomId: string | null = existingRoom.data?.id || null;
+      if (!roomId) {
+        const newRoom = await admin
+          .from("chat_rooms")
+          .insert({
+            slug: roomSlug,
+            title: runTitle,
+            room_type: "group",
+            announcements_only: false,
+            is_active: true,
+            created_by: userId,
+          })
+          .select("id")
+          .single();
+        roomId = newRoom.data?.id || null;
+      }
+
+      if (roomId && inv.newlyInvited.length > 0) {
+        const memberRows = inv.newlyInvited.map((p) => ({ room_id: roomId, user_id: p.user_id }));
+        await admin.from("chat_room_members").upsert(memberRows, { onConflict: "room_id,user_id" });
+
+        // Send invite message in the room
+        await admin.from("chat_messages").insert({
+          room_id: roomId,
+          user_id: userId,
+          body: `You've been invited to ${runTitle} on ${runDateOrTbd}. Check the Pickup tab for details and to submit your availability.`,
+        });
+
+        // Send push notifications
+        const invitedUserIds = inv.newlyInvited.map((p) => p.user_id);
+        await sendPushToUsers(admin, invitedUserIds, {
+          title: "You're invited to a pickup run!",
+          body: `${runTitle} — ${runDateOrTbd}. Open the app to submit your availability.`,
+          data: { kind: "pickup_invite", run_id },
+        });
+      }
 
       const up = await admin
         .from("pickup_runs")
@@ -415,8 +453,8 @@ export async function POST(req: Request) {
         invited: inv.newlyInvited.length,
         handles,
         dm_template,
-        sms_sent: smsSent,
-        sms_failed: smsFailed,
+        sms_sent: 0,
+        sms_failed: 0,
       });
     }
 
