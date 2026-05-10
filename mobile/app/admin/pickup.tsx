@@ -190,12 +190,7 @@ export default function AdminPickupOpsScreen() {
   const [slotStart, setSlotStart] = useState("");
   const [slotLabel, setSlotLabel] = useState("");
 
-  const [createStartAt, setCreateStartAt] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 7);
-    d.setHours(18, 0, 0, 0);
-    return d.toISOString().slice(0, 19) + "Z";
-  });
+  const [createStartAt, setCreateStartAt] = useState("");
   const [createTitle, setCreateTitle] = useState("");
   const [createCapacity, setCreateCapacity] = useState("24");
   const [createFieldCost, setCreateFieldCost] = useState("");
