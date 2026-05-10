@@ -629,7 +629,7 @@ export default function RunsScreen() {
                   </>
                 )}
               </Pressable>
-            ) : !showAvailabilityPoll ? (
+            ) : !showAvailabilityPoll && run?.status !== "planning" ? (
               <Pressable
                 style={[styles.primaryJoin, joinDisabled && styles.primaryJoinDisabled]}
                 disabled={joinDisabled}
