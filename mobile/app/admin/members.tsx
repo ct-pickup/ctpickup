@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
-import { adminFetch } from "@/lib/adminApi";
+import { siteOrigin } from "@/lib/env";
 
 const LIME = "#a3e635";
 const TIERS = [
@@ -49,9 +49,10 @@ export default function AdminMembersScreen() {
     setLoading(true);
     setError(null);
     try {
-      const r = await adminFetch<{ members: Member[] }>("/api/admin/members", token, { method: "GET" });
-      if (!r.ok) { setError(r.error || "Failed to load"); return; }
-      setMembers(r.data.members || []);
+      const res = await fetch(`${siteOrigin()}/api/admin/members`, { headers: { Authorization: `Bearer ${token}` } });
+      const j = await res.json();
+      if (!res.ok) { setError(j.error || "Failed to load"); return; }
+      setMembers(j.members || []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Request failed");
     } finally {
@@ -66,12 +67,9 @@ export default function AdminMembersScreen() {
     if (!token) return;
     setBusy(`tier:${userId}`);
     try {
-      const r = await adminFetch<{ ok: boolean }>("/api/admin/members", token, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId, tier_rank, tier: tierLabel }),
-      });
-      if (!r.ok) { Alert.alert("Error", r.error || "Failed"); return; }
+      const res = await fetch(`${siteOrigin()}/api/admin/members`, { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ user_id: userId, tier_rank, tier: tierLabel }) });
+      const j = await res.json();
+      if (!res.ok) { Alert.alert("Error", j.error || "Failed"); return; }
       setMembers((prev) => prev.map((m) => m.id === userId ? { ...m, tier_rank, tier: tierLabel } : m));
     } finally {
       setBusy(null);
@@ -83,12 +81,9 @@ export default function AdminMembersScreen() {
     if (!token) return;
     setBusy(`approve:${userId}`);
     try {
-      const r = await adminFetch<{ ok: boolean }>("/api/admin/members", token, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId, approved: !current }),
-      });
-      if (!r.ok) { Alert.alert("Error", r.error || "Failed"); return; }
+      const res2 = await fetch(`${siteOrigin()}/api/admin/members`, { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ user_id: userId, approved: !current }) });
+      const j2 = await res2.json();
+      if (!res2.ok) { Alert.alert("Error", j2.error || "Failed"); return; }
       setMembers((prev) => prev.map((m) => m.id === userId ? { ...m, approved: !current } : m));
     } finally {
       setBusy(null);
