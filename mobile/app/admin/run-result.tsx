@@ -20,7 +20,7 @@ const LIME = "#a3e635";
 
 type Team = "A" | "B" | "C";
 
-type ConfirmedRow = { id: string; full_name: string | null };
+type ConfirmedRow = { id: string; full_name: string | null; playing_position?: string | null };
 
 const TEAMS_2: Team[] = ["A", "B"];
 const TEAMS_3: Team[] = ["A", "B", "C"];
@@ -122,6 +122,30 @@ export default function AdminRunResultScreen() {
   >(null);
 
   const [submitting, setSubmitting] = useState(false);
+
+  function generateTeams(players: ConfirmedRow[], numTeams: number): Record<string, Team> {
+    const positions = ["Goalkeeper", "Defender", "Midfielder", "Attacker"];
+    const grouped: Record<string, ConfirmedRow[]> = {};
+    for (const pos of positions) grouped[pos] = [];
+    const unassigned: ConfirmedRow[] = [];
+    for (const p of players) {
+      const pos = p.playing_position || "";
+      if (positions.includes(pos)) grouped[pos].push(p);
+      else unassigned.push(p);
+    }
+    // Shuffle each group
+    for (const pos of positions) {
+      grouped[pos].sort(() => Math.random() - 0.5);
+    }
+    unassigned.sort(() => Math.random() - 0.5);
+    const allOrdered = [...grouped["Goalkeeper"], ...grouped["Defender"], ...grouped["Midfielder"], ...grouped["Attacker"], ...unassigned];
+    const teamLabels: Team[] = numTeams === 3 ? ["A", "B", "C"] : ["A", "B"];
+    const result: Record<string, Team> = {};
+    allOrdered.forEach((p, i) => {
+      result[p.id] = teamLabels[i % numTeams];
+    });
+    return result;
+  }
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -293,6 +317,13 @@ export default function AdminRunResultScreen() {
           <Text style={[styles.segmentText, totalTeams === 3 && styles.segmentTextActive]}>3 teams</Text>
         </Pressable>
       </View>
+
+      <Pressable
+        onPress={() => setTeamByUser(generateTeams(confirmed, totalTeams))}
+        style={({ pressed }) => [styles.generateBtn, pressed && { opacity: 0.9 }]}
+      >
+        <Text style={styles.generateBtnText}>⚡ Auto-assign teams by position</Text>
+      </Pressable>
 
       <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Winning team</Text>
       <Pressable
@@ -466,6 +497,17 @@ const styles = StyleSheet.create({
   segmentChipActive: { borderColor: "rgba(163,230,53,0.55)", backgroundColor: "rgba(163,230,53,0.12)" },
   segmentText: { color: "rgba(255,255,255,0.55)", fontSize: 15, fontWeight: "800" },
   segmentTextActive: { color: LIME },
+
+  generateBtn: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.4)",
+    borderRadius: 10,
+    padding: 12,
+    alignItems: "center",
+    backgroundColor: "rgba(163,230,53,0.08)",
+  },
+  generateBtnText: { color: "#a3e635", fontWeight: "700", fontSize: 14 },
 
   card: {
     marginTop: 12,
