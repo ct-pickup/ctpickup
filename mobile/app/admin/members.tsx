@@ -100,10 +100,10 @@ export default function AdminMembersScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>{name}</Text>
             <Text style={styles.sub}>
-              {item.username ? `@${item.username}` : ""}{item.instagram ? ` · ig: ${item.instagram}` : ""}
+              {[item.username ? `@${item.username}` : null, item.instagram ? `ig: ${item.instagram}` : null].filter(Boolean).join(" · ")}
             </Text>
             <Text style={styles.sub}>
-              {item.playing_position || "No position"} · {item.zip_code || "No zip"} · Joined {joined}
+              {`${item.playing_position || "No position"} · ${item.zip_code || "No zip"} · Joined ${joined}`}
             </Text>        </View>
           <Pressable
             onPress={() => void toggleApproved(item.id, item.approved)}
