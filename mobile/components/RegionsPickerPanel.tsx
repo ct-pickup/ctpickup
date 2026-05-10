@@ -1,3 +1,4 @@
+import StateShape from "@/components/StateShape";
 import { SERVICE_REGIONS, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -37,7 +38,7 @@ export function RegionsPickerPanel({ onSelectState }: Props) {
             <View style={styles.cardAccent} />
             <View style={styles.cardInner}>
               <View style={styles.codeBadge}>
-                <Text style={styles.codeText}>{r.code}</Text>
+                <StateShape state={r.code as "CT" | "NY" | "NJ" | "MD"} size={40} active />
               </View>
               <View style={styles.cardBody}>
                 <Text style={styles.stateName}>{r.name}</Text>
