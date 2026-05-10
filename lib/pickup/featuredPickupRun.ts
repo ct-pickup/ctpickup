@@ -123,9 +123,9 @@ export async function userCanViewPickupRun(
   // Canonical rules use null only; 0 must never mean “tier zero” (see pickup/public comments).
   const open = openRaw === null || openRaw === 0 ? null : openRaw;
 
-  // Tier ladder not configured yet — show the hub to any signed-in player (incl. pending approval).
+  // Tier ladder not configured yet — hide select runs until tiers are opened.
   if (open === null) {
-    return true;
+    return false;
   }
 
   if (!ctx.approved) return false;
