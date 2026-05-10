@@ -225,7 +225,7 @@ export default function AdminMembersScreen() {
                 const val = statsObj[f.key] !== undefined ? String(statsObj[f.key]) : f.val !== null ? String(f.val) : "";
                 return (
                   <View key={f.key} style={styles.statField}>
-                    <Text style={yles.statLabel}>{f.label}</Text>
+                    <Text style={styles.statLabel}>{f.label}</Text>
                     <TextInput
                       style={styles.statInput}
                       value={val}
