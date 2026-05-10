@@ -427,8 +427,8 @@ export async function POST(req: Request) {
         // Send push notifications
         const invitedUserIds = inv.newlyInvited.map((p) => p.user_id);
         await sendPushToUsers(admin, invitedUserIds, {
-          title: "You're invited to a pickup run!",
-          body: `${runTitle} — ${runDateOrTbd}. Open the app to submit your availability.`,
+          title: "You've been invited to a Select Pickup",
+          body: "You've been selected for an exclusive pickup run. Open the app for full details and to submit your availability.",
           data: { kind: "pickup_invite", run_id },
         });
       }
