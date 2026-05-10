@@ -175,7 +175,7 @@ export default function AdminMembersScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{name + (item.is_banned ? " X" : "")}</Text>
               {subLine1.length > 0 ? <Text style={styles.sub}>{subLine1}</Text> : null}
-              <Text styl{styles.sub}>{subLine2}</Text>
+              <Text style={styles.sub}>{subLine2}</Text>
             </View>
             <Text style={styles.chevron}>{isExpanded ? "^" : "v"}</Text>
           </View>
