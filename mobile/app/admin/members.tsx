@@ -4,7 +4,6 @@ import {
   Alert,
   FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -47,7 +46,7 @@ export default function AdminMembersScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [editStats, setEditStats] = useState<Record<string, string>>({});
+  const [editStats, setEditStats] = useState<Record<string, Record<string, number | null>>>({});
   const [banReason, setBanReason] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
@@ -71,7 +70,7 @@ export default function AdminMembersScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
-  async function patch(userId: string, update: Record<string, unknown>) {
+  async function patchMember(userId: string, update: Record<string, unknown>) {
     const token = session?.access_token;
     if (!token) return false;
     const res = await fetch(`${siteOrigin()}/api/admin/members`, {
@@ -86,22 +85,22 @@ export default function AdminMembersScreen() {
 
   async function setTier(userId: string, tier_rank: number) {
     setBusy("tier:" + userId);
-    const ok = await patch(userId, { tier_rank, tier: "Tier " + tier_rank });
+    const ok = await patchMember(userId, { tier_rank, tier: "Tier " + tier_rank });
     if (ok) setMembers((p) => p.map((m) => m.id === userId ? { ...m, tier_rank, tier: "Tier " + tier_rank } : m));
     setBusy(null);
   }
 
   async function toggleApproved(userId: string, current: boolean) {
     setBusy("approve:" + userId);
-    const ok = await patch(userId, { approved: !current });
+    const ok = await patchMember(userId, { approved: !current });
     if (ok) setMembers((p) => p.map((m) => m.id === userId ? { ...m, approved: !current } : m));
     setBusy(null);
   }
 
   async function saveStats(userId: string) {
     setBusy("stats:" + userId);
-    const s = editStats[userId] ? JSON.parse(editStats[userId]) : {};
-    const ok = await patch(userId, s);
+    const s = editStats[userId] || {};
+    const ok = await patchMember(userId, s);
     if (ok) {
       setMembers((p) => p.map((m) => m.id === userId ? { ...m, ...s } : m));
       Alert.alert("Saved", "Stats updated.");
@@ -109,8 +108,8 @@ export default function AdminMembersScreen() {
     setBusy(null);
   }
 
-  async function banPlayer(userId: string, current: boolean) {
-    if (!current) {
+  async function banPlayer(userId: string, currentlyBanned: boolean) {
+    if (!currentlyBanned) {
       const reason = banReason[userId] || "";
       if (!reason.trim()) { Alert.alert("Required", "Enter a ban reason first."); return; }
       Alert.alert("Ban player?", "They will receive a push notification.", [
@@ -118,33 +117,22 @@ export default function AdminMembersScreen() {
         {
           text: "Ban", style: "destructive", onPress: async () => {
             setBusy("ban:" + userId);
-            const ok = await patch(userId, { is_banned: true, ban_reason: reason, approved: false });
-            if (ok) {
-              setMembers((p) => p.map((m) => m.id === userId ? { ...m, is_banned: true, ban_reason: reason, approved: false } : m));
-              // Send push
-              const token = session?.access_token;
-              if (token) {
-                await fetch(`${siteOrigin()}/api/admin/members`, {
-                  method: "PATCH",
-                  headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-                  body: JSON.stringify({ user_id: userId, send_ban_push: true, ban_reason: reason }),
-                });
-              }
-            }
+            const ok = await patchMember(userId, { is_banned: true, ban_reason: reason, approved: false });
+            if (ok) setMembers((p) => p.map((m) => m.id === userId ? { ...m, is_banned: true, ban_reason: reason, approved: false } : m));
             setBusy(null);
           }
         }
       ]);
     } else {
       setBusy("ban:" + userId);
-      const ok = await patch(userId, { is_banned: false, ban_reason: null, approved: true });
+      const ok = await patchMember(userId, { is_banned: false, ban_reason: null, approved: true });
       if (ok) setMembers((p) => p.map((m) => m.id === userId ? { ...m, is_banned: false, ban_reason: null, approved: true } : m));
       setBusy(null);
     }
   }
 
   async function deleteProfile(userId: string, name: string) {
-    Alert.alert("Delete " + name + "?", "This permanently deletes their account. Cannot be undone.", [
+    Alert.alert("Delete " + name + "?", "This permanently deletes their account.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete", style: "destructive", onPress: async () => {
@@ -170,59 +158,53 @@ export default function AdminMembersScreen() {
     const joined = new Date(item.created_at).toLocaleDateString();
     const isExpanded = expanded === item.id;
     const isBusy = busy !== null && busy.endsWith(item.id);
-    const subLine1 = (item.username ? "@" + item.username : "") + (item.instagram ? (item.username ? " · ig: " : "ig: ") + item.instagram : "");
+    const subLine1 = (item.username ? "@" + item.username : "") + (item.instagram ? (item.username ? " · ig " : "ig: ") + item.instagram : "");
     const subLine2 = (item.playing_position || "No position") + " · " + (item.zip_code || "No zip") + " · Joined " + joined;
-
-    const statsFields = [
-      { key: "wins_override", label: "Wins", val: item.wins_override },
-      { key: "losses_override", label: "Losses", val: item.losses_override },
-      { key: "player_of_day_override", label: "Player of Day", val: item.player_of_day_override },
-      { key: "defender_of_day_override", label: "Defender of Day", val: item.defender_of_day_override },
-      { key: "midfielder_of_day_override", label: "Mid of Day", val: item.midfielder_of_day_override },
-      { key: "attacker_of_day_override", label: "Attacker of Day", val: item.attacker_of_day_override },
+    const statsFields: { key: keyof Member; label: string }[] = [
+      { key: "wins_override", label: "Wins" },
+      { key: "losses_override", label: "Losses" },
+      { key: "player_of_day_override", label: "POD" },
+      { key: "defender_of_day_override", label: "Def Day" },
+      { key: "midfielder_of_day_override", label: "Mid Day" },
+      { key: "attacker_of_day_override", label: "Att Day" },
     ];
-
     return (
-      <View style={[styles.card, item.is_banned && styles.cardBanned]}>
-        <Pressable onPress={() => setExpanded(expanded ? null : item.id)}>
+      <View style={[styles.card, item.is_banned ? styles.cardBanned : null]}>
+        <Pressable onPress={() => setExpanded(isExpanded ? null : item.id)}>
           <View style={styles.cardHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{name}{item.is_banned ? " 🚫" : ""}</Text>
+              <Text style={styles.name}>{name + (item.is_banned ? " X" : "")}</Text>
               {subLine1.length > 0 ? <Text style={styles.sub}>{subLine1}</Text> : null}
-              <Text style={styles.sub}>{subLine2}</Text>
+              <Text styl{styles.sub}>{subLine2}</Text>
             </View>
-            <Text style={styles.chevron}>{isExpanded ? "▲" : "▼"}</Text>
+            <Text style={styles.chevron}>{isExpanded ? "^" : "v"}</Text>
           </View>
         </Pressable>
-
         {isExpanded ? (
           <View style={{ marginTop: 12 }}>
             <View style={styles.tierRow}>
               <Text style={styles.label}>Tier:</Text>
               {TIERS.map((t) => (
                 <Pressable key={t} onPress={() => void setTier(item.id, t)} disabled={isBusy}
-                  style={[styles.tierChip, item.tier_rank === t && styles.tierChipActive]}>
-                  <Text style={[styles.tierChipText, item.tier_rank === t && styles.tierChipTextActive]}>
-                    {t}
-                  </Text>
-          </Pressable>
+                  style={[styles.tierChip, item.tier_rank === t ? styles.tierChipActive : null]}>
+                  <Text style={[styles.tierChipText, item.tier_rank === t ? styles.tierChipTextActive : null]}>{String(t)}</Text>
+                </Pressable>
               ))}
             </View>
-
             <View style={styles.actionRow}>
               <Pressable onPress={() => void toggleApproved(item.id, item.approved)} disabled={isBusy}
-                style={[styles.actionBtn, item.approved && styles.actionBtnActive]}>
-                <Text style={[styles.actionBtnText, item.approved && styles.actionBtnTextActive]}>
-                  {item.approved ? "Approved ✓" : "Approve"}
+                style={[styles.actionBtn, item.approved ? styles.actionBtnActive : null]}>
+                <Text style={[styles.actionBtnText, item.approved ? styles.actionBtnTextActive : null]}>
+                  {item.approved ? "Approved" : "Approve"}
                 </Text>
               </Pressable>
             </View>
-
             <Text style={[styles.label, { marginTop: 14 }]}>Stats overrides</Text>
             <View style={styles.statsGrid}>
               {statsFields.map((f) => {
-                const statsObj = editStats[item.id] ? JSON.parse(editStats[item.id]) : {};
-                const val = statsObj[f.key] !== undefined ? String(statsObj[f.key]) : f.val !== null ? String(f.val) : "";
+                const cur = editStats[item.id] || {};
+                const rawVal = cur[f.key] !== undefined ? cur[f.key] : (item[f.key] as number | null);
+                const val = rawVal !== null && rawVal !== undefined ? String(rawVal) : "";
                 return (
                   <View key={f.key} style={styles.statField}>
                     <Text style={styles.statLabel}>{f.label}</Text>
@@ -230,9 +212,10 @@ export default function AdminMembersScreen() {
                       style={styles.statInput}
                       value={val}
                       onChangeText={(v) => {
-                        const cur = editStats[item.id] ? JSON.parse(editStats[item.id]) : {};
-                        cur[f.key] = v === "" ? null : Number(v);
-                        setEditStats((p) => ({ ...p, [item.id]: JSON.stringify(cur) }));
+                        setEditStats((p) => ({
+                          ...p,
+                          [item.id]: { ...(p[item.id] || {}), [f.key]: v === "" ? null : Number(v) },
+                        }));
                       }}
                       keyboardType="number-pad"
                       placeholder="0"
@@ -244,15 +227,12 @@ export default function AdminMembersScreen() {
             </View>
             <Pressable onPress={() => void saveStats(item.id)} disabled={isBusy}
               style={[styles.actionBtn, styles.actionBtnActive, { marginTop: 8 }]}>
-              <Text style={styles.actionBtnTextActive}>
-                {busy === "stats:" + item.id ? "Saving…" : "Save stats"}
-            </Text>
+              <Text style={styles.actionBtnTextActive}>{busy === "stats:" + item.id ? "Saving..." : "Save stats"}</Text>
             </Pressable>
-
             <Text style={[styles.label, { marginTop: 14 }]}>Ban reason</Text>
             <TextInput
               style={styles.banInput}
-              value={banReason[item.id] || item.ban_reason || ""}
+              value={banReason[item.id] !== undefined ? banReason[item.id] : (item.ban_reason || "")}
               onChangeText={(v) => setBanReason((p) => ({ ...p, [item.id]: v }))}
               placeholder="Reason for ban..."
               placeholderTextColor="rgba(255,255,255,0.3)"
@@ -261,14 +241,12 @@ export default function AdminMembersScreen() {
               <Pressable onPress={() => void banPlayer(item.id, item.is_banned)} disabled={isBusy}
                 style={[styles.actionBtn, item.is_banned ? styles.actionBtnActive : styles.actionBtnDanger]}>
                 <Text style={[styles.actionBtnText, item.is_banned ? styles.actionBtnTextActive : styles.actionBtnTextDanger]}>
-                  {busy === "ban:" + item.id ? "…" : item.is_banned ? "Unban" : "Ban player"}
+                  {busy === "ban:" + item.id ? "..." : item.is_banned ? "Unban" : "Ban player"}
                 </Text>
               </Pressable>
-              <Pressable onPress={() => voideleteProfile(item.id, name)} disabled={isBusy}
+              <Pressable onPress={() => void deleteProfile(item.id, name)} disabled={isBusy}
                 style={[styles.actionBtn, styles.actionBtnDanger]}>
-                <Text style={styles.actionBtnTextDanger}>
-                  {busy === "delete:" + item.id ? "Deleting…" : "Delete account"}
-                </Text>
+                <Text style={styles.actionBtnTextDanger}>{busy === "delete:" + item.id ? "Deleting..." : "Delete account"}</Text>
               </Pressable>
             </View>
           </View>
@@ -294,37 +272,6 @@ export default function AdminMembersScreen() {
     </View>
   );
 }
-
-const sles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#000" },
-  title: { color: "#fff", fontSize: 22, fontWeight: "800", paddingHorizontal: 16, paddingVertical: 12 },
-  card: { backgroundColor: "#111", borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
-  cardBanned: { borderColor: "rgba(239,68,68,0.4)", backgroundColor: "#1a0a0a" },
-  cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
-  name: { color: "#fff", fontSize: 15, fontWeight: "700" },
-  sub: { color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 2 },
-  chevron: { color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 2 },
-  label: { color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: "700", textTransform: "uppercase", marginBottom: 6 },
-  tierRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
-  tierChip: { width: 36, height: 36, borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
-  tierChipActive: { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.15)" },
-  tierChipText: { color: "rgba(255,255,255,0.45)", fontSize: 13, fontWeight: "700" },
-  tierChipTextActive: { color: LIME },
-  actionRow: { flexDirection: "row", gap: 8, marginTop: 8 },
-  actionBtn: { borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", paddingHorizontal: 12, paddingVertical: 7, flex: 1, alignItems: "center" },
-  actionBtnActive: { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.1)" },
-  actionBtnDanger: { borderColor: "rgba(239,68,68,0.4)", backgroundColor: "rgba(239,68,68,0.1)" },
-  actionBtnText: { color: "rgba(255,255,255,0.45)", fontSize: 12, fontWeight: "700" },
-  actionBtnTextActive: { color: LIME, fontSize: 12, fontWeight: "700" },
-  actionBtnTextDanger: { color: "#f87171", fontSize: 12, fontWeight: "700" },
-  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  statField: { width: "30%", minWidth: 90 },
-  statLabel: { color: "rgba(255,255,255,0.45)", fontSize: 10, marginBottom: 3 },
-  statInput: { backgroundColor: "#1a1a1a", borderRadius: 6, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", color: "#fff", padding: 6, fontSize: 13 },
-  banInput: { backgroundColor: "#1a1a1a", borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", color: "#fff", padding: 8, fontSize: 13, marginBottom: 8 },
-  err: { color: "#f87171", padding: 16 },
-  muted: { color: "rgba(255,255,255,0.35)", fontSize: 13 },
-});
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#000" },
