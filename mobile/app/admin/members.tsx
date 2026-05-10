@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
-import { apiOrigin } from "@/lib/adminApi";
+import { adminFetch } from "@/lib/adminApi";
 
 const LIME = "#a3e635";
 const TIERS = [
@@ -49,12 +49,9 @@ export default function AdminMembersScreen() {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch(`${apiOrigin()}/api/admin/members`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const j = await r.json();
-      if (!r.ok) { setError(j.error || "Failed to load"); return; }
-      setMembers(j.members || []);
+      const r = await adminFetch<{ members: Member[] }>("/api/admin/members", token, { method: "GET" });
+      if (!r.ok) { setError(r.error || "Failed to load"); return; }
+      setMembers(r.data.members || []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Request failed");
     } finally {
@@ -69,13 +66,12 @@ export default function AdminMembersScreen() {
     if (!token) return;
     setBusy(`tier:${userId}`);
     try {
-      const r = await fetch(`${apiOrigin()}/api/admin/members`, {
+      const r = await adminFetch<{ ok: boolean }>("/api/admin/members", token, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: userId, tier_rank, tier: tierLabel }),
       });
-      const j = await r.json();
-      if (!r.ok) { Alert.alert("Error", j.error || "Failed"); return; }
+      if (!r.ok) { Alert.alert("Error", r.error || "Failed"); return; }
       setMembers((prev) => prev.map((m) => m.id === userId ? { ...m, tier_rank, tier: tierLabel } : m));
     } finally {
       setBusy(null);
@@ -87,13 +83,12 @@ export default function AdminMembersScreen() {
     if (!token) return;
     setBusy(`approve:${userId}`);
     try {
-      const r = await fetch(`${apiOrigin()}/api/admin/members`, {
+      const r = await adminFetch<{ ok: boolean }>("/api/admin/members", token, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: userId, approved: !current }),
       });
-      const j = await r.json();
-      if (!r.ok) { Alert.alert("Error", j.error || "Failed"); return; }
+      if (!r.ok) { Alert.alert("Error", r.error || "Failed"); return; }
       setMembers((prev) => prev.map((m) => m.id === userId ? { ...m, approved: !current } : m));
     } finally {
       setBusy(null);
