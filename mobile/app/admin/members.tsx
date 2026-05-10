@@ -14,7 +14,14 @@ import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 
 const LIME = "#a3e635";
-const TIERS = [1, 2, 3, 4, 5];
+const TIERS = [
+  { rank: 1, label: "1a" },
+  { rank: 2, label: "1b" },
+  { rank: 3, label: "2" },
+  { rank: 4, label: "3" },
+  { rank: 5, label: "4" },
+  { rank: 6, label: "5" },
+];
 
 type Member = {
   id: string;
@@ -83,10 +90,10 @@ export default function AdminMembersScreen() {
     return true;
   }
 
-  async function setTier(userId: string, tier_rank: number) {
+  async function setTier(userId: string, tier_rank: number, tierLabel: string) {
     setBusy("tier:" + userId);
-    const ok = await patchMember(userId, { tier_rank, tier: "Tier " + tier_rank });
-    if (ok) setMembers((p) => p.map((m) => m.id === userId ? { ...m, tier_rank, tier: "Tier " + tier_rank } : m));
+    const ok = await patchMember(userId, { tier_rank, tier: tierLabel });
+    if (ok) setMembers((p) => p.map((m) => m.id === userId ? { ...m, tier_rank, tier: tierLabel } : m));
     setBusy(null);
   }
 
@@ -185,9 +192,9 @@ export default function AdminMembersScreen() {
             <View style={styles.tierRow}>
               <Text style={styles.label}>Tier:</Text>
               {TIERS.map((t) => (
-                <Pressable key={t} onPress={() => void setTier(item.id, t)} disabled={isBusy}
-                  style={[styles.tierChip, item.tier_rank === t ? styles.tierChipActive : null]}>
-                  <Text style={[styles.tierChipText, item.tier_rank === t ? styles.tierChipTextActive : null]}>{String(t)}</Text>
+                <Pressable key={t.rank} onPress={() => void setTier(item.id, t.rank, t.label)} disabled={isBusy}
+                  style={[styles.tierChip, item.tier_rank === t.rank ? styles.tierChipActive : null]}>
+                  <Text style={[styles.tierChipText, item.tier_rank === t.rank ? styles.tierChipTextActive : null]}>{t.label}</Text>
                 </Pressable>
               ))}
             </View>
