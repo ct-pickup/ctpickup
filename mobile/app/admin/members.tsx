@@ -184,7 +184,7 @@ export default function AdminMembersScreen() {
 
     return (
       <View style={[styles.card, item.is_banned && styles.cardBanned]}>
-        <Pressable onPress={() => setExpanded(ipanded ? null : item.id)}>
+        <Pressable onPress={() => setExpanded(expanded ? null : item.id)}>
           <View style={styles.cardHeader}>
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{name}{item.is_banned ? " 🚫" : ""}</Text>
