@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import DateTimePicker from "@/components/DateTimePicker";
 import {
   fetchAdminTierSuggestions,
   postAdminRunTierSuggestionAlgorithm,
@@ -676,16 +677,7 @@ export default function AdminPickupOpsScreen() {
   const createForm = (
     <>
       <Text style={styles.fieldHint}>New run uses API defaults; refine in the detail sheet after creation.</Text>
-      <Text style={styles.label}>Start at (ISO)</Text>
-      <TextInput
-        style={styles.input}
-        value={createStartAt}
-        onChangeText={setCreateStartAt}
-        placeholder="2026-05-03T20:00:00Z"
-        placeholderTextColor="rgba(255,255,255,0.35)"
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
+      <DateTimePicker label="Start at" value={createStartAt} onChange={setCreateStartAt} />
       <View style={styles.twoCol}>
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>State</Text>
@@ -1411,15 +1403,7 @@ export default function AdminPickupOpsScreen() {
                       </View>
                     );
                   })}
-                  <Text style={styles.label}>Add slot (ISO start)</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={slotStart}
-                    onChangeText={setSlotStart}
-                    placeholder="2026-05-10T18:00:00Z"
-                    placeholderTextColor="rgba(255,255,255,0.35)"
-                    autoCapitalize="none"
-                  />
+                  <DateTimePicker label="Slot start time" value={slotStart} onChange={setSlotStart} />
                   <Text style={styles.label}>Label (optional)</Text>
                   <TextInput
                     style={styles.input}
