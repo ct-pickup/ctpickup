@@ -110,9 +110,7 @@ function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; isAdmin: bo
         name="esports"
         options={{
           href: null,
-          title: "Esports",
-          tabBarLabel: "Esports",
-          tabBarIcon: ({ color }) => <TabBarIcon name="gamepad" color={color} />,
+          tabBarButton: () => null,
         }}
       />
       <Tabs.Screen
