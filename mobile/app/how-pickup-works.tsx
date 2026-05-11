@@ -14,12 +14,12 @@ const STEPS: Step[] = [
   {
     number: "01",
     title: "Request Access",
-    body: "Join a run by submitting your info. Access depends on level, fit, and availability.",
+    body: "Join a run by submitting your info. Access depends on level, fit, and availability. Some exclusive runs invite selected players first before opening more broadly.",
   },
   {
     number: "02",
     title: "Selection",
-    body: "Players are selected based on level, consistency, and overall run balance.",
+    body: "Players are selected based on level, consistency, and overall run balance. Staff may prioritize invited players for certain sessions.",
   },
   {
     number: "03",
@@ -37,7 +37,7 @@ const IMPORTANT_BULLETS: string[] = [
   "Spots are limited and fill quickly.",
   "Location is shared after confirmation.",
   "No-shows impact future eligibility.",
-  "System prioritizes reliability and level.",
+  "Reliability and level help you stay in the mix for future runs.",
 ];
 
 export default function HowPickupWorksScreen() {

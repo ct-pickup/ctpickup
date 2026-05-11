@@ -29,8 +29,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const LIME = "#a3e635";
 
-/** Remove tier labels (e.g. "Tier 1A") from copy shown on the public run card. */
-function stripTierLabelsFromPlayerText(s: string): string {
+/** Strip legacy internal grouping tokens from admin-authored run text so players only see neutral copy. */
+function stripLegacyGroupingTokensFromRunText(s: string): string {
   return s
     .replace(/\b[Tt]ier\s*\d+[A-Za-z]?\b/g, "")
     .replace(/\s{2,}/g, " ")
@@ -68,7 +68,6 @@ export default function RunsScreen() {
     counts,
     visibility,
     invitedNow,
-    tierRank,
   } = usePickupPublic(token);
   const {
     joinBusy,
@@ -204,12 +203,12 @@ export default function RunsScreen() {
     };
     const g = pick(dataObj.globalUpdate);
     if (g) {
-      const t = stripTierLabelsFromPlayerText(g);
+      const t = stripLegacyGroupingTokensFromRunText(g);
       if (t.length > 0) out.push({ key: "global", text: t });
     }
     const r = pick(dataObj.runUpdate);
     if (r) {
-      const t = stripTierLabelsFromPlayerText(r);
+      const t = stripLegacyGroupingTokensFromRunText(r);
       if (t.length > 0) out.push({ key: "run", text: t });
     }
     return out;
@@ -233,7 +232,7 @@ export default function RunsScreen() {
   const locationText = useMemo(() => {
     const v = dataObj.location;
     if (typeof v !== "string" || v.trim().length === 0) return null;
-    const cleaned = stripTierLabelsFromPlayerText(v);
+    const cleaned = stripLegacyGroupingTokensFromRunText(v);
     return cleaned.length > 0 ? cleaned : null;
   }, [dataObj]);
 
@@ -328,20 +327,23 @@ export default function RunsScreen() {
 
   const attendanceVisible = visibility?.attendanceVisible === true;
 
-  // Wave hint: no tier names on the public card; server still gates actions via invitedNow / tier_rank.
+  /** Invite / exclusive-run hints only use neutral copy (no internal grouping names). */
   const waveMessage = useMemo<{ text: string; color: string } | null>(() => {
     if (invitedNow) {
-      return { text: "Your wave is open, request your spot now", color: "#a3e635" };
+      return { text: "You're invited — request your spot now", color: "#a3e635" };
     }
-    if (typeof tierRank === "number") {
-      return { text: "Check back soon", color: "rgba(255,255,255,0.72)" };
+    if (run?.run_type === "select") {
+      return {
+        text: "Exclusive pickup: selected players are invited first. Check back if you're waiting on an invite.",
+        color: "rgba(255,255,255,0.72)",
+      };
     }
     return null;
-  }, [invitedNow, tierRank]);
+  }, [invitedNow, run?.run_type]);
 
   const runTitleDisplay = useMemo(() => {
     const raw = typeof run?.title === "string" && run.title ? run.title : "Pickup run";
-    const cleaned = stripTierLabelsFromPlayerText(raw);
+    const cleaned = stripLegacyGroupingTokensFromRunText(raw);
     return cleaned.length > 0 ? cleaned : "Pickup run";
   }, [run]);
 
@@ -488,7 +490,7 @@ export default function RunsScreen() {
             {(() => {
               const raw = typeof run?.location_text === "string" ? run.location_text.trim() : "";
               if (!raw) return null;
-              const loc = stripTierLabelsFromPlayerText(raw);
+              const loc = stripLegacyGroupingTokensFromRunText(raw);
               if (!loc) return null;
               return <Text style={styles.row}>Location: {loc}</Text>;
             })()}
