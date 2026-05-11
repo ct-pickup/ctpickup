@@ -9,6 +9,7 @@ import {
   finalizeMinCommitted,
 } from "@/lib/pickup/autoRunConfig";
 import { insertInvitesForTierRanks, sendPickupInviteSms } from "@/lib/pickup/pickupInvites";
+import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
 import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
 import { expireWaitlistOffersAndPromote } from "@/lib/pickup/waitlist";
 
@@ -227,7 +228,7 @@ export async function processAutoPickupRun(
 
   const nowMs = Date.now();
   let committed = countDistinctCommittedPlayers(availability);
-  const runType = (run.run_type as string) || "select";
+  const publicRun = isPublicPickupRunType(run.run_type);
   const isoNow = new Date().toISOString();
 
   const fire24 = nowMs >= anchorMs - CHECKPOINT_24H_BEFORE_MS && !run.auto_cp_24h_at;
@@ -245,7 +246,7 @@ export async function processAutoPickupRun(
 
   if (fire24) {
     let patch: Record<string, unknown> = { auto_cp_24h_at: isoNow, updated_at: isoNow };
-    if (runType === "select" && committed < EXPAND_WAVE_MIN_COMMITTED) {
+    if (!publicRun && committed < EXPAND_WAVE_MIN_COMMITTED) {
       const open = Number(run.open_tier_rank ?? 2);
       if (open < 6) {
         const nextOpen = Math.min(6, open + 1);
@@ -272,7 +273,7 @@ export async function processAutoPickupRun(
       }
     } else {
       messages.push(
-        runType === "select"
+        !publicRun
           ? `24h checkpoint: committed ${committed} ≥ ${EXPAND_WAVE_MIN_COMMITTED}, no expand.`
           : "24h checkpoint: public run — no tier expand."
       );
@@ -285,7 +286,7 @@ export async function processAutoPickupRun(
 
   if (fire12) {
     committed = countDistinctCommittedPlayers(await reloadAvailability());
-    if (runType === "select" && committed < EXPAND_WAVE_MIN_COMMITTED) {
+    if (!publicRun && committed < EXPAND_WAVE_MIN_COMMITTED) {
       const open = Number(run.open_tier_rank ?? 2);
       if (open < 6) {
         const nextOpen = Math.min(6, open + 1);
@@ -317,7 +318,7 @@ export async function processAutoPickupRun(
       }
     } else {
       messages.push(
-        runType === "select"
+        !publicRun
           ? `12h checkpoint: committed ${committed} — no expand.`
           : "12h checkpoint: public run — no tier expand."
       );

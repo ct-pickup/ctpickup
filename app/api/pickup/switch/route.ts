@@ -7,6 +7,7 @@ import {
   processAutoPickupRun,
 } from "@/lib/pickup/autoRunCheckpoints";
 import { insertInvitesForTierRanks, sendPickupInviteSms } from "@/lib/pickup/pickupInvites";
+import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
 import { computeCancellationDeadline } from "@/lib/pickup/runScheduling";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
@@ -384,9 +385,23 @@ export async function POST(req: Request) {
     }
 
     const now = new Date().toISOString();
-    const runType = String(run.run_type || "select");
+    const runTypeRaw = run.run_type;
+    const publicRun = isPublicPickupRunType(runTypeRaw);
 
-    if (runType === "select") {
+    console.log("[pickup/switch launch_outreach] start", {
+      action,
+      run_id,
+      run_type_raw: runTypeRaw,
+      public_run: publicRun,
+      service_region: run.service_region ?? null,
+    });
+
+    if (!publicRun) {
+      console.log("[pickup/switch launch_outreach] tier invite path (non-public run_type)", {
+        run_id,
+        tier_ranks: [1, 2],
+      });
+
       const inv = await insertInvitesForTierRanks(
         admin,
         run_id,
@@ -395,7 +410,16 @@ export async function POST(req: Request) {
         now,
         run.service_region ?? null,
       );
-      if (!inv.ok) return NextResponse.json({ error: inv.error }, { status: 500 });
+      if (!inv.ok) {
+        console.error("[pickup/switch launch_outreach] insertInvitesForTierRanks failed", { run_id, error: inv.error });
+        return NextResponse.json({ error: inv.error }, { status: 500 });
+      }
+
+      console.log("[pickup/switch launch_outreach] insertInvitesForTierRanks result", {
+        run_id,
+        newly_invited: inv.newlyInvited.length,
+        user_ids: inv.newlyInvited.map((p) => p.user_id),
+      });
 
       const runDateOrTbd = body.date_or_tbd ? String(body.date_or_tbd) : "TBD";
       const runLink = body.run_link ? String(body.run_link) : "/pickup";
@@ -422,7 +446,15 @@ export async function POST(req: Request) {
           .select("id")
           .single();
         roomId = newRoom.data?.id || null;
+        if (newRoom.error) {
+          console.error("[pickup/switch launch_outreach] chat_rooms insert/select error", {
+            run_id,
+            message: newRoom.error.message,
+          });
+        }
       }
+
+      console.log("[pickup/switch launch_outreach] chat room", { run_id, room_id: roomId, existing: !!existingRoom.data?.id });
 
       if (roomId && inv.newlyInvited.length > 0) {
         const memberRows = inv.newlyInvited.map((p) => ({ room_id: roomId, user_id: p.user_id }));
@@ -437,10 +469,17 @@ export async function POST(req: Request) {
 
         // Send push notifications
         const invitedUserIds = inv.newlyInvited.map((p) => p.user_id);
+        console.log("[pickup/switch launch_outreach] sending push", { run_id, count: invitedUserIds.length });
         await sendPushToUsers(admin, invitedUserIds, {
           title: "You've been invited to a Select Pickup",
           body: "You've been selected for an exclusive pickup run. Open the app for full details and to submit your availability.",
           data: { kind: "pickup_invite", run_id },
+        });
+      } else {
+        console.log("[pickup/switch launch_outreach] skip chat/push", {
+          run_id,
+          room_id: roomId,
+          newly_invited: inv.newlyInvited.length,
         });
       }
 
@@ -455,6 +494,12 @@ export async function POST(req: Request) {
         })
         .eq("id", run_id);
 
+      console.log("[pickup/switch launch_outreach] pickup_runs update (select path)", {
+        run_id,
+        error: up.error?.message ?? null,
+        status: up.status,
+      });
+
       if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
 
       const handles = inv.newlyInvited.map((p) => p.instagram).filter(Boolean);
@@ -466,8 +511,12 @@ export async function POST(req: Request) {
         dm_template,
         sms_sent: 0,
         sms_failed: 0,
+        run_type_raw: runTypeRaw,
+        invite_path: "tier_ranks_1_2",
       });
     }
+
+    console.log("[pickup/switch launch_outreach] public run path — no tier invites or push", { run_id, run_type_raw: runTypeRaw });
 
     const up = await admin
       .from("pickup_runs")
@@ -480,6 +529,12 @@ export async function POST(req: Request) {
       })
       .eq("id", run_id);
 
+    console.log("[pickup/switch launch_outreach] pickup_runs update (public path)", {
+      run_id,
+      error: up.error?.message ?? null,
+      status: up.status,
+    });
+
     if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
 
     return NextResponse.json({
@@ -489,6 +544,8 @@ export async function POST(req: Request) {
       dm_template: "",
       sms_sent: 0,
       sms_failed: 0,
+      run_type_raw: runTypeRaw,
+      invite_path: "public_no_tier_invites",
     });
   }
 
