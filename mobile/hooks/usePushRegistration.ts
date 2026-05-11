@@ -1,3 +1,4 @@
+import { hapticGoal, hapticKick, hapticTap } from "@/lib/haptics";
 import { postMobilePushToken } from "@/lib/siteApi";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
@@ -22,15 +23,35 @@ try {
 /**
  * Registers the device for Expo push and sends the token to the Next.js API (Apple APNs path via Expo).
  * No SMS/Twilio — server-side sends should use Expo Push API + stored tokens.
+ *
+ * Opens the matching in-app screen when the user taps a notification; navigation is deferred so cold
+ * starts can finish loading the root layout and session.
  */
-/** Lets the root layout / auth finish mounting before deep-link navigation (cold start). */
 const NOTIFICATION_NAV_DELAY_MS = 450;
 
+const ROUTABLE_NOTIFICATION_KINDS = new Set([
+  "pickup_invite",
+  "pickup_likely_on",
+  "pickup_confirmed",
+  "admin_availability",
+  "chat_message",
+  "tournament_invite",
+  "roster_invite",
+]);
+
 function schedulePostLoadNavigation(action: () => void) {
-  const task = InteractionManager.runAfterInteractions(() => {
+  InteractionManager.runAfterInteractions(() => {
     setTimeout(action, NOTIFICATION_NAV_DELAY_MS);
   });
-  return task;
+}
+
+function hapticForForegroundPushKind(kind: string) {
+  if (kind === "pickup_invite") void hapticKick();
+  else if (kind === "pickup_confirmed" || kind === "pickup_likely_on") void hapticGoal();
+  else if (kind === "admin_availability") void hapticTap();
+  else if (kind === "chat_message") void hapticTap();
+  else if (kind === "tournament_invite" || kind === "roster_invite") void hapticKick();
+  else void hapticTap();
 }
 
 export function usePushRegistration(accessToken: string | null) {
@@ -41,6 +62,7 @@ export function usePushRegistration(accessToken: string | null) {
     (response: Notifications.NotificationResponse) => {
       const data = response.notification.request.content.data as Record<string, unknown>;
       const kind = String(data?.kind || "").trim();
+      if (!ROUTABLE_NOTIFICATION_KINDS.has(kind)) return;
 
       const roomIdRaw = data?.room_id;
       const roomSlugRaw = data?.room_slug;
@@ -86,11 +108,19 @@ export function usePushRegistration(accessToken: string | null) {
         }
       };
 
-      if (!kind) return;
       schedulePostLoadNavigation(navigate);
     },
     [router],
   );
+
+  useEffect(() => {
+    const sub = Notifications.addNotificationReceivedListener((notification) => {
+      const data = notification.request.content.data as Record<string, unknown>;
+      const kind = String(data?.kind || "").trim();
+      hapticForForegroundPushKind(kind);
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener(handleNotificationResponse);
