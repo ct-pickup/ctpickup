@@ -30,6 +30,7 @@ export async function POST(req: Request) {
     title: b.title || "CT Pickup Run",
     /** Default public so the regional hub shows the run to everyone; staff may pass `"select"` for invite-only. */
     run_type: b.run_type || "public",
+    is_current: true,
     status: "planning",
     start_at: startAt,
     capacity: Number(b.capacity || 24),
