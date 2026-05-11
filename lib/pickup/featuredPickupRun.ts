@@ -101,10 +101,9 @@ async function fetchLatestActivePickupRunForRegionBucket(
 /**
  * Whether this client may see the featured run on the hub.
  * - Public runs: visible to everyone (including logged out).
- * - Select runs: require an approved, signed-in user; missing profile tier_rank is treated as PUBLIC (rank 6),
- *   matching `/api/pickup/public` invite logic.
- * - While `open_tier_rank` is still null (planning / before tier waves), approved players can see the run exists.
- *   Once the tier window is set, select runs require an invite row as before.
+ * - Select runs: only `isAdmin`, `public`, or signed-out are decided before the invite query; visibility then
+ *   requires an invite row plus approved profile and, when `open_tier_rank` is set, `tier_rank` within the window
+ *   (missing tier_rank is treated as PUBLIC / rank 6, matching `/api/pickup/public` invite logic).
  */
 export async function userCanViewPickupRun(
   admin: SupabaseClient,
@@ -123,15 +122,6 @@ export async function userCanViewPickupRun(
   // Canonical rules use null only; 0 must never mean “tier zero” (see pickup/public comments).
   const open = openRaw === null || openRaw === 0 ? null : openRaw;
 
-  // Tier ladder not configured yet — hide select runs until tiers are opened.
-  if (open === null) {
-    return false;
-  }
-
-  if (!ctx.approved) return false;
-
-  if (effectiveRank > open) return false;
-
   const inv = await admin
     .from("pickup_run_invites")
     .select("id")
@@ -139,5 +129,10 @@ export async function userCanViewPickupRun(
     .eq("user_id", ctx.userId)
     .limit(1);
 
-  return (inv.data || []).length > 0;
+  const hasInvite = (inv.data || []).length > 0;
+  return (
+    hasInvite &&
+    ctx.approved &&
+    (open === null || effectiveRank <= open)
+  );
 }
