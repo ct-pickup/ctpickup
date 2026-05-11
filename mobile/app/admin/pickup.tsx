@@ -122,8 +122,6 @@ function launchBlockedForListRow(row: Record<string, unknown>): string | null {
   if (!start) return "Add a kickoff slot first.";
   const ms = Date.parse(start);
   if (!Number.isFinite(ms)) return "Add a kickoff slot first.";
-  const h = (ms - Date.now()) / 3600000;
-  if (h < 36) return "Kickoff must be at least 36 hours away.";
   return null;
 }
 
@@ -311,6 +309,21 @@ export default function AdminPickupOpsScreen() {
     });
     return pickupLifecycleStageLabel(stage);
   }, [selectedRun]);
+
+  const detailKickoffActions = useMemo(() => {
+    if (!selectedRunId || !selectedRun || typeof selectedRun !== "object") {
+      return { showStart: false, showEnd: false, showMark: false };
+    }
+    const sr = selectedRun as Record<string, unknown>;
+    const status = s(sr.status);
+    const is_completed = sr.is_completed === true;
+    const start_at = s(sr.start_at) || null;
+    return {
+      showStart: showStartRunNowButton({ status, is_completed, start_at }),
+      showEnd: showEndRunButton({ status, is_completed, start_at }),
+      showMark: showMarkResultButton({ is_completed }),
+    };
+  }, [selectedRunId, selectedRun]);
   const slots = useMemo(() => (Array.isArray(detail?.slots) ? detail!.slots : []) as Record<string, unknown>[], [detail]);
   const counts = detail?.counts;
   const confirmed = useMemo(() => (Array.isArray(detail?.confirmed) ? detail!.confirmed : []), [detail]);
@@ -454,7 +467,7 @@ export default function AdminPickupOpsScreen() {
           ? fmtPickupDt(s((auto as Record<string, unknown>).anchor_start_at))
           : "TBD";
 
-    Alert.alert("Launch outreach?", "Sends Tier-1 SMS for select runs (36h+ before kickoff). Public runs skip invites.", [
+    Alert.alert("Launch outreach?", "Sends invites to Tier 1a + 1b players for select runs. Public runs skip invites.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Launch",
@@ -663,8 +676,6 @@ export default function AdminPickupOpsScreen() {
     if (!selectedRun) return "Select a run.";
     if (s(selectedRun.outreach_started_at)) return "Outreach already launched.";
     if (!auto || !s((auto as Record<string, unknown>).anchor_start_at)) return "Add a kickoff slot first.";
-    const h = (auto as Record<string, unknown>).hours_until_start;
-    if (h === null || h === undefined || Number(h) < 36) return "Kickoff must be at least 36 hours away.";
     return null;
   }, [selectedRun, auto]);
 
@@ -1365,13 +1376,16 @@ export default function AdminPickupOpsScreen() {
                     const state = String(a.state || "");
                     const slot = slots.find((sl) => String(sl.id) === slotId);
                     const slotLabel = slot ? (String(slot.label || "") || String(slot.start_at || "")) : slotId;
-                    const player = [...confirmed, ...standby].find((p) => p.id === uid);
-                    const name = player?.full_name || uid;
+                    const allPlayers = [...(detail?.confirmed ?? []), ...(detail?.standby ?? []), ...((detail?.invites as any[]) ?? [])];
+                    const player = allPlayers.find((p: any) => p.id === uid || p.user_id === uid);
+                    const name = player?.full_name || player?.username || uid.slice(0, 8) + "...";
+                    const position = player?.playing_position || null;
+                    const tier = player?.tier || null;
                     return (
                       <View key={`avail-${idx}`} style={[styles.personRow, { opacity: state === "declined" ? 0.45 : 1 }]}>
                         <View style={{ flex: 1, minWidth: 0 }}>
                           <Text style={styles.personName}>{name}</Text>
-                          <Text style={styles.personSub}>{slotLabel}</Text>
+                          <Text style={styles.personSub}>{[tier, position, slotLabel].filter(Boolean).join(" · ")}</Text>
                         </View>
                         <View style={{ backgroundColor: state === "available" ? "rgba(163,230,53,0.15)" : "rgba(255,255,255,0.08)", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
                           <Text style={{ color: state === "available" ? "#a3e635" : "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: "700" }}>{state}</Text>
