@@ -1,26 +1,38 @@
 import * as Haptics from "expo-haptics";
 
-// Ball kick — general notification, invite
+function warnHaptic(name: string, err: unknown) {
+  if (__DEV__) console.warn(`[haptics] ${name} failed:`, err);
+}
+
+async function runHaptic(name: string, fn: () => Promise<void>) {
+  try {
+    await fn();
+  } catch (e) {
+    warnHaptic(name, e);
+  }
+}
+
+// Ball kick — general notification, invite; medium impact for “submitting” actions
 export async function hapticKick() {
-  await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  await runHaptic("kick", () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
 }
 
-// Goal — RSVP confirmed, run confirmed  
+// Goal — RSVP confirmed, run confirmed, primary confirm / join / submit taps
 export async function hapticGoal() {
-  await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  await runHaptic("goal", () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
 }
 
-// Whistle — run started, award selected
+// Whistle — run started, result submitted (heavy)
 export async function hapticWhistle() {
-  await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+  await runHaptic("whistle", () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
 }
 
-// Light tap — availability submitted, tier chips, buttons
+// Light tap — availability chips, award rows, secondary selections
 export async function hapticTap() {
-  await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  await runHaptic("tap", () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
 }
 
-// Error — something went wrong
+// Error — ban, validation failures, API errors
 export async function hapticError() {
-  await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+  await runHaptic("error", () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error));
 }

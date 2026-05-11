@@ -7,7 +7,7 @@ import { usePickupJoin } from "@/hooks/usePickupJoin";
 import { usePickupPublic } from "@/hooks/usePickupPublic";
 import { usePickupStandingScore } from "@/hooks/usePickupStandingScore";
 import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickupRunType";
-import { fetchPickupFindPlayer } from "@/lib/siteApi";
+import { fetchPickupFindPlayers, type PickupFindPlayerResult } from "@/lib/siteApi";
 import { siteOrigin } from "@/lib/env";
 import { hapticGoal, hapticKick, hapticTap } from "@/lib/haptics";
 import { fmtPickupDt } from "@/lib/pickupPublic";
@@ -100,11 +100,11 @@ export default function RunsScreen() {
 
   const [friendModalOpen, setFriendModalOpen] = useState(false);
   const [friendQuery, setFriendQuery] = useState("");
-  const [friendSearchBusy, setFriendSearchBusy] = useState(false);
-  const [friendFound, setFriendFound] = useState<{ user_id: string; full_name: string; username: string | null } | null>(
-    null,
-  );
-  const [friendLookupDone, setFriendLookupDone] = useState(false);
+  const [friendFound, setFriendFound] = useState<PickupFindPlayerResult | null>(null);
+  const [friendSuggestions, setFriendSuggestions] = useState<PickupFindPlayerResult[]>([]);
+  const [friendAutocompleteLoading, setFriendAutocompleteLoading] = useState(false);
+  const [friendAutocompleteEmpty, setFriendAutocompleteEmpty] = useState(false);
+  const [friendAutocompleteError, setFriendAutocompleteError] = useState<string | null>(null);
 
   useLayoutEffect(() => {
     registerReset(() => setShowStatePicker(true));
@@ -184,8 +184,10 @@ export default function RunsScreen() {
   const resetFriendPayModal = useCallback(() => {
     setFriendQuery("");
     setFriendFound(null);
-    setFriendLookupDone(false);
-    setFriendSearchBusy(false);
+    setFriendSuggestions([]);
+    setFriendAutocompleteLoading(false);
+    setFriendAutocompleteEmpty(false);
+    setFriendAutocompleteError(null);
   }, []);
 
   const openFriendPayModal = useCallback(() => {
@@ -199,34 +201,70 @@ export default function RunsScreen() {
     resetFriendPayModal();
   }, [resetFriendPayModal]);
 
-  const onLookupFriend = useCallback(async () => {
-    if (!token) {
-      Alert.alert("Session required", "Sign in on this device, then try again.");
-      return;
-    }
+  useEffect(() => {
+    if (!friendModalOpen || !token) return;
+
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const q = friendQuery.trim();
-    if (!q) {
-      Alert.alert("Look up player", "Enter a username or email.");
+
+    if (q.length < 2) {
+      setFriendSuggestions([]);
+      setFriendAutocompleteLoading(false);
+      setFriendAutocompleteEmpty(false);
+      setFriendAutocompleteError(null);
       return;
     }
+
+    setFriendAutocompleteEmpty(false);
+    setFriendAutocompleteError(null);
+
+    timeoutId = setTimeout(() => {
+      void (async () => {
+        if (cancelled) return;
+        setFriendAutocompleteLoading(true);
+        setFriendSuggestions([]);
+        try {
+          const r = await fetchPickupFindPlayers(token, q, 5);
+          if (cancelled) return;
+          if (r.ok) {
+            setFriendSuggestions(r.players);
+            setFriendAutocompleteEmpty(r.players.length === 0);
+            setFriendAutocompleteError(null);
+          } else {
+            setFriendSuggestions([]);
+            setFriendAutocompleteEmpty(false);
+            setFriendAutocompleteError("Could not search right now. Try again.");
+          }
+        } catch {
+          if (!cancelled) {
+            setFriendSuggestions([]);
+            setFriendAutocompleteEmpty(false);
+            setFriendAutocompleteError("Network error. Try again.");
+          }
+        } finally {
+          if (!cancelled) setFriendAutocompleteLoading(false);
+        }
+      })();
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [friendModalOpen, token, friendQuery]);
+
+  const onSelectFriendSuggestion = useCallback((p: PickupFindPlayerResult) => {
+    void hapticTap();
+    const display =
+      p.full_name.trim().length > 0 ? p.full_name.trim() : (p.username && p.username.trim()) || "Player";
+    setFriendFound(p);
+    setFriendQuery(display);
+    setFriendSuggestions([]);
+    setFriendAutocompleteEmpty(false);
+    setFriendAutocompleteError(null);
     Keyboard.dismiss();
-    setFriendSearchBusy(true);
-    setFriendFound(null);
-    setFriendLookupDone(false);
-    try {
-      const r = await fetchPickupFindPlayer(token, q);
-      setFriendLookupDone(true);
-      if (r.ok && r.data) setFriendFound(r.data);
-      else if (r.status !== 404) {
-        Alert.alert("Look up failed", "Could not search right now. Try again.");
-      }
-    } catch {
-      setFriendLookupDone(true);
-      Alert.alert("Look up failed", "Network error. Try again.");
-    } finally {
-      setFriendSearchBusy(false);
-    }
-  }, [token, friendQuery]);
+  }, []);
 
   const onConfirmPayForFriend = useCallback(async () => {
     if (!friendFound || !runId || !token) return;
@@ -234,6 +272,7 @@ export default function RunsScreen() {
       Alert.alert("That’s you", "Use “Request a spot” to join for yourself.");
       return;
     }
+    void hapticGoal();
     setFriendModalOpen(false);
     await joinPickup(token, runId, load, {
       friendUserId: friendFound.user_id,
@@ -317,7 +356,7 @@ export default function RunsScreen() {
     return typeof v === "string" && v.length > 0 ? v : null;
   }, [run]);
 
-  /** From `/api/pickup/public` `me` — used for public-run RSVP during planning (no availability poll). */
+  /** From `/api/pickup/public` `me` — account allowed to RSVP when true. */
   const meApproved = useMemo(() => {
     const me = dataObj.me;
     if (!me || typeof me !== "object") return false;
@@ -337,13 +376,17 @@ export default function RunsScreen() {
     return true;
   }, [run, availabilityPollInvited]);
 
-  /** Open-signup runs skip the poll; approved signed-in users RSVP directly during planning / likely_on. */
-  const showPublicPlanningJoin = useMemo(() => {
-    if (!isPublicPickupRunType(run?.run_type)) return false;
-    const st = run?.status;
-    if (st !== "planning" && st !== "likely_on") return false;
-    return Boolean(token) && meApproved;
-  }, [run, token, meApproved]);
+  /**
+   * "Request a spot" / pay-for-friend: approved signed-in users only.
+   * - Public: any run status (planning, likely_on, active, etc.).
+   * - Select: only after admin finalizes a time slot (`final_slot_id`); until then the availability poll is shown instead.
+   */
+  const showRequestSpotActions = useMemo(() => {
+    if (!token || !meApproved || !run) return false;
+    if (isPublicPickupRunType(run.run_type)) return true;
+    if (isSelectPickupRunType(run.run_type)) return run.final_slot_id != null;
+    return false;
+  }, [token, meApproved, run]);
 
   const allowedSlotLabelSet = useMemo(
     () => new Set<string>(FIXED_AVAILABILITY_RANGES.map((r) => r.slot_label)),
@@ -730,7 +773,10 @@ export default function RunsScreen() {
               <Pressable
                 style={[styles.primaryPay, payDisabled && styles.primaryJoinDisabled]}
                 disabled={payDisabled}
-                onPress={() => void payPickup(token, runId, load)}
+                onPress={() => {
+                  void hapticGoal();
+                  void payPickup(token, runId, load);
+                }}
               >
                 {payBusy ? (
                   <ActivityIndicator color="#111" />
@@ -741,7 +787,7 @@ export default function RunsScreen() {
                   </>
                 )}
               </Pressable>
-            ) : (!showAvailabilityPoll && run?.status !== "planning") || showPublicPlanningJoin ? (
+            ) : showRequestSpotActions ? (
               <View style={styles.joinActions}>
                 <Pressable
                   style={[styles.primaryJoin, joinDisabled && styles.primaryJoinDisabled]}
@@ -821,43 +867,76 @@ export default function RunsScreen() {
         <Pressable style={styles.modalBackdropPress} onPress={closeFriendPayModal} accessibilityRole="button" accessibilityLabel="Dismiss" />
         <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Pay for a friend</Text>
-            <Text style={styles.modalHint}>Enter their CT Pickup username or email.</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Username or email"
-              placeholderTextColor="rgba(255,255,255,0.4)"
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              value={friendQuery}
-              onChangeText={(t) => {
-                setFriendQuery(t);
-                setFriendFound(null);
-                setFriendLookupDone(false);
-              }}
-              editable={!friendSearchBusy && !joinBusy}
-            />
-            <Pressable
-              style={[styles.modalSearchBtn, (friendSearchBusy || joinBusy) && styles.modalSearchBtnDisabled]}
-              disabled={friendSearchBusy || joinBusy}
-              onPress={() => void onLookupFriend()}
-            >
-              {friendSearchBusy ? (
-                <ActivityIndicator color="#111" size="small" />
-              ) : (
-                <Text style={styles.modalSearchBtnText}>Look up player</Text>
-              )}
-            </Pressable>
+            <Text style={styles.modalHint}>Type a username or name — pick them from the list.</Text>
+            <View style={styles.modalAutocompleteWrap}>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Username or name"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="default"
+                value={friendQuery}
+                onChangeText={(t) => {
+                  setFriendQuery(t);
+                  setFriendFound(null);
+                }}
+                editable={!joinBusy}
+              />
+              {friendAutocompleteLoading ? (
+                <View style={styles.modalAutocompleteLoadingRow}>
+                  <ActivityIndicator color={LIME} size="small" />
+                  <Text style={styles.modalAutocompleteLoadingText}>Searching…</Text>
+                </View>
+              ) : null}
+              {friendSuggestions.length > 0 ? (
+                <View style={styles.modalSuggestions} accessibilityRole="list">
+                  {friendSuggestions.map((s, i) => (
+                    <Pressable
+                      key={s.user_id}
+                      onPress={() => onSelectFriendSuggestion(s)}
+                      style={({ pressed }) => [
+                        styles.modalSuggestionRow,
+                        i === friendSuggestions.length - 1 && styles.modalSuggestionRowLast,
+                        pressed && { opacity: 0.88 },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        s.username
+                          ? `${s.full_name}, @${s.username}`
+                          : s.full_name
+                      }
+                    >
+                      <Text style={styles.modalSuggestionName} numberOfLines={1}>
+                        {s.full_name}
+                      </Text>
+                      {s.username ? (
+                        <Text style={styles.modalSuggestionUsername} numberOfLines={1}>
+                          @{s.username}
+                        </Text>
+                      ) : null}
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+            {friendAutocompleteEmpty &&
+            friendQuery.trim().length >= 2 &&
+            !friendAutocompleteLoading &&
+            !friendAutocompleteError ? (
+              <Text style={styles.modalNotFound}>No players found</Text>
+            ) : null}
+            {friendAutocompleteError ? (
+              <Text style={styles.modalNotFound}>{friendAutocompleteError}</Text>
+            ) : null}
             {friendFound ? (
               friendFound.user_id === session?.user?.id ? (
                 <Text style={styles.modalNotFound}>That’s you — use “Request a spot” for yourself.</Text>
               ) : (
                 <Text style={styles.modalFound}>
-                  Found: <Text style={styles.modalFoundName}>{friendFound.full_name}</Text>
+                  Selected: <Text style={styles.modalFoundName}>{friendFound.full_name}</Text>
                 </Text>
               )
-            ) : friendLookupDone && !friendSearchBusy ? (
-              <Text style={styles.modalNotFound}>Player not found</Text>
             ) : null}
             {friendFound && friendFound.user_id !== session?.user?.id ? (
               <Pressable
@@ -1211,17 +1290,33 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
   },
-  modalSearchBtn: {
-    alignSelf: "stretch",
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: LIME,
+  modalAutocompleteWrap: { alignSelf: "stretch", gap: 0 },
+  modalAutocompleteLoadingRow: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    minHeight: 44,
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
   },
-  modalSearchBtnDisabled: { opacity: 0.5 },
-  modalSearchBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  modalAutocompleteLoadingText: { color: "rgba(255,255,255,0.65)", fontSize: 14 },
+  modalSuggestions: {
+    marginTop: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    overflow: "hidden",
+    alignSelf: "stretch",
+  },
+  modalSuggestionRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.1)",
+  },
+  modalSuggestionRowLast: { borderBottomWidth: 0 },
+  modalSuggestionName: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  modalSuggestionUsername: { marginTop: 4, color: "rgba(255,255,255,0.55)", fontSize: 13 },
   modalFound: { fontSize: 15, color: "rgba(255,255,255,0.85)" },
   modalFoundName: { fontWeight: "800", color: LIME },
   modalNotFound: { fontSize: 15, color: "#fca5a5", fontWeight: "600" },
