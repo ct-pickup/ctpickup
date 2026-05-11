@@ -177,7 +177,7 @@ export default function TournamentBracketScreen() {
             <Text style={styles.btnText}>{busy === "generate" ? "Generating..." : "⚡ Generate Groups"}</Text>
           </Pressable>
           {groupComplete && knockoutMatches.length === 0 ? (
-            <Pressable onPress={onGenerateKnocko} disabled={!!busy} style={[styles.btn, styles.btnSecondary, busy === "knockout" && styles.disabled]}>
+            <Pressable onPress={onGenerateKnockout} disabled={!!busy} style={[styles.btn, styles.btnSecondary, busy === "knockout" && styles.disabled]}>
               <Text style={styles.btnText}>{busy === "knockout" ? "..." : "🏆 Generate Knockout"}</Text>
             </Pressable>
           ) : null}
