@@ -1,9 +1,11 @@
+import * as zipcodes from "zipcodes";
 import { NextResponse } from "next/server";
 import { CT_PICKUP_VENUES } from "@/lib/venues/ctPickupVenues";
 
 export const dynamic = "force-dynamic";
 
 const FAR_MINUTES = 45;
+const IN_STATE_SORT_BONUS_MINUTES = 10;
 
 type VenueDistanceRow = {
   venue: string;
@@ -14,6 +16,33 @@ type VenueDistanceRow = {
 /** Query string Google can resolve (helps short addresses like "Warwick, NY"). */
 function destinationQuery(v: (typeof CT_PICKUP_VENUES)[number]): string {
   return `${v.venue}, ${v.address}`;
+}
+
+function stateCodeFromVenueAddress(address: string): string | null {
+  const m = address.match(/\b(CT|NY|NJ|MD)\b/);
+  return m ? m[1]! : null;
+}
+
+function normalizeZipState(state: string | null | undefined): string | null {
+  if (state == null) return null;
+  const s = String(state).trim().toUpperCase();
+  return s || null;
+}
+
+/**
+ * Sort by effective drive time: subtract {@link IN_STATE_SORT_BONUS_MINUTES} from in-state venues for ordering only.
+ * The 45-minute filter still uses raw `estimatedMinutes`.
+ */
+function filterAndSortVenues(rows: VenueDistanceRow[], userZipState: string | null | undefined): VenueDistanceRow[] {
+  const user = normalizeZipState(userZipState);
+  const sortKey = (r: VenueDistanceRow): number => {
+    const vs = stateCodeFromVenueAddress(r.address);
+    const bonus = user && vs === user ? IN_STATE_SORT_BONUS_MINUTES : 0;
+    return r.estimatedMinutes - bonus;
+  };
+  const sorted = [...rows].sort((a, b) => sortKey(a) - sortKey(b));
+  const allFar = sorted.length > 0 && sorted.every((r) => r.estimatedMinutes >= FAR_MINUTES);
+  return allFar ? sorted : sorted.filter((r) => r.estimatedMinutes < FAR_MINUTES);
 }
 
 /** POST body: `{ zip_code }`, optional `{ departure_time }` (Unix seconds for Distance Matrix `departure_time`). Optional header `Authorization: Bearer …` (accepted; not required). */
@@ -36,6 +65,9 @@ export async function POST(req: Request) {
   if (digits.length !== 5) {
     return NextResponse.json({ error: "invalid_zip_code", venues: [] as VenueDistanceRow[] }, { status: 400 });
   }
+
+  const loc = zipcodes.lookup(digits);
+  const userZipState = normalizeZipState(loc?.state);
 
   let departureParam = "now";
   if (bodyObj && "departure_time" in bodyObj && bodyObj.departure_time != null) {
@@ -107,10 +139,7 @@ export async function POST(req: Request) {
     });
   }
 
-  rowsOut.sort((a, b) => a.estimatedMinutes - b.estimatedMinutes);
-
-  const allFar = rowsOut.length > 0 && rowsOut.every((r) => r.estimatedMinutes >= FAR_MINUTES);
-  const picked = allFar ? rowsOut : rowsOut.filter((r) => r.estimatedMinutes < FAR_MINUTES);
+  const picked = filterAndSortVenues(rowsOut, userZipState);
 
   return NextResponse.json({ venues: picked });
 }

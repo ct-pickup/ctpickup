@@ -11,6 +11,7 @@ export type VenueDistanceRow = {
 type DistancesApiOk = { venues: VenueDistanceRow[] };
 
 const FAR_MINUTES = 45;
+const IN_STATE_SORT_BONUS_MINUTES = 10;
 
 /** Venue coordinates for straight-line fallback when `/api/venue/distances` fails. */
 const CT_PICKUP_VENUE_COORDS: readonly { venue: string; address: string; lat: number; lng: number }[] = [
@@ -47,8 +48,29 @@ function driveMinutesFromStraightLineMiles(mi: number): number {
   return Math.max(1, Math.round(((mi * roadFactor) / mph) * 60));
 }
 
-function filterAndSortVenues(rows: VenueDistanceRow[]): VenueDistanceRow[] {
-  const sorted = [...rows].sort((a, b) => a.estimatedMinutes - b.estimatedMinutes);
+function stateCodeFromVenueAddress(address: string): string | null {
+  const m = address.match(/\b(CT|NY|NJ|MD)\b/);
+  return m ? m[1]! : null;
+}
+
+function normalizeZipState(state: string | null | undefined): string | null {
+  if (state == null) return null;
+  const s = String(state).trim().toUpperCase();
+  return s || null;
+}
+
+/**
+ * Sort by effective drive time: subtract {@link IN_STATE_SORT_BONUS_MINUTES} from in-state venues for ordering only.
+ * The 45-minute filter still uses raw `estimatedMinutes`.
+ */
+function filterAndSortVenues(rows: VenueDistanceRow[], userZipState: string | null | undefined): VenueDistanceRow[] {
+  const user = normalizeZipState(userZipState);
+  const sortKey = (r: VenueDistanceRow): number => {
+    const vs = stateCodeFromVenueAddress(r.address);
+    const bonus = user && vs === user ? IN_STATE_SORT_BONUS_MINUTES : 0;
+    return r.estimatedMinutes - bonus;
+  };
+  const sorted = [...rows].sort((a, b) => sortKey(a) - sortKey(b));
   const allFar = sorted.length > 0 && sorted.every((r) => r.estimatedMinutes >= FAR_MINUTES);
   return allFar ? sorted : sorted.filter((r) => r.estimatedMinutes < FAR_MINUTES);
 }
@@ -61,6 +83,9 @@ export async function getNearestVenuesFromApi(
 ): Promise<VenueDistanceRow[]> {
   const digits = zipCode.replace(/\D/g, "").slice(0, 5);
   if (digits.length !== 5) return [];
+
+  const loc = zipcodes.lookup(digits);
+  const userZipState = normalizeZipState(loc?.state);
 
   const origin = siteUrl.replace(/\/$/, "");
   const headers: Record<string, string> = {
@@ -86,7 +111,7 @@ export async function getNearestVenuesFromApi(
     if (!r.ok || json === null || typeof json !== "object") return [];
     const venues = (json as DistancesApiOk).venues;
     if (!Array.isArray(venues)) return [];
-    return venues.filter(
+    const rows = venues.filter(
       (row): row is VenueDistanceRow =>
         row != null &&
         typeof row === "object" &&
@@ -94,6 +119,7 @@ export async function getNearestVenuesFromApi(
         typeof (row as VenueDistanceRow).address === "string" &&
         typeof (row as VenueDistanceRow).estimatedMinutes === "number",
     );
+    return filterAndSortVenues(rows, userZipState);
   } catch {
     return [];
   }
@@ -113,6 +139,8 @@ export function getNearestVenues(zipCode: string): VenueDistanceRow[] {
   const lng = loc.longitude;
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];
 
+  const userZipState = normalizeZipState(loc.state);
+
   const rows: VenueDistanceRow[] = CT_PICKUP_VENUE_COORDS.map((v) => {
     const mi = haversineMiles(lat, lng, v.lat, v.lng);
     return {
@@ -122,7 +150,7 @@ export function getNearestVenues(zipCode: string): VenueDistanceRow[] {
     };
   });
 
-  return filterAndSortVenues(rows);
+  return filterAndSortVenues(rows, userZipState);
 }
 
 async function resolveNearestVenues(zipDigits: string, accessToken?: string | null): Promise<VenueDistanceRow[]> {
