@@ -124,6 +124,9 @@ export async function POST(req: Request) {
     const maxTeams = Number(body.max_teams);
     const regionRaw = body.service_region != null ? String(body.service_region).trim().toUpperCase() : "";
     const service_region = regionRaw && HUB_REGIONS.has(regionRaw) ? regionRaw : null;
+    const start_at = body.start_at != null ? String(body.start_at).trim() : "";
+    const registration_deadline =
+      body.registration_deadline != null ? String(body.registration_deadline).trim() : "";
 
     if (!title || title.length < 2) {
       return NextResponse.json({ error: "Title is required (min 2 characters)." }, { status: 400 });
@@ -159,6 +162,8 @@ export async function POST(req: Request) {
       is_active: false,
     };
     if (service_region) insertRow.service_region = service_region;
+    if (start_at) insertRow.start_at = start_at;
+    if (registration_deadline) insertRow.registration_deadline = registration_deadline;
 
     const { data: created, error } = await admin.from("tournaments").insert(insertRow).select("id,title,slug,is_active,service_region").single();
 

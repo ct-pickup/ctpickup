@@ -1,3 +1,4 @@
+import DateTimePicker from "@/components/DateTimePicker";
 import { useAdminOutdoorTournaments } from "@/hooks/useAdminOutdoorTournaments";
 import {
   deleteAdminTournament,
@@ -93,6 +94,8 @@ export default function AdminTournamentScreen() {
   const [createOfficial, setCreateOfficial] = useState("8");
   const [createMax, setCreateMax] = useState("12");
   const [createRegion, setCreateRegion] = useState<ServiceRegionCode>("CT");
+  const [createStartAt, setCreateStartAt] = useState("");
+  const [createDeadline, setCreateDeadline] = useState("");
 
   const [drafts, setDrafts] = useState<
     Record<string, { decision: Decision; notes: string; reviewed: boolean }>
@@ -190,6 +193,8 @@ export default function AdminTournamentScreen() {
       official_threshold,
       max_teams,
       service_region: createRegion,
+      start_at: createStartAt.trim() || undefined,
+      registration_deadline: createDeadline.trim() || undefined,
     });
     setBusy(null);
     if (!r.ok) return Alert.alert("Create failed", r.error);
@@ -198,6 +203,8 @@ export default function AdminTournamentScreen() {
     setCreateTarget("12");
     setCreateOfficial("8");
     setCreateMax("12");
+    setCreateStartAt("");
+    setCreateDeadline("");
     reload();
     Alert.alert("Created", "Tournament draft saved. Make it live from the list when ready.");
   }
@@ -396,6 +403,8 @@ export default function AdminTournamentScreen() {
               keyboardType="number-pad"
               placeholderTextColor="rgba(255,255,255,0.35)"
             />
+            <DateTimePicker label="Tournament date" value={createStartAt} onChange={setCreateStartAt} />
+            <DateTimePicker label="Registration deadline" value={createDeadline} onChange={setCreateDeadline} />
             <Pressable
               onPress={() => void onCreateTournament()}
               disabled={busy === "create"}
