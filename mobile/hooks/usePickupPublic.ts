@@ -4,11 +4,12 @@ import { siteOrigin } from "@/lib/env";
 import { fetchPickupPublic } from "@/lib/siteApi";
 import { parsePickupPayload, type PickupPublicPayload } from "@/lib/pickupPublic";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export function usePickupPublic(accessToken: string | null) {
   const { supabase } = useAuth();
   const { region, ready: regionReady } = useSelectedRegion();
+  const pickupRealtimeTopicSeq = useRef(0);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,11 +57,10 @@ export function usePickupPublic(accessToken: string | null) {
   // reliably reconstruct from a single row payload.
   useEffect(() => {
     if (!supabase || !runId) return;
-    let runChannel: RealtimeChannel | null = null;
-    let rsvpChannel: RealtimeChannel | null = null;
-
-    runChannel = supabase
-      .channel(`pickup_runs:${runId}`)
+    // Unique topic avoids Supabase client returning a channel still subscribed while removeChannel is in flight.
+    const topic = `pickup_public:${runId}:${++pickupRealtimeTopicSeq.current}`;
+    const pickupChannel: RealtimeChannel = supabase
+      .channel(topic)
       .on(
         "postgres_changes",
         {
@@ -73,10 +73,6 @@ export function usePickupPublic(accessToken: string | null) {
           void load();
         },
       )
-      .subscribe();
-
-    rsvpChannel = supabase
-      .channel(`pickup_run_rsvps:${runId}`)
       .on(
         "postgres_changes",
         {
@@ -116,8 +112,7 @@ export function usePickupPublic(accessToken: string | null) {
       .subscribe();
 
     return () => {
-      if (runChannel) void supabase.removeChannel(runChannel);
-      if (rsvpChannel) void supabase.removeChannel(rsvpChannel);
+      void supabase.removeChannel(pickupChannel);
     };
   }, [supabase, runId, load]);
 
@@ -125,12 +120,8 @@ export function usePickupPublic(accessToken: string | null) {
   const noFeaturedRun = run == null;
   const counts = parsed.counts ?? {};
   const visibility = parsed.visibility ?? {};
-  const me = parsed.me ?? {};
 
   const invitedNow = visibility.invitedNow === true;
-  const tier = typeof me.tier === "string" && me.tier.length > 0 ? me.tier : null;
-  const tierRank =
-    typeof me.tier_rank === "number" && Number.isFinite(me.tier_rank) ? me.tier_rank : null;
 
   const myStatus: string | null =
     parsed.my_status === undefined || parsed.my_status === null
@@ -146,10 +137,7 @@ export function usePickupPublic(accessToken: string | null) {
     run: run as Record<string, unknown> | null,
     counts,
     visibility,
-    me,
     invitedNow,
-    tier,
-    tierRank,
     myStatus,
     noFeaturedRun,
     load,
