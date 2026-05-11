@@ -3,12 +3,19 @@ import { SignInPanel } from "@/components/SignInPanel";
 import { useAuth } from "@/context/AuthContext";
 import {
   normalizeChatSenderDisplayForMatch,
+  useAdminDmPeerLabels,
   useChatAdminUserIds,
   useTeamChatAccess,
   useTeamChatMessages,
   useTeamChatRoom,
 } from "@/hooks/useTeamChat";
-import { ANNOUNCEMENTS_CHAT_SLUG, TEAM_CHAT_SLUG, useUserChatRooms, type ChatRoomSummary } from "@/lib/teamChat";
+import {
+  ANNOUNCEMENTS_CHAT_SLUG,
+  TEAM_CHAT_SLUG,
+  isAdminDmGroupSlug,
+  useUserChatRooms,
+  type ChatRoomSummary,
+} from "@/lib/teamChat";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import {
@@ -43,7 +50,11 @@ type SwitchChip =
  * hardcoded slug/title), then any group rooms the user belongs to in the order
  * returned by RLS.
  */
-function buildSwitchChips(rooms: ChatRoomSummary[]): SwitchChip[] {
+function buildSwitchChips(
+  rooms: ChatRoomSummary[],
+  adminDmPeerLabels: Record<string, string>,
+  isAdmin: boolean | null,
+): SwitchChip[] {
   const bySlug = new Map(rooms.map((r) => [r.slug, r] as const));
 
   const announcements = bySlug.get(ANNOUNCEMENTS_CHAT_SLUG);
@@ -66,11 +77,15 @@ function buildSwitchChips(rooms: ChatRoomSummary[]): SwitchChip[] {
 
   for (const r of rooms) {
     if (r.room_type !== "group") continue;
+    const label =
+      isAdmin === true && isAdminDmGroupSlug(r.slug) && adminDmPeerLabels[r.id]
+        ? adminDmPeerLabels[r.id]!
+        : r.title;
     chips.push({
       kind: "id",
       key: `id:${r.id}`,
       id: r.id,
-      label: r.title,
+      label,
     });
   }
 
@@ -98,7 +113,11 @@ export default function TeamChatThreadScreen() {
   const activeId = room?.id ?? (trimmedId || null);
 
   const { rooms: userRooms } = useUserChatRooms(enabled);
-  const switchChips = useMemo(() => buildSwitchChips(userRooms), [userRooms]);
+  const adminDmPeerLabels = useAdminDmPeerLabels(enabled, isAdmin === true, userRooms, session?.user?.id ?? null);
+  const switchChips = useMemo(
+    () => buildSwitchChips(userRooms, adminDmPeerLabels, isAdmin),
+    [userRooms, adminDmPeerLabels, isAdmin],
+  );
 
   const { messages, loading: msgsLoading, error: msgsError, send, currentUserId } = useTeamChatMessages(roomId);
   const { adminIds, adminSenderDisplayNorms } = useChatAdminUserIds(enabled);
@@ -111,6 +130,7 @@ export default function TeamChatThreadScreen() {
   const announcementsOnly = !!room?.announcements_only;
   /** Group threads use `id` routing; slug threads are announcements / team. */
   const isGroupRoom = !!trimmedId;
+  const isDmGroup = !!(room?.slug && isAdminDmGroupSlug(room.slug));
   const canCompose = useMemo(() => {
     if (!roomId) return false;
     if (isAdmin === true) return true;
@@ -375,7 +395,9 @@ export default function TeamChatThreadScreen() {
               : isAdmin === true && announcementsOnly
                 ? "Post an announcement"
                 : isGroupRoom
-                  ? "Message the group"
+                  ? isDmGroup
+                    ? "Message…"
+                    : "Message the group"
                   : "Message the team…"
           }
           placeholderTextColor="rgba(255,255,255,0.35)"

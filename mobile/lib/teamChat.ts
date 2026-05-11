@@ -7,6 +7,13 @@ export const ANNOUNCEMENTS_CHAT_SLUG = "announcements" as const;
 
 export type ChatRoomType = "public" | "announcement" | "group";
 
+/** Admin↔player DMs use `room_type: group` and slugs `dm` + 32 hex (see `lib/chat/adminDmRoom.ts`). */
+const DM_GROUP_SLUG_RE = /^dm[a-f0-9]{32}$/i;
+
+export function isAdminDmGroupSlug(slug: string): boolean {
+  return DM_GROUP_SLUG_RE.test(String(slug || "").trim());
+}
+
 export type ChatMessageRow = {
   id: string;
   room_id: string;

@@ -1,14 +1,15 @@
 import { useAuth } from "@/context/AuthContext";
 import { postChatMessageViaApi } from "@/lib/chatApi";
 import { CHAT_PROFANITY_USER_MESSAGE, messageContainsProfanity } from "@/lib/chatProfanity";
-import { type ChatMessageRow } from "@/lib/teamChat";
+import { isAdminDmGroupSlug, type ChatMessageRow, type ChatRoomSummary } from "@/lib/teamChat";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export type ChatRoomRow = {
   id: string;
   slug: string;
   title: string;
+  room_type: string | null;
   is_active: boolean;
   announcements_only: boolean;
   closes_at: string | null;
@@ -51,7 +52,7 @@ export function useTeamChatRoom(enabled: boolean, lookup: RoomLookup) {
     void (async () => {
       const base = supabase
         .from("chat_rooms")
-        .select("id,slug,title,is_active,announcements_only,closes_at,created_at");
+        .select("id,slug,title,room_type,is_active,announcements_only,closes_at,created_at");
       const query = id ? base.eq("id", id) : base.eq("slug", slug);
       const { data, error: qErr } = await query.maybeSingle();
       if (cancelled) return;
@@ -296,4 +297,71 @@ export function useTeamChatMessages(roomId: string | null) {
     send,
     currentUserId: uid,
   };
+}
+
+/**
+ * For staff, DM group rooms use the player's name in the UI; `chat_rooms.title` stays the admin
+ * display name so players see staff in their list.
+ */
+export function useAdminDmPeerLabels(enabled: boolean, isAdmin: boolean, rooms: ChatRoomSummary[], myUserId: string | null) {
+  const { supabase } = useAuth();
+  const [labels, setLabels] = useState<Record<string, string>>({});
+
+  const dmRoomIds = useMemo(() => {
+    if (!isAdmin) return [];
+    return rooms.filter((r) => r.room_type === "group" && isAdminDmGroupSlug(r.slug)).map((r) => r.id);
+  }, [isAdmin, rooms]);
+
+  useEffect(() => {
+    if (!enabled || !isAdmin || !supabase || !myUserId || dmRoomIds.length === 0) {
+      setLabels({});
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data: mems, error: mErr } = await supabase
+        .from("chat_room_members")
+        .select("room_id,user_id")
+        .in("room_id", dmRoomIds);
+      if (cancelled) return;
+      if (mErr || !mems) {
+        setLabels({});
+        return;
+      }
+      const peerIdByRoom: Record<string, string> = {};
+      for (const row of mems as { room_id: string; user_id: string }[]) {
+        if (row.user_id !== myUserId) peerIdByRoom[row.room_id] = row.user_id;
+      }
+      const peerIds = [...new Set(Object.values(peerIdByRoom))];
+      if (peerIds.length === 0) {
+        setLabels({});
+        return;
+      }
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id,first_name,last_name,username")
+        .in("id", peerIds);
+      if (cancelled) return;
+      const nameById: Record<string, string> = {};
+      for (const p of (profs ?? []) as {
+        id: string;
+        first_name: string | null;
+        last_name: string | null;
+        username: string | null;
+      }[]) {
+        const n = `${String(p.first_name || "").trim()} ${String(p.last_name || "").trim()}`.trim();
+        nameById[p.id] = n || (p.username ? `@${p.username}` : "Player");
+      }
+      const out: Record<string, string> = {};
+      for (const [roomId, peerId] of Object.entries(peerIdByRoom)) {
+        out[roomId] = nameById[peerId] || "Player";
+      }
+      setLabels(out);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, isAdmin, supabase, myUserId, dmRoomIds]);
+
+  return labels;
 }
