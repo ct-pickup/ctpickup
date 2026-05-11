@@ -10,7 +10,7 @@ export type VenueDistanceRow = {
 
 type DistancesApiOk = { venues: VenueDistanceRow[] };
 
-const FAR_MINUTES = 45;
+const FAR_MINUTES = 60;
 const IN_STATE_SORT_BONUS_MINUTES = 10;
 
 /** Venue coordinates for straight-line fallback when `/api/venue/distances` fails. */

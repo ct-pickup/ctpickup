@@ -4,7 +4,7 @@ import { CT_PICKUP_VENUES } from "@/lib/venues/ctPickupVenues";
 
 export const dynamic = "force-dynamic";
 
-const FAR_MINUTES = 45;
+const FAR_MINUTES = 60;
 const IN_STATE_SORT_BONUS_MINUTES = 10;
 
 type VenueDistanceRow = {
