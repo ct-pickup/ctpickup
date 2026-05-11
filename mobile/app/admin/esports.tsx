@@ -7,6 +7,7 @@ import {
   type AdminEsportsTournamentRow,
 } from "@/lib/adminApi";
 import { useAuth } from "@/context/AuthContext";
+import DateTimePicker from "@/components/DateTimePicker";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import {
@@ -25,8 +26,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const LIME = "#a3e635";
-
-const ISO_PH = "2026-05-10T23:00:00Z";
 
 type Status = "upcoming" | "active" | "completed";
 
@@ -178,23 +177,13 @@ function FormFields(props: {
         placeholderTextColor="rgba(255,255,255,0.35)"
       />
       <Text style={styles.label}>Start date (ISO)</Text>
-      <TextInput
-        style={styles.input}
-        value={form.start_date}
-        onChangeText={(t) => set({ start_date: t })}
-        placeholder={ISO_PH}
-        placeholderTextColor="rgba(255,255,255,0.35)"
-        autoCapitalize="none"
-      />
+      <View style={styles.datePickerWrap}>
+        <DateTimePicker value={form.start_date} onChange={(iso) => set({ start_date: iso })} />
+      </View>
       <Text style={styles.label}>End date (ISO)</Text>
-      <TextInput
-        style={styles.input}
-        value={form.end_date}
-        onChangeText={(t) => set({ end_date: t })}
-        placeholder={ISO_PH}
-        placeholderTextColor="rgba(255,255,255,0.35)"
-        autoCapitalize="none"
-      />
+      <View style={styles.datePickerWrap}>
+        <DateTimePicker value={form.end_date} onChange={(iso) => set({ end_date: iso })} />
+      </View>
       {showStatusPicker ? (
         <>
           <Text style={styles.label}>Status</Text>
@@ -235,14 +224,12 @@ function FormFields(props: {
       {DEADLINE_LABELS.map(({ key, label }) => (
         <View key={key}>
           <Text style={styles.label}>{label} (ISO, optional)</Text>
-          <TextInput
-            style={styles.input}
-            value={form[key] as string}
-            onChangeText={(t) => set({ [key]: t } as Partial<FormState>)}
-            placeholder={ISO_PH}
-            placeholderTextColor="rgba(255,255,255,0.35)"
-            autoCapitalize="none"
-          />
+          <View style={styles.datePickerWrap}>
+            <DateTimePicker
+              value={form[key] as string}
+              onChange={(iso) => set({ [key]: iso } as Partial<FormState>)}
+            />
+          </View>
         </View>
       ))}
     </>
@@ -539,6 +526,7 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
   fieldHint: { marginTop: 6, fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 18 },
   label: { marginTop: 12, fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.55)" },
+  datePickerWrap: { marginTop: 8 },
   input: {
     marginTop: 8,
     borderWidth: 1,
