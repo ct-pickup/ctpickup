@@ -41,20 +41,6 @@ function regionFromVenue(venue: string | null): string | null {
   return VENUE_TO_REGION[v] ?? null;
 }
 
-function tierLabel(tier: string | null, tierRank: number | null): string | null {
-  if (tier && String(tier).trim()) return String(tier).trim();
-  if (tierRank === null || tierRank === undefined) return null;
-  const map: Record<number, string> = {
-    1: "Tier 1A",
-    2: "Tier 1B",
-    3: "Tier 2",
-    4: "Tier 3",
-    5: "Tier 4",
-    6: "Public",
-  };
-  return map[tierRank] ?? `Tier rank ${tierRank}`;
-}
-
 function initials(displayName: string) {
   const parts = displayName.trim().split(/\s+/).filter(Boolean);
   if (parts.length >= 2) return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase().slice(0, 2);
@@ -257,7 +243,6 @@ export default function PlayerProfileScreen() {
     );
   }
 
-  const tier = tierLabel(profile.tier, profile.tier_rank);
   const ig = profile.instagram?.replace(/^@/, "").trim();
   const region = regionFromVenue(nearestVenue);
 
@@ -271,34 +256,22 @@ export default function PlayerProfileScreen() {
             <Text style={styles.avatarPhText}>{initials(profile.display_name)}</Text>
           </View>
         )}
+        <Text style={styles.heroLabel}>Full name</Text>
         <Text style={styles.displayName}>{profile.display_name}</Text>
-        {profile.username ? <Text style={styles.username}>@{profile.username}</Text> : null}
       </View>
 
-      {tier ? (
-        <View style={styles.block}>
-          <Text style={styles.label}>Pickup tier</Text>
-          <Text style={styles.value}>{tier}</Text>
-        </View>
-      ) : null}
+      <View style={styles.block}>
+        <Text style={styles.label}>Username</Text>
+        {profile.username ? (
+          <Text style={styles.value}>@{profile.username}</Text>
+        ) : (
+          <Text style={styles.valueMuted}>—</Text>
+        )}
+      </View>
 
-      {profile.playing_position ? (
-        <View style={styles.block}>
-          <Text style={styles.label}>Position</Text>
-          <Text style={styles.value}>{profile.playing_position}</Text>
-        </View>
-      ) : null}
-
-      {profile.plays_goalie === true ? (
-        <View style={styles.block}>
-          <Text style={styles.label}>Goalie</Text>
-          <Text style={styles.value}>Willing to play goalie</Text>
-        </View>
-      ) : null}
-
-      {ig ? (
-        <View style={styles.block}>
-          <Text style={styles.label}>Instagram</Text>
+      <View style={styles.block}>
+        <Text style={styles.label}>Instagram</Text>
+        {ig ? (
           <Pressable
             onPress={() => void Linking.openURL(`https://instagram.com/${encodeURIComponent(ig)}`)}
             style={styles.linkRow}
@@ -306,6 +279,36 @@ export default function PlayerProfileScreen() {
             <FontAwesome name="instagram" size={18} color={LIME} />
             <Text style={styles.linkText}>@{ig}</Text>
           </Pressable>
+        ) : (
+          <Text style={styles.valueMuted}>—</Text>
+        )}
+      </View>
+
+      <View style={styles.block}>
+        <Text style={styles.label}>Position</Text>
+        {profile.playing_position ? (
+          <Text style={styles.value}>{profile.playing_position}</Text>
+        ) : (
+          <Text style={styles.valueMuted}>—</Text>
+        )}
+      </View>
+
+      <View style={styles.block}>
+        <Text style={styles.label}>Tier</Text>
+        {profile.tier ? (
+          <Text style={styles.value}>
+            {profile.tier}
+            {profile.tier_rank != null ? ` · #${profile.tier_rank}` : ""}
+          </Text>
+        ) : (
+          <Text style={styles.valueMuted}>—</Text>
+        )}
+      </View>
+
+      {profile.plays_goalie === true ? (
+        <View style={styles.block}>
+          <Text style={styles.label}>Goalie</Text>
+          <Text style={styles.value}>Willing to play goalie</Text>
         </View>
       ) : null}
 
@@ -392,8 +395,16 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   avatarPhText: { fontSize: 32, fontWeight: "800", color: LIME },
+  heroLabel: {
+    marginTop: 4,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: "rgba(255,255,255,0.45)",
+    marginBottom: 6,
+  },
   displayName: { fontSize: 22, fontWeight: "700", color: "#fff", textAlign: "center" },
-  username: { marginTop: 6, fontSize: 16, color: "rgba(255,255,255,0.55)" },
   block: {
     marginBottom: 20,
     paddingBottom: 16,

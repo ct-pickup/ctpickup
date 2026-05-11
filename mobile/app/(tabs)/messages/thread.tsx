@@ -26,6 +26,13 @@ import {
 
 const LIME = "#a3e635";
 
+function senderInitials(displayName: string) {
+  const parts = displayName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase().slice(0, 2);
+  const w = parts[0] ?? "?";
+  return w.slice(0, 2).toUpperCase();
+}
+
 type SwitchChip =
   | { kind: "slug"; key: string; slug: string; label: string }
   | { kind: "id"; key: string; id: string; label: string };
@@ -295,10 +302,43 @@ export default function TeamChatThreadScreen() {
             }
           }
 
+          const initialsSource = (m.sender_display_name || senderLabel || "Player").trim();
+
+          const nameTextStyle = isAdminMessage ? styles.msgSenderAdmin : styles.msgSenderOther;
+
           return (
             <View style={[styles.msgRow, mine ? styles.msgRowMine : styles.msgRowOther]}>
               {!mine && senderLabel != null ? (
-                <Text style={isAdminMessage ? styles.msgSenderAdmin : styles.msgSenderOther}>{senderLabel}</Text>
+                <View style={styles.msgSenderTapRow}>
+                  <View
+                    style={[
+                      styles.msgSenderAvatar,
+                      isAdminMessage ? styles.msgSenderAvatarAdmin : styles.msgSenderAvatarOther,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.msgSenderAvatarText,
+                        isAdminMessage ? styles.msgSenderAvatarTextAdmin : styles.msgSenderAvatarTextOther,
+                      ]}
+                    >
+                      {senderInitials(initialsSource)}
+                    </Text>
+                  </View>
+                  {m.user_id ? (
+                    <Pressable
+                      onPress={() => router.push(`/player/${encodeURIComponent(m.user_id)}`)}
+                      accessibilityRole="link"
+                      accessibilityLabel={`View ${senderLabel} profile`}
+                      hitSlop={{ top: 6, bottom: 6, left: 4, right: 8 }}
+                      style={({ pressed }) => [styles.msgSenderNamePress, pressed ? { opacity: 0.85 } : null]}
+                    >
+                      <Text style={nameTextStyle}>{senderLabel}</Text>
+                    </Pressable>
+                  ) : (
+                    <Text style={nameTextStyle}>{senderLabel}</Text>
+                  )}
+                </View>
               ) : null}
               <View
                 style={[
@@ -426,17 +466,47 @@ const styles = StyleSheet.create({
   msgRow: { marginBottom: 10, maxWidth: "92%" },
   msgRowMine: { alignSelf: "flex-end" },
   msgRowOther: { alignSelf: "flex-start" },
+  msgSenderTapRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+    alignSelf: "flex-start",
+  },
+  msgSenderNamePress: {
+    flexShrink: 1,
+    alignSelf: "center",
+  },
+  msgSenderAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+  },
+  msgSenderAvatarOther: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.14)",
+  },
+  msgSenderAvatarAdmin: {
+    backgroundColor: "rgba(163,230,53,0.12)",
+    borderColor: "rgba(163,230,53,0.35)",
+  },
+  msgSenderAvatarText: { fontSize: 11, fontWeight: "800" },
+  msgSenderAvatarTextOther: { color: "rgba(255,255,255,0.65)" },
+  msgSenderAvatarTextAdmin: { color: LIME },
   msgSenderOther: {
     color: "rgba(255,255,255,0.55)",
     fontSize: 12,
-    marginBottom: 4,
     fontWeight: "700",
+    flexShrink: 1,
   },
   msgSenderAdmin: {
     color: LIME,
     fontSize: 12,
-    marginBottom: 4,
     fontWeight: "800",
+    flexShrink: 1,
   },
   bubble: {
     paddingVertical: 10,

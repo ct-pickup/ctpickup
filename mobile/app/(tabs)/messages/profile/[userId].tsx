@@ -16,20 +16,6 @@ import {
 
 const LIME = "#a3e635";
 
-function tierLabel(tier: string | null, tierRank: number | null): string | null {
-  if (tier && String(tier).trim()) return String(tier).trim();
-  if (tierRank === null || tierRank === undefined) return null;
-  const map: Record<number, string> = {
-    1: "Tier 1A",
-    2: "Tier 1B",
-    3: "Tier 2",
-    4: "Tier 3",
-    5: "Tier 4",
-    6: "Public",
-  };
-  return map[tierRank] ?? `Tier rank ${tierRank}`;
-}
-
 function initials(displayName: string) {
   const parts = displayName.trim().split(/\s+/).filter(Boolean);
   if (parts.length >= 2) return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase().slice(0, 2);
@@ -102,7 +88,6 @@ export default function PublicPlayerProfileScreen() {
     );
   }
 
-  const tier = tierLabel(profile.tier, profile.tier_rank);
   const ig = profile.instagram?.replace(/^@/, "").trim();
 
   return (
@@ -118,13 +103,6 @@ export default function PublicPlayerProfileScreen() {
         <Text style={styles.displayName}>{profile.display_name}</Text>
         {profile.username ? <Text style={styles.username}>@{profile.username}</Text> : null}
       </View>
-
-      {tier ? (
-        <View style={styles.block}>
-          <Text style={styles.label}>Pickup tier</Text>
-          <Text style={styles.value}>{tier}</Text>
-        </View>
-      ) : null}
 
       {profile.playing_position ? (
         <View style={styles.block}>
