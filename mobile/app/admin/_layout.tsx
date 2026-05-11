@@ -40,7 +40,6 @@ export default function AdminLayout() {
       <Stack.Screen name="chat" options={{ title: "Chat moderation" }} />
       <Stack.Screen name="chat-room" options={{ title: "Room" }} />
       <Stack.Screen name="tournament" options={{ title: "Tournament hub" }} />
-      <Stack.Screen name="esports" options={{ title: "Esports" }} />
       <Stack.Screen name="members" options={{ title: "Members" }} />
     </Stack>
   );
