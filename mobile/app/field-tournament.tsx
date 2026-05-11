@@ -5,11 +5,28 @@ import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { useFieldTournament } from "@/hooks/useFieldTournament";
 import { siteOrigin } from "@/lib/env";
 import { serviceRegionName } from "@/lib/serviceRegions";
+import {
+  fetchPickupFindPlayers,
+  fetchTournamentRosterCaptain,
+  postTournamentRoster,
+  type PickupFindPlayerResult,
+} from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useFocusEffect } from "@react-navigation/native";
 import { useNavigation, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 const LIME = "#a3e635";
 
@@ -21,8 +38,27 @@ const PROCESSING_STATUSES = new Set([
 ]);
 
 type CaptainClaimSnapshot = {
+  id: string | null;
   status: string;
   payment_due_at: string | null;
+};
+
+type RosterRow = {
+  id: string;
+  user_id: string;
+  status: string;
+  display_name?: string;
+  username?: string | null;
+  playing_position?: string | null;
+};
+
+type JoinRequestRow = {
+  id: string;
+  requester_user_id: string;
+  message: string | null;
+  display_name?: string;
+  username?: string | null;
+  playing_position?: string | null;
 };
 
 function formatPaymentDueAt(iso: string): string {
@@ -67,6 +103,15 @@ export default function FieldTournamentDetailScreen() {
   const [claimModalOpen, setClaimModalOpen] = useState(false);
   const [captainClaim, setCaptainClaim] = useState<CaptainClaimSnapshot | null>(null);
   const [captainClaimLoading, setCaptainClaimLoading] = useState(false);
+  const [rosterRows, setRosterRows] = useState<RosterRow[]>([]);
+  const [joinRequestRows, setJoinRequestRows] = useState<JoinRequestRow[]>([]);
+  const [rosterLoading, setRosterLoading] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteQuery, setInviteQuery] = useState("");
+  const [inviteFound, setInviteFound] = useState<PickupFindPlayerResult | null>(null);
+  const [inviteSearchBusy, setInviteSearchBusy] = useState(false);
+  const [inviteSendBusy, setInviteSendBusy] = useState(false);
+  const [rosterBusyId, setRosterBusyId] = useState<string | null>(null);
 
   async function handleCaptainPay() {
     const token = session?.access_token;
@@ -144,7 +189,7 @@ export default function FieldTournamentDetailScreen() {
     void (async () => {
       const { data, error: qErr } = await supabase
         .from("tournament_captains")
-        .select("status, payment_due_at")
+        .select("id, status, payment_due_at")
         .eq("tournament_id", tournamentId)
         .eq("user_id", userId)
         .maybeSingle();
@@ -165,6 +210,7 @@ export default function FieldTournamentDetailScreen() {
             ? String(data.payment_due_at)
             : null;
       setCaptainClaim({
+        id: typeof data.id === "string" ? data.id : data.id != null ? String(data.id) : null,
         status: String(data.status ?? ""),
         payment_due_at: due,
       });
@@ -229,7 +275,169 @@ export default function FieldTournamentDetailScreen() {
     setClaimModalOpen(true);
   }
 
+  const captainRecordId =
+    captainClaim?.status === "confirmed" && captainClaim.id ? captainClaim.id : null;
+
+  const loadRoster = useCallback(async () => {
+    const tok = session?.access_token;
+    if (!tok || !captainRecordId) {
+      setRosterRows([]);
+      setJoinRequestRows([]);
+      return;
+    }
+    setRosterLoading(true);
+    try {
+      const r = await fetchTournamentRosterCaptain(tok, captainRecordId);
+      if (!r.ok || !r.json || typeof r.json !== "object") {
+        setRosterRows([]);
+        setJoinRequestRows([]);
+        return;
+      }
+      const j = r.json as { roster?: RosterRow[]; join_requests?: JoinRequestRow[] };
+      setRosterRows(Array.isArray(j.roster) ? j.roster : []);
+      setJoinRequestRows(Array.isArray(j.join_requests) ? j.join_requests : []);
+    } finally {
+      setRosterLoading(false);
+    }
+  }, [session?.access_token, captainRecordId]);
+
+  useEffect(() => {
+    if (captainRecordId) void loadRoster();
+    else {
+      setRosterRows([]);
+      setJoinRequestRows([]);
+    }
+  }, [captainRecordId, loadRoster]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (captainRecordId) void loadRoster();
+    }, [captainRecordId, loadRoster]),
+  );
+
+  function rosterStatusLabel(s: string) {
+    if (s === "invited") return "Invited";
+    if (s === "accepted") return "Accepted";
+    if (s === "declined") return "Declined";
+    return s;
+  }
+
+  async function onInviteSearch() {
+    const tok = session?.access_token;
+    if (!tok) return;
+    setInviteSearchBusy(true);
+    setInviteFound(null);
+    try {
+      const r = await fetchPickupFindPlayers(tok, inviteQuery, 5);
+      if (!r.ok) {
+        Alert.alert("", "Search failed. Try again.");
+        return;
+      }
+      if (r.players.length === 0) {
+        Alert.alert("", "No player matched that handle or name. Try their exact username, or enter their email and send (email lookup is server-side).");
+        return;
+      }
+      if (r.players.length > 1) {
+        Alert.alert("", "Several players matched. Use a more specific username.");
+        return;
+      }
+      setInviteFound(r.players[0]!);
+    } finally {
+      setInviteSearchBusy(false);
+    }
+  }
+
+  async function onInviteSend() {
+    const tok = session?.access_token;
+    if (!tok || !captainRecordId || !tournamentId) return;
+    const idRaw = inviteQuery.trim();
+    if (!idRaw) return;
+    const emailish = /@/.test(idRaw);
+    if (!inviteFound && !emailish) {
+      Alert.alert("", "Search to confirm the player, or enter the email on their CT Pickup account.");
+      return;
+    }
+    setInviteSendBusy(true);
+    try {
+      const r = await postTournamentRoster(tok, {
+        action: "invite_player",
+        captain_id: captainRecordId,
+        tournament_id: tournamentId,
+        identifier: idRaw,
+      });
+      const err = (r.json as { error?: string })?.error;
+      if (!r.ok) {
+        Alert.alert("", err || `Invite failed (${r.status})`);
+        return;
+      }
+      setInviteOpen(false);
+      setInviteQuery("");
+      setInviteFound(null);
+      await loadRoster();
+    } finally {
+      setInviteSendBusy(false);
+    }
+  }
+
+  function onRemoveRoster(row: RosterRow) {
+    const tok = session?.access_token;
+    if (!tok) return;
+    Alert.alert("Remove player", `Remove ${row.display_name || row.username || "this player"} from your roster?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          setRosterBusyId(row.id);
+          try {
+            const r = await postTournamentRoster(tok, { action: "remove", roster_id: row.id });
+            const err = (r.json as { error?: string })?.error;
+            if (!r.ok) {
+              Alert.alert("", err || "Could not remove");
+              return;
+            }
+            await loadRoster();
+          } finally {
+            setRosterBusyId(null);
+          }
+        },
+      },
+    ]);
+  }
+
+  function onRespondJoinRequest(req: JoinRequestRow, approve: boolean) {
+    const tok = session?.access_token;
+    if (!tok) return;
+    const title = approve ? "Approve join request?" : "Decline join request?";
+    Alert.alert(title, `${req.display_name || req.username || "This player"} — ${req.message || "No message"}`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: approve ? "Approve" : "Decline",
+        style: approve ? "default" : "destructive",
+        onPress: async () => {
+          setRosterBusyId(req.id);
+          try {
+            const r = await postTournamentRoster(tok, {
+              action: "respond_request",
+              request_id: req.id,
+              approve,
+            });
+            const err = (r.json as { error?: string })?.error;
+            if (!r.ok) {
+              Alert.alert("", err || "Could not update request");
+              return;
+            }
+            await loadRoster();
+          } finally {
+            setRosterBusyId(null);
+          }
+        },
+      },
+    ]);
+  }
+
   return (
+    <>
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.kicker}>HUB · {serviceRegionName(region)}</Text>
       <Text style={styles.lead}>
@@ -279,9 +487,102 @@ export default function FieldTournamentDetailScreen() {
             <ActivityIndicator style={{ marginTop: 14 }} color={LIME} />
           ) : null}
 
+          {session && sessionClaimReady && captainClaim?.status !== "confirmed" && tournamentId ? (
+            <Pressable
+              style={({ pressed }) => [styles.findTeamBtn, pressed && { opacity: 0.9 }]}
+              onPress={() => (router.push as (href: string) => void)("/tournament-join")}
+              accessibilityRole="button"
+              accessibilityLabel="Find a team"
+            >
+              <FontAwesome name="users" size={16} color="#111" style={{ marginRight: 8 }} />
+              <Text style={styles.findTeamBtnText}>Find a team</Text>
+            </Pressable>
+          ) : null}
+
           {session && captainClaim?.status === "confirmed" ? (
             <View style={styles.confirmedBanner}>
               <Text style={styles.confirmedBannerText}>Your team is confirmed</Text>
+            </View>
+          ) : null}
+
+          {session && captainClaim?.status === "confirmed" && captainRecordId ? (
+            <View style={styles.myTeamSection}>
+              <Text style={styles.sectionTitle}>My Team</Text>
+              <Text style={styles.sectionSub}>Roster invites and join requests for your confirmed squad.</Text>
+
+              <Pressable
+                style={({ pressed }) => [styles.inviteOpenBtn, pressed && { opacity: 0.9 }]}
+                onPress={() => {
+                  setInviteOpen(true);
+                  setInviteQuery("");
+                  setInviteFound(null);
+                }}
+              >
+                <FontAwesome name="user-plus" size={15} color="#111" style={{ marginRight: 8 }} />
+                <Text style={styles.inviteOpenBtnText}>Invite player</Text>
+              </Pressable>
+
+              {rosterLoading ? <ActivityIndicator style={{ marginTop: 12 }} color={LIME} /> : null}
+
+              {rosterRows.length ? (
+                <View style={{ marginTop: 14 }}>
+                  {rosterRows.map((row) => (
+                    <View key={row.id} style={styles.rosterRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.rosterName} numberOfLines={1}>
+                          {row.display_name || row.username || "Player"}
+                        </Text>
+                        <Text style={styles.rosterMeta} numberOfLines={1}>
+                          @{row.username || "—"} · {row.playing_position || "Position —"} ·{" "}
+                          {rosterStatusLabel(row.status)}
+                        </Text>
+                      </View>
+                      <Pressable
+                        style={[styles.removeBtn, rosterBusyId === row.id && { opacity: 0.5 }]}
+                        disabled={rosterBusyId === row.id}
+                        onPress={() => onRemoveRoster(row)}
+                      >
+                        <Text style={styles.removeBtnText}>Remove</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              ) : !rosterLoading ? (
+                <Text style={styles.emptyRoster}>No invited players yet.</Text>
+              ) : null}
+
+              {joinRequestRows.length ? (
+                <View style={{ marginTop: 22 }}>
+                  <Text style={styles.joinReqTitle}>Join requests</Text>
+                  {joinRequestRows.map((req) => (
+                    <View key={req.id} style={styles.joinReqCard}>
+                      <Text style={styles.rosterName} numberOfLines={1}>
+                        {req.display_name || req.username || "Player"}
+                      </Text>
+                      <Text style={styles.rosterMeta} numberOfLines={2}>
+                        @{req.username || "—"} · {req.playing_position || "—"}
+                        {req.message ? ` · “${req.message}”` : ""}
+                      </Text>
+                      <View style={styles.joinReqActions}>
+                        <Pressable
+                          style={[styles.approveBtn, rosterBusyId === req.id && { opacity: 0.5 }]}
+                          disabled={rosterBusyId === req.id}
+                          onPress={() => onRespondJoinRequest(req, true)}
+                        >
+                          <Text style={styles.approveBtnText}>Approve</Text>
+                        </Pressable>
+                        <Pressable
+                          style={[styles.declineBtn, rosterBusyId === req.id && { opacity: 0.5 }]}
+                          disabled={rosterBusyId === req.id}
+                          onPress={() => onRespondJoinRequest(req, false)}
+                        >
+                          <Text style={styles.declineBtnText}>Decline</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
             </View>
           ) : null}
 
@@ -369,6 +670,68 @@ export default function FieldTournamentDetailScreen() {
         onProceedToPay={handleCaptainPay}
       />
     </ScrollView>
+
+      <Modal
+        visible={inviteOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setInviteOpen(false)}
+      >
+        <View style={styles.inviteModalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setInviteOpen(false)} />
+          <View style={styles.inviteModalSheet}>
+          <Text style={styles.inviteModalTitle}>Invite player</Text>
+          <Text style={styles.inviteModalHint}>Username or email (must match their CT Pickup account).</Text>
+          <TextInput
+            value={inviteQuery}
+            onChangeText={(v) => {
+              setInviteQuery(v);
+              setInviteFound(null);
+            }}
+            placeholder="username or email"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            style={styles.inviteInput}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Pressable
+            style={[styles.inviteSearchBtn, inviteSearchBusy && { opacity: 0.6 }]}
+            disabled={inviteSearchBusy}
+            onPress={() => void onInviteSearch()}
+          >
+            {inviteSearchBusy ? (
+              <ActivityIndicator color="#111" />
+            ) : (
+              <Text style={styles.inviteSearchBtnText}>Search</Text>
+            )}
+          </Pressable>
+          {inviteFound ? (
+            <View style={styles.inviteFoundBox}>
+              <Text style={styles.inviteFoundLabel}>Found</Text>
+              <Text style={styles.inviteFoundName}>{inviteFound.full_name}</Text>
+              {inviteFound.username ? (
+                <Text style={styles.inviteFoundUser}>@{inviteFound.username}</Text>
+              ) : null}
+            </View>
+          ) : null}
+          <Pressable
+            style={[styles.inviteSendBtn, ((!inviteFound && !/@/.test(inviteQuery.trim())) || inviteSendBusy) && { opacity: 0.45 }]}
+            disabled={(!inviteFound && !/@/.test(inviteQuery.trim())) || inviteSendBusy}
+            onPress={() => void onInviteSend()}
+          >
+            {inviteSendBusy ? (
+              <ActivityIndicator color="#111" />
+            ) : (
+              <Text style={styles.inviteSendBtnText}>Send invite</Text>
+            )}
+          </Pressable>
+          <Pressable style={styles.inviteCancelBtn} onPress={() => setInviteOpen(false)}>
+            <Text style={styles.inviteCancelBtnText}>Cancel</Text>
+          </Pressable>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -523,4 +886,142 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "rgba(255,255,255,0.55)",
   },
+  findTeamBtn: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.45)",
+    backgroundColor: "rgba(163,230,53,0.12)",
+  },
+  findTeamBtnText: { color: LIME, fontWeight: "800", fontSize: 15 },
+  myTeamSection: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  sectionSub: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 19,
+    color: "rgba(255,255,255,0.52)",
+  },
+  inviteOpenBtn: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: LIME,
+  },
+  inviteOpenBtnText: { color: "#111", fontWeight: "800", fontSize: 14 },
+  rosterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  rosterName: { fontSize: 15, fontWeight: "700", color: "#fff" },
+  rosterMeta: { marginTop: 4, fontSize: 12, color: "rgba(255,255,255,0.5)" },
+  removeBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.5)",
+  },
+  removeBtnText: { color: "rgba(248,113,113,0.95)", fontWeight: "700", fontSize: 12 },
+  emptyRoster: { marginTop: 10, fontSize: 13, color: "rgba(255,255,255,0.45)" },
+  joinReqTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: LIME,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  joinReqCard: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(0,0,0,0.25)",
+  },
+  joinReqActions: { marginTop: 12, flexDirection: "row", gap: 10 },
+  approveBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: LIME,
+    alignItems: "center",
+  },
+  approveBtnText: { color: "#111", fontWeight: "800", fontSize: 13 },
+  declineBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+  },
+  declineBtnText: { color: "rgba(255,255,255,0.75)", fontWeight: "700", fontSize: 13 },
+  inviteModalRoot: { flex: 1, backgroundColor: "rgba(0,0,0,0.65)", justifyContent: "flex-end" },
+  inviteModalSheet: {
+    padding: 20,
+    paddingBottom: 36,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    backgroundColor: "#121212",
+    borderTopWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  inviteModalTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  inviteModalHint: { marginTop: 8, fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 18 },
+  inviteInput: {
+    marginTop: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: "#fff",
+    fontSize: 15,
+  },
+  inviteSearchBtn: {
+    marginTop: 12,
+    backgroundColor: LIME,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  inviteSearchBtnText: { color: "#111", fontWeight: "800", fontSize: 14 },
+  inviteFoundBox: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: "rgba(163,230,53,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.3)",
+  },
+  inviteFoundLabel: { fontSize: 11, fontWeight: "800", color: LIME, textTransform: "uppercase" },
+  inviteFoundName: { marginTop: 6, fontSize: 16, fontWeight: "800", color: "#fff" },
+  inviteFoundUser: { marginTop: 4, fontSize: 14, color: "rgba(255,255,255,0.55)" },
+  inviteSendBtn: {
+    marginTop: 16,
+    backgroundColor: LIME,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  inviteSendBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  inviteCancelBtn: { marginTop: 12, paddingVertical: 12, alignItems: "center" },
+  inviteCancelBtnText: { color: "rgba(255,255,255,0.45)", fontWeight: "600", fontSize: 14 },
 });

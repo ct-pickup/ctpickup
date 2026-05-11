@@ -1,3 +1,4 @@
+import { hapticError } from "@/lib/haptics";
 import { postPickupCommit, postPickupPay, postPickupRsvp } from "@/lib/siteApi";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useState } from "react";
@@ -54,19 +55,32 @@ export function usePickupJoin() {
   const [pendingSlotKey, setPendingSlotKey] = useState<string | null>(null);
 
   const joinPickup = useCallback(
-    async (accessToken: string | null, runId: unknown, reload: () => void | Promise<void>) => {
+    async (
+      accessToken: string | null,
+      runId: unknown,
+      reload: () => void | Promise<void>,
+      options?: { friendUserId?: string; friendDisplayName?: string },
+    ) => {
       const id = typeof runId === "string" ? runId : null;
       if (!accessToken) {
+        void hapticError();
         Alert.alert("Session required", "Sign in on this device, then try again.");
         return;
       }
       if (!id) {
+        void hapticError();
         Alert.alert("No featured run", "There isn’t a promoted pickup to join yet. Try again later.");
         return;
       }
+      const friendId = typeof options?.friendUserId === "string" ? options.friendUserId.trim() : "";
+      const friendName =
+        typeof options?.friendDisplayName === "string" && options.friendDisplayName.trim().length > 0
+          ? options.friendDisplayName.trim()
+          : null;
+      const payForFriend = friendId.length > 0;
       setJoinBusy(true);
       try {
-        const r = await postPickupRsvp(accessToken, id, "join");
+        const r = await postPickupRsvp(accessToken, id, "join", payForFriend ? { friend_user_id: friendId } : undefined);
         const j = r.json as Record<string, unknown>;
         if (r.ok && typeof j.checkout_url === "string" && j.checkout_url.startsWith("https://")) {
           await openStripeCheckout(j.checkout_url);
@@ -78,17 +92,36 @@ export function usePickupJoin() {
           const title = "Pickup";
           const body =
             st === "confirmed"
-              ? "You’re confirmed for this run."
+              ? payForFriend && friendName
+                ? `${friendName} is confirmed for this run.`
+                : "You’re confirmed for this run."
               : st === "standby"
-                ? "You’re on standby we’ll notify you if a spot opens."
-                : st === "pending_payment"
-                  ? "Payment recorded reopen this screen if status looks stale."
-                  : "Your RSVP was updated.";
+                ? payForFriend && friendName
+                  ? `${friendName} is on standby we’ll notify them if a spot opens.`
+                  : "You’re on standby we’ll notify you if a spot opens."
+                : st === "waitlist"
+                  ? payForFriend && friendName
+                    ? `${friendName} was added to the waitlist.`
+                    : "You were added to the waitlist."
+                  : st === "pending_payment"
+                    ? payForFriend && friendName
+                      ? `Checkout started for ${friendName}. They’ll show as confirmed after payment completes.`
+                      : "Payment recorded reopen this screen if status looks stale."
+                    : payForFriend && friendName
+                      ? `${friendName}’s RSVP was updated.`
+                      : "Your RSVP was updated.";
           Alert.alert(title, body);
           await reload();
           return;
         }
+        if (j.error === "friend_waiver_required") {
+          const detail = typeof j.detail === "string" ? j.detail : "That player must accept the waiver first.";
+          void hapticError();
+          Alert.alert("Waiver required", detail);
+          return;
+        }
         const msg = typeof j.error === "string" ? j.error : `Could not join (${r.status}).`;
+        void hapticError();
         Alert.alert("Can’t join this run", msg);
       } finally {
         setJoinBusy(false);
@@ -101,10 +134,12 @@ export function usePickupJoin() {
     async (accessToken: string | null, runId: unknown, reload: () => void | Promise<void>) => {
       const id = typeof runId === "string" ? runId : null;
       if (!accessToken) {
+        void hapticError();
         Alert.alert("Session required", "Sign in on this device, then try again.");
         return;
       }
       if (!id) {
+        void hapticError();
         Alert.alert("No featured run", "There isn’t a promoted pickup to pay for yet.");
         return;
       }
@@ -117,6 +152,7 @@ export function usePickupJoin() {
           await reload();
           return;
         }
+        void hapticError();
         Alert.alert("Can’t complete payment", payErrorMessage(r.status, j));
       } finally {
         setPayBusy(false);
@@ -129,6 +165,7 @@ export function usePickupJoin() {
     async (accessToken: string | null, runId: unknown, reload: () => void | Promise<void>) => {
       const id = typeof runId === "string" ? runId : null;
       if (!accessToken) {
+        void hapticError();
         Alert.alert("Session required", "Sign in on this device, then try again.");
         return;
       }
@@ -142,6 +179,7 @@ export function usePickupJoin() {
           return;
         }
         const msg = typeof j.error === "string" ? j.error : `Could not cancel spot (${r.status}).`;
+        void hapticError();
         Alert.alert("Could not cancel", msg);
       } finally {
         setDeclineBusy(false);
@@ -161,6 +199,7 @@ export function usePickupJoin() {
     ) => {
       const id = typeof runId === "string" ? runId : null;
       if (!accessToken) {
+        void hapticError();
         Alert.alert("Session required", "Sign in on this device, then try again.");
         return;
       }
@@ -174,6 +213,7 @@ export function usePickupJoin() {
           await reload();
           return;
         }
+        void hapticError();
         Alert.alert("Could not submit", commitErrorMessage(r.status, j));
       } finally {
         setAvailabilityBusy(false);
@@ -192,6 +232,7 @@ export function usePickupJoin() {
     ): Promise<boolean> => {
       const id = typeof runId === "string" ? runId : null;
       if (!accessToken) {
+        void hapticError();
         Alert.alert("Session required", "Sign in on this device, then try again.");
         return false;
       }
@@ -203,6 +244,7 @@ export function usePickupJoin() {
           const r = await postPickupCommit(accessToken, id, "available", null, label, slotLabels);
           const j = r.json as Record<string, unknown>;
           if (!r.ok) {
+            void hapticError();
             Alert.alert("Could not submit", commitErrorMessage(r.status, j));
             return false;
           }

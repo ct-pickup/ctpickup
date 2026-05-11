@@ -1,10 +1,7 @@
-import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { Stack, useRouter } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const BG = "#0a0a0a";
-const LIME = "#a3e635";
 
 type PolicyPoint = {
   title: string;
@@ -70,30 +67,15 @@ const POLICY_POINTS: PolicyPoint[] = [
 ];
 
 export default function PrivacyPolicyScreen() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, 16) + 24;
 
   return (
     <View style={styles.screen}>
-      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPad }]}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable
-          onPress={() => {
-            router.back();
-          }}
-          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.9 }]}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          accessibilityRole="button"
-          accessibilityLabel="Home"
-        >
-          <FontAwesome name="chevron-left" size={18} color={LIME} />
-          <Text style={styles.backText}>Home</Text>
-        </Pressable>
-
         <Text style={styles.docTitle}>Privacy Policy</Text>
         <Text style={styles.docSubtitle}>How CT Pickup collects, uses, and protects information.</Text>
 
@@ -113,19 +95,6 @@ export default function PrivacyPolicyScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG },
   scrollContent: { paddingHorizontal: 20, paddingTop: 20 },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingLeft: 2,
-    paddingVertical: 8,
-    marginBottom: 12,
-  },
-  backText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
   docTitle: {
     color: "#fff",
     fontSize: 28,

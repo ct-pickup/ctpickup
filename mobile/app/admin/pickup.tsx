@@ -10,6 +10,8 @@ import {
   postAdminCreateRun,
   postAdminEndRun,
   postAdminLateCancel,
+  postAdminConfirmPickupFromAvailability,
+  deleteAdminPickupRunAvailability,
   postAdminMarkAttendance,
   postAdminPickupSwitch,
   postAdminPromote,
@@ -95,6 +97,16 @@ const VENUE_FEE_PRESETS: VenueFeePreset[] = [
 
 function s(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
+}
+
+/** Staff override wins out when set (including 0); otherwise use computed stats from API. */
+function displayPickupStat(override: unknown, statsFallback: unknown): number {
+  if (override != null && override !== "") {
+    const n = Number(override);
+    if (Number.isFinite(n)) return Math.trunc(n);
+  }
+  const f = Number(statsFallback);
+  return Number.isFinite(f) ? Math.trunc(f) : 0;
 }
 
 function listCountsFromRow(row: Record<string, unknown>): {
@@ -649,6 +661,40 @@ export default function AdminPickupOpsScreen() {
     if (!r.ok) return Alert.alert("Late cancel failed", r.error);
     Alert.alert("Recorded", "Late cancel recorded.");
     void loadDetail();
+  }
+
+  async function onConfirmFromAvailability(userId: string) {
+    if (!selectedRunId) return;
+    const t = await requireToken();
+    if (!t) return;
+    setBusy(`avail-confirm:${userId}`);
+    const r = await postAdminConfirmPickupFromAvailability(t, { run_id: selectedRunId, user_id: userId });
+    setBusy(null);
+    if (!r.ok) return Alert.alert("Confirm failed", r.error);
+    void loadDetail();
+    void loadRuns();
+  }
+
+  function onDeclineAvailability(userId: string) {
+    if (!selectedRunId) return;
+    Alert.alert("Remove availability?", "This removes their time slot response for this run.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: () => {
+          void (async () => {
+            const t = await requireToken();
+            if (!t) return;
+            setBusy(`avail-decline:${userId}`);
+            const r = await deleteAdminPickupRunAvailability(t, { run_id: selectedRunId, user_id: userId });
+            setBusy(null);
+            if (!r.ok) return Alert.alert("Remove failed", r.error);
+            void loadDetail();
+          })();
+        },
+      },
+    ]);
   }
 
   async function onRunPromotionAlgorithm() {
@@ -1375,20 +1421,76 @@ export default function AdminPickupOpsScreen() {
                     const slotId = String(a.slot_id || "");
                     const state = String(a.state || "");
                     const slot = slots.find((sl) => String(sl.id) === slotId);
-                    const slotLabel = slot ? (String(slot.label || "") || String(slot.start_at || "")) : slotId;
-                    const allPlayers = [...(detail?.confirmed ?? []), ...(detail?.standby ?? []), ...((detail?.invites as any[]) ?? [])];
-                    const player = allPlayers.find((p: any) => p.id === uid || p.user_id === uid);
-                    const name = player?.full_name || player?.username || uid.slice(0, 8) + "...";
-                    const position = player?.playing_position || null;
-                    const tier = player?.tier || null;
+                    const slotTime = slot?.start_at ? fmtPickupDt(s(slot.start_at)) : "";
+                    const slotLbl = slot ? String(slot.label || "").trim() : "";
+                    const slotSummary = [slotLbl, slotTime].filter(Boolean).join(" · ") || slotId || "—";
+                    const fullName =
+                      (typeof a.full_name === "string" && a.full_name.trim()) ||
+                      (typeof a.username === "string" && a.username.trim()) ||
+                      `${uid.slice(0, 8)}…`;
+                    const username = typeof a.username === "string" && a.username.trim() ? a.username.trim() : "";
+                    const igRaw = typeof a.instagram === "string" ? a.instagram.trim() : "";
+                    const ig = igRaw ? (igRaw.startsWith("@") ? igRaw : `@${igRaw}`) : "";
+                    const handles =
+                      [username ? `@${username}` : null, ig || null].filter(Boolean).join(" · ") || "—";
+                    const position = typeof a.playing_position === "string" && a.playing_position.trim() ? a.playing_position.trim() : "—";
+                    const tier = typeof a.tier === "string" && a.tier.trim() ? a.tier.trim() : "—";
+                    const tr = a.tier_rank;
+                    const tierLine =
+                      tr != null && Number.isFinite(Number(tr)) ? `${tier} (rank ${Number(tr)})` : tier;
+                    const wins = displayPickupStat(a.wins_override, a.stats_wins);
+                    const losses = displayPickupStat(a.losses_override, a.stats_losses);
+                    const pod = displayPickupStat(a.player_of_day_override, a.stats_player_of_day);
+                    const confirmBusy = busy === `avail-confirm:${uid}`;
+                    const declineBusy = busy === `avail-decline:${uid}`;
                     return (
-                      <View key={`avail-${idx}`} style={[styles.personRow, { opacity: state === "declined" ? 0.45 : 1 }]}>
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text style={styles.personName}>{name}</Text>
-                          <Text style={styles.personSub}>{[tier, position, slotLabel].filter(Boolean).join(" · ")}</Text>
+                      <View key={`avail-${uid || idx}`} style={[styles.availCard, { opacity: state === "declined" ? 0.5 : 1 }]}>
+                        <View style={styles.availCardHeader}>
+                          <Text style={styles.availNameBold}>{fullName}</Text>
+                          <View
+                            style={[
+                              styles.availStatePill,
+                              state === "available" ? styles.availStatePillOn : styles.availStatePillOff,
+                            ]}
+                          >
+                            <Text style={[styles.availStatePillText, state === "available" && styles.availStatePillTextOn]}>
+                              {state}
+                            </Text>
+                          </View>
                         </View>
-                        <View style={{ backgroundColor: state === "available" ? "rgba(163,230,53,0.15)" : "rgba(255,255,255,0.08)", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-                          <Text style={{ color: state === "available" ? "#a3e635" : "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: "700" }}>{state}</Text>
+                        <Text style={styles.availHandles} numberOfLines={2}>
+                          {handles}
+                        </Text>
+                        <Text style={styles.availMetaLine}>
+                          {position} · {tierLine}
+                        </Text>
+                        <Text style={styles.availStatLine}>
+                          W {wins} · L {losses} · POTD {pod}
+                        </Text>
+                        <Text style={styles.availSlotLine}>Slot: {slotSummary}</Text>
+                        <View style={styles.availActionsRow}>
+                          <Pressable
+                            onPress={() => void onConfirmFromAvailability(uid)}
+                            disabled={!uid || confirmBusy || declineBusy}
+                            style={({ pressed }) => [
+                              styles.availConfirmBtn,
+                              pressed && { opacity: 0.9 },
+                              (!uid || confirmBusy || declineBusy) && styles.disabled,
+                            ]}
+                          >
+                            <Text style={styles.availConfirmBtnText}>{confirmBusy ? "…" : "Confirm"}</Text>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => onDeclineAvailability(uid)}
+                            disabled={!uid || confirmBusy || declineBusy}
+                            style={({ pressed }) => [
+                              styles.availDeclineBtn,
+                              pressed && { opacity: 0.9 },
+                              (!uid || confirmBusy || declineBusy) && styles.disabled,
+                            ]}
+                          >
+                            <Text style={styles.availDeclineBtnText}>{declineBusy ? "…" : "Decline"}</Text>
+                          </Pressable>
                         </View>
                       </View>
                     );
@@ -1949,6 +2051,46 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(248,113,113,0.06)",
   },
   dangerOutlineText: { color: "rgba(248,113,113,0.95)", fontWeight: "800", fontSize: 15 },
+  availCard: {
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(0,0,0,0.28)",
+  },
+  availCardHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10 },
+  availNameBold: { flex: 1, fontSize: 16, fontWeight: "800", color: "#fff", letterSpacing: -0.2 },
+  availStatePill: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  availStatePillOn: { backgroundColor: "rgba(163,230,53,0.15)" },
+  availStatePillOff: { backgroundColor: "rgba(255,255,255,0.08)" },
+  availStatePillText: { fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.4)" },
+  availStatePillTextOn: { color: LIME },
+  availHandles: { marginTop: 6, fontSize: 13, lineHeight: 18, color: "rgba(255,255,255,0.5)", fontWeight: "600" },
+  availMetaLine: { marginTop: 8, fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.72)" },
+  availStatLine: { marginTop: 6, fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.55)" },
+  availSlotLine: { marginTop: 6, fontSize: 13, fontWeight: "700", color: LIME },
+  availActionsRow: { marginTop: 12, flexDirection: "row", gap: 10 },
+  availConfirmBtn: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: 10,
+    alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.22)",
+    borderWidth: 1,
+    borderColor: "rgba(34,197,94,0.5)",
+  },
+  availConfirmBtnText: { color: "#86efac", fontWeight: "900", fontSize: 13 },
+  availDeclineBtn: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: 10,
+    alignItems: "center",
+    backgroundColor: "rgba(239,68,68,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.55)",
+  },
+  availDeclineBtnText: { color: "rgba(254,202,202,0.98)", fontWeight: "900", fontSize: 13 },
   venueFeePresetScroll: { marginTop: 8 },
   venueFeePresetScrollContent: { flexDirection: "row", alignItems: "center", gap: 8, paddingRight: 4 },
   venueFeePresetChip: {

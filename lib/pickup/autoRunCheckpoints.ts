@@ -246,7 +246,8 @@ export async function processAutoPickupRun(
 
   if (fire24) {
     let patch: Record<string, unknown> = { auto_cp_24h_at: isoNow, updated_at: isoNow };
-    if (!publicRun && committed < EXPAND_WAVE_MIN_COMMITTED) {
+    const waveCronActive = !!(run.next_wave_at as string | null | undefined);
+    if (!publicRun && !waveCronActive && committed < EXPAND_WAVE_MIN_COMMITTED) {
       const open = Number(run.open_tier_rank ?? 2);
       if (open < 6) {
         const nextOpen = Math.min(6, open + 1);
@@ -272,11 +273,15 @@ export async function processAutoPickupRun(
         }
       }
     } else {
-      messages.push(
-        !publicRun
-          ? `24h checkpoint: committed ${committed} ≥ ${EXPAND_WAVE_MIN_COMMITTED}, no expand.`
-          : "24h checkpoint: public run — no tier expand."
-      );
+      if (!publicRun && waveCronActive) {
+        messages.push("24h checkpoint: tier waves use pickup-waves cron (no checkpoint expand).");
+      } else {
+        messages.push(
+          !publicRun
+            ? `24h checkpoint: committed ${committed} ≥ ${EXPAND_WAVE_MIN_COMMITTED}, no expand.`
+            : "24h checkpoint: public run — no tier expand.",
+        );
+      }
     }
     await admin.from("pickup_runs").update(patch).eq("id", runId);
     run.auto_cp_24h_at = isoNow;
@@ -286,7 +291,8 @@ export async function processAutoPickupRun(
 
   if (fire12) {
     committed = countDistinctCommittedPlayers(await reloadAvailability());
-    if (!publicRun && committed < EXPAND_WAVE_MIN_COMMITTED) {
+    const waveCronActive = !!(run.next_wave_at as string | null | undefined);
+    if (!publicRun && !waveCronActive && committed < EXPAND_WAVE_MIN_COMMITTED) {
       const open = Number(run.open_tier_rank ?? 2);
       if (open < 6) {
         const nextOpen = Math.min(6, open + 1);
@@ -317,11 +323,15 @@ export async function processAutoPickupRun(
         }
       }
     } else {
-      messages.push(
-        !publicRun
-          ? `12h checkpoint: committed ${committed} — no expand.`
-          : "12h checkpoint: public run — no tier expand."
-      );
+      if (!publicRun && waveCronActive) {
+        messages.push("12h checkpoint: tier waves use pickup-waves cron (no checkpoint expand).");
+      } else {
+        messages.push(
+          !publicRun
+            ? `12h checkpoint: committed ${committed} — no expand.`
+            : "12h checkpoint: public run — no tier expand.",
+        );
+      }
     }
     await admin
       .from("pickup_runs")

@@ -1,5 +1,5 @@
-import * as zipcodes from "zipcodes";
 import { NextResponse } from "next/server";
+import { stateFromUsZipFive } from "@/lib/usZipState";
 import { CT_PICKUP_VENUES } from "@/lib/venues/ctPickupVenues";
 
 export const dynamic = "force-dynamic";
@@ -66,8 +66,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid_zip_code", venues: [] as VenueDistanceRow[] }, { status: 400 });
   }
 
-  const loc = zipcodes.lookup(digits);
-  const userZipState = normalizeZipState(loc?.state);
+  const userZipState = normalizeZipState(stateFromUsZipFive(digits));
 
   let departureParam = "now";
   if (bodyObj && "departure_time" in bodyObj && bodyObj.departure_time != null) {

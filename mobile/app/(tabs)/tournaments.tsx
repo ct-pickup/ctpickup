@@ -63,6 +63,21 @@ export default function TournamentsScreen() {
           style={{ marginTop: 18, marginBottom: 8 }}
           onPress={() => router.push("/field-tournament")}
         />
+        {fieldPayload?.tournament?.id ? (
+          <Pressable
+            style={({ pressed }) => [styles.bracketBtn, pressed && { opacity: 0.9 }]}
+            onPress={() =>
+              (router.push as (href: string) => void)(
+                `/tournament-bracket-view?tournament_id=${encodeURIComponent(fieldPayload.tournament!.id)}`,
+              )
+            }
+            accessibilityRole="button"
+            accessibilityLabel="Live bracket"
+          >
+            <FontAwesome name="sitemap" size={16} color="#111" style={{ marginRight: 8 }} />
+            <Text style={styles.bracketBtnText}>Live bracket</Text>
+          </Pressable>
+        ) : null}
       </>
     ),
     [fieldLoading, fieldError, fieldPayload, region, router],
@@ -111,4 +126,15 @@ const styles = StyleSheet.create({
   },
   statesChipText: { fontSize: 13, fontWeight: "800", color: "#a3e635" },
   sub: { marginTop: 10, marginBottom: 4, color: "rgba(255,255,255,0.6)", fontSize: 15, lineHeight: 22 },
+  bracketBtn: {
+    marginTop: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: "#a3e635",
+  },
+  bracketBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
 });

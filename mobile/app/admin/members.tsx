@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
-import { hapticTap, hapticError } from "@/lib/haptics";
+import { hapticError, hapticGoal, hapticTap } from "@/lib/haptics";
 import { siteOrigin } from "@/lib/env";
 
 const LIME = "#a3e635";
@@ -86,9 +86,13 @@ export default function AdminMembersScreen() {
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: userId, ...update }),
     });
-    const j = await res.json();
-    if (!res.ok) { Alert.alert("Error", j.error || "Failed"); return false; }
-    return true;
+      const j = await res.json();
+      if (!res.ok) {
+        void hapticError();
+        Alert.alert("Error", j.error || "Failed");
+        return false;
+      }
+      return true;
   }
 
   async function setTier(userId: string, tier_rank: number, tierLabel: string) {
@@ -100,6 +104,7 @@ export default function AdminMembersScreen() {
   }
 
   async function toggleApproved(userId: string, current: boolean) {
+    void hapticGoal();
     setBusy("approve:" + userId);
     const ok = await patchMember(userId, { approved: !current });
     if (ok) setMembers((p) => p.map((m) => m.id === userId ? { ...m, approved: !current } : m));
@@ -107,6 +112,7 @@ export default function AdminMembersScreen() {
   }
 
   async function saveStats(userId: string) {
+    void hapticGoal();
     setBusy("stats:" + userId);
     const s = editStats[userId] || {};
     const ok = await patchMember(userId, s);
@@ -120,8 +126,11 @@ export default function AdminMembersScreen() {
   async function banPlayer(userId: string, currentlyBanned: boolean) {
     if (!currentlyBanned) {
       const reason = banReason[userId] || "";
-      if (!reason.trim()) { Alert.alert("Required", "Enter a ban reason first."); return; }
-      void hapticError();
+      if (!reason.trim()) {
+        void hapticError();
+        Alert.alert("Required", "Enter a ban reason first.");
+        return;
+      }
       Alert.alert("Ban player?", "They will receive a push notification.", [
         { text: "Cancel", style: "cancel" },
         {
@@ -155,8 +164,12 @@ export default function AdminMembersScreen() {
             body: JSON.stringify({ user_id: userId }),
           });
           const j = await res.json();
-          if (!res.ok) { Alert.alert("Error", j.error || "Failed"); }
-          else { setMembers((p) => p.filter((m) => m.id !== userId)); }
+          if (!res.ok) {
+            void hapticError();
+            Alert.alert("Error", j.error || "Failed");
+          } else {
+            setMembers((p) => p.filter((m) => m.id !== userId));
+          }
           setBusy(null);
         }
       }

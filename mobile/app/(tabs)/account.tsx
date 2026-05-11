@@ -95,8 +95,6 @@ function SelectModal<T extends string>({ visible, title, options, value, onSelec
 type ProfileRow = {
   first_name: string | null;
   last_name: string | null;
-  tier: string | null;
-  tier_rank: number | null;
   approved: boolean | null;
   instagram: string | null;
   phone: string | null;
@@ -183,7 +181,7 @@ export default function AccountScreen() {
     const { data, error } = await supabase
       .from("profiles")
       .select(
-        "first_name,last_name,tier,tier_rank,approved,instagram,phone,zip_code,playing_position,username",
+        "first_name,last_name,approved,instagram,phone,zip_code,playing_position,username",
       )
       .eq("id", userId)
       .maybeSingle();
@@ -813,9 +811,7 @@ export default function AccountScreen() {
         </Pressable>
         <Pressable
           style={styles.aboutRow}
-          onPress={() => {
-            (router.push as (href: string) => void)("/privacy-policy");
-          }}
+          onPress={() => (router.push as (href: string) => void)("/privacy-policy")}
         >
           <View style={styles.aboutLeft}>
             <View style={styles.aboutIconWrap}>

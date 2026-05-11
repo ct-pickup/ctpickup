@@ -1,5 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
-import { hapticWhistle, hapticTap } from "@/lib/haptics";
+import { hapticError, hapticGoal, hapticTap, hapticWhistle } from "@/lib/haptics";
 import { fetchAdminPickupSwitchDetail, postAdminPickupResult } from "@/lib/adminApi";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -69,6 +69,7 @@ function SelectModal<T extends string>({
                 <Pressable
                   key={opt.value}
                   onPress={() => {
+                    void hapticTap();
                     onSelect(opt.value);
                     onClose();
                   }}
@@ -222,9 +223,10 @@ export default function AdminRunResultScreen() {
     return [{ value: "" as const, label: "None" }, ...opts] as const;
   }, [confirmed]);
 
-  const teamOptions = useMemo(() => {
-    return allowedTeams.map((t) => ({ value: t, label: labelTeam(t) })) as const;
-  }, [allowedTeams]);
+  const teamOptions = useMemo(
+    () => allowedTeams.map((t) => ({ value: t, label: labelTeam(t) })),
+    [allowedTeams],
+  );
 
   const winningOptions = teamOptions;
 
@@ -241,17 +243,28 @@ export default function AdminRunResultScreen() {
   const awardWinnerNotInConfirmed = awardWinners.some((id) => !confirmed.some((p) => p.id === id));
 
   async function onSubmit() {
-    if (!token) return Alert.alert("Not signed in", "Sign in again.");
-    if (!runId) return Alert.alert("Missing run", "Missing run_id.");
-    if (confirmed.length === 0) return Alert.alert("No confirmed players", "This run has no confirmed players.");
+    if (!token) {
+      void hapticError();
+      return Alert.alert("Not signed in", "Sign in again.");
+    }
+    if (!runId) {
+      void hapticError();
+      return Alert.alert("Missing run", "Missing run_id.");
+    }
+    if (confirmed.length === 0) {
+      void hapticError();
+      return Alert.alert("No confirmed players", "This run has no confirmed players.");
+    }
     if (filledAssignments.length !== confirmed.length) {
+      void hapticError();
       return Alert.alert("Missing teams", "Assign a team for each confirmed player.");
     }
     if (awardWinnerNotInConfirmed) {
+      void hapticError();
       return Alert.alert("Awards must be from roster", "Award winners must be selected from confirmed players.");
     }
 
-    void hapticWhistle();
+    void hapticGoal();
     setSubmitting(true);
     const r = await postAdminPickupResult(token, {
       run_id: runId,
@@ -266,10 +279,12 @@ export default function AdminRunResultScreen() {
     setSubmitting(false);
 
     if (!r.ok) {
+      void hapticError();
       Alert.alert("Submit failed", r.error || "Couldn’t save result.");
       return;
     }
 
+    void hapticWhistle();
     Alert.alert("Saved", "Run result recorded and pushes sent.", [
       { text: "Done", onPress: () => router.back() },
     ]);
@@ -304,13 +319,19 @@ export default function AdminRunResultScreen() {
       <Text style={styles.sectionTitle}>Teams</Text>
       <View style={styles.segmentRow}>
         <Pressable
-          onPress={() => setTotalTeams(2)}
+          onPress={() => {
+            void hapticTap();
+            setTotalTeams(2);
+          }}
           style={({ pressed }) => [styles.segmentChip, totalTeams === 2 && styles.segmentChipActive, pressed && { opacity: 0.9 }]}
         >
           <Text style={[styles.segmentText, totalTeams === 2 && styles.segmentTextActive]}>2 teams</Text>
         </Pressable>
         <Pressable
-          onPress={() => setTotalTeams(3)}
+          onPress={() => {
+            void hapticTap();
+            setTotalTeams(3);
+          }}
           style={({ pressed }) => [styles.segmentChip, totalTeams === 3 && styles.segmentChipActive, pressed && { opacity: 0.9 }]}
         >
           <Text style={[styles.segmentText, totalTeams === 3 && styles.segmentTextActive]}>3 teams</Text>
@@ -329,7 +350,10 @@ export default function AdminRunResultScreen() {
 
       <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Winning team</Text>
       <Pressable
-        onPress={() => setPicker({ kind: "winning" })}
+        onPress={() => {
+          void hapticTap();
+          setPicker({ kind: "winning" });
+        }}
         style={({ pressed }) => [styles.input, styles.selectTrigger, pressed && { opacity: 0.9 }]}
       >
         <Text style={styles.selectValue}>{labelTeam(winningTeam)}</Text>
@@ -349,7 +373,10 @@ export default function AdminRunResultScreen() {
                 </Text>
               </View>
               <Pressable
-                onPress={() => setPicker({ kind: "team", userId: p.id })}
+                onPress={() => {
+                  void hapticTap();
+                  setPicker({ kind: "team", userId: p.id });
+                }}
                 style={({ pressed }) => [styles.teamPill, pressed && { opacity: 0.9 }]}
               >
                 <Text style={styles.teamPillText}>{labelTeam(team)}</Text>

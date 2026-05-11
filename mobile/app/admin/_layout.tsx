@@ -41,6 +41,8 @@ export default function AdminLayout() {
       <Stack.Screen name="chat-room" options={{ title: "Room" }} />
       <Stack.Screen name="tournament" options={{ title: "Tournament hub" }} />
       <Stack.Screen name="tournament-bracket" options={{ title: "Tournament Bracket" }} />
+      <Stack.Screen name="tournament-join" options={{ title: "Find a team" }} />
+      <Stack.Screen name="tournament-bracket-view" options={{ title: "Live bracket" }} />
       <Stack.Screen name="members" options={{ title: "Members" }} />
     </Stack>
   );

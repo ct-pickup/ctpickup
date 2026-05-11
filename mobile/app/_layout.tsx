@@ -204,7 +204,7 @@ function RootLayoutNav() {
                           <Stack.Screen
                             name="privacy-policy"
                             options={{
-                              headerShown: false,
+                              headerShown: true,
                               title: "Privacy Policy",
                               headerStyle: { backgroundColor: "#0a0a0a" },
                               headerTintColor: "#fff",
@@ -237,6 +237,24 @@ function RootLayoutNav() {
                               headerTintColor: "#fff",
                             }}
                             />
+                          <Stack.Screen
+                            name="tournament-join"
+                            options={{
+                              headerShown: true,
+                              title: "Find a team",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                            }}
+                          />
+                          <Stack.Screen
+                            name="tournament-bracket-view"
+                            options={{
+                              headerShown: true,
+                              title: "Live bracket",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                            }}
+                          />
                           <Stack.Screen
                             name="players"
                             options={{

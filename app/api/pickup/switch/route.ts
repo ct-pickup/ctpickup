@@ -8,7 +8,8 @@ import {
 } from "@/lib/pickup/autoRunCheckpoints";
 import { insertInvitesForTierRanks, sendPickupInviteSms } from "@/lib/pickup/pickupInvites";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
-import { computeCancellationDeadline } from "@/lib/pickup/runScheduling";
+import { addWaveIntervalIso } from "@/lib/pickup/pickupWaveSchedule";
+import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -67,7 +68,7 @@ export async function GET(req: Request) {
   let runsQuery = admin
     .from("pickup_runs")
     .select(
-      "id,title,status,start_at,created_at,run_type,capacity,fee_cents,currency,open_tier_rank,wave1_started_at,likely_on_slot_id,final_slot_id,is_current,outreach_started_at,auto_managed,service_region,location_private,show_location_to_confirmed_only,cancellation_deadline",
+      "id,title,status,start_at,created_at,run_type,capacity,fee_cents,currency,open_tier_rank,wave1_started_at,likely_on_slot_id,final_slot_id,is_current,outreach_started_at,auto_managed,service_region,location_private,show_location_to_confirmed_only,cancellation_deadline,next_wave_at,current_wave",
     )
     .neq("status", "canceled")
     .order("created_at", { ascending: false });
@@ -534,6 +535,16 @@ export async function POST(req: Request) {
         });
       }
 
+      const slotsForWave = await admin.from("pickup_run_time_slots").select("start_at").eq("run_id", run_id);
+      const slotRows = (slotsForWave.data || []) as { start_at: string }[];
+      const anchorMs = anchorStartAtMs(
+        { start_at: (run.start_at as string | null) ?? null },
+        slotRows,
+      );
+      const hoursUntil =
+        anchorMs === null ? 168 : Math.max(0.25, (anchorMs - Date.parse(now)) / 3600000);
+      const next_wave_at = addWaveIntervalIso(Date.parse(now), hoursUntil);
+
       const up = await admin
         .from("pickup_runs")
         .update({
@@ -541,6 +552,8 @@ export async function POST(req: Request) {
           auto_managed: true,
           open_tier_rank: 2,
           wave1_started_at: now,
+          current_wave: 1,
+          next_wave_at,
           updated_at: now,
         })
         .eq("id", run_id);

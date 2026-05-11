@@ -5,21 +5,69 @@ export async function postPickupRsvp(
   accessToken: string,
   runId: string,
   action: "join" | "decline",
+  opts?: { friend_user_id?: string },
 ): Promise<{ ok: boolean; status: number; json: unknown }> {
   const origin = siteOrigin();
   if (!origin) {
     return { ok: false, status: 0, json: { error: "missing_site_url" } };
   }
+  const body: Record<string, unknown> = { run_id: runId, action };
+  if (opts?.friend_user_id) body.friend_user_id = opts.friend_user_id;
   const r = await fetch(`${origin}/api/pickup/rsvp`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ run_id: runId, action }),
+    body: JSON.stringify(body),
   });
   const json = await r.json().catch(() => ({}));
   return { ok: r.ok, status: r.status, json };
+}
+
+export type PickupFindPlayerResult = {
+  user_id: string;
+  full_name: string;
+  username: string | null;
+};
+
+/** Autocomplete search for “pay for a friend” (debounced on the client). */
+export async function fetchPickupFindPlayers(
+  accessToken: string,
+  q: string,
+  limit = 5,
+): Promise<{ ok: boolean; status: number; players: PickupFindPlayerResult[] }> {
+  const origin = siteOrigin();
+  if (!origin) {
+    return { ok: false, status: 0, players: [] };
+  }
+  const u = new URL(`${origin}/api/pickup/find-player`);
+  u.searchParams.set("q", q.trim());
+  u.searchParams.set("limit", String(limit));
+  const r = await fetch(u.toString(), {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+  const json = (await r.json().catch(() => null)) as unknown;
+  if (!r.ok || !Array.isArray(json)) {
+    return { ok: r.ok, status: r.status, players: [] };
+  }
+  const players: PickupFindPlayerResult[] = [];
+  for (const item of json) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    if (typeof o.user_id !== "string") continue;
+    const fn = typeof o.full_name === "string" ? o.full_name : "";
+    players.push({
+      user_id: o.user_id,
+      full_name: fn,
+      username: typeof o.username === "string" ? o.username : null,
+    });
+  }
+  return { ok: r.ok, status: r.status, players };
 }
 
 /**
@@ -153,6 +201,105 @@ export async function postTournamentCaptainSubmitClaim(
     body: JSON.stringify(payload),
   });
   const json = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, json };
+}
+
+export type TournamentJoinCatalogTeam = {
+  captain_id: string;
+  team_name: string;
+  captain_name: string;
+  spots_remaining: number;
+  expected_players: number;
+};
+
+export type TournamentJoinPendingRequest = {
+  id: string;
+  captain_id: string;
+  status: string;
+  message: string | null;
+  created_at: string;
+};
+
+/** Confirmed teams + caller's pending join requests for join-team UX. */
+export async function fetchTournamentJoinCatalog(
+  accessToken: string,
+  tournamentId: string,
+  region: string,
+): Promise<{
+  ok: boolean;
+  status: number;
+  teams: TournamentJoinCatalogTeam[];
+  my_pending_requests: TournamentJoinPendingRequest[];
+}> {
+  const origin = siteOrigin();
+  if (!origin) {
+    return { ok: false, status: 0, teams: [], my_pending_requests: [] };
+  }
+  const u = new URL(`${origin}/api/tournament/roster`);
+  u.searchParams.set("tournament_id", tournamentId);
+  u.searchParams.set("join_catalog", "1");
+  u.searchParams.set("region", region.trim().toUpperCase());
+  const r = await fetch(u.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+    cache: "no-store",
+  });
+  const json = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+  const teams = Array.isArray(json.teams) ? (json.teams as TournamentJoinCatalogTeam[]) : [];
+  const my_pending_requests = Array.isArray(json.my_pending_requests)
+    ? (json.my_pending_requests as TournamentJoinPendingRequest[])
+    : [];
+  return { ok: r.ok, status: r.status, teams, my_pending_requests };
+}
+
+/** Captain roster + pending join requests (GET requires captain auth). */
+export async function fetchTournamentRosterCaptain(accessToken: string, captainId: string) {
+  const origin = siteOrigin();
+  if (!origin) {
+    return { ok: false, status: 0, json: null as unknown };
+  }
+  const u = new URL(`${origin}/api/tournament/roster`);
+  u.searchParams.set("captain_id", captainId);
+  const r = await fetch(u.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+    cache: "no-store",
+  });
+  const json = await r.json().catch(() => null);
+  return { ok: r.ok, status: r.status, json };
+}
+
+export async function postTournamentRoster(
+  accessToken: string,
+  body: Record<string, unknown>,
+): Promise<{ ok: boolean; status: number; json: unknown }> {
+  const origin = siteOrigin();
+  if (!origin) {
+    return { ok: false, status: 0, json: { error: "missing_site_url" } };
+  }
+  const r = await fetch(`${origin}/api/tournament/roster`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const json = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, json };
+}
+
+/** Signed-in player read-only bracket (teams, matches, standings). */
+export async function fetchTournamentBracketPlayer(accessToken: string, tournamentId: string) {
+  const origin = siteOrigin();
+  if (!origin) {
+    return { ok: false, status: 0, json: null as unknown };
+  }
+  const u = new URL(`${origin}/api/tournament/bracket`);
+  u.searchParams.set("tournament_id", tournamentId);
+  const r = await fetch(u.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+    cache: "no-store",
+  });
+  const json = await r.json().catch(() => null);
   return { ok: r.ok, status: r.status, json };
 }
 

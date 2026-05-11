@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
 import { publicUpcomingRunsQuery, type PublicPickupRunRow } from "@/lib/pickup/publicUpcomingRuns";
 
 export type PickupRunAccessContext = {
@@ -77,7 +78,7 @@ export async function fetchFirstPublicUpcomingPickupRun(
 ): Promise<PublicPickupRunRow | null> {
   const res = await publicUpcomingRunsQuery(admin, "*", serviceRegion ?? undefined).limit(40);
   const rows = (res.data || []) as unknown as PublicPickupRunRow[];
-  return rows.find((r) => r.run_type === "public") ?? null;
+  return rows.find((r) => isPublicPickupRunType(r.run_type)) ?? null;
 }
 
 /**
@@ -111,7 +112,7 @@ export async function userCanViewPickupRun(
   ctx: PickupRunAccessContext
 ): Promise<boolean> {
   if (ctx.isAdmin) return true;
-  if (run.run_type === "public") return true;
+  if (isPublicPickupRunType(run.run_type)) return true;
   if (!ctx.userId) return false;
 
   const effectiveRank =

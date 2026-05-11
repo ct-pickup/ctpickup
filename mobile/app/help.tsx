@@ -22,7 +22,7 @@ const SUPPORT_EMAIL = "pickupct@gmail.com";
 const EXAMPLE_CHIPS = [
   "How do I join a tournament?",
   "How do I join pickup?",
-  "What is my tier?",
+  "How do I pay for a pickup spot?",
 ] as const;
 
 function countWords(text: string): number {

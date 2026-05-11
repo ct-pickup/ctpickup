@@ -184,6 +184,22 @@ export function postAdminLateCancel(accessToken: string, body: { run_id: string;
   });
 }
 
+export function postAdminConfirmPickupFromAvailability(accessToken: string, body: { run_id: string; user_id: string }) {
+  return adminFetch<{ ok: boolean; error?: string }>("/api/admin/pickup/confirm-from-availability", accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteAdminPickupRunAvailability(accessToken: string, body: { run_id: string; user_id: string }) {
+  return adminFetch<{ ok: boolean; error?: string }>("/api/admin/pickup/run-availability", accessToken, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 export function postAdminPickupResult(
   accessToken: string,
   body: {
