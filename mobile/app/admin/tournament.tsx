@@ -10,6 +10,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { SERVICE_REGIONS, serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -314,6 +315,21 @@ export default function AdminTournamentScreen() {
                         <Text style={styles.smallChipMutedText}>Hub</Text>
                       </View>
                     )}
+                    <Pressable
+                      onPress={() =>
+                        router.push({
+                          pathname: "/admin/tournament-bracket",
+                          params: { tournament_id: t.id },
+                        })
+                      }
+                      style={({ pressed }) => [
+                        styles.smallChip,
+                        styles.smallChipPrimary,
+                        pressed && { opacity: 0.85 },
+                      ]}
+                    >
+                      <Text style={styles.smallChipPrimaryText}>Bracket</Text>
+                    </Pressable>
                     <Pressable
                       onPress={() =>
                         Alert.alert("Delete tournament?", "This cannot be undone.", [
