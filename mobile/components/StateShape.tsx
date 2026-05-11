@@ -10,19 +10,11 @@ type Props = {
   active?: boolean;
 };
 
-// Accurate simplified SVG silhouettes for each state
 const STATE_PATHS: Record<StateCode, string> = {
-  // Connecticut - roughly rectangular with slight irregularities
-  CT: "M15,10 L85,10 L87,45 L82,48 L78,55 L70,58 L65,52 L50,55 L35,52 L25,58 L18,55 L13,48 Z",
-  
-  // New York - distinctive shape with Long Island
-  NY: "M8,15 L25,8 L35,12 L55,8 L65,5 L78,18 L82,30 L75,42 L80,55 L72,65 L60,70 L50,78 L38,72 L28,65 L18,55 L12,42 L8,28 Z M65,72 L95,65 L95,75 L70,80 Z",
-
-  // New Jersey - elongated diamond-ish shape  
-  NJ: "M38,5 L62,8 L68,20 L72,35 L70,50 L65,62 L55,75 L45,82 L32,78 L22,65 L20,50 L25,35 L28,20 Z",
-
-  // Maryland - distinctive shape with Eastern Shore
-  MD: "M5,35 L35,28 L50,22 L68,20 L82,25 L92,35 L88,45 L75,48 L62,44 L52,52 L38,50 L22,58 L8,52 Z M68,20 L78,10 L85,12 L82,22 Z",
+  CT: "M10,20 L90,20 L88,55 L80,58 L75,65 L60,68 L55,62 L40,65 L30,60 L20,65 L12,58 Z",
+  NY: "M5,40 L10,20 L20,10 L35,8 L40,15 L55,10 L70,5 L80,15 L85,25 L80,35 L85,50 L75,60 L65,65 L55,72 L45,80 L35,72 L25,65 L15,55 Z M65,65 L95,58 L93,68 L68,72 Z",
+  NJ: "M35,5 L60,8 L65,18 L70,32 L68,48 L62,60 L52,72 L42,80 L30,75 L22,62 L24,48 L20,32 L25,18 Z",
+  MD: "M5,38 L30,30 L48,24 L65,22 L80,26 L92,36 L88,46 L72,50 L58,46 L48,54 L32,52 L16,58 L6,50 Z M65,22 L75,12 L82,14 L80,24 Z",
 };
 
 export default function StateShape({ state, size = 48, color, active = false }: Props) {
