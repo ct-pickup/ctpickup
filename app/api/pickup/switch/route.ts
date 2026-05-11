@@ -172,10 +172,51 @@ export async function GET(req: Request) {
   const availProfiles = availUserIds.length
     ? await admin
         .from("profiles")
-        .select("id,first_name,last_name,username,tier,tier_rank,playing_position,instagram")
+        .select(
+          "id,first_name,last_name,username,tier,tier_rank,playing_position,instagram,wins_override,losses_override,player_of_day_override",
+        )
         .in("id", availUserIds)
     : { data: [] };
   const availProfileMap = new Map((availProfiles.data || []).map((p: { id: string }) => [p.id, p]));
+
+  const statsWins = new Map<string, number>();
+  const statsLosses = new Map<string, number>();
+  const statsPotd = new Map<string, number>();
+
+  if (availUserIds.length) {
+    const [assignRes, potdRes] = await Promise.all([
+      admin.from("pickup_run_team_assignments").select("user_id,team,run_id").in("user_id", availUserIds),
+      admin.from("pickup_run_results").select("player_of_day").in("player_of_day", availUserIds),
+    ]);
+
+    const runIds = Array.from(
+      new Set((assignRes.data || []).map((row: { run_id: string }) => String(row.run_id || "")).filter(Boolean)),
+    );
+    const resultsRes = runIds.length
+      ? await admin.from("pickup_run_results").select("run_id,winning_team").in("run_id", runIds)
+      : { data: [] as { run_id: string; winning_team: string }[] };
+
+    const winTeamByRun = new Map(
+      (resultsRes.data || []).map((r: { run_id: string; winning_team: string }) => [r.run_id, r.winning_team]),
+    );
+
+    for (const row of assignRes.data || []) {
+      const uid = String((row as { user_id: string }).user_id || "");
+      const runId = String((row as { run_id: string }).run_id || "");
+      const team = String((row as { team: string }).team || "");
+      const wt = winTeamByRun.get(runId);
+      if (!uid || !runId || !wt) continue;
+      if (team === wt) statsWins.set(uid, (statsWins.get(uid) || 0) + 1);
+      else statsLosses.set(uid, (statsLosses.get(uid) || 0) + 1);
+    }
+
+    for (const row of potdRes.data || []) {
+      const uid = String((row as { player_of_day: string | null }).player_of_day || "");
+      if (!uid) continue;
+      statsPotd.set(uid, (statsPotd.get(uid) || 0) + 1);
+    }
+  }
+
   const availabilityEnriched = availability.map((a: { user_id: string }) => {
     const p = availProfileMap.get(a.user_id) as
       | {
@@ -186,8 +227,12 @@ export async function GET(req: Request) {
           tier_rank: number | null;
           playing_position: string | null;
           instagram: string | null;
+          wins_override: number | null;
+          losses_override: number | null;
+          player_of_day_override: number | null;
         }
       | undefined;
+    const uid = a.user_id;
     return {
       ...a,
       full_name: p
@@ -198,6 +243,12 @@ export async function GET(req: Request) {
       tier_rank: p?.tier_rank ?? null,
       playing_position: p?.playing_position ?? null,
       instagram: p?.instagram ?? null,
+      wins_override: p?.wins_override ?? null,
+      losses_override: p?.losses_override ?? null,
+      player_of_day_override: p?.player_of_day_override ?? null,
+      stats_wins: statsWins.get(uid) ?? 0,
+      stats_losses: statsLosses.get(uid) ?? 0,
+      stats_player_of_day: statsPotd.get(uid) ?? 0,
     };
   });
 

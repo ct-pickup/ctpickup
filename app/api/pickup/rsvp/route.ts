@@ -8,6 +8,7 @@ import { paymentIntentIdFromCheckoutSession } from "@/lib/payments/stripeSession
 import { recordPlatformCheckoutStarted } from "@/lib/payments/recordCheckoutStarted";
 import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
+import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
 
 export const runtime = "nodejs";
 
@@ -50,9 +51,23 @@ export async function POST(req: Request) {
   const run = runRes.data;
   if (!run) return NextResponse.json({ error: "Run not found." }, { status: 404 });
 
-  // Final RSVP only opens after admin finalizes slot
-  if (run.status !== "active" || !run.start_at || !run.final_slot_id) {
-    return NextResponse.json({ error: "Final RSVP not open yet." }, { status: 403 });
+  const publicRun = isPublicPickupRunType(run.run_type);
+
+  if (publicRun) {
+    const st = String(run.status || "").trim().toLowerCase();
+    if (st === "canceled" || st === "cancelled") {
+      return NextResponse.json({ error: "This run was canceled." }, { status: 403 });
+    }
+    const completed =
+      (run as { is_completed?: boolean | null }).is_completed === true || st === "completed";
+    if (completed) {
+      return NextResponse.json({ error: "This run is already completed." }, { status: 403 });
+    }
+  } else {
+    // Select runs: final RSVP only after admin finalizes slot and run is active
+    if (run.status !== "active" || !run.start_at || !run.final_slot_id) {
+      return NextResponse.json({ error: "Final RSVP not open yet." }, { status: 403 });
+    }
   }
 
   const prof = await admin
@@ -65,18 +80,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Account pending approval." }, { status: 403 });
   }
 
-  // Must have availability available for final slot (may be one of several planning rows)
-  const myAvail = await admin
-    .from("pickup_run_availability")
-    .select("id")
-    .eq("run_id", run.id)
-    .eq("user_id", user.id)
-    .eq("state", "available")
-    .eq("slot_id", run.final_slot_id)
-    .limit(1)
-    .maybeSingle();
+  let eligible = publicRun;
+  if (!publicRun) {
+    // Select runs: must have availability for the final slot (may be one of several planning rows)
+    const myAvail = await admin
+      .from("pickup_run_availability")
+      .select("id")
+      .eq("run_id", run.id)
+      .eq("user_id", user.id)
+      .eq("state", "available")
+      .eq("slot_id", run.final_slot_id)
+      .limit(1)
+      .maybeSingle();
 
-  const eligible = !!myAvail.data?.id;
+    eligible = !!myAvail.data?.id;
+  }
 
   if (!eligible) {
     return NextResponse.json({ error: "Not eligible for this final RSVP." }, { status: 403 });
