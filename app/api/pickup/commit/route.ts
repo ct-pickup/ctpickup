@@ -3,6 +3,7 @@ import { assertPickupStandingAllowsParticipation } from "@/lib/pickup/standing/p
 import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
+import { isSelectPickupRunType } from "@/lib/pickup/pickupRunType";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -94,7 +95,7 @@ async function invitedUserIdsForPickupPush(
       .map((p: { id: string }) => p.id),
   );
 
-  if (run.run_type === "public") {
+  if (!isSelectPickupRunType(run.run_type)) {
     return Array.from(eligibleIds);
   }
 
@@ -186,7 +187,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not invited yet." }, { status: 403 });
   }
 
-  if (run.data.run_type !== "public") {
+  if (isSelectPickupRunType(run.data.run_type)) {
     const inviteRow = await admin
       .from("pickup_run_invites")
       .select("run_id,user_id")

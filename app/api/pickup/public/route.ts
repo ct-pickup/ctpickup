@@ -10,6 +10,7 @@ import {
   jsonUnexpectedErrorResponse,
 } from "@/lib/server/publicApiRouteErrors";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
 import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion";
 
 export const runtime = "nodejs";
@@ -186,7 +187,7 @@ export async function GET(req: Request) {
       effectiveTierRank <= runOpenTierRank &&
       profileMatchesRunServiceRegion(nearestVenue, run.service_region)
     ) {
-      if (run.run_type === "public") {
+      if (isPublicPickupRunType(run.run_type)) {
         invitedNow = true;
       } else {
         const inv = await admin

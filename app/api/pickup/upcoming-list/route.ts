@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickup/pickupRunType";
 import {
   publicUpcomingRunsQuery,
   type PublicPickupRunListRow,
@@ -12,9 +13,7 @@ export const dynamic = "force-dynamic";
 const ROUTE = "pickup/upcoming-list";
 
 function levelLabel(runType: string | null | undefined) {
-  if (runType === "public") return "Open signup";
-  if (runType === "select") return "Invite based";
-  return "—";
+  return isSelectPickupRunType(runType) ? "Invite based" : "Open signup";
 }
 
 /** GET — upcoming public pickup runs only (invite/select runs are not listed anonymously). No auth. */
@@ -34,8 +33,8 @@ export async function GET() {
       console.error(`[api/${ROUTE}] publicUpcomingRunsQuery:`, runRes.error.message, runRes.error);
     }
 
-    const fromSchedule = ((runRes.data || []) as unknown as PublicPickupRunListRow[]).filter(
-      (r) => r.run_type === "public",
+    const fromSchedule = ((runRes.data || []) as unknown as PublicPickupRunListRow[]).filter((r) =>
+      isPublicPickupRunType(r.run_type),
     );
 
     const curRes = await admin

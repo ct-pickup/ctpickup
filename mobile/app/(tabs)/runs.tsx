@@ -6,6 +6,8 @@ import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { usePickupJoin } from "@/hooks/usePickupJoin";
 import { usePickupPublic } from "@/hooks/usePickupPublic";
 import { usePickupStandingScore } from "@/hooks/usePickupStandingScore";
+import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickupRunType";
+import { fetchPickupFindPlayer } from "@/lib/siteApi";
 import { siteOrigin } from "@/lib/env";
 import { hapticGoal, hapticKick, hapticTap } from "@/lib/haptics";
 import { fmtPickupDt } from "@/lib/pickupPublic";
@@ -18,10 +20,16 @@ import { useNavigation } from "@react-navigation/native";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -89,6 +97,14 @@ export default function RunsScreen() {
   const [skipPreselectAfterChange, setSkipPreselectAfterChange] = useState(false);
   const [profileZipDigits, setProfileZipDigits] = useState<string | null>(null);
   const [runVenueDriveMinutes, setRunVenueDriveMinutes] = useState<number | null>(null);
+
+  const [friendModalOpen, setFriendModalOpen] = useState(false);
+  const [friendQuery, setFriendQuery] = useState("");
+  const [friendSearchBusy, setFriendSearchBusy] = useState(false);
+  const [friendFound, setFriendFound] = useState<{ user_id: string; full_name: string; username: string | null } | null>(
+    null,
+  );
+  const [friendLookupDone, setFriendLookupDone] = useState(false);
 
   useLayoutEffect(() => {
     registerReset(() => setShowStatePicker(true));
@@ -165,6 +181,67 @@ export default function RunsScreen() {
   const joinDisabled = joinBusy || !runId;
   const payDisabled = payBusy || !runId;
 
+  const resetFriendPayModal = useCallback(() => {
+    setFriendQuery("");
+    setFriendFound(null);
+    setFriendLookupDone(false);
+    setFriendSearchBusy(false);
+  }, []);
+
+  const openFriendPayModal = useCallback(() => {
+    void hapticTap();
+    resetFriendPayModal();
+    setFriendModalOpen(true);
+  }, [resetFriendPayModal]);
+
+  const closeFriendPayModal = useCallback(() => {
+    setFriendModalOpen(false);
+    resetFriendPayModal();
+  }, [resetFriendPayModal]);
+
+  const onLookupFriend = useCallback(async () => {
+    if (!token) {
+      Alert.alert("Session required", "Sign in on this device, then try again.");
+      return;
+    }
+    const q = friendQuery.trim();
+    if (!q) {
+      Alert.alert("Look up player", "Enter a username or email.");
+      return;
+    }
+    Keyboard.dismiss();
+    setFriendSearchBusy(true);
+    setFriendFound(null);
+    setFriendLookupDone(false);
+    try {
+      const r = await fetchPickupFindPlayer(token, q);
+      setFriendLookupDone(true);
+      if (r.ok && r.data) setFriendFound(r.data);
+      else if (r.status !== 404) {
+        Alert.alert("Look up failed", "Could not search right now. Try again.");
+      }
+    } catch {
+      setFriendLookupDone(true);
+      Alert.alert("Look up failed", "Network error. Try again.");
+    } finally {
+      setFriendSearchBusy(false);
+    }
+  }, [token, friendQuery]);
+
+  const onConfirmPayForFriend = useCallback(async () => {
+    if (!friendFound || !runId || !token) return;
+    if (friendFound.user_id === session?.user?.id) {
+      Alert.alert("That’s you", "Use “Request a spot” to join for yourself.");
+      return;
+    }
+    setFriendModalOpen(false);
+    await joinPickup(token, runId, load, {
+      friendUserId: friendFound.user_id,
+      friendDisplayName: friendFound.full_name,
+    });
+    resetFriendPayModal();
+  }, [friendFound, runId, token, session?.user?.id, joinPickup, load, resetFriendPayModal]);
+
   const statusLabel = useMemo(() => {
     const st = run?.status;
     if (!st || typeof st !== "string") return "NO RUN ANNOUNCED";
@@ -175,9 +252,8 @@ export default function RunsScreen() {
   }, [run]);
 
   const runTypeLabel = useMemo(() => {
-    const rt = run?.run_type;
-    if (!rt || typeof rt !== "string") return "";
-    return rt === "select" ? "SELECT PICKUP" : "PUBLIC PICKUP";
+    if (!run) return "";
+    return isSelectPickupRunType(run.run_type) ? "SELECT PICKUP" : "PUBLIC PICKUP";
   }, [run]);
 
   // Surfaces from the raw payload that the typed wrapper doesn't expose yet
@@ -241,13 +317,33 @@ export default function RunsScreen() {
     return typeof v === "string" && v.length > 0 ? v : null;
   }, [run]);
 
+  /** From `/api/pickup/public` `me` — used for public-run RSVP during planning (no availability poll). */
+  const meApproved = useMemo(() => {
+    const me = dataObj.me;
+    if (!me || typeof me !== "object") return false;
+    return (me as { approved?: unknown }).approved === true;
+  }, [dataObj]);
+
+  /** Poll chip / submit enabled when the server says the user is in the current invite wave. */
+  const availabilityPollInvited = invitedNow;
+
   const showAvailabilityPoll = useMemo(() => {
+    // Availability poll is for select runs only.
+    if (isPublicPickupRunType(run?.run_type)) return false;
     const st = run?.status;
     if (st !== "planning" && st !== "likely_on") return false;
     if (run?.final_slot_id != null) return false;
-    if (run?.run_type === "select" && !invitedNow) return false;
+    if (isSelectPickupRunType(run?.run_type) && !availabilityPollInvited) return false;
     return true;
-  }, [run, invitedNow]);
+  }, [run, availabilityPollInvited]);
+
+  /** Open-signup runs skip the poll; approved signed-in users RSVP directly during planning / likely_on. */
+  const showPublicPlanningJoin = useMemo(() => {
+    if (!isPublicPickupRunType(run?.run_type)) return false;
+    const st = run?.status;
+    if (st !== "planning" && st !== "likely_on") return false;
+    return Boolean(token) && meApproved;
+  }, [run, token, meApproved]);
 
   const allowedSlotLabelSet = useMemo(
     () => new Set<string>(FIXED_AVAILABILITY_RANGES.map((r) => r.slot_label)),
@@ -303,12 +399,12 @@ export default function RunsScreen() {
   const onToggleSlotChip = useCallback(
     (slotLabel: string) => {
       void hapticTap();
-      if (!invitedNow || availabilityBusy) return;
+      if (!availabilityPollInvited || availabilityBusy) return;
       setSelectedSlotLabels((prev) =>
         prev.includes(slotLabel) ? prev.filter((l) => l !== slotLabel) : [...prev, slotLabel],
       );
     },
-    [invitedNow, availabilityBusy],
+    [availabilityPollInvited, availabilityBusy],
   );
 
   const onSubmitAvailability = useCallback(async () => {
@@ -332,7 +428,7 @@ export default function RunsScreen() {
     if (invitedNow) {
       return { text: "You're invited — request your spot now", color: "#a3e635" };
     }
-    if (run?.run_type === "select") {
+    if (isSelectPickupRunType(run?.run_type)) {
       return {
         text: "Exclusive pickup: selected players are invited first. Check back if you're waiting on an invite.",
         color: "rgba(255,255,255,0.72)",
@@ -386,6 +482,7 @@ export default function RunsScreen() {
   }
 
   return (
+    <>
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={[styles.content, showEmpty && styles.contentEmpty]}
@@ -507,7 +604,7 @@ export default function RunsScreen() {
                 <View style={styles.pollChipRow}>
                   {FIXED_AVAILABILITY_RANGES.map((range) => {
                     const selected = selectedSlotLabels.includes(range.slot_label);
-                    const chipDisabled = !invitedNow || availabilityBusy;
+                    const chipDisabled = !availabilityPollInvited || availabilityBusy;
                     return (
                       <Pressable
                         key={range.slot_label}
@@ -535,14 +632,23 @@ export default function RunsScreen() {
                 </View>
                 <Pressable
                   disabled={
-                    !invitedNow || availabilityBusy || !runId || selectedSlotLabels.length === 0
+                    !availabilityPollInvited ||
+                    availabilityBusy ||
+                    !runId ||
+                    selectedSlotLabels.length === 0
                   }
                   onPress={() => void onSubmitAvailability()}
                   style={({ pressed }) => [
                     styles.submitAvailabilityBtn,
-                    (!invitedNow || availabilityBusy || !runId || selectedSlotLabels.length === 0) &&
+                    (!availabilityPollInvited ||
+                      availabilityBusy ||
+                      !runId ||
+                      selectedSlotLabels.length === 0) &&
                       styles.submitAvailabilityBtnDisabled,
-                    pressed && invitedNow && !availabilityBusy && selectedSlotLabels.length > 0 && {
+                    pressed &&
+                      availabilityPollInvited &&
+                      !availabilityBusy &&
+                      selectedSlotLabels.length > 0 && {
                       opacity: 0.9,
                     },
                   ]}
@@ -570,12 +676,13 @@ export default function RunsScreen() {
                   </View>
                 ) : null}
                 <Pressable
-                  disabled={!invitedNow || availabilityBusy || !runId}
+                  disabled={!availabilityPollInvited || availabilityBusy || !runId}
                   onPress={() => void commitAvailability(token, runId, "declined", null, load)}
                   style={({ pressed }) => [
                     styles.declineSlotButton,
-                    (!invitedNow || availabilityBusy || !runId) && styles.declineSlotButtonDisabled,
-                    pressed && invitedNow && !availabilityBusy && { opacity: 0.85 },
+                    (!availabilityPollInvited || availabilityBusy || !runId) &&
+                      styles.declineSlotButtonDisabled,
+                    pressed && availabilityPollInvited && !availabilityBusy && { opacity: 0.85 },
                   ]}
                 >
                   <Text style={styles.declineSlotText}>Decline</Text>
@@ -634,24 +741,34 @@ export default function RunsScreen() {
                   </>
                 )}
               </Pressable>
-            ) : !showAvailabilityPoll && run?.status !== "planning" ? (
-              <Pressable
-                style={[styles.primaryJoin, joinDisabled && styles.primaryJoinDisabled]}
-                disabled={joinDisabled}
-                onPress={() => {
-                  void hapticGoal();
-                  void joinPickup(token, runId, load);
-                }}
-              >
-                {joinBusy ? (
-                  <ActivityIndicator color="#111" />
-                ) : (
-                  <>
-                    <FontAwesome name="bolt" size={16} color="#111" />
-                    <Text style={styles.primaryJoinText}> Request a spot</Text>
-                  </>
-                )}
-              </Pressable>
+            ) : (!showAvailabilityPoll && run?.status !== "planning") || showPublicPlanningJoin ? (
+              <View style={styles.joinActions}>
+                <Pressable
+                  style={[styles.primaryJoin, joinDisabled && styles.primaryJoinDisabled]}
+                  disabled={joinDisabled}
+                  onPress={() => {
+                    void hapticGoal();
+                    void joinPickup(token, runId, load);
+                  }}
+                >
+                  {joinBusy ? (
+                    <ActivityIndicator color="#111" />
+                  ) : (
+                    <>
+                      <FontAwesome name="bolt" size={16} color="#111" />
+                      <Text style={styles.primaryJoinText}> Request a spot</Text>
+                    </>
+                  )}
+                </Pressable>
+                <Pressable
+                  style={[styles.payFriendBtn, (!token || joinBusy || !runId) && styles.payFriendBtnDisabled]}
+                  disabled={!token || joinBusy || !runId}
+                  onPress={openFriendPayModal}
+                >
+                  <FontAwesome name="user-plus" size={15} color="#a3e635" />
+                  <Text style={styles.payFriendBtnText}> Pay for a friend</Text>
+                </Pressable>
+              </View>
             ) : null}
 
             {cancellationDeadline ? (
@@ -690,6 +807,78 @@ export default function RunsScreen() {
         </>
       )}
     </ScrollView>
+
+    <Modal
+      visible={friendModalOpen}
+      animationType="fade"
+      transparent
+      onRequestClose={closeFriendPayModal}
+    >
+      <KeyboardAvoidingView
+        style={styles.modalBackdrop}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <Pressable style={styles.modalBackdropPress} onPress={closeFriendPayModal} accessibilityRole="button" accessibilityLabel="Dismiss" />
+        <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Pay for a friend</Text>
+            <Text style={styles.modalHint}>Enter their CT Pickup username or email.</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Username or email"
+              placeholderTextColor="rgba(255,255,255,0.4)"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              value={friendQuery}
+              onChangeText={(t) => {
+                setFriendQuery(t);
+                setFriendFound(null);
+                setFriendLookupDone(false);
+              }}
+              editable={!friendSearchBusy && !joinBusy}
+            />
+            <Pressable
+              style={[styles.modalSearchBtn, (friendSearchBusy || joinBusy) && styles.modalSearchBtnDisabled]}
+              disabled={friendSearchBusy || joinBusy}
+              onPress={() => void onLookupFriend()}
+            >
+              {friendSearchBusy ? (
+                <ActivityIndicator color="#111" size="small" />
+              ) : (
+                <Text style={styles.modalSearchBtnText}>Look up player</Text>
+              )}
+            </Pressable>
+            {friendFound ? (
+              friendFound.user_id === session?.user?.id ? (
+                <Text style={styles.modalNotFound}>That’s you — use “Request a spot” for yourself.</Text>
+              ) : (
+                <Text style={styles.modalFound}>
+                  Found: <Text style={styles.modalFoundName}>{friendFound.full_name}</Text>
+                </Text>
+              )
+            ) : friendLookupDone && !friendSearchBusy ? (
+              <Text style={styles.modalNotFound}>Player not found</Text>
+            ) : null}
+            {friendFound && friendFound.user_id !== session?.user?.id ? (
+              <Pressable
+                style={[styles.modalConfirmPay, joinBusy && styles.modalConfirmPayDisabled]}
+                disabled={joinBusy}
+                onPress={() => void onConfirmPayForFriend()}
+              >
+                {joinBusy ? (
+                  <ActivityIndicator color="#111" size="small" />
+                ) : (
+                  <Text style={styles.modalConfirmPayText}>Pay for {friendFound.full_name}</Text>
+                )}
+              </Pressable>
+            ) : null}
+            <Pressable onPress={closeFriendPayModal} style={styles.modalCloseBtn}>
+              <Text style={styles.modalCloseBtnText}>Close</Text>
+            </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+    </>
   );
 }
 
@@ -966,16 +1155,89 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   hint: { marginTop: 14, color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
+  joinActions: { marginTop: 18, gap: 10, alignSelf: "stretch" },
   primaryJoin: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    marginTop: 18,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     backgroundColor: "#a3e635",
   },
+  payFriendBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.45)",
+    backgroundColor: "rgba(163,230,53,0.08)",
+  },
+  payFriendBtnDisabled: { opacity: 0.45 },
+  payFriendBtnText: { color: "#a3e635", fontWeight: "800", fontSize: 15 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  modalBackdropPress: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  },
+  modalCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "#141414",
+    padding: 20,
+    gap: 12,
+  },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  modalHint: { fontSize: 14, color: "rgba(255,255,255,0.65)", lineHeight: 20 },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: "#fff",
+    fontSize: 16,
+  },
+  modalSearchBtn: {
+    alignSelf: "stretch",
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: LIME,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
+  },
+  modalSearchBtnDisabled: { opacity: 0.5 },
+  modalSearchBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  modalFound: { fontSize: 15, color: "rgba(255,255,255,0.85)" },
+  modalFoundName: { fontWeight: "800", color: LIME },
+  modalNotFound: { fontSize: 15, color: "#fca5a5", fontWeight: "600" },
+  modalConfirmPay: {
+    alignSelf: "stretch",
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: LIME,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+  },
+  modalConfirmPayDisabled: { opacity: 0.5 },
+  modalConfirmPayText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  modalCloseBtn: { alignSelf: "center", paddingVertical: 8, paddingHorizontal: 12 },
+  modalCloseBtnText: { color: "rgba(255,255,255,0.7)", fontSize: 15, fontWeight: "700" },
   primaryPay: {
     flexDirection: "row",
     alignItems: "center",
