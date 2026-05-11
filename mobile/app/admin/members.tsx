@@ -3,6 +3,9 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -10,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { hapticError, hapticGoal, hapticTap } from "@/lib/haptics";
 import { siteOrigin } from "@/lib/env";
@@ -56,6 +60,9 @@ export default function AdminMembersScreen() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [editStats, setEditStats] = useState<Record<string, Record<string, number | null>>>({});
   const [banReason, setBanReason] = useState<Record<string, string>>({});
+  const [dmTarget, setDmTarget] = useState<Member | null>(null);
+  const [dmText, setDmText] = useState("");
+  const [dmSending, setDmSending] = useState(false);
 
   const load = useCallback(async () => {
     const token = session?.access_token;
@@ -150,6 +157,43 @@ export default function AdminMembersScreen() {
     }
   }
 
+  async function sendAdminDm() {
+    const token = session?.access_token;
+    if (!token || !dmTarget) return;
+    const message = dmText.trim();
+    if (!message) {
+      void hapticError();
+      Alert.alert("Required", "Enter a message.");
+      return;
+    }
+    setDmSending(true);
+    try {
+      const res = await fetch(`${siteOrigin()}/api/admin/dm`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ target_user_id: dmTarget.id, message }),
+      });
+      const j = (await res.json()) as { error?: string; room_id?: string };
+      if (!res.ok) {
+        void hapticError();
+        Alert.alert("Error", j.error || "Failed to send");
+        return;
+      }
+      void hapticGoal();
+      const roomId = j.room_id;
+      setDmTarget(null);
+      setDmText("");
+      if (roomId) {
+        router.push({ pathname: "/(tabs)/messages/thread", params: { id: roomId } });
+      }
+    } catch (e) {
+      void hapticError();
+      Alert.alert("Error", e instanceof Error ? e.message : "Request failed");
+    } finally {
+      setDmSending(false);
+    }
+  }
+
   async function deleteProfile(userId: string, name: string) {
     Alert.alert("Delete " + name + "?", "This permanently deletes their account.", [
       { text: "Cancel", style: "cancel" },
@@ -221,6 +265,17 @@ export default function AdminMembersScreen() {
                   {item.approved ? "Approved" : "Approve"}
                 </Text>
               </Pressable>
+              <Pressable
+                onPress={() => {
+                  void hapticTap();
+                  setDmTarget(item);
+                  setDmText("");
+                }}
+                disabled={isBusy}
+                style={[styles.actionBtn, styles.actionBtnLimeOutline]}
+              >
+                <Text style={styles.actionBtnTextLime}>Message</Text>
+              </Pressable>
             </View>
             <Text style={[styles.label, { marginTop: 14 }]}>Stats overrides</Text>
             <View style={styles.statsGrid}>
@@ -278,8 +333,57 @@ export default function AdminMembersScreen() {
     );
   };
 
+  const dmTargetName = dmTarget
+    ? [dmTarget.first_name, dmTarget.last_name].filter(Boolean).join(" ") ||
+      dmTarget.username ||
+      dmTarget.id
+    : "";
+
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      <Modal
+        visible={dmTarget !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !dmSending && setDmTarget(null)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => !dmSending && setDmTarget(null)}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ width: "100%" }}>
+            <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+              <Text style={styles.modalTitle}>Message {dmTargetName}</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={dmText}
+                onChangeText={setDmText}
+                placeholder="Type a direct message…"
+                placeholderTextColor="rgba(255,255,255,0.35)"
+                multiline
+                editable={!dmSending}
+              />
+              <View style={styles.modalActions}>
+                <Pressable
+                  onPress={() => !dmSending && setDmTarget(null)}
+                  style={[styles.modalBtn, styles.modalBtnGhost]}
+                  disabled={dmSending}
+                >
+                  <Text style={styles.modalBtnGhostText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => void sendAdminDm()}
+                  style={[styles.modalBtn, styles.modalBtnPrimary]}
+                  disabled={dmSending || !dmText.trim()}
+                >
+                  {dmSending ? (
+                    <ActivityIndicator color="#0a0a0a" />
+                  ) : (
+                    <Text style={styles.modalBtnPrimaryText}>Send</Text>
+                  )}
+                </Pressable>
+              </View>
+            </Pressable>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
       <Text style={styles.title}>Members</Text>
       {loading ? <ActivityIndicator color={LIME} style={{ marginTop: 32 }} /> : null}
       {error ? <Text style={styles.err}>{error}</Text> : null}
@@ -318,6 +422,51 @@ const styles = StyleSheet.create({
   actionBtnText: { color: "rgba(255,255,255,0.45)", fontSize: 12, fontWeight: "700" },
   actionBtnTextActive: { color: "#a3e635", fontSize: 12, fontWeight: "700" },
   actionBtnTextDanger: { color: "#f87171", fontSize: 12, fontWeight: "700" },
+  actionBtnLimeOutline: { borderColor: "rgba(163,230,53,0.45)" },
+  actionBtnTextLime: { color: "#a3e635", fontSize: 12, fontWeight: "700" },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: "#141414",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    padding: 18,
+    width: "100%",
+    maxWidth: 400,
+  },
+  modalTitle: { color: "#fff", fontSize: 17, fontWeight: "800", marginBottom: 12 },
+  modalInput: {
+    minHeight: 100,
+    maxHeight: 180,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    borderRadius: 12,
+    padding: 12,
+    color: "#fff",
+    fontSize: 15,
+    textAlignVertical: "top",
+    marginBottom: 16,
+    backgroundColor: "#0a0a0a",
+  },
+  modalActions: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
+  modalBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 10,
+    minWidth: 88,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalBtnGhost: { borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
+  modalBtnGhostText: { color: "rgba(255,255,255,0.75)", fontWeight: "700", fontSize: 14 },
+  modalBtnPrimary: { backgroundColor: LIME },
+  modalBtnPrimaryText: { color: "#0a0a0a", fontWeight: "900", fontSize: 14 },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   statField: { width: "30%", minWidth: 90 },
   statLabel: { color: "rgba(255,255,255,0.45)", fontSize: 10, marginBottom: 3 },
