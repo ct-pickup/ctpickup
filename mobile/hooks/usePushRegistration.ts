@@ -2,6 +2,7 @@ import { postMobilePushToken } from "@/lib/siteApi";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
+import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 
@@ -24,6 +25,34 @@ try {
  */
 export function usePushRegistration(accessToken: string | null) {
   const lastSent = useRef<string | null>(null);
+  const router = useRouter();
+
+  function handleNotificationResponse(response: Notifications.NotificationResponse) {
+    const data = response.notification.request.content.data as Record<string, unknown>;
+    const kind = String(data?.kind || "");
+    if (kind === "chat_message") {
+      const roomId = String(data?.room_id || "");
+      const roomSlug = String(data?.room_slug || "");
+      if (roomId || roomSlug) {
+        router.push({ pathname: "/(tabs)/messages" } as any);
+      }
+    } else if (kind === "pickup_invite" || kind === "pickup_likely_on") {
+      router.push("/(tabs)/runs" as any);
+    } else if (kind === "admin_availability") {
+      router.push("/admin/pickup" as any);
+    }
+  }
+
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener(handleNotificationResponse);
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) handleNotificationResponse(response);
+    });
+  }, []);
 
   useEffect(() => {
     if (!accessToken) {
