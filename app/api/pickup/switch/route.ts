@@ -7,7 +7,7 @@ import {
   processAutoPickupRun,
 } from "@/lib/pickup/autoRunCheckpoints";
 import { insertInvitesForTierRanks, sendPickupInviteSms } from "@/lib/pickup/pickupInvites";
-import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
+import { computeCancellationDeadline } from "@/lib/pickup/runScheduling";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -381,19 +381,6 @@ export async function POST(req: Request) {
 
     if (run.outreach_started_at) {
       return NextResponse.json({ error: "Outreach already launched for this run." }, { status: 400 });
-    }
-
-    const slotsRes = await admin.from("pickup_run_time_slots").select("start_at").eq("run_id", run_id);
-    const slots = slotsRes.data || [];
-    const anchorMs = anchorStartAtMs({ start_at: run.start_at }, slots);
-    if (anchorMs === null) {
-      return NextResponse.json(
-        {
-          error:
-            "Add at least one time slot with kickoff time before launch. Checkpoints anchor to the earliest slot (or run start).",
-        },
-        { status: 400 }
-      );
     }
 
     const now = new Date().toISOString();
