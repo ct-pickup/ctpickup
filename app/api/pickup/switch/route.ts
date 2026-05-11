@@ -2,7 +2,6 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { recordLegacyPickupPost } from "@/lib/admin/surfaceHealth";
-import { MIN_LEAD_BEFORE_LAUNCH_MS } from "@/lib/pickup/autoRunConfig";
 import {
   describePickupAutoStatus,
   processAutoPickupRun,
@@ -392,15 +391,6 @@ export async function POST(req: Request) {
         {
           error:
             "Add at least one time slot with kickoff time before launch. Checkpoints anchor to the earliest slot (or run start).",
-        },
-        { status: 400 }
-      );
-    }
-
-    if (anchorMs - Date.now() < MIN_LEAD_BEFORE_LAUNCH_MS) {
-      return NextResponse.json(
-        {
-          error: `Kickoff must be at least ${MIN_LEAD_BEFORE_LAUNCH_MS / (60 * 60 * 1000)} hours away to launch outreach.`,
         },
         { status: 400 }
       );
