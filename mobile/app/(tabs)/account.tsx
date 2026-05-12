@@ -12,12 +12,12 @@ import {
 } from "@/lib/appLock";
 import { siteOrigin } from "@/lib/env";
 import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
-import { fetchPickupStanding, postMobilePushPreference } from "@/lib/siteApi";
+import { fetchPickupStanding, postMobilePushPreference, postMobilePushToken } from "@/lib/siteApi";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -179,11 +179,11 @@ export default function AccountScreen() {
     void refreshBiometricAvailability();
   }, [refreshBiometricAvailability]);
 
-  const userId = session?.user?.id ?? null;
   const accessToken = session?.access_token ?? null;
 
   const loadProfile = useCallback(async () => {
-    if (!supabase || !userId) {
+    const uid = session?.user?.id;
+    if (!isReady || !supabase || !uid) {
       return;
     }
     const { data, error } = await supabase
@@ -191,19 +191,25 @@ export default function AccountScreen() {
       .select(
         "first_name,last_name,approved,instagram,phone,zip_code,playing_position,username,push_notifications_enabled",
       )
-      .eq("id", userId)
+      .eq("id", uid)
       .maybeSingle();
     if (error) {
       setProfile(null);
     } else {
       setProfile((data as ProfileRow | null) ?? null);
     }
-  }, [supabase, session?.user?.id]);
+  }, [isReady, supabase, session?.user?.id]);
 
+  useFocusEffect(
+    useCallback(() => {
+      void loadProfile();
+    }, [loadProfile]),
+  );
+
+  // Re-fetch when auth/session becomes available after focus (useFocusEffect does not re-run when loadProfile's deps update).
   useEffect(() => {
-    if (!isReady || !session?.user?.id || !supabase) return;
     void loadProfile();
-  }, [isReady, supabase, session?.user?.id, loadProfile]);
+  }, [loadProfile]);
 
   useEffect(() => {
     if (!profile) return;
@@ -374,20 +380,25 @@ export default function AccountScreen() {
         return;
       }
 
-      setProfile((p) =>
-        p
-          ? {
-              ...p,
-              first_name: firstName || null,
-              last_name: lastName || null,
-              playing_position: playingPosition ?? null,
-              instagram: instagram || null,
-              phone: phone || null,
-              zip_code: zipDigits.length === 5 ? zipDigits : null,
-              username: username || null,
-            }
-          : p,
-      );
+      setProfile((p) => {
+        const nextFields = {
+          first_name: firstName || null,
+          last_name: lastName || null,
+          playing_position: playingPosition ?? null,
+          instagram: instagram || null,
+          phone: phone || null,
+          zip_code: zipDigits.length === 5 ? zipDigits : null,
+          username: username || null,
+        };
+        if (p) {
+          return { ...p, ...nextFields };
+        }
+        return {
+          ...nextFields,
+          approved: null,
+          push_notifications_enabled: pushEnabled,
+        };
+      });
       setEditOk(true);
       setEditMsg("Saved.");
     } catch (e) {
@@ -401,16 +412,79 @@ export default function AccountScreen() {
   async function onTogglePushNotifications(next: boolean) {
     if (pushBusy) return;
     setPushMsg(null);
+    if (!supabase) {
+      setPushMsg("Supabase client is not available. Check app configuration.");
+      return;
+    }
     if (!accessToken) {
       setPushMsg("Sign in again to change this.");
       return;
     }
+    const uid = session?.user?.id;
+    if (!uid) {
+      setPushMsg("Sign in again to change this.");
+      return;
+    }
+
     const prev = pushEnabled;
     setPushEnabled(next);
     setPushBusy(true);
     try {
-      let opts: { expoPushToken?: string; platform?: "ios" | "android" } | undefined;
-      if (next && Device.isDevice) {
+      let data: { id: string }[] | null = null;
+      try {
+        const res = await supabase
+          .from("profiles")
+          .update({
+            push_notifications_enabled: next,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", uid)
+          .select("id");
+        data = res.data;
+        const { error } = res;
+        if (error) {
+          console.log("[push-pref] profiles.update Supabase error:", error);
+          console.log("[push-pref] profiles.update Supabase error JSON:", JSON.stringify(error));
+          setPushEnabled(prev);
+          setPushMsg(formatProfileSaveError(error));
+          return;
+        }
+        if (!data?.length) {
+          console.log("[push-pref] profiles.update returned 0 rows", { userId: uid });
+          setPushEnabled(prev);
+          setPushMsg(
+            "Save did not update any profile row (no match or not permitted). Your account may be missing a profile row.",
+          );
+          return;
+        }
+      } catch (e) {
+        console.log("[push-pref] profiles.update exception:", e);
+        setPushEnabled(prev);
+        setPushMsg(formatProfileSaveError(e));
+        return;
+      }
+
+      setProfile((p) => (p ? { ...p, push_notifications_enabled: next } : p));
+
+      if (!next) {
+        try {
+          const { error: delErr } = await supabase.from("user_push_devices").delete().eq("user_id", uid);
+          if (delErr) {
+            console.log("[push-pref] user_push_devices.delete Supabase error:", delErr);
+            console.log("[push-pref] user_push_devices.delete Supabase error JSON:", JSON.stringify(delErr));
+          }
+        } catch (e) {
+          console.log("[push-pref] user_push_devices.delete exception:", e);
+        }
+        try {
+          const res = await postMobilePushPreference(accessToken, false);
+          if (!res.ok) {
+            console.log("[push-pref] postMobilePushPreference(false) failed:", res.error);
+          }
+        } catch (e) {
+          console.log("[push-pref] postMobilePushPreference(false) exception:", e);
+        }
+      } else if (Device.isDevice) {
         try {
           const { status: existing } = await Notifications.getPermissionsAsync();
           let finalStatus = existing;
@@ -428,20 +502,16 @@ export default function AccountScreen() {
             );
             const platform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : null;
             if (tokenRes?.data && platform) {
-              opts = { expoPushToken: tokenRes.data, platform };
+              const reg = await postMobilePushToken(accessToken, tokenRes.data, platform);
+              if (!reg.ok) {
+                console.log("[push-pref] postMobilePushToken failed:", reg.error);
+              }
             }
           }
         } catch (e) {
-          console.warn("[push-pref] token re-register failed:", e);
+          console.log("[push-pref] token re-register exception:", e);
         }
       }
-      const res = await postMobilePushPreference(accessToken, next, opts);
-      if (!res.ok) {
-        setPushEnabled(prev);
-        setPushMsg("Couldn’t save. Try again.");
-        return;
-      }
-      setProfile((p) => (p ? { ...p, push_notifications_enabled: next } : p));
     } finally {
       setPushBusy(false);
     }

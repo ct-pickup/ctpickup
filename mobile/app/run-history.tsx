@@ -9,6 +9,23 @@ const LIME = "#a3e635";
 
 type Team = "A" | "B" | "C";
 
+type AwardSlot = "player" | "goalie" | "attacker" | "midfielder" | "defender";
+
+type AwardRowData = {
+  slot: AwardSlot;
+  label: string;
+  userId: string | null;
+  name: string | null;
+};
+
+const AWARD_ORDER: { slot: AwardSlot; label: string }[] = [
+  { slot: "player", label: "Player of the Day" },
+  { slot: "goalie", label: "Goalie of the Day" },
+  { slot: "attacker", label: "Attacker of the Day" },
+  { slot: "midfielder", label: "Midfielder of the Day" },
+  { slot: "defender", label: "Defender of the Day" },
+];
+
 type HistoryRow = {
   run_id: string;
   team: Team;
@@ -16,7 +33,9 @@ type HistoryRow = {
   location_private: string | null;
   service_region: string | null;
   winning_team: Team | null;
-  awards: string[];
+  is_completed: boolean;
+  myAwards: string[];
+  awards: AwardRowData[];
 };
 
 function s(v: unknown): string {
@@ -91,7 +110,13 @@ export default function RunHistoryScreen() {
       const CHUNK = 250;
       const runsById = new Map<
         string,
-        { start_at: string | null; location_private: string | null; service_region: string | null }
+        {
+          start_at: string | null;
+          location_private: string | null;
+          service_region: string | null;
+          status: string | null;
+          is_completed: boolean | null;
+        }
       >();
       const resultsByRunId = new Map<
         string,
@@ -109,7 +134,7 @@ export default function RunHistoryScreen() {
         const chunk = runIds.slice(i, i + CHUNK);
         const { data: runRows, error: runsErr } = await supabase
           .from("pickup_runs")
-          .select("id,start_at,location_private,service_region")
+          .select("id,start_at,location_private,service_region,status,is_completed")
           .in("id", chunk);
         if (cancelled) return;
         if (!runsErr && runRows) {
@@ -118,12 +143,16 @@ export default function RunHistoryScreen() {
             start_at: string | null;
             location_private: string | null;
             service_region: string | null;
+            status: string | null;
+            is_completed: boolean | null;
           }>) {
             if (!row?.id) continue;
             runsById.set(row.id, {
               start_at: row.start_at ?? null,
               location_private: row.location_private ?? null,
               service_region: row.service_region ?? null,
+              status: row.status ?? null,
+              is_completed: row.is_completed ?? null,
             });
           }
         }
@@ -155,15 +184,63 @@ export default function RunHistoryScreen() {
         }
       }
 
+      // Collect all award user_ids across runs and resolve names in one batch.
+      const allAwardUserIds = new Set<string>();
+      for (const r of resultsByRunId.values()) {
+        for (const v of [
+          r.player_of_day,
+          r.goalie_of_the_day,
+          r.attacker_of_day,
+          r.midfielder_of_day,
+          r.defender_of_day,
+        ]) {
+          if (typeof v === "string" && v.length > 0) allAwardUserIds.add(v);
+        }
+      }
+      const nameById = new Map<string, string>();
+      const awardIds = Array.from(allAwardUserIds);
+      for (let i = 0; i < awardIds.length; i += CHUNK) {
+        const chunk = awardIds.slice(i, i + CHUNK);
+        const profs = await supabase.from("profiles").select("id,full_name,username").in("id", chunk);
+        if (cancelled) return;
+        if (profs.data) {
+          for (const p of profs.data as Array<{ id: string; full_name: string | null; username: string | null }>) {
+            const nm = (p.full_name ?? "").trim() || (p.username ?? "").trim() || p.id;
+            nameById.set(p.id, nm);
+          }
+        }
+      }
+
       const out: HistoryRow[] = assignmentRows.map((r) => {
         const run = runsById.get(r.run_id) ?? null;
         const res = resultsByRunId.get(r.run_id) ?? null;
-        const awards: string[] = [];
-        if (res?.player_of_day === tokenUserId) awards.push("POTD");
-        if (res?.goalie_of_the_day === tokenUserId) awards.push("GOTD");
-        if (res?.defender_of_day === tokenUserId) awards.push("DEF");
-        if (res?.midfielder_of_day === tokenUserId) awards.push("MID");
-        if (res?.attacker_of_day === tokenUserId) awards.push("ATT");
+        const myAwards: string[] = [];
+        if (res?.player_of_day === tokenUserId) myAwards.push("POTD");
+        if (res?.goalie_of_the_day === tokenUserId) myAwards.push("GOTD");
+        if (res?.defender_of_day === tokenUserId) myAwards.push("DEF");
+        if (res?.midfielder_of_day === tokenUserId) myAwards.push("MID");
+        if (res?.attacker_of_day === tokenUserId) myAwards.push("ATT");
+
+        const slotToUserId: Record<AwardSlot, string | null> = {
+          player: res?.player_of_day ?? null,
+          goalie: res?.goalie_of_the_day ?? null,
+          attacker: res?.attacker_of_day ?? null,
+          midfielder: res?.midfielder_of_day ?? null,
+          defender: res?.defender_of_day ?? null,
+        };
+        const awards: AwardRowData[] = AWARD_ORDER.map(({ slot, label }) => {
+          const uid = slotToUserId[slot];
+          return {
+            slot,
+            label,
+            userId: uid,
+            name: uid ? nameById.get(uid) ?? null : null,
+          };
+        });
+
+        const is_completed =
+          run?.is_completed === true || String(run?.status || "").trim().toLowerCase() === "completed";
+
         return {
           run_id: r.run_id,
           team: r.team,
@@ -171,6 +248,8 @@ export default function RunHistoryScreen() {
           location_private: run?.location_private ?? null,
           service_region: run?.service_region ?? null,
           winning_team: (res?.winning_team ?? null) as Team | null,
+          is_completed,
+          myAwards,
           awards,
         };
       });
@@ -214,6 +293,8 @@ export default function RunHistoryScreen() {
         {rows.map((r) => {
           const hasResult = r.winning_team != null;
           const won = hasResult ? r.team === r.winning_team : null;
+          const showResults = r.is_completed && hasResult;
+          const hasAnyAwardWinner = r.awards.some((a) => a.userId != null);
           return (
             <Pressable
               key={r.run_id}
@@ -237,15 +318,46 @@ export default function RunHistoryScreen() {
                   <Text style={styles.metaK}>Result</Text>{" "}
                   {won == null ? "—" : won ? "Won" : "Lost"}
                 </Text>
-                {r.awards.length ? (
+                {r.myAwards.length ? (
                   <>
                     <Text style={styles.metaSep}>·</Text>
                     <Text style={styles.meta}>
-                      <Text style={styles.metaK}>Awards</Text> {r.awards.join(", ")}
+                      <Text style={styles.metaK}>Awards</Text> {r.myAwards.join(", ")}
                     </Text>
                   </>
                 ) : null}
               </View>
+
+              {showResults ? (
+                <Text style={styles.winningTeamHeadline}>🏆 Team {r.winning_team} won</Text>
+              ) : null}
+
+              {showResults && hasAnyAwardWinner ? (
+                <View style={styles.awardsBlock}>
+                  {r.awards.map((a) => (
+                    <View key={a.slot} style={styles.awardRow}>
+                      <Text style={styles.awardLabel}>{a.label}:</Text>
+                      {a.userId && a.name ? (
+                        <Pressable
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            router.push(`/player/${encodeURIComponent(a.userId!)}`);
+                          }}
+                          accessibilityRole="link"
+                          accessibilityLabel={`Open profile for ${a.name}`}
+                          style={({ pressed }) => [styles.awardNameWrap, pressed && { opacity: 0.85 }]}
+                        >
+                          <Text style={styles.awardName} numberOfLines={1}>
+                            {a.name}
+                          </Text>
+                        </Pressable>
+                      ) : (
+                        <Text style={styles.awardNameMuted}>—</Text>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              ) : null}
             </Pressable>
           );
         })}
@@ -281,5 +393,36 @@ const styles = StyleSheet.create({
   meta: { color: "rgba(255,255,255,0.72)", fontSize: 13, fontWeight: "600" },
   metaK: { color: "rgba(255,255,255,0.45)", fontWeight: "800" },
   metaSep: { color: "rgba(255,255,255,0.28)", fontWeight: "900" },
-});
 
+  winningTeamHeadline: {
+    marginTop: 12,
+    color: LIME,
+    fontSize: 15,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+  },
+  awardsBlock: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.06)",
+    gap: 6,
+  },
+  awardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  awardLabel: { color: "rgba(255,255,255,0.6)", fontWeight: "700", fontSize: 13 },
+  awardNameWrap: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: "rgba(163,230,53,0.10)",
+  },
+  awardName: { color: LIME, fontWeight: "900", fontSize: 13 },
+  awardNameMuted: { color: "rgba(255,255,255,0.4)", fontWeight: "700", fontSize: 13 },
+});

@@ -120,7 +120,16 @@ export function usePickupJoin() {
           Alert.alert("Waiver required", detail);
           return;
         }
-        const msg = typeof j.error === "string" ? j.error : `Could not join (${r.status}).`;
+        const rawErr = typeof j.error === "string" ? j.error : "";
+        const isLocked =
+          /already started/i.test(rawErr) || /run has already started/i.test(String(j.detail || ""));
+        if (isLocked) {
+          void hapticError();
+          Alert.alert("Joining closed", "This run has already started.");
+          await reload();
+          return;
+        }
+        const msg = rawErr || `Could not join (${r.status}).`;
         void hapticError();
         Alert.alert("Can’t join this run", msg);
       } finally {

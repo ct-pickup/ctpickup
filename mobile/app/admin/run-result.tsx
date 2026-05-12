@@ -149,7 +149,7 @@ export default function AdminRunResultScreen() {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: "Run result",
+      title: "Post Results",
       headerStyle: { backgroundColor: BG },
       headerTintColor: "#fff",
       headerShadowVisible: false,
@@ -287,7 +287,7 @@ export default function AdminRunResultScreen() {
     }
 
     void hapticWhistle();
-    Alert.alert("Saved", "Run result recorded and pushes sent.", [
+    Alert.alert("Posted", "Results posted and notifications sent.", [
       { text: "Done", onPress: () => router.back() },
     ]);
   }
@@ -311,13 +311,14 @@ export default function AdminRunResultScreen() {
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       <View style={styles.headerCard}>
-        <Text style={styles.h1}>Mark result</Text>
+        <Text style={styles.h1}>Post Results</Text>
         <Text style={styles.sub}>
           {region ? `Region: ${serviceRegionName(region)}` : "Region: —"}{"\n"}
           Confirmed players: {confirmed.length}
         </Text>
       </View>
 
+      {/* 1) Auto-assign + per-player team picker */}
       <Text style={styles.sectionTitle}>Teams</Text>
       <View style={styles.segmentRow}>
         <Pressable
@@ -347,22 +348,9 @@ export default function AdminRunResultScreen() {
         }}
         style={({ pressed }) => [styles.generateBtn, pressed && { opacity: 0.9 }]}
       >
-        <Text style={styles.generateBtnText}>⚡ Auto-assign teams by position</Text>
+        <Text style={styles.generateBtnText}>⚡ Auto-assign by position</Text>
       </Pressable>
 
-      <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Winning team</Text>
-      <Pressable
-        onPress={() => {
-          void hapticTap();
-          setPicker({ kind: "winning" });
-        }}
-        style={({ pressed }) => [styles.input, styles.selectTrigger, pressed && { opacity: 0.9 }]}
-      >
-        <Text style={styles.selectValue}>{labelTeam(winningTeam)}</Text>
-        <Text style={styles.selectChevron}>▾</Text>
-      </Pressable>
-
-      <Text style={styles.sectionTitle}>Roster assignments</Text>
       <View style={styles.card}>
         {confirmed.length === 0 ? <Text style={styles.muted}>No confirmed players.</Text> : null}
         {confirmed.map((p) => {
@@ -388,10 +376,24 @@ export default function AdminRunResultScreen() {
         })}
       </View>
 
+      {/* 2) Winning team */}
+      <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Winning team</Text>
+      <Pressable
+        onPress={() => {
+          void hapticTap();
+          setPicker({ kind: "winning" });
+        }}
+        style={({ pressed }) => [styles.input, styles.selectTrigger, pressed && { opacity: 0.9 }]}
+      >
+        <Text style={styles.selectValue}>{labelTeam(winningTeam)}</Text>
+        <Text style={styles.selectChevron}>▾</Text>
+      </Pressable>
+
+      {/* 3) Awards */}
       <Text style={styles.sectionTitle}>Awards</Text>
       <View style={styles.card}>
         <AwardRow
-          label="Player of the Day"
+          label="Player of the Day 🏆"
           valueLabel={playerOfDay ? nameFor(confirmed.find((p) => p.id === playerOfDay) || { id: playerOfDay, full_name: null }) : "None"}
           onPress={() => {
             void hapticTap();
@@ -399,7 +401,7 @@ export default function AdminRunResultScreen() {
           }}
         />
         <AwardRow
-          label="Goalie of the Day"
+          label="Goalie of the Day 🧤"
           valueLabel={goalieOfTheDay ? nameFor(confirmed.find((p) => p.id === goalieOfTheDay) || { id: goalieOfTheDay, full_name: null }) : "None"}
           onPress={() => {
             void hapticTap();
@@ -407,15 +409,15 @@ export default function AdminRunResultScreen() {
           }}
         />
         <AwardRow
-          label="Defender of the Day"
-          valueLabel={defenderOfDay ? nameFor(confirmed.find((p) => p.id === defenderOfDay) || { id: defenderOfDay, full_name: null }) : "None"}
+          label="Attacker of the Day ⚡"
+          valueLabel={attackerOfDay ? nameFor(confirmed.find((p) => p.id === attackerOfDay) || { id: attackerOfDay, full_name: null }) : "None"}
           onPress={() => {
             void hapticTap();
-            setPicker({ kind: "award", which: "defender" });
+            setPicker({ kind: "award", which: "attacker" });
           }}
         />
         <AwardRow
-          label="Midfielder of the Day"
+          label="Midfielder of the Day 🎯"
           valueLabel={midfielderOfDay ? nameFor(confirmed.find((p) => p.id === midfielderOfDay) || { id: midfielderOfDay, full_name: null }) : "None"}
           onPress={() => {
             void hapticTap();
@@ -423,15 +425,16 @@ export default function AdminRunResultScreen() {
           }}
         />
         <AwardRow
-          label="Attacker of the Day"
-          valueLabel={attackerOfDay ? nameFor(confirmed.find((p) => p.id === attackerOfDay) || { id: attackerOfDay, full_name: null }) : "None"}
+          label="Defender of the Day 🛡️"
+          valueLabel={defenderOfDay ? nameFor(confirmed.find((p) => p.id === defenderOfDay) || { id: defenderOfDay, full_name: null }) : "None"}
           onPress={() => {
             void hapticTap();
-            setPicker({ kind: "award", which: "attacker" });
+            setPicker({ kind: "award", which: "defender" });
           }}
         />
       </View>
 
+      {/* 4) Submit "Post Results" */}
       <Pressable
         onPress={() => void onSubmit()}
         disabled={submitting}
@@ -439,7 +442,7 @@ export default function AdminRunResultScreen() {
       >
         <View style={styles.primaryBtnInner}>
           {submitting ? <ActivityIndicator color="#111" /> : <FontAwesome name="check" size={16} color="#111" />}
-          <Text style={styles.primaryBtnText}>{submitting ? "Saving…" : "Submit result"}</Text>
+          <Text style={styles.primaryBtnText}>{submitting ? "Posting…" : "Post Results"}</Text>
         </View>
       </Pressable>
 
@@ -469,14 +472,14 @@ export default function AdminRunResultScreen() {
         visible={picker?.kind === "award"}
         title={
           picker?.kind === "award" && picker.which === "player"
-            ? "Player of the Day"
+            ? "Player of the Day 🏆"
             : picker?.kind === "award" && picker.which === "goalie"
-              ? "Goalie of the Day"
-            : picker?.kind === "award" && picker.which === "defender"
-              ? "Defender of the Day"
+              ? "Goalie of the Day 🧤"
+            : picker?.kind === "award" && picker.which === "attacker"
+              ? "Attacker of the Day ⚡"
               : picker?.kind === "award" && picker.which === "midfielder"
-                ? "Midfielder of the Day"
-                : "Attacker of the Day"
+                ? "Midfielder of the Day 🎯"
+                : "Defender of the Day 🛡️"
         }
         options={awardOptions}
         value={

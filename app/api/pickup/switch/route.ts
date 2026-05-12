@@ -702,13 +702,27 @@ export async function POST(req: Request) {
       );
     }
 
+    const nowIso = new Date().toISOString();
     const up = await admin
       .from("pickup_runs")
-      .update({ status: "in_progress", updated_at: new Date().toISOString() })
+      .update({ status: "in_progress", locked_at: nowIso, updated_at: nowIso })
       .eq("id", run_id)
       .eq("status", "active");
 
-    if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
+    if (up.error) {
+      const msg = up.error.message || "Update failed";
+      const missingCol =
+        /locked_at/i.test(msg) &&
+        (/column/i.test(msg) || /schema cache/i.test(msg) || /Could not find/i.test(msg));
+      if (!missingCol) return NextResponse.json({ error: msg }, { status: 500 });
+      // Older databases without locked_at — fall back to status-only update.
+      const fallback = await admin
+        .from("pickup_runs")
+        .update({ status: "in_progress", updated_at: nowIso })
+        .eq("id", run_id)
+        .eq("status", "active");
+      if (fallback.error) return NextResponse.json({ error: fallback.error.message }, { status: 500 });
+    }
 
     revalidatePath("/pickup");
     revalidatePath("/status/pickup");

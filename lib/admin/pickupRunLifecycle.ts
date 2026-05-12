@@ -89,6 +89,18 @@ export function showEndRunButton(row: { status?: string | null; is_completed?: b
   return String(row.status || "").trim() === "in_progress";
 }
 
-export function showMarkResultButton(row: { is_completed?: boolean | null }): boolean {
-  return row.is_completed === true;
+/**
+ * "Post Results" button. Available once the run is in_progress (so staff can
+ * begin entering results immediately after kickoff) and stays available
+ * post-completion for edits.
+ */
+export function showPostResultsButton(row: {
+  status?: string | null;
+  is_completed?: boolean | null;
+}): boolean {
+  if (row.is_completed === true) return true;
+  return String(row.status || "").trim() === "in_progress";
 }
+
+/** @deprecated Renamed to {@link showPostResultsButton}. Kept as a thin alias for callers still wired up. */
+export const showMarkResultButton = showPostResultsButton;

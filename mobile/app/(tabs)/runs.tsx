@@ -368,7 +368,17 @@ export default function RunsScreen() {
   /** Poll chip / submit enabled when the server says the user is in the current invite wave. */
   const availabilityPollInvited = invitedNow;
 
+  /** Run is "live" once an admin has tapped "Begin Pickup Now" — joining and changes are locked. */
+  const runLocked = useMemo(() => {
+    if (!run) return false;
+    const st = typeof run.status === "string" ? run.status.trim().toLowerCase() : "";
+    if (st === "in_progress") return true;
+    const lockedAt = (run as { locked_at?: unknown }).locked_at;
+    return typeof lockedAt === "string" && lockedAt.trim().length > 0;
+  }, [run]);
+
   const showAvailabilityPoll = useMemo(() => {
+    if (runLocked) return false;
     // Availability poll is for select runs only.
     if (isPublicPickupRunType(run?.run_type)) return false;
     const st = run?.status;
@@ -376,7 +386,7 @@ export default function RunsScreen() {
     if (run?.final_slot_id != null) return false;
     if (isSelectPickupRunType(run?.run_type) && !availabilityPollInvited) return false;
     return true;
-  }, [run, availabilityPollInvited]);
+  }, [run, availabilityPollInvited, runLocked]);
 
   /**
    * "Request a spot" / pay-for-friend: approved signed-in users only.
@@ -385,10 +395,11 @@ export default function RunsScreen() {
    */
   const showRequestSpotActions = useMemo(() => {
     if (!token || !meApproved || !run) return false;
+    if (runLocked) return false;
     if (isPublicPickupRunType(run.run_type)) return true;
     if (isSelectPickupRunType(run.run_type)) return run.final_slot_id != null;
     return false;
-  }, [token, meApproved, run]);
+  }, [token, meApproved, run, runLocked]);
 
   const allowedSlotLabelSet = useMemo(
     () => new Set<string>(FIXED_AVAILABILITY_RANGES.map((r) => r.slot_label)),
@@ -639,8 +650,14 @@ export default function RunsScreen() {
             {runVenueDriveMinutes != null ? (
               <Text style={styles.driveEstimate}>🚗 ~{runVenueDriveMinutes} min drive</Text>
             ) : null}
-            {waveMessage ? (
+            {waveMessage && !runLocked ? (
               <Text style={[styles.hint, { color: waveMessage.color }]}>{waveMessage.text}</Text>
+            ) : null}
+
+            {runLocked ? (
+              <View style={styles.liveBanner}>
+                <Text style={styles.liveBannerText}>Run is live 🟢 — joining is closed</Text>
+              </View>
             ) : null}
 
             {showAvailabilityPoll ? (
@@ -741,21 +758,23 @@ export default function RunsScreen() {
                   <FontAwesome name="check-circle" size={18} color="#bbf7d0" />
                   <Text style={styles.confirmedBannerText}>You&apos;re in. See you on the field.</Text>
                 </View>
-                <Pressable
-                  disabled={declineBusy || !runId}
-                  onPress={() => void declinePickup(token, runId, load)}
-                  style={({ pressed }) => [
-                    styles.cancelSpotButton,
-                    (declineBusy || !runId) && styles.cancelSpotButtonDisabled,
-                    pressed && !declineBusy && runId && { opacity: 0.85 },
-                  ]}
-                >
-                  {declineBusy ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.cancelSpotText}>Cancel spot</Text>
-                  )}
-                </Pressable>
+                {runLocked ? null : (
+                  <Pressable
+                    disabled={declineBusy || !runId}
+                    onPress={() => void declinePickup(token, runId, load)}
+                    style={({ pressed }) => [
+                      styles.cancelSpotButton,
+                      (declineBusy || !runId) && styles.cancelSpotButtonDisabled,
+                      pressed && !declineBusy && runId && { opacity: 0.85 },
+                    ]}
+                  >
+                    {declineBusy ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.cancelSpotText}>Cancel spot</Text>
+                    )}
+                  </Pressable>
+                )}
               </>
             ) : myStatus === "standby" ? (
               <View style={styles.standbyBanner}>
@@ -772,23 +791,25 @@ export default function RunsScreen() {
                 </Text>
               </View>
             ) : myStatus === "pending_payment" ? (
-              <Pressable
-                style={[styles.primaryPay, payDisabled && styles.primaryJoinDisabled]}
-                disabled={payDisabled}
-                onPress={() => {
-                  void hapticGoal();
-                  void payPickup(token, runId, load);
-                }}
-              >
-                {payBusy ? (
-                  <ActivityIndicator color="#111" />
-                ) : (
-                  <>
-                    <FontAwesome name="credit-card" size={16} color="#111" />
-                    <Text style={styles.primaryJoinText}> Complete payment</Text>
-                  </>
-                )}
-              </Pressable>
+              runLocked ? null : (
+                <Pressable
+                  style={[styles.primaryPay, payDisabled && styles.primaryJoinDisabled]}
+                  disabled={payDisabled}
+                  onPress={() => {
+                    void hapticGoal();
+                    void payPickup(token, runId, load);
+                  }}
+                >
+                  {payBusy ? (
+                    <ActivityIndicator color="#111" />
+                  ) : (
+                    <>
+                      <FontAwesome name="credit-card" size={16} color="#111" />
+                      <Text style={styles.primaryJoinText}> Complete payment</Text>
+                    </>
+                  )}
+                </Pressable>
+              )
             ) : showRequestSpotActions ? (
               <View style={styles.joinActions}>
                 <Pressable
@@ -1363,6 +1384,18 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(16,185,129,0.18)",
   },
   confirmedBannerText: { color: "#bbf7d0", fontWeight: "700", fontSize: 15, flexShrink: 1 },
+  liveBanner: {
+    alignSelf: "stretch",
+    marginTop: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.55)",
+    backgroundColor: "rgba(163,230,53,0.12)",
+    alignItems: "center",
+  },
+  liveBannerText: { color: LIME, fontWeight: "800", fontSize: 15, textAlign: "center" },
   standbyBanner: {
     flexDirection: "row",
     alignItems: "center",

@@ -25,7 +25,7 @@ import {
   pickupLifecycleStageLabel,
   pickupWorkflowTabForRun,
   showEndRunButton,
-  showMarkResultButton,
+  showPostResultsButton,
   showStartRunNowButton,
   type PickupWorkflowTab,
 } from "@/lib/pickupRunLifecycle";
@@ -333,7 +333,7 @@ export default function AdminPickupOpsScreen() {
     return {
       showStart: showStartRunNowButton({ status, is_completed, start_at }),
       showEnd: showEndRunButton({ status, is_completed }),
-      showMark: showMarkResultButton({ is_completed }),
+      showMark: showPostResultsButton({ status, is_completed }),
     };
   }, [selectedRunId, selectedRun]);
   const slots = useMemo(() => (Array.isArray(detail?.slots) ? detail!.slots : []) as Record<string, unknown>[], [detail]);
@@ -618,15 +618,32 @@ export default function AdminPickupOpsScreen() {
   async function onStartRunNow(runId: string) {
     const t = await requireToken();
     if (!t) return;
-    setBusy(`start:${runId}`);
-    const r = await postAdminPickupSwitch(t, { action: "start_run_now", run_id: runId });
-    setBusy(null);
-    if (!r.ok) return Alert.alert("Couldn’t start run", r.error);
-    setRuns((prev) =>
-      prev.map((row) => (s(row.id) === runId ? { ...row, status: "in_progress" } : row)),
+    Alert.alert(
+      "Begin pickup now?",
+      "This locks the roster — no new players will be able to join this run.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Begin pickup",
+          onPress: () => {
+            void (async () => {
+              setBusy(`start:${runId}`);
+              const r = await postAdminPickupSwitch(t, { action: "start_run_now", run_id: runId });
+              setBusy(null);
+              if (!r.ok) return Alert.alert("Couldn’t start run", r.error);
+              const nowIso = new Date().toISOString();
+              setRuns((prev) =>
+                prev.map((row) =>
+                  s(row.id) === runId ? { ...row, status: "in_progress", locked_at: nowIso } : row,
+                ),
+              );
+              void loadRuns();
+              if (selectedRunId === runId) void loadDetail();
+            })();
+          },
+        },
+      ],
     );
-    void loadRuns();
-    if (selectedRunId === runId) void loadDetail();
   }
 
   async function onPromote(userId: string) {
@@ -1096,12 +1113,12 @@ export default function AdminPickupOpsScreen() {
                     }}
                     disabled={busy === `start:${id}`}
                     style={({ pressed }) => [
-                      styles.cardBtnSecondary,
+                      styles.cardBtnLime,
                       pressed && { opacity: 0.9 },
                       busy === `start:${id}` && styles.disabled,
                     ]}
                   >
-                    <Text style={styles.cardBtnSecondaryText}>{busy === `start:${id}` ? "…" : "Start Run Now"}</Text>
+                    <Text style={styles.cardBtnLimeText}>{busy === `start:${id}` ? "…" : "Begin Pickup Now"}</Text>
                   </Pressable>
                 ) : null}
                 {showEndRunButton({ status: s(row.status), is_completed: row.is_completed === true }) ? (
@@ -1120,7 +1137,7 @@ export default function AdminPickupOpsScreen() {
                     <Text style={styles.cardBtnDangerText}>{busy === `end:${id}` ? "Ending…" : "End Run"}</Text>
                   </Pressable>
                 ) : null}
-                {showMarkResultButton({ is_completed: row.is_completed === true }) ? (
+                {showPostResultsButton({ status: s(row.status), is_completed: row.is_completed === true }) ? (
                   <Pressable
                     onPress={(e) => {
                       e.stopPropagation();
@@ -1128,7 +1145,7 @@ export default function AdminPickupOpsScreen() {
                     }}
                     style={({ pressed }) => [styles.cardBtnLime, pressed && { opacity: 0.9 }]}
                   >
-                    <Text style={styles.cardBtnLimeText}>Mark Result</Text>
+                    <Text style={styles.cardBtnLimeText}>Post Results</Text>
                   </Pressable>
                 ) : null}
               </View>

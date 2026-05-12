@@ -1,13 +1,30 @@
 import { useAuth } from "@/context/AuthContext";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 const BG = "#0a0a0a";
 const LIME = "#a3e635";
 
 type Team = "A" | "B" | "C";
+
+type AwardSlot = "player" | "goalie" | "attacker" | "midfielder" | "defender";
+
+type AwardEntry = {
+  slot: AwardSlot;
+  label: string;
+  userId: string | null;
+  name: string | null;
+};
+
+const AWARD_ORDER: { slot: AwardSlot; label: string }[] = [
+  { slot: "player", label: "Player of the Day" },
+  { slot: "goalie", label: "Goalie of the Day" },
+  { slot: "attacker", label: "Attacker of the Day" },
+  { slot: "midfielder", label: "Midfielder of the Day" },
+  { slot: "defender", label: "Defender of the Day" },
+];
 
 function s(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
@@ -30,6 +47,7 @@ export default function RunDetailScreen() {
   const { id: raw } = useLocalSearchParams<{ id: string | string[] }>();
   const runId = typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : "";
   const navigation = useNavigation();
+  const router = useRouter();
   const { session, supabase, isReady } = useAuth();
 
   const userId = session?.user?.id ?? null;
@@ -40,10 +58,12 @@ export default function RunDetailScreen() {
   const [startAt, setStartAt] = useState<string | null>(null);
   const [locationPrivate, setLocationPrivate] = useState<string | null>(null);
   const [serviceRegion, setServiceRegion] = useState<string | null>(null);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [runStatus, setRunStatus] = useState<string | null>(null);
 
   const [myTeam, setMyTeam] = useState<Team | null>(null);
   const [winningTeam, setWinningTeam] = useState<Team | null>(null);
-  const [awards, setAwards] = useState<string[]>([]);
+  const [awards, setAwards] = useState<AwardEntry[]>([]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -66,7 +86,11 @@ export default function RunDetailScreen() {
       setErr(null);
 
       const [runRes, myRes, resRes] = await Promise.all([
-        supabase.from("pickup_runs").select("id,start_at,location_private,service_region").eq("id", runId).maybeSingle(),
+        supabase
+          .from("pickup_runs")
+          .select("id,start_at,location_private,service_region,status,is_completed")
+          .eq("id", runId)
+          .maybeSingle(),
         supabase
           .from("pickup_run_team_assignments")
           .select("team")
@@ -87,10 +111,20 @@ export default function RunDetailScreen() {
         return;
       }
 
-      const run = runRes.data as null | { start_at: string | null; location_private: string | null; service_region: string | null };
+      const run = runRes.data as
+        | null
+        | {
+            start_at: string | null;
+            location_private: string | null;
+            service_region: string | null;
+            status: string | null;
+            is_completed: boolean | null;
+          };
       setStartAt(run?.start_at ?? null);
       setLocationPrivate(run?.location_private ?? null);
       setServiceRegion(run?.service_region ?? null);
+      setRunStatus(run?.status ?? null);
+      setIsCompleted(run?.is_completed === true);
 
       const mt = myRes.data ? ((myRes.data as { team?: unknown }).team as Team) : null;
       setMyTeam(mt ?? null);
@@ -109,14 +143,44 @@ export default function RunDetailScreen() {
       const wt = rr?.winning_team ?? null;
       setWinningTeam(wt);
 
-      const earned: string[] = [];
-      if (rr?.player_of_day === userId) earned.push("Player of the Day");
-      if (rr?.goalie_of_the_day === userId) earned.push("Goalie of the Day 🧤");
-      if (rr?.defender_of_day === userId) earned.push("Defender of the Day");
-      if (rr?.midfielder_of_day === userId) earned.push("Midfielder of the Day");
-      if (rr?.attacker_of_day === userId) earned.push("Attacker of the Day");
-      setAwards(earned);
+      const slotToUserId: Record<AwardSlot, string | null> = {
+        player: rr?.player_of_day ?? null,
+        goalie: rr?.goalie_of_the_day ?? null,
+        attacker: rr?.attacker_of_day ?? null,
+        midfielder: rr?.midfielder_of_day ?? null,
+        defender: rr?.defender_of_day ?? null,
+      };
 
+      const uniqueIds = Array.from(
+        new Set(
+          Object.values(slotToUserId)
+            .filter((v): v is string => typeof v === "string" && v.length > 0),
+        ),
+      );
+
+      const nameById = new Map<string, string>();
+      if (uniqueIds.length > 0) {
+        const profs = await supabase.from("profiles").select("id,full_name,username").in("id", uniqueIds);
+        if (cancelled) return;
+        if (profs.data) {
+          for (const p of profs.data as Array<{ id: string; full_name: string | null; username: string | null }>) {
+            const nm = (p.full_name ?? "").trim() || (p.username ?? "").trim() || p.id;
+            nameById.set(p.id, nm);
+          }
+        }
+      }
+
+      const next: AwardEntry[] = AWARD_ORDER.map(({ slot, label }) => {
+        const uid = slotToUserId[slot];
+        return {
+          slot,
+          label,
+          userId: uid,
+          name: uid ? nameById.get(uid) ?? null : null,
+        };
+      });
+
+      setAwards(next);
       setLoading(false);
     })();
 
@@ -129,6 +193,12 @@ export default function RunDetailScreen() {
     if (!myTeam || !winningTeam) return null;
     return myTeam === winningTeam ? "Won" : "Lost";
   }, [myTeam, winningTeam]);
+
+  /** Show the results section only once the run is completed (matches what's shown in the admin "Post Results" workflow). */
+  const showResults = useMemo(() => {
+    if (isCompleted) return true;
+    return String(runStatus || "").trim().toLowerCase() === "completed";
+  }, [isCompleted, runStatus]);
 
   if (loading) {
     return (
@@ -171,6 +241,9 @@ export default function RunDetailScreen() {
             <Text style={styles.value}>{winningTeam ?? "—"}</Text>
           </View>
         </View>
+        {showResults && winningTeam ? (
+          <Text style={styles.winningTeamHeadline}>🏆 Team {winningTeam} won</Text>
+        ) : null}
         {outcome ? (
           <View style={[styles.pill, outcome === "Won" ? styles.pillWin : styles.pillLoss]}>
             <FontAwesome name={outcome === "Won" ? "trophy" : "flag"} size={14} color={outcome === "Won" ? "#111" : "#fff"} />
@@ -181,10 +254,34 @@ export default function RunDetailScreen() {
         ) : null}
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Awards</Text>
-        {awards.length === 0 ? <Text style={styles.valueMuted}>—</Text> : awards.map((a) => <Text key={a} style={styles.value}>{a}</Text>)}
-      </View>
+      {showResults && awards.length > 0 ? (
+        <View style={styles.card}>
+          <Text style={styles.label}>Awards</Text>
+          {awards.every((a) => a.userId == null) ? (
+            <Text style={styles.valueMuted}>—</Text>
+          ) : (
+            awards.map((a) => (
+              <View key={a.slot} style={styles.awardRow}>
+                <Text style={styles.awardLabel}>{a.label}:</Text>
+                {a.userId && a.name ? (
+                  <Pressable
+                    onPress={() => router.push(`/player/${encodeURIComponent(a.userId!)}`)}
+                    accessibilityRole="link"
+                    accessibilityLabel={`Open profile for ${a.name}`}
+                    style={({ pressed }) => [styles.awardNameWrap, pressed && { opacity: 0.85 }]}
+                  >
+                    <Text style={styles.awardName} numberOfLines={1}>
+                      {a.name}
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <Text style={styles.awardNameMuted}>—</Text>
+                )}
+              </View>
+            ))
+          )}
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -209,6 +306,34 @@ const styles = StyleSheet.create({
   label: { fontSize: 11, fontWeight: "800", letterSpacing: 1.1, color: "rgba(255,255,255,0.45)", textTransform: "uppercase" },
   value: { marginTop: 8, color: "#fff", fontSize: 16, fontWeight: "800" },
   valueMuted: { marginTop: 8, color: "rgba(255,255,255,0.55)", fontSize: 16, fontWeight: "700" },
+  winningTeamHeadline: {
+    marginTop: 14,
+    color: LIME,
+    fontSize: 17,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+  },
+
+  awardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.06)",
+  },
+  awardLabel: { color: "rgba(255,255,255,0.65)", fontWeight: "700", fontSize: 14 },
+  awardNameWrap: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: "rgba(163,230,53,0.10)",
+  },
+  awardName: { color: LIME, fontWeight: "900", fontSize: 14 },
+  awardNameMuted: { color: "rgba(255,255,255,0.4)", fontWeight: "700", fontSize: 14 },
 
   pill: { marginTop: 14, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1 },
   pillWin: { borderColor: "rgba(163,230,53,0.55)", backgroundColor: LIME },
@@ -217,4 +342,3 @@ const styles = StyleSheet.create({
   pillTextWin: { color: "#111" },
   pillTextLoss: { color: "#fff" },
 });
-

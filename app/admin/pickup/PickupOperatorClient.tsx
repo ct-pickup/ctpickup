@@ -17,7 +17,7 @@ import {
   pickupLifecycleStageLabel,
   pickupWorkflowTabForRun,
   showEndRunButton,
-  showMarkResultButton,
+  showPostResultsButton,
   showStartRunNowButton,
   type PickupWorkflowTab,
 } from "@/lib/admin/pickupRunLifecycle";
@@ -537,11 +537,17 @@ export default function PickupOperatorClient() {
                           disabled={busy}
                           onClick={(e) => {
                             e.stopPropagation();
+                            if (typeof window !== "undefined") {
+                              const ok = window.confirm(
+                                "Begin pickup now? This locks the roster — no new players will be able to join.",
+                              );
+                              if (!ok) return;
+                            }
                             void act({ action: "start_run_now", run_id: id });
                           }}
-                          className="rounded-full border border-[#a3e63555] bg-[#a3e63514] px-3 py-1.5 text-[11px] font-semibold text-[#d9f99d] disabled:opacity-50"
+                          className="rounded-full bg-[#a3e635] px-3 py-1.5 text-[11px] font-semibold text-black disabled:opacity-50"
                         >
-                          Start Run Now
+                          Begin Pickup Now
                         </button>
                       ) : null}
                       {showEndRunButton({ status: r.status as string, is_completed: r.is_completed === true }) ? (
@@ -557,13 +563,16 @@ export default function PickupOperatorClient() {
                           End Run
                         </button>
                       ) : null}
-                      {showMarkResultButton({ is_completed: r.is_completed === true }) ? (
+                      {showPostResultsButton({
+                        status: r.status as string,
+                        is_completed: r.is_completed === true,
+                      }) ? (
                         <Link
                           href={`/admin/run-result?run_id=${encodeURIComponent(id)}`}
                           onClick={(e) => e.stopPropagation()}
                           className="inline-flex items-center rounded-full bg-[#a3e635] px-3 py-1.5 text-[11px] font-semibold text-black"
                         >
-                          Mark Result
+                          Post Results
                         </Link>
                       ) : null}
                     </div>

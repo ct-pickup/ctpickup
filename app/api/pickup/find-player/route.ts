@@ -15,8 +15,18 @@ function sanitizeIlike(raw: string) {
 }
 
 /**
+ * PostgREST `or=(…)` splits on commas; ilike patterns that contain spaces or commas must be
+ * double-quoted. Escape `"` inside the value by doubling (CSV-style).
+ */
+function orClauseUsernameOrNameIlike(pattern: string): string {
+  const escaped = pattern.replace(/"/g, '""');
+  const q = `"${escaped}"`;
+  return `username.ilike.${q},first_name.ilike.${q},last_name.ilike.${q}`;
+}
+
+/**
  * Search players by username or name (substring match). Any authenticated user may call.
- * Returns up to `limit` rows: `{ user_id, full_name, username }[]`.
+ * Returns up to `limit` rows: profile fields plus legacy `user_id` / `full_name` for mobile clients.
  */
 export async function GET(req: Request) {
   const admin = getSupabaseAdmin();
@@ -24,7 +34,8 @@ export async function GET(req: Request) {
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const u = await admin.auth.getUser(token);
-  if (!u.data.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const sessionUserId = u.data.user?.id;
+  if (!sessionUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const url = new URL(req.url);
   const q = (url.searchParams.get("q") || "").trim();
@@ -37,15 +48,31 @@ export async function GET(req: Request) {
   if (!needle) return NextResponse.json([]);
 
   const pattern = `%${needle}%`;
+
   const { data, error } = await admin
     .from("profiles")
-    .select("id, first_name, last_name, username")
-    .or(`username.ilike.${pattern},first_name.ilike.${pattern},last_name.ilike.${pattern}`)
+    .select("id, first_name, last_name, username, nearest_venue")
+    .eq("approved", true)
+    .eq("is_banned", false)
+    .neq("id", sessionUserId)
+    .or(orClauseUsernameOrNameIlike(pattern))
     .order("first_name", { ascending: true })
     .limit(limit);
 
   if (error) {
-    console.error("[pickup/find-player]", error.message);
+    console.log(
+      "[pickup/find-player] Supabase error:",
+      JSON.stringify(
+        {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        },
+        null,
+        2,
+      ),
+    );
     return NextResponse.json({ error: "Could not search." }, { status: 500 });
   }
 
@@ -53,9 +80,18 @@ export async function GET(req: Request) {
   const out = rows.map((row) => {
     const fullName = `${row.first_name || ""} ${row.last_name || ""}`.trim();
     return {
-      user_id: row.id as string,
-      full_name: fullName.length > 0 ? fullName : (typeof row.username === "string" && row.username ? row.username : "Player"),
+      id: row.id as string,
+      first_name: row.first_name ?? null,
+      last_name: row.last_name ?? null,
       username: typeof row.username === "string" && row.username.length > 0 ? row.username : null,
+      nearest_venue: typeof row.nearest_venue === "string" ? row.nearest_venue : null,
+      user_id: row.id as string,
+      full_name:
+        fullName.length > 0
+          ? fullName
+          : typeof row.username === "string" && row.username
+            ? row.username
+            : "Player",
     };
   });
 

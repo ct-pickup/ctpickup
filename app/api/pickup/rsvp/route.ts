@@ -222,6 +222,17 @@ export async function POST(req: Request) {
   const run = runRes.data;
   if (!run) return NextResponse.json({ error: "Run not found." }, { status: 404 });
 
+  // Once a run is locked or marked in_progress, no new RSVPs (joins) are
+  // accepted. This is shared by public and select runs so a tap of
+  // "Begin Pickup Now" closes joining for everyone.
+  {
+    const st = String(run.status || "").trim().toLowerCase();
+    const lockedAt = (run as { locked_at?: string | null }).locked_at;
+    if (st === "in_progress" || (typeof lockedAt === "string" && lockedAt.trim().length > 0)) {
+      return NextResponse.json({ error: "This run has already started." }, { status: 403 });
+    }
+  }
+
   const publicRun = isPublicPickupRunType(run.run_type);
 
   if (publicRun) {
