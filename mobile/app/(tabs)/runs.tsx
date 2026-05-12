@@ -218,6 +218,14 @@ export default function RunsScreen() {
       return;
     }
 
+    if (!runId) {
+      setFriendSuggestions([]);
+      setFriendAutocompleteLoading(false);
+      setFriendAutocompleteEmpty(false);
+      setFriendAutocompleteError("No run is loaded — cannot search players for pay-for-friend.");
+      return;
+    }
+
     setFriendAutocompleteEmpty(false);
     setFriendAutocompleteError(null);
 
@@ -227,7 +235,7 @@ export default function RunsScreen() {
         setFriendAutocompleteLoading(true);
         setFriendSuggestions([]);
         try {
-          const r = await fetchPickupFindPlayers(token, q, 5);
+          const r = await fetchPickupFindPlayers(token, q, { runId, limit: 5 });
           if (cancelled) return;
           if (r.ok) {
             setFriendSuggestions(r.players);
@@ -236,13 +244,15 @@ export default function RunsScreen() {
           } else {
             setFriendSuggestions([]);
             setFriendAutocompleteEmpty(false);
-            setFriendAutocompleteError("Could not search right now. Try again.");
+            setFriendAutocompleteError(
+              r.error ?? `Search failed (HTTP ${r.status}).`,
+            );
           }
-        } catch {
+        } catch (e) {
           if (!cancelled) {
             setFriendSuggestions([]);
             setFriendAutocompleteEmpty(false);
-            setFriendAutocompleteError("Network error. Try again.");
+            setFriendAutocompleteError(e instanceof Error ? e.message : "Network error. Try again.");
           }
         } finally {
           if (!cancelled) setFriendAutocompleteLoading(false);
@@ -254,7 +264,7 @@ export default function RunsScreen() {
       cancelled = true;
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [friendModalOpen, token, friendQuery]);
+  }, [friendModalOpen, token, friendQuery, runId]);
 
   const onSelectFriendSuggestion = useCallback((p: PickupFindPlayerResult) => {
     void hapticTap();

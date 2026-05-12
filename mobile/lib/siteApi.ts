@@ -31,19 +31,34 @@ export type PickupFindPlayerResult = {
   username: string | null;
 };
 
+function pickupFindPlayerApiError(json: unknown, status: number): string {
+  if (json && typeof json === "object") {
+    const o = json as Record<string, unknown>;
+    const parts: string[] = [];
+    if (typeof o.error === "string" && o.error.length > 0) parts.push(o.error);
+    if (typeof o.details === "string" && o.details.length > 0) parts.push(`details: ${o.details}`);
+    if (typeof o.hint === "string" && o.hint.length > 0) parts.push(`hint: ${o.hint}`);
+    if (typeof o.code === "string" && o.code.length > 0) parts.push(`code: ${o.code}`);
+    if (parts.length > 0) return parts.join(" — ");
+  }
+  return `HTTP ${status}`;
+}
+
 /** Autocomplete search for “pay for a friend” (debounced on the client). */
 export async function fetchPickupFindPlayers(
   accessToken: string,
   q: string,
-  limit = 5,
-): Promise<{ ok: boolean; status: number; players: PickupFindPlayerResult[] }> {
+  opts?: { runId?: string; limit?: number },
+): Promise<{ ok: boolean; status: number; players: PickupFindPlayerResult[]; error: string | null }> {
   const origin = siteOrigin();
+  const limit = opts?.limit ?? 5;
   if (!origin) {
-    return { ok: false, status: 0, players: [] };
+    return { ok: false, status: 0, players: [], error: "missing_site_url" };
   }
   const u = new URL(`${origin}/api/pickup/find-player`);
   u.searchParams.set("q", q.trim());
   u.searchParams.set("limit", String(limit));
+  if (opts?.runId) u.searchParams.set("run_id", opts.runId);
   const r = await fetch(u.toString(), {
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -52,22 +67,42 @@ export async function fetchPickupFindPlayers(
     cache: "no-store",
   });
   const json = (await r.json().catch(() => null)) as unknown;
-  if (!r.ok || !Array.isArray(json)) {
-    return { ok: r.ok, status: r.status, players: [] };
+  if (!r.ok) {
+    return {
+      ok: false,
+      status: r.status,
+      players: [],
+      error: pickupFindPlayerApiError(json, r.status),
+    };
+  }
+  if (!Array.isArray(json)) {
+    return {
+      ok: false,
+      status: r.status,
+      players: [],
+      error: pickupFindPlayerApiError(json, r.status),
+    };
   }
   const players: PickupFindPlayerResult[] = [];
   for (const item of json) {
     if (!item || typeof item !== "object") continue;
     const o = item as Record<string, unknown>;
-    if (typeof o.user_id !== "string") continue;
-    const fn = typeof o.full_name === "string" ? o.full_name : "";
+    const id = typeof o.id === "string" ? o.id : typeof o.user_id === "string" ? o.user_id : null;
+    if (!id) continue;
+    const fnRaw = typeof o.first_name === "string" ? o.first_name.trim() : "";
+    const lnRaw = typeof o.last_name === "string" ? o.last_name.trim() : "";
+    const composed = `${fnRaw} ${lnRaw}`.trim();
+    const legacyName = typeof o.full_name === "string" ? o.full_name.trim() : "";
+    const uname = typeof o.username === "string" && o.username.length > 0 ? o.username.trim() : null;
+    const fullName =
+      composed.length > 0 ? composed : legacyName.length > 0 ? legacyName : uname && uname.length > 0 ? uname : "Player";
     players.push({
-      user_id: o.user_id,
-      full_name: fn,
+      user_id: id,
+      full_name: fullName,
       username: typeof o.username === "string" ? o.username : null,
     });
   }
-  return { ok: r.ok, status: r.status, players };
+  return { ok: true, status: r.status, players, error: null };
 }
 
 /**

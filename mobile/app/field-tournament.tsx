@@ -328,9 +328,9 @@ export default function FieldTournamentDetailScreen() {
     setInviteSearchBusy(true);
     setInviteFound(null);
     try {
-      const r = await fetchPickupFindPlayers(tok, inviteQuery, 5);
+      const r = await fetchPickupFindPlayers(tok, inviteQuery, { limit: 5 });
       if (!r.ok) {
-        Alert.alert("", "Search failed. Try again.");
+        Alert.alert("", r.error ?? "Search failed. Try again.");
         return;
       }
       if (r.players.length === 0) {
