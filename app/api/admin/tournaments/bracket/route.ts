@@ -174,7 +174,9 @@ export async function POST(req: Request) {
       completed_at: new Date().toISOString(),
     }).eq("id", match_id);
 
-    // Log goal scorers
+    await admin.from("tournament_match_goals").delete().eq("match_id", match_id);
+
+    // Log goal scorers (re-log is idempotent for this match after delete above)
     if (goals && goals.length > 0) {
       await admin.from("tournament_match_goals").insert(
         goals.map((g: any) => ({
@@ -198,12 +200,15 @@ export async function POST(req: Request) {
       const memberA = await admin.from("tournament_group_members")
         .select("*").eq("team_id", match.team_a_id).eq("tournament_id", tournament_id).maybeSingle();
       if (memberA.data) {
+        const gfA = memberA.data.goals_for + score_a;
+        const gaA = memberA.data.goals_against + score_b;
         await admin.from("tournament_group_members").update({
           wins: memberA.data.wins + aWins,
           draws: memberA.data.draws + draw,
           losses: memberA.data.losses + bWins,
-          goals_for: memberA.data.goals_for + score_a,
-          goals_against: memberA.data.goals_against + score_b,
+          goals_for: gfA,
+          goals_against: gaA,
+          goal_difference: gfA - gaA,
           points: memberA.data.points + (aWins ? 3 : draw ? 1 : 0),
         }).eq("id", memberA.data.id);
       }
@@ -212,12 +217,15 @@ export async function POST(req: Request) {
       const memberB = await admin.from("tournament_group_members")
         .select("*").eq("team_id", match.team_b_id).eq("tournament_id", tournament_id).maybeSingle();
       if (memberB.data) {
+        const gfB = memberB.data.goals_for + score_b;
+        const gaB = memberB.data.goals_against + score_a;
         await admin.from("tournament_group_members").update({
           wins: memberB.data.wins + bWins,
           draws: memberB.data.draws + draw,
           losses: memberB.data.losses + aWins,
-          goals_for: memberB.data.goals_for + score_b,
-          goals_against: memberB.data.goals_against + score_a,
+          goals_for: gfB,
+          goals_against: gaB,
+          goal_difference: gfB - gaB,
           points: memberB.data.points + (bWins ? 3 : draw ? 1 : 0),
         }).eq("id", memberB.data.id);
       }
@@ -227,49 +235,90 @@ export async function POST(req: Request) {
   }
 
   if (action === "generate_knockout") {
-    // Get group standings ordered by points, goal_difference
+    const groupsRes = await admin
+      .from("tournament_groups")
+      .select("id,group_name")
+      .eq("tournament_id", tournament_id)
+      .order("group_name", { ascending: true });
+
+    if (groupsRes.error) return NextResponse.json({ error: groupsRes.error.message }, { status: 500 });
+
+    const groupRows = groupsRes.data || [];
+    if (groupRows.length < 2) {
+      return NextResponse.json({ error: "Need at least 2 groups before knockout." }, { status: 400 });
+    }
+
     const standings = await admin
       .from("tournament_group_members")
-      .select("*, team:tournament_captains(id, team_name)")
-      .eq("tournament_id", tournament_id)
-      .order("points", { ascending: false })
-      .order("goal_difference", { ascending: false });
+      .select("group_id,team_id,points,goal_difference,goals_for")
+      .eq("tournament_id", tournament_id);
 
     if (standings.error) return NextResponse.json({ error: standings.error.message }, { status: 500 });
 
-    // Get top 2 from each group
-    const groups: Record<string, any[]> = {};
+    type MemberStandingRow = {
+      group_id: string;
+      team_id: string;
+      points: number;
+      goal_difference: number;
+      goals_for: number;
+    };
+
+    const byGroup = new Map<string, MemberStandingRow[]>();
     for (const row of standings.data || []) {
-      const groupRes = await admin.from("tournament_groups").select("group_name").eq("id", row.group_id).maybeSingle();
-      const gName = groupRes.data?.group_name || "A";
-      if (!groups[gName]) groups[gName] = [];
-      if (groups[gName].length < 2) groups[gName].push(row);
+      const r = row as MemberStandingRow;
+      const gid = String(r.group_id);
+      if (!byGroup.has(gid)) byGroup.set(gid, []);
+      byGroup.get(gid)!.push(r);
     }
 
-    const qualifiers = Object.values(groups).flat();
-    // Sort qualifiers: group winners first by points/GD, then runners up
-    const winners = qualifiers.filter((_, i) => i % 2 === 0);
-    const runnersUp = qualifiers.filter((_, i) => i % 2 !== 0);
-    const knockoutTeams = [...winners, ...runnersUp];
+    type Qual = { groupName: string; winnerId: string; runnerId: string };
+    const qualifiers: Qual[] = [];
 
-    // Add byes if needed to reach next power of 2
-    const nextPow2 = Math.pow(2, Math.ceil(Math.log2(knockoutTeams.length)));
+    for (const g of groupRows) {
+      const gid = String(g.id);
+      const gName = String(g.group_name || "");
+      const mems = byGroup.get(gid) || [];
+      const sorted = [...mems].sort(
+        (a, b) =>
+          b.points - a.points ||
+          b.goal_difference - a.goal_difference ||
+          b.goals_for - a.goals_for,
+      );
+      if (sorted.length < 2) {
+        return NextResponse.json(
+          { error: `Group ${gName || gid} needs at least 2 teams with standings before knockout.` },
+          { status: 400 },
+        );
+      }
+      qualifiers.push({
+        groupName: gName,
+        winnerId: sorted[0].team_id,
+        runnerId: sorted[1].team_id,
+      });
+    }
+
+    /** Cross-group pairings: Wi vs R(i+1) — for 2 groups yields A1 vs B2, B1 vs A2. */
+    const pairs: { team_a_id: string; team_b_id: string }[] = [];
+    const n = qualifiers.length;
+    for (let i = 0; i < n; i++) {
+      const wi = qualifiers[i].winnerId;
+      const rNext = qualifiers[(i + 1) % n].runnerId;
+      pairs.push({ team_a_id: wi, team_b_id: rNext });
+    }
+
     let matchNumber = 1000;
+    const stage = pairs.length <= 2 ? "sf" : "qf";
 
-    // Generate QF/SF/Final matches
-    const stage = knockoutTeams.length <= 4 ? "sf" : "qf";
-    for (let i = 0; i < knockoutTeams.length; i += 2) {
-      const teamA = knockoutTeams[i];
-      const teamB = knockoutTeams[i + 1] || null;
+    for (const p of pairs) {
       await admin.from("tournament_matches").insert({
         tournament_id,
         stage,
         match_number: matchNumber++,
-        team_a_id: teamA.team_id,
-        team_b_id: teamB?.team_id || null,
-        is_bye: !teamB,
-        winner_id: !teamB ? teamA.team_id : null,
-        completed_at: !teamB ? new Date().toISOString() : null,
+        team_a_id: p.team_a_id,
+        team_b_id: p.team_b_id,
+        is_bye: false,
+        winner_id: null,
+        completed_at: null,
       });
     }
 

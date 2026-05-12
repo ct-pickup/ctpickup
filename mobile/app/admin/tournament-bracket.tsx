@@ -196,7 +196,7 @@ export default function TournamentBracketScreen() {
               <Text style={styles.sectionTitle}>Group {gName}</Text>
               <View style={styles.standingsHeader}>
                 <Text style={[styles.standingsCell, { flex: 3 }]}>Team</Text>
-                <Text style={styles.standingsCe}>W</Text>
+                <Text style={styles.standingsCell}>W</Text>
                 <Text style={styles.standingsCell}>D</Text>
                 <Text style={styles.standingsCell}>L</Text>
                 <Text style={styles.standingsCell}>GF</Text>

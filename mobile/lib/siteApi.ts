@@ -305,7 +305,7 @@ export async function fetchTournamentBracketPlayer(accessToken: string, tourname
 
 export async function fetchPickupPublic(
   accessToken: string | null,
-  opts?: { region?: string },
+  opts?: { region?: string; run_id?: string },
 ): Promise<{
   ok: boolean;
   status: number;
@@ -320,6 +320,9 @@ export async function fetchPickupPublic(
   const u = new URL(`${origin}/api/pickup/public`);
   if (opts?.region) {
     u.searchParams.set("region", opts.region);
+  }
+  if (opts?.run_id) {
+    u.searchParams.set("run_id", opts.run_id);
   }
   const r = await fetch(u.toString(), {
     headers: { ...headers, Accept: "application/json" },

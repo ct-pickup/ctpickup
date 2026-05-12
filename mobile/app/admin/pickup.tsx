@@ -332,7 +332,7 @@ export default function AdminPickupOpsScreen() {
     const start_at = s(sr.start_at) || null;
     return {
       showStart: showStartRunNowButton({ status, is_completed, start_at }),
-      showEnd: showEndRunButton({ status, is_completed, start_at }),
+      showEnd: showEndRunButton({ status, is_completed }),
       showMark: showMarkResultButton({ is_completed }),
     };
   }, [selectedRunId, selectedRun]);
@@ -1441,6 +1441,7 @@ export default function AdminPickupOpsScreen() {
                     const wins = displayPickupStat(a.wins_override, a.stats_wins);
                     const losses = displayPickupStat(a.losses_override, a.stats_losses);
                     const pod = displayPickupStat(a.player_of_day_override, a.stats_player_of_day);
+                    const gotd = Number(a.stats_goalie_of_day ?? 0);
                     const confirmBusy = busy === `avail-confirm:${uid}`;
                     const declineBusy = busy === `avail-decline:${uid}`;
                     return (
@@ -1465,7 +1466,7 @@ export default function AdminPickupOpsScreen() {
                           {position} · {tierLine}
                         </Text>
                         <Text style={styles.availStatLine}>
-                          W {wins} · L {losses} · POTD {pod}
+                          W {wins} · L {losses} · POTD {pod} · GOTD {Number.isFinite(gotd) ? gotd : 0}
                         </Text>
                         <Text style={styles.availSlotLine}>Slot: {slotSummary}</Text>
                         <View style={styles.availActionsRow}>

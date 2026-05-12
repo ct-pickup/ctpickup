@@ -67,7 +67,7 @@ export default function PlayerProfileScreen() {
   const [wins, setWins] = useState<number | null>(null);
   const [losses, setLosses] = useState<number | null>(null);
   const [winRatePct, setWinRatePct] = useState<number | null>(null);
-  const [awardCounts, setAwardCounts] = useState<{ potd: number; def: number; mid: number; att: number } | null>(null);
+  const [awardCounts, setAwardCounts] = useState<{ potd: number; gotd: number; def: number; mid: number; att: number } | null>(null);
 
   useEffect(() => {
     if (!userId || !token) {
@@ -141,7 +141,7 @@ export default function PlayerProfileScreen() {
         setWins(0);
         setLosses(0);
         setWinRatePct(null);
-        setAwardCounts({ potd: 0, def: 0, mid: 0, att: 0 });
+        setAwardCounts({ potd: 0, gotd: 0, def: 0, mid: 0, att: 0 });
         setStatsLoading(false);
         return;
       }
@@ -153,6 +153,7 @@ export default function PlayerProfileScreen() {
         {
           winning_team: Team | null;
           player_of_day: string | null;
+          goalie_of_the_day: string | null;
           defender_of_day: string | null;
           midfielder_of_day: string | null;
           attacker_of_day: string | null;
@@ -163,7 +164,7 @@ export default function PlayerProfileScreen() {
         const chunk = runIds.slice(i, i + CHUNK);
         const { data: resRows, error: resErr } = await supabase
           .from("pickup_run_results")
-          .select("run_id,winning_team,player_of_day,defender_of_day,midfielder_of_day,attacker_of_day")
+          .select("run_id,winning_team,player_of_day,goalie_of_the_day,defender_of_day,midfielder_of_day,attacker_of_day")
           .in("run_id", chunk);
         if (cancelled) return;
         if (resErr || !resRows) continue;
@@ -171,6 +172,7 @@ export default function PlayerProfileScreen() {
           run_id: string;
           winning_team: Team | null;
           player_of_day: string | null;
+          goalie_of_the_day: string | null;
           defender_of_day: string | null;
           midfielder_of_day: string | null;
           attacker_of_day: string | null;
@@ -179,6 +181,7 @@ export default function PlayerProfileScreen() {
           resultsByRunId.set(r.run_id, {
             winning_team: r.winning_team ?? null,
             player_of_day: r.player_of_day ?? null,
+            goalie_of_the_day: r.goalie_of_the_day ?? null,
             defender_of_day: r.defender_of_day ?? null,
             midfielder_of_day: r.midfielder_of_day ?? null,
             attacker_of_day: r.attacker_of_day ?? null,
@@ -190,6 +193,7 @@ export default function PlayerProfileScreen() {
       let w = 0;
       let l = 0;
       let potd = 0;
+      let gotd = 0;
       let def = 0;
       let mid = 0;
       let att = 0;
@@ -201,6 +205,7 @@ export default function PlayerProfileScreen() {
         if (row.team === res.winning_team) w += 1;
         else l += 1;
         if (res.player_of_day === userId) potd += 1;
+        if (res.goalie_of_the_day === userId) gotd += 1;
         if (res.defender_of_day === userId) def += 1;
         if (res.midfielder_of_day === userId) mid += 1;
         if (res.attacker_of_day === userId) att += 1;
@@ -210,7 +215,7 @@ export default function PlayerProfileScreen() {
       setWins(w);
       setLosses(l);
       setWinRatePct(played > 0 ? Math.round((w / played) * 100) : null);
-      setAwardCounts({ potd, def, mid, att });
+      setAwardCounts({ potd, gotd, def, mid, att });
       setStatsLoading(false);
     })();
     return () => {
@@ -353,6 +358,9 @@ export default function PlayerProfileScreen() {
           <>
             <Text style={styles.valueLine}>
               <Text style={styles.valueK}>Player of the Day</Text> {awardCounts.potd}
+            </Text>
+            <Text style={styles.valueLine}>
+              <Text style={styles.valueK}>🧤 Goalie of the Day</Text> {awardCounts.gotd}
             </Text>
             <Text style={styles.valueLine}>
               <Text style={styles.valueK}>Defender of the Day</Text> {awardCounts.def}

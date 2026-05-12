@@ -3,7 +3,8 @@ import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 
 export const WAITLIST_OFFER_MINUTES = 30;
 
-const RESERVED_STATUSES = ["confirmed", "pending_confirm", "pending_payment"] as const;
+/** Only fully confirmed (paid) RSVPs occupy capacity; waitlist promotion uses this count. */
+const RESERVED_STATUSES = ["confirmed"] as const;
 
 export function isReservedRsvpStatus(st: unknown): boolean {
   return typeof st === "string" && (RESERVED_STATUSES as readonly string[]).includes(st);

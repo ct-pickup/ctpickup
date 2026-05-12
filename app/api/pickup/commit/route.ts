@@ -389,11 +389,17 @@ export async function POST(req: Request) {
   const playerName =
     playerProf.data?.full_name || playerProf.data?.username || "A player";
   const runTitle = run.data?.title || "a run";
-  await sendPushToUsers(admin, ["758a00f1-9fc8-479f-a2d0-18db03dc0e8c"], {
-    title: "New availability submitted",
-    body: `${playerName} submitted availability for ${runTitle}.`,
-    data: { kind: "admin_availability", run_id },
-  });
+  const adminProfRes = await admin.from("profiles").select("id").eq("is_admin", true);
+  const adminIds = (adminProfRes.data || [])
+    .map((r: { id: string }) => r.id)
+    .filter((id: string) => typeof id === "string" && id.length > 0);
+  if (adminIds.length) {
+    await sendPushToUsers(admin, adminIds, {
+      title: "New availability submitted",
+      body: `${playerName} submitted availability for ${runTitle}.`,
+      data: { kind: "admin_availability", run_id },
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

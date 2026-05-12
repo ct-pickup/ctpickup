@@ -10,6 +10,7 @@ import {
   patchPlatformPaymentBySessionId,
 } from "@/lib/payments/webhookPersistence";
 import { recomputePickupStandingForUser } from "@/lib/pickup/standing/recomputePickupStanding";
+import { promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
 import {
   verifyEsportsRegistrationPaid,
   verifyPickupPaidAndConfirmed,
@@ -126,15 +127,90 @@ async function fulfillTournament(
     .update({ status: "captured", stripe_payment_intent_id: paymentIntentId })
     .eq("id", pay.id);
 
+  const { data: rosterRows } = await admin
+    .from("tournament_roster")
+    .select("status")
+    .eq("captain_id", pay.captain_id);
+  const playersPaid = (rosterRows || []).filter(
+    (r: { status: string }) => r.status === "invited" || r.status === "accepted",
+  ).length;
+
   await admin
     .from("tournament_captains")
     .update({
       status: "payment_received",
       payment_method: "stripe",
-      players_paid: 5,
+      players_paid: playersPaid,
       payment_received_at: new Date().toISOString(),
     })
     .eq("id", pay.captain_id);
+}
+
+async function downgradePickupPendingPaymentAfterFailure(
+  admin: SupabaseClient,
+  paymentIntentId: string,
+  piMetadata: Stripe.Metadata | null | undefined,
+) {
+  const md = piMetadata || {};
+  let runId = typeof md.run_id === "string" ? md.run_id.trim() : "";
+  let userId = typeof md.user_id === "string" ? md.user_id.trim() : "";
+
+  if (!runId || !userId) {
+    const byPi = await admin
+      .from("pickup_run_rsvps")
+      .select("run_id,user_id")
+      .eq("payment_intent_id", paymentIntentId)
+      .eq("status", "pending_payment")
+      .maybeSingle();
+    if (byPi.data?.run_id && byPi.data?.user_id) {
+      runId = String(byPi.data.run_id);
+      userId = String(byPi.data.user_id);
+    }
+  }
+
+  if (!runId || !userId) return;
+
+  const maxPosRes = await admin
+    .from("pickup_run_rsvps")
+    .select("waitlist_position")
+    .eq("run_id", runId)
+    .eq("status", "waitlist")
+    .order("waitlist_position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const maxPos =
+    maxPosRes.data?.waitlist_position === null || maxPosRes.data?.waitlist_position === undefined
+      ? 0
+      : Number(maxPosRes.data.waitlist_position);
+  const nextPos = (Number.isFinite(maxPos) ? maxPos : 0) + 1;
+  const nowIso = new Date().toISOString();
+
+  const up = await admin
+    .from("pickup_run_rsvps")
+    .update({
+      status: "waitlist",
+      waitlist_position: nextPos,
+      waitlist_offered_at: null,
+      waitlist_expires_at: null,
+      checkout_session_id: null,
+      payment_intent_id: null,
+      updated_at: nowIso,
+    })
+    .eq("run_id", runId)
+    .eq("user_id", userId)
+    .eq("status", "pending_payment")
+    .select("user_id");
+
+  if (!up.error && Array.isArray(up.data) && up.data.length > 0) {
+    await promoteNextWaitlistPlayer(admin, runId, { reason: "payment_failed" });
+    try {
+      await recomputePickupStandingForUser(admin, userId);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("pickup_standing_recompute_after_payment_failed_rsvp:", msg);
+    }
+  }
 }
 
 async function fulfillEsports(
@@ -622,6 +698,7 @@ export async function POST(req: Request) {
         needs_retry: false,
         error_detail: lastErr,
       });
+      await downgradePickupPendingPaymentAfterFailure(admin, paymentIntentId, pi.metadata);
       const { data: payRow } = await admin
         .from("platform_payments")
         .select("user_id,product_type")

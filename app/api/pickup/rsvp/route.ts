@@ -302,7 +302,7 @@ export async function POST(req: Request) {
     .from("pickup_run_rsvps")
     .select("id", { count: "exact", head: true })
     .eq("run_id", run.id)
-    .in("status", ["confirmed", "pending_confirm", "pending_payment"]);
+    .eq("status", "confirmed");
 
   const reservedCount = reservedCountRes.count || 0;
   const capacity = Number(run.capacity || 0);

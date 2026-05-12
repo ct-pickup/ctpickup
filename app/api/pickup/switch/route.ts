@@ -183,11 +183,13 @@ export async function GET(req: Request) {
   const statsWins = new Map<string, number>();
   const statsLosses = new Map<string, number>();
   const statsPotd = new Map<string, number>();
+  const statsGotd = new Map<string, number>();
 
   if (availUserIds.length) {
-    const [assignRes, potdRes] = await Promise.all([
+    const [assignRes, potdRes, gotdRes] = await Promise.all([
       admin.from("pickup_run_team_assignments").select("user_id,team,run_id").in("user_id", availUserIds),
       admin.from("pickup_run_results").select("player_of_day").in("player_of_day", availUserIds),
+      admin.from("pickup_run_results").select("goalie_of_the_day").in("goalie_of_the_day", availUserIds),
     ]);
 
     const runIds = Array.from(
@@ -215,6 +217,12 @@ export async function GET(req: Request) {
       const uid = String((row as { player_of_day: string | null }).player_of_day || "");
       if (!uid) continue;
       statsPotd.set(uid, (statsPotd.get(uid) || 0) + 1);
+    }
+
+    for (const row of gotdRes.data || []) {
+      const uid = String((row as { goalie_of_the_day: string | null }).goalie_of_the_day || "");
+      if (!uid) continue;
+      statsGotd.set(uid, (statsGotd.get(uid) || 0) + 1);
     }
   }
 
@@ -250,6 +258,7 @@ export async function GET(req: Request) {
       stats_wins: statsWins.get(uid) ?? 0,
       stats_losses: statsLosses.get(uid) ?? 0,
       stats_player_of_day: statsPotd.get(uid) ?? 0,
+      stats_goalie_of_day: statsGotd.get(uid) ?? 0,
     };
   });
 
@@ -352,7 +361,7 @@ export async function POST(req: Request) {
 
   if (!action) return NextResponse.json({ error: "Missing action" }, { status: 400 });
 
-  // 1) Create run (promoted hub); outreach deferred until Launch (36h+ before kickoff)
+  // 1) Create run (promoted hub); outreach is launched manually when staff are ready.
   if (action === "create_run") {
     const title = String(body.title || "CT Pickup Run");
     const run_type = String(body.run_type || "select");

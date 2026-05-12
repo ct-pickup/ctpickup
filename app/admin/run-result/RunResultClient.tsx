@@ -31,6 +31,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
   const [teamByUser, setTeamByUser] = useState<Record<string, Team>>({});
 
   const [playerOfDay, setPlayerOfDay] = useState<string>("");
+  const [goalieOfTheDay, setGoalieOfTheDay] = useState<string>("");
   const [defenderOfDay, setDefenderOfDay] = useState<string>("");
   const [midfielderOfDay, setMidfielderOfDay] = useState<string>("");
   const [attackerOfDay, setAttackerOfDay] = useState<string>("");
@@ -108,7 +109,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
       .filter((a) => allowedTeams.includes(a.team));
   }, [confirmed, teamByUser, allowedTeams]);
 
-  const awardIds = [playerOfDay, defenderOfDay, midfielderOfDay, attackerOfDay].filter(Boolean);
+  const awardIds = [playerOfDay, goalieOfTheDay, defenderOfDay, midfielderOfDay, attackerOfDay].filter(Boolean);
   const awardWinnerNotInConfirmed = awardIds.some((id) => !confirmed.some((p) => p.id === id));
 
   async function onSubmit() {
@@ -137,6 +138,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
         winning_team: winningTeamEffective,
         team_assignments: filledAssignments,
         player_of_day: playerOfDay || null,
+        goalie_of_the_day: goalieOfTheDay || null,
         defender_of_day: defenderOfDay || null,
         midfielder_of_day: midfielderOfDay || null,
         attacker_of_day: attackerOfDay || null,
@@ -289,6 +291,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
             {(
               [
                 ["player", "Player of the Day", playerOfDay, setPlayerOfDay],
+                ["goalie", "Goalie of the Day", goalieOfTheDay, setGoalieOfTheDay],
                 ["defender", "Defender of the Day", defenderOfDay, setDefenderOfDay],
                 ["midfielder", "Midfielder of the Day", midfielderOfDay, setMidfielderOfDay],
                 ["attacker", "Attacker of the Day", attackerOfDay, setAttackerOfDay],

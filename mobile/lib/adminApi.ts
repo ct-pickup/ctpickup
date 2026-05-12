@@ -21,6 +21,9 @@ function formatAdminFetchError(r: Response, j: unknown): string {
   if (st === 404) {
     return "Not found (HTTP 404). Deploy the latest site, or check EXPO_PUBLIC_SITE_URL.";
   }
+  if (st === 422) {
+    return "Invalid request (HTTP 422). Check IDs or run state.";
+  }
   if (st === 405) {
     return "Method not allowed (HTTP 405). Deploy the latest API (room delete uses POST /delete on older setups).";
   }
@@ -208,6 +211,7 @@ export function postAdminPickupResult(
     winning_team: "A" | "B" | "C";
     team_assignments: { user_id: string; team: "A" | "B" | "C" }[];
     player_of_day?: string | null;
+    goalie_of_the_day?: string | null;
     defender_of_day?: string | null;
     midfielder_of_day?: string | null;
     attacker_of_day?: string | null;

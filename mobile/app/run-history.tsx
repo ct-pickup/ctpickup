@@ -98,6 +98,7 @@ export default function RunHistoryScreen() {
         {
           winning_team: Team | null;
           player_of_day: string | null;
+          goalie_of_the_day: string | null;
           defender_of_day: string | null;
           midfielder_of_day: string | null;
           attacker_of_day: string | null;
@@ -128,7 +129,7 @@ export default function RunHistoryScreen() {
         }
         const { data: resRows, error: resErr } = await supabase
           .from("pickup_run_results")
-          .select("run_id,winning_team,player_of_day,defender_of_day,midfielder_of_day,attacker_of_day")
+          .select("run_id,winning_team,player_of_day,goalie_of_the_day,defender_of_day,midfielder_of_day,attacker_of_day")
           .in("run_id", chunk);
         if (cancelled) return;
         if (!resErr && resRows) {
@@ -136,6 +137,7 @@ export default function RunHistoryScreen() {
             run_id: string;
             winning_team: Team | null;
             player_of_day: string | null;
+            goalie_of_the_day: string | null;
             defender_of_day: string | null;
             midfielder_of_day: string | null;
             attacker_of_day: string | null;
@@ -144,6 +146,7 @@ export default function RunHistoryScreen() {
             resultsByRunId.set(r.run_id, {
               winning_team: r.winning_team ?? null,
               player_of_day: r.player_of_day ?? null,
+              goalie_of_the_day: r.goalie_of_the_day ?? null,
               defender_of_day: r.defender_of_day ?? null,
               midfielder_of_day: r.midfielder_of_day ?? null,
               attacker_of_day: r.attacker_of_day ?? null,
@@ -157,6 +160,7 @@ export default function RunHistoryScreen() {
         const res = resultsByRunId.get(r.run_id) ?? null;
         const awards: string[] = [];
         if (res?.player_of_day === tokenUserId) awards.push("POTD");
+        if (res?.goalie_of_the_day === tokenUserId) awards.push("GOTD");
         if (res?.defender_of_day === tokenUserId) awards.push("DEF");
         if (res?.midfielder_of_day === tokenUserId) awards.push("MID");
         if (res?.attacker_of_day === tokenUserId) awards.push("ATT");

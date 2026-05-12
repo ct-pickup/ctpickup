@@ -16,6 +16,7 @@ type Category =
   | "most_games"
   | "most_reliable"
   | "potd"
+  | "gotd"
   | "def"
   | "mid"
   | "att";
@@ -45,6 +46,7 @@ const CATEGORY_OPTIONS: Array<{ id: Category; label: string }> = [
   { id: "most_games", label: "Most Games" },
   { id: "most_reliable", label: "Most Reliable" },
   { id: "potd", label: "Player of the Day" },
+  { id: "gotd", label: "Goalie of the Day" },
   { id: "def", label: "Defender of the Day" },
   { id: "mid", label: "Midfielder of the Day" },
   { id: "att", label: "Attacker of the Day" },
@@ -204,9 +206,9 @@ export default function LeaderboardsScreen() {
         return;
       }
 
-      const base = new Map<string, { played: number; wins: number; potd: number; def: number; mid: number; att: number }>();
+      const base = new Map<string, { played: number; wins: number; potd: number; gotd: number; def: number; mid: number; att: number }>();
       for (const p of profiles) {
-        base.set(p.id, { played: 0, wins: 0, potd: 0, def: 0, mid: 0, att: 0 });
+        base.set(p.id, { played: 0, wins: 0, potd: 0, gotd: 0, def: 0, mid: 0, att: 0 });
       }
 
       const assignmentRows = assignments as unknown as Array<{ user_id: string; team: Team; run_id: string }>;
@@ -218,6 +220,7 @@ export default function LeaderboardsScreen() {
         {
           winning_team: Team | null;
           player_of_day: string | null;
+          goalie_of_the_day: string | null;
           defender_of_day: string | null;
           midfielder_of_day: string | null;
           attacker_of_day: string | null;
@@ -228,7 +231,7 @@ export default function LeaderboardsScreen() {
         const chunk = runIds.slice(i, i + CHUNK);
         const { data: resRows, error: resErr } = await supabase
           .from("pickup_run_results")
-          .select("run_id,winning_team,player_of_day,defender_of_day,midfielder_of_day,attacker_of_day")
+          .select("run_id,winning_team,player_of_day,goalie_of_the_day,defender_of_day,midfielder_of_day,attacker_of_day")
           .in("run_id", chunk);
         if (loadSeq.current !== seq) return;
         if (resErr || !resRows) continue;
@@ -236,6 +239,7 @@ export default function LeaderboardsScreen() {
           run_id: string;
           winning_team: Team | null;
           player_of_day: string | null;
+          goalie_of_the_day: string | null;
           defender_of_day: string | null;
           midfielder_of_day: string | null;
           attacker_of_day: string | null;
@@ -244,6 +248,7 @@ export default function LeaderboardsScreen() {
           resultsByRunId.set(r.run_id, {
             winning_team: r.winning_team ?? null,
             player_of_day: r.player_of_day ?? null,
+            goalie_of_the_day: r.goalie_of_the_day ?? null,
             defender_of_day: r.defender_of_day ?? null,
             midfielder_of_day: r.midfielder_of_day ?? null,
             attacker_of_day: r.attacker_of_day ?? null,
@@ -260,6 +265,7 @@ export default function LeaderboardsScreen() {
         agg.played += 1;
         if (row.team === res.winning_team) agg.wins += 1;
         if (res.player_of_day === uid) agg.potd += 1;
+        if (res.goalie_of_the_day === uid) agg.gotd += 1;
         if (res.defender_of_day === uid) agg.def += 1;
         if (res.midfielder_of_day === uid) agg.mid += 1;
         if (res.attacker_of_day === uid) agg.att += 1;
@@ -291,6 +297,8 @@ export default function LeaderboardsScreen() {
           });
         } else if (category === "potd") {
           out.push({ userId: uid, name: displayName(p), username: (p.username ?? "").trim() || null, valueSort: agg.potd, valueLabel: String(agg.potd) });
+        } else if (category === "gotd") {
+          out.push({ userId: uid, name: displayName(p), username: (p.username ?? "").trim() || null, valueSort: agg.gotd, valueLabel: String(agg.gotd) });
         } else if (category === "def") {
           out.push({ userId: uid, name: displayName(p), username: (p.username ?? "").trim() || null, valueSort: agg.def, valueLabel: String(agg.def) });
         } else if (category === "mid") {

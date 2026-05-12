@@ -2,9 +2,6 @@
 
 export const MS_PER_HOUR = 60 * 60 * 1000;
 
-/** Admin launch allowed only if anchor start is at least this far in the future. */
-export const MIN_LEAD_BEFORE_LAUNCH_MS = 36 * MS_PER_HOUR;
-
 /** Fire “24h before start” checkpoint when now >= start - this offset. */
 export const CHECKPOINT_24H_BEFORE_MS = 24 * MS_PER_HOUR;
 export const CHECKPOINT_12H_BEFORE_MS = 12 * MS_PER_HOUR;

@@ -33,11 +33,38 @@ const ROUTABLE_NOTIFICATION_KINDS = new Set([
   "pickup_invite",
   "pickup_likely_on",
   "pickup_confirmed",
+  "pickup_waitlist_offer",
+  "pickup_result",
+  "pickup_award_player",
+  "pickup_award_goalie",
+  "pickup_award_defender",
+  "pickup_award_midfielder",
+  "pickup_award_attacker",
   "admin_availability",
   "chat_message",
   "tournament_invite",
   "roster_invite",
 ]);
+
+const PICKUP_RUN_DEEP_LINK_KINDS = new Set([
+  "pickup_invite",
+  "pickup_likely_on",
+  "pickup_confirmed",
+  "pickup_waitlist_offer",
+  "pickup_result",
+  "pickup_award_player",
+  "pickup_award_goalie",
+  "pickup_award_defender",
+  "pickup_award_midfielder",
+  "pickup_award_attacker",
+]);
+
+function pickupRunIdFromNotificationData(data: Record<string, unknown>): string {
+  const raw = data?.run_id;
+  if (typeof raw === "string" && raw.trim()) return raw.trim();
+  if (raw != null) return String(raw).trim();
+  return "";
+}
 
 function schedulePostLoadNavigation(action: () => void) {
   InteractionManager.runAfterInteractions(() => {
@@ -47,7 +74,14 @@ function schedulePostLoadNavigation(action: () => void) {
 
 function hapticForForegroundPushKind(kind: string) {
   if (kind === "pickup_invite") void hapticKick();
-  else if (kind === "pickup_confirmed" || kind === "pickup_likely_on") void hapticGoal();
+  else if (
+    kind === "pickup_confirmed" ||
+    kind === "pickup_likely_on" ||
+    kind === "pickup_result" ||
+    kind.startsWith("pickup_award_")
+  )
+    void hapticGoal();
+  else if (kind === "pickup_waitlist_offer") void hapticKick();
   else if (kind === "admin_availability") void hapticTap();
   else if (kind === "chat_message") void hapticTap();
   else if (kind === "tournament_invite" || kind === "roster_invite") void hapticKick();
@@ -80,8 +114,13 @@ export function usePushRegistration(accessToken: string | null) {
             : "";
 
       const navigate = () => {
-        if (kind === "pickup_invite" || kind === "pickup_likely_on" || kind === "pickup_confirmed") {
-          router.push("/(tabs)/runs" as const);
+        if (PICKUP_RUN_DEEP_LINK_KINDS.has(kind)) {
+          const runId = pickupRunIdFromNotificationData(data);
+          if (runId) {
+            router.push({ pathname: "/(tabs)/runs", params: { run_id: runId } } as const);
+          } else {
+            router.push("/(tabs)/runs" as const);
+          }
           return;
         }
         if (kind === "admin_availability") {

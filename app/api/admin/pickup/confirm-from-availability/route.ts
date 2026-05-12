@@ -11,15 +11,19 @@ export async function POST(req: Request) {
 
   const admin = getSupabaseAdmin();
   const body = await req.json().catch(() => ({}));
-  const run_id = String(body.run_id || "");
-  const user_id = String(body.user_id || "");
+  const run_id = String(body.run_id ?? "").trim();
+  const user_id = String(body.user_id ?? "").trim();
   if (!run_id || !user_id) {
     return NextResponse.json({ error: "Missing run_id or user_id" }, { status: 400 });
   }
 
   const runRes = await admin.from("pickup_runs").select("id,capacity").eq("id", run_id).maybeSingle();
+  if (runRes.error) {
+    return NextResponse.json({ error: runRes.error.message }, { status: 500 });
+  }
   if (!runRes.data?.id) {
-    return NextResponse.json({ error: "Run not found" }, { status: 404 });
+    // 422 avoids confusion with a missing Next.js route (HTTP 404 HTML from the host).
+    return NextResponse.json({ error: "Pickup run not found for this run_id." }, { status: 422 });
   }
   const run = runRes.data;
 
@@ -30,6 +34,7 @@ export async function POST(req: Request) {
     .eq("status", "confirmed");
 
   const confirmedCount = countRes.count || 0;
+  // Capacity = fully confirmed RSVPs only (not pending_payment / pending_confirm).
   if (confirmedCount >= Number(run.capacity || 0)) {
     return NextResponse.json({ error: "Run is already at capacity." }, { status: 409 });
   }

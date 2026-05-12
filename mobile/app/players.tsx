@@ -64,7 +64,7 @@ type PlayerCard = {
   region: RegionValue | null;
   gamesPlayed: number;
   winRatePct: number | null;
-  awards: { potd: number; def: number; mid: number; att: number };
+  awards: { potd: number; gk: number; def: number; mid: number; att: number };
 };
 
 function displayName(p: ProfileRow): string {
@@ -104,7 +104,7 @@ export default function PlayersScreen() {
   const [err, setErr] = useState<string | null>(null);
   const [rows, setRows] = useState<ProfileRow[]>([]);
   const [winRateByUser, setWinRateByUser] = useState<Record<string, number | null>>({});
-  const [awardsByUser, setAwardsByUser] = useState<Record<string, { potd: number; def: number; mid: number; att: number }>>({});
+  const [awardsByUser, setAwardsByUser] = useState<Record<string, { potd: number; gk: number; def: number; mid: number; att: number }>>({});
 
   const profilesLoadSeq = useRef(0);
   const statsLoadSeq = useRef(0);
@@ -173,7 +173,7 @@ export default function PlayersScreen() {
     void (async () => {
       const { data, error } = await supabase
         .from("pickup_run_team_assignments")
-        .select("user_id,team,run_id,pickup_run_results(winning_team,player_of_day,defender_of_day,midfielder_of_day,attacker_of_day)")
+        .select("user_id,team,run_id,pickup_run_results(winning_team,player_of_day,goalie_of_the_day,defender_of_day,midfielder_of_day,attacker_of_day)")
         .in("user_id", ids);
       if (statsLoadSeq.current !== seq) return;
       if (error || !data) {
@@ -182,13 +182,14 @@ export default function PlayersScreen() {
         return;
       }
       const totals: Record<string, { played: number; wins: number }> = {};
-      const awards: Record<string, { potd: number; def: number; mid: number; att: number }> = {};
+      const awards: Record<string, { potd: number; gk: number; def: number; mid: number; att: number }> = {};
       for (const row of data as unknown as Array<{
         user_id: string;
         team: "A" | "B" | "C";
         pickup_run_results?: {
           winning_team: "A" | "B" | "C";
           player_of_day: string | null;
+          goalie_of_the_day: string | null;
           defender_of_day: string | null;
           midfielder_of_day: string | null;
           attacker_of_day: string | null;
@@ -201,19 +202,20 @@ export default function PlayersScreen() {
         t.played += 1;
         if (row.team === res.winning_team) t.wins += 1;
 
-        const a = (awards[uid] ??= { potd: 0, def: 0, mid: 0, att: 0 });
+        const a = (awards[uid] ??= { potd: 0, gk: 0, def: 0, mid: 0, att: 0 });
         if (res.player_of_day === uid) a.potd += 1;
+        if (res.goalie_of_the_day === uid) a.gk += 1;
         if (res.defender_of_day === uid) a.def += 1;
         if (res.midfielder_of_day === uid) a.mid += 1;
         if (res.attacker_of_day === uid) a.att += 1;
       }
       const by: Record<string, number | null> = {};
-      const byAwards: Record<string, { potd: number; def: number; mid: number; att: number }> = {};
+      const byAwards: Record<string, { potd: number; gk: number; def: number; mid: number; att: number }> = {};
       for (const uid of ids) {
         const t = totals[uid];
         if (!t || t.played === 0) by[uid] = null;
         else by[uid] = Math.round((t.wins / t.played) * 100);
-        byAwards[uid] = awards[uid] ?? { potd: 0, def: 0, mid: 0, att: 0 };
+        byAwards[uid] = awards[uid] ?? { potd: 0, gk: 0, def: 0, mid: 0, att: 0 };
       }
       setWinRateByUser(by);
       setAwardsByUser(byAwards);
@@ -232,7 +234,7 @@ export default function PlayersScreen() {
         region,
         gamesPlayed: Math.max(0, Number(r.attended_count ?? 0) || 0),
         winRatePct: winRateByUser[r.id] ?? null,
-        awards: awardsByUser[r.id] ?? { potd: 0, def: 0, mid: 0, att: 0 },
+        awards: awardsByUser[r.id] ?? { potd: 0, gk: 0, def: 0, mid: 0, att: 0 },
       };
     });
   }, [rows, winRateByUser, awardsByUser]);
@@ -344,12 +346,13 @@ export default function PlayersScreen() {
                     </Text>
                   </View>
 
-                  {p.awards.potd || p.awards.def || p.awards.mid || p.awards.att ? (
+                  {p.awards.potd || p.awards.gk || p.awards.def || p.awards.mid || p.awards.att ? (
                     <View style={[styles.metaRow, { marginTop: 10 }]}>
                       <Text style={styles.meta}>
                         <Text style={styles.metaK}>Awards</Text>{" "}
                         {[
                           p.awards.potd ? `POTD ${p.awards.potd}` : null,
+                          p.awards.gk ? `GOTD ${p.awards.gk}` : null,
                           p.awards.def ? `DEF ${p.awards.def}` : null,
                           p.awards.mid ? `MID ${p.awards.mid}` : null,
                           p.awards.att ? `ATT ${p.awards.att}` : null,

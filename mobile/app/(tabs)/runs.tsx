@@ -15,7 +15,7 @@ import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions"
 import { getNearestVenuesFromApi } from "@/lib/venueDistance";
 import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
@@ -59,6 +59,8 @@ const FIXED_AVAILABILITY_RANGES = [
 
 export default function RunsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ run_id?: string }>();
+  const pickupFocusRunId = typeof params.run_id === "string" && params.run_id.trim() ? params.run_id.trim() : undefined;
   const navigation = useNavigation();
   const { height: windowHeight } = useWindowDimensions();
   const { session, supabase } = useAuth();
@@ -76,7 +78,7 @@ export default function RunsScreen() {
     counts,
     visibility,
     invitedNow,
-  } = usePickupPublic(token);
+  } = usePickupPublic(token, { focusRunId: pickupFocusRunId });
   const {
     joinBusy,
     joinPickup,

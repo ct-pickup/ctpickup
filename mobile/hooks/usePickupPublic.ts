@@ -6,13 +6,16 @@ import { parsePickupPayload, type PickupPublicPayload } from "@/lib/pickupPublic
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-export function usePickupPublic(accessToken: string | null) {
+export function usePickupPublic(accessToken: string | null, opts?: { focusRunId?: string | null }) {
   const { supabase } = useAuth();
   const { region, ready: regionReady } = useSelectedRegion();
   const pickupRealtimeTopicSeq = useRef(0);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const focusRunId = typeof opts?.focusRunId === "string" ? opts.focusRunId.trim() : "";
+  const effectiveRunIdParam = focusRunId || undefined;
 
   const originOk = useMemo(() => Boolean(siteOrigin()), []);
 
@@ -29,7 +32,7 @@ export function usePickupPublic(accessToken: string | null) {
     }
     setLoading(true);
     setError(null);
-    const r = await fetchPickupPublic(accessToken, { region });
+    const r = await fetchPickupPublic(accessToken, { region, run_id: effectiveRunIdParam });
     if (!r.ok) {
       setError(
         typeof (r.json as { error?: string })?.error === "string" ? String((r.json as { error: string }).error) : "Could not load pickup.",
@@ -40,7 +43,7 @@ export function usePickupPublic(accessToken: string | null) {
       setError(null);
     }
     setLoading(false);
-  }, [accessToken, originOk, region, regionReady]);
+  }, [accessToken, originOk, region, regionReady, effectiveRunIdParam]);
 
   useEffect(() => {
     void load();
@@ -48,7 +51,9 @@ export function usePickupPublic(accessToken: string | null) {
 
   const parsed: PickupPublicPayload = useMemo(() => parsePickupPayload(data), [data]);
   const run = parsed.run && typeof parsed.run === "object" ? parsed.run : null;
-  const runId = run && typeof (run as { id?: unknown }).id === "string" ? ((run as { id: string }).id) : null;
+  const runIdFromPayload =
+    run && typeof (run as { id?: unknown }).id === "string" ? ((run as { id: string }).id) : null;
+  const runId = focusRunId || runIdFromPayload;
 
   // Realtime: refresh when this run's row changes (status, counts, etc.) or
   // when any RSVP for this run is inserted/updated. We re-`load()` rather than

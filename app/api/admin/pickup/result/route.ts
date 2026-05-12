@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
+import { applyPickupResultWinLossDeltas } from "@/lib/pickup/applyPickupResultWinLoss";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { supabaseService } from "@/lib/supabase/service";
 
@@ -20,6 +21,39 @@ function asUuid(v: unknown): string | null {
 
 function unique(xs: string[]) {
   return Array.from(new Set(xs.filter(Boolean)));
+}
+
+async function applyGoalieOfTheDayDelta(
+  supabase: ReturnType<typeof supabaseService>,
+  oldGoalieOfTheDay: string | null,
+  newGoalieOfTheDay: string | null,
+) {
+  const deltas = new Map<string, number>();
+  if (oldGoalieOfTheDay) deltas.set(oldGoalieOfTheDay, (deltas.get(oldGoalieOfTheDay) || 0) - 1);
+  if (newGoalieOfTheDay) deltas.set(newGoalieOfTheDay, (deltas.get(newGoalieOfTheDay) || 0) + 1);
+
+  const now = new Date().toISOString();
+  for (const [uid, delta] of deltas.entries()) {
+    if (!delta) continue;
+    const profRes = await supabase
+      .from("profiles")
+      .select("goalie_of_the_day_count")
+      .eq("id", uid)
+      .maybeSingle();
+    if (profRes.error || !profRes.data) {
+      console.error("[pickup/result] goalie award profile read failed:", profRes.error?.message, uid);
+      continue;
+    }
+    const current = Number((profRes.data as { goalie_of_the_day_count?: number | null }).goalie_of_the_day_count ?? 0);
+    const next = Math.max(0, current + delta);
+    const up = await supabase
+      .from("profiles")
+      .update({ goalie_of_the_day_count: next, updated_at: now })
+      .eq("id", uid);
+    if (up.error) {
+      console.error("[pickup/result] goalie award profile update failed:", up.error.message, uid);
+    }
+  }
 }
 
 export async function POST(req: Request) {
@@ -44,6 +78,7 @@ export async function POST(req: Request) {
   const team_assignments = Array.isArray(b.team_assignments) ? b.team_assignments : null;
 
   const player_of_day = b.player_of_day == null ? null : asUuid(b.player_of_day);
+  const goalie_of_the_day = b.goalie_of_the_day == null ? null : asUuid(b.goalie_of_the_day);
   const defender_of_day = b.defender_of_day == null ? null : asUuid(b.defender_of_day);
   const midfielder_of_day = b.midfielder_of_day == null ? null : asUuid(b.midfielder_of_day);
   const attacker_of_day = b.attacker_of_day == null ? null : asUuid(b.attacker_of_day);
@@ -70,6 +105,26 @@ export async function POST(req: Request) {
     assignments.push({ user_id, team });
   }
 
+  const oldResultRes = await supabase
+    .from("pickup_run_results")
+    .select("winning_team,goalie_of_the_day")
+    .eq("run_id", run_id)
+    .maybeSingle();
+  const oldAssignRes = await supabase.from("pickup_run_team_assignments").select("user_id,team").eq("run_id", run_id);
+
+  const oldWinningTeam =
+    oldResultRes.data?.winning_team && isTeam(oldResultRes.data.winning_team)
+      ? oldResultRes.data.winning_team
+      : null;
+  const oldGoalieOfTheDay =
+    typeof oldResultRes.data?.goalie_of_the_day === "string" ? oldResultRes.data.goalie_of_the_day : null;
+  const oldAssignments: { user_id: string; team: Team }[] = [];
+  for (const row of oldAssignRes.data || []) {
+    const r = row as { user_id: string; team: unknown };
+    if (!r.user_id || !isTeam(r.team)) continue;
+    oldAssignments.push({ user_id: r.user_id, team: r.team });
+  }
+
   // 1) Upsert result row for the run.
   const upRes = await supabase
     .from("pickup_run_results")
@@ -79,6 +134,7 @@ export async function POST(req: Request) {
         total_teams,
         winning_team,
         player_of_day,
+        goalie_of_the_day,
         defender_of_day,
         midfielder_of_day,
         attacker_of_day,
@@ -113,6 +169,14 @@ export async function POST(req: Request) {
     }
   }
 
+  await applyPickupResultWinLossDeltas(supabase, {
+    oldWinningTeam,
+    oldAssignments,
+    newWinningTeam: winning_team,
+    newAssignments: assignments,
+  });
+  await applyGoalieOfTheDayDelta(supabase, oldGoalieOfTheDay, goalie_of_the_day);
+
   // 3) Push notifications: confirmed players + award winners.
   const rsvps = await supabase
     .from("pickup_run_rsvps")
@@ -136,6 +200,12 @@ export async function POST(req: Request) {
       title: "You won Player of the Day!",
       body: "Congrats — you were named Player of the Day.",
       kind: "pickup_award_player",
+    },
+    {
+      userId: goalie_of_the_day,
+      title: "Goalie of the Day 🧤",
+      body: "You were named Goalie of the Day. Well saved!",
+      kind: "pickup_award_goalie",
     },
     {
       userId: defender_of_day,

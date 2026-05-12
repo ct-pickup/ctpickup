@@ -112,6 +112,7 @@ export default function AdminRunResultScreen() {
   const [teamByUser, setTeamByUser] = useState<Record<string, Team>>({});
 
   const [playerOfDay, setPlayerOfDay] = useState<string | null>(null);
+  const [goalieOfTheDay, setGoalieOfTheDay] = useState<string | null>(null);
   const [defenderOfDay, setDefenderOfDay] = useState<string | null>(null);
   const [midfielderOfDay, setMidfielderOfDay] = useState<string | null>(null);
   const [attackerOfDay, setAttackerOfDay] = useState<string | null>(null);
@@ -120,7 +121,7 @@ export default function AdminRunResultScreen() {
     | null
     | { kind: "team"; userId: string }
     | { kind: "winning" }
-    | { kind: "award"; which: "player" | "defender" | "midfielder" | "attacker" }
+    | { kind: "award"; which: "player" | "goalie" | "defender" | "midfielder" | "attacker" }
   >(null);
 
   const [submitting, setSubmitting] = useState(false);
@@ -239,7 +240,7 @@ export default function AdminRunResultScreen() {
       .filter((a) => allowedTeams.includes(a.team));
   }, [confirmed, teamByUser, allowedTeams]);
 
-  const awardWinners = uniq([playerOfDay, defenderOfDay, midfielderOfDay, attackerOfDay].filter(Boolean));
+  const awardWinners = uniq([playerOfDay, goalieOfTheDay, defenderOfDay, midfielderOfDay, attackerOfDay].filter(Boolean));
   const awardWinnerNotInConfirmed = awardWinners.some((id) => !confirmed.some((p) => p.id === id));
 
   async function onSubmit() {
@@ -272,6 +273,7 @@ export default function AdminRunResultScreen() {
       winning_team: winningTeam,
       team_assignments: filledAssignments,
       player_of_day: playerOfDay,
+      goalie_of_the_day: goalieOfTheDay,
       defender_of_day: defenderOfDay,
       midfielder_of_day: midfielderOfDay,
       attacker_of_day: attackerOfDay,
@@ -397,6 +399,14 @@ export default function AdminRunResultScreen() {
           }}
         />
         <AwardRow
+          label="Goalie of the Day"
+          valueLabel={goalieOfTheDay ? nameFor(confirmed.find((p) => p.id === goalieOfTheDay) || { id: goalieOfTheDay, full_name: null }) : "None"}
+          onPress={() => {
+            void hapticTap();
+            setPicker({ kind: "award", which: "goalie" });
+          }}
+        />
+        <AwardRow
           label="Defender of the Day"
           valueLabel={defenderOfDay ? nameFor(confirmed.find((p) => p.id === defenderOfDay) || { id: defenderOfDay, full_name: null }) : "None"}
           onPress={() => {
@@ -460,6 +470,8 @@ export default function AdminRunResultScreen() {
         title={
           picker?.kind === "award" && picker.which === "player"
             ? "Player of the Day"
+            : picker?.kind === "award" && picker.which === "goalie"
+              ? "Goalie of the Day"
             : picker?.kind === "award" && picker.which === "defender"
               ? "Defender of the Day"
               : picker?.kind === "award" && picker.which === "midfielder"
@@ -471,6 +483,8 @@ export default function AdminRunResultScreen() {
           picker?.kind === "award"
             ? picker.which === "player"
               ? playerOfDay ?? ""
+              : picker.which === "goalie"
+                ? goalieOfTheDay ?? ""
               : picker.which === "defender"
                 ? defenderOfDay ?? ""
                 : picker.which === "midfielder"
@@ -482,6 +496,7 @@ export default function AdminRunResultScreen() {
           const next = v ? v : null;
           if (picker?.kind !== "award") return;
           if (picker.which === "player") setPlayerOfDay(next);
+          else if (picker.which === "goalie") setGoalieOfTheDay(next);
           else if (picker.which === "defender") setDefenderOfDay(next);
           else if (picker.which === "midfielder") setMidfielderOfDay(next);
           else setAttackerOfDay(next);

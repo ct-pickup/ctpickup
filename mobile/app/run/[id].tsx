@@ -75,7 +75,7 @@ export default function RunDetailScreen() {
           .maybeSingle(),
         supabase
           .from("pickup_run_results")
-          .select("winning_team,player_of_day,defender_of_day,midfielder_of_day,attacker_of_day")
+          .select("winning_team,player_of_day,goalie_of_the_day,defender_of_day,midfielder_of_day,attacker_of_day")
           .eq("run_id", runId)
           .maybeSingle(),
       ]);
@@ -97,13 +97,21 @@ export default function RunDetailScreen() {
 
       const rr = resRes.data as
         | null
-        | { winning_team: Team | null; player_of_day: string | null; defender_of_day: string | null; midfielder_of_day: string | null; attacker_of_day: string | null };
+        | {
+            winning_team: Team | null;
+            player_of_day: string | null;
+            goalie_of_the_day: string | null;
+            defender_of_day: string | null;
+            midfielder_of_day: string | null;
+            attacker_of_day: string | null;
+          };
 
       const wt = rr?.winning_team ?? null;
       setWinningTeam(wt);
 
       const earned: string[] = [];
       if (rr?.player_of_day === userId) earned.push("Player of the Day");
+      if (rr?.goalie_of_the_day === userId) earned.push("Goalie of the Day 🧤");
       if (rr?.defender_of_day === userId) earned.push("Defender of the Day");
       if (rr?.midfielder_of_day === userId) earned.push("Midfielder of the Day");
       if (rr?.attacker_of_day === userId) earned.push("Attacker of the Day");
