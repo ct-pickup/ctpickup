@@ -170,6 +170,7 @@ export default function AccountScreen() {
   const [editUsername, setEditUsername] = useState("");
   const [editBusy, setEditBusy] = useState(false);
   const [editMsg, setEditMsg] = useState<string | null>(null);
+  const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
   const [editOk, setEditOk] = useState(false);
   const [positionPickerOpen, setPositionPickerOpen] = useState(false);
 
@@ -329,16 +330,17 @@ export default function AccountScreen() {
 
   async function onSaveProfile() {
     setEditMsg(null);
+    setProfileSaveError(null);
     setEditOk(false);
 
     if (!supabase) {
-      setEditMsg("Supabase client is not available. Check app configuration.");
+      setProfileSaveError("Save failed: Supabase client is not available. Check app configuration.");
       return;
     }
 
     const userId = session?.user?.id;
     if (!userId) {
-      setEditMsg("Not signed in.");
+      setProfileSaveError("Save failed: Not signed in.");
       return;
     }
 
@@ -356,10 +358,10 @@ export default function AccountScreen() {
     try {
       let nearestVenues: VenueDistanceRow[] = [];
       if (zipStored) {
-        const origin = siteOrigin();
-        if (origin) {
+        const originForVenues = siteOrigin();
+        if (originForVenues) {
           try {
-            nearestVenues = await getNearestVenuesFromApi(zipStored, origin, accessToken);
+            nearestVenues = await getNearestVenuesFromApi(zipStored, originForVenues, accessToken);
           } catch (e) {
             console.error("[onSaveProfile] getNearestVenuesFromApi exception", e);
           }
@@ -382,47 +384,82 @@ export default function AccountScreen() {
         updated_at: updatedAt,
       };
 
-      let data: { id: string }[] | null = null;
-      let error: { message?: string; code?: string } | null = null;
-
-      try {
-        const withVenue = await supabase
-          .from("profiles")
-          .update({ ...coreUpdate, nearest_venue: nearestVenue })
-          .eq("id", userId)
-          .select("id");
-        data = withVenue.data;
-        error = withVenue.error;
-        if (error && supabaseLooksLikeMissingColumn(error, "nearest_venue")) {
-          console.error("[onSaveProfile] retrying without nearest_venue", JSON.stringify(error));
-          const noVenue = await supabase.from("profiles").update(coreUpdate).eq("id", userId).select("id");
-          data = noVenue.data;
-          error = noVenue.error;
+      const origin = siteOrigin();
+      if (origin && accessToken) {
+        try {
+          const r = await fetch(`${origin}/api/account/profile`, {
+            method: "PATCH",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({ ...coreUpdate, nearest_venue: nearestVenue }),
+            cache: "no-store",
+          });
+          const j = (await r.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+          if (!r.ok) {
+            const errLine =
+              typeof j?.error === "string" && j.error.trim()
+                ? j.error.trim()
+                : `HTTP ${r.status} ${r.statusText || ""}`.trim();
+            setProfileSaveError(`Save failed: ${errLine}`);
+            return;
+          }
+          if (j && j.ok === false && typeof j.error === "string" && j.error.trim()) {
+            setProfileSaveError(`Save failed: ${j.error.trim()}`);
+            return;
+          }
+        } catch (e) {
+          console.error("[onSaveProfile] /api/account/profile fetch exception", e);
+          setProfileSaveError(`Save failed: ${formatProfileSaveError(e)}`);
+          return;
         }
-      } catch (e) {
-        console.error("[onSaveProfile] profiles.update exception", e);
-        setEditMsg(formatProfileSaveError(e));
-        return;
-      }
+      } else {
+        let data: { id: string }[] | null = null;
+        let error: { message?: string; code?: string } | null = null;
 
-      if (error) {
-        console.error("[onSaveProfile] supabase.from('profiles').update error", JSON.stringify(error));
-        const code = (error as { code?: string }).code;
-        const dup =
-          code === "23505" ||
-          /profiles_username_lower_unique|duplicate key/i.test(error.message ?? "");
-        setEditMsg(
-          dup ? "That username is already taken. Try another." : formatProfileSaveError(error),
-        );
-        return;
-      }
+        try {
+          const withVenue = await supabase
+            .from("profiles")
+            .update({ ...coreUpdate, nearest_venue: nearestVenue })
+            .eq("id", userId)
+            .select("id");
+          data = withVenue.data;
+          error = withVenue.error;
+          if (error && supabaseLooksLikeMissingColumn(error, "nearest_venue")) {
+            console.error("[onSaveProfile] retrying without nearest_venue", JSON.stringify(error));
+            const noVenue = await supabase.from("profiles").update(coreUpdate).eq("id", userId).select("id");
+            data = noVenue.data;
+            error = noVenue.error;
+          }
+        } catch (e) {
+          console.error("[onSaveProfile] profiles.update exception", e);
+          setProfileSaveError(`Save failed: ${formatProfileSaveError(e)}`);
+          return;
+        }
 
-      if (!data?.length) {
-        console.error("[onSaveProfile] update returned 0 rows", { userId });
-        setEditMsg(
-          "Save did not update any profile row (no match or not permitted). Your account may be missing a profile row.",
-        );
-        return;
+        if (error) {
+          console.error("[onSaveProfile] supabase.from('profiles').update error", JSON.stringify(error));
+          const code = (error as { code?: string }).code;
+          const dup =
+            code === "23505" ||
+            /profiles_username_lower_unique|duplicate key/i.test(error.message ?? "");
+          setProfileSaveError(
+            `Save failed: ${
+              dup ? "That username is already taken. Try another." : formatProfileSaveError(error)
+            }`,
+          );
+          return;
+        }
+
+        if (!data?.length) {
+          console.error("[onSaveProfile] update returned 0 rows", { userId });
+          setProfileSaveError(
+            "Save failed: Save did not update any profile row (no match or not permitted). Your account may be missing a profile row.",
+          );
+          return;
+        }
       }
 
       const nextFields = {
@@ -455,7 +492,7 @@ export default function AccountScreen() {
       setEditMsg("Saved.");
     } catch (e) {
       console.error("[onSaveProfile] exception", e);
-      setEditMsg(formatProfileSaveError(e));
+      setProfileSaveError(`Save failed: ${formatProfileSaveError(e)}`);
     } finally {
       setEditBusy(false);
     }
@@ -732,7 +769,8 @@ export default function AccountScreen() {
               <Text style={styles.primaryBtnText}>Save profile</Text>
             )}
           </Pressable>
-          {editMsg ? (
+          {profileSaveError ? <Text style={styles.saveFailedText}>{profileSaveError}</Text> : null}
+          {editMsg && !profileSaveError ? (
             <Text style={[styles.msg, editOk ? styles.msgOk : styles.msgMuted]}>{editMsg}</Text>
           ) : null}
         </View>
@@ -1294,6 +1332,7 @@ const styles = StyleSheet.create({
   msg: { marginTop: 14, color: "#fca5a5", fontSize: 14 },
   msgMuted: { color: "rgba(252,211,212,0.92)" },
   msgOk: { color: LIME },
+  saveFailedText: { marginTop: 12, color: "#ef4444", fontSize: 14, lineHeight: 20 },
 
   cardLoadingRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   cardLoadingText: { color: "rgba(255,255,255,0.7)", fontSize: 14 },
