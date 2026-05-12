@@ -10,6 +10,7 @@ import { recordPlatformCheckoutStarted } from "@/lib/payments/recordCheckoutStar
 import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
+import { pickupPlayerRefundEligibleNow } from "@/lib/pickup/runScheduling";
 
 export const runtime = "nodejs";
 
@@ -108,12 +109,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not eligible for this final RSVP." }, { status: 403 });
     }
 
-    const now = Date.now();
-    const deadline = run.cancellation_deadline ? new Date(run.cancellation_deadline).getTime() : null;
-    if (deadline && now > deadline) {
-      return NextResponse.json({ error: "Deadline passed." }, { status: 403 });
-    }
-
     const existing = await admin
       .from("pickup_run_rsvps")
       .select("*")
@@ -128,21 +123,66 @@ export async function POST(req: Request) {
     const newStatus =
       existing.data?.status && existing.data.status !== "declined" ? "canceled" : "declined";
 
-    await admin.from("pickup_run_rsvps").upsert(
-      {
-        run_id: run.id,
-        user_id: user.id,
-        tier_at_time: prof.data?.tier || null,
-        status: newStatus,
-        waitlist_position: null,
-        waitlist_offered_at: null,
-        waitlist_expires_at: null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "run_id,user_id" },
-    );
-
     const prev = existing.data?.status || null;
+    const row = existing.data as
+      | (typeof existing.data & {
+          payment_intent_id?: string | null;
+          refund_id?: string | null;
+        })
+      | null;
+    const pi =
+      row?.payment_intent_id != null && String(row.payment_intent_id).trim().length > 0
+        ? String(row.payment_intent_id).trim()
+        : null;
+    const refundEligible =
+      prev === "confirmed" && pi && !row?.refund_id && pickupPlayerRefundEligibleNow(run);
+
+    if (refundEligible) {
+      let stripe;
+      try {
+        stripe = getStripePickup();
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("stripe_pickup_cancel_refund_config_error:", msg);
+        return NextResponse.json({ error: "Stripe is not configured." }, { status: 500 });
+      }
+      try {
+        const refund = await stripe.refunds.create({ payment_intent: pi });
+        await admin.from("pickup_run_rsvps").upsert(
+          {
+            run_id: run.id,
+            user_id: user.id,
+            tier_at_time: prof.data?.tier || null,
+            status: newStatus,
+            refund_id: refund.id,
+            waitlist_position: null,
+            waitlist_offered_at: null,
+            waitlist_expires_at: null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "run_id,user_id" },
+        );
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("stripe_pickup_player_cancel_refund_error:", msg);
+        return NextResponse.json({ error: "Refund could not be processed. Try again or contact support." }, { status: 502 });
+      }
+    } else {
+      await admin.from("pickup_run_rsvps").upsert(
+        {
+          run_id: run.id,
+          user_id: user.id,
+          tier_at_time: prof.data?.tier || null,
+          status: newStatus,
+          waitlist_position: null,
+          waitlist_offered_at: null,
+          waitlist_expires_at: null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "run_id,user_id" },
+      );
+    }
+
     if (prev === "confirmed" || prev === "pending_confirm") {
       await promoteNextWaitlistPlayer(admin, String(run.id), {
         requestedBy: user.id,

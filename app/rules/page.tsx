@@ -122,10 +122,10 @@ export default function RulesPage() {
                 <div>
                   <p className="font-semibold text-white">12. No-Shows and Refunds (pickups)</p>
                   <p className="mt-2">
-                    Refunds are available only if cancellation is completed before 10:00 PM on the day
-                    before the scheduled pickup. If you cancel after that time or you no-show, your pickup
-                    fee is not refunded. If the Organizer cancels the pickup, a refund may still be
-                    issued. Verified duplicate or erroneous charges will be corrected. Spots are limited,
+                    Refunds are available if you cancel more than 24 hours before the run&apos;s scheduled start time. If
+                    you cancel within 24 hours of the start time or you no-show, your pickup fee is not refunded. Full
+                    refund if the Organizer cancels the pickup. Verified duplicate or erroneous charges will be corrected.
+                    Spots are limited,
                     and last-minute no-shows prevent other players from joining. No-shows may also affect
                     future eligibility. For tournament fees (in-person captain registration and online
                     esports), see checkout and the{" "}

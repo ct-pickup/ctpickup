@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { PAID_OR_READY_CAPTAIN_STATUSES } from "@/lib/tournament/outdoorTournamentConstants";
+import { recalculateOutdoorGroupStandings } from "@/lib/tournament/recalculateOutdoorGroupStandings";
 
 export const runtime = "nodejs";
 
@@ -48,7 +51,7 @@ export async function GET(req: Request) {
       .from("tournament_captains")
       .select("id, team_name, captain_name")
       .eq("tournament_id", tournament_id)
-      .eq("status", "confirmed"),
+      .in("status", [...PAID_OR_READY_CAPTAIN_STATUSES]),
     admin
       .from("tournament_matches")
       .select("*")
@@ -83,25 +86,48 @@ export async function POST(req: Request) {
   const { action, tournament_id } = body;
 
   if (action === "generate") {
-    // Get confirmed teams
+    const { data: tour, error: tErr } = await admin
+      .from("tournaments")
+      .select("id,min_roster_players")
+      .eq("id", tournament_id)
+      .maybeSingle();
+    if (tErr) return NextResponse.json({ error: tErr.message }, { status: 500 });
+    if (!tour) return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+
+    const minRoster = Number((tour as { min_roster_players?: unknown }).min_roster_players ?? 5) || 5;
+
     const teamsRes = await admin
       .from("tournament_captains")
       .select("id, team_name, captain_name")
       .eq("tournament_id", tournament_id)
-      .eq("status", "confirmed");
+      .in("status", [...PAID_OR_READY_CAPTAIN_STATUSES]);
 
     if (teamsRes.error) return NextResponse.json({ error: teamsRes.error.message }, { status: 500 });
     const teams = shuffle(teamsRes.data || []);
     const teamCount = teams.length;
 
     if (teamCount < 8 || teamCount > 12) {
-      return NextResponse.json({ error: `Need 8-12 confirmed teams, got ${teamCount}` }, { status: 400 });
+      return NextResponse.json({ error: `Need 8-12 paid teams, got ${teamCount}` }, { status: 400 });
+    }
+
+    for (const tm of teams) {
+      const capId = (tm as { id: string }).id;
+      const { data: ros } = await admin.from("tournament_roster").select("status").eq("captain_id", capId);
+      const accepted = (ros || []).filter((r: { status: string }) => r.status === "accepted").length;
+      const headcount = 1 + accepted;
+      if (headcount < minRoster) {
+        return NextResponse.json(
+          {
+            error: `Team “${String((tm as { team_name?: string }).team_name || "Team")}” has ${headcount} roster players (including captain). Minimum is ${minRoster}.`,
+          },
+          { status: 400 },
+        );
+      }
     }
 
     const config = getGroupConfig(teamCount);
     const groupNames = ["A", "B", "C"];
 
-    // Delete existing groups and matches
     await admin.from("tournament_matches").delete().eq("tournament_id", tournament_id);
     await admin.from("tournament_group_members").delete().eq("tournament_id", tournament_id);
     await admin.from("tournament_groups").delete().eq("tournament_id", tournament_id);
@@ -115,7 +141,6 @@ export async function POST(req: Request) {
       const groupTeams = teams.slice(teamIndex, teamIndex + groupTeamCount);
       teamIndex += groupTeamCount;
 
-      // Create group
       const groupRes = await admin
         .from("tournament_groups")
         .insert({ tournament_id, group_name: groupName })
@@ -125,16 +150,14 @@ export async function POST(req: Request) {
       if (groupRes.error) return NextResponse.json({ error: groupRes.error.message }, { status: 500 });
       const groupId = groupRes.data.id;
 
-      // Add group members
       await admin.from("tournament_group_members").insert(
         groupTeams.map((t) => ({
           group_id: groupId,
           tournament_id,
-          team_id: t.id,
-        }))
+          team_id: (t as { id: string }).id,
+        })),
       );
 
-      // Generate round-robin matches
       for (let i = 0; i < groupTeams.length; i++) {
         for (let j = i + 1; j < groupTeams.length; j++) {
           await admin.from("tournament_matches").insert({
@@ -142,11 +165,28 @@ export async function POST(req: Request) {
             stage: "group",
             group_name: groupName,
             match_number: matchNumber++,
-            team_a_id: groupTeams[i].id,
-            team_b_id: groupTeams[j].id,
+            team_a_id: (groupTeams[i] as { id: string }).id,
+            team_b_id: (groupTeams[j] as { id: string }).id,
           });
         }
       }
+    }
+
+    const recap = await recalculateOutdoorGroupStandings(admin, tournament_id);
+    if (!recap.ok) return NextResponse.json({ error: recap.error }, { status: 500 });
+
+    const { data: capPush } = await admin
+      .from("tournament_captains")
+      .select("user_id")
+      .eq("tournament_id", tournament_id)
+      .in("id", teams.map((x) => (x as { id: string }).id));
+    const ids = [...new Set((capPush || []).map((r: { user_id: string }) => r.user_id).filter(Boolean))];
+    if (ids.length) {
+      await sendPushToUsers(admin, ids, {
+        title: "Bracket is live",
+        body: "Group stage matches are published. Open Tournaments → View bracket.",
+        data: { kind: "tournament_bracket_generated", tournament_id },
+      });
     }
 
     return NextResponse.json({ ok: true, message: `Generated groups for ${teamCount} teams` });
@@ -155,86 +195,51 @@ export async function POST(req: Request) {
   if (action === "log_score") {
     const { match_id, score_a, score_b, goals } = body;
 
-    // Get match
     const matchRes = await admin.from("tournament_matches").select("*").eq("id", match_id).maybeSingle();
     if (!matchRes.data) return NextResponse.json({ error: "Match not found" }, { status: 404 });
     const match = matchRes.data;
 
-    // Determine winner
     let winner_id = null;
     if (score_a !== score_b) {
       winner_id = score_a > score_b ? match.team_a_id : match.team_b_id;
     }
 
-    // Update match score
-    await admin.from("tournament_matches").update({
-      score_a,
-      score_b,
-      winner_id,
-      completed_at: new Date().toISOString(),
-    }).eq("id", match_id);
+    await admin
+      .from("tournament_matches")
+      .update({
+        score_a,
+        score_b,
+        winner_id,
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", match_id);
 
     await admin.from("tournament_match_goals").delete().eq("match_id", match_id);
 
-    // Log goal scorers (re-log is idempotent for this match after delete above)
     if (goals && goals.length > 0) {
       await admin.from("tournament_match_goals").insert(
-        goals.map((g: any) => ({
+        goals.map((g: { team_id: string; scorer_name: string; minute: unknown; is_own_goal?: boolean }) => ({
           match_id,
           tournament_id,
           team_id: g.team_id,
           scorer_name: g.scorer_name,
           minute: g.minute,
           is_own_goal: g.is_own_goal || false,
-        }))
+        })),
       );
     }
 
-    // Update group standings if group stage
     if (match.stage === "group") {
-      const aWins = score_a > score_b ? 1 : 0;
-      const bWins = score_b > score_a ? 1 : 0;
-      const draw = score_a === score_b ? 1 : 0;
-
-      // Update team A standings
-      const memberA = await admin.from("tournament_group_members")
-        .select("*").eq("team_id", match.team_a_id).eq("tournament_id", tournament_id).maybeSingle();
-      if (memberA.data) {
-        const gfA = memberA.data.goals_for + score_a;
-        const gaA = memberA.data.goals_against + score_b;
-        await admin.from("tournament_group_members").update({
-          wins: memberA.data.wins + aWins,
-          draws: memberA.data.draws + draw,
-          losses: memberA.data.losses + bWins,
-          goals_for: gfA,
-          goals_against: gaA,
-          goal_difference: gfA - gaA,
-          points: memberA.data.points + (aWins ? 3 : draw ? 1 : 0),
-        }).eq("id", memberA.data.id);
-      }
-
-      // Update team B standings
-      const memberB = await admin.from("tournament_group_members")
-        .select("*").eq("team_id", match.team_b_id).eq("tournament_id", tournament_id).maybeSingle();
-      if (memberB.data) {
-        const gfB = memberB.data.goals_for + score_b;
-        const gaB = memberB.data.goals_against + score_a;
-        await admin.from("tournament_group_members").update({
-          wins: memberB.data.wins + bWins,
-          draws: memberB.data.draws + draw,
-          losses: memberB.data.losses + aWins,
-          goals_for: gfB,
-          goals_against: gaB,
-          goal_difference: gfB - gaB,
-          points: memberB.data.points + (bWins ? 3 : draw ? 1 : 0),
-        }).eq("id", memberB.data.id);
-      }
+      const recap = await recalculateOutdoorGroupStandings(admin, tournament_id);
+      if (!recap.ok) return NextResponse.json({ error: recap.error }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true });
   }
 
   if (action === "generate_knockout") {
+    await admin.from("tournament_matches").delete().eq("tournament_id", tournament_id).in("stage", ["qf", "sf", "final"]);
+
     const groupsRes = await admin
       .from("tournament_groups")
       .select("id,group_name")
@@ -297,7 +302,6 @@ export async function POST(req: Request) {
       });
     }
 
-    /** Cross-group pairings: Wi vs R(i+1) — for 2 groups yields A1 vs B2, B1 vs A2. */
     const pairs: { team_a_id: string; team_b_id: string }[] = [];
     const n = qualifiers.length;
     for (let i = 0; i < n; i++) {

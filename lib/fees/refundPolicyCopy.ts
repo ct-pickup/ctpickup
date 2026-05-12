@@ -1,20 +1,20 @@
 /**
  * Plain-English refund snippets for checkout, summaries, and cross-references.
- * Esports: binding detail in Official Tournament Rules. Pickups: aligns with cancellation_deadline (10 PM ET day before).
+ * Esports: binding detail in Official Tournament Rules. Pickups: aligns with cancellation_deadline (24h before start_at).
  */
 
 export const FEES_CROSS_REFERENCE_SUMMARY =
-  "Tournament and pickup fees are generally non-refundable except as stated in the applicable refund policy: for in-person tournaments, refunds must be requested more than 48 hours before the tournament begins; for pickups, cancellation must be completed before 10:00 PM on the day before the scheduled pickup.";
+  "Tournament and pickup fees are generally non-refundable except as stated in the applicable refund policy: for in-person tournaments, refunds must be requested more than 48 hours before the tournament begins; for pickups, refunds are available if you cancel more than 24 hours before the run's scheduled start time, and you receive a full refund if the organizer cancels the run.";
 
 export const PICKUP_REFUND_AVAILABILITY_SENTENCE =
-  "Refunds are available only if cancellation is completed before 10:00 PM on the day before the scheduled pickup.";
+  "Refunds are available if you cancel more than 24 hours before the run's scheduled start time.";
 
 /** Pickup page / how-it-works — full plain-English pickup refund summary */
-export const PICKUP_REFUND_UI_NOTICE = `${PICKUP_REFUND_AVAILABILITY_SENTENCE} If you cancel after that time or no-show, your fee is not refunded. If the Organizer cancels the pickup, a refund may still be issued. Verified duplicate or erroneous charges will be corrected.`;
+export const PICKUP_REFUND_UI_NOTICE = `${PICKUP_REFUND_AVAILABILITY_SENTENCE} If you cancel within 24 hours of the start time or no-show, your fee is not refunded. Full refund if the run is canceled by the organizer. Verified duplicate or erroneous charges will be corrected.`;
 
 /** Stripe line item (pickup field fee) */
 export const PICKUP_FIELD_FEE_STRIPE_DESCRIPTION =
-  "Non-refundable unless you cancel before 10 PM the day before pickup; no refund after that or for no-shows; organizer-cancelled runs may be refunded; duplicate/erroneous charges corrected.";
+  "Non-refundable unless you cancel more than 24h before the run start; no refund within 24h of start or for no-shows; full refund if the organizer cancels the run; duplicate/erroneous charges corrected.";
 
 /** Stripe line item (online esports entry) */
 export const ESPORTS_ENTRY_FEE_STRIPE_DESCRIPTION =

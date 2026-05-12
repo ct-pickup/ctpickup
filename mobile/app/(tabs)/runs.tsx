@@ -681,7 +681,8 @@ export default function RunsScreen() {
                   </Text>
                   <Text style={styles.feeNote}>
                     Final fee is based on confirmed attendance up to the session cap. If fewer players confirm, the fee may
-                    be higher. Refunds available if canceled before 10:00 PM the night before.
+                    be higher. Refunds are available if you cancel more than 24 hours before the run start. Full refund if
+                    the organizer cancels the run.
                   </Text>
                 </View>
               );
@@ -899,7 +900,7 @@ export default function RunsScreen() {
 
             {cancellationDeadline ? (
               <Text style={styles.deadlineText}>
-                Cancellation deadline: {fmtPickupDt(cancellationDeadline)}
+                Cancel by {fmtPickupDt(cancellationDeadline)} for a refund (24 hours before start)
               </Text>
             ) : null}
           </View>

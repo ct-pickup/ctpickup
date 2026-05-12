@@ -1,50 +1,36 @@
-function pad2(n: number) {
-  return String(n).padStart(2, "0");
-}
-
-function nyOffsetFor(date: Date) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    timeZoneName: "shortOffset",
-  }).formatToParts(date);
-
-  const tz = parts.find((p) => p.type === "timeZoneName")?.value || "GMT-5";
-  const m = tz.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
-  if (!m) return "-05:00";
-  const sign = m[1] === "-" ? "-" : "+";
-  const hh = pad2(Number(m[2]));
-  const mm = pad2(Number(m[3] || "0"));
-  return `${sign}${hh}:${mm}`;
-}
-
-function nyYMD(date: Date) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-
-  const y = parts.find((p) => p.type === "year")?.value;
-  const m = parts.find((p) => p.type === "month")?.value;
-  const d = parts.find((p) => p.type === "day")?.value;
-  return { y: y || "2000", m: m || "01", d: d || "01" };
-}
-
-/** 10:00 PM America/New_York the night before start_at */
+/** ISO instant for start_at minus 24 hours (player-initiated refund if canceled strictly before this time). */
 export function computeCancellationDeadline(startAtISO: string) {
-  const start = new Date(startAtISO);
-  const { y, m, d } = nyYMD(start);
-  const off = nyOffsetFor(start);
-  const startDayAt2200 = new Date(`${y}-${m}-${d}T22:00:00${off}`);
-  const cutoff = new Date(startDayAt2200.getTime() - 24 * 60 * 60 * 1000);
-  return cutoff.toISOString();
+  const startMs = new Date(startAtISO).getTime();
+  if (!Number.isFinite(startMs)) {
+    throw new RangeError("Invalid start_at for computeCancellationDeadline");
+  }
+  return new Date(startMs - 24 * 60 * 60 * 1000).toISOString();
+}
+
+/** True if the current time is still before the 24-hour refund cutoff (uses start_at when valid, else cancellation_deadline). */
+export function pickupPlayerRefundEligibleNow(
+  run: { start_at?: string | null; cancellation_deadline?: string | null },
+  nowMs: number = Date.now(),
+): boolean {
+  const startRaw = run.start_at != null ? String(run.start_at).trim() : "";
+  if (startRaw) {
+    try {
+      const cutoffMs = new Date(computeCancellationDeadline(startRaw)).getTime();
+      if (Number.isFinite(cutoffMs)) return nowMs < cutoffMs;
+    } catch {
+      // fall through to cancellation_deadline
+    }
+  }
+  const d = run.cancellation_deadline != null ? String(run.cancellation_deadline).trim() : "";
+  if (!d) return false;
+  const t = new Date(d).getTime();
+  return Number.isFinite(t) && nowMs < t;
 }
 
 /** Earliest kickoff time for checkpoint math: run.start_at if set, else earliest slot. */
 export function anchorStartAtMs(
   run: { start_at: string | null },
-  slots: { start_at: string }[]
+  slots: { start_at: string }[],
 ): number | null {
   let best: number | null = run.start_at ? new Date(run.start_at).getTime() : null;
   if (best !== null && !Number.isFinite(best)) best = null;

@@ -16,6 +16,8 @@ import {
   verifyPickupPaidAndConfirmed,
   verifyTournamentPaymentApplied,
 } from "@/lib/payments/verifyStripeFulfillment";
+import { sendPushToUsers } from "@/lib/push/sendExpoPush";
+import { syncCaptainPlayersPaid } from "@/lib/tournament/syncCaptainPlayersPaid";
 import {
   getStripeTournament,
   getStripeWebhookSecret,
@@ -127,23 +129,25 @@ async function fulfillTournament(
     .update({ status: "captured", stripe_payment_intent_id: paymentIntentId })
     .eq("id", pay.id);
 
-  const { data: rosterRows } = await admin
-    .from("tournament_roster")
-    .select("status")
-    .eq("captain_id", pay.captain_id);
-  const playersPaid = (rosterRows || []).filter(
-    (r: { status: string }) => r.status === "invited" || r.status === "accepted",
-  ).length;
-
   await admin
     .from("tournament_captains")
     .update({
       status: "payment_received",
       payment_method: "stripe",
-      players_paid: playersPaid,
       payment_received_at: new Date().toISOString(),
     })
     .eq("id", pay.captain_id);
+
+  await syncCaptainPlayersPaid(admin, pay.captain_id);
+
+  const { data: capRow } = await admin.from("tournament_captains").select("user_id").eq("id", pay.captain_id).maybeSingle();
+  if (capRow?.user_id) {
+    await sendPushToUsers(admin, [String(capRow.user_id)], {
+      title: "Payment received",
+      body: "Your team spot is confirmed. Build your roster in the Tournaments tab.",
+      data: { kind: "tournament_captain_payment_confirmed", captain_id: pay.captain_id },
+    });
+  }
 }
 
 async function downgradePickupPendingPaymentAfterFailure(

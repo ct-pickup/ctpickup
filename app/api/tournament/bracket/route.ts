@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { getSupabaseAdmin, getSupabaseAnon } from "@/lib/server/runtimeClients";
+import { PAID_OR_READY_CAPTAIN_STATUSES } from "@/lib/tournament/outdoorTournamentConstants";
+import { userMayViewOutdoorTournamentBracket } from "@/lib/tournament/resolveOutdoorHubRegionForUser";
 
 export const runtime = "nodejs";
 
@@ -14,8 +16,9 @@ export async function GET(req: Request) {
   const token = bearer(req);
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const u = await admin.auth.getUser(token);
-  if (!u.data.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const anon = getSupabaseAnon();
+  const { data: u, error: uErr } = await anon.auth.getUser(token);
+  if (uErr || !u.data.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
   const tournament_id = searchParams.get("tournament_id");
@@ -23,12 +26,17 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Missing tournament_id query parameter" }, { status: 400 });
   }
 
+  const allowed = await userMayViewOutdoorTournamentBracket(admin, u.data.user.id, tournament_id);
+  if (!allowed) {
+    return NextResponse.json({ error: "This bracket is not available for your region." }, { status: 403 });
+  }
+
   const [teamsRes, matchesRes, standingsRes] = await Promise.all([
     admin
       .from("tournament_captains")
       .select("id, team_name, captain_name")
       .eq("tournament_id", tournament_id)
-      .eq("status", "confirmed"),
+      .in("status", [...PAID_OR_READY_CAPTAIN_STATUSES]),
     admin
       .from("tournament_matches")
       .select("*")

@@ -194,8 +194,8 @@ export function WaiverDocumentBody() {
           <span className="text-white/90">
             Tournament and pickup fees are generally non-refundable except as stated in the applicable
             refund policy: for in-person tournaments, refunds must be requested more than 48 hours before
-            the tournament begins; for pickups, cancellation must be completed before 10:00 PM on the
-            day before the scheduled pickup.
+            the tournament begins; for pickups, refunds are available if you cancel more than 24 hours before
+            the run&apos;s scheduled start time. Full refund if the organizer cancels the run.
           </span>{" "}
           Online esports entry fees and refunds are in the{" "}
           <Link

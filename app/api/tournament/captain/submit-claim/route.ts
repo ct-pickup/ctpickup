@@ -1,17 +1,11 @@
 import { NextResponse } from "next/server";
+import { fetchAdminUserIds } from "@/lib/push/adminUserIds";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
 import { getSupabaseAdmin, getSupabaseAnon } from "@/lib/server/runtimeClients";
-
-const ACTIVE_CLAIM_STATUSES = [
-  "claim_submitted",
-  "payment_pending",
-  "payment_received",
-  "roster_pending",
-  "verification_in_progress",
-  "flagged_for_review",
-  "confirmed",
-];
+import { isActiveCaptainClaimStatus } from "@/lib/tournament/outdoorTournamentConstants";
+import { resolveOutdoorHubRegionForUser } from "@/lib/tournament/resolveOutdoorHubRegionForUser";
+import { selectActiveOutdoorTournamentForRegion } from "@/lib/tournament/selectActiveOutdoorTournament";
 
 function normIg(s: string) {
   return s.trim().replace(/^@/, "").replace(/\s+/g, "").toLowerCase();
@@ -34,6 +28,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "waiver_required" }, { status: 403 });
   }
 
+  const { data: prof } = await admin.from("profiles").select("approved").eq("id", u.user.id).maybeSingle();
+  if (!prof?.approved) {
+    return NextResponse.json({ error: "account_not_approved" }, { status: 403 });
+  }
+
   const body = await req.json();
 
   const captainName = String(body?.captainName || "").trim();
@@ -42,48 +41,46 @@ export async function POST(req: Request) {
   const expectedPlayers = Number(body?.expectedPlayers || 0);
 
   const prelim = Array.isArray(body?.prelimRoster) ? body.prelimRoster : [];
+  const bodyRegion =
+    body?.service_region != null && typeof body.service_region === "string"
+      ? String(body.service_region).trim().toUpperCase()
+      : null;
 
   if (!captainName || captainName.length < 2) return NextResponse.json({ error: "missing_name" }, { status: 400 });
-  if (!captainInstagram || captainInstagram.length < 2) return NextResponse.json({ error: "missing_instagram" }, { status: 400 });
+  if (!captainInstagram || captainInstagram.length < 2)
+    return NextResponse.json({ error: "missing_instagram" }, { status: 400 });
   if (!teamName || teamName.length < 2) return NextResponse.json({ error: "missing_team_name" }, { status: 400 });
   if (!Number.isFinite(expectedPlayers) || expectedPlayers < 5 || expectedPlayers > 25) {
     return NextResponse.json({ error: "expected_players_invalid" }, { status: 400 });
   }
 
-  const { data: t } = await admin
-    .from("tournaments")
-    .select("*")
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-
+  const resolvedRegion = await resolveOutdoorHubRegionForUser(admin, u.user.id, bodyRegion);
+  const { data: t, error: tSelErr } = await selectActiveOutdoorTournamentForRegion(admin, resolvedRegion);
+  if (tSelErr) return NextResponse.json({ error: tSelErr.message }, { status: 500 });
   if (!t) return NextResponse.json({ error: "no_active_tournament" }, { status: 404 });
 
-  // Claims closed within 24h of tournament start
   const startAtMs =
-    typeof (t as any)?.start_at === "string" ? new Date((t as any).start_at).getTime() : NaN;
+    typeof (t as { start_at?: unknown }).start_at === "string"
+      ? new Date(String((t as { start_at: string }).start_at)).getTime()
+      : NaN;
   if (Number.isFinite(startAtMs)) {
     const cutoffMs = startAtMs - 24 * 60 * 60 * 1000;
     if (cutoffMs < nowMs) {
       return NextResponse.json(
         { error: "Claims are closed within 24 hours of the tournament. Roster is now free-for-all." },
-        { status: 403 }
+        { status: 403 },
       );
     }
   }
 
-  // Capacity: block new claims if claimed >= target
-  const { data: allCaps } = await admin
-    .from("tournament_captains")
-    .select("status")
-    .eq("tournament_id", t.id);
+  const maxTeams = Number((t as { max_teams?: unknown }).max_teams ?? 0);
+  const { data: allCaps } = await admin.from("tournament_captains").select("status").eq("tournament_id", t.id);
 
-  const claimed = (allCaps || []).filter((c) => ACTIVE_CLAIM_STATUSES.includes(c.status)).length;
-  if (claimed >= t.target_teams) {
+  const claimed = (allCaps || []).filter((c) => isActiveCaptainClaimStatus(c.status)).length;
+  if (Number.isFinite(maxTeams) && maxTeams > 0 && claimed >= maxTeams) {
     return NextResponse.json({ error: "captain_slots_full" }, { status: 409 });
   }
 
-  // Duplicate protection: captain IG only on one active team per tournament
   const { data: dupIg } = await admin
     .from("tournament_captains")
     .select("id, user_id, status")
@@ -91,7 +88,9 @@ export async function POST(req: Request) {
     .eq("captain_instagram", captainInstagram)
     .limit(5);
 
-  const dupActive = (dupIg || []).some((x) => x.user_id !== u.user.id && ACTIVE_CLAIM_STATUSES.includes(x.status));
+  const dupActive = (dupIg || []).some(
+    (x) => x.user_id !== u.user.id && isActiveCaptainClaimStatus(x.status as string),
+  );
   if (dupActive) {
     return NextResponse.json({ error: "instagram_already_on_active_team" }, { status: 409 });
   }
@@ -102,7 +101,6 @@ export async function POST(req: Request) {
     "";
   const userAgent = req.headers.get("user-agent") || "";
 
-  // Upsert captain claim (1 per user per tournament)
   const { data: cap, error: capErr } = await admin
     .from("tournament_captains")
     .upsert(
@@ -110,6 +108,7 @@ export async function POST(req: Request) {
         tournament_id: t.id,
         user_id: u.user.id,
         status: "claim_submitted",
+        captain_verified: false,
         captain_name: captainName,
         captain_instagram: captainInstagram,
         team_name: teamName,
@@ -118,7 +117,7 @@ export async function POST(req: Request) {
         ip,
         user_agent: userAgent,
       },
-      { onConflict: "tournament_id,user_id" }
+      { onConflict: "tournament_id,user_id" },
     )
     .select("*")
     .single();
@@ -126,31 +125,35 @@ export async function POST(req: Request) {
   if (capErr) return NextResponse.json({ error: capErr.message }, { status: 500 });
   if (!cap) return NextResponse.json({ error: "Upsert returned no row" }, { status: 500 });
 
-  await sendPushToUsers(admin, [u.user.id], {
-    title: "Captain claim received",
-    body: "Your captain claim has been submitted. Staff will verify and contact you.",
-    data: { kind: "captain_claim_submitted", tournament_id: t.id, captain_id: cap.id },
-  });
+  const adminIds = await fetchAdminUserIds(admin);
+  if ("error" in adminIds) {
+    console.error("[submit-claim] admin ids:", adminIds.error);
+  } else if (adminIds.ids.length) {
+    await sendPushToUsers(admin, adminIds.ids, {
+      title: "Captain claim submitted",
+      body: `${teamName} — ${captainName} submitted a tournament captain claim.`,
+      data: { kind: "tournament_captain_claim_admin", tournament_id: t.id, captain_id: cap.id },
+    });
+  }
 
-  // Replace prelim roster entries
   await admin.from("tournament_roster_prelim").delete().eq("captain_id", cap.id);
 
   const cleanPrelim = prelim
-    .map((p: any) => ({
+    .map((p: { fullName?: unknown; instagram?: unknown }) => ({
       full_name: String(p?.fullName || "").trim(),
       instagram: normIg(String(p?.instagram || "")),
     }))
-    .filter((p: any) => p.full_name.length >= 2 && p.instagram.length >= 2)
+    .filter((p) => p.full_name.length >= 2 && p.instagram.length >= 2)
     .slice(0, 12);
 
   if (cleanPrelim.length) {
     await admin.from("tournament_roster_prelim").insert(
-      cleanPrelim.map((p: any) => ({
+      cleanPrelim.map((p) => ({
         tournament_id: t.id,
         captain_id: cap.id,
         full_name: p.full_name,
         instagram: p.instagram,
-      }))
+      })),
     );
   }
 

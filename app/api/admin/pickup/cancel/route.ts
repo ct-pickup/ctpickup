@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
-import type Stripe from "stripe";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
-import {
-  getStripePickup,
-  getSupabaseAdmin,
-} from "@/lib/server/runtimeClients";
+import { cancelAllPickupRsvpsAndRefundPaidConfirmed } from "@/lib/pickup/refundAllPickupPlayersOnRunCancel";
+import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export async function POST(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
@@ -34,48 +31,14 @@ export async function POST(req: Request) {
 
   const rsvpsRes = await supabaseAdmin
     .from("pickup_run_rsvps")
-    .select("user_id,payment_intent_id,paid_at,refund_id,status")
+    .select("user_id")
     .eq("run_id", run_id);
 
   const rsvps = rsvpsRes.data || [];
-
-  let stripe: Stripe | null = null;
-
-  const refunded: string[] = [];
-  const failed: { user_id: string; error: string }[] = [];
-
-  for (const r of rsvps) {
-    try {
-      if (r.paid_at && r.payment_intent_id && !r.refund_id) {
-        if (!stripe) stripe = getStripePickup();
-        const refund = await stripe.refunds.create({
-          payment_intent: String(r.payment_intent_id),
-        });
-
-        await supabaseAdmin
-          .from("pickup_run_rsvps")
-          .update({
-            refund_id: refund.id,
-            status: "canceled",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("run_id", run_id)
-          .eq("user_id", r.user_id);
-
-        refunded.push(r.user_id);
-      } else {
-        await supabaseAdmin
-          .from("pickup_run_rsvps")
-          .update({ status: "canceled", updated_at: new Date().toISOString() })
-          .eq("run_id", run_id)
-          .eq("user_id", r.user_id);
-      }
-    } catch (e: any) {
-      failed.push({ user_id: r.user_id, error: e?.message || "refund failed" });
-    }
-  }
-
   const canceledUserIds = Array.from(new Set(rsvps.map((r) => r.user_id).filter(Boolean)));
+
+  const { refunded, failed } = await cancelAllPickupRsvpsAndRefundPaidConfirmed(supabaseAdmin, run_id);
+
   if (canceledUserIds.length) {
     await sendPushToUsers(supabaseAdmin, canceledUserIds, {
       title: "Pickup canceled",

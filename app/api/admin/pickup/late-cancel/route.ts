@@ -4,7 +4,7 @@ import { promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 /**
- * Records a late cancellation (after the public cutoff or staff-directed removal) for standing.
+ * Records a late cancellation (after the 24-hour refund cutoff or staff-directed removal) for standing.
  * Idempotent per user + run + kind via unique index.
  */
 export async function POST(req: Request) {

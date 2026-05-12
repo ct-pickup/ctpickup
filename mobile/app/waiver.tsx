@@ -268,9 +268,10 @@ export default function WaiverScreen() {
             Unless different terms apply to a specific product you accept at registration or checkout, all purchases are
             non-refundable unless otherwise stated.{" "}
             <Text style={styles.emphasis}>
-              Tournament and pickup fees are generally non-refundable except as stated in the applicable refund policy
-              for in-person tournaments, refunds must be requested more than 48 hours before the tournament begins for
-              pickups, cancellation must be completed before 10:00 PM on the day before the scheduled pickup.
+              Tournament and pickup fees are generally non-refundable except as stated in the applicable refund policy:
+              for in-person tournaments, refunds must be requested more than 48 hours before the tournament begins; for
+              pickups, refunds are available if you cancel more than 24 hours before the run&apos;s scheduled start time.
+              Full refund if the organizer cancels the run.
             </Text>{" "}
             Online esports entry fees and refunds are in the{" "}
             <Text style={styles.link} onPress={() => openUrl("/legal/esports/official-rules#refund-policy")}>

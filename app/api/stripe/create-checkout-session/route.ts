@@ -18,10 +18,7 @@ async function expireIfOverdue(captain: any, admin: SupabaseClient) {
   if (!captain.payment_due_at) return captain;
   if (new Date(captain.payment_due_at).getTime() > Date.now()) return captain;
 
-  await admin
-    .from("tournament_captains")
-    .update({ status: "released_expired" })
-    .eq("id", captain.id);
+  await admin.from("tournament_captains").update({ status: "released_expired" }).eq("id", captain.id);
 
   return { ...captain, status: "released_expired" };
 }
@@ -43,23 +40,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "waiver_required" }, { status: 403 });
     }
 
-    const { data: t } = await admin
-      .from("tournaments")
-      .select("*")
-      .eq("is_active", true)
-      .limit(1)
-      .maybeSingle();
-
-    if (!t) return NextResponse.json({ error: "no_active_tournament" }, { status: 404 });
-
-    const { data: captain } = await admin
+    const { data: capRows, error: capListErr } = await admin
       .from("tournament_captains")
-      .select("*")
-      .eq("tournament_id", t.id)
-      .eq("user_id", u.user.id)
-      .maybeSingle();
+      .select("*, tournaments(id,is_active,title,entry_fee_cents)")
+      .eq("user_id", u.user.id);
 
-    if (!captain) return NextResponse.json({ error: "no_captain_claim" }, { status: 409 });
+    if (capListErr) return NextResponse.json({ error: capListErr.message }, { status: 500 });
+
+    const row = (capRows || []).find((r: { tournaments?: { is_active?: boolean } | null }) => r.tournaments?.is_active);
+    if (!row) return NextResponse.json({ error: "no_captain_claim" }, { status: 409 });
+
+    const t = row.tournaments as { id: string; is_active: boolean; title: string | null; entry_fee_cents?: number };
+    const captain = row as Record<string, unknown> & { id: string; status: string; captain_verified?: boolean };
 
     const cap = await expireIfOverdue(captain, admin);
     if (cap.status === "released_expired") {
@@ -74,7 +66,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "already_confirmed" }, { status: 409 });
     }
 
-    // Start payment window now (36 hours)
     const now = new Date();
     const due = new Date(now.getTime() + 36 * 60 * 60 * 1000);
 
@@ -89,12 +80,19 @@ export async function POST(req: Request) {
 
     const origin = requestSiteUrlFromRequest(req);
 
+    const feeCentsRaw = t.entry_fee_cents;
+    const feeCents =
+      typeof feeCentsRaw === "number" && Number.isFinite(feeCentsRaw) && feeCentsRaw > 0 ? feeCentsRaw : 25000;
+
+    const expectedPlayers = Number((cap as { expected_players?: unknown }).expected_players ?? 0) || 10;
+    const rosterHeadcount = Math.max(5, Math.min(25, expectedPlayers));
+
     const sessionMetadata = {
       kind: "tournament" as const,
       tournament_id: String(t.id),
       captain_id: String(cap.id),
       user_id: String(u.user.id),
-      players_count: "5",
+      players_count: String(rosterHeadcount),
     };
 
     const session = await stripe.checkout.sessions.create({
@@ -104,7 +102,7 @@ export async function POST(req: Request) {
           quantity: 1,
           price_data: {
             currency: "usd",
-            unit_amount: 25000,
+            unit_amount: feeCents,
             product_data: {
               name: "CT Pickup Tournament — Captain Payment",
               description: IN_PERSON_TOURNAMENT_CAPTAIN_STRIPE_DESCRIPTION,
@@ -135,8 +133,8 @@ export async function POST(req: Request) {
       tournament_id: t.id,
       captain_id: cap.id,
       method: "stripe",
-      amount_cents: 25000,
-      players_count: 5,
+      amount_cents: feeCents,
+      players_count: rosterHeadcount,
       stripe_session_id: session.id,
       status: "pending",
     });
@@ -147,7 +145,7 @@ export async function POST(req: Request) {
       userId: u.user.id,
       stripeCheckoutSessionId: session.id,
       stripePaymentIntentId: paymentIntentIdFromCheckoutSession(session),
-      amountCents: 25000,
+      amountCents: feeCents,
       currency: "usd",
       title: `Tournament captain payment — ${String(t.title || "Tournament").trim() || "Tournament"}`,
       summary: null,

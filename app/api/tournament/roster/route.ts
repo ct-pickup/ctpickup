@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { lookupPickupPlayerByUsernameOrEmail } from "@/lib/pickup/lookupPlayerByIdentifier";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin, getSupabaseAnon } from "@/lib/server/runtimeClients";
+import { captainMayManageRosterStatus, PAID_OR_READY_CAPTAIN_STATUSES } from "@/lib/tournament/outdoorTournamentConstants";
+import { syncCaptainPlayersPaid } from "@/lib/tournament/syncCaptainPlayersPaid";
 
 export const runtime = "nodejs";
 
@@ -63,7 +65,7 @@ export async function GET(req: Request) {
       .from("tournament_captains")
       .select("id, team_name, captain_name, expected_players, user_id")
       .eq("tournament_id", tournamentId)
-      .eq("status", "confirmed");
+      .in("status", [...PAID_OR_READY_CAPTAIN_STATUSES]);
 
     if (cErr) return NextResponse.json({ error: cErr.message }, { status: 500 });
 
@@ -241,7 +243,9 @@ export async function POST(req: Request) {
     if (capErr) return NextResponse.json({ error: capErr.message }, { status: 500 });
     if (!cap || String(cap.user_id) !== userId) return NextResponse.json({ error: "forbidden" }, { status: 403 });
     if (String(cap.tournament_id) !== tournament_id) return NextResponse.json({ error: "tournament_mismatch" }, { status: 400 });
-    if (String(cap.status) !== "confirmed") return NextResponse.json({ error: "captain_not_confirmed" }, { status: 400 });
+    if (!captainMayManageRosterStatus(String(cap.status))) {
+      return NextResponse.json({ error: "captain_not_confirmed" }, { status: 400 });
+    }
 
     const player = await lookupPickupPlayerByUsernameOrEmail(admin, identifier);
     if (!player) return NextResponse.json({ error: "player_not_found" }, { status: 404 });
@@ -275,9 +279,10 @@ export async function POST(req: Request) {
         if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
         await sendPushToUsers(admin, [player.user_id], {
           title: "Tournament team invite",
-          body: `You were invited to join ${String(cap.team_name || "a team")}.`,
+          body: `You've been invited to join ${String(cap.team_name || "a team")} for the CT Pickup Tournament.`,
           data: { kind: "tournament_roster_invite", roster_id: upd.id, tournament_id, captain_id },
         });
+        await syncCaptainPlayersPaid(admin, captain_id);
         return NextResponse.json({ roster: upd });
       }
       return NextResponse.json({ error: "already_on_roster" }, { status: 409 });
@@ -298,10 +303,11 @@ export async function POST(req: Request) {
 
     await sendPushToUsers(admin, [player.user_id], {
       title: "Tournament team invite",
-      body: `You were invited to join ${String(cap.team_name || "a team")}.`,
+      body: `You've been invited to join ${String(cap.team_name || "a team")} for the CT Pickup Tournament.`,
       data: { kind: "tournament_roster_invite", roster_id: row.id, tournament_id, captain_id },
     });
 
+    await syncCaptainPlayersPaid(admin, captain_id);
     return NextResponse.json({ roster: row });
   }
 
@@ -335,6 +341,7 @@ export async function POST(req: Request) {
       });
     }
 
+    await syncCaptainPlayersPaid(admin, String(row.captain_id));
     return NextResponse.json({ roster: upd });
   }
 
@@ -352,6 +359,7 @@ export async function POST(req: Request) {
 
     const { error: dErr } = await admin.from("tournament_roster").delete().eq("id", roster_id);
     if (dErr) return NextResponse.json({ error: dErr.message }, { status: 500 });
+    await syncCaptainPlayersPaid(admin, String(row.captain_id));
     return NextResponse.json({ ok: true });
   }
 
@@ -369,7 +377,8 @@ export async function POST(req: Request) {
       .maybeSingle();
     if (capErr) return NextResponse.json({ error: capErr.message }, { status: 500 });
     if (!cap || String(cap.tournament_id) !== tournament_id) return NextResponse.json({ error: "invalid_team" }, { status: 400 });
-    if (String(cap.status) !== "confirmed") return NextResponse.json({ error: "team_not_confirmed" }, { status: 400 });
+    if (!captainMayManageRosterStatus(String(cap.status)))
+      return NextResponse.json({ error: "team_not_confirmed" }, { status: 400 });
     if (String(cap.user_id) === userId) return NextResponse.json({ error: "cannot_join_own_team" }, { status: 400 });
 
     const { data: rosterList } = await admin.from("tournament_roster").select("status").eq("captain_id", captain_id);
@@ -454,11 +463,14 @@ export async function POST(req: Request) {
 
     const { data: cap, error: cErr } = await admin
       .from("tournament_captains")
-      .select("user_id, expected_players, team_name")
+      .select("user_id, expected_players, team_name, status")
       .eq("id", reqRow.captain_id)
       .maybeSingle();
     if (cErr) return NextResponse.json({ error: cErr.message }, { status: 500 });
     if (!cap || String(cap.user_id) !== userId) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    if (!captainMayManageRosterStatus(String(cap.status))) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
 
     const now = new Date().toISOString();
     if (!approve) {
@@ -531,6 +543,7 @@ export async function POST(req: Request) {
       data: { kind: "tournament_join_decision", request_id, approved: true, roster_id: rosterOut?.id },
     });
 
+    await syncCaptainPlayersPaid(admin, String(reqRow.captain_id));
     return NextResponse.json({ request: updReq, roster: rosterOut });
   }
 

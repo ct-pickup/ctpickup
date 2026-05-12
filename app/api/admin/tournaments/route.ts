@@ -5,6 +5,7 @@ import { fetchApprovedUserIds } from "@/lib/push/approvedUserIds";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { recordTournamentActivationChange } from "@/lib/admin/surfaceHealth";
 import { setOutdoorTournamentHub } from "@/lib/tournament/setOutdoorTournamentHub";
+import { refundPaidCaptainsOnTournamentCancel } from "@/lib/tournament/refundPaidCaptainsOnTournamentCancel";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
@@ -34,7 +35,9 @@ export async function GET(req: Request) {
 
   let tQuery = admin
     .from("tournaments")
-    .select("id,title,slug,is_active,service_region,target_teams,official_threshold,max_teams,created_at")
+    .select(
+      "id,title,slug,is_active,service_region,target_teams,official_threshold,max_teams,created_at,start_at,venue,canceled_at",
+    )
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -52,7 +55,24 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: true, tournaments });
   }
 
-  const { data: activeT, error: activeErr } = await admin.from("tournaments").select("*").eq("is_active", true).limit(1).maybeSingle();
+  let activeQuery = admin.from("tournaments").select("*").eq("is_active", true);
+  if (region) {
+    activeQuery = activeQuery.eq("service_region", region);
+  } else {
+    activeQuery = activeQuery.is("service_region", null);
+  }
+  let { data: activeT, error: activeErr } = await activeQuery.maybeSingle();
+
+  if (!activeErr && !activeT && region) {
+    const fallback = await admin.from("tournaments").select("*").eq("is_active", true).is("service_region", null).maybeSingle();
+    activeT = fallback.data;
+    activeErr = fallback.error;
+  }
+  if (!activeErr && !activeT && !region) {
+    const any = await admin.from("tournaments").select("*").eq("is_active", true).limit(1).maybeSingle();
+    activeT = any.data;
+    activeErr = any.error;
+  }
 
   if (activeErr) {
     return NextResponse.json({ ok: true, tournaments, active_tournament: null, captains: [], submissions: [], panel_error: activeErr.message });
@@ -64,13 +84,31 @@ export async function GET(req: Request) {
   if (active?.id) {
     const cRes = await admin
       .from("tournament_captains")
-      .select("id,status,captain_name,team_name,claim_submitted_at")
+      .select(
+        "id,status,captain_name,team_name,captain_instagram,claim_submitted_at,captain_verified,user_id,expected_players,players_paid,payment_received_at",
+      )
       .eq("tournament_id", active.id)
       .order("claim_submitted_at", { ascending: false });
     if (cRes.error) {
       return NextResponse.json({ ok: true, tournaments, active_tournament: active, captains: [], submissions: [], panel_error: cRes.error.message });
     }
-    captains = (cRes.data || []) as Record<string, unknown>[];
+    const raw = (cRes.data || []) as Record<string, unknown>[];
+    const capIds = raw.map((r) => String(r.id));
+    let rosterByCaptain: Record<string, number> = {};
+    if (capIds.length) {
+      const rRes = await admin.from("tournament_roster").select("captain_id,status").in("captain_id", capIds);
+      if (!rRes.error && rRes.data) {
+        for (const row of rRes.data as { captain_id: string; status: string }[]) {
+          if (row.status === "invited" || row.status === "accepted") {
+            rosterByCaptain[row.captain_id] = (rosterByCaptain[row.captain_id] || 0) + 1;
+          }
+        }
+      }
+    }
+    captains = raw.map((c) => ({
+      ...c,
+      roster_size: rosterByCaptain[String(c.id)] ?? 0,
+    }));
   }
 
   let subQuery = admin
@@ -143,8 +181,8 @@ export async function POST(req: Request) {
     if (!Number.isFinite(officialThreshold) || officialThreshold < 1) {
       return NextResponse.json({ error: "Official threshold must be at least 1." }, { status: 400 });
     }
-    if (!Number.isFinite(maxTeams) || maxTeams < 1) {
-      return NextResponse.json({ error: "Max teams must be at least 1." }, { status: 400 });
+    if (!Number.isFinite(maxTeams) || maxTeams < 8 || maxTeams > 12) {
+      return NextResponse.json({ error: "Max teams must be between 8 and 12." }, { status: 400 });
     }
     if (officialThreshold > maxTeams) {
       return NextResponse.json({ error: "Official threshold cannot exceed max teams." }, { status: 400 });
@@ -152,6 +190,11 @@ export async function POST(req: Request) {
     if (targetTeams > maxTeams) {
       return NextResponse.json({ error: "Target teams cannot exceed max teams." }, { status: 400 });
     }
+
+    const venue = body.venue != null ? String(body.venue).trim() : "";
+    const format_summary = body.format_summary != null ? String(body.format_summary).trim() : "";
+    const entryFeeCents = Number(body.entry_fee_cents);
+    const minRoster = Number(body.min_roster_players);
 
     const insertRow: Record<string, unknown> = {
       title,
@@ -164,6 +207,10 @@ export async function POST(req: Request) {
     if (service_region) insertRow.service_region = service_region;
     if (start_at) insertRow.start_at = start_at;
     if (registration_deadline) insertRow.registration_deadline = registration_deadline;
+    if (venue) insertRow.venue = venue;
+    if (format_summary) insertRow.format_summary = format_summary;
+    if (Number.isFinite(entryFeeCents) && entryFeeCents > 0) insertRow.entry_fee_cents = Math.floor(entryFeeCents);
+    if (Number.isFinite(minRoster) && minRoster >= 1) insertRow.min_roster_players = Math.floor(minRoster);
 
     const { data: created, error } = await admin.from("tournaments").insert(insertRow).select("id,title,slug,is_active,service_region").single();
 
@@ -230,6 +277,58 @@ export async function POST(req: Request) {
 
     revalidatePath("/admin/tournament");
     return NextResponse.json({ ok: true });
+  }
+
+  if (action === "approve_captain_claim") {
+    const captain_id = String(body.captain_id || "").trim();
+    if (!captain_id) return NextResponse.json({ error: "Missing captain_id." }, { status: 400 });
+    const { error } = await admin.from("tournament_captains").update({ captain_verified: true }).eq("id", captain_id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === "reject_captain_claim") {
+    const captain_id = String(body.captain_id || "").trim();
+    if (!captain_id) return NextResponse.json({ error: "Missing captain_id." }, { status: 400 });
+    const { error } = await admin
+      .from("tournament_captains")
+      .update({ captain_verified: false, status: "claim_rejected" })
+      .eq("id", captain_id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === "cancel_tournament") {
+    const tournament_id = String(body.tournament_id || "").trim();
+    if (!tournament_id) return NextResponse.json({ error: "Missing tournament_id." }, { status: 400 });
+
+    const { data: caps } = await admin
+      .from("tournament_captains")
+      .select("user_id,status")
+      .eq("tournament_id", tournament_id)
+      .in("status", ["payment_received", "roster_pending", "verification_in_progress", "flagged_for_review", "confirmed"]);
+
+    const refundResult = await refundPaidCaptainsOnTournamentCancel(admin, tournament_id);
+
+    await admin
+      .from("tournaments")
+      .update({ is_active: false, canceled_at: new Date().toISOString() })
+      .eq("id", tournament_id);
+
+    const notifyIds = [...new Set((caps || []).map((c: { user_id: string }) => c.user_id).filter(Boolean))];
+    if (notifyIds.length) {
+      await sendPushToUsers(admin, notifyIds, {
+        title: "Tournament canceled",
+        body: "The tournament was canceled by staff. If you paid a captain entry fee, a refund has been started when possible.",
+        data: { kind: "tournament_canceled", tournament_id },
+      });
+    }
+
+    await enqueueRevalidateAndRun(admin, ["/tournament", "/status/tournament"]);
+    revalidatePath("/admin/tournament");
+    revalidatePath("/tournament");
+
+    return NextResponse.json({ ok: true, refund: refundResult });
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });

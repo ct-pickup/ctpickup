@@ -81,7 +81,7 @@ const RULES: Rule[] = [
     number: 12,
     title: "No-Shows and Refunds",
     body:
-      "Confirmed players who do not show up forfeit their spot and their fee. Cancellations must be made before 10:00 PM on the day before the scheduled pickup to be eligible for a refund or credit.",
+      "Confirmed players who do not show up forfeit their spot and their fee. Cancellations more than 24 hours before the run start are eligible for a refund; cancellations within 24 hours of the start time are not refunded.",
   },
   {
     number: 13,
