@@ -82,7 +82,14 @@ export async function sendPushToUsers(
 
   for (let i = 0; i < unique.length; i += USER_ID_IN_CHUNK) {
     const slice = unique.slice(i, i + USER_ID_IN_CHUNK);
-    const res = await admin.from("user_push_devices").select("expo_push_token").in("user_id", slice);
+    // App Store 4.5.4: respect per-user push opt-out. Filter at the query level
+    // so a stale device row (e.g. before the toggle-off delete completes) is
+    // still skipped.
+    const res = await admin
+      .from("user_push_devices")
+      .select("expo_push_token")
+      .in("user_id", slice)
+      .eq("push_notifications_enabled", true);
     if (res.error) {
       return { tokens: 0, batches: [], lookupError: res.error.message };
     }
@@ -102,7 +109,12 @@ export async function sendPushToAll(
   admin: SupabaseClient,
   payload: ExpoPushPayload,
 ): Promise<SendPushResult> {
-  const res = await admin.from("user_push_devices").select("expo_push_token").limit(MAX_TOKEN_QUERY);
+  // App Store 4.5.4: respect per-user push opt-out (see sendPushToUsers).
+  const res = await admin
+    .from("user_push_devices")
+    .select("expo_push_token")
+    .eq("push_notifications_enabled", true)
+    .limit(MAX_TOKEN_QUERY);
   if (res.error) {
     return { tokens: 0, batches: [], lookupError: res.error.message };
   }

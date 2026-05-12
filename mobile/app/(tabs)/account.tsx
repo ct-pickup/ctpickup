@@ -12,8 +12,11 @@ import {
 } from "@/lib/appLock";
 import { siteOrigin } from "@/lib/env";
 import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
-import { fetchPickupStanding } from "@/lib/siteApi";
+import { fetchPickupStanding, postMobilePushPreference } from "@/lib/siteApi";
 import * as LocalAuthentication from "expo-local-authentication";
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
+import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -101,6 +104,7 @@ type ProfileRow = {
   zip_code: string | null;
   playing_position: string | null;
   username: string | null;
+  push_notifications_enabled: boolean | null;
 };
 
 function cleanInstagram(s: string): string {
@@ -167,6 +171,10 @@ export default function AccountScreen() {
 
   const [deleteAccountBusy, setDeleteAccountBusy] = useState(false);
 
+  const [pushEnabled, setPushEnabled] = useState(true);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushMsg, setPushMsg] = useState<string | null>(null);
+
   useEffect(() => {
     void refreshBiometricAvailability();
   }, [refreshBiometricAvailability]);
@@ -181,7 +189,7 @@ export default function AccountScreen() {
     const { data, error } = await supabase
       .from("profiles")
       .select(
-        "first_name,last_name,approved,instagram,phone,zip_code,playing_position,username",
+        "first_name,last_name,approved,instagram,phone,zip_code,playing_position,username,push_notifications_enabled",
       )
       .eq("id", userId)
       .maybeSingle();
@@ -209,6 +217,7 @@ export default function AccountScreen() {
     setEditPhone(String(profile.phone ?? ""));
     setEditZipCode(String(profile.zip_code ?? "").replace(/\D/g, "").slice(0, 5));
     setEditUsername(String(profile.username ?? ""));
+    setPushEnabled(profile.push_notifications_enabled !== false);
   }, [profile]);
 
   useEffect(() => {
@@ -386,6 +395,55 @@ export default function AccountScreen() {
       setEditMsg(formatProfileSaveError(e));
     } finally {
       setEditBusy(false);
+    }
+  }
+
+  async function onTogglePushNotifications(next: boolean) {
+    if (pushBusy) return;
+    setPushMsg(null);
+    if (!accessToken) {
+      setPushMsg("Sign in again to change this.");
+      return;
+    }
+    const prev = pushEnabled;
+    setPushEnabled(next);
+    setPushBusy(true);
+    try {
+      let opts: { expoPushToken?: string; platform?: "ios" | "android" } | undefined;
+      if (next && Device.isDevice) {
+        try {
+          const { status: existing } = await Notifications.getPermissionsAsync();
+          let finalStatus = existing;
+          if (existing !== "granted") {
+            const req = await Notifications.requestPermissionsAsync();
+            finalStatus = req.status;
+          }
+          if (finalStatus === "granted") {
+            const projectId =
+              Constants.expoConfig?.extra?.eas?.projectId ??
+              Constants.easConfig?.projectId ??
+              process.env.EXPO_PUBLIC_EAS_PROJECT_ID?.trim();
+            const tokenRes = await Notifications.getExpoPushTokenAsync(
+              projectId ? { projectId: String(projectId) } : undefined,
+            );
+            const platform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : null;
+            if (tokenRes?.data && platform) {
+              opts = { expoPushToken: tokenRes.data, platform };
+            }
+          }
+        } catch (e) {
+          console.warn("[push-pref] token re-register failed:", e);
+        }
+      }
+      const res = await postMobilePushPreference(accessToken, next, opts);
+      if (!res.ok) {
+        setPushEnabled(prev);
+        setPushMsg("Couldn’t save. Try again.");
+        return;
+      }
+      setProfile((p) => (p ? { ...p, push_notifications_enabled: next } : p));
+    } finally {
+      setPushBusy(false);
     }
   }
 
@@ -632,6 +690,24 @@ export default function AccountScreen() {
               ) : null}
             </>
           )}
+        </View>
+
+        <Text style={styles.sectionTitle}>Preferences</Text>
+        <View style={styles.card}>
+          <View style={styles.rowBetween}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={styles.fieldLabelStrong}>Push Notifications</Text>
+              <Text style={styles.bioHint}>Receive updates about runs, chat, and announcements</Text>
+            </View>
+            <Switch
+              value={pushEnabled}
+              onValueChange={(v) => void onTogglePushNotifications(v)}
+              disabled={pushBusy || !accessToken}
+              trackColor={{ false: "rgba(255,255,255,0.18)", true: LIME }}
+              thumbColor="#f4f4f5"
+            />
+          </View>
+          {pushMsg ? <Text style={styles.msg}>{pushMsg}</Text> : null}
         </View>
 
         {isAdmin ? (

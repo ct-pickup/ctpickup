@@ -4,17 +4,21 @@ import { useAuth } from "@/context/AuthContext";
 import {
   normalizeChatSenderDisplayForMatch,
   useChatAdminUserIds,
+  useChatBlockedUserIds,
   useTeamChatAccess,
   useTeamChatMessages,
   useTeamChatRoom,
 } from "@/hooks/useTeamChat";
+import { postChatBlockViaApi, postChatReportViaApi, type ChatReportReason } from "@/lib/chatApi";
 import { ANNOUNCEMENTS_CHAT_SLUG, isAdminDmGroupSlug } from "@/lib/teamChat";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -22,6 +26,15 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+type ReportOption = { value: ChatReportReason; label: string };
+
+const REPORT_REASONS: readonly ReportOption[] = [
+  { value: "harassment", label: "Harassment" },
+  { value: "spam", label: "Spam" },
+  { value: "inappropriate", label: "Inappropriate content" },
+  { value: "other", label: "Other" },
+];
 
 const LIME = "#a3e635";
 
@@ -52,11 +65,69 @@ export default function TeamChatThreadScreen() {
 
   const { messages, loading: msgsLoading, error: msgsError, send, currentUserId } = useTeamChatMessages(roomId);
   const { adminIds, adminSenderDisplayNorms } = useChatAdminUserIds(enabled);
+  const { blockedIds, addLocal: addBlockedLocal } = useChatBlockedUserIds(enabled);
+
+  const visibleMessages = useMemo(() => {
+    if (blockedIds.size === 0) return messages;
+    return messages.filter((m) => !m.user_id || !blockedIds.has(m.user_id));
+  }, [messages, blockedIds]);
+
+  const accessToken = session?.access_token ?? null;
+
+  type MenuTarget = { messageId: string; userId: string; senderLabel: string };
+  const [menuTarget, setMenuTarget] = useState<MenuTarget | null>(null);
+  const [reportTarget, setReportTarget] = useState<MenuTarget | null>(null);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [blockBusy, setBlockBusy] = useState(false);
+  const [moderationToast, setModerationToast] = useState<string | null>(null);
 
   const [draft, setDraft] = useState("");
   const [sendBusy, setSendBusy] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const listRef = useRef<FlatList<unknown> | null>(null);
+
+  async function submitReport(reason: ChatReportReason) {
+    if (!reportTarget || !accessToken || reportBusy) return;
+    setReportBusy(true);
+    const res = await postChatReportViaApi(accessToken, reportTarget.messageId, reason);
+    setReportBusy(false);
+    setReportTarget(null);
+    if (res.ok) {
+      setModerationToast("Report submitted. We’ll review it shortly.");
+    } else {
+      setModerationToast(res.error || "Couldn’t submit report.");
+    }
+    setTimeout(() => setModerationToast(null), 3500);
+  }
+
+  function confirmBlock(target: MenuTarget) {
+    Alert.alert(
+      "Block this user?",
+      "You won’t see their messages.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: () => {
+            void (async () => {
+              if (!accessToken || blockBusy) return;
+              setBlockBusy(true);
+              const res = await postChatBlockViaApi(accessToken, target.userId);
+              setBlockBusy(false);
+              if (res.ok) {
+                addBlockedLocal(target.userId);
+                setModerationToast("Blocked. You won’t see their messages.");
+              } else {
+                setModerationToast(res.error || "Couldn’t block user.");
+              }
+              setTimeout(() => setModerationToast(null), 3500);
+            })();
+          },
+        },
+      ],
+    );
+  }
 
   const announcementsOnly = !!room?.announcements_only;
   /** Group threads use `id` routing; slug threads are announcements / team. */
@@ -185,11 +256,17 @@ export default function TeamChatThreadScreen() {
         </View>
       ) : null}
 
+      {moderationToast ? (
+        <View style={[styles.notice, styles.noticeLime]}>
+          <Text style={styles.noticeText}>{moderationToast}</Text>
+        </View>
+      ) : null}
+
       <FlatList
         ref={(r) => {
           listRef.current = r as unknown as FlatList<unknown>;
         }}
-        data={messages}
+        data={visibleMessages}
         keyExtractor={(m) => m.id}
         contentContainerStyle={[styles.listContent, { paddingBottom: 200 }]}
         onContentSizeChange={() => {
@@ -228,6 +305,17 @@ export default function TeamChatThreadScreen() {
 
           const nameTextStyle = isAdminMessage ? styles.msgSenderAdmin : styles.msgSenderOther;
 
+          const canModerate = !mine && !!m.user_id;
+          const onLongPressBubble = canModerate
+            ? () => {
+                setMenuTarget({
+                  messageId: m.id,
+                  userId: m.user_id,
+                  senderLabel: senderLabel || m.sender_display_name || "Player",
+                });
+              }
+            : undefined;
+
           return (
             <View style={[styles.msgRow, mine ? styles.msgRowMine : styles.msgRowOther]}>
               {!mine && senderLabel != null ? (
@@ -262,10 +350,15 @@ export default function TeamChatThreadScreen() {
                   )}
                 </View>
               ) : null}
-              <View
-                style={[
+              <Pressable
+                onLongPress={onLongPressBubble}
+                delayLongPress={350}
+                accessibilityRole={canModerate ? "button" : undefined}
+                accessibilityHint={canModerate ? "Long-press to report or block this user." : undefined}
+                style={({ pressed }) => [
                   styles.bubble,
                   mine ? styles.bubbleMine : isAdminMessage ? styles.bubbleAdmin : styles.bubbleOther,
+                  pressed && canModerate ? { opacity: 0.85 } : null,
                 ]}
               >
                 <Text
@@ -280,11 +373,98 @@ export default function TeamChatThreadScreen() {
                 >
                   {m.body}
                 </Text>
-              </View>
+              </Pressable>
             </View>
           );
         }}
       />
+
+      <Modal
+        visible={menuTarget != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuTarget(null)}
+      >
+        <Pressable style={styles.sheetBackdrop} onPress={() => setMenuTarget(null)}>
+          <Pressable style={styles.sheet} onPress={() => null}>
+            <Text style={styles.sheetTitle}>Message options</Text>
+            {menuTarget ? (
+              <Text style={styles.sheetSub}>From {menuTarget.senderLabel}</Text>
+            ) : null}
+            <Pressable
+              style={({ pressed }) => [styles.sheetRow, pressed && { opacity: 0.85 }]}
+              onPress={() => {
+                const t = menuTarget;
+                setMenuTarget(null);
+                if (t) setReportTarget(t);
+              }}
+            >
+              <FontAwesome name="flag" size={16} color="#f59e0b" />
+              <Text style={styles.sheetRowText}>Report message</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.sheetRow, pressed && { opacity: 0.85 }]}
+              onPress={() => {
+                const t = menuTarget;
+                setMenuTarget(null);
+                if (t) confirmBlock(t);
+              }}
+            >
+              <FontAwesome name="ban" size={16} color="#f87171" />
+              <Text style={styles.sheetRowText}>Block user</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.sheetCancel, pressed && { opacity: 0.85 }]}
+              onPress={() => setMenuTarget(null)}
+            >
+              <Text style={styles.sheetCancelText}>Cancel</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={reportTarget != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => (reportBusy ? undefined : setReportTarget(null))}
+      >
+        <Pressable
+          style={styles.sheetBackdrop}
+          onPress={() => (reportBusy ? undefined : setReportTarget(null))}
+        >
+          <Pressable style={styles.sheet} onPress={() => null}>
+            <Text style={styles.sheetTitle}>Report message</Text>
+            <Text style={styles.sheetSub}>Why are you reporting this message?</Text>
+            {REPORT_REASONS.map((opt) => (
+              <Pressable
+                key={opt.value}
+                disabled={reportBusy}
+                onPress={() => void submitReport(opt.value)}
+                style={({ pressed }) => [
+                  styles.sheetRow,
+                  pressed && !reportBusy ? { opacity: 0.85 } : null,
+                  reportBusy ? { opacity: 0.6 } : null,
+                ]}
+              >
+                <FontAwesome name="circle-o" size={14} color="rgba(255,255,255,0.55)" />
+                <Text style={styles.sheetRowText}>{opt.label}</Text>
+              </Pressable>
+            ))}
+            <Pressable
+              style={({ pressed }) => [styles.sheetCancel, pressed && { opacity: 0.85 }]}
+              disabled={reportBusy}
+              onPress={() => setReportTarget(null)}
+            >
+              {reportBusy ? (
+                <ActivityIndicator color={LIME} />
+              ) : (
+                <Text style={styles.sheetCancelText}>Cancel</Text>
+              )}
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <View style={styles.composer}>
         <TextInput
@@ -369,7 +549,48 @@ const styles = StyleSheet.create({
     borderColor: "rgba(248,113,113,0.35)",
     backgroundColor: "rgba(248,113,113,0.08)",
   },
+  noticeLime: {
+    borderColor: "rgba(163,230,53,0.4)",
+    backgroundColor: "rgba(163,230,53,0.1)",
+  },
   noticeText: { color: "rgba(255,255,255,0.75)", fontSize: 13, lineHeight: 18 },
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    padding: 18,
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(18,18,18,0.98)",
+    padding: 16,
+  },
+  sheetTitle: { color: "#fff", fontSize: 16, fontWeight: "900" },
+  sheetSub: { marginTop: 6, color: "rgba(255,255,255,0.6)", fontSize: 13, lineHeight: 18 },
+  sheetRow: {
+    marginTop: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  sheetRowText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  sheetCancel: {
+    marginTop: 14,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+  },
+  sheetCancelText: { color: "rgba(255,255,255,0.65)", fontSize: 14, fontWeight: "700" },
   loadingRow: { paddingVertical: 10 },
   listContent: { paddingBottom: 12 },
   msgRow: { marginBottom: 10, maxWidth: "92%" },

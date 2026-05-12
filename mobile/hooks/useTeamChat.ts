@@ -167,6 +167,53 @@ export function useChatAdminUserIds(enabled: boolean) {
   return { adminIds, adminSenderDisplayNorms, loading };
 }
 
+/**
+ * Loads the set of user_ids the current player has blocked. Used by the chat
+ * thread to filter messages client-side (per App Store Guideline 1.2). The
+ * block list is fetched once when the chat thread mounts and refreshed on
+ * demand via `reload`. Inserts to `chat_blocks` happen through the Next.js
+ * `/api/chat/block` route — clients cannot write to the table directly (RLS).
+ */
+export function useChatBlockedUserIds(enabled: boolean) {
+  const { supabase, session } = useAuth();
+  const [blockedIds, setBlockedIds] = useState<Set<string>>(() => new Set());
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    if (!enabled || !supabase || !session?.user?.id) {
+      setBlockedIds(new Set());
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const { data } = await supabase
+      .from("chat_blocks")
+      .select("blocked_user_id")
+      .eq("blocker_user_id", session.user.id);
+    const ids = new Set<string>();
+    for (const row of (data ?? []) as { blocked_user_id: string | null }[]) {
+      if (row?.blocked_user_id) ids.add(row.blocked_user_id);
+    }
+    setBlockedIds(ids);
+    setLoading(false);
+  }, [enabled, supabase, session?.user?.id]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const addLocal = useCallback((userId: string) => {
+    setBlockedIds((prev) => {
+      if (prev.has(userId)) return prev;
+      const next = new Set(prev);
+      next.add(userId);
+      return next;
+    });
+  }, []);
+
+  return { blockedIds, loading, reload: load, addLocal };
+}
+
 export function useTeamChatAccess() {
   const { supabase, session } = useAuth();
   const [allowed, setAllowed] = useState<boolean | null>(null);

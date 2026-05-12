@@ -61,11 +61,22 @@ export async function POST(req: Request) {
 
   const now = new Date().toISOString();
 
+  // Mirror profiles.push_notifications_enabled onto the device row so push
+  // queries can filter cheaply (.eq("push_notifications_enabled", true)). If
+  // the profile is missing the column for any reason, default to true.
+  const profRes = await admin
+    .from("profiles")
+    .select("push_notifications_enabled")
+    .eq("id", userId)
+    .maybeSingle();
+  const pushEnabled = profRes.data?.push_notifications_enabled !== false;
+
   const { error } = await admin.from("user_push_devices").upsert(
     {
       user_id: userId,
       expo_push_token: expoPushToken,
       platform,
+      push_notifications_enabled: pushEnabled,
       updated_at: now,
     },
     { onConflict: "user_id,expo_push_token" },

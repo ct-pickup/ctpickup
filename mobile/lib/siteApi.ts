@@ -348,6 +348,42 @@ export async function postMobilePushToken(accessToken: string, expoPushToken: st
   return { ok: true as const };
 }
 
+/**
+ * App Store Guideline 4.5.4: persists the user's push notification opt-in.
+ *
+ * When enabling, pass the current Expo push token + platform so the server
+ * can re-register the device immediately (mirrors `/api/mobile/push-token`).
+ * When disabling, the server deletes the user's device rows so Expo can no
+ * longer reach them.
+ */
+export async function postMobilePushPreference(
+  accessToken: string,
+  enabled: boolean,
+  opts?: { expoPushToken?: string; platform?: "ios" | "android" },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const origin = siteOrigin();
+  if (!origin) return { ok: false, error: "missing_site_url" };
+  const body: Record<string, unknown> = { enabled };
+  if (enabled && opts?.expoPushToken && opts.platform) {
+    body.expo_push_token = opts.expoPushToken;
+    body.platform = opts.platform;
+  }
+  const r = await fetch(`${origin}/api/mobile/push-preference`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const j = (await r.json().catch(() => ({}))) as { error?: unknown };
+  if (!r.ok) {
+    const err = typeof j?.error === "string" ? j.error : "request_failed";
+    return { ok: false, error: err };
+  }
+  return { ok: true };
+}
+
 export type EmailExistsResult =
   | { ok: true; exists: boolean }
   | { ok: false; reason: "missing_site_url" | "network" | "invalid_response" };
