@@ -224,6 +224,21 @@ export function postAdminPickupResult(
   });
 }
 
+export function postAdminAssignPickupTeams(
+  accessToken: string,
+  body: {
+    run_id: string;
+    total_teams: 2 | 3;
+    team_assignments: { user_id: string; team: "A" | "B" | "C" }[];
+  },
+) {
+  return adminFetch<{ ok: boolean; error?: string }>("/api/admin/pickup/assign-teams", accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 export function postAdminEndRun(accessToken: string, body: { run_id: string }) {
   return adminFetch<{ ok: boolean; run?: Record<string, unknown>; mode?: string; error?: string }>(
     "/api/admin/pickup/end-run",
@@ -587,7 +602,7 @@ export type PickupSwitchDetailResponse = PickupSwitchListResponse & {
   availability: Record<string, unknown>[];
   invites: Record<string, unknown>[];
   rsvps: Record<string, unknown>[];
-  confirmed: { id: string; full_name: string | null }[];
+  confirmed: { id: string; full_name: string | null; playing_position?: string | null }[];
   standby: { id: string; full_name: string | null }[];
   counts: {
     invites: number;

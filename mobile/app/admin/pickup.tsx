@@ -6,6 +6,7 @@ import {
   fetchAdminPickupSwitchDetail,
   fetchAdminPickupSwitchList,
   type PickupSwitchDetailResponse,
+  postAdminAssignPickupTeams,
   postAdminCancelRun,
   postAdminCreateRun,
   postAdminEndRun,
@@ -47,6 +48,52 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
 const LIME = "#a3e635";
+
+type PickupTeamLetter = "A" | "B" | "C";
+const TEAMS_2: PickupTeamLetter[] = ["A", "B"];
+const TEAMS_3: PickupTeamLetter[] = ["A", "B", "C"];
+
+type TeamAssignPlayer = { id: string; full_name: string | null; playing_position: string | null };
+
+function labelPickupTeam(t: PickupTeamLetter) {
+  return `Team ${t}`;
+}
+
+function generateTeamsByPosition(players: TeamAssignPlayer[], numTeams: number): Record<string, PickupTeamLetter> {
+  const positions = ["Goalkeeper", "Defender", "Midfielder", "Attacker"];
+  const grouped: Record<string, TeamAssignPlayer[]> = {};
+  for (const pos of positions) grouped[pos] = [];
+  const unassigned: TeamAssignPlayer[] = [];
+  for (const p of players) {
+    const pos = p.playing_position || "";
+    if (positions.includes(pos)) grouped[pos].push(p);
+    else unassigned.push(p);
+  }
+  for (const pos of positions) grouped[pos].sort(() => Math.random() - 0.5);
+  unassigned.sort(() => Math.random() - 0.5);
+  const allOrdered = [
+    ...grouped["Goalkeeper"],
+    ...grouped["Defender"],
+    ...grouped["Midfielder"],
+    ...grouped["Attacker"],
+    ...unassigned,
+  ];
+  const teamLabels: PickupTeamLetter[] = numTeams === 3 ? ["A", "B", "C"] : ["A", "B"];
+  const result: Record<string, PickupTeamLetter> = {};
+  allOrdered.forEach((p, i) => {
+    result[p.id] = teamLabels[i % numTeams]!;
+  });
+  return result;
+}
+
+function clampTeamMapToTotal(cur: Record<string, PickupTeamLetter>, total: 2 | 3): Record<string, PickupTeamLetter> {
+  const out: Record<string, PickupTeamLetter> = { ...cur };
+  for (const k of Object.keys(out)) {
+    const t = out[k];
+    if (total === 2 && t === "C") out[k] = "A";
+  }
+  return out;
+}
 
 const LOCATION_PRESETS = {
   new_haven: `New Haven SoccerRoof
@@ -257,6 +304,15 @@ export default function AdminPickupOpsScreen() {
 
   const [busy, setBusy] = useState<string | null>(null);
   const [tierBadge, setTierBadge] = useState<number>(0);
+
+  const [teamAssignOpen, setTeamAssignOpen] = useState(false);
+  const [teamAssignRunId, setTeamAssignRunId] = useState<string | null>(null);
+  const [teamAssignLoading, setTeamAssignLoading] = useState(false);
+  const [teamAssignBusy, setTeamAssignBusy] = useState(false);
+  const [teamAssignPlayers, setTeamAssignPlayers] = useState<TeamAssignPlayer[]>([]);
+  const [teamAssignTotal, setTeamAssignTotal] = useState<2 | 3>(2);
+  const [teamAssignByUser, setTeamAssignByUser] = useState<Record<string, PickupTeamLetter>>({});
+  const [teamAssignPickUserId, setTeamAssignPickUserId] = useState<string | null>(null);
 
   const venueFeePresetsForRegion = useMemo(() => VENUE_FEE_PRESETS.filter((p) => p.region === region), [region]);
 
@@ -702,6 +758,83 @@ export default function AdminPickupOpsScreen() {
     ]);
   }
 
+  async function openTeamAssignAfterStart(runId: string) {
+    const t = await requireToken();
+    if (!t) return;
+    setTeamAssignRunId(runId);
+    setTeamAssignPickUserId(null);
+    setTeamAssignOpen(true);
+    setTeamAssignLoading(true);
+    setTeamAssignPlayers([]);
+    setTeamAssignByUser({});
+    const d = await fetchAdminPickupSwitchDetail(t, runId, { region });
+    setTeamAssignLoading(false);
+    if (!d.ok) {
+      Alert.alert("Couldn’t load roster", d.error);
+      setTeamAssignOpen(false);
+      setTeamAssignRunId(null);
+      return;
+    }
+    const list = Array.isArray(d.data.confirmed) ? d.data.confirmed : [];
+    const players: TeamAssignPlayer[] = list.map((row) => {
+      const o = row as { id?: unknown; full_name?: unknown; playing_position?: unknown };
+      const id = typeof o.id === "string" ? o.id : "";
+      const full_name = typeof o.full_name === "string" ? o.full_name : null;
+      const playing_position = typeof o.playing_position === "string" ? o.playing_position : null;
+      return { id, full_name, playing_position };
+    }).filter((p) => p.id);
+    setTeamAssignPlayers(players);
+    setTeamAssignTotal(2);
+    const initial: Record<string, PickupTeamLetter> = {};
+    players.forEach((p, idx) => {
+      initial[p.id] = idx % 2 === 0 ? "A" : "B";
+    });
+    setTeamAssignByUser(initial);
+  }
+
+  function resetTeamAssignState() {
+    setTeamAssignOpen(false);
+    setTeamAssignRunId(null);
+    setTeamAssignLoading(false);
+    setTeamAssignBusy(false);
+    setTeamAssignPlayers([]);
+    setTeamAssignByUser({});
+    setTeamAssignPickUserId(null);
+    setTeamAssignTotal(2);
+  }
+
+  function requestCloseTeamAssignModal() {
+    Alert.alert("Teams not saved", "Teams not saved. Assign teams before the run starts.", [
+      { text: "Keep editing", style: "cancel" },
+      {
+        text: "Close anyway",
+        style: "destructive",
+        onPress: () => resetTeamAssignState(),
+      },
+    ]);
+  }
+
+  async function onLockTeamAssign() {
+    const t = await requireToken();
+    if (!t || !teamAssignRunId) return;
+    if (teamAssignPlayers.length === 0) {
+      return Alert.alert("No players", "There are no confirmed players to assign.");
+    }
+    const missing = teamAssignPlayers.filter((p) => !teamAssignByUser[p.id]);
+    if (missing.length) {
+      return Alert.alert("Incomplete", "Assign every player to a team before locking.");
+    }
+    setTeamAssignBusy(true);
+    const r = await postAdminAssignPickupTeams(t, {
+      run_id: teamAssignRunId,
+      total_teams: teamAssignTotal,
+      team_assignments: teamAssignPlayers.map((p) => ({ user_id: p.id, team: teamAssignByUser[p.id]! })),
+    });
+    setTeamAssignBusy(false);
+    if (!r.ok) return Alert.alert("Save failed", r.error);
+    resetTeamAssignState();
+  }
+
   async function onStartRunNow(runId: string) {
     const t = await requireToken();
     if (!t) return;
@@ -726,6 +859,7 @@ export default function AdminPickupOpsScreen() {
               );
               void loadRuns();
               if (selectedRunId === runId) void loadDetail();
+              await openTeamAssignAfterStart(runId);
             })();
           },
         },
@@ -1821,6 +1955,166 @@ export default function AdminPickupOpsScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+
+      <Modal visible={teamAssignOpen} animationType="slide" transparent onRequestClose={requestCloseTeamAssignModal}>
+        <View style={styles.modalRoot}>
+          <Pressable style={styles.modalDismiss} onPress={requestCloseTeamAssignModal} accessibilityLabel="Dismiss" />
+          <View style={[styles.teamAssignSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+            <View style={styles.modalGrabRow}>
+              <View style={styles.modalGrab} />
+            </View>
+            <View style={styles.teamAssignHeaderRow}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.modalTitle}>Assign teams</Text>
+                <Text style={styles.teamAssignSub}>Lock before the run starts.</Text>
+              </View>
+              <Pressable
+                onPress={requestCloseTeamAssignModal}
+                style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.85 }]}
+              >
+                <FontAwesome name="times" size={18} color="#fff" />
+              </Pressable>
+            </View>
+            {teamAssignLoading ? (
+              <ActivityIndicator color="#fff" style={{ marginVertical: 28 }} />
+            ) : (
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                style={{ maxHeight: winH * 0.52 }}
+                contentContainerStyle={{ paddingBottom: 16 }}
+              >
+                <Text style={styles.teamAssignRosterLabel}>Confirmed ({teamAssignPlayers.length})</Text>
+                <View style={styles.teamAssignToggleRow}>
+                  <Pressable
+                    onPress={() => {
+                      setTeamAssignTotal(2);
+                      setTeamAssignByUser((m) => clampTeamMapToTotal(m, 2));
+                    }}
+                    style={({ pressed }) => [
+                      styles.teamAssignToggleChip,
+                      teamAssignTotal === 2 && styles.teamAssignToggleChipOn,
+                      pressed && { opacity: 0.9 },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.teamAssignToggleText, teamAssignTotal === 2 && styles.teamAssignToggleTextOn]}
+                    >
+                      2 Teams
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setTeamAssignTotal(3)}
+                    style={({ pressed }) => [
+                      styles.teamAssignToggleChip,
+                      teamAssignTotal === 3 && styles.teamAssignToggleChipOn,
+                      pressed && { opacity: 0.9 },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.teamAssignToggleText, teamAssignTotal === 3 && styles.teamAssignToggleTextOn]}
+                    >
+                      3 Teams
+                    </Text>
+                  </Pressable>
+                </View>
+                <Pressable
+                  onPress={() =>
+                    setTeamAssignByUser(generateTeamsByPosition(teamAssignPlayers, teamAssignTotal))
+                  }
+                  style={({ pressed }) => [styles.teamAssignAutoBtn, pressed && { opacity: 0.9 }]}
+                >
+                  <Text style={styles.teamAssignAutoBtnText}>⚡ Auto-assign by position</Text>
+                </Pressable>
+                {teamAssignPlayers.length === 0 ? (
+                  <Text style={styles.muted}>No confirmed players on this run.</Text>
+                ) : (
+                  teamAssignPlayers.map((p) => {
+                    const team = teamAssignByUser[p.id] ?? "A";
+                    const label = (p.full_name ?? "").trim() || p.id;
+                    return (
+                      <Pressable
+                        key={p.id}
+                        onPress={() => setTeamAssignPickUserId(p.id)}
+                        style={({ pressed }) => [styles.teamAssignRow, pressed && { opacity: 0.9 }]}
+                      >
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={styles.teamAssignRowName} numberOfLines={1}>
+                            {label}
+                          </Text>
+                          {p.playing_position ? (
+                            <Text style={styles.teamAssignRowPos} numberOfLines={1}>
+                              {p.playing_position}
+                            </Text>
+                          ) : null}
+                        </View>
+                        <View style={styles.teamAssignTeamPill}>
+                          <Text style={styles.teamAssignTeamPillText}>{labelPickupTeam(team)}</Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })
+                )}
+              </ScrollView>
+            )}
+            <Pressable
+              onPress={() => void onLockTeamAssign()}
+              disabled={teamAssignBusy || teamAssignLoading || teamAssignPlayers.length === 0}
+              style={({ pressed }) => [
+                styles.primary,
+                { marginTop: 8 },
+                pressed && { opacity: 0.9 },
+                (teamAssignBusy || teamAssignLoading || teamAssignPlayers.length === 0) && styles.disabled,
+              ]}
+            >
+              <Text style={styles.primaryText}>{teamAssignBusy ? "Saving…" : "Lock Teams"}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={teamAssignPickUserId != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setTeamAssignPickUserId(null)}
+      >
+        <Pressable
+          style={styles.teamPickModalRoot}
+          onPress={() => setTeamAssignPickUserId(null)}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss"
+        >
+          <Pressable style={styles.teamPickModalCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.teamPickModalTitle}>Team</Text>
+            {(teamAssignTotal === 3 ? TEAMS_3 : TEAMS_2).map((t) => {
+              const cur = teamAssignPickUserId ? teamAssignByUser[teamAssignPickUserId] : null;
+              const selected = cur === t;
+              return (
+                <Pressable
+                  key={t}
+                  onPress={() => {
+                    if (!teamAssignPickUserId) return;
+                    setTeamAssignByUser((prev) => ({ ...prev, [teamAssignPickUserId]: t }));
+                    setTeamAssignPickUserId(null);
+                  }}
+                  style={({ pressed }) => [
+                    styles.teamPickModalRow,
+                    selected && styles.teamPickModalRowOn,
+                    pressed && { opacity: 0.88 },
+                  ]}
+                >
+                  <Text style={[styles.teamPickModalRowText, selected && styles.teamPickModalRowTextOn]}>
+                    {labelPickupTeam(t)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+            <Pressable onPress={() => setTeamAssignPickUserId(null)} style={styles.teamPickModalCancel}>
+              <Text style={styles.teamPickModalCancelText}>Cancel</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -2310,6 +2604,91 @@ const styles = StyleSheet.create({
   },
   venueFeePresetChipText: { fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.65)" },
   venueFeePresetChipTextActive: { color: LIME },
+
+  teamAssignSheet: {
+    backgroundColor: "#0a0a0a",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    maxHeight: "88%",
+  },
+  teamAssignHeaderRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 6 },
+  teamAssignSub: { marginTop: 4, fontSize: 13, color: "rgba(255,255,255,0.45)" },
+  teamAssignRosterLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "rgba(163,230,53,0.85)",
+    letterSpacing: 0.4,
+    marginBottom: 10,
+  },
+  teamAssignToggleRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
+  teamAssignToggleChip: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  teamAssignToggleChipOn: { borderColor: "rgba(163,230,53,0.55)", backgroundColor: "rgba(163,230,53,0.12)" },
+  teamAssignToggleText: { color: "rgba(255,255,255,0.55)", fontSize: 15, fontWeight: "800" },
+  teamAssignToggleTextOn: { color: LIME },
+  teamAssignAutoBtn: {
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.4)",
+    borderRadius: 10,
+    padding: 12,
+    alignItems: "center",
+    backgroundColor: "rgba(163,230,53,0.08)",
+  },
+  teamAssignAutoBtnText: { color: LIME, fontWeight: "800", fontSize: 14 },
+  teamAssignRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  teamAssignRowName: { color: "#fff", fontWeight: "800", fontSize: 15 },
+  teamAssignRowPos: { marginTop: 4, fontSize: 12, color: "rgba(255,255,255,0.45)", fontWeight: "600" },
+  teamAssignTeamPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: "rgba(163,230,53,0.10)",
+  },
+  teamAssignTeamPillText: { color: LIME, fontWeight: "900", fontSize: 13 },
+
+  teamPickModalRoot: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+  },
+  teamPickModalCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "#141414",
+    padding: 20,
+    gap: 12,
+  },
+  teamPickModalTitle: { fontSize: 15, fontWeight: "800", color: LIME, paddingHorizontal: 16, paddingVertical: 12 },
+  teamPickModalRow: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 10, marginHorizontal: 4 },
+  teamPickModalRowOn: { backgroundColor: "rgba(163,230,53,0.12)" },
+  teamPickModalRowText: { fontSize: 16, color: "rgba(255,255,255,0.85)" },
+  teamPickModalRowTextOn: { color: LIME, fontWeight: "700" },
+  teamPickModalCancel: { marginTop: 4, paddingVertical: 14, alignItems: "center" },
+  teamPickModalCancelText: { fontSize: 15, fontWeight: "600", color: "rgba(255,255,255,0.45)" },
 });
 
 function VenueFeePresetRow({

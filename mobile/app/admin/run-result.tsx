@@ -21,6 +21,10 @@ const LIME = "#a3e635";
 
 type Team = "A" | "B" | "C";
 
+function isTeam(v: unknown): v is Team {
+  return v === "A" || v === "B" || v === "C";
+}
+
 type ConfirmedRow = { id: string; full_name: string | null; playing_position?: string | null };
 
 const TEAMS_2: Team[] = ["A", "B"];
@@ -99,7 +103,7 @@ export default function AdminRunResultScreen() {
   const { run_id: rawRunId } = useLocalSearchParams<{ run_id?: string | string[] }>();
   const runId = typeof rawRunId === "string" ? rawRunId : Array.isArray(rawRunId) ? rawRunId[0] : "";
 
-  const { session } = useAuth();
+  const { session, supabase } = useAuth();
   const token = session?.access_token ?? null;
 
   const [loading, setLoading] = useState(true);
@@ -124,28 +128,9 @@ export default function AdminRunResultScreen() {
     | { kind: "award"; which: "player" | "goalie" | "defender" | "midfielder" | "attacker" }
   >(null);
 
-  const [submitting, setSubmitting] = useState(false);
+  const [teamsReadOnly, setTeamsReadOnly] = useState(false);
 
-  function generateTeams(players: ConfirmedRow[], numTeams: number): Record<string, Team> {
-    const positions = ["Goalkeeper", "Defender", "Midfielder", "Attacker"];
-    const grouped: Record<string, ConfirmedRow[]> = {};
-    for (const pos of positions) grouped[pos] = [];
-    const unassigned: ConfirmedRow[] = [];
-    for (const p of players) {
-      const pos = p.playing_position || "";
-      if (positions.includes(pos)) grouped[pos].push(p);
-      else unassigned.push(p);
-    }
-    for (const pos of positions) grouped[pos].sort(() => Math.random() - 0.5);
-    unassigned.sort(() => Math.random() - 0.5);
-    const allOrdered = [...grouped["Goalkeeper"], ...grouped["Defender"], ...grouped["Midfielder"], ...grouped["Attacker"], ...unassigned];
-    const teamLabels: Team[] = numTeams === 3 ? ["A", "B", "C"] : ["A", "B"];
-    const result: Record<string, Team> = {};
-    allOrdered.forEach((p, i) => {
-      result[p.id] = teamLabels[i % numTeams];
-    });
-    return result;
-  }
+  const [submitting, setSubmitting] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -166,12 +151,14 @@ export default function AdminRunResultScreen() {
     void (async () => {
       setLoading(true);
       setErr(null);
+      setTeamsReadOnly(false);
       const r = await fetchAdminPickupSwitchDetail(token, runId);
       if (cancelled) return;
       if (!r.ok) {
         setErr(r.error || "Couldn’t load run.");
         setConfirmed([]);
         setRegion(null);
+        setTeamByUser({});
         setLoading(false);
         return;
       }
@@ -181,22 +168,46 @@ export default function AdminRunResultScreen() {
       setRegion(reg && ["CT", "NY", "NJ", "MD"].includes(reg) ? reg : null);
       const list = Array.isArray(r.data.confirmed) ? (r.data.confirmed as ConfirmedRow[]) : [];
       setConfirmed(list);
-      setLoading(false);
 
-      // Default: alternate teams A/B for quick setup.
-      setTeamByUser((cur) => {
-        if (Object.keys(cur).length) return cur;
+      const fromDb: Record<string, Team> = {};
+      if (supabase) {
+        const { data: assignRows, error: assignErr } = await supabase
+          .from("pickup_run_team_assignments")
+          .select("user_id,team")
+          .eq("run_id", runId);
+        if (cancelled) return;
+        if (assignErr) {
+          console.warn("[run-result] team assignments load:", assignErr.message);
+        }
+        for (const row of assignRows ?? []) {
+          const o = row as { user_id?: unknown; team?: unknown };
+          const uid = typeof o.user_id === "string" ? o.user_id : "";
+          const tm = o.team;
+          if (uid && isTeam(tm)) fromDb[uid] = tm;
+        }
+      }
+      if (cancelled) return;
+      const hasSaved = Object.keys(fromDb).length > 0;
+      if (hasSaved) {
+        setTeamByUser(fromDb);
+        setTeamsReadOnly(true);
+        setTotalTeams(Object.values(fromDb).some((t) => t === "C") ? 3 : 2);
+      } else {
+        setTeamsReadOnly(false);
+        setTotalTeams(2);
         const next: Record<string, Team> = {};
         list.forEach((p, idx) => {
           next[p.id] = idx % 2 === 0 ? "A" : "B";
         });
-        return next;
-      });
+        setTeamByUser(next);
+      }
+
+      setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [token, runId]);
+  }, [token, runId, supabase]);
 
   const allowedTeams = totalTeams === 3 ? TEAMS_3 : TEAMS_2;
 
@@ -318,38 +329,39 @@ export default function AdminRunResultScreen() {
         </Text>
       </View>
 
-      {/* 1) Auto-assign + per-player team picker */}
+      {/* 1) Teams (read-only when saved at run start; manual fallback if none) */}
       <Text style={styles.sectionTitle}>Teams</Text>
-      <View style={styles.segmentRow}>
-        <Pressable
-          onPress={() => {
-            void hapticTap();
-            setTotalTeams(2);
-          }}
-          style={({ pressed }) => [styles.segmentChip, totalTeams === 2 && styles.segmentChipActive, pressed && { opacity: 0.9 }]}
-        >
-          <Text style={[styles.segmentText, totalTeams === 2 && styles.segmentTextActive]}>2 teams</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            void hapticTap();
-            setTotalTeams(3);
-          }}
-          style={({ pressed }) => [styles.segmentChip, totalTeams === 3 && styles.segmentChipActive, pressed && { opacity: 0.9 }]}
-        >
-          <Text style={[styles.segmentText, totalTeams === 3 && styles.segmentTextActive]}>3 teams</Text>
-        </Pressable>
-      </View>
-
-      <Pressable
-        onPress={() => {
-          void hapticTap();
-          setTeamByUser(generateTeams(confirmed, totalTeams));
-        }}
-        style={({ pressed }) => [styles.generateBtn, pressed && { opacity: 0.9 }]}
-      >
-        <Text style={styles.generateBtnText}>⚡ Auto-assign by position</Text>
-      </Pressable>
+      {!teamsReadOnly && confirmed.length > 0 ? (
+        <Text style={styles.teamFallbackWarn}>
+          Teams were not assigned before this run. Please assign teams manually.
+        </Text>
+      ) : null}
+      {teamsReadOnly ? (
+        <Text style={styles.teamReadOnlyMeta}>
+          {totalTeams} teams (locked before this run)
+        </Text>
+      ) : (
+        <View style={styles.segmentRow}>
+          <Pressable
+            onPress={() => {
+              void hapticTap();
+              setTotalTeams(2);
+            }}
+            style={({ pressed }) => [styles.segmentChip, totalTeams === 2 && styles.segmentChipActive, pressed && { opacity: 0.9 }]}
+          >
+            <Text style={[styles.segmentText, totalTeams === 2 && styles.segmentTextActive]}>2 teams</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              void hapticTap();
+              setTotalTeams(3);
+            }}
+            style={({ pressed }) => [styles.segmentChip, totalTeams === 3 && styles.segmentChipActive, pressed && { opacity: 0.9 }]}
+          >
+            <Text style={[styles.segmentText, totalTeams === 3 && styles.segmentTextActive]}>3 teams</Text>
+          </Pressable>
+        </View>
+      )}
 
       <View style={styles.card}>
         {confirmed.length === 0 ? <Text style={styles.muted}>No confirmed players.</Text> : null}
@@ -362,15 +374,21 @@ export default function AdminRunResultScreen() {
                   {nameFor(p)}
                 </Text>
               </View>
-              <Pressable
-                onPress={() => {
-                  void hapticTap();
-                  setPicker({ kind: "team", userId: p.id });
-                }}
-                style={({ pressed }) => [styles.teamPill, pressed && { opacity: 0.9 }]}
-              >
-                <Text style={styles.teamPillText}>{labelTeam(team)}</Text>
-              </Pressable>
+              {teamsReadOnly ? (
+                <View style={styles.teamPillReadonly}>
+                  <Text style={styles.teamPillReadonlyText}>{labelTeam(team)}</Text>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={() => {
+                    void hapticTap();
+                    setPicker({ kind: "team", userId: p.id });
+                  }}
+                  style={({ pressed }) => [styles.teamPill, pressed && { opacity: 0.9 }]}
+                >
+                  <Text style={styles.teamPillText}>{labelTeam(team)}</Text>
+                </Pressable>
+              )}
             </View>
           );
         })}
@@ -456,7 +474,7 @@ export default function AdminRunResultScreen() {
       />
 
       <SelectModal<Team>
-        visible={picker?.kind === "team"}
+        visible={!teamsReadOnly && picker?.kind === "team"}
         title="Team assignment"
         options={teamOptions}
         value={picker?.kind === "team" ? (teamByUser[picker.userId] ?? "A") : null}
@@ -543,6 +561,20 @@ const styles = StyleSheet.create({
 
   sectionTitle: { marginTop: 18, fontSize: 12, fontWeight: "900", letterSpacing: 1.1, color: "rgba(255,255,255,0.45)", textTransform: "uppercase" },
 
+  teamFallbackWarn: {
+    marginTop: 10,
+    fontSize: 14,
+    fontWeight: "700",
+    color: "rgba(251,191,36,0.95)",
+    lineHeight: 20,
+  },
+  teamReadOnlyMeta: {
+    marginTop: 10,
+    fontSize: 14,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.55)",
+  },
+
   segmentRow: { flexDirection: "row", gap: 10, marginTop: 10 },
   segmentChip: {
     flex: 1,
@@ -557,17 +589,6 @@ const styles = StyleSheet.create({
   segmentText: { color: "rgba(255,255,255,0.55)", fontSize: 15, fontWeight: "800" },
   segmentTextActive: { color: LIME },
 
-  generateBtn: {
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.4)",
-    borderRadius: 10,
-    padding: 12,
-    alignItems: "center",
-    backgroundColor: "rgba(163,230,53,0.08)",
-  },
-  generateBtnText: { color: "#a3e635", fontWeight: "700", fontSize: 14 },
-
   card: {
     marginTop: 12,
     padding: 16,
@@ -580,6 +601,15 @@ const styles = StyleSheet.create({
 
   rosterRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10 },
   personName: { color: "#fff", fontWeight: "800", fontSize: 15 },
+  teamPillReadonly: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  teamPillReadonlyText: { color: "rgba(255,255,255,0.75)", fontWeight: "800", fontSize: 13 },
   teamPill: {
     paddingHorizontal: 12,
     paddingVertical: 10,

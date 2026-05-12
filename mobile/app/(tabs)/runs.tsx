@@ -115,6 +115,7 @@ export default function RunsScreen() {
   const [friendAutocompleteLoading, setFriendAutocompleteLoading] = useState(false);
   const [friendAutocompleteEmpty, setFriendAutocompleteEmpty] = useState(false);
   const [friendAutocompleteError, setFriendAutocompleteError] = useState<string | null>(null);
+  const [myTeamLetter, setMyTeamLetter] = useState<"A" | "B" | "C" | null>(null);
 
   useLayoutEffect(() => {
     registerReset(() => setShowStatePicker(true));
@@ -188,6 +189,7 @@ export default function RunsScreen() {
   }, [navigation, showStatePicker]);
 
   const runId = typeof run?.id === "string" ? run.id : undefined;
+  const runIsInProgress = typeof run?.status === "string" && run.status === "in_progress";
   const joinDisabled = joinBusy || !runId;
   const payDisabled = payBusy || !runId;
 
@@ -210,6 +212,29 @@ export default function RunsScreen() {
     setFriendModalOpen(false);
     resetFriendPayModal();
   }, [resetFriendPayModal]);
+
+  useEffect(() => {
+    if (!runId || !supabase || !session?.user?.id || myStatus !== "confirmed" || !runIsInProgress) {
+      setMyTeamLetter(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("pickup_run_team_assignments")
+        .select("team")
+        .eq("run_id", runId)
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const raw = data && typeof data === "object" ? (data as { team?: unknown }).team : null;
+      const t = typeof raw === "string" ? raw : null;
+      setMyTeamLetter(t === "A" || t === "B" || t === "C" ? t : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [runId, supabase, session?.user?.id, myStatus, runIsInProgress]);
 
   useEffect(() => {
     if (!friendModalOpen || !token) return;
@@ -779,6 +804,17 @@ export default function RunsScreen() {
                   <FontAwesome name="check-circle" size={18} color="#bbf7d0" />
                   <Text style={styles.confirmedBannerText}>You&apos;re in. See you on the field.</Text>
                 </View>
+                {runIsInProgress && myTeamLetter ? (
+                  <Text
+                    style={[
+                      styles.myPickupTeamLine,
+                      myTeamLetter === "A" ? styles.myPickupTeamLineA : styles.myPickupTeamLineBw,
+                    ]}
+                  >
+                    You are on Team {myTeamLetter}
+                    {myTeamLetter === "A" ? " 🟢" : " ⚪"}
+                  </Text>
+                ) : null}
                 {runLocked ? null : (
                   <Pressable
                     disabled={declineBusy || !runId}
@@ -1412,6 +1448,14 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(16,185,129,0.18)",
   },
   confirmedBannerText: { color: "#bbf7d0", fontWeight: "700", fontSize: 15, flexShrink: 1 },
+  myPickupTeamLine: {
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+  },
+  myPickupTeamLineA: { color: LIME },
+  myPickupTeamLineBw: { color: "#fff" },
   liveBanner: {
     alignSelf: "stretch",
     marginTop: 18,

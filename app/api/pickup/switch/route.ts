@@ -303,8 +303,15 @@ export async function GET(req: Request) {
 
   const [confirmedRes, standbyRes] = await Promise.all([
     confirmedIds.length
-      ? admin.from("profiles").select("id,first_name,last_name").in("id", confirmedIds)
-      : Promise.resolve({ data: [] as { id: string; first_name: string | null; last_name: string | null }[] }),
+      ? admin.from("profiles").select("id,first_name,last_name,playing_position").in("id", confirmedIds)
+      : Promise.resolve({
+          data: [] as {
+            id: string;
+            first_name: string | null;
+            last_name: string | null;
+            playing_position: string | null;
+          }[],
+        }),
     standbyIds.length
       ? admin.from("profiles").select("id,first_name,last_name").in("id", standbyIds)
       : Promise.resolve({ data: [] as { id: string; first_name: string | null; last_name: string | null }[] }),
@@ -315,7 +322,18 @@ export async function GET(req: Request) {
     full_name: `${String(r.first_name || "").trim()} ${String(r.last_name || "").trim()}`.trim() || null,
   });
 
-  const confirmed = (confirmedRes.data || []).map(mapProfile);
+  const mapConfirmedProfile = (r: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    playing_position: string | null;
+  }) => ({
+    id: r.id,
+    full_name: `${String(r.first_name || "").trim()} ${String(r.last_name || "").trim()}`.trim() || null,
+    playing_position: r.playing_position ?? null,
+  });
+
+  const confirmed = (confirmedRes.data || []).map(mapConfirmedProfile);
   const standby = (standbyRes.data || []).map(mapProfile);
 
   const auto_status = describePickupAutoStatus(run, slots, availability, rsvps, messages);
