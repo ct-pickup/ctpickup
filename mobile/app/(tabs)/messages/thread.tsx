@@ -3,19 +3,12 @@ import { SignInPanel } from "@/components/SignInPanel";
 import { useAuth } from "@/context/AuthContext";
 import {
   normalizeChatSenderDisplayForMatch,
-  useAdminDmPeerLabels,
   useChatAdminUserIds,
   useTeamChatAccess,
   useTeamChatMessages,
   useTeamChatRoom,
 } from "@/hooks/useTeamChat";
-import {
-  ANNOUNCEMENTS_CHAT_SLUG,
-  TEAM_CHAT_SLUG,
-  isAdminDmGroupSlug,
-  useUserChatRooms,
-  type ChatRoomSummary,
-} from "@/lib/teamChat";
+import { ANNOUNCEMENTS_CHAT_SLUG, isAdminDmGroupSlug } from "@/lib/teamChat";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import {
@@ -24,7 +17,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -38,58 +30,6 @@ function senderInitials(displayName: string) {
   if (parts.length >= 2) return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase().slice(0, 2);
   const w = parts[0] ?? "?";
   return w.slice(0, 2).toUpperCase();
-}
-
-type SwitchChip =
-  | { kind: "slug"; key: string; slug: string; label: string }
-  | { kind: "id"; key: string; id: string; label: string };
-
-/**
- * Builds the chip list for the room switcher. Always shows Announcements first
- * and Team chat second (even before they load — they fall back to the
- * hardcoded slug/title), then any group rooms the user belongs to in the order
- * returned by RLS.
- */
-function buildSwitchChips(
-  rooms: ChatRoomSummary[],
-  adminDmPeerLabels: Record<string, string>,
-  isAdmin: boolean | null,
-): SwitchChip[] {
-  const bySlug = new Map(rooms.map((r) => [r.slug, r] as const));
-
-  const announcements = bySlug.get(ANNOUNCEMENTS_CHAT_SLUG);
-  const team = bySlug.get(TEAM_CHAT_SLUG);
-
-  const chips: SwitchChip[] = [
-    {
-      kind: "slug",
-      key: `slug:${ANNOUNCEMENTS_CHAT_SLUG}`,
-      slug: ANNOUNCEMENTS_CHAT_SLUG,
-      label: announcements?.title || "Announcements",
-    },
-    {
-      kind: "slug",
-      key: `slug:${TEAM_CHAT_SLUG}`,
-      slug: TEAM_CHAT_SLUG,
-      label: team?.title || "Team chat",
-    },
-  ];
-
-  for (const r of rooms) {
-    if (r.room_type !== "group") continue;
-    const label =
-      isAdmin === true && isAdminDmGroupSlug(r.slug) && adminDmPeerLabels[r.id]
-        ? adminDmPeerLabels[r.id]!
-        : r.title;
-    chips.push({
-      kind: "id",
-      key: `id:${r.id}`,
-      id: r.id,
-      label,
-    });
-  }
-
-  return chips;
 }
 
 export default function TeamChatThreadScreen() {
@@ -109,15 +49,6 @@ export default function TeamChatThreadScreen() {
     : ({ slug: trimmedSlug || ANNOUNCEMENTS_CHAT_SLUG } as const);
   const { room, loading: roomLoading, error: roomError } = useTeamChatRoom(enabled, lookup);
   const roomId = room?.id ?? null;
-  const activeSlug = room?.slug ?? (trimmedId ? null : trimmedSlug || ANNOUNCEMENTS_CHAT_SLUG);
-  const activeId = room?.id ?? (trimmedId || null);
-
-  const { rooms: userRooms } = useUserChatRooms(enabled);
-  const adminDmPeerLabels = useAdminDmPeerLabels(enabled, isAdmin === true, userRooms, session?.user?.id ?? null);
-  const switchChips = useMemo(
-    () => buildSwitchChips(userRooms, adminDmPeerLabels, isAdmin),
-    [userRooms, adminDmPeerLabels, isAdmin],
-  );
 
   const { messages, loading: msgsLoading, error: msgsError, send, currentUserId } = useTeamChatMessages(roomId);
   const { adminIds, adminSenderDisplayNorms } = useChatAdminUserIds(enabled);
@@ -230,35 +161,6 @@ export default function TeamChatThreadScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 84 : 0}
     >
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.switchRowWrap}
-        contentContainerStyle={styles.switchRow}
-      >
-        {switchChips.map((chip) => {
-          const isActive = chip.kind === "id" ? chip.id === activeId : chip.slug === activeSlug;
-          return (
-            <Pressable
-              key={chip.key}
-              onPress={() =>
-                router.replace({
-                  pathname: "/(tabs)/messages/thread",
-                  params: chip.kind === "id" ? { id: chip.id } : { slug: chip.slug },
-                })
-              }
-              style={({ pressed }) => [
-                styles.switchChip,
-                isActive && styles.switchChipActive,
-                pressed && { opacity: 0.9 },
-              ]}
-            >
-              <Text style={[styles.switchText, isActive && styles.switchTextActive]}>{chip.label}</Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-
       {announcementsOnly ? (
         <View style={styles.notice}>
           <Text style={styles.noticeText}>
@@ -431,21 +333,6 @@ const styles = StyleSheet.create({
   },
   screenPad: { flex: 1, backgroundColor: "#0a0a0a", padding: 18 },
   screen: { flex: 1, backgroundColor: "#0a0a0a", padding: 18 },
-  switchRowWrap: { flexGrow: 0, marginBottom: 10 },
-  switchRow: { flexDirection: "row", gap: 10, paddingRight: 4 },
-  switchChip: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.04)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  switchChipActive: { borderColor: "rgba(163,230,53,0.45)", backgroundColor: "rgba(163,230,53,0.10)" },
-  switchText: { color: "rgba(255,255,255,0.7)", fontWeight: "900", fontSize: 12 },
-  switchTextActive: { color: LIME },
   iconWrap: {
     alignSelf: "center",
     width: 56,
