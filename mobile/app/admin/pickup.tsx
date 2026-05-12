@@ -223,6 +223,8 @@ export default function AdminPickupOpsScreen() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  /** Keeps run id across async saves if modal state is cleared mid-flight. */
+  const selectedRunIdRef = useRef<string | null>(null);
   const [detail, setDetail] = useState<PickupSwitchDetailResponse | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -413,6 +415,7 @@ export default function AdminPickupOpsScreen() {
   }
 
   function openRun(id: string) {
+    selectedRunIdRef.current = id;
     setSelectedRunId(id);
     setEditSectionExpanded(false);
     setModalOpen(true);
@@ -420,6 +423,7 @@ export default function AdminPickupOpsScreen() {
 
   function closeModal() {
     setModalOpen(false);
+    selectedRunIdRef.current = null;
     setSelectedRunId(null);
     setDetail(null);
     setDetailError(null);
@@ -470,8 +474,17 @@ export default function AdminPickupOpsScreen() {
   }
 
   async function persistKickoffSlot(start_at: string): Promise<boolean> {
+    console.log("[persistKickoffSlot] called with", {
+      iso: start_at,
+      selectedRunId,
+    });
+    const runId = selectedRunIdRef.current ?? selectedRunId;
+    if (!runId) {
+      Alert.alert("No run selected", "Open a run again, then set the kickoff time.");
+      return false;
+    }
     const t = await requireToken();
-    if (!t || !selectedRunId) return false;
+    if (!t) return false;
     const trimmed = start_at.trim();
     if (!trimmed) {
       Alert.alert("Missing time", "Pick a kickoff time in Eastern Time, then confirm.");
@@ -480,7 +493,7 @@ export default function AdminPickupOpsScreen() {
     setBusy("slot");
     const body = {
       action: "add_slot" as const,
-      run_id: selectedRunId,
+      run_id: runId,
       start_at: trimmed,
       label: slotLabelRef.current.trim() || null,
     };
@@ -501,6 +514,12 @@ export default function AdminPickupOpsScreen() {
 
   async function onAddSlot() {
     await persistKickoffSlot(slotStart);
+  }
+
+  /** DateTimePicker’s Confirm calls `onChange` only; we persist the slot here (same as “Add slot”). */
+  function onKickoffSlotDateTimeConfirmed(iso: string) {
+    setSlotStart(iso);
+    void persistKickoffSlot(iso);
   }
 
   async function onFinalizeSlot(slotId: string) {
@@ -1695,14 +1714,7 @@ export default function AdminPickupOpsScreen() {
                       </View>
                     );
                   })}
-                  <DateTimePicker
-                    label="Slot start time"
-                    value={slotStart}
-                    onChange={(iso) => {
-                      setSlotStart(iso);
-                      void persistKickoffSlot(iso);
-                    }}
-                  />
+                  <DateTimePicker label="Slot start time" value={slotStart} onChange={onKickoffSlotDateTimeConfirmed} />
                   <Text style={styles.label}>Label (optional)</Text>
                   <TextInput
                     style={styles.input}
