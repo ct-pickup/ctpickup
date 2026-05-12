@@ -429,17 +429,32 @@ export async function POST(req: Request) {
 
   if (action === "add_slot") {
     const run_id = String(body.run_id || "");
-    const start_at = String(body.start_at || "");
+    const rawStart = String(body.start_at || "");
     const label = body.label ? String(body.label) : null;
 
     if (!run_id) return NextResponse.json({ error: "Missing run_id" }, { status: 400 });
-    if (!start_at) return NextResponse.json({ error: "Missing start_at" }, { status: 400 });
+    if (!rawStart.trim()) return NextResponse.json({ error: "Missing start_at" }, { status: 400 });
+
+    const parsedMs = Date.parse(rawStart.trim());
+    if (!Number.isFinite(parsedMs)) {
+      console.warn("[pickup/switch add_slot] invalid datetime parse", { rawStart: rawStart.trim() });
+      return NextResponse.json({ error: "Invalid start_at datetime" }, { status: 400 });
+    }
+    const start_at = new Date(parsedMs).toISOString();
+
+    console.log("[pickup/switch add_slot] saving slot", JSON.stringify({ run_id, start_at_raw: rawStart.trim(), start_at_utc: start_at, label }));
 
     const ins = await admin.from("pickup_run_time_slots").insert({
       run_id,
       start_at,
       label,
     }).select("id").maybeSingle();
+
+    console.log("[pickup/switch add_slot] Supabase insert response", {
+      error: ins.error ? { message: ins.error.message, code: (ins.error as { code?: string }).code } : null,
+      data: ins.data,
+      status: ins.status,
+    });
 
     if (ins.error) return NextResponse.json({ error: ins.error.message }, { status: 500 });
     return NextResponse.json({ ok: true, slot_id: ins.data?.id });

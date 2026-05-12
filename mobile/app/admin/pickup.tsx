@@ -31,7 +31,7 @@ import {
 } from "@/lib/pickupRunLifecycle";
 import { SERVICE_REGIONS, serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -200,6 +200,8 @@ export default function AdminPickupOpsScreen() {
 
   const [slotStart, setSlotStart] = useState("");
   const [slotLabel, setSlotLabel] = useState("");
+  const slotLabelRef = useRef(slotLabel);
+  slotLabelRef.current = slotLabel;
 
   const [createStartAt, setCreateStartAt] = useState("");
   const [createTitle, setCreateTitle] = useState("");
@@ -303,6 +305,12 @@ export default function AdminPickupOpsScreen() {
   useEffect(() => {
     void loadTierBadge();
   }, [loadTierBadge]);
+
+  useEffect(() => {
+    if (!selectedRunId) return;
+    setSlotStart("");
+    setSlotLabel("");
+  }, [selectedRunId]);
 
   useEffect(() => {
     if (!modalOpen || !selectedRunId) return;
@@ -415,24 +423,38 @@ export default function AdminPickupOpsScreen() {
     void loadDetail();
   }
 
-  async function onAddSlot() {
+  async function persistKickoffSlot(start_at: string): Promise<boolean> {
     const t = await requireToken();
-    if (!t || !selectedRunId) return;
-    const start_at = slotStart.trim();
-    if (!start_at) return Alert.alert("Missing time", "Enter kickoff as ISO, e.g. 2026-05-10T18:00:00Z");
+    if (!t || !selectedRunId) return false;
+    const trimmed = start_at.trim();
+    if (!trimmed) {
+      Alert.alert("Missing time", "Pick a kickoff time in Eastern Time, then confirm.");
+      return false;
+    }
     setBusy("slot");
-    const r = await postAdminPickupSwitch(t, {
-      action: "add_slot",
+    const body = {
+      action: "add_slot" as const,
       run_id: selectedRunId,
-      start_at,
-      label: slotLabel.trim() || null,
-    });
+      start_at: trimmed,
+      label: slotLabelRef.current.trim() || null,
+    };
+    console.log("[mobile admin pickup] add_slot request body", JSON.stringify(body));
+    const r = await postAdminPickupSwitch(t, body);
+    console.log("[mobile admin pickup] add_slot response", { ok: r.ok, status: r.status, data: r.ok ? r.data : r.error });
     setBusy(null);
-    if (!r.ok) return Alert.alert("Add slot failed", r.error);
+    if (!r.ok) {
+      Alert.alert("Add slot failed", r.error);
+      return false;
+    }
     setSlotStart("");
     setSlotLabel("");
     void loadDetail();
     void loadRuns();
+    return true;
+  }
+
+  async function onAddSlot() {
+    await persistKickoffSlot(slotStart);
   }
 
   async function onFinalizeSlot(slotId: string) {
@@ -1550,7 +1572,14 @@ export default function AdminPickupOpsScreen() {
                       </View>
                     );
                   })}
-                  <DateTimePicker label="Slot start time" value={slotStart} onChange={setSlotStart} />
+                  <DateTimePicker
+                    label="Slot start time"
+                    value={slotStart}
+                    onChange={(iso) => {
+                      setSlotStart(iso);
+                      void persistKickoffSlot(iso);
+                    }}
+                  />
                   <Text style={styles.label}>Label (optional)</Text>
                   <TextInput
                     style={styles.input}
@@ -1559,12 +1588,13 @@ export default function AdminPickupOpsScreen() {
                     placeholder="Option A"
                     placeholderTextColor="rgba(255,255,255,0.35)"
                   />
+                  <Text style={styles.mutedSmall}>Confirming the time saves the slot immediately (UTC). Use the button below to retry if save failed, or add another time after changing the picker.</Text>
                   <Pressable
                     onPress={() => void onAddSlot()}
-                    disabled={busy === "slot"}
-                    style={({ pressed }) => [styles.secondaryLime, pressed && { opacity: 0.9 }, busy === "slot" && styles.disabled]}
+                    disabled={busy === "slot" || !slotStart.trim()}
+                    style={({ pressed }) => [styles.secondaryLime, pressed && { opacity: 0.9 }, (busy === "slot" || !slotStart.trim()) && styles.disabled]}
                   >
-                    <Text style={styles.secondaryLimeText}>{busy === "slot" ? "Adding…" : "Add slot"}</Text>
+                    <Text style={styles.secondaryLimeText}>{busy === "slot" ? "Saving…" : "Add slot"}</Text>
                   </Pressable>
 
                       <Text style={[styles.rosterSubheading, { marginTop: 14 }]}>RSVPs · Confirmed ({confirmed.length})</Text>
@@ -1894,6 +1924,7 @@ const styles = StyleSheet.create({
   primaryText: { color: "#111", fontWeight: "900", fontSize: 15 },
   disabled: { opacity: 0.55 },
   muted: { marginTop: 8, color: "rgba(255,255,255,0.55)", fontSize: 14 },
+  mutedSmall: { marginTop: 6, marginBottom: 4, color: "rgba(255,255,255,0.45)", fontSize: 12, lineHeight: 16 },
   modalRoot: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.55)",

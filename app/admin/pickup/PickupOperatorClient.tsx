@@ -230,6 +230,9 @@ export default function PickupOperatorClient() {
     setWave1Result(null);
     try {
       console.log("[PickupOperatorClient] POST /api/pickup/switch", JSON.stringify(payload));
+      if (payload?.action === "add_slot") {
+        console.log("[PickupOperatorClient] add_slot start_at value", payload.start_at);
+      }
       const r = await fetch("/api/pickup/switch", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -240,6 +243,10 @@ export default function PickupOperatorClient() {
         console.error("[PickupOperatorClient] POST /api/pickup/switch failed", r.status, j);
         setMsg(j?.error || "Action failed.");
         return;
+      }
+      if (payload?.action === "add_slot") {
+        setSlotStart("");
+        setSlotLabel("");
       }
       await load();
       if (payload?.action === "create_run" && j?.run_id) {
@@ -819,7 +826,7 @@ export default function PickupOperatorClient() {
                     value={slotStart}
                     onChange={(e) => setSlotStart(e.target.value)}
                     className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
-                    placeholder="e.g. 2026-04-10T18:00:00"
+                    placeholder="UTC ISO, e.g. 2026-04-10T22:00:00.000Z"
                   />
                 </label>
                 <label className="flex flex-col gap-1 text-xs text-white/55">

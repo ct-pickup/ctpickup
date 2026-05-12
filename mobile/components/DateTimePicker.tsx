@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 type Props = {
@@ -9,6 +9,8 @@ type Props = {
 
 function pad(n: number) { return String(n).padStart(2, "0"); }
 
+type EtParts = { year: number; month: number; day: number; hour12: number; ampm: "AM" | "PM"; minute: number };
+
 function isDST(y: number, m: number, d: number) {
   const date = new Date(y, m, d);
   const march = new Date(y, 2, 1);
@@ -18,20 +20,64 @@ function isDST(y: number, m: number, d: number) {
   return date >= dstStart && date < dstEnd;
 }
 
-export default function DateTimePicker({ value, onChange, label }: Props) {
-  const [open, setOpen] = useState(false);
-  const parsed = value ? new Date(value) : new Date();
-
-  // Convert UTC stored value to ET for display
+function partsFromValue(value: string): EtParts {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    const d = new Date();
+    return {
+      year: d.getFullYear(),
+      month: d.getMonth() + 1,
+      day: d.getDate(),
+      hour12: 6,
+      ampm: "PM",
+      minute: 0,
+    };
+  }
+  const parsed = new Date(trimmed);
+  if (!Number.isFinite(parsed.getTime())) {
+    const d = new Date();
+    return {
+      year: d.getFullYear(),
+      month: d.getMonth() + 1,
+      day: d.getDate(),
+      hour12: 6,
+      ampm: "PM",
+      minute: 0,
+    };
+  }
   const etOffset = isDST(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()) ? 4 : 5;
   const etDate = new Date(parsed.getTime() - etOffset * 60 * 60 * 1000);
+  const h24 = etDate.getUTCHours();
+  return {
+    year: etDate.getUTCFullYear(),
+    month: etDate.getUTCMonth() + 1,
+    day: etDate.getUTCDate(),
+    hour12: h24 % 12 || 12,
+    ampm: h24 >= 12 ? "PM" : "AM",
+    minute: etDate.getUTCMinutes(),
+  };
+}
 
-  const [year, setYear] = useState(value ? etDate.getUTCFullYear() : new Date().getFullYear());
-  const [month, setMonth] = useState(value ? etDate.getUTCMonth() + 1 : new Date().getMonth() + 1);
-  const [day, setDay] = useState(value ? etDate.getUTCDate() : new Date().getDate());
-  const [hour12, setHour12] = useState(value ? (etDate.getUTCHours() % 12 || 12) : 6);
-  const [ampm, setAmpm] = useState(value ? (etDate.getUTCHours() >= 12 ? "PM" : "AM") : "PM");
-  const [minute, setMinute] = useState(value ? etDate.getUTCMinutes() : 0);
+export default function DateTimePicker({ value, onChange, label }: Props) {
+  const [open, setOpen] = useState(false);
+  const initial = partsFromValue(value);
+
+  const [year, setYear] = useState(initial.year);
+  const [month, setMonth] = useState(initial.month);
+  const [day, setDay] = useState(initial.day);
+  const [hour12, setHour12] = useState(initial.hour12);
+  const [ampm, setAmpm] = useState<"AM" | "PM">(initial.ampm);
+  const [minute, setMinute] = useState(initial.minute);
+
+  useEffect(() => {
+    const p = partsFromValue(value);
+    setYear(p.year);
+    setMonth(p.month);
+    setDay(p.day);
+    setHour12(p.hour12);
+    setAmpm(p.ampm);
+    setMinute(p.minute);
+  }, [value]);
 
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const years = Array.from({ length: 3 }, (_, i) => new Date().getFullYear() + i);
@@ -117,7 +163,7 @@ export default function DateTimePicker({ value, onChange, label }: Props) {
               <View style={styles.col}>
                 <Text style={styles.colLabel}>AM/PM</Text>
                 <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-                  {["AM", "PM"].map((a) => (
+                  {(["AM", "PM"] as const).map((a) => (
                     <Pressable key={a} onPress={() => setAmpm(a)} style={[styles.item, ampm === a ? styles.itemActive : null]}>
                       <Text style={[styles.itemText, ampm === a ? styles.itemTextActive : null]}>{a}</Text>
                     </Pressable>
