@@ -107,6 +107,19 @@ type ProfileRow = {
   push_notifications_enabled: boolean | null;
 };
 
+const PROFILE_SELECT_WITH_PUSH =
+  "first_name,last_name,approved,instagram,phone,zip_code,playing_position,username,push_notifications_enabled";
+
+const PROFILE_SELECT_WITHOUT_PUSH =
+  "first_name,last_name,approved,instagram,phone,zip_code,playing_position,username";
+
+function supabaseLooksLikeMissingColumn(err: { message?: string } | null | undefined, col: string): boolean {
+  const msg = err?.message ?? "";
+  if (!msg) return false;
+  const re = new RegExp(col.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+  return re.test(msg) && (/column/i.test(msg) || /schema cache/i.test(msg) || /Could not find/i.test(msg));
+}
+
 function cleanInstagram(s: string): string {
   return s.trim().replace(/^@/, "").replace(/\s+/g, "");
 }
@@ -186,17 +199,28 @@ export default function AccountScreen() {
     if (!isReady || !supabase || !uid) {
       return;
     }
-    const { data, error } = await supabase
-      .from("profiles")
-      .select(
-        "first_name,last_name,approved,instagram,phone,zip_code,playing_position,username,push_notifications_enabled",
-      )
-      .eq("id", uid)
-      .maybeSingle();
-    if (error) {
+    try {
+      let res = await supabase.from("profiles").select(PROFILE_SELECT_WITH_PUSH).eq("id", uid).maybeSingle();
+      if (res.error) {
+        console.error("[account loadProfile] Supabase error", JSON.stringify(res.error));
+        if (supabaseLooksLikeMissingColumn(res.error, "push_notifications_enabled")) {
+          res = await supabase.from("profiles").select(PROFILE_SELECT_WITHOUT_PUSH).eq("id", uid).maybeSingle();
+          if (res.error) {
+            console.error("[account loadProfile] fallback select error", JSON.stringify(res.error));
+            setProfile(null);
+            return;
+          }
+          const row = res.data as Omit<ProfileRow, "push_notifications_enabled"> | null;
+          setProfile(row ? { ...row, push_notifications_enabled: true } : null);
+          return;
+        }
+        setProfile(null);
+        return;
+      }
+      setProfile((res.data as ProfileRow | null) ?? null);
+    } catch (e) {
+      console.error("[account loadProfile] exception", e);
       setProfile(null);
-    } else {
-      setProfile((data as ProfileRow | null) ?? null);
     }
   }, [isReady, supabase, session?.user?.id]);
 
@@ -212,7 +236,7 @@ export default function AccountScreen() {
   }, [loadProfile]);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || editBusy) return;
     setEditFirstName(String(profile.first_name ?? ""));
     setEditLastName(String(profile.last_name ?? ""));
     const rawPos = String(profile.playing_position ?? "").trim();
@@ -224,7 +248,7 @@ export default function AccountScreen() {
     setEditZipCode(String(profile.zip_code ?? "").replace(/\D/g, "").slice(0, 5));
     setEditUsername(String(profile.username ?? ""));
     setPushEnabled(profile.push_notifications_enabled !== false);
-  }, [profile]);
+  }, [profile, editBusy]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -312,8 +336,6 @@ export default function AccountScreen() {
       return;
     }
 
-    const authUserId = session?.user?.id;
-    console.log("[save] authUserId:", authUserId, "session user id:", session?.user?.id);
     const userId = session?.user?.id;
     if (!userId) {
       setEditMsg("Not signed in.");
@@ -336,7 +358,11 @@ export default function AccountScreen() {
       if (zipStored) {
         const origin = siteOrigin();
         if (origin) {
-          nearestVenues = await getNearestVenuesFromApi(zipStored, origin, accessToken);
+          try {
+            nearestVenues = await getNearestVenuesFromApi(zipStored, origin, accessToken);
+          } catch (e) {
+            console.error("[onSaveProfile] getNearestVenuesFromApi exception", e);
+          }
         }
         if (nearestVenues.length === 0) {
           nearestVenues = getNearestVenues(zipStored);
@@ -344,24 +370,43 @@ export default function AccountScreen() {
       }
       const nearestVenue = nearestVenues[0]?.venue ?? null;
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .update({
-          first_name: firstName || null,
-          last_name: lastName || null,
-          playing_position: playingPosition ?? null,
-          instagram: instagram || null,
-          phone: phone || null,
-          zip_code: zipStored,
-          nearest_venue: nearestVenue,
-          username: username || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", userId)
-        .select("id");
+      const updatedAt = new Date().toISOString();
+      const coreUpdate = {
+        first_name: firstName || null,
+        last_name: lastName || null,
+        playing_position: playingPosition ?? null,
+        instagram: instagram || null,
+        phone: phone || null,
+        zip_code: zipStored,
+        username: username || null,
+        updated_at: updatedAt,
+      };
+
+      let data: { id: string }[] | null = null;
+      let error: { message?: string; code?: string } | null = null;
+
+      try {
+        const withVenue = await supabase
+          .from("profiles")
+          .update({ ...coreUpdate, nearest_venue: nearestVenue })
+          .eq("id", userId)
+          .select("id");
+        data = withVenue.data;
+        error = withVenue.error;
+        if (error && supabaseLooksLikeMissingColumn(error, "nearest_venue")) {
+          console.error("[onSaveProfile] retrying without nearest_venue", JSON.stringify(error));
+          const noVenue = await supabase.from("profiles").update(coreUpdate).eq("id", userId).select("id");
+          data = noVenue.data;
+          error = noVenue.error;
+        }
+      } catch (e) {
+        console.error("[onSaveProfile] profiles.update exception", e);
+        setEditMsg(formatProfileSaveError(e));
+        return;
+      }
 
       if (error) {
-        console.log("[onSaveProfile] supabase.from('profiles').update error", error);
+        console.error("[onSaveProfile] supabase.from('profiles').update error", JSON.stringify(error));
         const code = (error as { code?: string }).code;
         const dup =
           code === "23505" ||
@@ -373,23 +418,23 @@ export default function AccountScreen() {
       }
 
       if (!data?.length) {
-        console.log("[onSaveProfile] update returned 0 rows", { userId });
+        console.error("[onSaveProfile] update returned 0 rows", { userId });
         setEditMsg(
           "Save did not update any profile row (no match or not permitted). Your account may be missing a profile row.",
         );
         return;
       }
 
+      const nextFields = {
+        first_name: firstName || null,
+        last_name: lastName || null,
+        playing_position: playingPosition ?? null,
+        instagram: instagram || null,
+        phone: phone || null,
+        zip_code: zipDigits.length === 5 ? zipDigits : null,
+        username: username || null,
+      };
       setProfile((p) => {
-        const nextFields = {
-          first_name: firstName || null,
-          last_name: lastName || null,
-          playing_position: playingPosition ?? null,
-          instagram: instagram || null,
-          phone: phone || null,
-          zip_code: zipDigits.length === 5 ? zipDigits : null,
-          username: username || null,
-        };
         if (p) {
           return { ...p, ...nextFields };
         }
@@ -399,10 +444,17 @@ export default function AccountScreen() {
           push_notifications_enabled: pushEnabled,
         };
       });
+      setEditFirstName(firstName);
+      setEditLastName(lastName);
+      setEditPlayingPosition(playingPosition);
+      setEditInstagram(instagram || "");
+      setEditPhone(phone);
+      setEditZipCode(zipDigits.length === 5 ? zipDigits : "");
+      setEditUsername(username);
       setEditOk(true);
       setEditMsg("Saved.");
     } catch (e) {
-      console.log("[onSaveProfile] exception", e);
+      console.error("[onSaveProfile] exception", e);
       setEditMsg(formatProfileSaveError(e));
     } finally {
       setEditBusy(false);

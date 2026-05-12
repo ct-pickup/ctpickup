@@ -22,6 +22,7 @@ import {
   type PickupWorkflowTab,
 } from "@/lib/admin/pickupRunLifecycle";
 import { labelPickupRunStatus } from "@/lib/admin/staffStatusLabels";
+import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -111,6 +112,14 @@ export default function PickupOperatorClient() {
   const [slotLabel, setSlotLabel] = useState("");
   const [finalSlotId, setFinalSlotId] = useState("");
 
+  /** Selected run — persisted settings (synced from API; saved via `edit_run`). */
+  const [selTitle, setSelTitle] = useState("");
+  const [selRunType, setSelRunType] = useState<"select" | "public">("select");
+  const [selCapacity, setSelCapacity] = useState(18);
+  const [selFeeCents, setSelFeeCents] = useState(0);
+  const [selLocationPrivate, setSelLocationPrivate] = useState("");
+  const [selLocConfirmedOnly, setSelLocConfirmedOnly] = useState(true);
+
   const load = useCallback(async () => {
     if (!token) return;
     setMsg(null);
@@ -183,12 +192,44 @@ export default function PickupOperatorClient() {
     void loadOperatorCtx();
   }, [loadOperatorCtx]);
 
+  useEffect(() => {
+    if (!selectedRunId) {
+      setSelTitle("");
+      setSelRunType("select");
+      setSelCapacity(18);
+      setSelFeeCents(0);
+      setSelLocationPrivate("");
+      setSelLocConfirmedOnly(true);
+      return;
+    }
+    const fromDetail = detail?.run as Record<string, unknown> | null | undefined;
+    if (fromDetail && String(fromDetail.id || "") === selectedRunId) {
+      setSelTitle(String(fromDetail.title ?? ""));
+      setSelRunType(isPublicPickupRunType(fromDetail.run_type) ? "public" : "select");
+      setSelCapacity(Number(fromDetail.capacity ?? 18));
+      setSelFeeCents(Number(fromDetail.fee_cents ?? 0));
+      setSelLocationPrivate(fromDetail.location_private != null ? String(fromDetail.location_private) : "");
+      setSelLocConfirmedOnly(fromDetail.show_location_to_confirmed_only !== false);
+      return;
+    }
+    const fromList = runs.find((r) => String(r.id) === selectedRunId) as Record<string, unknown> | undefined;
+    if (fromList) {
+      setSelTitle(String(fromList.title ?? ""));
+      setSelRunType(isPublicPickupRunType(fromList.run_type) ? "public" : "select");
+      setSelCapacity(Number(fromList.capacity ?? 18));
+      setSelFeeCents(Number(fromList.fee_cents ?? 0));
+      setSelLocationPrivate(fromList.location_private != null ? String(fromList.location_private) : "");
+      setSelLocConfirmedOnly(fromList.show_location_to_confirmed_only !== false);
+    }
+  }, [detail?.run, selectedRunId, runs]);
+
   async function act(payload: Record<string, unknown>) {
     if (!token) return;
     setBusy(true);
     setMsg(null);
     setWave1Result(null);
     try {
+      console.log("[PickupOperatorClient] POST /api/pickup/switch", JSON.stringify(payload));
       const r = await fetch("/api/pickup/switch", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -196,6 +237,7 @@ export default function PickupOperatorClient() {
       });
       const j = await r.json();
       if (!r.ok) {
+        console.error("[PickupOperatorClient] POST /api/pickup/switch failed", r.status, j);
         setMsg(j?.error || "Action failed.");
         return;
       }
@@ -608,6 +650,93 @@ export default function PickupOperatorClient() {
               </div>
               <div className="text-xs text-white/40">Run ID: {String(selectedRun.id)}</div>
             </>
+          ) : null}
+
+          {selectedRunId && selectedRun && selectedRun.status !== "canceled" ? (
+            <div className="space-y-3 rounded-lg border border-white/10 bg-black/25 p-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-white/45">Run settings</div>
+              <p className="text-xs text-white/50">
+                Who can join, capacity, fee, and venue text apply to this run. Save after changes.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex flex-col gap-1 text-sm text-white/80">
+                  <span>Title</span>
+                  <input
+                    value={selTitle}
+                    onChange={(e) => setSelTitle(e.target.value)}
+                    className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-white/80">
+                  <span>Who can join</span>
+                  <select
+                    value={selRunType}
+                    onChange={(e) => setSelRunType(e.target.value as "select" | "public")}
+                    className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                  >
+                    <option value="select">Invite only</option>
+                    <option value="public">Open tiers</option>
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-white/80">
+                  <span>Player capacity</span>
+                  <input
+                    type="number"
+                    value={selCapacity}
+                    onChange={(e) => setSelCapacity(Number(e.target.value))}
+                    min={1}
+                    className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-white/80">
+                  <span>Fee (cents)</span>
+                  <input
+                    type="number"
+                    value={selFeeCents}
+                    onChange={(e) => setSelFeeCents(Number(e.target.value))}
+                    min={0}
+                    className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                  />
+                </label>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-white/70">
+                <input
+                  type="checkbox"
+                  checked={selLocConfirmedOnly}
+                  onChange={(e) => setSelLocConfirmedOnly(e.target.checked)}
+                />
+                Location visible to confirmed only
+              </label>
+              <label className="flex flex-col gap-1 text-sm text-white/80">
+                <span>Full venue text for players</span>
+                <textarea
+                  value={selLocationPrivate}
+                  onChange={(e) => setSelLocationPrivate(e.target.value)}
+                  rows={4}
+                  className="w-full rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  act({
+                    action: "edit_run",
+                    run_id: selectedRunId,
+                    title: selTitle,
+                    run_type: selRunType,
+                    capacity: selCapacity,
+                    fee_cents: selFeeCents,
+                    currency: "usd",
+                    location_private: selLocationPrivate.trim() || null,
+                    show_location_to_confirmed_only: selLocConfirmedOnly,
+                  })
+                }
+                className="rounded-md bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-50"
+              >
+                Save run settings
+              </button>
+            </div>
           ) : null}
 
           {selectedRun && !selectedRun.is_current && selectedRun.status !== "canceled" ? (

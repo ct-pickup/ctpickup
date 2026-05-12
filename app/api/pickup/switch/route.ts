@@ -7,7 +7,7 @@ import {
   processAutoPickupRun,
 } from "@/lib/pickup/autoRunCheckpoints";
 import { insertInvitesForTierRanks, sendPickupInviteSms } from "@/lib/pickup/pickupInvites";
-import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
+import { isPublicPickupRunType, normalizePickupRunTypeForDb } from "@/lib/pickup/pickupRunType";
 import { addWaveIntervalIso } from "@/lib/pickup/pickupWaveSchedule";
 import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
@@ -363,8 +363,10 @@ export async function POST(req: Request) {
 
   // 1) Create run (promoted hub); outreach is launched manually when staff are ready.
   if (action === "create_run") {
+    console.log("[pickup/switch create_run] raw body", JSON.stringify(body));
+
     const title = String(body.title || "CT Pickup Run");
-    const run_type = String(body.run_type || "select");
+    const run_type = normalizePickupRunTypeForDb(body.run_type);
     const capacity = Number(body.capacity || 18);
     const fee_cents = Number(body.fee_cents || 0);
     const currency = String(body.currency || "usd");
@@ -377,7 +379,10 @@ export async function POST(req: Request) {
       .from("pickup_runs")
       .update({ is_current: false, updated_at: now })
       .eq("is_current", true);
-    if (clearPrev.error) return NextResponse.json({ error: clearPrev.error.message }, { status: 500 });
+    if (clearPrev.error) {
+      console.error("[pickup/switch create_run] clearPrev hub error", clearPrev.error);
+      return NextResponse.json({ error: clearPrev.error.message }, { status: 500 });
+    }
 
     const ins = await admin
       .from("pickup_runs")
@@ -405,6 +410,13 @@ export async function POST(req: Request) {
       .select("id")
       .maybeSingle();
 
+    console.log("[pickup/switch create_run] Supabase insert response", {
+      error: ins.error ? { message: ins.error.message, code: (ins.error as { code?: string }).code } : null,
+      data: ins.data,
+      status: ins.status,
+      run_type_normalized: run_type,
+    });
+
     if (ins.error) return NextResponse.json({ error: ins.error.message }, { status: 500 });
     const newId = ins.data?.id as string | undefined;
     if (!newId) return NextResponse.json({ error: "Insert returned no id" }, { status: 500 });
@@ -412,7 +424,7 @@ export async function POST(req: Request) {
     revalidatePath("/pickup");
     revalidatePath("/status/pickup");
 
-    return NextResponse.json({ ok: true, run_id: newId });
+    return NextResponse.json({ ok: true, run_id: newId, run_type });
   }
 
   if (action === "add_slot") {
@@ -739,18 +751,26 @@ export async function POST(req: Request) {
     if (body.capacity != null) patch.capacity = Number(body.capacity);
     if (body.fee_cents != null) patch.fee_cents = Number(body.fee_cents);
     if (body.currency != null) patch.currency = String(body.currency);
-    if (body.location_private != null) patch.location_private = String(body.location_private);
+    if ("location_private" in body) {
+      patch.location_private =
+        body.location_private == null || body.location_private === ""
+          ? null
+          : String(body.location_private);
+    }
     if (body.show_location_to_confirmed_only != null)
       patch.show_location_to_confirmed_only = !!body.show_location_to_confirmed_only;
     if (body.run_type != null) {
-      const rt = String(body.run_type);
-      if (!["select", "public"].includes(rt)) {
-        return NextResponse.json({ error: "run_type must be select or public" }, { status: 400 });
-      }
-      patch.run_type = rt;
+      patch.run_type = normalizePickupRunTypeForDb(body.run_type);
     }
 
+    console.log("[pickup/switch edit_run] patch", JSON.stringify({ run_id, ...patch }));
+
     const up = await admin.from("pickup_runs").update(patch).eq("id", run_id);
+    console.log("[pickup/switch edit_run] Supabase update response", {
+      run_id,
+      error: up.error ? { message: up.error.message, code: (up.error as { code?: string }).code } : null,
+      status: up.status,
+    });
     if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
 
     revalidatePath("/pickup");
