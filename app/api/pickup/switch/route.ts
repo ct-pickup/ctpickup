@@ -68,9 +68,8 @@ export async function GET(req: Request) {
   let runsQuery = admin
     .from("pickup_runs")
     .select(
-      "id,title,status,start_at,created_at,run_type,capacity,fee_cents,currency,open_tier_rank,wave1_started_at,likely_on_slot_id,final_slot_id,is_current,outreach_started_at,auto_managed,service_region,location_private,show_location_to_confirmed_only,cancellation_deadline,next_wave_at,current_wave",
+      "id,title,status,start_at,created_at,run_type,capacity,fee_cents,currency,open_tier_rank,wave1_started_at,likely_on_slot_id,final_slot_id,is_current,outreach_started_at,auto_managed,service_region,location_private,show_location_to_confirmed_only,cancellation_deadline,next_wave_at,current_wave,is_completed",
     )
-    .neq("status", "canceled")
     .order("created_at", { ascending: false });
 
   if (region) {

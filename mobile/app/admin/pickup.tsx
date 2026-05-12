@@ -20,14 +20,11 @@ import {
 import { siteOrigin } from "@/lib/env";
 import { fmtPickupDt, fmtPickupTime } from "@/lib/pickupPublic";
 import {
-  defaultPickupWorkflowTab,
   derivePickupLifecycleStage,
   pickupLifecycleStageLabel,
-  pickupWorkflowTabForRun,
   showEndRunButton,
   showPostResultsButton,
   showStartRunNowButton,
-  type PickupWorkflowTab,
 } from "@/lib/pickupRunLifecycle";
 import { SERVICE_REGIONS, serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -97,6 +94,49 @@ const VENUE_FEE_PRESETS: VenueFeePreset[] = [
 
 function s(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
+}
+
+type AdminPickupWorkflowTab = "planning" | "active" | "past";
+
+function isPastPickupRun(row: Record<string, unknown>): boolean {
+  if (row.is_completed === true) return true;
+  const st = s(row.status).trim();
+  return st === "completed" || st === "canceled";
+}
+
+function defaultAdminPickupTab(counts: Record<AdminPickupWorkflowTab, number>): AdminPickupWorkflowTab {
+  if (counts.active > 0) return "active";
+  if (counts.planning > 0) return "planning";
+  return "past";
+}
+
+/** Run start in Eastern Time for admin past-run cards. */
+function fmtPickupDtEt(dt: string | null | undefined): string {
+  if (!dt) return "TBD";
+  try {
+    return new Date(dt).toLocaleString("en-US", {
+      timeZone: "America/New_York",
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return "TBD";
+  }
+}
+
+/** First line of staff location, else title. */
+function venueLineFromRun(row: Record<string, unknown>): string {
+  const loc = s(row.location_private).trim();
+  if (loc) {
+    const first = loc.split(/\r?\n/)[0]?.trim();
+    if (first) return first;
+  }
+  const title = s(row.title).trim();
+  return title || "Venue TBD";
 }
 
 /** Staff override wins out when set (including 0); otherwise use computed stats from API. */
@@ -177,7 +217,7 @@ export default function AdminPickupOpsScreen() {
   const [runs, setRuns] = useState<Record<string, unknown>[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
-  const [workflowTabOverride, setWorkflowTabOverride] = useState<PickupWorkflowTab | null>(null);
+  const [workflowTabOverride, setWorkflowTabOverride] = useState<AdminPickupWorkflowTab | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editSectionExpanded, setEditSectionExpanded] = useState(false);
 
@@ -219,9 +259,15 @@ export default function AdminPickupOpsScreen() {
   const venueFeePresetsForRegion = useMemo(() => VENUE_FEE_PRESETS.filter((p) => p.region === region), [region]);
 
   const workflowTabCounts = useMemo(() => {
-    const c = { upcoming: 0, in_progress: 0, completed: 0 };
+    const c: Record<AdminPickupWorkflowTab, number> = { planning: 0, active: 0, past: 0 };
     for (const row of runs) {
-      c[pickupWorkflowTabForRun(row)]++;
+      if (isPastPickupRun(row)) {
+        c.past += 1;
+        continue;
+      }
+      const st = s(row.status).trim();
+      if (st === "planning") c.planning += 1;
+      else if (st === "likely_on" || st === "active" || st === "in_progress") c.active += 1;
     }
     return c;
   }, [runs]);
@@ -625,6 +671,7 @@ export default function AdminPickupOpsScreen() {
             const r = await postAdminEndRun(t, { run_id: runId });
             setBusy(null);
             if (!r.ok) return Alert.alert("End run failed", r.error);
+            setWorkflowTabOverride("past");
             setRuns((prev) =>
               prev.map((row) => (s(row.id) === runId ? { ...row, status: "completed", is_completed: true } : row)),
             );
@@ -763,10 +810,23 @@ export default function AdminPickupOpsScreen() {
     return null;
   }, [selectedRun, auto]);
 
-  const workflowTab = workflowTabOverride ?? defaultPickupWorkflowTab(workflowTabCounts);
+  const workflowTab = workflowTabOverride ?? defaultAdminPickupTab(workflowTabCounts);
 
   const filteredRuns = useMemo(() => {
-    return runs.filter((row) => pickupWorkflowTabForRun(row) === workflowTab);
+    const base = runs.filter((row) => {
+      if (workflowTab === "past") return isPastPickupRun(row);
+      if (isPastPickupRun(row)) return false;
+      const st = s(row.status).trim();
+      if (workflowTab === "planning") return st === "planning";
+      if (workflowTab === "active") return st === "likely_on" || st === "active" || st === "in_progress";
+      return false;
+    });
+    if (workflowTab !== "past") return base;
+    return [...base].sort((a, b) => {
+      const ta = Date.parse(s(a.start_at)) || 0;
+      const tb = Date.parse(s(b.start_at)) || 0;
+      return tb - ta;
+    });
   }, [runs, workflowTab]);
 
   const createForm = (
@@ -963,10 +1023,10 @@ export default function AdminPickupOpsScreen() {
         <View style={styles.workflowTabRow}>
           {(
             [
-              ["upcoming", "Upcoming"],
-              ["in_progress", "In Progress"],
-              ["completed", "Completed"],
-            ] as const
+              ["planning", "Planning"],
+              ["active", "Active"],
+              ["past", "Past"],
+            ] as [AdminPickupWorkflowTab, string][]
           ).map(([key, label]) => {
             const active = workflowTab === key;
             const n = workflowTabCounts[key];
@@ -1007,6 +1067,69 @@ export default function AdminPickupOpsScreen() {
           const reg = s(row.service_region).trim().toUpperCase();
           const regionLabel = reg && SERVICE_REGIONS.some((r) => r.code === reg) ? reg : region;
           const lc = listCountsFromRow(row);
+          const hasResult = row.has_result === true;
+          const runTypeLabel = row.run_type === "public" ? "Public" : "Select";
+
+          if (workflowTab === "past") {
+            return (
+              <Pressable
+                key={id}
+                onPress={() => openRun(id)}
+                style={({ pressed }) => [styles.runCard, pressed && { opacity: 0.92 }]}
+              >
+                <Text style={styles.runPastEtLine}>{fmtPickupDtEt(s(row.start_at))}</Text>
+                <Text style={styles.runVenueLine} numberOfLines={3}>
+                  {venueLineFromRun(row)}
+                </Text>
+                <Text style={styles.runPastMetaLine}>Run type · {runTypeLabel}</Text>
+                <Text style={styles.runPastMetaLine}>Final confirmed · {lc.confirmed}</Text>
+                <View style={styles.runBadgesRow}>
+                  <View style={styles.regionBadge}>
+                    <Text style={styles.regionBadgeText}>{regionLabel}</Text>
+                  </View>
+                </View>
+                <Text style={hasResult ? styles.pastResultPosted : styles.pastResultMissing}>
+                  {hasResult ? "Results posted ✓" : "No result posted"}
+                </Text>
+                <View style={styles.cardActionRow}>
+                  {!hasResult ? (
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        (router.push as (href: string) => void)(`/admin/run-result?run_id=${encodeURIComponent(id)}`);
+                      }}
+                      style={({ pressed }) => [styles.cardBtnLime, pressed && { opacity: 0.9 }]}
+                    >
+                      <Text style={styles.cardBtnLimeText}>Post Results</Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        (router.push as (href: string) => void)(
+                          `/admin/run-result?run_id=${encodeURIComponent(id)}&readonly=true`,
+                        );
+                      }}
+                      style={({ pressed }) => [styles.cardBtnLime, pressed && { opacity: 0.9 }]}
+                    >
+                      <Text style={styles.cardBtnLimeText}>View Results</Text>
+                    </Pressable>
+                  )}
+                </View>
+                <Pressable
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    openRun(id);
+                  }}
+                  style={styles.detailsChevronRow}
+                >
+                  <Text style={styles.runTapHint}>Details</Text>
+                  <FontAwesome name="chevron-right" size={12} color="rgba(255,255,255,0.35)" />
+                </Pressable>
+              </Pressable>
+            );
+          }
+
           const listLaunchBlock = launchBlockedForListRow(row);
           const lcStage = derivePickupLifecycleStage({
             status: s(row.status),
@@ -1778,6 +1901,11 @@ const styles = StyleSheet.create({
   runTitle: { fontSize: 18, fontWeight: "800", color: "#fff", letterSpacing: -0.2 },
   runDateLine: { marginTop: 6, fontSize: 14, fontWeight: "700", color: "rgba(255,255,255,0.75)" },
   runTimeLine: { marginTop: 2, fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.45)" },
+  runPastEtLine: { fontSize: 15, fontWeight: "800", color: "#fff", letterSpacing: -0.2 },
+  runVenueLine: { marginTop: 8, fontSize: 16, fontWeight: "700", color: "rgba(255,255,255,0.9)", lineHeight: 22 },
+  runPastMetaLine: { marginTop: 6, fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.55)" },
+  pastResultPosted: { marginTop: 12, fontSize: 14, fontWeight: "800", color: LIME },
+  pastResultMissing: { marginTop: 12, fontSize: 14, fontWeight: "700", color: "rgba(255,255,255,0.38)" },
   runBadgesRow: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   regionBadge: {
     paddingHorizontal: 10,

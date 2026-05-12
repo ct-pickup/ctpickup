@@ -2,58 +2,83 @@ import { useAuth } from "@/context/AuthContext";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from "react-native";
 
 const BG = "#0a0a0a";
 const LIME = "#a3e635";
+const MUTED = "rgba(255,255,255,0.45)";
 
 type Team = "A" | "B" | "C";
 
 type AwardSlot = "player" | "goalie" | "attacker" | "midfielder" | "defender";
 
-type AwardRowData = {
-  slot: AwardSlot;
-  label: string;
-  userId: string | null;
-  name: string | null;
-};
-
-const AWARD_ORDER: { slot: AwardSlot; label: string }[] = [
-  { slot: "player", label: "Player of the Day" },
-  { slot: "goalie", label: "Goalie of the Day" },
-  { slot: "attacker", label: "Attacker of the Day" },
-  { slot: "midfielder", label: "Midfielder of the Day" },
-  { slot: "defender", label: "Defender of the Day" },
+const AWARD_META: { slot: AwardSlot; emoji: string; label: string }[] = [
+  { slot: "player", emoji: "🏆", label: "Player of the Day" },
+  { slot: "goalie", emoji: "🧤", label: "Goalie of the Day" },
+  { slot: "attacker", emoji: "⚽", label: "Attacker of the Day" },
+  { slot: "midfielder", emoji: "🎯", label: "Midfielder of the Day" },
+  { slot: "defender", emoji: "🛡️", label: "Defender of the Day" },
 ];
 
 type HistoryRow = {
   run_id: string;
-  team: Team;
+  run_title: string | null;
+  team: Team | null;
   start_at: string | null;
-  location_private: string | null;
-  service_region: string | null;
+  venue_label: string | null;
   winning_team: Team | null;
-  is_completed: boolean;
-  myAwards: string[];
-  awards: AwardRowData[];
+  /** Full lines like "🏆 Player of the Day" for awards the viewer won */
+  myAwardLines: string[];
 };
 
 function s(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
 
-function fmtDate(iso: string | null): string {
+/** Eastern Time, e.g. "May 11, 2026 · 8:15 PM" */
+function fmtEtDateTime(iso: string | null): string {
   const t = (iso ?? "").trim();
   if (!t) return "—";
   const d = new Date(t);
   if (Number.isNaN(d.getTime())) return t;
-  return d.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  const datePart = d.toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  const timePart = d.toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${datePart} · ${timePart}`;
 }
 
-function venueSnippet(locationPrivate: string | null): string {
-  const t = s(locationPrivate).replace(/\s+/g, " ").trim();
+function venueSnippet(label: string | null): string {
+  const t = s(label).replace(/\s+/g, " ").trim();
   if (!t) return "—";
   return t.length > 52 ? `${t.slice(0, 52)}…` : t;
+}
+
+function pickVenueName(run: {
+  venue?: unknown;
+  nearest_venue?: unknown;
+  location_text?: unknown;
+  location_private?: unknown;
+}): string | null {
+  for (const key of ["venue", "nearest_venue", "location_text", "location_private"] as const) {
+    const raw = run[key];
+    const t = typeof raw === "string" ? raw.replace(/\s+/g, " ").trim() : "";
+    if (t) return t;
+  }
+  return null;
+}
+
+function teamLabel(team: Team | null): string {
+  if (team == null) return "Not assigned";
+  return `Team ${team}`;
 }
 
 export default function RunHistoryScreen() {
@@ -87,35 +112,43 @@ export default function RunHistoryScreen() {
       setLoading(true);
       setErr(null);
 
-      // NOTE: Don't use Supabase relational selects from assignments into results.
-      // Both tables reference pickup_runs.id via run_id, not each other.
-      const { data: assignments, error: assignmentsError } = await supabase
-        .from("pickup_run_team_assignments")
-        .select("run_id,team")
+      const { data: rsvpRows, error: rsvpErr } = await supabase
+        .from("pickup_run_rsvps")
+        .select("run_id")
         .eq("user_id", tokenUserId)
-        .order("created_at", { ascending: false })
-        .limit(250);
+        .eq("status", "confirmed")
+        .limit(500);
 
       if (cancelled) return;
-      if (assignmentsError || !assignments) {
+      if (rsvpErr || !rsvpRows) {
         setRows([]);
-        setErr(assignmentsError?.message ?? "Couldn’t load history.");
+        setErr(rsvpErr?.message ?? "Couldn’t load history.");
         setLoading(false);
         return;
       }
 
-      const assignmentRows = assignments as unknown as Array<{ run_id: string; team: Team }>;
-      const runIds = Array.from(new Set(assignmentRows.map((r) => r.run_id).filter(Boolean)));
+      const runIdsOrdered: string[] = [];
+      const seen = new Set<string>();
+      for (const row of rsvpRows as unknown as Array<{ run_id: string | null }>) {
+        const id = row?.run_id ? String(row.run_id) : "";
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        runIdsOrdered.push(id);
+      }
+
+      if (runIdsOrdered.length === 0) {
+        setRows([]);
+        setLoading(false);
+        return;
+      }
 
       const CHUNK = 250;
       const runsById = new Map<
         string,
         {
+          title: string | null;
           start_at: string | null;
-          location_private: string | null;
-          service_region: string | null;
-          status: string | null;
-          is_completed: boolean | null;
+          venue_label: string | null;
         }
       >();
       const resultsByRunId = new Map<
@@ -129,33 +162,75 @@ export default function RunHistoryScreen() {
           attacker_of_day: string | null;
         }
       >();
+      const teamByRunId = new Map<string, Team>();
 
-      for (let i = 0; i < runIds.length; i += CHUNK) {
-        const chunk = runIds.slice(i, i + CHUNK);
+      for (let i = 0; i < runIdsOrdered.length; i += CHUNK) {
+        const chunk = runIdsOrdered.slice(i, i + CHUNK);
+
         const { data: runRows, error: runsErr } = await supabase
           .from("pickup_runs")
-          .select("id,start_at,location_private,service_region,status,is_completed")
+          .select("id,title,start_at,venue,nearest_venue,location_text,location_private")
           .in("id", chunk);
         if (cancelled) return;
-        if (!runsErr && runRows) {
-          for (const row of runRows as unknown as Array<{
+        if (runsErr) {
+          const fallback = await supabase
+            .from("pickup_runs")
+            .select("id,title,start_at,location_text,location_private")
+            .in("id", chunk);
+          if (cancelled) return;
+          if (fallback.error || !fallback.data) {
+            setRows([]);
+            setErr(runsErr.message ?? fallback.error?.message ?? "Couldn’t load runs.");
+            setLoading(false);
+            return;
+          }
+          for (const row of fallback.data as unknown as Array<{
             id: string;
+            title: string | null;
             start_at: string | null;
+            location_text: string | null;
             location_private: string | null;
-            service_region: string | null;
-            status: string | null;
-            is_completed: boolean | null;
           }>) {
             if (!row?.id) continue;
             runsById.set(row.id, {
+              title: row.title ?? null,
               start_at: row.start_at ?? null,
-              location_private: row.location_private ?? null,
-              service_region: row.service_region ?? null,
-              status: row.status ?? null,
-              is_completed: row.is_completed ?? null,
+              venue_label: pickVenueName(row),
+            });
+          }
+        } else if (runRows) {
+          for (const row of runRows as unknown as Array<{
+            id: string;
+            title: string | null;
+            start_at: string | null;
+            venue?: string | null;
+            nearest_venue?: string | null;
+            location_text: string | null;
+            location_private: string | null;
+          }>) {
+            if (!row?.id) continue;
+            runsById.set(row.id, {
+              title: row.title ?? null,
+              start_at: row.start_at ?? null,
+              venue_label: pickVenueName(row),
             });
           }
         }
+
+        const { data: assignRows, error: assignErr } = await supabase
+          .from("pickup_run_team_assignments")
+          .select("run_id,team")
+          .eq("user_id", tokenUserId)
+          .in("run_id", chunk);
+        if (cancelled) return;
+        if (!assignErr && assignRows) {
+          for (const a of assignRows as unknown as Array<{ run_id: string; team: Team }>) {
+            if (a?.run_id && (a.team === "A" || a.team === "B" || a.team === "C")) {
+              teamByRunId.set(a.run_id, a.team);
+            }
+          }
+        }
+
         const { data: resRows, error: resErr } = await supabase
           .from("pickup_run_results")
           .select("run_id,winning_team,player_of_day,goalie_of_the_day,defender_of_day,midfielder_of_day,attacker_of_day")
@@ -184,42 +259,10 @@ export default function RunHistoryScreen() {
         }
       }
 
-      // Collect all award user_ids across runs and resolve names in one batch.
-      const allAwardUserIds = new Set<string>();
-      for (const r of resultsByRunId.values()) {
-        for (const v of [
-          r.player_of_day,
-          r.goalie_of_the_day,
-          r.attacker_of_day,
-          r.midfielder_of_day,
-          r.defender_of_day,
-        ]) {
-          if (typeof v === "string" && v.length > 0) allAwardUserIds.add(v);
-        }
-      }
-      const nameById = new Map<string, string>();
-      const awardIds = Array.from(allAwardUserIds);
-      for (let i = 0; i < awardIds.length; i += CHUNK) {
-        const chunk = awardIds.slice(i, i + CHUNK);
-        const profs = await supabase.from("profiles").select("id,full_name,username").in("id", chunk);
-        if (cancelled) return;
-        if (profs.data) {
-          for (const p of profs.data as Array<{ id: string; full_name: string | null; username: string | null }>) {
-            const nm = (p.full_name ?? "").trim() || (p.username ?? "").trim() || p.id;
-            nameById.set(p.id, nm);
-          }
-        }
-      }
-
-      const out: HistoryRow[] = assignmentRows.map((r) => {
-        const run = runsById.get(r.run_id) ?? null;
-        const res = resultsByRunId.get(r.run_id) ?? null;
-        const myAwards: string[] = [];
-        if (res?.player_of_day === tokenUserId) myAwards.push("POTD");
-        if (res?.goalie_of_the_day === tokenUserId) myAwards.push("GOTD");
-        if (res?.defender_of_day === tokenUserId) myAwards.push("DEF");
-        if (res?.midfielder_of_day === tokenUserId) myAwards.push("MID");
-        if (res?.attacker_of_day === tokenUserId) myAwards.push("ATT");
+      const out: HistoryRow[] = runIdsOrdered.map((run_id) => {
+        const run = runsById.get(run_id) ?? null;
+        const res = resultsByRunId.get(run_id) ?? null;
+        const team = teamByRunId.get(run_id) ?? null;
 
         const slotToUserId: Record<AwardSlot, string | null> = {
           player: res?.player_of_day ?? null,
@@ -228,29 +271,22 @@ export default function RunHistoryScreen() {
           midfielder: res?.midfielder_of_day ?? null,
           defender: res?.defender_of_day ?? null,
         };
-        const awards: AwardRowData[] = AWARD_ORDER.map(({ slot, label }) => {
-          const uid = slotToUserId[slot];
-          return {
-            slot,
-            label,
-            userId: uid,
-            name: uid ? nameById.get(uid) ?? null : null,
-          };
-        });
 
-        const is_completed =
-          run?.is_completed === true || String(run?.status || "").trim().toLowerCase() === "completed";
+        const myAwardLines: string[] = [];
+        for (const { slot, emoji, label } of AWARD_META) {
+          if (slotToUserId[slot] === tokenUserId) {
+            myAwardLines.push(`${emoji} ${label}`);
+          }
+        }
 
         return {
-          run_id: r.run_id,
-          team: r.team,
+          run_id,
+          run_title: run?.title ?? null,
+          team,
           start_at: run?.start_at ?? null,
-          location_private: run?.location_private ?? null,
-          service_region: run?.service_region ?? null,
+          venue_label: run?.venue_label ?? null,
           winning_team: (res?.winning_team ?? null) as Team | null,
-          is_completed,
-          myAwards,
-          awards,
+          myAwardLines,
         };
       });
 
@@ -263,6 +299,19 @@ export default function RunHistoryScreen() {
       cancelled = true;
     };
   }, [isReady, supabase, tokenUserId]);
+
+  const stats = useMemo(() => {
+    let wins = 0;
+    let losses = 0;
+    for (const r of rows) {
+      if (r.winning_team == null || r.team == null) continue;
+      if (r.team === r.winning_team) wins++;
+      else losses++;
+    }
+    const decided = wins + losses;
+    const winRatePct = decided > 0 ? Math.round((wins / decided) * 100) : null;
+    return { total: rows.length, wins, losses, winRatePct };
+  }, [rows]);
 
   const empty = useMemo(() => !loading && !err && rows.length === 0, [loading, err, rows.length]);
 
@@ -284,17 +333,62 @@ export default function RunHistoryScreen() {
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      <Text style={styles.h1}>Your runs</Text>
-      <Text style={styles.sub}>Tap a run for details, outcome, and awards.</Text>
+      <Text style={styles.h1}>Run history</Text>
+      <Text style={styles.sub}>Confirmed pickups, newest first. Times are US Eastern.</Text>
 
-      {empty ? <Text style={styles.empty}>No completed runs yet.</Text> : null}
+      {!empty ? (
+        <View style={styles.statsCard}>
+          <Text style={styles.statsTitle}>Summary</Text>
+          <View style={styles.statsGrid}>
+            <View style={styles.statCell}>
+              <Text style={styles.statValue}>{stats.total}</Text>
+              <Text style={styles.statLabel}>Games</Text>
+            </View>
+            <View style={styles.statCell}>
+              <Text style={[styles.statValue, { color: LIME }]}>{stats.wins}</Text>
+              <Text style={styles.statLabel}>Wins</Text>
+            </View>
+            <View style={styles.statCell}>
+              <Text style={[styles.statValue, { color: MUTED }]}>{stats.losses}</Text>
+              <Text style={styles.statLabel}>Losses</Text>
+            </View>
+            <View style={styles.statCell}>
+              <Text style={styles.statValue}>
+                {stats.winRatePct != null ? `${stats.winRatePct}%` : "—"}
+              </Text>
+              <Text style={styles.statLabel}>Win rate</Text>
+            </View>
+          </View>
+          <Text style={styles.statsFoot}>
+            Win rate uses games with a posted result and a team assignment for you.
+          </Text>
+        </View>
+      ) : null}
+
+      {empty ? <Text style={styles.empty}>No confirmed runs yet.</Text> : null}
 
       <View style={styles.list}>
         {rows.map((r) => {
           const hasResult = r.winning_team != null;
-          const won = hasResult ? r.team === r.winning_team : null;
-          const showResults = r.is_completed && hasResult;
-          const hasAnyAwardWinner = r.awards.some((a) => a.userId != null);
+          const canScore = hasResult && r.team != null;
+          const won = canScore ? r.team === r.winning_team : null;
+
+          let resultLabel: string;
+          let resultExtraStyle: TextStyle;
+          if (!hasResult) {
+            resultLabel = "Result pending";
+            resultExtraStyle = styles.resultPending;
+          } else if (r.team == null) {
+            resultLabel = "—";
+            resultExtraStyle = styles.resultLoss;
+          } else if (won) {
+            resultLabel = "Win 🏆";
+            resultExtraStyle = styles.resultWin;
+          } else {
+            resultLabel = "Loss";
+            resultExtraStyle = styles.resultLoss;
+          }
+
           return (
             <Pressable
               key={r.run_id}
@@ -302,59 +396,33 @@ export default function RunHistoryScreen() {
               style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}
             >
               <View style={styles.cardTop}>
-                <Text style={styles.date}>{fmtDate(r.start_at)}</Text>
+                <Text style={styles.date}>{fmtEtDateTime(r.start_at)}</Text>
                 <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
               </View>
+              {r.run_title ? (
+                <Text style={styles.runTitle} numberOfLines={2}>
+                  {r.run_title}
+                </Text>
+              ) : null}
               <Text style={styles.venue} numberOfLines={1}>
-                {venueSnippet(r.location_private)}
+                {venueSnippet(r.venue_label)}
               </Text>
 
-              <View style={styles.metaRow}>
-                <Text style={styles.meta}>
-                  <Text style={styles.metaK}>Team</Text> {r.team}
-                </Text>
-                <Text style={styles.metaSep}>·</Text>
-                <Text style={styles.meta}>
-                  <Text style={styles.metaK}>Result</Text>{" "}
-                  {won == null ? "—" : won ? "Won" : "Lost"}
-                </Text>
-                {r.myAwards.length ? (
-                  <>
-                    <Text style={styles.metaSep}>·</Text>
-                    <Text style={styles.meta}>
-                      <Text style={styles.metaK}>Awards</Text> {r.myAwards.join(", ")}
-                    </Text>
-                  </>
-                ) : null}
+              <View style={styles.resultRow}>
+                <Text style={[styles.resultText, resultExtraStyle]}>{resultLabel}</Text>
               </View>
 
-              {showResults ? (
-                <Text style={styles.winningTeamHeadline}>🏆 Team {r.winning_team} won</Text>
-              ) : null}
+              <Text style={styles.teamLine}>
+                <Text style={styles.metaK}>Team: </Text>
+                <Text style={styles.teamValue}>{teamLabel(r.team)}</Text>
+              </Text>
 
-              {showResults && hasAnyAwardWinner ? (
-                <View style={styles.awardsBlock}>
-                  {r.awards.map((a) => (
-                    <View key={a.slot} style={styles.awardRow}>
-                      <Text style={styles.awardLabel}>{a.label}:</Text>
-                      {a.userId && a.name ? (
-                        <Pressable
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            router.push(`/player/${encodeURIComponent(a.userId!)}`);
-                          }}
-                          accessibilityRole="link"
-                          accessibilityLabel={`Open profile for ${a.name}`}
-                          style={({ pressed }) => [styles.awardNameWrap, pressed && { opacity: 0.85 }]}
-                        >
-                          <Text style={styles.awardName} numberOfLines={1}>
-                            {a.name}
-                          </Text>
-                        </Pressable>
-                      ) : (
-                        <Text style={styles.awardNameMuted}>—</Text>
-                      )}
-                    </View>
+              {r.myAwardLines.length ? (
+                <View style={styles.myAwards}>
+                  {r.myAwardLines.map((line) => (
+                    <Text key={line} style={styles.awardLine}>
+                      {line}
+                    </Text>
                   ))}
                 </View>
               ) : null}
@@ -375,6 +443,21 @@ const styles = StyleSheet.create({
   h1: { fontSize: 26, fontWeight: "900", color: "#fff" },
   sub: { marginTop: 10, color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
 
+  statsCard: {
+    marginTop: 20,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  statsTitle: { color: "#fff", fontWeight: "900", fontSize: 15, marginBottom: 12 },
+  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  statCell: { flexGrow: 1, minWidth: "42%", paddingVertical: 4 },
+  statValue: { color: "#fff", fontSize: 22, fontWeight: "900" },
+  statLabel: { marginTop: 4, color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: "700" },
+  statsFoot: { marginTop: 12, color: "rgba(255,255,255,0.4)", fontSize: 12, lineHeight: 17 },
+
   empty: { marginTop: 18, color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
 
   list: { marginTop: 18, gap: 12 },
@@ -386,43 +469,20 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.05)",
   },
   cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
-  date: { color: "#fff", fontWeight: "900", fontSize: 16 },
-  venue: { marginTop: 8, color: "rgba(255,255,255,0.55)", fontWeight: "700" },
+  date: { color: "#fff", fontWeight: "900", fontSize: 15, flex: 1 },
+  runTitle: { marginTop: 6, color: "rgba(255,255,255,0.85)", fontWeight: "800", fontSize: 14, lineHeight: 19 },
+  venue: { marginTop: 6, color: "rgba(255,255,255,0.55)", fontWeight: "700" },
 
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" },
-  meta: { color: "rgba(255,255,255,0.72)", fontSize: 13, fontWeight: "600" },
+  resultRow: { marginTop: 12 },
+  resultText: { fontSize: 16, fontWeight: "900" },
+  resultWin: { color: LIME },
+  resultLoss: { color: MUTED },
+  resultPending: { color: MUTED, fontWeight: "800" },
+
+  teamLine: { marginTop: 10, fontSize: 14 },
   metaK: { color: "rgba(255,255,255,0.45)", fontWeight: "800" },
-  metaSep: { color: "rgba(255,255,255,0.28)", fontWeight: "900" },
+  teamValue: { color: "rgba(255,255,255,0.85)", fontWeight: "800" },
 
-  winningTeamHeadline: {
-    marginTop: 12,
-    color: LIME,
-    fontSize: 15,
-    fontWeight: "900",
-    letterSpacing: 0.2,
-  },
-  awardsBlock: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.06)",
-    gap: 6,
-  },
-  awardRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  },
-  awardLabel: { color: "rgba(255,255,255,0.6)", fontWeight: "700", fontSize: 13 },
-  awardNameWrap: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.10)",
-  },
-  awardName: { color: LIME, fontWeight: "900", fontSize: 13 },
-  awardNameMuted: { color: "rgba(255,255,255,0.4)", fontWeight: "700", fontSize: 13 },
+  myAwards: { marginTop: 10, gap: 4 },
+  awardLine: { color: LIME, fontWeight: "800", fontSize: 14 },
 });
