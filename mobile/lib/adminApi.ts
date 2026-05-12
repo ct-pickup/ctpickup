@@ -129,6 +129,7 @@ export function postAdminCreateRun(
     capacity?: number;
     fee_cents?: number;
     service_region?: string | null;
+    location_private?: string | null;
     location_text?: string | null;
     cancellation_deadline?: string | null;
   },
@@ -201,6 +202,17 @@ export function deleteAdminPickupRunAvailability(accessToken: string, body: { ru
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+export function fetchAdminPickupResult(accessToken: string, runId: string) {
+  const u = new URL("/api/admin/pickup/result", originOrThrow());
+  u.searchParams.set("run_id", runId);
+  return adminFetch<{
+    ok: boolean;
+    result: Record<string, unknown> | null;
+    team_assignments: { user_id: string; team: string }[];
+    error?: string;
+  }>(u.pathname + u.search, accessToken, { method: "GET" });
 }
 
 export function postAdminPickupResult(
@@ -611,6 +623,7 @@ export type PickupSwitchDetailResponse = PickupSwitchListResponse & {
     confirmed: number;
     standby: number;
     pending_payment: number;
+    waitlist: number;
   };
   auto_status: Record<string, unknown>;
   updates: { global: Record<string, unknown> | null; run: Record<string, unknown> | null };

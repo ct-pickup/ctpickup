@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion";
-import { sendPushToUsers } from "@/lib/push/sendExpoPush";
+import { normalizePickupRunTypeForDb } from "@/lib/pickup/pickupRunType";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+
+const HUB_REGIONS = new Set(["NY", "CT", "NJ", "MD"]);
 
 export async function POST(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
@@ -17,32 +18,64 @@ export async function POST(req: Request) {
   const prof = await supabaseAdmin.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
   if (!prof.data?.is_admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const b = await req.json();
+  const b = await req.json().catch(() => ({}));
 
-  const startAt = String(b.start_at || "");
-  if (!startAt) return NextResponse.json({ error: "start_at required" }, { status: 400 });
+  const startAtRaw = String(b.start_at || "").trim();
+  if (!startAtRaw) return NextResponse.json({ error: "start_at required" }, { status: 400 });
+  const parsedMs = Date.parse(startAtRaw);
+  if (!Number.isFinite(parsedMs)) {
+    return NextResponse.json({ error: "Invalid start_at datetime" }, { status: 400 });
+  }
+  const start_at = new Date(parsedMs).toISOString();
 
   const regionRaw = b.service_region != null ? String(b.service_region).trim().toUpperCase() : "";
-  const HUB_REGIONS = new Set(["NY", "CT", "NJ", "MD"]);
   const service_region = regionRaw && HUB_REGIONS.has(regionRaw) ? regionRaw : null;
 
-  const insert = await supabaseAdmin.from("pickup_runs").insert({
-    title: b.title || "CT Pickup Run",
-    /** Default public so the regional hub shows the run to everyone; staff may pass `"select"` for invite-only. */
-    run_type: b.run_type || "public",
-    is_current: true,
-    status: "planning",
-    start_at: startAt,
-    capacity: Number(b.capacity || 24),
-    fee_cents: Number(b.fee_cents || 0),
-    currency: "usd",
-    location_text: b.location_text || null,
-    cancellation_deadline: b.cancellation_deadline || null,
-    invite_phase: 0,
-    phase_opened_at: new Date().toISOString(),
-    created_by: user.id,
-    service_region,
-  }).select("*").single();
+  const titleRaw = b.title != null ? String(b.title).trim() : "";
+  const title = titleRaw || "CT Pickup Run";
+  const run_type = normalizePickupRunTypeForDb(b.run_type);
+  const capacity = Number(b.capacity ?? 24);
+  const fee_cents = Number(b.fee_cents ?? 0);
+  const currency = String(b.currency || "usd");
+
+  const location_private =
+    b.location_private != null && String(b.location_private).trim()
+      ? String(b.location_private)
+      : b.location_text != null && String(b.location_text).trim()
+        ? String(b.location_text)
+        : null;
+
+  const show_location_to_confirmed_only = b.show_location_to_confirmed_only !== false;
+
+  const now = new Date().toISOString();
+
+  const insert = await supabaseAdmin
+    .from("pickup_runs")
+    .insert({
+      title,
+      run_type,
+      is_current: false,
+      status: "planning",
+      start_at,
+      capacity,
+      fee_cents,
+      currency,
+      location_private,
+      show_location_to_confirmed_only,
+      cancellation_deadline: b.cancellation_deadline || null,
+      invite_phase: 0,
+      phase_opened_at: now,
+      created_by: user.id,
+      service_region,
+      outreach_started_at: null,
+      wave1_started_at: null,
+      open_tier_rank: null,
+      final_slot_id: null,
+      auto_managed: false,
+      updated_at: now,
+    })
+    .select("*")
+    .single();
 
   if (insert.error) {
     const msg = insert.error.message;
@@ -58,56 +91,16 @@ export async function POST(req: Request) {
     );
   }
 
-  const runRow = insert.data as { id: string; service_region?: string | null };
-  const now = new Date().toISOString();
-  const promotedRegion =
-    runRow.service_region === null || runRow.service_region === undefined ? null : String(runRow.service_region);
-
-  let clear: { error: { message: string } | null };
-  if (promotedRegion !== null) {
-    clear = await supabaseAdmin
-      .from("pickup_runs")
-      .update({ is_current: false, updated_at: now })
-      .eq("is_current", true)
-      .eq("service_region", promotedRegion);
-  } else {
-    clear = await supabaseAdmin
-      .from("pickup_runs")
-      .update({ is_current: false, updated_at: now })
-      .eq("is_current", true)
-      .is("service_region", null);
-  }
-  if (clear.error) {
-    return NextResponse.json({ error: clear.error.message }, { status: 500 });
+  const runRow = insert.data as { id: string };
+  const slotIns = await supabaseAdmin.from("pickup_run_time_slots").insert({
+    run_id: runRow.id,
+    start_at,
+    label: null,
+  });
+  if (slotIns.error) {
+    console.error("[admin/pickup/create-run] slot insert failed", slotIns.error);
+    return NextResponse.json({ error: slotIns.error.message }, { status: 500 });
   }
 
-  const promoted = await supabaseAdmin
-    .from("pickup_runs")
-    .update({ is_current: true, updated_at: now })
-    .eq("id", runRow.id)
-    .select("*")
-    .single();
-
-  if (promoted.error) {
-    return NextResponse.json({ error: promoted.error.message }, { status: 500 });
-  }
-
-  const approvedRes = await supabaseAdmin
-    .from("profiles")
-    .select("id,nearest_venue")
-    .eq("approved", true);
-  if (!approvedRes.error && (approvedRes.data?.length ?? 0) > 0) {
-    const approvedIds = (approvedRes.data ?? [])
-      .filter((p) => profileMatchesRunServiceRegion(p.nearest_venue, promotedRegion))
-      .map((p) => p.id as string);
-    const regionLabel =
-      promotedRegion !== null ? promotedRegion : "your region";
-    await sendPushToUsers(supabaseAdmin, approvedIds, {
-      title: "New pickup run",
-      body: `A new pickup run has been posted for ${regionLabel}. Check the app for details.`,
-      data: { kind: "pickup_new_run", run_id: runRow.id },
-    });
-  }
-
-  return NextResponse.json({ ok: true, run: promoted.data });
+  return NextResponse.json({ ok: true, run: insert.data });
 }

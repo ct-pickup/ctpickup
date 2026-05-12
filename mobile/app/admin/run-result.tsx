@@ -1,6 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 import { hapticError, hapticGoal, hapticTap, hapticWhistle } from "@/lib/haptics";
-import { fetchAdminPickupSwitchDetail, postAdminPickupResult } from "@/lib/adminApi";
+import { fetchAdminPickupSwitchDetail, fetchAdminPickupResult, postAdminPickupResult } from "@/lib/adminApi";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
@@ -100,8 +100,14 @@ function SelectModal<T extends string>({
 export default function AdminRunResultScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { run_id: rawRunId } = useLocalSearchParams<{ run_id?: string | string[] }>();
+  const { run_id: rawRunId, readonly: rawReadonly } = useLocalSearchParams<{
+    run_id?: string | string[];
+    readonly?: string | string[];
+  }>();
   const runId = typeof rawRunId === "string" ? rawRunId : Array.isArray(rawRunId) ? rawRunId[0] : "";
+  const readonlyParam =
+    typeof rawReadonly === "string" ? rawReadonly : Array.isArray(rawReadonly) ? rawReadonly[0] : "";
+  const isReadonly = readonlyParam === "1" || readonlyParam === "true";
 
   const { session, supabase } = useAuth();
   const token = session?.access_token ?? null;
@@ -134,12 +140,12 @@ export default function AdminRunResultScreen() {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: "Post Results",
+      title: isReadonly ? "View Results" : "Post Results",
       headerStyle: { backgroundColor: BG },
       headerTintColor: "#fff",
       headerShadowVisible: false,
     });
-  }, [navigation]);
+  }, [navigation, isReadonly]);
 
   useEffect(() => {
     if (!token || !runId) {
@@ -168,6 +174,40 @@ export default function AdminRunResultScreen() {
       setRegion(reg && ["CT", "NY", "NJ", "MD"].includes(reg) ? reg : null);
       const list = Array.isArray(r.data.confirmed) ? (r.data.confirmed as ConfirmedRow[]) : [];
       setConfirmed(list);
+
+      if (isReadonly) {
+        const res = await fetchAdminPickupResult(token, runId);
+        if (cancelled) return;
+        if (!res.ok) {
+          setErr(res.error || "Couldn’t load results.");
+          setLoading(false);
+          return;
+        }
+        const resultRow = res.data.result;
+        if (!resultRow || typeof resultRow !== "object") {
+          setErr("No results posted for this run yet.");
+          setLoading(false);
+          return;
+        }
+        const row = resultRow as Record<string, unknown>;
+        setTotalTeams(Number(row.total_teams) === 3 ? 3 : 2);
+        if (isTeam(row.winning_team)) setWinningTeam(row.winning_team);
+        setPlayerOfDay(typeof row.player_of_day === "string" ? row.player_of_day : null);
+        setGoalieOfTheDay(typeof row.goalie_of_the_day === "string" ? row.goalie_of_the_day : null);
+        setDefenderOfDay(typeof row.defender_of_day === "string" ? row.defender_of_day : null);
+        setMidfielderOfDay(typeof row.midfielder_of_day === "string" ? row.midfielder_of_day : null);
+        setAttackerOfDay(typeof row.attacker_of_day === "string" ? row.attacker_of_day : null);
+        const fromApi: Record<string, Team> = {};
+        for (const a of res.data.team_assignments ?? []) {
+          const o = a as { user_id?: unknown; team?: unknown };
+          const uid = typeof o.user_id === "string" ? o.user_id : "";
+          if (uid && isTeam(o.team)) fromApi[uid] = o.team;
+        }
+        setTeamByUser(fromApi);
+        setTeamsReadOnly(true);
+        setLoading(false);
+        return;
+      }
 
       const fromDb: Record<string, Team> = {};
       if (supabase) {
@@ -207,7 +247,7 @@ export default function AdminRunResultScreen() {
     return () => {
       cancelled = true;
     };
-  }, [token, runId, supabase]);
+  }, [token, runId, supabase, isReadonly]);
 
   const allowedTeams = totalTeams === 3 ? TEAMS_3 : TEAMS_2;
 
@@ -322,7 +362,7 @@ export default function AdminRunResultScreen() {
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       <View style={styles.headerCard}>
-        <Text style={styles.h1}>Post Results</Text>
+        <Text style={styles.h1}>{isReadonly ? "Results" : "Post Results"}</Text>
         <Text style={styles.sub}>
           {region ? `Region: ${serviceRegionName(region)}` : "Region: —"}{"\n"}
           Confirmed players: {confirmed.length}
@@ -398,10 +438,12 @@ export default function AdminRunResultScreen() {
       <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Winning team</Text>
       <Pressable
         onPress={() => {
+          if (isReadonly) return;
           void hapticTap();
           setPicker({ kind: "winning" });
         }}
-        style={({ pressed }) => [styles.input, styles.selectTrigger, pressed && { opacity: 0.9 }]}
+        disabled={isReadonly}
+        style={({ pressed }) => [styles.input, styles.selectTrigger, pressed && { opacity: 0.9 }, isReadonly && { opacity: 0.5 }]}
       >
         <Text style={styles.selectValue}>{labelTeam(winningTeam)}</Text>
         <Text style={styles.selectChevron}>▾</Text>
@@ -413,6 +455,7 @@ export default function AdminRunResultScreen() {
         <AwardRow
           label="Player of the Day 🏆"
           valueLabel={playerOfDay ? nameFor(confirmed.find((p) => p.id === playerOfDay) || { id: playerOfDay, full_name: null }) : "None"}
+          disabled={isReadonly}
           onPress={() => {
             void hapticTap();
             setPicker({ kind: "award", which: "player" });
@@ -421,6 +464,7 @@ export default function AdminRunResultScreen() {
         <AwardRow
           label="Goalie of the Day 🧤"
           valueLabel={goalieOfTheDay ? nameFor(confirmed.find((p) => p.id === goalieOfTheDay) || { id: goalieOfTheDay, full_name: null }) : "None"}
+          disabled={isReadonly}
           onPress={() => {
             void hapticTap();
             setPicker({ kind: "award", which: "goalie" });
@@ -429,6 +473,7 @@ export default function AdminRunResultScreen() {
         <AwardRow
           label="Attacker of the Day ⚡"
           valueLabel={attackerOfDay ? nameFor(confirmed.find((p) => p.id === attackerOfDay) || { id: attackerOfDay, full_name: null }) : "None"}
+          disabled={isReadonly}
           onPress={() => {
             void hapticTap();
             setPicker({ kind: "award", which: "attacker" });
@@ -437,6 +482,7 @@ export default function AdminRunResultScreen() {
         <AwardRow
           label="Midfielder of the Day 🎯"
           valueLabel={midfielderOfDay ? nameFor(confirmed.find((p) => p.id === midfielderOfDay) || { id: midfielderOfDay, full_name: null }) : "None"}
+          disabled={isReadonly}
           onPress={() => {
             void hapticTap();
             setPicker({ kind: "award", which: "midfielder" });
@@ -445,6 +491,7 @@ export default function AdminRunResultScreen() {
         <AwardRow
           label="Defender of the Day 🛡️"
           valueLabel={defenderOfDay ? nameFor(confirmed.find((p) => p.id === defenderOfDay) || { id: defenderOfDay, full_name: null }) : "None"}
+          disabled={isReadonly}
           onPress={() => {
             void hapticTap();
             setPicker({ kind: "award", which: "defender" });
@@ -453,16 +500,18 @@ export default function AdminRunResultScreen() {
       </View>
 
       {/* 4) Submit "Post Results" */}
-      <Pressable
-        onPress={() => void onSubmit()}
-        disabled={submitting}
-        style={({ pressed }) => [styles.primaryBtn, (pressed && !submitting) && { opacity: 0.92 }, submitting && styles.disabled]}
-      >
-        <View style={styles.primaryBtnInner}>
-          {submitting ? <ActivityIndicator color="#111" /> : <FontAwesome name="check" size={16} color="#111" />}
-          <Text style={styles.primaryBtnText}>{submitting ? "Posting…" : "Post Results"}</Text>
-        </View>
-      </Pressable>
+      {!isReadonly ? (
+        <Pressable
+          onPress={() => void onSubmit()}
+          disabled={submitting}
+          style={({ pressed }) => [styles.primaryBtn, (pressed && !submitting) && { opacity: 0.92 }, submitting && styles.disabled]}
+        >
+          <View style={styles.primaryBtnInner}>
+            {submitting ? <ActivityIndicator color="#111" /> : <FontAwesome name="check" size={16} color="#111" />}
+            <Text style={styles.primaryBtnText}>{submitting ? "Posting…" : "Post Results"}</Text>
+          </View>
+        </Pressable>
+      ) : null}
 
       <SelectModal<Team>
         visible={picker?.kind === "winning"}
@@ -528,9 +577,19 @@ export default function AdminRunResultScreen() {
   );
 }
 
-function AwardRow({ label, valueLabel, onPress }: { label: string; valueLabel: string; onPress: () => void }) {
+function AwardRow({
+  label,
+  valueLabel,
+  onPress,
+  disabled,
+}: {
+  label: string;
+  valueLabel: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.awardRow, pressed && { opacity: 0.9 }]}>
+    <Pressable onPress={disabled ? undefined : onPress} disabled={disabled} style={({ pressed }) => [styles.awardRow, pressed && { opacity: 0.9 }, disabled && { opacity: 0.5 }]}>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.awardLabel}>{label}</Text>
         <Text style={styles.awardValue} numberOfLines={1}>

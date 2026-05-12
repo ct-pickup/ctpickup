@@ -16,26 +16,63 @@ import {
   derivePickupLifecycleStage,
   pickupLifecycleStageLabel,
   pickupWorkflowTabForRun,
+  showEditSettingsButton,
   showEndRunButton,
-  showPostResultsButton,
+  showFinalizeTimeButton,
+  showLaunchOutreachButton,
+  showPostResultsForPast,
+  showPromoteToHubButton,
   showStartRunNowButton,
+  showViewResultsForPast,
   type PickupWorkflowTab,
 } from "@/lib/admin/pickupRunLifecycle";
 import { labelPickupRunStatus } from "@/lib/admin/staffStatusLabels";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
+import { DateTime } from "luxon";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 const LIME = "#a3e635";
 
-function fmt(dt: string | null) {
-  if (!dt) return "—";
+function fmtEt(dt: string | null) {
+  if (!dt) return "No time set yet";
   try {
-    return new Date(dt).toLocaleString();
+    return new Date(dt).toLocaleString("en-US", {
+      timeZone: "America/New_York",
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
   } catch {
     return "—";
   }
+}
+
+function fmtEtShort(dt: string | null | undefined) {
+  if (!dt) return "—";
+  try {
+    return new Date(dt).toLocaleString("en-US", {
+      timeZone: "America/New_York",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+function parseEtDatetimeLocalToIso(localVal: string): string | null {
+  const trimmed = localVal.trim();
+  if (!trimmed) return null;
+  const dt = DateTime.fromISO(trimmed, { zone: "America/New_York" });
+  if (!dt.isValid) return null;
+  return dt.toUTC().toISO();
 }
 
 const LOCATION_PRESETS = {
@@ -67,9 +104,10 @@ function pickupNextSteps(
   if (String(selectedRun.status) === "canceled") return ["Run is canceled."];
   const slots = detail?.slots?.length ?? 0;
   if (!slots) out.push("Add a kickoff slot.");
-  if (!selectedRun.outreach_started_at) {
+  const publicRun = isPublicPickupRunType(selectedRun.run_type);
+  if (!publicRun && !selectedRun.outreach_started_at) {
     if (launchBlockedReason) out.push(launchBlockedReason);
-    else if (slots) out.push("Launch outreach (36h+ before kickoff).");
+    else if (slots) out.push("Launch outreach (36h+ before kickoff) for select runs.");
   }
   if (!selectedRun.final_slot_id && String(selectedRun.status) !== "active") {
     out.push("Finalize a slot for RSVP.");
@@ -108,6 +146,8 @@ export default function PickupOperatorClient() {
   const [locationPrivate, setLocationPrivate] = useState("");
   const [locConfirmedOnly, setLocConfirmedOnly] = useState(true);
   const [locationPreset, setLocationPreset] = useState<"" | "new_haven" | "new_rochelle" | "other">("");
+  const [createServiceRegion, setCreateServiceRegion] = useState<"CT" | "NY" | "NJ" | "MD">("CT");
+  const [createKickoffLocal, setCreateKickoffLocal] = useState("");
   const [slotStart, setSlotStart] = useState("");
   const [slotLabel, setSlotLabel] = useState("");
   const [finalSlotId, setFinalSlotId] = useState("");
@@ -251,6 +291,7 @@ export default function PickupOperatorClient() {
       await load();
       if (payload?.action === "create_run" && j?.run_id) {
         const rid = String(j.run_id);
+        setWorkflowTabOverride("planning");
         setSelectedRunId(rid);
         await loadDetail(rid);
       } else if (selectedRunId) {
@@ -263,7 +304,16 @@ export default function PickupOperatorClient() {
           dm_template: String(j?.dm_template || ""),
         });
       }
-      setMsg("Saved.");
+      const action = String(payload?.action || "");
+      let success = "Saved.";
+      if (action === "create_run") success = "Run created — it appears under Planning until you promote it to the hub.";
+      else if (action === "edit_run") success = "Run settings saved.";
+      else if (action === "finalize_slot") success = "Time finalized — run is active for RSVP.";
+      else if (action === "add_slot") success = "Kickoff slot saved.";
+      else if (action === "launch_outreach") success = "Outreach launched.";
+      else if (action === "cancel_run") success = "Run canceled.";
+      else if (action === "start_run_now") success = "Pickup started.";
+      setMsg(success);
       await loadOperatorCtx();
     } finally {
       setBusy(false);
@@ -295,12 +345,48 @@ export default function PickupOperatorClient() {
     }
   }
 
+  async function promoteHubRun(runId: string) {
+    if (!token) return;
+    if (!window.confirm("Promote this run to the regional pickup hub? Players will see it on /pickup for that state.")) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await fetch("/api/admin/operator", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_hub_pickup", run_id: runId }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setMsg(typeof j?.error === "string" ? j.error : "Could not promote run.");
+        return;
+      }
+      setMsg("Promoted to hub.");
+      await load();
+      if (selectedRunId === runId) await loadDetail(runId);
+      await loadOperatorCtx();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function launchBlockedForRunRow(row: Record<string, unknown>): string | null {
+    if (row.outreach_started_at) return "Outreach already launched.";
+    const st = row.start_at != null ? String(row.start_at).trim() : "";
+    if (!st) return "Add a kickoff slot first.";
+    const ms = Date.parse(st);
+    if (!Number.isFinite(ms)) return "Add a kickoff slot first.";
+    const hours = (ms - Date.now()) / 3600000;
+    if (hours < 36) return "Kickoff must be at least 36 hours away.";
+    return null;
+  }
+
   const selectedRun = useMemo(() => detail?.run || null, [detail]);
   const auto = detail?.auto_status;
   const hubRun = runs.find((r: { is_current?: boolean }) => r.is_current);
 
   const workflowTabCounts = useMemo(() => {
-    const c = { upcoming: 0, in_progress: 0, completed: 0 };
+    const c: Record<PickupWorkflowTab, number> = { planning: 0, active: 0, past: 0 };
     for (const r of runs) {
       c[pickupWorkflowTabForRun(r)]++;
     }
@@ -315,12 +401,8 @@ export default function PickupOperatorClient() {
 
   const launchBlockedReason = useMemo(() => {
     if (!selectedRun) return "Select a run.";
-    if (selectedRun.outreach_started_at) return "Outreach already launched.";
-    if (!auto?.anchor_start_at) return "Add at least one slot with kickoff time.";
-    const h = auto.hours_until_start as number | null | undefined;
-    if (h === null || h === undefined || h < 36) return "Kickoff must be at least 36 hours away.";
-    return null;
-  }, [selectedRun, auto]);
+    return launchBlockedForRunRow(selectedRun as Record<string, unknown>);
+  }, [selectedRun]);
 
   const nextItems = useMemo(
     () => pickupNextSteps(selectedRun, detail, launchBlockedReason),
@@ -387,7 +469,7 @@ export default function PickupOperatorClient() {
             <OperatorLatestLine
               title="Latest run post"
               body={opCtx.latestRunPost?.message ?? null}
-              at={opCtx.latestRunPost?.created_at ? fmt(opCtx.latestRunPost.created_at) : null}
+              at={opCtx.latestRunPost?.created_at ? fmtEtShort(opCtx.latestRunPost.created_at) : null}
               empty="No posts for this run yet — publish one with this run selected."
             />
             <OperatorWhereAppears rows={opCtx.whereRows} tablesMissing={opCtx.tablesMissing} />
@@ -418,9 +500,32 @@ export default function PickupOperatorClient() {
                 onChange={(e) => setRunType(e.target.value as "select" | "public")}
                 className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
               >
-                <option value="select">Invite only</option>
-                <option value="public">Open tiers</option>
+                <option value="select">Select (invite)</option>
+                <option value="public">Public</option>
               </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-white/80">
+              <span>State / region</span>
+              <select
+                value={createServiceRegion}
+                onChange={(e) => setCreateServiceRegion(e.target.value as "CT" | "NY" | "NJ" | "MD")}
+                className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+              >
+                <option value="CT">CT</option>
+                <option value="NY">NY</option>
+                <option value="NJ">NJ</option>
+                <option value="MD">MD</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-white/80 sm:col-span-2">
+              <span>Date &amp; time (Eastern)</span>
+              <input
+                type="datetime-local"
+                value={createKickoffLocal}
+                onChange={(e) => setCreateKickoffLocal(e.target.value)}
+                className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+              />
+              <span className="text-xs text-white/45">Stored in UTC; displayed in ET everywhere in admin.</span>
             </label>
             <label className="flex flex-col gap-1 text-sm text-white/80">
               <span>Player capacity</span>
@@ -478,32 +583,38 @@ export default function PickupOperatorClient() {
           </label>
           <button
             disabled={busy}
-            onClick={() =>
-              act({
+            onClick={() => {
+              const iso = parseEtDatetimeLocalToIso(createKickoffLocal);
+              if (!iso) {
+                setMsg("Pick a kickoff date and time (Eastern).");
+                return;
+              }
+              void act({
                 action: "create_run",
-                title,
+                title: title.trim() || "CT Pickup Run",
                 run_type: runType,
                 capacity,
                 fee_cents: feeCents,
                 currency: "usd",
-                location_private: locationPrivate || null,
+                location_private: locationPrivate.trim() || null,
                 show_location_to_confirmed_only: locConfirmedOnly,
-              })
-            }
+                service_region: createServiceRegion,
+                start_at: iso,
+              });
+            }}
             className="rounded-md bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-50"
           >
-            Create &amp; promote
+            Create run
           </button>
         </section>
 
         <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
           <div className="text-xs font-semibold uppercase tracking-wider text-white/45">Pickup runs</div>
           <div className="flex flex-wrap gap-2">
-            {(["upcoming", "in_progress", "completed"] as const).map((tab) => {
+            {(["planning", "active", "past"] as const).map((tab) => {
               const active = workflowTab === tab;
               const count = workflowTabCounts[tab];
-              const label =
-                tab === "upcoming" ? "Upcoming" : tab === "in_progress" ? "In progress" : "Completed";
+              const label = tab === "planning" ? "Planning" : tab === "active" ? "Active" : "Past";
               return (
                 <button
                   key={tab}
@@ -564,7 +675,15 @@ export default function PickupOperatorClient() {
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-semibold text-white">{String(r.title || "Pickup run")}</div>
-                        <div className="mt-1 text-xs text-white/50">{fmt(r.start_at as string | null)}</div>
+                        <div className="mt-1 text-xs text-white/50">{fmtEt(r.start_at as string | null)}</div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <span className="rounded-full border border-white/15 bg-black/50 px-2 py-0.5 text-[10px] font-bold text-white/80">
+                            {isPublicPickupRunType(r.run_type) ? "Public" : "Select"}
+                          </span>
+                          <span className="rounded-full border border-white/15 bg-black/50 px-2 py-0.5 text-[10px] font-bold text-white/80">
+                            {r.service_region ? String(r.service_region) : "—"}
+                          </span>
+                        </div>
                       </div>
                       {r.is_current ? (
                         <span className="shrink-0 rounded-full border border-[#a3e63544] bg-[#a3e63512] px-2 py-0.5 text-[10px] font-bold text-[#d9f99d]">
@@ -575,55 +694,173 @@ export default function PickupOperatorClient() {
                     <div className="mt-3 inline-flex rounded-full border border-white/12 bg-black/40 px-3 py-1 text-[11px] font-semibold text-white/85">
                       {pillLabel}
                     </div>
+                    {(() => {
+                      const lc = (r.list_counts as Record<string, number> | undefined) ?? {};
+                      const confirmed = Number(lc.confirmed ?? 0) || 0;
+                      const standby = Number(lc.standby ?? 0) || 0;
+                      const waitlist = Number(lc.waitlist ?? 0) || 0;
+                      const pending = Number(lc.pending_payment ?? 0) || 0;
+                      return (
+                        <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] text-white/55 sm:grid-cols-4">
+                          <div>
+                            <span className="block text-white/40">Confirmed</span>
+                            <span className="font-semibold text-white/90">{confirmed}</span>
+                          </div>
+                          <div>
+                            <span className="block text-white/40">Standby</span>
+                            <span className="font-semibold text-white/90">{standby}</span>
+                          </div>
+                          <div>
+                            <span className="block text-white/40">Waitlist</span>
+                            <span className="font-semibold text-white/90">{waitlist}</span>
+                          </div>
+                          <div>
+                            <span className="block text-white/40">Pending $</span>
+                            <span className="font-semibold text-white/90">{pending}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {showStartRunNowButton({
-                        status: r.status as string,
-                        is_completed: r.is_completed === true,
-                        start_at: r.start_at as string | null,
-                      }) ? (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (typeof window !== "undefined") {
-                              const ok = window.confirm(
-                                "Begin pickup now? This locks the roster — no new players will be able to join.",
-                              );
-                              if (!ok) return;
-                            }
-                            void act({ action: "start_run_now", run_id: id });
-                          }}
-                          className="rounded-full bg-[#a3e635] px-3 py-1.5 text-[11px] font-semibold text-black disabled:opacity-50"
-                        >
-                          Begin Pickup Now
-                        </button>
-                      ) : null}
-                      {showEndRunButton({ status: r.status as string, is_completed: r.is_completed === true }) ? (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void endRunNow(id);
-                          }}
-                          className="rounded-full border border-red-400/40 bg-red-500/10 px-3 py-1.5 text-[11px] font-semibold text-red-200 disabled:opacity-50"
-                        >
-                          End Run
-                        </button>
-                      ) : null}
-                      {showPostResultsButton({
-                        status: r.status as string,
-                        is_completed: r.is_completed === true,
-                      }) ? (
-                        <Link
-                          href={`/admin/run-result?run_id=${encodeURIComponent(id)}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center rounded-full bg-[#a3e635] px-3 py-1.5 text-[11px] font-semibold text-black"
-                        >
-                          Post Results
-                        </Link>
-                      ) : null}
+                      {workflowTab === "past" ? (
+                        <>
+                          {showPostResultsForPast({
+                            status: r.status as string,
+                            is_completed: r.is_completed === true,
+                            has_result: r.has_result === true,
+                          }) ? (
+                            <Link
+                              href={`/admin/run-result?run_id=${encodeURIComponent(id)}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center rounded-full bg-[#a3e635] px-3 py-1.5 text-[11px] font-semibold text-black"
+                            >
+                              Post Results
+                            </Link>
+                          ) : null}
+                          {showViewResultsForPast({ has_result: r.has_result === true }) ? (
+                            <Link
+                              href={`/admin/run-result?run_id=${encodeURIComponent(id)}&readonly=1`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center rounded-full border border-white/25 px-3 py-1.5 text-[11px] font-semibold text-white/90"
+                            >
+                              View Results
+                            </Link>
+                          ) : null}
+                        </>
+                      ) : (
+                        <>
+                          {showPromoteToHubButton({
+                            status: r.status as string,
+                            is_current: !!r.is_current,
+                            is_completed: r.is_completed === true,
+                          }) ? (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void promoteHubRun(id);
+                              }}
+                              className="rounded-full border border-[#a3e63555] bg-[#a3e63514] px-3 py-1.5 text-[11px] font-semibold text-[#d9f99d] disabled:opacity-50"
+                            >
+                              Promote to hub
+                            </button>
+                          ) : null}
+                          {showLaunchOutreachButton({
+                            status: r.status as string,
+                            run_type: r.run_type,
+                            outreach_started_at: r.outreach_started_at as string | null,
+                            is_completed: r.is_completed === true,
+                          }) ? (
+                            <button
+                              type="button"
+                              disabled={busy || !!launchBlockedForRunRow(r)}
+                              title={launchBlockedForRunRow(r) || undefined}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedRunId(id);
+                                const origin = typeof window !== "undefined" ? window.location.origin : "";
+                                void act({
+                                  action: "launch_outreach",
+                                  run_id: id,
+                                  run_link: origin ? `${origin.replace(/\/$/, "")}/pickup` : "/pickup",
+                                  date_or_tbd: r.start_at ? fmtEtShort(String(r.start_at)) : "TBD",
+                                });
+                              }}
+                              className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-40"
+                            >
+                              Launch outreach
+                            </button>
+                          ) : null}
+                          {showFinalizeTimeButton({
+                            status: r.status as string,
+                            is_completed: r.is_completed === true,
+                            final_slot_id: r.final_slot_id as string | null,
+                          }) ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedRunId(id);
+                              }}
+                              className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white"
+                            >
+                              Finalize time
+                            </button>
+                          ) : null}
+                          {showEditSettingsButton({
+                            status: r.status as string,
+                            is_completed: r.is_completed === true,
+                          }) ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedRunId(id);
+                              }}
+                              className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white"
+                            >
+                              Edit settings
+                            </button>
+                          ) : null}
+                          {showStartRunNowButton({
+                            status: r.status as string,
+                            is_completed: r.is_completed === true,
+                            start_at: r.start_at as string | null,
+                          }) ? (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (typeof window !== "undefined") {
+                                  const ok = window.confirm(
+                                    "Begin pickup now? This locks the roster — no new players will be able to join.",
+                                  );
+                                  if (!ok) return;
+                                }
+                                void act({ action: "start_run_now", run_id: id });
+                              }}
+                              className="rounded-full bg-[#a3e635] px-3 py-1.5 text-[11px] font-semibold text-black disabled:opacity-50"
+                            >
+                              Begin Pickup Now
+                            </button>
+                          ) : null}
+                          {showEndRunButton({ status: r.status as string, is_completed: r.is_completed === true }) ? (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void endRunNow(id);
+                              }}
+                              className="rounded-full border border-red-400/40 bg-red-500/10 px-3 py-1.5 text-[11px] font-semibold text-red-200 disabled:opacity-50"
+                            >
+                              End Run
+                            </button>
+                          ) : null}
+                        </>
+                      )}
                     </div>
                   </div>
                 );
@@ -641,7 +878,7 @@ export default function PickupOperatorClient() {
               <option value="">Choose a run…</option>
               {runs.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.title} · {labelPickupRunStatus(r.status)} · {fmt(r.start_at)}
+                  {r.title} · {labelPickupRunStatus(r.status)} · {fmtEt(r.start_at as string | null)}
                 </option>
               ))}
             </select>
@@ -652,7 +889,7 @@ export default function PickupOperatorClient() {
               <div className="flex flex-wrap items-center gap-2 text-sm text-white/70">
                 <span>{labelPickupRunStatus(String(selectedRun.status))}</span>
                 <span>·</span>
-                <span>{fmt(selectedRun.start_at as string | null)}</span>
+                <span>{fmtEt(selectedRun.start_at as string | null)}</span>
                 {selectedRun.is_current ? <span className="text-emerald-200/90">· on hub</span> : null}
               </div>
               <div className="text-xs text-white/40">Run ID: {String(selectedRun.id)}</div>
@@ -681,8 +918,8 @@ export default function PickupOperatorClient() {
                     onChange={(e) => setSelRunType(e.target.value as "select" | "public")}
                     className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
                   >
-                    <option value="select">Invite only</option>
-                    <option value="public">Open tiers</option>
+                    <option value="select">Select (invite)</option>
+                    <option value="public">Public</option>
                   </select>
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-white/80">
@@ -746,7 +983,12 @@ export default function PickupOperatorClient() {
             </div>
           ) : null}
 
-          {selectedRun && !selectedRun.is_current && selectedRun.status !== "canceled" ? (
+          {selectedRun &&
+          showPromoteToHubButton({
+            status: String(selectedRun.status || ""),
+            is_current: !!selectedRun.is_current,
+            is_completed: selectedRun.is_completed === true,
+          }) ? (
             <PromotePickupRunButton
               runId={selectedRun.id as string}
               title={selectedRun.title as string}
@@ -759,12 +1001,13 @@ export default function PickupOperatorClient() {
           ) : null}
 
           {detail?.counts ? (
-            <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
               {(
                 [
                   { key: "invites" as const, label: "Invites" },
                   { key: "available" as const, label: "Open spots" },
                   { key: "confirmed" as const, label: "Confirmed" },
+                  { key: "waitlist" as const, label: "Waitlist" },
                 ] as const
               ).map(({ key: k, label }) => (
                 <div key={k} className="rounded-lg border border-white/10 bg-black/40 py-2">
@@ -781,23 +1024,50 @@ export default function PickupOperatorClient() {
               <div className="mt-2 space-y-1 text-xs">
                 <div>Next: {String(auto.next_step)}</div>
                 <div className="font-mono text-white/55">
-                  24h {fmt((auto as any).checkpoints?.cp_24h_at)} · 12h {fmt((auto as any).checkpoints?.cp_12h_at)} · 6h{" "}
-                  {fmt((auto as any).checkpoints?.cp_6h_at)} · 1h {fmt((auto as any).checkpoints?.cp_1h_at)}
+                  24h {fmtEtShort((auto as any).checkpoints?.cp_24h_at)} · 12h{" "}
+                  {fmtEtShort((auto as any).checkpoints?.cp_12h_at)} · 6h{" "}
+                  {fmtEtShort((auto as any).checkpoints?.cp_6h_at)} · 1h{" "}
+                  {fmtEtShort((auto as any).checkpoints?.cp_1h_at)}
                 </div>
               </div>
             </details>
           ) : null}
 
-          {selectedRunId ? (
+          {selectedRunId &&
+          selectedRun &&
+          showLaunchOutreachButton({
+            status: String(selectedRun.status || ""),
+            run_type: selectedRun.run_type,
+            outreach_started_at: selectedRun.outreach_started_at as string | null,
+            is_completed: selectedRun.is_completed === true,
+          }) ? (
             <div className="flex flex-wrap gap-2 border-t border-white/10 pt-4">
               <button
                 disabled={busy || !!launchBlockedReason}
                 title={launchBlockedReason || undefined}
-                onClick={() => act({ action: "launch_outreach", run_id: selectedRunId })}
+                onClick={() => {
+                  const origin = typeof window !== "undefined" ? window.location.origin : "";
+                  void act({
+                    action: "launch_outreach",
+                    run_id: selectedRunId,
+                    run_link: origin ? `${origin.replace(/\/$/, "")}/pickup` : "/pickup",
+                    date_or_tbd: selectedRun.start_at ? fmtEtShort(String(selectedRun.start_at)) : "TBD",
+                  });
+                }}
                 className="rounded-md bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-50"
               >
                 Launch outreach
               </button>
+              <button
+                disabled={busy}
+                onClick={() => act({ action: "cancel_run", run_id: selectedRunId })}
+                className="rounded-md border border-white/20 px-4 py-2 text-xs font-semibold text-white/85"
+              >
+                Cancel run
+              </button>
+            </div>
+          ) : selectedRunId ? (
+            <div className="flex flex-wrap gap-2 border-t border-white/10 pt-4">
               <button
                 disabled={busy}
                 onClick={() => act({ action: "cancel_run", run_id: selectedRunId })}
@@ -860,7 +1130,7 @@ export default function PickupOperatorClient() {
                 <option value="">Slot…</option>
                 {(detail.slots as { id: string; start_at: string; label?: string }[]).map((s) => (
                   <option key={s.id} value={s.id}>
-                    {fmt(s.start_at)} {s.label ? `· ${s.label}` : ""}
+                    {fmtEt(s.start_at as string | null)} {s.label ? `· ${s.label}` : ""}
                   </option>
                 ))}
               </select>

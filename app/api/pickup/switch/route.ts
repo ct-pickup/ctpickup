@@ -18,10 +18,16 @@ export const runtime = "nodejs";
 
 const HUB_REGIONS = new Set(["NY", "CT", "NJ", "MD"]);
 
-type ListCounts = { confirmed: number; standby: number; invites: number; pending_payment: number };
+type ListCounts = {
+  confirmed: number;
+  standby: number;
+  invites: number;
+  pending_payment: number;
+  waitlist: number;
+};
 
 function emptyListCounts(): ListCounts {
-  return { confirmed: 0, standby: 0, invites: 0, pending_payment: 0 };
+  return { confirmed: 0, standby: 0, invites: 0, pending_payment: 0, waitlist: 0 };
 }
 
 async function advanceActiveRunsToInProgress(
@@ -115,6 +121,7 @@ export async function GET(req: Request) {
         if (st === "confirmed") c.confirmed += 1;
         else if (st === "standby") c.standby += 1;
         else if (st === "pending_payment") c.pending_payment += 1;
+        else if (st === "waitlist") c.waitlist += 1;
         countsByRun.set(id, c);
       }
       for (const row of invitesRes.data || []) {
@@ -296,6 +303,7 @@ export async function GET(req: Request) {
     confirmed: rsvps.filter((r) => r.status === "confirmed").length,
     standby: rsvps.filter((r) => r.status === "standby").length,
     pending_payment: rsvps.filter((r) => r.status === "pending_payment").length,
+    waitlist: rsvps.filter((r) => r.status === "waitlist").length,
   };
 
   const confirmedIds = (rsvps || []).filter((r) => r.status === "confirmed").map((r) => r.user_id);
@@ -378,11 +386,11 @@ export async function POST(req: Request) {
 
   if (!action) return NextResponse.json({ error: "Missing action" }, { status: 400 });
 
-  // 1) Create run (promoted hub); outreach is launched manually when staff are ready.
+  // 1) Create run in Planning — staff promotes to hub separately (`set_hub_pickup` / Promote button).
   if (action === "create_run") {
     console.log("[pickup/switch create_run] raw body", JSON.stringify(body));
 
-    const title = String(body.title || "CT Pickup Run");
+    const title = String(body.title || "CT Pickup Run").trim() || "CT Pickup Run";
     const run_type = normalizePickupRunTypeForDb(body.run_type);
     const capacity = Number(body.capacity || 18);
     const fee_cents = Number(body.fee_cents || 0);
@@ -390,16 +398,20 @@ export async function POST(req: Request) {
     const location_private = body.location_private ? String(body.location_private) : null;
     const show_location_to_confirmed_only = body.show_location_to_confirmed_only !== false;
 
-    const now = new Date().toISOString();
+    const regionRaw = body.service_region != null ? String(body.service_region).trim().toUpperCase() : "";
+    const service_region = regionRaw && HUB_REGIONS.has(regionRaw) ? regionRaw : null;
 
-    const clearPrev = await admin
-      .from("pickup_runs")
-      .update({ is_current: false, updated_at: now })
-      .eq("is_current", true);
-    if (clearPrev.error) {
-      console.error("[pickup/switch create_run] clearPrev hub error", clearPrev.error);
-      return NextResponse.json({ error: clearPrev.error.message }, { status: 500 });
+    let start_at: string | null = null;
+    const rawKickoff = body.start_at != null ? String(body.start_at).trim() : "";
+    if (rawKickoff) {
+      const parsedMs = Date.parse(rawKickoff);
+      if (!Number.isFinite(parsedMs)) {
+        return NextResponse.json({ error: "Invalid start_at datetime" }, { status: 400 });
+      }
+      start_at = new Date(parsedMs).toISOString();
     }
+
+    const now = new Date().toISOString();
 
     const ins = await admin
       .from("pickup_runs")
@@ -407,13 +419,14 @@ export async function POST(req: Request) {
         title,
         run_type,
         status: "planning",
-        start_at: null,
+        start_at,
         capacity,
         fee_cents,
         currency,
         location_private,
         show_location_to_confirmed_only,
-        is_current: true,
+        service_region,
+        is_current: false,
         open_tier_rank: null,
         wave1_started_at: null,
         outreach_started_at: null,
@@ -437,6 +450,18 @@ export async function POST(req: Request) {
     if (ins.error) return NextResponse.json({ error: ins.error.message }, { status: 500 });
     const newId = ins.data?.id as string | undefined;
     if (!newId) return NextResponse.json({ error: "Insert returned no id" }, { status: 500 });
+
+    if (start_at) {
+      const slotIns = await admin.from("pickup_run_time_slots").insert({
+        run_id: newId,
+        start_at,
+        label: body.slot_label ? String(body.slot_label) : null,
+      });
+      if (slotIns.error) {
+        console.error("[pickup/switch create_run] slot insert failed", slotIns.error);
+        return NextResponse.json({ error: slotIns.error.message }, { status: 500 });
+      }
+    }
 
     revalidatePath("/pickup");
     revalidatePath("/status/pickup");
@@ -490,6 +515,20 @@ export async function POST(req: Request) {
     }
 
     const now = new Date().toISOString();
+
+    const slotsForGate = await admin.from("pickup_run_time_slots").select("start_at").eq("run_id", run_id);
+    const slotRowsGate = (slotsForGate.data || []) as { start_at: string }[];
+    const anchorMs = anchorStartAtMs({ start_at: (run.start_at as string | null) ?? null }, slotRowsGate);
+    if (anchorMs === null) {
+      return NextResponse.json({ error: "Add at least one kickoff slot before launching outreach." }, { status: 400 });
+    }
+    const hoursUntilStart = (anchorMs - Date.parse(now)) / 3600000;
+    if (!Number.isFinite(hoursUntilStart) || hoursUntilStart < 36) {
+      return NextResponse.json(
+        { error: "Kickoff must be at least 36 hours away to launch outreach." },
+        { status: 400 },
+      );
+    }
     const runTypeRaw = run.run_type;
     const publicRun = isPublicPickupRunType(runTypeRaw);
 
@@ -528,7 +567,7 @@ export async function POST(req: Request) {
 
       const runDateOrTbd = body.date_or_tbd ? String(body.date_or_tbd) : "TBD";
       const runLink = body.run_link ? String(body.run_link) : "/pickup";
-      const dm_template = `Hey — we’re looking to put together a CT Pickup run for ${runDateOrTbd}.\n\nPlease check the website for all details, updates, and to submit your availability:\n${runLink}\n\nThis invite was sent to Tier 1 players first and is an automated message.`;
+      const dm_template = `Hey — we’re looking to put together a CT Pickup run for ${runDateOrTbd}.\n\nPlease check the website for all details, updates, and to submit your availability:\n${runLink}\n\nThis invite was sent to Tier 1a + 1b players first and is an automated message.`;
 
       const userId = guard.userId;
 

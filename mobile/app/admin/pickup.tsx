@@ -19,13 +19,20 @@ import {
   postAdminSetHubPickup,
 } from "@/lib/adminApi";
 import { siteOrigin } from "@/lib/env";
-import { fmtPickupDt, fmtPickupTime } from "@/lib/pickupPublic";
+import { fmtPickupDateEt, fmtPickupDt, fmtPickupTimeEt } from "@/lib/pickupPublic";
+import { isPublicPickupRunType } from "@/lib/pickupRunType";
 import {
   derivePickupLifecycleStage,
+  isPastTerminalPickupRun,
   pickupLifecycleStageLabel,
+  showEditSettingsButton,
   showEndRunButton,
-  showPostResultsButton,
+  showFinalizeTimeButton,
+  showLaunchOutreachButton,
+  showPostResultsForPast,
+  showPromoteToHubButton,
   showStartRunNowButton,
+  showViewResultsForPast,
 } from "@/lib/pickupRunLifecycle";
 import { SERVICE_REGIONS, serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -201,10 +208,11 @@ function listCountsFromRow(row: Record<string, unknown>): {
   standby: number;
   invites: number;
   pending_payment: number;
+  waitlist: number;
 } {
   const raw = row.list_counts;
   if (!raw || typeof raw !== "object") {
-    return { confirmed: 0, standby: 0, invites: 0, pending_payment: 0 };
+    return { confirmed: 0, standby: 0, invites: 0, pending_payment: 0, waitlist: 0 };
   }
   const o = raw as Record<string, unknown>;
   return {
@@ -212,6 +220,7 @@ function listCountsFromRow(row: Record<string, unknown>): {
     standby: Number(o.standby ?? 0) || 0,
     invites: Number(o.invites ?? 0) || 0,
     pending_payment: Number(o.pending_payment ?? 0) || 0,
+    waitlist: Number(o.waitlist ?? 0) || 0,
   };
 }
 
@@ -221,18 +230,10 @@ function launchBlockedForListRow(row: Record<string, unknown>): string | null {
   if (!start) return "Add a kickoff slot first.";
   const ms = Date.parse(start);
   if (!Number.isFinite(ms)) return "Add a kickoff slot first.";
+  const hours = (ms - Date.now()) / 3600000;
+  if (hours < 36) return "Kickoff must be at least 36 hours away.";
   return null;
 }
-
-function fmtPickupDateOnly(dt: string | null | undefined): string {
-  if (!dt) return "TBD";
-  try {
-    return new Date(dt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
-  } catch {
-    return "TBD";
-  }
-}
-
 function detectPreset(locationPrivate: string): LocationPresetKey {
   const t = locationPrivate.trim();
   if (!t) return "";
@@ -278,7 +279,7 @@ export default function AdminPickupOpsScreen() {
 
   const [editTitle, setEditTitle] = useState("");
   const [editRunType, setEditRunType] = useState<"select" | "public">("select");
-  const [createRunType, setCreateRunType] = useState<"select" | "public">("public");
+  const [createRunType, setCreateRunType] = useState<"select" | "public">("select");
   const [editCapacity, setEditCapacity] = useState("18");
   const [editFieldCost, setEditFieldCost] = useState("");
   const [editHours, setEditHours] = useState("1.5");
@@ -436,15 +437,20 @@ export default function AdminPickupOpsScreen() {
 
   const detailKickoffActions = useMemo(() => {
     if (!selectedRunId || !selectedRun || typeof selectedRun !== "object") {
-      return { showStart: false, showEnd: false, showMark: false };
+      return { showStart: false, showEnd: false, showPost: false, showView: false };
     }
     const sr = selectedRun as Record<string, unknown>;
     const status = s(sr.status);
     const is_completed = sr.is_completed === true;
+    const has_result = sr.has_result === true;
+    const start_at = s(sr.start_at) || null;
     return {
-      showStart: showStartRunNowButton({ status, is_completed }),
+      showStart: showStartRunNowButton({ status, is_completed, start_at }),
       showEnd: showEndRunButton({ status, is_completed }),
-      showMark: showPostResultsButton({ status, is_completed }),
+      showPost: showPostResultsForPast({ status, is_completed, has_result }),
+      showView:
+        showViewResultsForPast({ has_result }) &&
+        isPastTerminalPickupRun({ status, is_completed }),
     };
   }, [selectedRunId, selectedRun]);
   const slots = useMemo(() => (Array.isArray(detail?.slots) ? detail!.slots : []) as Record<string, unknown>[], [detail]);
@@ -691,7 +697,7 @@ export default function AdminPickupOpsScreen() {
       service_region: region,
       capacity: Number(createCapacity || 24),
       fee_cents,
-      location_text: createLocationText.trim() || undefined,
+      location_private: createLocationText.trim() || undefined,
       run_type: createRunType,
     });
     setBusy(null);
@@ -959,9 +965,14 @@ export default function AdminPickupOpsScreen() {
   const launchBlocked = useMemo(() => {
     if (!selectedRun) return "Select a run.";
     if (s(selectedRun.outreach_started_at)) return "Outreach already launched.";
-    if (!auto || !s((auto as Record<string, unknown>).anchor_start_at)) return "Add a kickoff slot first.";
+    const start = s(selectedRun.start_at);
+    if (!start) return "Add a kickoff slot first.";
+    const ms = Date.parse(start);
+    if (!Number.isFinite(ms)) return "Add a kickoff slot first.";
+    const hours = (ms - Date.now()) / 3600000;
+    if (hours < 36) return "Kickoff must be at least 36 hours away.";
     return null;
-  }, [selectedRun, auto]);
+  }, [selectedRun]);
 
   const workflowTab = workflowTabOverride ?? defaultAdminPickupTab(workflowTabCounts);
 
@@ -1300,12 +1311,15 @@ export default function AdminPickupOpsScreen() {
               style={({ pressed }) => [styles.runCard, pressed && { opacity: 0.92 }]}
             >
               <Text style={styles.runTitle}>{s(row.title) || "Pickup run"}</Text>
-              <Text style={styles.runDateLine}>{fmtPickupDateOnly(s(row.start_at))}</Text>
-              <Text style={styles.runTimeLine}>{s(row.start_at) ? fmtPickupTime(s(row.start_at)) : "Time TBD"}</Text>
+              <Text style={styles.runDateLine}>{fmtPickupDateEt(s(row.start_at))}</Text>
+              <Text style={styles.runTimeLine}>{s(row.start_at) ? `${fmtPickupTimeEt(s(row.start_at))} ET` : "No time set yet"}</Text>
 
               <View style={styles.runBadgesRow}>
                 <View style={styles.regionBadge}>
                   <Text style={styles.regionBadgeText}>{regionLabel}</Text>
+                </View>
+                <View style={styles.workflowPill}>
+                  <Text style={styles.workflowPillText}>{isPublicPickupRunType(row.run_type) ? "Public" : "Select"}</Text>
                 </View>
                 <View style={styles.workflowPill}>
                   <Text style={styles.workflowPillText}>{stageLabel}</Text>
@@ -1322,6 +1336,10 @@ export default function AdminPickupOpsScreen() {
                   <Text style={styles.quickStatLbl}>Standby</Text>
                 </View>
                 <View style={styles.quickStat}>
+                  <Text style={styles.quickStatVal}>{lc.waitlist}</Text>
+                  <Text style={styles.quickStatLbl}>Waitlist</Text>
+                </View>
+                <View style={styles.quickStat}>
                   <Text style={styles.quickStatVal}>{lc.invites}</Text>
                   <Text style={styles.quickStatLbl}>Invites</Text>
                 </View>
@@ -1332,61 +1350,62 @@ export default function AdminPickupOpsScreen() {
               </View>
 
               <View style={styles.cardActionRow}>
-                {lcStage === "planning" ? (
-                  <>
-                    <Pressable
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        void onPromoteHub({ runId: id });
-                      }}
-                      disabled={busy === "hub"}
-                      style={({ pressed }) => [styles.cardBtnSecondary, pressed && { opacity: 0.9 }, busy === "hub" && styles.disabled]}
-                    >
-                      <FontAwesome name="bullhorn" size={12} color={LIME} />
-                      <Text style={styles.cardBtnSecondaryText}>Promote to Hub</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        openRun(id);
-                      }}
-                      style={({ pressed }) => [styles.cardBtnSecondary, pressed && { opacity: 0.9 }]}
-                    >
-                      <FontAwesome name="pencil" size={12} color={LIME} />
-                      <Text style={styles.cardBtnSecondaryText}>Edit</Text>
-                    </Pressable>
-                  </>
+                {showPromoteToHubButton({
+                  status: s(row.status),
+                  is_current: row.is_current === true,
+                  is_completed: row.is_completed === true,
+                }) ? (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      void onPromoteHub({ runId: id });
+                    }}
+                    disabled={busy === "hub"}
+                    style={({ pressed }) => [styles.cardBtnSecondary, pressed && { opacity: 0.9 }, busy === "hub" && styles.disabled]}
+                  >
+                    <FontAwesome name="bullhorn" size={12} color={LIME} />
+                    <Text style={styles.cardBtnSecondaryText}>Promote to Hub</Text>
+                  </Pressable>
                 ) : null}
-                {lcStage === "hub" || lcStage === "outreach" ? (
-                  <>
-                    <Pressable
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        void onLaunchOutreach({ runId: id, row });
-                      }}
-                      disabled={busy === "outreach" || !!listLaunchBlock}
-                      style={({ pressed }) => [
-                        styles.cardBtnSecondary,
-                        pressed && { opacity: 0.9 },
-                        (busy === "outreach" || !!listLaunchBlock) && styles.disabled,
-                      ]}
-                    >
-                      <FontAwesome name="paper-plane" size={12} color={LIME} />
-                      <Text style={styles.cardBtnSecondaryText}>{busy === "outreach" ? "…" : "Launch outreach"}</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        openRun(id);
-                      }}
-                      style={({ pressed }) => [styles.cardBtnSecondary, pressed && { opacity: 0.9 }]}
-                    >
-                      <FontAwesome name="pencil" size={12} color={LIME} />
-                      <Text style={styles.cardBtnSecondaryText}>Edit</Text>
-                    </Pressable>
-                  </>
+                {showLaunchOutreachButton({
+                  status: s(row.status),
+                  run_type: row.run_type,
+                  outreach_started_at: s(row.outreach_started_at) || null,
+                  is_completed: row.is_completed === true,
+                }) ? (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      void onLaunchOutreach({ runId: id, row });
+                    }}
+                    disabled={busy === "outreach" || !!listLaunchBlock}
+                    style={({ pressed }) => [
+                      styles.cardBtnSecondary,
+                      pressed && { opacity: 0.9 },
+                      (busy === "outreach" || !!listLaunchBlock) && styles.disabled,
+                    ]}
+                  >
+                    <FontAwesome name="paper-plane" size={12} color={LIME} />
+                    <Text style={styles.cardBtnSecondaryText}>{busy === "outreach" ? "…" : "Launch outreach"}</Text>
+                  </Pressable>
                 ) : null}
-                {lcStage === "confirmed" ? (
+                {showFinalizeTimeButton({
+                  status: s(row.status),
+                  is_completed: row.is_completed === true,
+                  final_slot_id: s(row.final_slot_id) || null,
+                }) ? (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      openRun(id);
+                    }}
+                    style={({ pressed }) => [styles.cardBtnSecondary, pressed && { opacity: 0.9 }]}
+                  >
+                    <FontAwesome name="clock-o" size={12} color={LIME} />
+                    <Text style={styles.cardBtnSecondaryText}>Finalize time</Text>
+                  </Pressable>
+                ) : null}
+                {showEditSettingsButton({ status: s(row.status), is_completed: row.is_completed === true }) ? (
                   <Pressable
                     onPress={(e) => {
                       e.stopPropagation();
@@ -1395,12 +1414,13 @@ export default function AdminPickupOpsScreen() {
                     style={({ pressed }) => [styles.cardBtnSecondary, pressed && { opacity: 0.9 }]}
                   >
                     <FontAwesome name="pencil" size={12} color={LIME} />
-                    <Text style={styles.cardBtnSecondaryText}>Edit</Text>
+                    <Text style={styles.cardBtnSecondaryText}>Edit settings</Text>
                   </Pressable>
                 ) : null}
                 {showStartRunNowButton({
                   status: s(row.status),
                   is_completed: row.is_completed === true,
+                  start_at: s(row.start_at) || null,
                 }) ? (
                   <Pressable
                     onPress={(e) => {
@@ -1431,17 +1451,6 @@ export default function AdminPickupOpsScreen() {
                     ]}
                   >
                     <Text style={styles.cardBtnDangerText}>{busy === `end:${id}` ? "Ending…" : "End Run"}</Text>
-                  </Pressable>
-                ) : null}
-                {showPostResultsButton({ status: s(row.status), is_completed: row.is_completed === true }) ? (
-                  <Pressable
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      (router.push as (href: string) => void)(`/admin/run-result?run_id=${encodeURIComponent(id)}`);
-                    }}
-                    style={({ pressed }) => [styles.cardBtnLime, pressed && { opacity: 0.9 }]}
-                  >
-                    <Text style={styles.cardBtnLimeText}>Post Results</Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -1563,47 +1572,82 @@ export default function AdminPickupOpsScreen() {
                           <Text style={styles.countChipLabel}>Pending $</Text>
                           <Text style={styles.countChipVal}>{counts.pending_payment}</Text>
                         </View>
+                        <View style={styles.countChip}>
+                          <Text style={styles.countChipLabel}>Waitlist</Text>
+                          <Text style={styles.countChipVal}>{counts.waitlist ?? 0}</Text>
+                        </View>
                       </View>
                     ) : null}
 
-                    {detailKickoffActions.showMark && selectedRunId ? (
-                      <View style={{ marginBottom: 12 }}>
-                        <Pressable
-                          onPress={() =>
-                            (router.push as (href: string) => void)(
-                              `/admin/run-result?run_id=${encodeURIComponent(selectedRunId)}`,
-                            )
-                          }
-                          style={({ pressed }) => [styles.cardBtnLime, pressed && { opacity: 0.9 }]}
-                        >
-                          <Text style={styles.cardBtnLimeText}>Post Results</Text>
-                        </Pressable>
+                    {(detailKickoffActions.showPost || detailKickoffActions.showView) && selectedRunId ? (
+                      <View style={{ marginBottom: 12, flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+                        {detailKickoffActions.showPost ? (
+                          <Pressable
+                            onPress={() =>
+                              (router.push as (href: string) => void)(
+                                `/admin/run-result?run_id=${encodeURIComponent(selectedRunId)}`,
+                              )
+                            }
+                            style={({ pressed }) => [styles.cardBtnLime, pressed && { opacity: 0.9 }]}
+                          >
+                            <Text style={styles.cardBtnLimeText}>Post Results</Text>
+                          </Pressable>
+                        ) : null}
+                        {detailKickoffActions.showView ? (
+                          <Pressable
+                            onPress={() =>
+                              (router.push as (href: string) => void)(
+                                `/admin/run-result?run_id=${encodeURIComponent(selectedRunId)}&readonly=1`,
+                              )
+                            }
+                            style={({ pressed }) => [styles.cardBtnSecondary, pressed && { opacity: 0.9 }]}
+                          >
+                            <Text style={styles.cardBtnSecondaryText}>View Results</Text>
+                          </Pressable>
+                        ) : null}
                       </View>
                     ) : null}
 
                     <View style={styles.modalSection}>
                       <Text style={styles.sectionTitle}>Hub & outreach</Text>
                       <View style={styles.actionRow}>
-                        <Pressable
-                          onPress={() => void onPromoteHub()}
-                          disabled={busy === "hub" || !selectedRunId}
-                          style={({ pressed }) => [styles.secondaryLime, pressed && { opacity: 0.9 }, busy === "hub" && styles.disabled]}
-                        >
-                          <FontAwesome name="bullhorn" size={14} color={LIME} />
-                          <Text style={styles.secondaryLimeText}>{busy === "hub" ? "…" : "Promote to hub"}</Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => void onLaunchOutreach()}
-                          disabled={busy === "outreach" || !!launchBlocked}
-                          style={({ pressed }) => [
-                            styles.secondaryLime,
-                            pressed && { opacity: 0.9 },
-                            (busy === "outreach" || !!launchBlocked) && styles.disabled,
-                          ]}
-                        >
-                          <FontAwesome name="paper-plane" size={14} color={LIME} />
-                          <Text style={styles.secondaryLimeText}>{busy === "outreach" ? "…" : "Launch outreach"}</Text>
-                        </Pressable>
+                        {selectedRun &&
+                        typeof selectedRun === "object" &&
+                        showPromoteToHubButton({
+                          status: s((selectedRun as Record<string, unknown>).status),
+                          is_current: (selectedRun as Record<string, unknown>).is_current === true,
+                          is_completed: (selectedRun as Record<string, unknown>).is_completed === true,
+                        }) ? (
+                          <Pressable
+                            onPress={() => void onPromoteHub()}
+                            disabled={busy === "hub" || !selectedRunId}
+                            style={({ pressed }) => [styles.secondaryLime, pressed && { opacity: 0.9 }, busy === "hub" && styles.disabled]}
+                          >
+                            <FontAwesome name="bullhorn" size={14} color={LIME} />
+                            <Text style={styles.secondaryLimeText}>{busy === "hub" ? "…" : "Promote to hub"}</Text>
+                          </Pressable>
+                        ) : null}
+                        {selectedRun &&
+                        typeof selectedRun === "object" &&
+                        showLaunchOutreachButton({
+                          status: s((selectedRun as Record<string, unknown>).status),
+                          run_type: (selectedRun as Record<string, unknown>).run_type,
+                          outreach_started_at: s((selectedRun as Record<string, unknown>).outreach_started_at) || null,
+                          is_completed: (selectedRun as Record<string, unknown>).is_completed === true,
+                        }) ? (
+                          <Pressable
+                            onPress={() => void onLaunchOutreach()}
+                            disabled={busy === "outreach" || !!launchBlocked}
+                            style={({ pressed }) => [
+                              styles.secondaryLime,
+                              pressed && { opacity: 0.9 },
+                              (busy === "outreach" || !!launchBlocked) && styles.disabled,
+                            ]}
+                          >
+                            <FontAwesome name="paper-plane" size={14} color={LIME} />
+                            <Text style={styles.secondaryLimeText}>{busy === "outreach" ? "…" : "Launch outreach"}</Text>
+                          </Pressable>
+                        ) : null}
                       </View>
                       {launchBlocked ? <Text style={styles.blockHint}>{launchBlocked}</Text> : null}
                     </View>

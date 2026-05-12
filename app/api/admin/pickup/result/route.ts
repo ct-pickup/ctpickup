@@ -19,6 +19,29 @@ function asUuid(v: unknown): string | null {
     : null;
 }
 
+export async function GET(req: Request) {
+  const guard = await requireAdminBearer(req);
+  if (!guard.ok) return guard.response;
+
+  const url = new URL(req.url);
+  const run_id = asUuid(url.searchParams.get("run_id"));
+  if (!run_id) return NextResponse.json({ error: "run_id required" }, { status: 400 });
+
+  const supabase = supabaseService();
+
+  const res = await supabase.from("pickup_run_results").select("*").eq("run_id", run_id).maybeSingle();
+  if (res.error) return NextResponse.json({ error: res.error.message }, { status: 500 });
+
+  const assigns = await supabase.from("pickup_run_team_assignments").select("user_id,team").eq("run_id", run_id);
+  if (assigns.error) return NextResponse.json({ error: assigns.error.message }, { status: 500 });
+
+  return NextResponse.json({
+    ok: true,
+    result: res.data,
+    team_assignments: assigns.data ?? [],
+  });
+}
+
 function unique(xs: string[]) {
   return Array.from(new Set(xs.filter(Boolean)));
 }

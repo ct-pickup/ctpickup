@@ -45,6 +45,53 @@ export function fmtPickupDt(dt: string | null | undefined): string {
   }
 }
 
+const ET_OPTS: Intl.DateTimeFormatOptions = {
+  timeZone: "America/New_York",
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+};
+
+export function fmtPickupDtEt(dt: string | null | undefined): string {
+  if (!dt) return "No time set yet";
+  try {
+    return new Date(dt).toLocaleString("en-US", ET_OPTS);
+  } catch {
+    return "—";
+  }
+}
+
+export function fmtPickupDateEt(dt: string | null | undefined): string {
+  if (!dt) return "TBD";
+  try {
+    return new Date(dt).toLocaleString("en-US", {
+      timeZone: "America/New_York",
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return "TBD";
+  }
+}
+
+export function fmtPickupTimeEt(dt: string | null | undefined): string {
+  if (!dt) return "No time set yet";
+  try {
+    return new Date(dt).toLocaleString("en-US", {
+      timeZone: "America/New_York",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return "—";
+  }
+}
+
 /** Short time for hero cards (locale default). */
 export function fmtPickupTime(dt: string | null | undefined): string {
   if (!dt) return "—";
