@@ -101,122 +101,119 @@ export default function PlayerProfileScreen() {
     if (!isReady || !supabase || !userId) return;
     let cancelled = false;
     void (async () => {
-      const { data } = await supabase.from("profiles").select("nearest_venue").eq("id", userId).maybeSingle();
-      if (cancelled) return;
-      const v = data && typeof data === "object" ? (data as { nearest_venue?: unknown }).nearest_venue : null;
-      setNearestVenue(typeof v === "string" ? v : null);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isReady, supabase, userId]);
-
-  useEffect(() => {
-    if (!isReady || !supabase || !userId) return;
-    let cancelled = false;
-    void (async () => {
       setStatsLoading(true);
-      // NOTE: Don't use Supabase relational selects here.
-      // Both tables reference `pickup_runs.id` (via `run_id`), not each other.
-      const { data: assignments, error: assignmentsError } = await supabase
-        .from("pickup_run_team_assignments")
-        .select("team,run_id")
-        .eq("user_id", userId)
-        .limit(2000);
-      if (cancelled) return;
-      if (assignmentsError || !assignments) {
-        setGames(null);
-        setWins(null);
-        setLosses(null);
-        setWinRatePct(null);
-        setAwardCounts(null);
-        setStatsLoading(false);
-        return;
-      }
+      try {
+        const [{ data: profileData, error: profileErr }, { data: assignments, error: assignmentsError }] =
+          await Promise.all([
+            supabase
+              .from("profiles")
+              .select("nearest_venue, pickup_wins_count, pickup_losses_count")
+              .eq("id", userId)
+              .maybeSingle(),
+            supabase.from("pickup_run_team_assignments").select("team,run_id").eq("user_id", userId).limit(2000),
+          ]);
 
-      const rows = assignments as unknown as Array<{ team: Team; run_id: string }>;
-      const runIds = Array.from(new Set(rows.map((r) => r.run_id).filter(Boolean)));
-      if (runIds.length === 0) {
-        setGames(0);
-        setWins(0);
-        setLosses(0);
-        setWinRatePct(null);
-        setAwardCounts({ potd: 0, gotd: 0, def: 0, mid: 0, att: 0 });
-        setStatsLoading(false);
-        return;
-      }
-
-      // Avoid huge `in()` lists and potential PostgREST limits by chunking.
-      const CHUNK = 250;
-      const resultsByRunId = new Map<
-        string,
-        {
-          winning_team: Team | null;
-          player_of_day: string | null;
-          goalie_of_the_day: string | null;
-          defender_of_day: string | null;
-          midfielder_of_day: string | null;
-          attacker_of_day: string | null;
-        }
-      >();
-
-      for (let i = 0; i < runIds.length; i += CHUNK) {
-        const chunk = runIds.slice(i, i + CHUNK);
-        const { data: resRows, error: resErr } = await supabase
-          .from("pickup_run_results")
-          .select("run_id,winning_team,player_of_day,goalie_of_the_day,defender_of_day,midfielder_of_day,attacker_of_day")
-          .in("run_id", chunk);
         if (cancelled) return;
-        if (resErr || !resRows) continue;
-        for (const r of resRows as unknown as Array<{
-          run_id: string;
-          winning_team: Team | null;
-          player_of_day: string | null;
-          goalie_of_the_day: string | null;
-          defender_of_day: string | null;
-          midfielder_of_day: string | null;
-          attacker_of_day: string | null;
-        }>) {
-          if (!r?.run_id) continue;
-          resultsByRunId.set(r.run_id, {
-            winning_team: r.winning_team ?? null,
-            player_of_day: r.player_of_day ?? null,
-            goalie_of_the_day: r.goalie_of_the_day ?? null,
-            defender_of_day: r.defender_of_day ?? null,
-            midfielder_of_day: r.midfielder_of_day ?? null,
-            attacker_of_day: r.attacker_of_day ?? null,
-          });
+
+        if (profileErr || !profileData) {
+          setNearestVenue(null);
+          setGames(null);
+          setWins(null);
+          setLosses(null);
+          setWinRatePct(null);
+        } else {
+          const row = profileData as {
+            nearest_venue?: unknown;
+            pickup_wins_count?: unknown;
+            pickup_losses_count?: unknown;
+          };
+          const v = row.nearest_venue;
+          setNearestVenue(typeof v === "string" ? v : null);
+          const w = Math.max(0, Math.trunc(Number(row.pickup_wins_count ?? 0)));
+          const l = Math.max(0, Math.trunc(Number(row.pickup_losses_count ?? 0)));
+          setWins(w);
+          setLosses(l);
+          const played = w + l;
+          setGames(played);
+          setWinRatePct(played > 0 ? Math.round((w / played) * 100) : null);
         }
+
+        if (assignmentsError || !assignments) {
+          setAwardCounts(null);
+          return;
+        }
+
+        const rows = assignments as unknown as Array<{ team: Team; run_id: string }>;
+        const runIds = Array.from(new Set(rows.map((r) => r.run_id).filter(Boolean)));
+        if (runIds.length === 0) {
+          setAwardCounts({ potd: 0, gotd: 0, def: 0, mid: 0, att: 0 });
+          return;
+        }
+
+        // NOTE: Don't use Supabase relational selects here.
+        // Both tables reference `pickup_runs.id` (via `run_id`), not each other.
+        const CHUNK = 250;
+        const resultsByRunId = new Map<
+          string,
+          {
+            winning_team: Team | null;
+            player_of_day: string | null;
+            goalie_of_the_day: string | null;
+            defender_of_day: string | null;
+            midfielder_of_day: string | null;
+            attacker_of_day: string | null;
+          }
+        >();
+
+        for (let i = 0; i < runIds.length; i += CHUNK) {
+          const chunk = runIds.slice(i, i + CHUNK);
+          const { data: resRows, error: resErr } = await supabase
+            .from("pickup_run_results")
+            .select("run_id,winning_team,player_of_day,goalie_of_the_day,defender_of_day,midfielder_of_day,attacker_of_day")
+            .in("run_id", chunk);
+          if (cancelled) return;
+          if (resErr || !resRows) continue;
+          for (const r of resRows as unknown as Array<{
+            run_id: string;
+            winning_team: Team | null;
+            player_of_day: string | null;
+            goalie_of_the_day: string | null;
+            defender_of_day: string | null;
+            midfielder_of_day: string | null;
+            attacker_of_day: string | null;
+          }>) {
+            if (!r?.run_id) continue;
+            resultsByRunId.set(r.run_id, {
+              winning_team: r.winning_team ?? null,
+              player_of_day: r.player_of_day ?? null,
+              goalie_of_the_day: r.goalie_of_the_day ?? null,
+              defender_of_day: r.defender_of_day ?? null,
+              midfielder_of_day: r.midfielder_of_day ?? null,
+              attacker_of_day: r.attacker_of_day ?? null,
+            });
+          }
+        }
+
+        let potd = 0;
+        let gotd = 0;
+        let def = 0;
+        let mid = 0;
+        let att = 0;
+
+        for (const row of rows) {
+          const res = resultsByRunId.get(row.run_id) ?? null;
+          if (!res?.winning_team) continue;
+          if (res.player_of_day === userId) potd += 1;
+          if (res.goalie_of_the_day === userId) gotd += 1;
+          if (res.defender_of_day === userId) def += 1;
+          if (res.midfielder_of_day === userId) mid += 1;
+          if (res.attacker_of_day === userId) att += 1;
+        }
+
+        if (!cancelled) setAwardCounts({ potd, gotd, def, mid, att });
+      } finally {
+        if (!cancelled) setStatsLoading(false);
       }
-
-      let played = 0;
-      let w = 0;
-      let l = 0;
-      let potd = 0;
-      let gotd = 0;
-      let def = 0;
-      let mid = 0;
-      let att = 0;
-
-      for (const row of rows) {
-        const res = resultsByRunId.get(row.run_id) ?? null;
-        if (!res?.winning_team) continue;
-        played += 1;
-        if (row.team === res.winning_team) w += 1;
-        else l += 1;
-        if (res.player_of_day === userId) potd += 1;
-        if (res.goalie_of_the_day === userId) gotd += 1;
-        if (res.defender_of_day === userId) def += 1;
-        if (res.midfielder_of_day === userId) mid += 1;
-        if (res.attacker_of_day === userId) att += 1;
-      }
-
-      setGames(played);
-      setWins(w);
-      setLosses(l);
-      setWinRatePct(played > 0 ? Math.round((w / played) * 100) : null);
-      setAwardCounts({ potd, gotd, def, mid, att });
-      setStatsLoading(false);
     })();
     return () => {
       cancelled = true;

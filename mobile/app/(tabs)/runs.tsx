@@ -37,6 +37,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const LIME = "#a3e635";
 
+const FRIEND_FIND_NO_PLAYERS_MSG = "No players found. Try a different name or username.";
+
+function isFriendFindNotFoundError(message: string | null | undefined): boolean {
+  if (message == null || message === "") return false;
+  if (message === "not_found") return true;
+  return message.startsWith("not_found —");
+}
+
 /** Strip legacy internal grouping tokens from admin-authored run text so players only see neutral copy. */
 function stripLegacyGroupingTokensFromRunText(s: string): string {
   return s
@@ -243,10 +251,13 @@ export default function RunsScreen() {
             setFriendAutocompleteError(null);
           } else {
             setFriendSuggestions([]);
-            setFriendAutocompleteEmpty(false);
-            setFriendAutocompleteError(
-              r.error ?? `Search failed (HTTP ${r.status}).`,
-            );
+            if (isFriendFindNotFoundError(r.error)) {
+              setFriendAutocompleteEmpty(true);
+              setFriendAutocompleteError(null);
+            } else {
+              setFriendAutocompleteEmpty(false);
+              setFriendAutocompleteError(r.error ?? `Search failed (HTTP ${r.status}).`);
+            }
           }
         } catch (e) {
           if (!cancelled) {
@@ -953,14 +964,14 @@ export default function RunsScreen() {
                 </View>
               ) : null}
             </View>
-            {friendAutocompleteEmpty &&
-            friendQuery.trim().length >= 2 &&
+            {friendQuery.trim().length >= 2 &&
             !friendAutocompleteLoading &&
+            friendAutocompleteEmpty &&
             !friendAutocompleteError ? (
-              <Text style={styles.modalNotFound}>No players found</Text>
+              <Text style={styles.modalSearchEmptyHint}>{FRIEND_FIND_NO_PLAYERS_MSG}</Text>
             ) : null}
             {friendAutocompleteError ? (
-              <Text style={styles.modalNotFound}>{friendAutocompleteError}</Text>
+              <Text style={styles.modalAutocompleteError}>{friendAutocompleteError}</Text>
             ) : null}
             {friendFound ? (
               friendFound.user_id === session?.user?.id ? (
@@ -1352,6 +1363,13 @@ const styles = StyleSheet.create({
   modalSuggestionUsername: { marginTop: 4, color: "rgba(255,255,255,0.55)", fontSize: 13 },
   modalFound: { fontSize: 15, color: "rgba(255,255,255,0.85)" },
   modalFoundName: { fontWeight: "800", color: LIME },
+  modalSearchEmptyHint: {
+    fontSize: 15,
+    color: "rgba(255,255,255,0.55)",
+    fontWeight: "600",
+    lineHeight: 21,
+  },
+  modalAutocompleteError: { fontSize: 15, color: "#fca5a5", fontWeight: "600" },
   modalNotFound: { fontSize: 15, color: "#fca5a5", fontWeight: "600" },
   modalConfirmPay: {
     alignSelf: "stretch",

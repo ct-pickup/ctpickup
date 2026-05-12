@@ -329,9 +329,8 @@ export default function AdminPickupOpsScreen() {
     const sr = selectedRun as Record<string, unknown>;
     const status = s(sr.status);
     const is_completed = sr.is_completed === true;
-    const start_at = s(sr.start_at) || null;
     return {
-      showStart: showStartRunNowButton({ status, is_completed, start_at }),
+      showStart: showStartRunNowButton({ status, is_completed }),
       showEnd: showEndRunButton({ status, is_completed }),
       showMark: showPostResultsButton({ status, is_completed }),
     };
@@ -1104,7 +1103,6 @@ export default function AdminPickupOpsScreen() {
                 {showStartRunNowButton({
                   status: s(row.status),
                   is_completed: row.is_completed === true,
-                  start_at: s(row.start_at) || null,
                 }) ? (
                   <Pressable
                     onPress={(e) => {
@@ -1267,6 +1265,21 @@ export default function AdminPickupOpsScreen() {
                           <Text style={styles.countChipLabel}>Pending $</Text>
                           <Text style={styles.countChipVal}>{counts.pending_payment}</Text>
                         </View>
+                      </View>
+                    ) : null}
+
+                    {detailKickoffActions.showMark && selectedRunId ? (
+                      <View style={{ marginBottom: 12 }}>
+                        <Pressable
+                          onPress={() =>
+                            (router.push as (href: string) => void)(
+                              `/admin/run-result?run_id=${encodeURIComponent(selectedRunId)}`,
+                            )
+                          }
+                          style={({ pressed }) => [styles.cardBtnLime, pressed && { opacity: 0.9 }]}
+                        >
+                          <Text style={styles.cardBtnLimeText}>Post Results</Text>
+                        </Pressable>
                       </View>
                     ) : null}
 
