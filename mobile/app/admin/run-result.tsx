@@ -167,109 +167,116 @@ export default function AdminRunResultScreen() {
       setLoading(true);
       setErr(null);
       setTeamsReadOnly(false);
-      const r = await fetchAdminPickupSwitchDetail(token, runId);
-      if (cancelled) return;
-      if (!r.ok) {
-        setErr(r.error || "Couldn’t load run.");
-        setConfirmed([]);
-        setRegion(null);
-        setTeamByUser({});
-        setAttendanceByUser({});
-        setLoading(false);
-        return;
-      }
-      const run = r.data.run;
-      const regionRaw = run && typeof run === "object" ? (run as Record<string, unknown>).service_region : null;
-      const reg = typeof regionRaw === "string" ? (regionRaw.trim().toUpperCase() as ServiceRegionCode) : null;
-      setRegion(reg && ["CT", "NY", "NJ", "MD"].includes(reg) ? reg : null);
-      const list = Array.isArray(r.data.confirmed) ? (r.data.confirmed as ConfirmedRow[]) : [];
-      setConfirmed(list);
+      try {
+        const r = await fetchAdminPickupSwitchDetail(token, runId);
+        if (cancelled) return;
+        if (!r.ok) {
+          setErr(r.error || "Couldn’t load run.");
+          setConfirmed([]);
+          setRegion(null);
+          setTeamByUser({});
+          setAttendanceByUser({});
+          return;
+        }
+        const run = r.data.run;
+        const regionRaw = run && typeof run === "object" ? (run as Record<string, unknown>).service_region : null;
+        const reg = typeof regionRaw === "string" ? (regionRaw.trim().toUpperCase() as ServiceRegionCode) : null;
+        setRegion(reg && ["CT", "NY", "NJ", "MD"].includes(reg) ? reg : null);
+        const list = Array.isArray(r.data.confirmed) ? (r.data.confirmed as ConfirmedRow[]) : [];
+        setConfirmed(list);
 
-      const attendanceMap: Record<string, boolean> = {};
-      for (const p of list) attendanceMap[p.id] = true;
-      if (supabase) {
-        const { data: attRows, error: attErr } = await supabase
-          .from("pickup_run_attendance")
-          .select("user_id,attended")
-          .eq("run_id", runId);
-        if (!attErr && attRows) {
-          for (const row of attRows as { user_id?: unknown; attended?: unknown }[]) {
-            const uid = typeof row.user_id === "string" ? row.user_id : null;
-            if (!uid || !(uid in attendanceMap)) continue;
-            attendanceMap[uid] = row.attended === true;
+        const attendanceMap: Record<string, boolean> = {};
+        for (const p of list) attendanceMap[p.id] = true;
+        if (supabase) {
+          const { data: attRows, error: attErr } = await supabase
+            .from("pickup_run_attendance")
+            .select("user_id,attended")
+            .eq("run_id", runId);
+          if (!attErr && attRows) {
+            for (const row of attRows as { user_id?: unknown; attended?: unknown }[]) {
+              const uid = typeof row.user_id === "string" ? row.user_id : null;
+              if (!uid || !(uid in attendanceMap)) continue;
+              attendanceMap[uid] = row.attended === true;
+            }
           }
         }
-      }
-      if (!cancelled) setAttendanceByUser(attendanceMap);
+        if (!cancelled) setAttendanceByUser(attendanceMap);
 
-      if (isReadonly) {
-        const res = await fetchAdminPickupResult(token, runId);
-        if (cancelled) return;
-        if (!res.ok) {
-          setErr(res.error || "Couldn’t load results.");
-          setLoading(false);
+        if (isReadonly) {
+          const res = await fetchAdminPickupResult(token, runId);
+          if (cancelled) return;
+          if (!res.ok) {
+            setErr(res.error || "Couldn’t load results.");
+            return;
+          }
+          const resultRow = res.data.result;
+          if (!resultRow || typeof resultRow !== "object") {
+            setErr("No results posted for this run yet.");
+            return;
+          }
+          const row = resultRow as Record<string, unknown>;
+          setTotalTeams(Number(row.total_teams) === 3 ? 3 : 2);
+          if (isTeam(row.winning_team)) setWinningTeam(row.winning_team);
+          setPlayerOfDay(typeof row.player_of_day === "string" ? row.player_of_day : null);
+          setGoalieOfTheDay(typeof row.goalie_of_the_day === "string" ? row.goalie_of_the_day : null);
+          setDefenderOfDay(typeof row.defender_of_day === "string" ? row.defender_of_day : null);
+          setMidfielderOfDay(typeof row.midfielder_of_day === "string" ? row.midfielder_of_day : null);
+          setAttackerOfDay(typeof row.attacker_of_day === "string" ? row.attacker_of_day : null);
+          const fromApi: Record<string, Team> = {};
+          for (const a of res.data.team_assignments ?? []) {
+            const o = a as { user_id?: unknown; team?: unknown };
+            const uid = typeof o.user_id === "string" ? o.user_id : "";
+            if (uid && isTeam(o.team)) fromApi[uid] = o.team;
+          }
+          setTeamByUser(fromApi);
+          setTeamsReadOnly(true);
           return;
         }
-        const resultRow = res.data.result;
-        if (!resultRow || typeof resultRow !== "object") {
-          setErr("No results posted for this run yet.");
-          setLoading(false);
-          return;
-        }
-        const row = resultRow as Record<string, unknown>;
-        setTotalTeams(Number(row.total_teams) === 3 ? 3 : 2);
-        if (isTeam(row.winning_team)) setWinningTeam(row.winning_team);
-        setPlayerOfDay(typeof row.player_of_day === "string" ? row.player_of_day : null);
-        setGoalieOfTheDay(typeof row.goalie_of_the_day === "string" ? row.goalie_of_the_day : null);
-        setDefenderOfDay(typeof row.defender_of_day === "string" ? row.defender_of_day : null);
-        setMidfielderOfDay(typeof row.midfielder_of_day === "string" ? row.midfielder_of_day : null);
-        setAttackerOfDay(typeof row.attacker_of_day === "string" ? row.attacker_of_day : null);
-        const fromApi: Record<string, Team> = {};
-        for (const a of res.data.team_assignments ?? []) {
-          const o = a as { user_id?: unknown; team?: unknown };
-          const uid = typeof o.user_id === "string" ? o.user_id : "";
-          if (uid && isTeam(o.team)) fromApi[uid] = o.team;
-        }
-        setTeamByUser(fromApi);
-        setTeamsReadOnly(true);
-        setLoading(false);
-        return;
-      }
 
-      const fromDb: Record<string, Team> = {};
-      if (supabase) {
-        const { data: assignRows, error: assignErr } = await supabase
-          .from("pickup_run_team_assignments")
-          .select("user_id,team")
-          .eq("run_id", runId);
+        const fromDb: Record<string, Team> = {};
+        if (supabase) {
+          const { data: assignRows, error: assignErr } = await supabase
+            .from("pickup_run_team_assignments")
+            .select("user_id,team")
+            .eq("run_id", runId);
+          if (cancelled) return;
+          if (assignErr) {
+            console.warn("[run-result] team assignments load:", assignErr.message);
+          }
+          for (const row of assignRows ?? []) {
+            const o = row as { user_id?: unknown; team?: unknown };
+            const uid = typeof o.user_id === "string" ? o.user_id : "";
+            const tm = o.team;
+            if (uid && isTeam(tm)) fromDb[uid] = tm;
+          }
+        }
         if (cancelled) return;
-        if (assignErr) {
-          console.warn("[run-result] team assignments load:", assignErr.message);
+        const hasSaved = Object.keys(fromDb).length > 0;
+        if (hasSaved) {
+          setTeamByUser(fromDb);
+          setTeamsReadOnly(true);
+          setTotalTeams(Object.values(fromDb).some((t) => t === "C") ? 3 : 2);
+        } else {
+          setTeamsReadOnly(false);
+          setTotalTeams(2);
+          const next: Record<string, Team> = {};
+          list.forEach((p, idx) => {
+            next[p.id] = idx % 2 === 0 ? "A" : "B";
+          });
+          setTeamByUser(next);
         }
-        for (const row of assignRows ?? []) {
-          const o = row as { user_id?: unknown; team?: unknown };
-          const uid = typeof o.user_id === "string" ? o.user_id : "";
-          const tm = o.team;
-          if (uid && isTeam(tm)) fromDb[uid] = tm;
+      } catch (e) {
+        if (!cancelled) {
+          console.warn("[run-result] load failed", e);
+          setErr(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+          setConfirmed([]);
+          setRegion(null);
+          setTeamByUser({});
+          setAttendanceByUser({});
         }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      if (cancelled) return;
-      const hasSaved = Object.keys(fromDb).length > 0;
-      if (hasSaved) {
-        setTeamByUser(fromDb);
-        setTeamsReadOnly(true);
-        setTotalTeams(Object.values(fromDb).some((t) => t === "C") ? 3 : 2);
-      } else {
-        setTeamsReadOnly(false);
-        setTotalTeams(2);
-        const next: Record<string, Team> = {};
-        list.forEach((p, idx) => {
-          next[p.id] = idx % 2 === 0 ? "A" : "B";
-        });
-        setTeamByUser(next);
-      }
-
-      setLoading(false);
     })();
     return () => {
       cancelled = true;

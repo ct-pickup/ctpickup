@@ -1,8 +1,17 @@
 import { siteOrigin } from "@/lib/env";
 
-function originOrThrow(): string {
+type MissingSiteUrlFailure = { ok: false; status: 0; error: "missing_site_url" };
+
+const MISSING_SITE_URL: MissingSiteUrlFailure = { ok: false, error: "missing_site_url", status: 0 };
+
+function missingSiteUrlAdminResult<T>(): AdminApiResult<T> {
+  return MISSING_SITE_URL;
+}
+
+/** Returns site origin, or a transport failure when `EXPO_PUBLIC_SITE_URL` is unset (same shape as `AdminApiResult` error). */
+function originOrThrow(): string | MissingSiteUrlFailure {
   const o = siteOrigin();
-  if (!o) throw new Error("Missing EXPO_PUBLIC_SITE_URL");
+  if (!o) return MISSING_SITE_URL;
   return o;
 }
 
@@ -41,6 +50,9 @@ async function adminFetch<T>(
   init?: RequestInit,
 ): Promise<AdminApiResult<T>> {
   const origin = originOrThrow();
+  if (typeof origin !== "string") {
+    return missingSiteUrlAdminResult<T>();
+  }
   let r: Response;
   try {
     r = await fetch(`${origin}${path}`, {
@@ -71,6 +83,9 @@ export type PickupOverviewResponse = {
 
 export function fetchAdminPickupOverview(accessToken: string, opts?: { region?: string }) {
   const origin = originOrThrow();
+  if (typeof origin !== "string") {
+    return Promise.resolve(missingSiteUrlAdminResult<PickupOverviewResponse>());
+  }
   const u = new URL("/api/admin/pickup/overview", origin);
   if (opts?.region) u.searchParams.set("region", opts.region);
   return adminFetch<PickupOverviewResponse>(u.pathname + u.search, accessToken, { method: "GET" });
@@ -115,6 +130,9 @@ export type PickupAnalyticsResponse = {
 
 export function fetchAdminPickupAnalytics(accessToken: string, opts?: { region?: string }) {
   const origin = originOrThrow();
+  if (typeof origin !== "string") {
+    return Promise.resolve(missingSiteUrlAdminResult<PickupAnalyticsResponse>());
+  }
   const u = new URL("/api/admin/pickup/analytics", origin);
   if (opts?.region) u.searchParams.set("region", opts.region);
   return adminFetch<PickupAnalyticsResponse>(u.pathname + u.search, accessToken, { method: "GET" });
@@ -205,7 +223,18 @@ export function deleteAdminPickupRunAvailability(accessToken: string, body: { ru
 }
 
 export function fetchAdminPickupResult(accessToken: string, runId: string) {
-  const u = new URL("/api/admin/pickup/result", originOrThrow());
+  const origin = originOrThrow();
+  if (typeof origin !== "string") {
+    return Promise.resolve(
+      missingSiteUrlAdminResult<{
+        ok: boolean;
+        result: Record<string, unknown> | null;
+        team_assignments: { user_id: string; team: string }[];
+        error?: string;
+      }>(),
+    );
+  }
+  const u = new URL("/api/admin/pickup/result", origin);
   u.searchParams.set("run_id", runId);
   return adminFetch<{
     ok: boolean;
@@ -328,7 +357,11 @@ export function fetchAdminPickupStanding(
   accessToken: string,
   opts?: { filter?: string; q?: string; limit?: number; offset?: number },
 ) {
-  const u = new URL("/api/admin/pickup/standing", originOrThrow());
+  const origin = originOrThrow();
+  if (typeof origin !== "string") {
+    return Promise.resolve(missingSiteUrlAdminResult<StandingListResponse>());
+  }
+  const u = new URL("/api/admin/pickup/standing", origin);
   if (opts?.filter) u.searchParams.set("filter", opts.filter);
   if (opts?.q) u.searchParams.set("q", opts.q);
   if (opts?.limit != null) u.searchParams.set("limit", String(opts.limit));
@@ -440,7 +473,11 @@ export function deleteAdminChatRoom(accessToken: string, roomId: string) {
 
 /** Deletes a single chat message in the room (admin). Uses `DELETE …?message_id=`; room delete uses POST `/delete`. */
 export function deleteAdminChatMessage(accessToken: string, roomId: string, messageId: string) {
-  const u = new URL(`/api/admin/chat/rooms/${encodeURIComponent(roomId)}`, originOrThrow());
+  const origin = originOrThrow();
+  if (typeof origin !== "string") {
+    return Promise.resolve(missingSiteUrlAdminResult<{ ok: boolean; deleted_message_id?: string; error?: string }>());
+  }
+  const u = new URL(`/api/admin/chat/rooms/${encodeURIComponent(roomId)}`, origin);
   u.searchParams.set("message_id", messageId);
   return adminFetch<{ ok: boolean; deleted_message_id?: string; error?: string }>(
     u.pathname + u.search,
@@ -484,7 +521,11 @@ export function postAdminChatRoomMute(
 }
 
 export function deleteAdminChatRoomMute(accessToken: string, roomId: string, userId: string) {
-  const u = new URL(`/api/admin/chat/rooms/${encodeURIComponent(roomId)}/mutes`, originOrThrow());
+  const origin = originOrThrow();
+  if (typeof origin !== "string") {
+    return Promise.resolve(missingSiteUrlAdminResult<{ ok: boolean; error?: string }>());
+  }
+  const u = new URL(`/api/admin/chat/rooms/${encodeURIComponent(roomId)}/mutes`, origin);
   u.searchParams.set("user_id", userId);
   return adminFetch<{ ok: boolean; error?: string }>(u.pathname + u.search, accessToken, { method: "DELETE" });
 }
@@ -564,7 +605,11 @@ export function fetchAdminOutdoorTournaments(
   accessToken: string,
   opts?: { region?: string; includePanel?: boolean; submissionDecision?: string },
 ) {
-  const u = new URL("/api/admin/tournaments", originOrThrow());
+  const origin = originOrThrow();
+  if (typeof origin !== "string") {
+    return Promise.resolve(missingSiteUrlAdminResult<AdminTournamentsPanelResponse>());
+  }
+  const u = new URL("/api/admin/tournaments", origin);
   if (opts?.region) u.searchParams.set("region", opts.region);
   if (opts?.includePanel) u.searchParams.set("include", "panel");
   if (opts?.submissionDecision) u.searchParams.set("decision", opts.submissionDecision);
@@ -640,13 +685,21 @@ export type PickupSwitchDetailResponse = PickupSwitchListResponse & {
 };
 
 export function fetchAdminPickupSwitchList(accessToken: string, opts?: { region?: string }) {
-  const u = new URL("/api/pickup/switch", originOrThrow());
+  const origin = originOrThrow();
+  if (typeof origin !== "string") {
+    return Promise.resolve(missingSiteUrlAdminResult<PickupSwitchListResponse>());
+  }
+  const u = new URL("/api/pickup/switch", origin);
   if (opts?.region) u.searchParams.set("region", opts.region);
   return adminFetch<PickupSwitchListResponse>(u.pathname + u.search, accessToken, { method: "GET" });
 }
 
 export function fetchAdminPickupSwitchDetail(accessToken: string, runId: string, opts?: { region?: string }) {
-  const u = new URL("/api/pickup/switch", originOrThrow());
+  const origin = originOrThrow();
+  if (typeof origin !== "string") {
+    return Promise.resolve(missingSiteUrlAdminResult<PickupSwitchDetailResponse>());
+  }
+  const u = new URL("/api/pickup/switch", origin);
   u.searchParams.set("run_id", runId);
   if (opts?.region) u.searchParams.set("region", opts.region);
   return adminFetch<PickupSwitchDetailResponse>(u.pathname + u.search, accessToken, { method: "GET" });

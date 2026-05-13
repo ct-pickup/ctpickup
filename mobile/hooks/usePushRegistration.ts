@@ -263,10 +263,12 @@ export function usePushRegistration(accessToken: string | null) {
 
   useEffect(() => {
     let cancelled = false;
-    void Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (cancelled || !response) return;
-      handleNotificationResponse(response);
-    });
+    void Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (cancelled || !response) return;
+        handleNotificationResponse(response);
+      })
+      .catch((e) => console.warn("[push] cold start replay failed", e));
     return () => {
       cancelled = true;
     };

@@ -133,6 +133,11 @@ export function usePickupJoin() {
         const msg = rawErr || `Could not join (${r.status}).`;
         void hapticError();
         Alert.alert("Can’t join this run", msg);
+      } catch (e) {
+        void hapticError();
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn("[pickup join] joinPickup failed", e);
+        Alert.alert("Something went wrong", msg || "Please try again.");
       } finally {
         setJoinBusy(false);
       }
@@ -164,6 +169,11 @@ export function usePickupJoin() {
         }
         void hapticError();
         Alert.alert("Can’t complete payment", payErrorMessage(r.status, j));
+      } catch (e) {
+        void hapticError();
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn("[pickup join] payPickup failed", e);
+        Alert.alert("Something went wrong", msg || "Please try again.");
       } finally {
         setPayBusy(false);
       }
@@ -249,6 +259,11 @@ export function usePickupJoin() {
         }
         void hapticError();
         Alert.alert("Could not submit", commitErrorMessage(r.status, j));
+      } catch (e) {
+        void hapticError();
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn("[pickup join] commitAvailability failed", e);
+        Alert.alert("Something went wrong", msg || "Please try again.");
       } finally {
         setAvailabilityBusy(false);
         setPendingSlotKey(null);

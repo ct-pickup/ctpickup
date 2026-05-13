@@ -386,6 +386,10 @@ export default function FieldTournamentDetailScreen() {
         return;
       }
       setInviteFound(r.players[0]!);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Something went wrong.";
+      console.warn("[field-tournament] invite search failed", e);
+      Alert.alert("", msg);
     } finally {
       setInviteSearchBusy(false);
     }
@@ -418,6 +422,10 @@ export default function FieldTournamentDetailScreen() {
       setInviteQuery("");
       setInviteFound(null);
       await loadRoster();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Something went wrong.";
+      console.warn("[field-tournament] invite send failed", e);
+      Alert.alert("", msg);
     } finally {
       setInviteSendBusy(false);
     }

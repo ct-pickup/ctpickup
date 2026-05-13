@@ -121,6 +121,12 @@ export default function RunDetailScreen() {
       return;
     }
 
+    if (runRes.data == null) {
+      setErr("Run not found");
+      setLoading(false);
+      return;
+    }
+
     const run = runRes.data as
       | null
       | {

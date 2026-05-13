@@ -536,10 +536,6 @@ export default function AdminPickupOpsScreen() {
   }
 
   async function persistKickoffSlot(start_at: string): Promise<boolean> {
-    console.log("[persistKickoffSlot] called with", {
-      iso: start_at,
-      selectedRunId,
-    });
     const runId = selectedRunIdRef.current ?? selectedRunId;
     if (!runId) {
       Alert.alert("No run selected", "Open a run again, then set the kickoff time.");
@@ -559,9 +555,7 @@ export default function AdminPickupOpsScreen() {
       start_at: trimmed,
       label: slotLabelRef.current.trim() || null,
     };
-    console.log("[mobile admin pickup] add_slot request body", JSON.stringify(body));
     const r = await postAdminPickupSwitch(t, body);
-    console.log("[mobile admin pickup] add_slot response", { ok: r.ok, status: r.status, data: r.ok ? r.data : r.error });
     setBusy(null);
     if (!r.ok) {
       Alert.alert("Add slot failed", r.error);
@@ -593,16 +587,22 @@ export default function AdminPickupOpsScreen() {
         text: "Finalize",
         onPress: () => {
           void (async () => {
-            setBusy("finalize");
-            const r = await postAdminPickupSwitch(t, {
-              action: "finalize_slot",
-              run_id: selectedRunId,
-              slot_id: slotId,
-            });
-            setBusy(null);
-            if (!r.ok) return Alert.alert("Finalize failed", r.error);
-            void loadDetail();
-            void loadRuns();
+            try {
+              setBusy("finalize");
+              const r = await postAdminPickupSwitch(t, {
+                action: "finalize_slot",
+                run_id: selectedRunId,
+                slot_id: slotId,
+              });
+              if (!r.ok) return Alert.alert("Finalize failed", r.error);
+              void loadDetail();
+              void loadRuns();
+            } catch (e) {
+              console.warn("[admin pickup] action failed", e);
+              Alert.alert("Something went wrong", "Please try again.");
+            } finally {
+              setBusy(null);
+            }
           })();
         },
       },
@@ -633,18 +633,24 @@ export default function AdminPickupOpsScreen() {
         text: "Launch",
         onPress: () => {
           void (async () => {
-            setBusy("outreach");
-            const r = await postAdminPickupSwitch(t, {
-              action: "launch_outreach",
-              run_id: runId,
-              run_link: runLink,
-              date_or_tbd: dateOrTbd,
-            });
-            setBusy(null);
-            if (!r.ok) return Alert.alert("Launch failed", r.error);
-            Alert.alert("Launched", "Outreach started for this run.");
-            void loadDetail();
-            void loadRuns();
+            try {
+              setBusy("outreach");
+              const r = await postAdminPickupSwitch(t, {
+                action: "launch_outreach",
+                run_id: runId,
+                run_link: runLink,
+                date_or_tbd: dateOrTbd,
+              });
+              if (!r.ok) return Alert.alert("Launch failed", r.error);
+              Alert.alert("Launched", "Outreach started for this run.");
+              void loadDetail();
+              void loadRuns();
+            } catch (e) {
+              console.warn("[admin pickup] action failed", e);
+              Alert.alert("Something went wrong", "Please try again.");
+            } finally {
+              setBusy(null);
+            }
           })();
         },
       },
@@ -661,12 +667,18 @@ export default function AdminPickupOpsScreen() {
         text: "Promote",
         onPress: () => {
           void (async () => {
-            setBusy("hub");
-            const r = await postAdminSetHubPickup(t, runId);
-            setBusy(null);
-            if (!r.ok) return Alert.alert("Promote failed", r.error);
-            void loadRuns();
-            void loadDetail();
+            try {
+              setBusy("hub");
+              const r = await postAdminSetHubPickup(t, runId);
+              if (!r.ok) return Alert.alert("Promote failed", r.error);
+              void loadRuns();
+              void loadDetail();
+            } catch (e) {
+              console.warn("[admin pickup] action failed", e);
+              Alert.alert("Something went wrong", "Please try again.");
+            } finally {
+              setBusy(null);
+            }
           })();
         },
       },
@@ -725,13 +737,19 @@ export default function AdminPickupOpsScreen() {
         style: "destructive",
         onPress: () => {
           void (async () => {
-            setBusy("cancel");
-            const r = await postAdminCancelRun(t, { run_id: selectedRunId, reason: "Canceled from mobile admin" });
-            setBusy(null);
-            if (!r.ok) return Alert.alert("Cancel failed", r.error);
-            Alert.alert("Canceled", "Run canceled.");
-            closeModal();
-            void loadRuns();
+            try {
+              setBusy("cancel");
+              const r = await postAdminCancelRun(t, { run_id: selectedRunId, reason: "Canceled from mobile admin" });
+              if (!r.ok) return Alert.alert("Cancel failed", r.error);
+              Alert.alert("Canceled", "Run canceled.");
+              closeModal();
+              void loadRuns();
+            } catch (e) {
+              console.warn("[admin pickup] action failed", e);
+              Alert.alert("Something went wrong", "Please try again.");
+            } finally {
+              setBusy(null);
+            }
           })();
         },
       },
@@ -748,16 +766,22 @@ export default function AdminPickupOpsScreen() {
         style: "destructive",
         onPress: () => {
           void (async () => {
-            setBusy(`end:${runId}`);
-            const r = await postAdminEndRun(t, { run_id: runId });
-            setBusy(null);
-            if (!r.ok) return Alert.alert("End run failed", r.error);
-            setWorkflowTabOverride("past");
-            setRuns((prev) =>
-              prev.map((row) => (s(row.id) === runId ? { ...row, status: "completed", is_completed: true } : row)),
-            );
-            void loadRuns();
-            if (selectedRunId === runId) void loadDetail();
+            try {
+              setBusy(`end:${runId}`);
+              const r = await postAdminEndRun(t, { run_id: runId });
+              if (!r.ok) return Alert.alert("End run failed", r.error);
+              setWorkflowTabOverride("past");
+              setRuns((prev) =>
+                prev.map((row) => (s(row.id) === runId ? { ...row, status: "completed", is_completed: true } : row)),
+              );
+              void loadRuns();
+              if (selectedRunId === runId) void loadDetail();
+            } catch (e) {
+              console.warn("[admin pickup] action failed", e);
+              Alert.alert("Something went wrong", "Please try again.");
+            } finally {
+              setBusy(null);
+            }
           })();
         },
       },
@@ -773,29 +797,37 @@ export default function AdminPickupOpsScreen() {
     setTeamAssignLoading(true);
     setTeamAssignPlayers([]);
     setTeamAssignByUser({});
-    const d = await fetchAdminPickupSwitchDetail(t, runId, { region });
-    setTeamAssignLoading(false);
-    if (!d.ok) {
-      Alert.alert("Couldn’t load roster", d.error);
+    try {
+      const d = await fetchAdminPickupSwitchDetail(t, runId, { region });
+      if (!d.ok) {
+        Alert.alert("Couldn’t load roster", d.error);
+        setTeamAssignOpen(false);
+        setTeamAssignRunId(null);
+        return;
+      }
+      const list = Array.isArray(d.data.confirmed) ? d.data.confirmed : [];
+      const players: TeamAssignPlayer[] = list.map((row) => {
+        const o = row as { id?: unknown; full_name?: unknown; playing_position?: unknown };
+        const id = typeof o.id === "string" ? o.id : "";
+        const full_name = typeof o.full_name === "string" ? o.full_name : null;
+        const playing_position = typeof o.playing_position === "string" ? o.playing_position : null;
+        return { id, full_name, playing_position };
+      }).filter((p) => p.id);
+      setTeamAssignPlayers(players);
+      setTeamAssignTotal(2);
+      const initial: Record<string, PickupTeamLetter> = {};
+      players.forEach((p, idx) => {
+        initial[p.id] = idx % 2 === 0 ? "A" : "B";
+      });
+      setTeamAssignByUser(initial);
+    } catch (e) {
+      console.warn("[admin pickup] action failed", e);
+      Alert.alert("Something went wrong", "Please try again.");
       setTeamAssignOpen(false);
       setTeamAssignRunId(null);
-      return;
+    } finally {
+      setTeamAssignLoading(false);
     }
-    const list = Array.isArray(d.data.confirmed) ? d.data.confirmed : [];
-    const players: TeamAssignPlayer[] = list.map((row) => {
-      const o = row as { id?: unknown; full_name?: unknown; playing_position?: unknown };
-      const id = typeof o.id === "string" ? o.id : "";
-      const full_name = typeof o.full_name === "string" ? o.full_name : null;
-      const playing_position = typeof o.playing_position === "string" ? o.playing_position : null;
-      return { id, full_name, playing_position };
-    }).filter((p) => p.id);
-    setTeamAssignPlayers(players);
-    setTeamAssignTotal(2);
-    const initial: Record<string, PickupTeamLetter> = {};
-    players.forEach((p, idx) => {
-      initial[p.id] = idx % 2 === 0 ? "A" : "B";
-    });
-    setTeamAssignByUser(initial);
   }
 
   function resetTeamAssignState() {
@@ -853,19 +885,25 @@ export default function AdminPickupOpsScreen() {
           text: "Begin pickup",
           onPress: () => {
             void (async () => {
-              setBusy(`start:${runId}`);
-              const r = await postAdminPickupSwitch(t, { action: "start_run_now", run_id: runId });
-              setBusy(null);
-              if (!r.ok) return Alert.alert("Couldn’t start run", r.error);
-              const nowIso = new Date().toISOString();
-              setRuns((prev) =>
-                prev.map((row) =>
-                  s(row.id) === runId ? { ...row, status: "in_progress", locked_at: nowIso } : row,
-                ),
-              );
-              void loadRuns();
-              if (selectedRunId === runId) void loadDetail();
-              await openTeamAssignAfterStart(runId);
+              try {
+                setBusy(`start:${runId}`);
+                const r = await postAdminPickupSwitch(t, { action: "start_run_now", run_id: runId });
+                if (!r.ok) return Alert.alert("Couldn’t start run", r.error);
+                const nowIso = new Date().toISOString();
+                setRuns((prev) =>
+                  prev.map((row) =>
+                    s(row.id) === runId ? { ...row, status: "in_progress", locked_at: nowIso } : row,
+                  ),
+                );
+                void loadRuns();
+                if (selectedRunId === runId) void loadDetail();
+                await openTeamAssignAfterStart(runId);
+              } catch (e) {
+                console.warn("[admin pickup] action failed", e);
+                Alert.alert("Something went wrong", "Please try again.");
+              } finally {
+                setBusy(null);
+              }
             })();
           },
         },
@@ -928,13 +966,19 @@ export default function AdminPickupOpsScreen() {
         style: "destructive",
         onPress: () => {
           void (async () => {
-            const t = await requireToken();
-            if (!t) return;
-            setBusy(`avail-decline:${userId}`);
-            const r = await deleteAdminPickupRunAvailability(t, { run_id: selectedRunId, user_id: userId });
-            setBusy(null);
-            if (!r.ok) return Alert.alert("Remove failed", r.error);
-            void loadDetail();
+            try {
+              const t = await requireToken();
+              if (!t) return;
+              setBusy(`avail-decline:${userId}`);
+              const r = await deleteAdminPickupRunAvailability(t, { run_id: selectedRunId, user_id: userId });
+              if (!r.ok) return Alert.alert("Remove failed", r.error);
+              void loadDetail();
+            } catch (e) {
+              console.warn("[admin pickup] action failed", e);
+              Alert.alert("Something went wrong", "Please try again.");
+            } finally {
+              setBusy(null);
+            }
           })();
         },
       },
@@ -950,12 +994,18 @@ export default function AdminPickupOpsScreen() {
         text: "Run",
         onPress: () => {
           void (async () => {
-            setBusy("tierAlgo");
-            const r = await postAdminRunTierSuggestionAlgorithm(t);
-            setBusy(null);
-            if (!r.ok) return Alert.alert("Run failed", r.error);
-            Alert.alert("Done", `${r.data.inserted} suggestions created.`);
-            void loadTierBadge();
+            try {
+              setBusy("tierAlgo");
+              const r = await postAdminRunTierSuggestionAlgorithm(t);
+              if (!r.ok) return Alert.alert("Run failed", r.error);
+              Alert.alert("Done", `${r.data.inserted} suggestions created.`);
+              void loadTierBadge();
+            } catch (e) {
+              console.warn("[admin pickup] action failed", e);
+              Alert.alert("Something went wrong", "Please try again.");
+            } finally {
+              setBusy(null);
+            }
           })();
         },
       },
