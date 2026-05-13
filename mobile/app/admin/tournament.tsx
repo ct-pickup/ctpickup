@@ -97,6 +97,12 @@ export default function AdminTournamentScreen() {
   const [createRegion, setCreateRegion] = useState<ServiceRegionCode>("CT");
   const [createStartAt, setCreateStartAt] = useState("");
   const [createDeadline, setCreateDeadline] = useState("");
+  const [createVenue, setCreateVenue] = useState("");
+  const [createFormat, setCreateFormat] = useState("Group stage → knockout");
+  const [createEntryFee, setCreateEntryFee] = useState("250");
+  const [createMinRoster, setCreateMinRoster] = useState("5");
+
+  const [listTab, setListTab] = useState<"all" | "upcoming" | "active" | "past">("active");
 
   const [drafts, setDrafts] = useState<
     Record<string, { decision: Decision; notes: string; reviewed: boolean }>
@@ -118,6 +124,20 @@ export default function AdminTournamentScreen() {
 
   const hasLive = useMemo(() => tournaments.some((t) => t.is_active), [tournaments]);
 
+  const filteredTournaments = useMemo(() => {
+    const now = Date.now();
+    return tournaments.filter((row) => {
+      const startRaw = row.start_at ?? null;
+      const startMs = startRaw ? new Date(String(startRaw)).getTime() : NaN;
+      const createdMs = row.created_at ? new Date(String(row.created_at)).getTime() : 0;
+      const anchor = Number.isFinite(startMs) ? startMs : createdMs;
+      if (listTab === "active") return !!row.is_active;
+      if (listTab === "upcoming") return !row.is_active && anchor >= now;
+      if (listTab === "past") return !row.is_active && anchor > 0 && anchor < now;
+      return true;
+    });
+  }, [tournaments, listTab]);
+
   const activeTitle = activeTournament ? s(activeTournament.title) : "";
 
   async function setHub(tournamentId: string | null) {
@@ -132,6 +152,35 @@ export default function AdminTournamentScreen() {
       tournamentId ? "Live" : "Offline",
       tournamentId ? "This tournament is now live on the public tournament hub." : "No tournament is live on the hub.",
     );
+  }
+
+  async function approveCaptainClaim(captainId: string) {
+    if (!token) return Alert.alert("Not signed in", "Sign in again.");
+    setBusy(`ap:${captainId}`);
+    const r = await postAdminTournaments(token, { action: "approve_captain_claim", captain_id: captainId });
+    setBusy(null);
+    if (!r.ok) return Alert.alert("Approve failed", r.error);
+    reload();
+    Alert.alert("Approved", "Captain can complete Stripe checkout.");
+  }
+
+  async function rejectCaptainClaim(captainId: string) {
+    if (!token) return Alert.alert("Not signed in", "Sign in again.");
+    setBusy(`rj:${captainId}`);
+    const r = await postAdminTournaments(token, { action: "reject_captain_claim", captain_id: captainId });
+    setBusy(null);
+    if (!r.ok) return Alert.alert("Reject failed", r.error);
+    reload();
+  }
+
+  async function cancelTournamentById(tournamentId: string, title: string) {
+    if (!token) return Alert.alert("Not signed in", "Sign in again.");
+    setBusy(`cx:${tournamentId}`);
+    const r = await postAdminTournaments(token, { action: "cancel_tournament", tournament_id: tournamentId });
+    setBusy(null);
+    if (!r.ok) return Alert.alert("Cancel failed", r.error);
+    reload();
+    Alert.alert("Canceled", `Refunds processed where possible for “${title}”.`);
   }
 
   async function deleteTournament(id: string) {
@@ -181,11 +230,11 @@ export default function AdminTournamentScreen() {
     if (!Number.isFinite(target_teams) || target_teams < 1) return Alert.alert("Invalid", "Target teams must be ≥ 1.");
     if (!Number.isFinite(official_threshold) || official_threshold < 1)
       return Alert.alert("Invalid", "Official threshold must be ≥ 1.");
-    if (!Number.isFinite(max_teams) || max_teams < 1) return Alert.alert("Invalid", "Max teams must be ≥ 1.");
-    if (official_threshold > max_teams) return Alert.alert("Invalid", "Official threshold cannot exceed max teams.");
-    if (target_teams > max_teams) return Alert.alert("Invalid", "Target teams cannot exceed max teams.");
+    if (!Number.isFinite(max_teams) || max_teams < 8 || max_teams > 12) return Alert.alert("Invalid", "Max teams must be 8–12.");
 
     setBusy("create");
+    const entryCents = Number(createEntryFee) * 100;
+    const minR = Number(createMinRoster);
     const r = await postAdminTournaments(token, {
       action: "create",
       title,
@@ -196,6 +245,10 @@ export default function AdminTournamentScreen() {
       service_region: createRegion,
       start_at: createStartAt.trim() || undefined,
       registration_deadline: createDeadline.trim() || undefined,
+      venue: createVenue.trim() || undefined,
+      format_summary: createFormat.trim() || undefined,
+      entry_fee_cents: Number.isFinite(entryCents) && entryCents > 0 ? Math.floor(entryCents) : undefined,
+      min_roster_players: Number.isFinite(minR) && minR >= 1 ? Math.floor(minR) : undefined,
     });
     setBusy(null);
     if (!r.ok) return Alert.alert("Create failed", r.error);
@@ -206,6 +259,10 @@ export default function AdminTournamentScreen() {
     setCreateMax("12");
     setCreateStartAt("");
     setCreateDeadline("");
+    setCreateVenue("");
+    setCreateFormat("Group stage → knockout");
+    setCreateEntryFee("250");
+    setCreateMinRoster("5");
     reload();
     Alert.alert("Created", "Tournament draft saved. Make it live from the list when ready.");
   }
@@ -274,12 +331,31 @@ export default function AdminTournamentScreen() {
           {error ? <Text style={styles.err}>{error}</Text> : null}
           {panelError ? <Text style={styles.warn}>{panelError}</Text> : null}
 
+          <Text style={styles.segmentLabel}>TOURNAMENT LIST</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChips}>
+            {(["active", "upcoming", "past", "all"] as const).map((tab) => {
+              const active = listTab === tab;
+              return (
+                <Pressable
+                  key={tab}
+                  onPress={() => setListTab(tab)}
+                  style={({ pressed }) => [styles.filterChip, active && styles.filterChipActive, pressed && { opacity: 0.9 }]}
+                >
+                  <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                    {tab === "all" ? "All" : tab[0]!.toUpperCase() + tab.slice(1)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Tournaments ({tournaments.length})</Text>
-            {tournaments.map((t) => {
+            <Text style={styles.cardTitle}>Tournaments ({filteredTournaments.length})</Text>
+            {filteredTournaments.map((t) => {
               const isLive = !!t.is_active;
               const isHubBusy = busy === `hub:${t.id}`;
               const isDelBusy = busy === `del:${t.id}`;
+              const isCxBusy = busy === `cx:${t.id}`;
               return (
                 <View key={t.id} style={styles.roomRow}>
                   <View style={{ flex: 1, minWidth: 0 }}>
@@ -329,6 +405,27 @@ export default function AdminTournamentScreen() {
                       ]}
                     >
                       <Text style={styles.smallChipPrimaryText}>Bracket</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() =>
+                        Alert.alert("Cancel tournament?", "Paid captains will be refunded via Stripe when possible.", [
+                          { text: "Back", style: "cancel" },
+                          {
+                            text: "Cancel event",
+                            style: "destructive",
+                            onPress: () => void cancelTournamentById(t.id, t.title || "Tournament"),
+                          },
+                        ])
+                      }
+                      disabled={busy !== null}
+                      style={({ pressed }) => [
+                        styles.smallChip,
+                        styles.smallChipDanger,
+                        pressed && { opacity: 0.85 },
+                        busy !== null && styles.disabled,
+                      ]}
+                    >
+                      <Text style={styles.smallChipDangerText}>{isCxBusy ? "…" : "Cancel"}</Text>
                     </Pressable>
                     <Pressable
                       onPress={() =>
@@ -419,6 +516,44 @@ export default function AdminTournamentScreen() {
               keyboardType="number-pad"
               placeholderTextColor="rgba(255,255,255,0.35)"
             />
+            <Text style={styles.label}>Venue</Text>
+            <TextInput
+              style={styles.input}
+              value={createVenue}
+              onChangeText={setCreateVenue}
+              placeholder="e.g. Hudson Sports Complex"
+              placeholderTextColor="rgba(255,255,255,0.35)"
+            />
+            <Text style={styles.label}>Format</Text>
+            <TextInput
+              style={styles.input}
+              value={createFormat}
+              onChangeText={setCreateFormat}
+              placeholder="Group stage → knockout"
+              placeholderTextColor="rgba(255,255,255,0.35)"
+            />
+            <View style={styles.twoCol}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Entry fee ($)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={createEntryFee}
+                  onChangeText={setCreateEntryFee}
+                  keyboardType="decimal-pad"
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Min roster</Text>
+                <TextInput
+                  style={styles.input}
+                  value={createMinRoster}
+                  onChangeText={setCreateMinRoster}
+                  keyboardType="number-pad"
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                />
+              </View>
+            </View>
             <DateTimePicker label="Tournament date" value={createStartAt} onChange={setCreateStartAt} />
             <DateTimePicker label="Registration deadline" value={createDeadline} onChange={setCreateDeadline} />
             <Pressable
@@ -447,7 +582,39 @@ export default function AdminTournamentScreen() {
                     </View>
                     <Text style={styles.captainName}>{c.captain_name || "—"}</Text>
                     <Text style={styles.captainTeam}>{c.team_name || "—"}</Text>
+                    <Text style={styles.captainMeta}>
+                      IG {c.captain_instagram || "—"} · Roster {typeof c.roster_size === "number" ? c.roster_size : 0} ·
+                      Paid headcount {typeof c.players_paid === "number" ? c.players_paid : "—"}
+                    </Text>
                     <Text style={styles.captainMeta}>Submitted {fmtDate(c.claim_submitted_at)}</Text>
+                    {c.status === "claim_submitted" && !c.captain_verified ? (
+                      <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+                        <Pressable
+                          onPress={() =>
+                            Alert.alert("Approve captain?", "They will be able to complete Stripe checkout.", [
+                              { text: "Back", style: "cancel" },
+                              { text: "Approve", onPress: () => void approveCaptainClaim(c.id) },
+                            ])
+                          }
+                          disabled={busy !== null}
+                          style={[styles.smallChip, styles.smallChipPrimary, busy !== null && styles.disabled]}
+                        >
+                          <Text style={styles.smallChipPrimaryText}>{busy === `ap:${c.id}` ? "…" : "Approve pay"}</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() =>
+                            Alert.alert("Reject claim?", "They will not be able to pay until they submit again.", [
+                              { text: "Back", style: "cancel" },
+                              { text: "Reject", style: "destructive", onPress: () => void rejectCaptainClaim(c.id) },
+                            ])
+                          }
+                          disabled={busy !== null}
+                          style={[styles.smallChip, styles.smallChipDanger, busy !== null && styles.disabled]}
+                        >
+                          <Text style={styles.smallChipDangerText}>{busy === `rj:${c.id}` ? "…" : "Reject"}</Text>
+                        </Pressable>
+                      </View>
+                    ) : null}
                   </View>
                 </View>
               ))

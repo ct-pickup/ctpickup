@@ -29,6 +29,8 @@ type PrelimEntry = { fullName: string; instagram: string };
 type Props = {
   visible: boolean;
   accessToken: string | null;
+  /** When the profile has no nearest venue, server uses this hub code (CT/NY/NJ/MD). */
+  hubRegionCode?: string;
   tournamentStartAt: string | null;
   onClose: () => void;
   onClaimRecorded?: () => void;
@@ -47,6 +49,9 @@ function describeClaimError(status: number, error: string, fallback: string): { 
       body: "That Instagram is already on an active team for this tournament.",
     };
   }
+  if (status === 403 && lower.includes("account_not_approved")) {
+    return { title: "Account not approved", body: "Your account must be approved before you can claim a team." };
+  }
   if (status === 403 && lower.includes("waiver_required")) {
     return { title: "Accept the waiver first", body: "You must accept the liability waiver before claiming a team." };
   }
@@ -59,6 +64,7 @@ function describeClaimError(status: number, error: string, fallback: string): { 
 export function CaptainClaimModal({
   visible,
   accessToken,
+  hubRegionCode,
   tournamentStartAt,
   onClose,
   onClaimRecorded,
@@ -180,6 +186,7 @@ export function CaptainClaimModal({
         prelimRoster: prelim
           .map((p) => ({ fullName: p.fullName.trim(), instagram: p.instagram.trim() }))
           .filter((p) => p.fullName.length > 0 || p.instagram.length > 0),
+        service_region: hubRegionCode,
       });
       if (!r.ok) {
         const j = (r.json ?? {}) as Record<string, unknown>;

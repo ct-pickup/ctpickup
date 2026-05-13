@@ -97,8 +97,8 @@ export async function createTournament(formData: FormData) {
   if (!Number.isFinite(officialThreshold) || officialThreshold < 1) {
     redirect("/admin/tournament?e=" + encodeURIComponent("Official threshold must be at least 1."));
   }
-  if (!Number.isFinite(maxTeams) || maxTeams < 1) {
-    redirect("/admin/tournament?e=" + encodeURIComponent("Max teams must be at least 1."));
+  if (!Number.isFinite(maxTeams) || maxTeams < 8 || maxTeams > 12) {
+    redirect("/admin/tournament?e=" + encodeURIComponent("Maximum teams must be between 8 and 12."));
   }
   if (officialThreshold > maxTeams) {
     redirect(
@@ -109,15 +109,33 @@ export async function createTournament(formData: FormData) {
     redirect("/admin/tournament?e=" + encodeURIComponent("Target teams cannot exceed max teams."));
   }
 
-  const svc = supabaseService();
-  const { error } = await svc.from("tournaments").insert({
+  const regionRaw = String(formData.get("service_region") || "").trim().toUpperCase();
+  const HUB = new Set(["NY", "CT", "NJ", "MD"]);
+  const service_region = regionRaw && HUB.has(regionRaw) ? regionRaw : null;
+
+  const venue = String(formData.get("venue") || "").trim() || null;
+  const start_at = String(formData.get("start_at") || "").trim() || null;
+  const format_summary = String(formData.get("format_summary") || "").trim() || null;
+  const entry_fee_cents = Number(formData.get("entry_fee_cents"));
+  const min_roster_players = Number(formData.get("min_roster_players"));
+
+  const row: Record<string, unknown> = {
     title,
     slug,
     target_teams: targetTeams,
     official_threshold: officialThreshold,
     max_teams: maxTeams,
     is_active: false,
-  });
+  };
+  if (service_region) row.service_region = service_region;
+  if (venue) row.venue = venue;
+  if (start_at) row.start_at = start_at;
+  if (format_summary) row.format_summary = format_summary;
+  if (Number.isFinite(entry_fee_cents) && entry_fee_cents > 0) row.entry_fee_cents = Math.floor(entry_fee_cents);
+  if (Number.isFinite(min_roster_players) && min_roster_players >= 1) row.min_roster_players = Math.floor(min_roster_players);
+
+  const svc = supabaseService();
+  const { error } = await svc.from("tournaments").insert(row);
 
   if (error) redirect(`/admin/tournament?e=${encodeURIComponent(error.message)}`);
   revalidatePath("/admin/tournament");

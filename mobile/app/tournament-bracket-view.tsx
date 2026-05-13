@@ -55,6 +55,7 @@ export default function TournamentBracketViewScreen() {
   const token = session?.access_token;
 
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [standings, setStandings] = useState<GroupMember[]>([]);
@@ -70,19 +71,45 @@ export default function TournamentBracketViewScreen() {
 
   const load = useCallback(async () => {
     if (!token || !tournamentId) return;
-    if (!siteOrigin()) return;
+    if (!siteOrigin()) {
+      setLoadError("Set EXPO_PUBLIC_SITE_URL in mobile/.env");
+      return;
+    }
     setLoading(true);
+    setLoadError(null);
     try {
       const r = await fetchTournamentBracketPlayer(token, tournamentId);
-      const parsed = parseBracket(r.json);
-      if (parsed) {
-        setTeams(parsed.teams);
-        const map: Record<string, Team> = {};
-        for (const t of parsed.teams) map[t.id] = t;
-        setTeamMap(map);
-        setMatches(parsed.matches);
-        setStandings(parsed.standings);
+      if (!r.ok) {
+        const j = r.json && typeof r.json === "object" ? (r.json as Record<string, unknown>) : null;
+        const msg = typeof j?.error === "string" ? j.error : null;
+        if (r.status === 403) {
+          setLoadError(msg || "This bracket is not available for your region.");
+        } else if (r.status === 401) {
+          setLoadError(msg || "Sign in again to view the bracket.");
+        } else {
+          setLoadError(msg || "Could not load bracket.");
+        }
+        setTeams([]);
+        setMatches([]);
+        setStandings([]);
+        setTeamMap({});
+        return;
       }
+      const parsed = parseBracket(r.json);
+      if (!parsed) {
+        setLoadError("Invalid response from server.");
+        setTeams([]);
+        setMatches([]);
+        setStandings([]);
+        setTeamMap({});
+        return;
+      }
+      setTeams(parsed.teams);
+      const map: Record<string, Team> = {};
+      for (const t of parsed.teams) map[t.id] = t;
+      setTeamMap(map);
+      setMatches(parsed.matches);
+      setStandings(parsed.standings);
     } finally {
       setLoading(false);
     }
@@ -153,6 +180,7 @@ export default function TournamentBracketViewScreen() {
 
       <Text style={styles.title}>Bracket</Text>
       <Text style={styles.sub}>{teams.length} confirmed teams</Text>
+      {loadError ? <Text style={styles.err}>{loadError}</Text> : null}
 
       {groupNames.map((gName) => {
         const gStandings = standings
@@ -279,6 +307,7 @@ const styles = StyleSheet.create({
   title: { color: "#fff", fontSize: 24, fontWeight: "800" },
   sub: { color: "rgba(255,255,255,0.45)", fontSize: 13, marginTop: 4, marginBottom: 16 },
   muted: { color: "rgba(255,255,255,0.5)", fontSize: 14, lineHeight: 20 },
+  err: { color: "#f87171", fontSize: 14, lineHeight: 20, marginBottom: 12 },
   section: { marginBottom: 20 },
   sectionTitle: { color: LIME, fontSize: 12, fontWeight: "800", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 },
   stageLabel: { color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: "700", textTransform: "uppercase", marginTop: 10, marginBottom: 6 },

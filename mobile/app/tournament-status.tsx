@@ -1,3 +1,4 @@
+import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { FieldTournamentPayload, parseFieldPayload } from "@/hooks/useFieldTournament";
 import { fetchTournamentPublic } from "@/lib/siteApi";
@@ -24,6 +25,7 @@ function headlineFor(data: FieldTournamentPayload): string {
 }
 
 export default function TournamentStatusScreen() {
+  const { session } = useAuth();
   const { region, ready: regionReady } = useSelectedRegion();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -38,7 +40,7 @@ export default function TournamentStatusScreen() {
     }
     if (!regionReady) return;
     setError(null);
-    const r = await fetchTournamentPublic({ region });
+    const r = await fetchTournamentPublic({ region, accessToken: session?.access_token ?? null });
     if (!r.ok) {
       setError("Could not load tournament status.");
       setPayload(null);
@@ -51,7 +53,7 @@ export default function TournamentStatusScreen() {
         setPayload(parsed);
       }
     }
-  }, [region, regionReady]);
+  }, [region, regionReady, session?.access_token]);
 
   useEffect(() => {
     let cancelled = false;

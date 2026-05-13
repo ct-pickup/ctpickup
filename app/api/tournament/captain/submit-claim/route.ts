@@ -59,10 +59,8 @@ export async function POST(req: Request) {
   if (tSelErr) return NextResponse.json({ error: tSelErr.message }, { status: 500 });
   if (!t) return NextResponse.json({ error: "no_active_tournament" }, { status: 404 });
 
-  const startAtMs =
-    typeof (t as { start_at?: unknown }).start_at === "string"
-      ? new Date(String((t as { start_at: string }).start_at)).getTime()
-      : NaN;
+  const startRaw = t.start_at;
+  const startAtMs = typeof startRaw === "string" ? new Date(startRaw).getTime() : NaN;
   if (Number.isFinite(startAtMs)) {
     const cutoffMs = startAtMs - 24 * 60 * 60 * 1000;
     if (cutoffMs < nowMs) {
@@ -73,7 +71,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const maxTeams = Number((t as { max_teams?: unknown }).max_teams ?? 0);
+  const maxTeams = typeof t.max_teams === "number" ? t.max_teams : Number(t.max_teams ?? 0);
   const { data: allCaps } = await admin.from("tournament_captains").select("status").eq("tournament_id", t.id);
 
   const claimed = (allCaps || []).filter((c) => isActiveCaptainClaimStatus(c.status)).length;
@@ -138,21 +136,25 @@ export async function POST(req: Request) {
 
   await admin.from("tournament_roster_prelim").delete().eq("captain_id", cap.id);
 
-  const cleanPrelim = prelim
-    .map((p: { fullName?: unknown; instagram?: unknown }) => ({
-      full_name: String(p?.fullName || "").trim(),
-      instagram: normIg(String(p?.instagram || "")),
-    }))
-    .filter((p) => p.full_name.length >= 2 && p.instagram.length >= 2)
+  type PrelimInsert = { full_name: string; instagram: string };
+  const cleanPrelim: PrelimInsert[] = prelim
+    .map((raw: unknown) => {
+      const p = raw as { fullName?: unknown; instagram?: unknown };
+      return {
+        full_name: String(p?.fullName || "").trim(),
+        instagram: normIg(String(p?.instagram || "")),
+      };
+    })
+    .filter((row: PrelimInsert) => row.full_name.length >= 2 && row.instagram.length >= 2)
     .slice(0, 12);
 
   if (cleanPrelim.length) {
     await admin.from("tournament_roster_prelim").insert(
-      cleanPrelim.map((p) => ({
+      cleanPrelim.map((row: PrelimInsert) => ({
         tournament_id: t.id,
         captain_id: cap.id,
-        full_name: p.full_name,
-        instagram: p.instagram,
+        full_name: row.full_name,
+        instagram: row.instagram,
       })),
     );
   }

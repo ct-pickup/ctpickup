@@ -17,8 +17,9 @@ export async function GET(req: Request) {
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const anon = getSupabaseAnon();
-  const { data: u, error: uErr } = await anon.auth.getUser(token);
-  if (uErr || !u.data.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { data: authData, error: uErr } = await anon.auth.getUser(token);
+  const authedUser = authData?.user;
+  if (uErr || !authedUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
   const tournament_id = searchParams.get("tournament_id");
@@ -26,7 +27,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Missing tournament_id query parameter" }, { status: 400 });
   }
 
-  const allowed = await userMayViewOutdoorTournamentBracket(admin, u.data.user.id, tournament_id);
+  const allowed = await userMayViewOutdoorTournamentBracket(admin, authedUser.id, tournament_id);
   if (!allowed) {
     return NextResponse.json({ error: "This bracket is not available for your region." }, { status: 403 });
   }

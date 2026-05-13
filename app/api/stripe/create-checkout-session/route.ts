@@ -47,10 +47,20 @@ export async function POST(req: Request) {
 
     if (capListErr) return NextResponse.json({ error: capListErr.message }, { status: 500 });
 
-    const row = (capRows || []).find((r: { tournaments?: { is_active?: boolean } | null }) => r.tournaments?.is_active);
+    const row = (capRows || []).find((r: { tournaments?: unknown }) => {
+      const raw = r.tournaments as unknown;
+      const tdata = (Array.isArray(raw) ? raw[0] : raw) as { is_active?: boolean } | null | undefined;
+      return !!tdata?.is_active;
+    });
     if (!row) return NextResponse.json({ error: "no_captain_claim" }, { status: 409 });
 
-    const t = row.tournaments as { id: string; is_active: boolean; title: string | null; entry_fee_cents?: number };
+    const rawT = row.tournaments as unknown;
+    const t = (Array.isArray(rawT) ? rawT[0] : rawT) as {
+      id: string;
+      is_active: boolean;
+      title: string | null;
+      entry_fee_cents?: number;
+    };
     const captain = row as Record<string, unknown> & { id: string; status: string; captain_verified?: boolean };
 
     const cap = await expireIfOverdue(captain, admin);

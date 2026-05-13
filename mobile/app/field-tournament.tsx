@@ -41,7 +41,18 @@ type CaptainClaimSnapshot = {
   id: string | null;
   status: string;
   payment_due_at: string | null;
+  captain_verified?: boolean;
 };
+
+function captainCanManageRoster(status: string) {
+  return (
+    status === "payment_received" ||
+    status === "roster_pending" ||
+    status === "verification_in_progress" ||
+    status === "flagged_for_review" ||
+    status === "confirmed"
+  );
+}
 
 type RosterRow = {
   id: string;
@@ -86,6 +97,10 @@ function alertCaptainPayError(errMsg: string) {
     Alert.alert("", "Your payment is already confirmed");
   } else if (lower.includes("waiver_required")) {
     Alert.alert("", "Accept the waiver before paying");
+  } else if (lower.includes("captain_not_verified")) {
+    Alert.alert("", "Staff must approve your captain claim before you can pay.");
+  } else if (lower.includes("account_not_approved")) {
+    Alert.alert("", "Your account must be approved before you can claim a team.");
   } else if (lower.includes("claim_expired")) {
     Alert.alert("", "Your claim expired submit a new one");
   } else {
@@ -112,6 +127,7 @@ export default function FieldTournamentDetailScreen() {
   const [inviteSearchBusy, setInviteSearchBusy] = useState(false);
   const [inviteSendBusy, setInviteSendBusy] = useState(false);
   const [rosterBusyId, setRosterBusyId] = useState<string | null>(null);
+  const [profileApproved, setProfileApproved] = useState<boolean | null>(null);
 
   async function handleCaptainPay() {
     const token = session?.access_token;
@@ -179,6 +195,26 @@ export default function FieldTournamentDetailScreen() {
   const userId = session?.user?.id ?? null;
 
   useEffect(() => {
+    if (!supabase || !userId) {
+      setProfileApproved(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await supabase.from("profiles").select("approved").eq("id", userId).maybeSingle();
+      if (cancelled) return;
+      if (error || !data) {
+        setProfileApproved(null);
+        return;
+      }
+      setProfileApproved(!!(data as { approved?: boolean }).approved);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, userId]);
+
+  useEffect(() => {
     if (!supabase || !tournamentId || !userId) {
       setCaptainClaim(null);
       setCaptainClaimLoading(false);
@@ -189,7 +225,7 @@ export default function FieldTournamentDetailScreen() {
     void (async () => {
       const { data, error: qErr } = await supabase
         .from("tournament_captains")
-        .select("id, status, payment_due_at")
+        .select("id, status, payment_due_at, captain_verified")
         .eq("tournament_id", tournamentId)
         .eq("user_id", userId)
         .maybeSingle();
@@ -213,6 +249,7 @@ export default function FieldTournamentDetailScreen() {
         id: typeof data.id === "string" ? data.id : data.id != null ? String(data.id) : null,
         status: String(data.status ?? ""),
         payment_due_at: due,
+        captain_verified: !!(data as { captain_verified?: boolean }).captain_verified,
       });
     })();
     return () => {
@@ -236,14 +273,18 @@ export default function FieldTournamentDetailScreen() {
 
   const paymentDueMs =
     captainClaim?.payment_due_at != null ? new Date(captainClaim.payment_due_at).getTime() : NaN;
+  const staffApprovedForPay = !!captainClaim?.captain_verified;
+  const payFlowStatuses = new Set(["claim_submitted", "payment_pending"]);
+  const paymentWindowExpired =
+    captainClaim?.status === "payment_pending" && Number.isFinite(paymentDueMs) && paymentDueMs <= Date.now();
   const paymentWindowOpen =
-    captainClaim?.status === "payment_pending" &&
-    Number.isFinite(paymentDueMs) &&
-    paymentDueMs > Date.now();
-
-  const awaitingStaff =
+    staffApprovedForPay &&
     !!captainClaim &&
-    (captainClaim.status === "claim_submitted" || captainClaim.status === "captain_not_verified");
+    payFlowStatuses.has(captainClaim.status) &&
+    captainClaim.status !== "confirmed" &&
+    !paymentWindowExpired;
+
+  const awaitingStaff = !!captainClaim && captainClaim.status === "claim_submitted" && !captainClaim.captain_verified;
 
   const showProcessing =
     !!captainClaim && PROCESSING_STATUSES.has(captainClaim.status);
@@ -257,13 +298,16 @@ export default function FieldTournamentDetailScreen() {
   /** Avoid flashing "Claim" before the Supabase captain row loads for signed-in users. */
   const sessionClaimReady = !userId || !captainClaimLoading;
 
+  const claimAllowedForAccount = profileApproved !== false;
   const showClaimButton =
+    claimAllowedForAccount &&
     !claimDisabled &&
     !claimsClosed &&
     sessionClaimReady &&
     (!session ||
       !captainClaim ||
       captainClaim.status === "released_expired" ||
+      captainClaim.status === "claim_rejected" ||
       (captainClaim.status === "payment_pending" && !paymentWindowOpen));
 
   function openClaimModal() {
@@ -276,7 +320,7 @@ export default function FieldTournamentDetailScreen() {
   }
 
   const captainRecordId =
-    captainClaim?.status === "confirmed" && captainClaim.id ? captainClaim.id : null;
+    captainClaim?.id && captainCanManageRoster(captainClaim.status) ? captainClaim.id : null;
 
   const loadRoster = useCallback(async () => {
     const tok = session?.access_token;
@@ -447,6 +491,45 @@ export default function FieldTournamentDetailScreen() {
 
       <FieldTournamentCard loading={loading} error={error} payload={payload} style={{ marginTop: 8 }} />
 
+      {t ? (
+        <View style={styles.detailCard}>
+          {t.start_at ? (
+            <Text style={styles.detailLine}>
+              <Text style={styles.detailLabel}>When </Text>
+              {formatPaymentDueAt(typeof t.start_at === "string" ? t.start_at : String(t.start_at))}
+            </Text>
+          ) : null}
+          {t.venue ? (
+            <Text style={styles.detailLine}>
+              <Text style={styles.detailLabel}>Venue </Text>
+              {t.venue}
+            </Text>
+          ) : null}
+          {t.format_summary ? (
+            <Text style={styles.detailLine}>
+              <Text style={styles.detailLabel}>Format </Text>
+              {t.format_summary}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      {payload?.teams && payload.teams.length > 0 ? (
+        <View style={styles.teamsSection}>
+          <Text style={styles.sectionTitle}>Confirmed teams</Text>
+          {payload.teams.map((tm) => (
+            <View key={tm.id} style={styles.teamRow}>
+              <Text style={styles.teamName} numberOfLines={1}>
+                {tm.team_name || "Team"}
+              </Text>
+              <Text style={styles.teamCap} numberOfLines={1}>
+                {tm.captain_name || "Captain"}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       <Pressable
         style={({ pressed }) => [styles.statusLinkRow, pressed && { opacity: 0.9 }]}
         onPress={() => (router.push as (href: string) => void)("/tournament-status")}
@@ -487,7 +570,7 @@ export default function FieldTournamentDetailScreen() {
             <ActivityIndicator style={{ marginTop: 14 }} color={LIME} />
           ) : null}
 
-          {session && sessionClaimReady && captainClaim?.status !== "confirmed" && tournamentId ? (
+          {session && sessionClaimReady && !captainCanManageRoster(captainClaim?.status ?? "") && tournamentId ? (
             <Pressable
               style={({ pressed }) => [styles.findTeamBtn, pressed && { opacity: 0.9 }]}
               onPress={() => (router.push as (href: string) => void)("/tournament-join")}
@@ -499,13 +582,13 @@ export default function FieldTournamentDetailScreen() {
             </Pressable>
           ) : null}
 
-          {session && captainClaim?.status === "confirmed" ? (
+          {session && captainClaim && captainCanManageRoster(captainClaim.status) ? (
             <View style={styles.confirmedBanner}>
-              <Text style={styles.confirmedBannerText}>Your team is confirmed</Text>
+              <Text style={styles.confirmedBannerText}>Your captain spot is paid — manage your roster</Text>
             </View>
           ) : null}
 
-          {session && captainClaim?.status === "confirmed" && captainRecordId ? (
+          {session && captainClaim && captainCanManageRoster(captainClaim.status) && captainRecordId ? (
             <View style={styles.myTeamSection}>
               <Text style={styles.sectionTitle}>My Team</Text>
               <Text style={styles.sectionSub}>Roster invites and join requests for your confirmed squad.</Text>
@@ -600,14 +683,18 @@ export default function FieldTournamentDetailScreen() {
             </View>
           ) : null}
 
-          {session && paymentWindowOpen && captainClaim?.payment_due_at ? (
+          {session && paymentWindowOpen ? (
             <View style={styles.claimStatusCard}>
               <Text style={styles.claimStatusCardText}>
-                You have an active captain claim. Complete your payment before the deadline.
+                {captainClaim?.status === "payment_pending"
+                  ? "Complete your captain payment before the deadline."
+                  : "Staff approved your claim. Complete your captain payment to lock in your spot."}
               </Text>
-              <Text style={styles.paymentDueLine}>
-                Payment due by {formatPaymentDueAt(captainClaim.payment_due_at)}
-              </Text>
+              {captainClaim?.status === "payment_pending" && captainClaim?.payment_due_at ? (
+                <Text style={styles.paymentDueLine}>
+                  Payment due by {formatPaymentDueAt(captainClaim.payment_due_at)}
+                </Text>
+              ) : null}
               <Pressable
                 style={[styles.captainPayBtnInCard, payBusy && styles.captainPayBtnDisabled]}
                 disabled={payBusy}
@@ -618,7 +705,12 @@ export default function FieldTournamentDetailScreen() {
                 {payBusy ? (
                   <ActivityIndicator color="#111" />
                 ) : (
-                  <Text style={styles.captainPayBtnTextDark}>Pay captain fee $250</Text>
+                  <Text style={styles.captainPayBtnTextDark}>
+                    Pay captain fee $
+                    {typeof t?.entry_fee_cents === "number" && t.entry_fee_cents > 0
+                      ? Math.round(t.entry_fee_cents / 100)
+                      : 250}
+                  </Text>
                 )}
               </Pressable>
             </View>
@@ -647,6 +739,8 @@ export default function FieldTournamentDetailScreen() {
             <Text style={styles.claimSubText}>Captain slots are full.</Text>
           ) : claimsClosed ? (
             <Text style={styles.claimSubText}>Claims closed — free-for-all roster</Text>
+          ) : profileApproved === false ? (
+            <Text style={styles.claimSubText}>Your account must be approved before you can claim a team.</Text>
           ) : !session ? (
             <Text style={styles.claimSubText}>Sign in to submit a captain claim.</Text>
           ) : null}
@@ -663,6 +757,7 @@ export default function FieldTournamentDetailScreen() {
       <CaptainClaimModal
         visible={claimModalOpen}
         accessToken={session?.access_token ?? null}
+        hubRegionCode={region}
         tournamentStartAt={typeof (t as any)?.start_at === "string" ? (t as any).start_at : null}
         payBusy={payBusy}
         onClose={() => setClaimModalOpen(false)}
@@ -1024,4 +1119,23 @@ const styles = StyleSheet.create({
   inviteSendBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
   inviteCancelBtn: { marginTop: 12, paddingVertical: 12, alignItems: "center" },
   inviteCancelBtnText: { color: "rgba(255,255,255,0.45)", fontWeight: "600", fontSize: 14 },
+  detailCard: {
+    marginTop: 14,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    gap: 8,
+  },
+  detailLine: { fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 20 },
+  detailLabel: { fontWeight: "800", color: LIME },
+  teamsSection: { marginTop: 18 },
+  teamRow: {
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  teamName: { fontSize: 15, fontWeight: "700", color: "#fff" },
+  teamCap: { marginTop: 4, fontSize: 13, color: "rgba(255,255,255,0.5)" },
 });

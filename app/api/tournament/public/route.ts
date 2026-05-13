@@ -99,10 +99,7 @@ export async function GET(req: Request) {
     const official = paidOrReadyTeams >= officialThreshold;
     const full = paidOrReadyTeams >= maxTeams;
 
-    const staffAnnouncement =
-      "staff_announcement" in t && typeof (t as { staff_announcement?: unknown }).staff_announcement === "string"
-        ? (t as { staff_announcement: string }).staff_announcement
-        : null;
+    const staffAnnouncement = typeof t.staff_announcement === "string" ? t.staff_announcement : null;
 
     const teams = (captains || [])
       .filter((c) => isPaidOrReadyCaptainStatus(c.status))
@@ -113,10 +110,7 @@ export async function GET(req: Request) {
       }))
       .sort((a, b) => a.team_name.localeCompare(b.team_name));
 
-    const entryFee =
-      "entry_fee_cents" in t && typeof (t as { entry_fee_cents?: unknown }).entry_fee_cents === "number"
-        ? Number((t as { entry_fee_cents: number }).entry_fee_cents)
-        : 25000;
+    const entryFee = typeof t.entry_fee_cents === "number" ? t.entry_fee_cents : 25000;
 
     return NextResponse.json({
       tournament: {
@@ -133,10 +127,7 @@ export async function GET(req: Request) {
           t.service_region != null && String(t.service_region).trim()
             ? String(t.service_region).trim().toUpperCase()
             : null,
-        format_summary:
-          typeof (t as { format_summary?: unknown }).format_summary === "string"
-            ? String((t as { format_summary: string }).format_summary).trim() || null
-            : null,
+        format_summary: typeof t.format_summary === "string" ? String(t.format_summary).trim() || null : null,
         entry_fee_cents: entryFee,
       },
       claimedTeams,

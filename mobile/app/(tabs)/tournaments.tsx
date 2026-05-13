@@ -75,7 +75,7 @@ export default function TournamentsScreen() {
             accessibilityLabel="Live bracket"
           >
             <FontAwesome name="sitemap" size={16} color="#111" style={{ marginRight: 8 }} />
-            <Text style={styles.bracketBtnText}>Live bracket</Text>
+            <Text style={styles.bracketBtnText}>View bracket</Text>
           </Pressable>
         ) : null}
       </>

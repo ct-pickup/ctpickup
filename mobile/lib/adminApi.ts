@@ -518,6 +518,9 @@ export type AdminOutdoorTournament = {
   official_threshold: number | null;
   max_teams: number | null;
   created_at?: string | null;
+  start_at?: string | null;
+  venue?: string | null;
+  canceled_at?: string | null;
 };
 
 export type TournamentCaptainRow = {
@@ -525,7 +528,14 @@ export type TournamentCaptainRow = {
   status: string;
   captain_name: string | null;
   team_name: string | null;
+  captain_instagram?: string | null;
+  captain_verified?: boolean | null;
   claim_submitted_at: string | null;
+  user_id?: string;
+  expected_players?: number | null;
+  players_paid?: number | null;
+  payment_received_at?: string | null;
+  roster_size?: number;
 };
 
 export type TourneySubmissionRow = {

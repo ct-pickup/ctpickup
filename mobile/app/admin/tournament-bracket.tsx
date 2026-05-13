@@ -305,7 +305,7 @@ export default function TournamentBracketScreen() {
                     <TextInput
                       style={[styles.goalInput, { flex: 2 }]}
                       value={g.scorer_name}
-                      onChangeText={v => setGoals(gs => gs.map((x, j) => j === i ? { ...x, scorer_ne: v } : x))}
+                      onChangeText={(v) => setGoals((gs) => gs.map((x, j) => (j === i ? { ...x, scorer_name: v } : x)))}
                       placeholder="Player name"
                       placeholderTextColor="rgba(255,255,255,0.3)"
                     />

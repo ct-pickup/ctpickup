@@ -169,6 +169,7 @@ export async function postPickupPay(
 /** Active in-person (field) tournament hub — same payload as the website tournament page. */
 export async function fetchTournamentPublic(opts?: {
   region?: string;
+  accessToken?: string | null;
 }): Promise<{ ok: boolean; status: number; json: unknown }> {
   const origin = siteOrigin();
   if (!origin) {
@@ -176,8 +177,10 @@ export async function fetchTournamentPublic(opts?: {
   }
   const u = new URL(`${origin}/api/tournament/public`);
   if (opts?.region) u.searchParams.set("region", opts.region);
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (opts?.accessToken) headers.Authorization = `Bearer ${opts.accessToken}`;
   const r = await fetch(u.toString(), {
-    headers: { Accept: "application/json" },
+    headers,
     cache: "no-store",
   });
   const json = await r.json().catch(() => null);
@@ -216,6 +219,8 @@ export type CaptainClaimSubmission = {
   teamName: string;
   expectedPlayers: number;
   prelimRoster: { fullName: string; instagram: string }[];
+  /** Fallback hub when profile has no `nearest_venue` (NY / CT / NJ / MD). */
+  service_region?: string;
 };
 
 /** Submits a captain's tournament claim (rules consent must already be on file server-side). */
