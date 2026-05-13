@@ -140,12 +140,21 @@ async function fulfillTournament(
 
   await syncCaptainPlayersPaid(admin, pay.captain_id);
 
-  const { data: capRow } = await admin.from("tournament_captains").select("user_id").eq("id", pay.captain_id).maybeSingle();
+  const { data: capRow } = await admin
+    .from("tournament_captains")
+    .select("user_id,tournament_id")
+    .eq("id", pay.captain_id)
+    .maybeSingle();
   if (capRow?.user_id) {
     await sendPushToUsers(admin, [String(capRow.user_id)], {
       title: "Payment received",
       body: "Your team spot is confirmed. Build your roster in the Tournaments tab.",
-      data: { kind: "tournament_captain_payment_confirmed", captain_id: pay.captain_id },
+      data: {
+        kind: "tournament_captain_payment_confirmed",
+        captain_id: pay.captain_id,
+        tournament_id:
+          capRow.tournament_id != null ? String(capRow.tournament_id) : "",
+      },
     });
   }
 }

@@ -33,6 +33,9 @@ const ROUTABLE_NOTIFICATION_KINDS = new Set([
   "pickup_invite",
   "pickup_likely_on",
   "pickup_confirmed",
+  "pickup_finalized",
+  "pickup_canceled",
+  "pickup_promoted",
   "pickup_waitlist_offer",
   "pickup_result",
   "pickup_award_player",
@@ -42,14 +45,28 @@ const ROUTABLE_NOTIFICATION_KINDS = new Set([
   "pickup_award_attacker",
   "admin_availability",
   "chat_message",
+  "announcement",
   "tournament_invite",
   "roster_invite",
+  "tournament_live",
+  "tournament_canceled",
+  "tournament_bracket_generated",
+  "tournament_roster_invite",
+  "tournament_roster_response",
+  "tournament_join_request",
+  "tournament_join_decision",
+  "tournament_starts_soon",
+  "tournament_captain_payment_confirmed",
+  "tournament_captain_claim_admin",
+  "tier_suggestions_ready",
 ]);
 
 const PICKUP_RUN_DEEP_LINK_KINDS = new Set([
   "pickup_invite",
   "pickup_likely_on",
   "pickup_confirmed",
+  "pickup_finalized",
+  "pickup_promoted",
   "pickup_waitlist_offer",
   "pickup_result",
   "pickup_award_player",
@@ -66,6 +83,13 @@ function pickupRunIdFromNotificationData(data: Record<string, unknown>): string 
   return "";
 }
 
+function tournamentIdFromNotificationData(data: Record<string, unknown>): string {
+  const raw = data?.tournament_id;
+  if (typeof raw === "string" && raw.trim()) return raw.trim();
+  if (raw != null) return String(raw).trim();
+  return "";
+}
+
 function schedulePostLoadNavigation(action: () => void) {
   InteractionManager.runAfterInteractions(() => {
     setTimeout(action, NOTIFICATION_NAV_DELAY_MS);
@@ -76,15 +100,34 @@ function hapticForForegroundPushKind(kind: string) {
   if (kind === "pickup_invite") void hapticKick();
   else if (
     kind === "pickup_confirmed" ||
+    kind === "pickup_finalized" ||
     kind === "pickup_likely_on" ||
     kind === "pickup_result" ||
     kind.startsWith("pickup_award_")
   )
     void hapticGoal();
-  else if (kind === "pickup_waitlist_offer") void hapticKick();
+  else if (kind === "pickup_waitlist_offer" || kind === "pickup_promoted") void hapticKick();
+  else if (kind === "pickup_canceled") void hapticTap();
   else if (kind === "admin_availability") void hapticTap();
-  else if (kind === "chat_message") void hapticTap();
-  else if (kind === "tournament_invite" || kind === "roster_invite") void hapticKick();
+  else if (kind === "chat_message" || kind === "announcement") void hapticTap();
+  else if (
+    kind === "tournament_invite" ||
+    kind === "roster_invite" ||
+    kind === "tournament_live" ||
+    kind === "tournament_roster_invite"
+  )
+    void hapticKick();
+  else if (
+    kind === "tournament_canceled" ||
+    kind === "tournament_bracket_generated" ||
+    kind === "tournament_roster_response" ||
+    kind === "tournament_join_request" ||
+    kind === "tournament_join_decision" ||
+    kind === "tournament_starts_soon" ||
+    kind === "tournament_captain_payment_confirmed"
+  )
+    void hapticGoal();
+  else if (kind === "tournament_captain_claim_admin" || kind === "tier_suggestions_ready") void hapticTap();
   else void hapticTap();
 }
 
@@ -114,6 +157,10 @@ export function usePushRegistration(accessToken: string | null) {
             : "";
 
       const navigate = () => {
+        if (kind === "pickup_canceled") {
+          router.push("/(tabs)/runs" as const);
+          return;
+        }
         if (PICKUP_RUN_DEEP_LINK_KINDS.has(kind)) {
           const runId = pickupRunIdFromNotificationData(data);
           if (runId) {
@@ -127,7 +174,7 @@ export function usePushRegistration(accessToken: string | null) {
           router.push("/admin/pickup" as const);
           return;
         }
-        if (kind === "chat_message") {
+        if (kind === "chat_message" || kind === "announcement") {
           if (roomId) {
             router.push({ pathname: "/(tabs)/messages/thread", params: { id: roomId } } as const);
           } else if (roomSlug) {
@@ -137,8 +184,38 @@ export function usePushRegistration(accessToken: string | null) {
           }
           return;
         }
-        if (kind === "tournament_invite") {
+        if (kind === "tournament_bracket_generated") {
+          const tid = tournamentIdFromNotificationData(data);
+          if (tid) {
+            router.push({
+              pathname: "/tournament-bracket-view",
+              params: { tournament_id: tid },
+            } as const);
+          } else {
+            router.push("/(tabs)/tournaments" as const);
+          }
+          return;
+        }
+        if (
+          kind === "tournament_invite" ||
+          kind === "tournament_live" ||
+          kind === "tournament_canceled" ||
+          kind === "tournament_roster_invite" ||
+          kind === "tournament_roster_response" ||
+          kind === "tournament_join_request" ||
+          kind === "tournament_join_decision" ||
+          kind === "tournament_starts_soon" ||
+          kind === "tournament_captain_payment_confirmed"
+        ) {
           router.push("/(tabs)/tournaments" as const);
+          return;
+        }
+        if (kind === "tournament_captain_claim_admin") {
+          router.push("/admin/tournament" as const);
+          return;
+        }
+        if (kind === "tier_suggestions_ready") {
+          router.push("/admin/members" as const);
           return;
         }
         if (kind === "roster_invite") {

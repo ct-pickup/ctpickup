@@ -337,7 +337,12 @@ export async function POST(req: Request) {
       await sendPushToUsers(admin, [String(cap.user_id)], {
         title: "Roster update",
         body: accept ? `${who} accepted your tournament invite.` : `${who} declined your tournament invite.`,
-        data: { kind: "tournament_roster_response", roster_id, accept },
+        data: {
+          kind: "tournament_roster_response",
+          roster_id,
+          accept,
+          tournament_id: String(row.tournament_id),
+        },
       });
     }
 
@@ -484,7 +489,12 @@ export async function POST(req: Request) {
       await sendPushToUsers(admin, [String(reqRow.requester_user_id)], {
         title: "Join request update",
         body: `Your request to join ${String(cap.team_name || "the team")} was declined.`,
-        data: { kind: "tournament_join_decision", request_id, approved: false },
+        data: {
+          kind: "tournament_join_decision",
+          request_id,
+          approved: false,
+          tournament_id: String(reqRow.tournament_id),
+        },
       });
       return NextResponse.json({ request: upd });
     }
@@ -540,7 +550,13 @@ export async function POST(req: Request) {
     await sendPushToUsers(admin, [String(reqRow.requester_user_id)], {
       title: "You're on the team",
       body: `You were added to ${String(cap.team_name || "the tournament team")}.`,
-      data: { kind: "tournament_join_decision", request_id, approved: true, roster_id: rosterOut?.id },
+      data: {
+        kind: "tournament_join_decision",
+        request_id,
+        approved: true,
+        roster_id: rosterOut?.id,
+        tournament_id: String(reqRow.tournament_id),
+      },
     });
 
     await syncCaptainPlayersPaid(admin, String(reqRow.captain_id));
