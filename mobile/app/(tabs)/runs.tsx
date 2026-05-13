@@ -414,6 +414,17 @@ export default function RunsScreen() {
     return typeof v === "string" && v.length > 0 ? v : null;
   }, [run]);
 
+  /** FIX 2: live banner from `start_at` only — more than 24h before kickoff vs inside the window. */
+  const confirmedRefundBannerKind = useMemo<"eligible" | "not_eligible" | null>(() => {
+    const raw = typeof run?.start_at === "string" ? run.start_at.trim() : "";
+    if (!raw) return null;
+    const startMs = new Date(raw).getTime();
+    if (!Number.isFinite(startMs)) return null;
+    const msUntilStart = startMs - Date.now();
+    if (msUntilStart <= 0) return null;
+    return msUntilStart > 24 * 60 * 60 * 1000 ? "eligible" : "not_eligible";
+  }, [run?.start_at]);
+
   /** From `/api/pickup/public` `me` — account allowed to RSVP when true. */
   const meApproved = useMemo(() => {
     const me = dataObj.me;
@@ -835,9 +846,31 @@ export default function RunsScreen() {
                   </Text>
                 ) : null}
                 {runLocked ? null : (
+                  <>
+                    {confirmedRefundBannerKind === "eligible" ? (
+                      <Text style={styles.refundEligibleBanner}>
+                        ✓ Eligible for full refund if canceled now
+                      </Text>
+                    ) : confirmedRefundBannerKind === "not_eligible" ? (
+                      <Text style={styles.refundNotEligibleBanner}>
+                        ⚠ No refund — within 24-hour cancellation window
+                      </Text>
+                    ) : null}
                   <Pressable
                     disabled={declineBusy || !runId}
-                    onPress={() => void declinePickup(token, runId, load)}
+                    onPress={() =>
+                      void declinePickup(
+                        token,
+                        runId,
+                        run
+                          ? {
+                              start_at: typeof run.start_at === "string" ? run.start_at : null,
+                              cancellation_deadline: cancellationDeadline,
+                            }
+                          : null,
+                        load,
+                      )
+                    }
                     style={({ pressed }) => [
                       styles.cancelSpotButton,
                       (declineBusy || !runId) && styles.cancelSpotButtonDisabled,
@@ -850,6 +883,7 @@ export default function RunsScreen() {
                       <Text style={styles.cancelSpotText}>Cancel spot</Text>
                     )}
                   </Pressable>
+                  </>
                 )}
               </>
             ) : myStatus === "standby" ? (
@@ -1276,6 +1310,20 @@ const styles = StyleSheet.create({
   },
   declineSlotButtonDisabled: { opacity: 0.45 },
   declineSlotText: { color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: "700" },
+  refundEligibleBanner: {
+    marginTop: 12,
+    fontSize: 13,
+    fontWeight: "700",
+    color: LIME,
+    lineHeight: 18,
+  },
+  refundNotEligibleBanner: {
+    marginTop: 12,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#f59e0b",
+    lineHeight: 18,
+  },
   cancelSpotButton: {
     alignSelf: "flex-start",
     marginTop: 12,

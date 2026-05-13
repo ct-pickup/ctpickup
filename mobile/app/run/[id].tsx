@@ -1,7 +1,8 @@
 import { useAuth } from "@/context/AuthContext";
+import { usePickupJoin } from "@/hooks/usePickupJoin";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 const BG = "#0a0a0a";
@@ -49,8 +50,10 @@ export default function RunDetailScreen() {
   const navigation = useNavigation();
   const router = useRouter();
   const { session, supabase, isReady } = useAuth();
+  const { declinePickup, declineBusy } = usePickupJoin();
 
   const userId = session?.user?.id ?? null;
+  const token = session?.access_token ?? null;
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -60,6 +63,9 @@ export default function RunDetailScreen() {
   const [serviceRegion, setServiceRegion] = useState<string | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
   const [runStatus, setRunStatus] = useState<string | null>(null);
+  const [lockedAt, setLockedAt] = useState<string | null>(null);
+  const [cancellationDeadline, setCancellationDeadline] = useState<string | null>(null);
+  const [myRsvpStatus, setMyRsvpStatus] = useState<string | null>(null);
 
   const [myTeam, setMyTeam] = useState<Team | null>(null);
   const [winningTeam, setWinningTeam] = useState<Team | null>(null);
@@ -74,120 +80,141 @@ export default function RunDetailScreen() {
     });
   }, [navigation]);
 
-  useEffect(() => {
-    if (!isReady || !supabase || !userId || !runId) {
+  const loadRunDetail = useCallback(async () => {
+    if (!isReady || !supabase || !runId) return;
+    if (!userId) {
       setLoading(false);
-      setErr(!userId ? "Sign in to view runs." : "Missing run.");
+      setErr("Sign in to view runs.");
       return;
     }
-    let cancelled = false;
-    void (async () => {
-      setLoading(true);
-      setErr(null);
 
-      const [runRes, myRes, resRes] = await Promise.all([
-        supabase
-          .from("pickup_runs")
-          .select("id,start_at,location_private,service_region,status,is_completed")
-          .eq("id", runId)
-          .maybeSingle(),
-        supabase
-          .from("pickup_run_team_assignments")
-          .select("team")
-          .eq("run_id", runId)
-          .eq("user_id", userId)
-          .maybeSingle(),
-        supabase
-          .from("pickup_run_results")
-          .select("winning_team,player_of_day,goalie_of_the_day,defender_of_day,midfielder_of_day,attacker_of_day")
-          .eq("run_id", runId)
-          .maybeSingle(),
-      ]);
+    setLoading(true);
+    setErr(null);
 
-      if (cancelled) return;
-      if (runRes.error) {
-        setErr(runRes.error.message ?? "Couldn’t load run.");
-        setLoading(false);
-        return;
-      }
+    const [runRes, myRes, resRes, rsvpRes] = await Promise.all([
+      supabase
+        .from("pickup_runs")
+        .select(
+          "id,start_at,location_private,service_region,status,is_completed,locked_at,cancellation_deadline",
+        )
+        .eq("id", runId)
+        .maybeSingle(),
+      supabase
+        .from("pickup_run_team_assignments")
+        .select("team")
+        .eq("run_id", runId)
+        .eq("user_id", userId)
+        .maybeSingle(),
+      supabase
+        .from("pickup_run_results")
+        .select(
+          "winning_team,player_of_day,goalie_of_the_day,defender_of_day,midfielder_of_day,attacker_of_day",
+        )
+        .eq("run_id", runId)
+        .maybeSingle(),
+      supabase.from("pickup_run_rsvps").select("status").eq("run_id", runId).eq("user_id", userId).maybeSingle(),
+    ]);
 
-      const run = runRes.data as
-        | null
-        | {
-            start_at: string | null;
-            location_private: string | null;
-            service_region: string | null;
-            status: string | null;
-            is_completed: boolean | null;
-          };
-      setStartAt(run?.start_at ?? null);
-      setLocationPrivate(run?.location_private ?? null);
-      setServiceRegion(run?.service_region ?? null);
-      setRunStatus(run?.status ?? null);
-      setIsCompleted(run?.is_completed === true);
+    if (runRes.error) {
+      setErr(runRes.error.message ?? "Couldn’t load run.");
+      setLoading(false);
+      return;
+    }
 
-      const mt = myRes.data ? ((myRes.data as { team?: unknown }).team as Team) : null;
-      setMyTeam(mt ?? null);
+    const run = runRes.data as
+      | null
+      | {
+          start_at: string | null;
+          location_private: string | null;
+          service_region: string | null;
+          status: string | null;
+          is_completed: boolean | null;
+          locked_at?: string | null;
+          cancellation_deadline?: string | null;
+        };
+    setStartAt(run?.start_at ?? null);
+    setLocationPrivate(run?.location_private ?? null);
+    setServiceRegion(run?.service_region ?? null);
+    setRunStatus(run?.status ?? null);
+    setIsCompleted(run?.is_completed === true);
+    const la = run?.locked_at;
+    setLockedAt(typeof la === "string" && la.trim().length > 0 ? la : null);
+    const cd = run?.cancellation_deadline;
+    setCancellationDeadline(typeof cd === "string" && cd.trim().length > 0 ? cd : null);
 
-      const rr = resRes.data as
-        | null
-        | {
-            winning_team: Team | null;
-            player_of_day: string | null;
-            goalie_of_the_day: string | null;
-            defender_of_day: string | null;
-            midfielder_of_day: string | null;
-            attacker_of_day: string | null;
-          };
+    if (!rsvpRes.error && rsvpRes.data && typeof (rsvpRes.data as { status?: unknown }).status === "string") {
+      setMyRsvpStatus((rsvpRes.data as { status: string }).status);
+    } else {
+      setMyRsvpStatus(null);
+    }
 
-      const wt = rr?.winning_team ?? null;
-      setWinningTeam(wt);
+    const mt = myRes.data ? ((myRes.data as { team?: unknown }).team as Team) : null;
+    setMyTeam(mt ?? null);
 
-      const slotToUserId: Record<AwardSlot, string | null> = {
-        player: rr?.player_of_day ?? null,
-        goalie: rr?.goalie_of_the_day ?? null,
-        attacker: rr?.attacker_of_day ?? null,
-        midfielder: rr?.midfielder_of_day ?? null,
-        defender: rr?.defender_of_day ?? null,
-      };
+    const rr = resRes.data as
+      | null
+      | {
+          winning_team: Team | null;
+          player_of_day: string | null;
+          goalie_of_the_day: string | null;
+          defender_of_day: string | null;
+          midfielder_of_day: string | null;
+          attacker_of_day: string | null;
+        };
 
-      const uniqueIds = Array.from(
-        new Set(
-          Object.values(slotToUserId)
-            .filter((v): v is string => typeof v === "string" && v.length > 0),
-        ),
-      );
+    const wt = rr?.winning_team ?? null;
+    setWinningTeam(wt);
 
-      const nameById = new Map<string, string>();
-      if (uniqueIds.length > 0) {
-        const profs = await supabase.from("profiles").select("id,full_name,username").in("id", uniqueIds);
-        if (cancelled) return;
-        if (profs.data) {
-          for (const p of profs.data as Array<{ id: string; full_name: string | null; username: string | null }>) {
-            const nm = (p.full_name ?? "").trim() || (p.username ?? "").trim() || p.id;
-            nameById.set(p.id, nm);
-          }
+    const slotToUserId: Record<AwardSlot, string | null> = {
+      player: rr?.player_of_day ?? null,
+      goalie: rr?.goalie_of_the_day ?? null,
+      attacker: rr?.attacker_of_day ?? null,
+      midfielder: rr?.midfielder_of_day ?? null,
+      defender: rr?.defender_of_day ?? null,
+    };
+
+    const uniqueIds = Array.from(
+      new Set(Object.values(slotToUserId).filter((v): v is string => typeof v === "string" && v.length > 0)),
+    );
+
+    const nameById = new Map<string, string>();
+    if (uniqueIds.length > 0) {
+      const profs = await supabase.from("profiles").select("id,full_name,username").in("id", uniqueIds);
+      if (profs.data) {
+        for (const p of profs.data as Array<{ id: string; full_name: string | null; username: string | null }>) {
+          const nm = (p.full_name ?? "").trim() || (p.username ?? "").trim() || p.id;
+          nameById.set(p.id, nm);
         }
       }
+    }
 
-      const next: AwardEntry[] = AWARD_ORDER.map(({ slot, label }) => {
-        const uid = slotToUserId[slot];
-        return {
-          slot,
-          label,
-          userId: uid,
-          name: uid ? nameById.get(uid) ?? null : null,
-        };
-      });
+    const next: AwardEntry[] = AWARD_ORDER.map(({ slot, label }) => {
+      const uid = slotToUserId[slot];
+      return {
+        slot,
+        label,
+        userId: uid,
+        name: uid ? nameById.get(uid) ?? null : null,
+      };
+    });
 
-      setAwards(next);
-      setLoading(false);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+    setAwards(next);
+    setLoading(false);
   }, [isReady, supabase, userId, runId]);
+
+  useEffect(() => {
+    if (!isReady || !supabase || !runId) {
+      setLoading(false);
+      setErr("Missing run.");
+      return;
+    }
+    if (!userId) {
+      setLoading(false);
+      setErr("Sign in to view runs.");
+      return;
+    }
+    void loadRunDetail();
+  }, [isReady, supabase, userId, runId, loadRunDetail]);
 
   const outcome = useMemo(() => {
     if (!myTeam || !winningTeam) return null;
@@ -199,6 +226,15 @@ export default function RunDetailScreen() {
     if (isCompleted) return true;
     return String(runStatus || "").trim().toLowerCase() === "completed";
   }, [isCompleted, runStatus]);
+
+  const runLocked = useMemo(() => {
+    const st = String(runStatus || "").trim().toLowerCase();
+    if (st === "in_progress") return true;
+    return typeof lockedAt === "string" && lockedAt.trim().length > 0;
+  }, [runStatus, lockedAt]);
+
+  const showCancelSpot =
+    myRsvpStatus === "confirmed" && !runLocked && Boolean(token) && Boolean(runId);
 
   if (loading) {
     return (
@@ -282,6 +318,33 @@ export default function RunDetailScreen() {
           )}
         </View>
       ) : null}
+
+      {showCancelSpot ? (
+        <View style={styles.cancelSection}>
+          <Pressable
+            disabled={declineBusy}
+            onPress={() =>
+              void declinePickup(
+                token,
+                runId,
+                { start_at: startAt, cancellation_deadline: cancellationDeadline },
+                loadRunDetail,
+              )
+            }
+            style={({ pressed }) => [
+              styles.cancelSpotButton,
+              declineBusy && styles.cancelSpotButtonDisabled,
+              pressed && !declineBusy && { opacity: 0.85 },
+            ]}
+          >
+            {declineBusy ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.cancelSpotText}>Cancel spot</Text>
+            )}
+          </Pressable>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -341,4 +404,20 @@ const styles = StyleSheet.create({
   pillText: { fontWeight: "900", fontSize: 13 },
   pillTextWin: { color: "#111" },
   pillTextLoss: { color: "#fff" },
+
+  cancelSection: { marginTop: 28, alignSelf: "stretch" },
+  cancelSpotButton: {
+    alignSelf: "stretch",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
+  },
+  cancelSpotButtonDisabled: { opacity: 0.45 },
+  cancelSpotText: { color: "#fff", fontSize: 15, fontWeight: "700" },
 });

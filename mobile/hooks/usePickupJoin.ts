@@ -1,4 +1,5 @@
 import { hapticError } from "@/lib/haptics";
+import { pickupPlayerRefundEligibleClient, type PickupRunRefundTiming } from "@/lib/pickupRefundEligibility";
 import { postPickupCommit, postPickupPay, postPickupRsvp } from "@/lib/siteApi";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useState } from "react";
@@ -171,7 +172,12 @@ export function usePickupJoin() {
   );
 
   const declinePickup = useCallback(
-    async (accessToken: string | null, runId: unknown, reload: () => void | Promise<void>) => {
+    async (
+      accessToken: string | null,
+      runId: unknown,
+      run: PickupRunRefundTiming | null | undefined,
+      reload: () => void | Promise<void>,
+    ) => {
       const id = typeof runId === "string" ? runId : null;
       if (!accessToken) {
         void hapticError();
@@ -179,20 +185,39 @@ export function usePickupJoin() {
         return;
       }
       if (!id) return;
-      setDeclineBusy(true);
-      try {
-        const r = await postPickupRsvp(accessToken, id, "decline");
-        const j = r.json as Record<string, unknown>;
-        if (r.ok) {
-          await reload();
-          return;
-        }
-        const msg = typeof j.error === "string" ? j.error : `Could not cancel spot (${r.status}).`;
-        void hapticError();
-        Alert.alert("Could not cancel", msg);
-      } finally {
-        setDeclineBusy(false);
-      }
+
+      const refundEligible = pickupPlayerRefundEligibleClient(run ?? {});
+      const title = "Cancel your spot?";
+      const message = refundEligible
+        ? "You will receive a full refund since you are canceling more than 24 hours before the run."
+        : "The 24-hour cancellation window has passed. You will not receive a refund.";
+      const proceedLabel = refundEligible ? "Cancel & get refund" : "Cancel spot";
+
+      Alert.alert(title, message, [
+        { text: "Keep my spot", style: "cancel" },
+        {
+          text: proceedLabel,
+          style: "destructive",
+          onPress: () => {
+            void (async () => {
+              setDeclineBusy(true);
+              try {
+                const r = await postPickupRsvp(accessToken, id, "decline");
+                const j = r.json as Record<string, unknown>;
+                if (r.ok) {
+                  await reload();
+                  return;
+                }
+                const msg = typeof j.error === "string" ? j.error : `Could not cancel spot (${r.status}).`;
+                void hapticError();
+                Alert.alert("Could not cancel", msg);
+              } finally {
+                setDeclineBusy(false);
+              }
+            })();
+          },
+        },
+      ]);
     },
     [],
   );
