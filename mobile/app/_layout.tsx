@@ -211,6 +211,15 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
+                            name="terms"
+                            options={{
+                              headerShown: true,
+                              title: "Terms of Service",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                            }}
+                          />
+                          <Stack.Screen
                             name="esports/[id]"
                             options={{
                               headerShown: true,

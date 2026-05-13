@@ -1,6 +1,11 @@
 import { useAuth } from "@/context/AuthContext";
 import { hapticError, hapticGoal, hapticTap, hapticWhistle } from "@/lib/haptics";
-import { fetchAdminPickupSwitchDetail, fetchAdminPickupResult, postAdminPickupResult } from "@/lib/adminApi";
+import {
+  fetchAdminPickupSwitchDetail,
+  fetchAdminPickupResult,
+  postAdminMarkAttendance,
+  postAdminPickupResult,
+} from "@/lib/adminApi";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
@@ -138,6 +143,10 @@ export default function AdminRunResultScreen() {
 
   const [submitting, setSubmitting] = useState(false);
 
+  /** `true` = attended, `false` = no-show. Missing key treated as attended until DB load replaces map. */
+  const [attendanceByUser, setAttendanceByUser] = useState<Record<string, boolean>>({});
+  const [attendanceSaving, setAttendanceSaving] = useState<Record<string, boolean>>({});
+
   useLayoutEffect(() => {
     navigation.setOptions({
       title: isReadonly ? "View Results" : "Post Results",
@@ -165,6 +174,7 @@ export default function AdminRunResultScreen() {
         setConfirmed([]);
         setRegion(null);
         setTeamByUser({});
+        setAttendanceByUser({});
         setLoading(false);
         return;
       }
@@ -174,6 +184,23 @@ export default function AdminRunResultScreen() {
       setRegion(reg && ["CT", "NY", "NJ", "MD"].includes(reg) ? reg : null);
       const list = Array.isArray(r.data.confirmed) ? (r.data.confirmed as ConfirmedRow[]) : [];
       setConfirmed(list);
+
+      const attendanceMap: Record<string, boolean> = {};
+      for (const p of list) attendanceMap[p.id] = true;
+      if (supabase) {
+        const { data: attRows, error: attErr } = await supabase
+          .from("pickup_run_attendance")
+          .select("user_id,attended")
+          .eq("run_id", runId);
+        if (!attErr && attRows) {
+          for (const row of attRows as { user_id?: unknown; attended?: unknown }[]) {
+            const uid = typeof row.user_id === "string" ? row.user_id : null;
+            if (!uid || !(uid in attendanceMap)) continue;
+            attendanceMap[uid] = row.attended === true;
+          }
+        }
+      }
+      if (!cancelled) setAttendanceByUser(attendanceMap);
 
       if (isReadonly) {
         const res = await fetchAdminPickupResult(token, runId);
@@ -271,9 +298,21 @@ export default function AdminRunResultScreen() {
   }, [allowedTeams]);
 
   const awardOptions = useMemo(() => {
-    const opts = confirmed.map((p) => ({ value: p.id, label: nameFor(p) }));
+    const opts = confirmed
+      .filter((p) => attendanceByUser[p.id] !== false)
+      .map((p) => ({ value: p.id, label: nameFor(p) }));
     return [{ value: "" as const, label: "None" }, ...opts] as const;
-  }, [confirmed]);
+  }, [confirmed, attendanceByUser]);
+
+  const attendedIds = useMemo(
+    () => new Set(confirmed.filter((p) => attendanceByUser[p.id] !== false).map((p) => p.id)),
+    [confirmed, attendanceByUser],
+  );
+
+  const attendedConfirmedCount = useMemo(
+    () => confirmed.filter((p) => attendanceByUser[p.id] !== false).length,
+    [confirmed, attendanceByUser],
+  );
 
   const teamOptions = useMemo(
     () => allowedTeams.map((t) => ({ value: t, label: labelTeam(t) })),
@@ -284,15 +323,66 @@ export default function AdminRunResultScreen() {
 
   const filledAssignments = useMemo(() => {
     return confirmed
+      .filter((p) => attendanceByUser[p.id] !== false)
       .map((p) => ({
         user_id: p.id,
         team: teamByUser[p.id] ?? "A",
       }))
       .filter((a) => allowedTeams.includes(a.team));
-  }, [confirmed, teamByUser, allowedTeams]);
+  }, [confirmed, teamByUser, allowedTeams, attendanceByUser]);
 
   const awardWinners = uniq([playerOfDay, goalieOfTheDay, defenderOfDay, midfielderOfDay, attackerOfDay].filter(Boolean));
-  const awardWinnerNotInConfirmed = awardWinners.some((id) => !confirmed.some((p) => p.id === id));
+  const awardWinnerNotInConfirmed = awardWinners.some(
+    (id) => !id || !confirmed.some((p) => p.id === id) || !attendedIds.has(id),
+  );
+
+  async function onMarkAttendance(userId: string, attended: boolean) {
+    if (!token || !runId || isReadonly) return;
+    const prevAttended = attendanceByUser[userId] !== false;
+    if (prevAttended === attended) return;
+
+    const player = confirmed.find((p) => p.id === userId);
+    const displayName = nameFor(player || { id: userId, full_name: null });
+
+    if (!attended) {
+      let cleared = false;
+      if (playerOfDay === userId) cleared = true;
+      if (goalieOfTheDay === userId) cleared = true;
+      if (defenderOfDay === userId) cleared = true;
+      if (midfielderOfDay === userId) cleared = true;
+      if (attackerOfDay === userId) cleared = true;
+      if (cleared) {
+        setPlayerOfDay((v) => (v === userId ? null : v));
+        setGoalieOfTheDay((v) => (v === userId ? null : v));
+        setDefenderOfDay((v) => (v === userId ? null : v));
+        setMidfielderOfDay((v) => (v === userId ? null : v));
+        setAttackerOfDay((v) => (v === userId ? null : v));
+        Alert.alert("", `Award cleared — ${displayName} was marked as a no-show`);
+      }
+    }
+
+    setAttendanceByUser((cur) => ({ ...cur, [userId]: attended }));
+    setAttendanceSaving((s) => ({ ...s, [userId]: true }));
+
+    const r = await postAdminMarkAttendance(token, {
+      run_id: runId,
+      attendance: [{ user_id: userId, attended }],
+    });
+
+    setAttendanceSaving((s) => {
+      const next = { ...s };
+      delete next[userId];
+      return next;
+    });
+
+    if (!r.ok) {
+      void hapticError();
+      setAttendanceByUser((cur) => ({ ...cur, [userId]: prevAttended }));
+      Alert.alert("Couldn’t save attendance", r.error || "Request failed.");
+      return;
+    }
+    void hapticTap();
+  }
 
   async function onSubmit() {
     if (!token) {
@@ -307,13 +397,17 @@ export default function AdminRunResultScreen() {
       void hapticError();
       return Alert.alert("No confirmed players", "This run has no confirmed players.");
     }
-    if (filledAssignments.length !== confirmed.length) {
+    if (attendedConfirmedCount === 0) {
       void hapticError();
-      return Alert.alert("Missing teams", "Assign a team for each confirmed player.");
+      return Alert.alert("Attendance required", "Mark at least one player as attended to post results.");
+    }
+    if (filledAssignments.length !== attendedConfirmedCount) {
+      void hapticError();
+      return Alert.alert("Missing teams", "Assign a team for each player who attended.");
     }
     if (awardWinnerNotInConfirmed) {
       void hapticError();
-      return Alert.alert("Awards must be from roster", "Award winners must be selected from confirmed players.");
+      return Alert.alert("Awards must be from roster", "Award winners must be selected from players marked as attended.");
     }
 
     void hapticGoal();
@@ -369,8 +463,55 @@ export default function AdminRunResultScreen() {
         </Text>
       </View>
 
-      {/* 1) Teams (read-only when saved at run start; manual fallback if none) */}
-      <Text style={styles.sectionTitle}>Teams</Text>
+      <Text style={[styles.sectionTitle, { marginTop: 8 }]}>Step 1: Mark Attendance</Text>
+      <View style={styles.card}>
+        {confirmed.length === 0 ? <Text style={styles.muted}>No confirmed players.</Text> : null}
+        {confirmed.map((p) => {
+          const attended = attendanceByUser[p.id] !== false;
+          const saving = !!attendanceSaving[p.id];
+          return (
+            <View key={`att-${p.id}`} style={styles.attendanceRow}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.personName} numberOfLines={1}>
+                  {nameFor(p)}
+                </Text>
+              </View>
+              <View style={styles.attendanceChipRow}>
+                <Pressable
+                  disabled={isReadonly || saving}
+                  onPress={() => void onMarkAttendance(p.id, true)}
+                  style={({ pressed }) => [
+                    styles.attendanceChip,
+                    attended && styles.attendanceChipActive,
+                    (isReadonly || saving) && styles.attendanceChipDisabled,
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <Text style={[styles.attendanceChipText, attended && styles.attendanceChipTextActive]}>Attended ✓</Text>
+                </Pressable>
+                <Pressable
+                  disabled={isReadonly || saving}
+                  onPress={() => void onMarkAttendance(p.id, false)}
+                  style={({ pressed }) => [
+                    styles.attendanceChip,
+                    !attended && styles.attendanceChipActiveNoShow,
+                    (isReadonly || saving) && styles.attendanceChipDisabled,
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <Text style={[styles.attendanceChipText, !attended && styles.attendanceChipTextNoShowActive]}>
+                    No-show ✗
+                  </Text>
+                </Pressable>
+                {saving ? <ActivityIndicator size="small" color={LIME} style={{ marginLeft: 8 }} /> : null}
+              </View>
+            </View>
+          );
+        })}
+      </View>
+
+      {/* Step 2: Teams (read-only when saved at run start; manual fallback if none) */}
+      <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Step 2: Teams</Text>
       {!teamsReadOnly && confirmed.length > 0 ? (
         <Text style={styles.teamFallbackWarn}>
           Teams were not assigned before this run. Please assign teams manually.
@@ -407,14 +548,22 @@ export default function AdminRunResultScreen() {
         {confirmed.length === 0 ? <Text style={styles.muted}>No confirmed players.</Text> : null}
         {confirmed.map((p) => {
           const team = teamByUser[p.id] ?? "A";
+          const isNoShow = attendanceByUser[p.id] === false;
           return (
-            <View key={p.id} style={styles.rosterRow}>
+            <View key={p.id} style={[styles.rosterRow, isNoShow && styles.rosterRowNoShow]}>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.personName} numberOfLines={1}>
+                <Text style={[styles.personName, isNoShow && styles.personNameMuted]} numberOfLines={1}>
                   {nameFor(p)}
                 </Text>
+                {isNoShow ? <Text style={styles.noShowLabel}>No-show</Text> : null}
               </View>
-              {teamsReadOnly ? (
+              {isNoShow ? (
+                <View style={[styles.teamPillReadonly, styles.teamPillNoShow]}>
+                  <Text style={styles.teamPillReadonlyText}>
+                    {teamsReadOnly ? `${labelTeam(team)} · No-show` : "No-show"}
+                  </Text>
+                </View>
+              ) : teamsReadOnly ? (
                 <View style={styles.teamPillReadonly}>
                   <Text style={styles.teamPillReadonlyText}>{labelTeam(team)}</Text>
                 </View>
@@ -450,7 +599,7 @@ export default function AdminRunResultScreen() {
       </Pressable>
 
       {/* 3) Awards */}
-      <Text style={styles.sectionTitle}>Awards</Text>
+      <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Step 3: Awards</Text>
       <View style={styles.card}>
         <AwardRow
           label="Player of the Day 🏆"
@@ -523,7 +672,7 @@ export default function AdminRunResultScreen() {
       />
 
       <SelectModal<Team>
-        visible={!teamsReadOnly && picker?.kind === "team"}
+        visible={!teamsReadOnly && picker?.kind === "team" && attendanceByUser[picker.userId] !== false}
         title="Team assignment"
         options={teamOptions}
         value={picker?.kind === "team" ? (teamByUser[picker.userId] ?? "A") : null}
@@ -619,6 +768,35 @@ const styles = StyleSheet.create({
   sub: { marginTop: 8, fontSize: 13, lineHeight: 18, color: "rgba(255,255,255,0.55)" },
 
   sectionTitle: { marginTop: 18, fontSize: 12, fontWeight: "900", letterSpacing: 1.1, color: "rgba(255,255,255,0.45)", textTransform: "uppercase" },
+
+  attendanceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.06)",
+  },
+  attendanceChipRow: { flexDirection: "row", alignItems: "center", flexShrink: 0, gap: 8 },
+  attendanceChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.16)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  attendanceChipActive: { borderColor: "rgba(163,230,53,0.55)", backgroundColor: "rgba(163,230,53,0.14)" },
+  attendanceChipActiveNoShow: { borderColor: "rgba(248,113,113,0.45)", backgroundColor: "rgba(248,113,113,0.12)" },
+  attendanceChipDisabled: { opacity: 0.45 },
+  attendanceChipText: { fontSize: 12, fontWeight: "800", color: "rgba(255,255,255,0.55)" },
+  attendanceChipTextActive: { color: LIME },
+  attendanceChipTextNoShowActive: { color: "#fca5a5" },
+
+  rosterRowNoShow: { opacity: 0.72 },
+  personNameMuted: { color: "rgba(255,255,255,0.45)" },
+  noShowLabel: { marginTop: 4, fontSize: 11, fontWeight: "800", color: "rgba(248,113,113,0.9)", letterSpacing: 0.3 },
+  teamPillNoShow: { borderColor: "rgba(255,255,255,0.12)", backgroundColor: "rgba(255,255,255,0.04)" },
 
   teamFallbackWarn: {
     marginTop: 10,

@@ -1120,6 +1120,18 @@ export default function AccountScreen() {
         </Pressable>
         <Pressable
           style={styles.aboutRow}
+          onPress={() => (router.push as (href: string) => void)("/terms")}
+        >
+          <View style={styles.aboutLeft}>
+            <View style={styles.aboutIconWrap}>
+              <FontAwesome name="file-o" size={18} color="rgba(255,255,255,0.75)" />
+            </View>
+            <Text style={styles.aboutText}>Terms of Service</Text>
+          </View>
+          <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+        </Pressable>
+        <Pressable
+          style={styles.aboutRow}
           onPress={() => (router.push as (href: string) => void)("/privacy-policy")}
         >
           <View style={styles.aboutLeft}>

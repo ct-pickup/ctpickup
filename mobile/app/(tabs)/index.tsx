@@ -21,6 +21,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { session } = useAuth();
+  const myUserId = session?.user?.id ?? null;
   const email = session?.user?.email ?? undefined;
   const {
     loading: fieldTournamentLoading,
@@ -70,7 +71,10 @@ export default function HomeScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Open profile"
-          onPress={() => router.push("/(tabs)/account")}
+          onPress={() => {
+            if (myUserId) router.push(`/player/${myUserId}`);
+            else router.push("/(tabs)/account");
+          }}
           style={({ pressed }) => [styles.profileBtn, pressed && { opacity: 0.92 }]}
         >
           <FontAwesome name="user" size={16} color={LIME} />

@@ -1,7 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { fetchPublicPlayerProfile, type PublicPlayerProfile } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -52,8 +52,11 @@ export default function PlayerProfileScreen() {
   const { id: raw } = useLocalSearchParams<{ id: string | string[] }>();
   const userId = typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : "";
   const navigation = useNavigation();
+  const router = useRouter();
   const { session, supabase, isReady } = useAuth();
   const token = session?.access_token ?? null;
+  const viewerId = session?.user?.id ?? null;
+  const isOwnProfile = viewerId !== null && viewerId === userId;
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -67,6 +70,8 @@ export default function PlayerProfileScreen() {
   const [wins, setWins] = useState<number | null>(null);
   const [losses, setLosses] = useState<number | null>(null);
   const [winRatePct, setWinRatePct] = useState<number | null>(null);
+  const [sessionsPlayed, setSessionsPlayed] = useState<number | null>(null);
+  const [tournamentsPlayed, setTournamentsPlayed] = useState<number | null>(null);
   const [awardCounts, setAwardCounts] = useState<{ potd: number; gotd: number; def: number; mid: number; att: number } | null>(null);
 
   useEffect(() => {
@@ -102,6 +107,8 @@ export default function PlayerProfileScreen() {
     let cancelled = false;
     void (async () => {
       setStatsLoading(true);
+      setSessionsPlayed(null);
+      setTournamentsPlayed(null);
       try {
         const [{ data: profileData, error: profileErr }, { data: assignments, error: assignmentsError }] =
           await Promise.all([
@@ -138,79 +145,154 @@ export default function PlayerProfileScreen() {
           setWinRatePct(played > 0 ? Math.round((w / played) * 100) : null);
         }
 
+        const RSVP_PAGE = 1000;
+        const rsvpRunIds: string[] = [];
+        let rsvpFetchFailed = false;
+        for (let from = 0; ; from += RSVP_PAGE) {
+          const { data: rpage, error: rsvpErr } = await supabase
+            .from("pickup_run_rsvps")
+            .select("run_id")
+            .eq("user_id", userId)
+            .eq("status", "confirmed")
+            .range(from, from + RSVP_PAGE - 1);
+          if (cancelled) return;
+          if (rsvpErr) {
+            rsvpFetchFailed = true;
+            break;
+          }
+          if (!rpage?.length) break;
+          for (const row of rpage as { run_id?: unknown }[]) {
+            const id = typeof row.run_id === "string" ? row.run_id : null;
+            if (id) rsvpRunIds.push(id);
+          }
+          if (rpage.length < RSVP_PAGE) break;
+        }
+        if (!cancelled) {
+          if (rsvpFetchFailed) {
+            setSessionsPlayed(null);
+          } else if (rsvpRunIds.length === 0) {
+            setSessionsPlayed(0);
+          } else {
+            const uniqueRunIds = Array.from(new Set(rsvpRunIds));
+            const CHUNK_RUNS = 250;
+            const completedRunIds = new Set<string>();
+            for (let i = 0; i < uniqueRunIds.length; i += CHUNK_RUNS) {
+              const chunk = uniqueRunIds.slice(i, i + CHUNK_RUNS);
+              const { data: runRows, error: runErr } = await supabase
+                .from("pickup_runs")
+                .select("id,status,is_completed")
+                .in("id", chunk);
+              if (cancelled) return;
+              if (runErr || !runRows) continue;
+              for (const r of runRows as { id?: unknown; status?: unknown; is_completed?: unknown }[]) {
+                const id = typeof r.id === "string" ? r.id : null;
+                if (!id) continue;
+                const st = typeof r.status === "string" ? r.status.trim() : "";
+                const done = r.is_completed === true || st === "completed";
+                if (done) completedRunIds.add(id);
+              }
+            }
+            const n = rsvpRunIds.filter((rid) => completedRunIds.has(rid)).length;
+            setSessionsPlayed(n);
+          }
+        }
+
+        const ROSTER_PAGE = 1000;
+        const tournamentIds: string[] = [];
+        let rosterFetchFailed = false;
+        for (let from = 0; ; from += ROSTER_PAGE) {
+          const { data: tpage, error: rosterErr } = await supabase
+            .from("tournament_roster")
+            .select("tournament_id")
+            .eq("user_id", userId)
+            .eq("status", "accepted")
+            .range(from, from + ROSTER_PAGE - 1);
+          if (cancelled) return;
+          if (rosterErr) {
+            rosterFetchFailed = true;
+            break;
+          }
+          if (!tpage?.length) break;
+          for (const row of tpage as { tournament_id?: unknown }[]) {
+            const id = typeof row.tournament_id === "string" ? row.tournament_id : null;
+            if (id) tournamentIds.push(id);
+          }
+          if (tpage.length < ROSTER_PAGE) break;
+        }
+        if (!cancelled) {
+          if (rosterFetchFailed) setTournamentsPlayed(null);
+          else setTournamentsPlayed(new Set(tournamentIds).size);
+        }
+
         if (assignmentsError || !assignments) {
           setAwardCounts(null);
-          return;
-        }
+        } else {
+          const rows = assignments as unknown as Array<{ team: Team; run_id: string }>;
+          const assignRunIds = Array.from(new Set(rows.map((r) => r.run_id).filter(Boolean)));
+          if (assignRunIds.length === 0) {
+            setAwardCounts({ potd: 0, gotd: 0, def: 0, mid: 0, att: 0 });
+          } else {
+            const CHUNK = 250;
+            const resultsByRunId = new Map<
+              string,
+              {
+                winning_team: Team | null;
+                player_of_day: string | null;
+                goalie_of_the_day: string | null;
+                defender_of_day: string | null;
+                midfielder_of_day: string | null;
+                attacker_of_day: string | null;
+              }
+            >();
 
-        const rows = assignments as unknown as Array<{ team: Team; run_id: string }>;
-        const runIds = Array.from(new Set(rows.map((r) => r.run_id).filter(Boolean)));
-        if (runIds.length === 0) {
-          setAwardCounts({ potd: 0, gotd: 0, def: 0, mid: 0, att: 0 });
-          return;
-        }
+            for (let i = 0; i < assignRunIds.length; i += CHUNK) {
+              const chunk = assignRunIds.slice(i, i + CHUNK);
+              const { data: resRows, error: resErr } = await supabase
+                .from("pickup_run_results")
+                .select("run_id,winning_team,player_of_day,goalie_of_the_day,defender_of_day,midfielder_of_day,attacker_of_day")
+                .in("run_id", chunk);
+              if (cancelled) return;
+              if (resErr || !resRows) continue;
+              for (const r of resRows as unknown as Array<{
+                run_id: string;
+                winning_team: Team | null;
+                player_of_day: string | null;
+                goalie_of_the_day: string | null;
+                defender_of_day: string | null;
+                midfielder_of_day: string | null;
+                attacker_of_day: string | null;
+              }>) {
+                if (!r?.run_id) continue;
+                resultsByRunId.set(r.run_id, {
+                  winning_team: r.winning_team ?? null,
+                  player_of_day: r.player_of_day ?? null,
+                  goalie_of_the_day: r.goalie_of_the_day ?? null,
+                  defender_of_day: r.defender_of_day ?? null,
+                  midfielder_of_day: r.midfielder_of_day ?? null,
+                  attacker_of_day: r.attacker_of_day ?? null,
+                });
+              }
+            }
 
-        // NOTE: Don't use Supabase relational selects here.
-        // Both tables reference `pickup_runs.id` (via `run_id`), not each other.
-        const CHUNK = 250;
-        const resultsByRunId = new Map<
-          string,
-          {
-            winning_team: Team | null;
-            player_of_day: string | null;
-            goalie_of_the_day: string | null;
-            defender_of_day: string | null;
-            midfielder_of_day: string | null;
-            attacker_of_day: string | null;
+            let potd = 0;
+            let gotd = 0;
+            let def = 0;
+            let mid = 0;
+            let att = 0;
+
+            for (const row of rows) {
+              const res = resultsByRunId.get(row.run_id) ?? null;
+              if (!res?.winning_team) continue;
+              if (res.player_of_day === userId) potd += 1;
+              if (res.goalie_of_the_day === userId) gotd += 1;
+              if (res.defender_of_day === userId) def += 1;
+              if (res.midfielder_of_day === userId) mid += 1;
+              if (res.attacker_of_day === userId) att += 1;
+            }
+
+            if (!cancelled) setAwardCounts({ potd, gotd, def, mid, att });
           }
-        >();
-
-        for (let i = 0; i < runIds.length; i += CHUNK) {
-          const chunk = runIds.slice(i, i + CHUNK);
-          const { data: resRows, error: resErr } = await supabase
-            .from("pickup_run_results")
-            .select("run_id,winning_team,player_of_day,goalie_of_the_day,defender_of_day,midfielder_of_day,attacker_of_day")
-            .in("run_id", chunk);
-          if (cancelled) return;
-          if (resErr || !resRows) continue;
-          for (const r of resRows as unknown as Array<{
-            run_id: string;
-            winning_team: Team | null;
-            player_of_day: string | null;
-            goalie_of_the_day: string | null;
-            defender_of_day: string | null;
-            midfielder_of_day: string | null;
-            attacker_of_day: string | null;
-          }>) {
-            if (!r?.run_id) continue;
-            resultsByRunId.set(r.run_id, {
-              winning_team: r.winning_team ?? null,
-              player_of_day: r.player_of_day ?? null,
-              goalie_of_the_day: r.goalie_of_the_day ?? null,
-              defender_of_day: r.defender_of_day ?? null,
-              midfielder_of_day: r.midfielder_of_day ?? null,
-              attacker_of_day: r.attacker_of_day ?? null,
-            });
-          }
         }
-
-        let potd = 0;
-        let gotd = 0;
-        let def = 0;
-        let mid = 0;
-        let att = 0;
-
-        for (const row of rows) {
-          const res = resultsByRunId.get(row.run_id) ?? null;
-          if (!res?.winning_team) continue;
-          if (res.player_of_day === userId) potd += 1;
-          if (res.goalie_of_the_day === userId) gotd += 1;
-          if (res.defender_of_day === userId) def += 1;
-          if (res.midfielder_of_day === userId) mid += 1;
-          if (res.attacker_of_day === userId) att += 1;
-        }
-
-        if (!cancelled) setAwardCounts({ potd, gotd, def, mid, att });
       } finally {
         if (!cancelled) setStatsLoading(false);
       }
@@ -226,8 +308,21 @@ export default function PlayerProfileScreen() {
       headerStyle: { backgroundColor: BG },
       headerTintColor: "#fff",
       headerShadowVisible: false,
+      headerRight: isOwnProfile
+        ? () => (
+            <Pressable
+              onPress={() => router.push("/(tabs)/account")}
+              accessibilityRole="button"
+              accessibilityLabel="Account settings"
+              hitSlop={10}
+              style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1, paddingHorizontal: 12 })}
+            >
+              <FontAwesome name="cog" size={20} color="#fff" />
+            </Pressable>
+          )
+        : undefined,
     });
-  }, [navigation, nameForTitle]);
+  }, [navigation, nameForTitle, isOwnProfile, router]);
 
   if (loading) {
     return (
@@ -330,22 +425,45 @@ export default function PlayerProfileScreen() {
         <Text style={styles.label}>Stats</Text>
         {statsLoading ? (
           <Text style={styles.valueMuted}>Loading…</Text>
-        ) : games == null ? (
-          <Text style={styles.valueMuted}>—</Text>
         ) : (
           <>
             <Text style={styles.valueLine}>
-              <Text style={styles.valueK}>Games</Text> {games}
+              <Text style={styles.valueK}>Sessions</Text> {sessionsPlayed == null ? "—" : sessionsPlayed}
             </Text>
             <Text style={styles.valueLine}>
-              <Text style={styles.valueK}>Wins</Text> {wins ?? 0}
+              <Text style={styles.valueK}>Tournaments</Text> {tournamentsPlayed == null ? "—" : tournamentsPlayed}
             </Text>
-            <Text style={styles.valueLine}>
-              <Text style={styles.valueK}>Losses</Text> {losses ?? 0}
-            </Text>
-            <Text style={styles.valueLine}>
-              <Text style={styles.valueK}>Win rate</Text> {winRatePct == null ? "—" : `${winRatePct}%`}
-            </Text>
+            {games == null ? (
+              <>
+                <Text style={styles.valueLine}>
+                  <Text style={styles.valueK}>Games</Text> —
+                </Text>
+                <Text style={styles.valueLine}>
+                  <Text style={styles.valueK}>Wins</Text> —
+                </Text>
+                <Text style={styles.valueLine}>
+                  <Text style={styles.valueK}>Losses</Text> —
+                </Text>
+                <Text style={styles.valueLine}>
+                  <Text style={styles.valueK}>Win rate</Text> —
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.valueLine}>
+                  <Text style={styles.valueK}>Games</Text> {games}
+                </Text>
+                <Text style={styles.valueLine}>
+                  <Text style={styles.valueK}>Wins</Text> {wins ?? 0}
+                </Text>
+                <Text style={styles.valueLine}>
+                  <Text style={styles.valueK}>Losses</Text> {losses ?? 0}
+                </Text>
+                <Text style={styles.valueLine}>
+                  <Text style={styles.valueK}>Win rate</Text> {winRatePct == null ? "—" : `${winRatePct}%`}
+                </Text>
+              </>
+            )}
           </>
         )}
       </View>
