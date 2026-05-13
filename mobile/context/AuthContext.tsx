@@ -1,4 +1,5 @@
 import { authRouteRef } from "@/lib/authRouteRef";
+import { clearStoredPin } from "@/lib/appLock";
 import { getMobileSupabaseClient } from "@/lib/supabase";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { router, useNavigationContainerRef } from "expo-router";
@@ -82,6 +83,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     if (!supabase) return;
+    // Remove the device passcode first so it can't lock the next user on a shared device.
+    try {
+      await clearStoredPin();
+    } catch (e) {
+      console.warn("[auth] clearStoredPin failed during signOut:", e);
+    }
     await supabase.auth.signOut();
   }, [supabase]);
 

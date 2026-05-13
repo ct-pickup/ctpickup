@@ -147,6 +147,7 @@ export default function AccountScreen() {
   const {
     hasPin,
     changePin,
+    removePin,
     biometricsEnabled,
     biometricsAvailable,
     setBiometricsEnabled,
@@ -154,10 +155,11 @@ export default function AccountScreen() {
     lockNow,
   } = useAppLock();
 
-  const [lockUi, setLockUi] = useState<"idle" | "change">("idle");
+  const [lockUi, setLockUi] = useState<"idle" | "change" | "remove">("idle");
   const [changeOld, setChangeOld] = useState("");
   const [changeNewA, setChangeNewA] = useState("");
   const [changeNewB, setChangeNewB] = useState("");
+  const [removeCurrent, setRemoveCurrent] = useState("");
   const [lockBusy, setLockBusy] = useState(false);
   const [lockMsg, setLockMsg] = useState<string | null>(null);
 
@@ -931,9 +933,73 @@ export default function AccountScreen() {
                 >
                   <Text style={styles.secondaryBtnText}>Change passcode</Text>
                 </Pressable>
+                <Pressable
+                  style={styles.secondaryBtn}
+                  onPress={() => {
+                    setLockUi("remove");
+                    setLockMsg(null);
+                    setRemoveCurrent("");
+                  }}
+                >
+                  <Text style={styles.secondaryBtnText}>Remove passcode</Text>
+                </Pressable>
                 <Pressable style={styles.textBtn} onPress={() => lockNow()}>
                   <Text style={styles.textBtnLabel}>Lock app now</Text>
                 </Pressable>
+              </View>
+            ) : lockUi === "remove" ? (
+              <View style={styles.card}>
+                <Text style={styles.fieldLabel}>Current passcode</Text>
+                <TextInput
+                  style={styles.input}
+                  maxLength={PASSCODE_MAX_LEN}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={removeCurrent}
+                  onChangeText={(t) => setRemoveCurrent(t.slice(0, PASSCODE_MAX_LEN))}
+                  placeholder="Confirm to remove"
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                />
+                <Text style={styles.bioHint}>
+                  Removing the passcode also turns off Face ID / Touch ID for this app.
+                </Text>
+                <Pressable
+                  style={[styles.deleteAccountBtn, lockBusy && styles.disabled]}
+                  disabled={lockBusy}
+                  onPress={() => {
+                    void (async () => {
+                      setLockMsg(null);
+                      if (!normalizePasscode(removeCurrent)) {
+                        setLockMsg("Enter your current passcode.");
+                        return;
+                      }
+                      setLockBusy(true);
+                      const ok = await removePin(removeCurrent);
+                      setLockBusy(false);
+                      if (!ok) {
+                        setLockMsg("Current passcode incorrect.");
+                        return;
+                      }
+                      setRemoveCurrent("");
+                      setLockUi("idle");
+                      Alert.alert("Passcode removed", "Your device passcode has been removed.");
+                    })();
+                  }}
+                >
+                  <Text style={styles.deleteAccountBtnText}>Remove passcode</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.textBtn}
+                  onPress={() => {
+                    setLockUi("idle");
+                    setLockMsg(null);
+                    setRemoveCurrent("");
+                  }}
+                >
+                  <Text style={styles.textBtnLabel}>Cancel</Text>
+                </Pressable>
+                {lockMsg ? <Text style={styles.msg}>{lockMsg}</Text> : null}
               </View>
             ) : (
               <View style={styles.card}>

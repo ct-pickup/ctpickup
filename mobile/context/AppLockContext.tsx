@@ -7,6 +7,7 @@ import {
   setBiometricsPref,
   verifyStoredPin,
 } from "@/lib/appLock";
+import { useAuth } from "@/context/AuthContext";
 import * as LocalAuthentication from "expo-local-authentication";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, type AppStateStatus, View } from "react-native";
@@ -30,13 +31,19 @@ type AppLockContextValue = {
 
 const AppLockContext = createContext<AppLockContextValue | undefined>(undefined);
 
+/** Lock if the app has been in background longer than this. */
+const BACKGROUND_LOCK_GRACE_MS = 5 * 60 * 1000;
+
 export function AppLockProvider({ children }: { children: React.ReactNode }) {
+  const { session } = useAuth();
+  const userId = session?.user?.id ?? null;
   const [bootReady, setBootReady] = useState(false);
   const [hasPin, setHasPin] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [biometricsEnabled, setBiometricsEnabledState] = useState(false);
   const [biometricsAvailable, setBiometricsAvailable] = useState(false);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const backgroundedAtRef = useRef<number | null>(null);
 
   const refreshBiometricAvailability = useCallback(async () => {
     const has = await LocalAuthentication.hasHardwareAsync();
@@ -61,12 +68,49 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [refreshBiometricAvailability]);
 
+  // When the user signs out (session goes null), `signOut` in AuthContext clears the stored PIN.
+  // Re-sync in-memory state so the next user on a shared device isn't locked out by stale state.
+  useEffect(() => {
+    if (!bootReady) return;
+    if (userId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const configured = await pinConfigured();
+        if (cancelled) return;
+        setHasPin(configured);
+        if (!configured) {
+          setIsLocked(false);
+          setBiometricsEnabledState(false);
+          backgroundedAtRef.current = null;
+        }
+      } catch (e) {
+        console.warn("[appLock] post-signOut resync failed:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [bootReady, userId]);
+
   useEffect(() => {
     const sub = AppState.addEventListener("change", (next) => {
       const prev = appStateRef.current;
       appStateRef.current = next;
-      if (prev?.match(/inactive|active/) && next === "background" && hasPin) {
-        setIsLocked(true);
+      if (!hasPin) {
+        backgroundedAtRef.current = null;
+        return;
+      }
+      if (prev?.match(/inactive|active/) && next === "background") {
+        backgroundedAtRef.current = Date.now();
+        return;
+      }
+      if (prev === "background" && next === "active") {
+        const since = backgroundedAtRef.current;
+        backgroundedAtRef.current = null;
+        if (since != null && Date.now() - since > BACKGROUND_LOCK_GRACE_MS) {
+          setIsLocked(true);
+        }
       }
     });
     return () => sub.remove();

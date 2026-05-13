@@ -6,6 +6,7 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   AppState,
   type AppStateStatus,
   KeyboardAvoidingView,
@@ -20,6 +21,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
+  clearStoredPin,
   isPinEnrollmentEligibleForUser,
   isValidPinFormat,
   markPinEnrollmentEligibleForUser,
@@ -139,6 +141,34 @@ export function AppLockOverlay() {
       setError("Incorrect passcode.");
       setPin("");
     }
+  }
+
+  function onForgotPasscodeSignOut() {
+    Alert.alert(
+      "Forgot passcode?",
+      "This will sign you out of the app. Your passcode will be removed from this device.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Sign out",
+          style: "destructive",
+          onPress: () => {
+            void (async () => {
+              try {
+                await clearStoredPin();
+              } catch (e) {
+                console.warn("[appLock] clearStoredPin in forgot-flow failed:", e);
+              }
+              try {
+                await signOut();
+              } catch (e) {
+                console.warn("[appLock] signOut in forgot-flow failed:", e);
+              }
+            })();
+          },
+        },
+      ],
+    );
   }
 
   async function onBio() {
@@ -309,6 +339,15 @@ export function AppLockOverlay() {
                 </Pressable>
               </>
             ) : null}
+
+            <Pressable
+              style={styles.forgotLink}
+              disabled={busy}
+              onPress={onForgotPasscodeSignOut}
+              hitSlop={8}
+            >
+              <Text style={styles.forgotLinkText}>Forgot passcode? Sign out</Text>
+            </Pressable>
           </View>
         </SafeAreaView>
       </KeyboardAvoidingView>
@@ -423,5 +462,7 @@ const styles = StyleSheet.create({
   // Back-compat for enrollment screen buttons
   secondary: { marginTop: 14, paddingVertical: 12, alignItems: "center" },
   secondaryText: { color: "#93c5fd", fontWeight: "600", fontSize: 16 },
+  forgotLink: { marginTop: 18, paddingVertical: 8, alignItems: "center" },
+  forgotLinkText: { color: "rgba(255,255,255,0.4)", fontSize: 13, fontWeight: "500" },
   disabled: { opacity: 0.55 },
 });
