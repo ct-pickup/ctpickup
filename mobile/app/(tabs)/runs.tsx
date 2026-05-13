@@ -284,16 +284,16 @@ export default function RunsScreen() {
             setFriendSuggestions(r.players);
             setFriendAutocompleteEmpty(r.players.length === 0);
             setFriendAutocompleteError(null);
-          } else {
-            setFriendSuggestions([]);
-            if (isFriendFindNotFoundError(r.error)) {
-              setFriendAutocompleteEmpty(true);
-              setFriendAutocompleteError(null);
             } else {
-              setFriendAutocompleteEmpty(false);
-              setFriendAutocompleteError(r.error ?? `Search failed (HTTP ${r.status}).`);
+              setFriendSuggestions([]);
+              if (isFriendFindNotFoundError(r.error)) {
+                setFriendAutocompleteEmpty(true);
+                setFriendAutocompleteError(null);
+              } else {
+                setFriendAutocompleteEmpty(false);
+                setFriendAutocompleteError(r.error ?? "Search failed. Try again.");
+              }
             }
-          }
         } catch (e) {
           if (!cancelled) {
             setFriendSuggestions([]);

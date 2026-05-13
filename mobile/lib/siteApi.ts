@@ -31,6 +31,7 @@ export type PickupFindPlayerResult = {
   username: string | null;
 };
 
+/** User-facing copy must never include raw status codes (e.g. "HTTP 200"). */
 function pickupFindPlayerApiError(json: unknown, status: number): string {
   if (json && typeof json === "object") {
     const o = json as Record<string, unknown>;
@@ -41,7 +42,23 @@ function pickupFindPlayerApiError(json: unknown, status: number): string {
     if (typeof o.code === "string" && o.code.length > 0) parts.push(`code: ${o.code}`);
     if (parts.length > 0) return parts.join(" — ");
   }
-  return `HTTP ${status}`;
+  if (status === 401 || status === 403) return "You need to be signed in to search.";
+  if (status >= 500) return "Server error. Try again in a moment.";
+  if (status === 404) return "That run could not be found.";
+  return "Search failed. Try again.";
+}
+
+/** Accept a raw JSON array or common `{ results | players | data: [...] }` wrappers. */
+function extractFindPlayerResultsArray(json: unknown): unknown[] | null {
+  if (Array.isArray(json)) return json;
+  if (json && typeof json === "object") {
+    const o = json as Record<string, unknown>;
+    for (const key of ["results", "players", "data"] as const) {
+      const v = o[key];
+      if (Array.isArray(v)) return v;
+    }
+  }
+  return null;
 }
 
 /** Autocomplete search for “pay for a friend” (debounced on the client). */
@@ -52,11 +69,15 @@ export async function fetchPickupFindPlayers(
 ): Promise<{ ok: boolean; status: number; players: PickupFindPlayerResult[]; error: string | null }> {
   const origin = siteOrigin();
   const limit = opts?.limit ?? 5;
+  const query = q.trim();
+  if (query.length < 2) {
+    return { ok: true, status: 0, players: [], error: null };
+  }
   if (!origin) {
-    return { ok: false, status: 0, players: [], error: "missing_site_url" };
+    return { ok: false, status: 0, players: [], error: "App configuration error. Try again later." };
   }
   const u = new URL(`${origin}/api/pickup/find-player`);
-  u.searchParams.set("q", q.trim());
+  u.searchParams.set("q", query);
   u.searchParams.set("limit", String(limit));
   if (opts?.runId) u.searchParams.set("run_id", opts.runId);
   const r = await fetch(u.toString(), {
@@ -75,16 +96,13 @@ export async function fetchPickupFindPlayers(
       error: pickupFindPlayerApiError(json, r.status),
     };
   }
-  if (!Array.isArray(json)) {
-    return {
-      ok: false,
-      status: r.status,
-      players: [],
-      error: pickupFindPlayerApiError(json, r.status),
-    };
+  const rawList = extractFindPlayerResultsArray(json);
+  if (rawList === null) {
+    // 2xx but body was not a list (e.g. parse edge cases or an unexpected envelope). Treat as no matches, not an error.
+    return { ok: true, status: r.status, players: [], error: null };
   }
   const players: PickupFindPlayerResult[] = [];
-  for (const item of json) {
+  for (const item of rawList) {
     if (!item || typeof item !== "object") continue;
     const o = item as Record<string, unknown>;
     const id = typeof o.id === "string" ? o.id : typeof o.user_id === "string" ? o.user_id : null;
