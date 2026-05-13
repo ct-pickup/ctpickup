@@ -12,6 +12,7 @@ import { siteOrigin } from "@/lib/env";
 import { hapticGoal, hapticKick, hapticTap } from "@/lib/haptics";
 import { fmtPickupDt } from "@/lib/pickupPublic";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
+import { NO_NEARBY_VENUE_HUB_MSG } from "@/lib/playerLocationHints";
 import { getNearestVenuesFromApi } from "@/lib/venueDistance";
 import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -106,6 +107,7 @@ export default function RunsScreen() {
   const [availabilitySubmittedBanner, setAvailabilitySubmittedBanner] = useState(false);
   const [skipPreselectAfterChange, setSkipPreselectAfterChange] = useState(false);
   const [profileZipDigits, setProfileZipDigits] = useState<string | null>(null);
+  const [profileNearestVenue, setProfileNearestVenue] = useState<string | null>(null);
   const [runVenueDriveMinutes, setRunVenueDriveMinutes] = useState<number | null>(null);
 
   const [friendModalOpen, setFriendModalOpen] = useState(false);
@@ -125,18 +127,26 @@ export default function RunsScreen() {
   useEffect(() => {
     if (!supabase || !session?.user?.id) {
       setProfileZipDigits(null);
+      setProfileNearestVenue(null);
       return;
     }
     let cancelled = false;
     void (async () => {
-      const { data, error } = await supabase.from("profiles").select("zip_code").eq("id", session.user.id).maybeSingle();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("zip_code,nearest_venue")
+        .eq("id", session.user.id)
+        .maybeSingle();
       if (cancelled) return;
       if (error || !data) {
         setProfileZipDigits(null);
+        setProfileNearestVenue(null);
         return;
       }
       const z = typeof data.zip_code === "string" ? data.zip_code.replace(/\D/g, "").slice(0, 5) : "";
       setProfileZipDigits(z.length === 5 ? z : null);
+      const nvRaw = (data as { nearest_venue?: unknown }).nearest_venue;
+      setProfileNearestVenue(typeof nvRaw === "string" && nvRaw.trim() ? nvRaw.trim() : null);
     })();
     return () => {
       cancelled = true;
@@ -557,6 +567,8 @@ export default function RunsScreen() {
 
   const showEmpty = !loading && !error && noFeaturedRun;
   const emptyBlockMinHeight = Math.max(260, Math.round(windowHeight * 0.42));
+  const showNoNearbyVenueRunsMessage =
+    showEmpty && Boolean(session?.user?.id) && !String(profileNearestVenue ?? "").trim();
 
   const onPickState = useCallback(
     (code: ServiceRegionCode) => {
@@ -633,10 +645,16 @@ export default function RunsScreen() {
       ) : noFeaturedRun ? (
         <View style={[styles.emptyCenter, { minHeight: emptyBlockMinHeight }]}>
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>No runs posted yet.</Text>
-            <Text style={styles.emptyBody}>
-              Check back soon. You&apos;ll see upcoming pickup runs here once published by admin.
-            </Text>
+            {showNoNearbyVenueRunsMessage ? (
+              <Text style={styles.emptyNoVenue}>{NO_NEARBY_VENUE_HUB_MSG}</Text>
+            ) : (
+              <>
+                <Text style={styles.emptyTitle}>No runs posted yet.</Text>
+                <Text style={styles.emptyBody}>
+                  Check back soon. You&apos;ll see upcoming pickup runs here once published by admin.
+                </Text>
+              </>
+            )}
           </View>
         </View>
       ) : (
@@ -1124,6 +1142,12 @@ const styles = StyleSheet.create({
   emptyBody: {
     marginTop: 12,
     color: "rgba(255,255,255,0.65)",
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: "center",
+  },
+  emptyNoVenue: {
+    color: "rgba(255,255,255,0.5)",
     fontSize: 15,
     lineHeight: 22,
     textAlign: "center",

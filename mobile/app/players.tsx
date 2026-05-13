@@ -332,7 +332,12 @@ export default function PlayersScreen() {
                     </Text>
                     <Text style={styles.metaSep}>·</Text>
                     <Text style={styles.meta}>
-                      <Text style={styles.metaK}>Region</Text> {p.region ?? "—"}
+                      <Text style={styles.metaK}>Region</Text>{" "}
+                      {p.region != null ? (
+                        <Text style={styles.metaValue}>{p.region}</Text>
+                      ) : (
+                        <Text style={styles.metaMuted}>No nearby hub</Text>
+                      )}
                     </Text>
                   </View>
 
@@ -430,6 +435,8 @@ const styles = StyleSheet.create({
   username: { marginTop: 4, color: "rgba(255,255,255,0.55)", fontSize: 14, fontWeight: "600" },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
   meta: { color: "rgba(255,255,255,0.72)", fontSize: 13, fontWeight: "600" },
+  metaValue: { color: "rgba(255,255,255,0.72)", fontSize: 13, fontWeight: "600" },
+  metaMuted: { color: "rgba(255,255,255,0.45)", fontSize: 13, fontWeight: "600" },
   metaK: { color: "rgba(255,255,255,0.45)", fontWeight: "800" },
   metaSep: { color: "rgba(255,255,255,0.28)", fontWeight: "900" },
 });

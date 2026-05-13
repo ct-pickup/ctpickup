@@ -1,7 +1,9 @@
 import { FieldTournamentCard } from "@/components/FieldTournamentCard";
 import { RegionsPickerPanel } from "@/components/RegionsPickerPanel";
+import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { useFieldTournament } from "@/hooks/useFieldTournament";
+import { NO_NEARBY_VENUE_HUB_MSG } from "@/lib/playerLocationHints";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useNavigation, useRouter } from "expo-router";
@@ -12,9 +14,36 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function TournamentsScreen() {
   const router = useRouter();
   const { setRegion, region } = useSelectedRegion();
+  const { session, supabase } = useAuth();
   const { loading: fieldLoading, error: fieldError, payload: fieldPayload } = useFieldTournament();
   const navigation = useNavigation();
   const [showStatePicker, setShowStatePicker] = useState(true);
+  const [profileNearestVenue, setProfileNearestVenue] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!supabase || !session?.user?.id) {
+      setProfileNearestVenue(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("nearest_venue")
+        .eq("id", session.user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error || !data) {
+        setProfileNearestVenue(null);
+        return;
+      }
+      const nvRaw = (data as { nearest_venue?: unknown }).nearest_venue;
+      setProfileNearestVenue(typeof nvRaw === "string" && nvRaw.trim() ? nvRaw.trim() : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, session?.user?.id]);
 
   useEffect(() => {
     navigation.setOptions?.({
@@ -38,6 +67,15 @@ export default function TournamentsScreen() {
     [setRegion],
   );
 
+  const tournamentEmptyAlternate =
+    !fieldLoading &&
+    !fieldError &&
+    fieldPayload?.tournament == null &&
+    Boolean(session?.user?.id) &&
+    !String(profileNearestVenue ?? "").trim()
+      ? NO_NEARBY_VENUE_HUB_MSG
+      : null;
+
   const body = useMemo(
     () => (
       <>
@@ -60,6 +98,7 @@ export default function TournamentsScreen() {
           loading={fieldLoading}
           error={fieldError}
           payload={fieldPayload}
+          emptyAlternateMessage={tournamentEmptyAlternate}
           style={{ marginTop: 18, marginBottom: 8 }}
           onPress={() => router.push("/field-tournament")}
         />
@@ -80,7 +119,16 @@ export default function TournamentsScreen() {
         ) : null}
       </>
     ),
-    [fieldLoading, fieldError, fieldPayload, region, router],
+    [
+      fieldLoading,
+      fieldError,
+      fieldPayload,
+      region,
+      router,
+      session?.user?.id,
+      profileNearestVenue,
+      tournamentEmptyAlternate,
+    ],
   );
 
   if (showStatePicker) {

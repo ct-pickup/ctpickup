@@ -58,7 +58,7 @@ function fmtEtDateTime(iso: string | null): string {
 
 function venueSnippet(label: string | null): string {
   const t = s(label).replace(/\s+/g, " ").trim();
-  if (!t) return "—";
+  if (!t) return "No venue listed";
   return t.length > 52 ? `${t.slice(0, 52)}…` : t;
 }
 

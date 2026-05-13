@@ -18,9 +18,11 @@ type Props = {
   payload: FieldTournamentPayload | null;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
+  /** When there is no tournament row, show this instead of the default empty copy (e.g. no hub for zip). */
+  emptyAlternateMessage?: string | null;
 };
 
-export function FieldTournamentCard({ loading, error, payload, onPress, style }: Props) {
+export function FieldTournamentCard({ loading, error, payload, onPress, style, emptyAlternateMessage }: Props) {
   if (loading) {
     return (
       <View style={style}>
@@ -57,6 +59,16 @@ export function FieldTournamentCard({ loading, error, payload, onPress, style }:
   }
   const t = payload?.tournament;
   if (!t) {
+    const alt = typeof emptyAlternateMessage === "string" ? emptyAlternateMessage.trim() : "";
+    if (alt.length > 0) {
+      return (
+        <View style={style}>
+          <View style={styles.card}>
+            <Text style={styles.emptyAlternate}>{alt}</Text>
+          </View>
+        </View>
+      );
+    }
     return (
       <View style={style}>
         <View style={styles.card}>
@@ -160,5 +172,11 @@ const styles = StyleSheet.create({
   pillFull: { borderWidth: 1, borderColor: "rgba(251,146,60,0.45)" },
   pillText: { color: "rgba(255,255,255,0.9)", fontSize: 12, fontWeight: "700" },
   emptySub: { marginTop: 8, fontSize: 14, lineHeight: 21, color: "rgba(255,255,255,0.5)" },
+  emptyAlternate: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: "rgba(255,255,255,0.5)",
+    textAlign: "center",
+  },
   err: { marginTop: 8, fontSize: 14, color: "#fca5a5", lineHeight: 20 },
 });

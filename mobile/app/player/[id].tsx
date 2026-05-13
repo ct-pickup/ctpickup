@@ -319,6 +319,11 @@ export default function PlayerProfileScreen() {
           <Text style={styles.label}>Region</Text>
           <Text style={styles.value}>{region}</Text>
         </View>
+      ) : !statsLoading && nearestVenue == null ? (
+        <View style={styles.block}>
+          <Text style={styles.label}>Region</Text>
+          <Text style={styles.valueMuted}>No CT Pickup hub on file for this profile.</Text>
+        </View>
       ) : null}
 
       <View style={styles.block}>

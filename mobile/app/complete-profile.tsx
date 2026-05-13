@@ -3,9 +3,10 @@ import { useAuth } from "@/context/AuthContext";
 import { useWaiver } from "@/context/WaiverContext";
 import { CT_PICKUP_LIME } from "@/constants/Colors";
 import { siteOrigin } from "@/lib/env";
+import { COMPLETE_PROFILE_ZIP_NO_VENUE_MSG } from "@/lib/playerLocationHints";
 import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
 import { Redirect, useRouter, type Href } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -31,12 +32,6 @@ const GENDER_OPTIONS = [
   { value: "prefer_not_to_say" as const, label: "Prefer not to say" },
 ];
 
-const PLATFORM_OPTIONS = [
-  { value: "ps5" as const, label: "PS5" },
-  { value: "xbox" as const, label: "Xbox" },
-  { value: "pc" as const, label: "PC" },
-];
-
 const POSITION_OPTIONS = [
   { value: "Goalkeeper" as const, label: "Goalkeeper" },
   { value: "Defender" as const, label: "Defender" },
@@ -45,7 +40,6 @@ const POSITION_OPTIONS = [
 ];
 
 type GenderValue = (typeof GENDER_OPTIONS)[number]["value"];
-type PlatformValue = (typeof PLATFORM_OPTIONS)[number]["value"];
 type PositionValue = (typeof POSITION_OPTIONS)[number]["value"];
 
 type FieldKey =
@@ -56,11 +50,7 @@ type FieldKey =
   | "instagram"
   | "phone"
   | "zip_code"
-  | "username"
-  | "esports_interest"
-  | "esports_platform"
-  | "esports_console"
-  | "esports_online_id";
+  | "username";
 
 function cleanInstagram(s: string): string {
   return s.trim().replace(/^@/, "").replace(/\s+/g, "");
@@ -182,23 +172,54 @@ export default function CompleteProfileScreen() {
   const [phone, setPhone] = useState("");
   const [zipCode, setZipCode] = useState("");
   const [username, setUsername] = useState("");
-  const [esportsInterest, setEsportsInterest] = useState<boolean | null>(null);
-  const [esportsPlatform, setEsportsPlatform] = useState<PlatformValue | null>(null);
-  const [esportsConsole, setEsportsConsole] = useState("");
-  const [esportsOnlineId, setEsportsOnlineId] = useState("");
 
   const [genderPickerOpen, setGenderPickerOpen] = useState(false);
-  const [platformPickerOpen, setPlatformPickerOpen] = useState(false);
   const [positionPickerOpen, setPositionPickerOpen] = useState(false);
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [postSaveVenues, setPostSaveVenues] = useState<VenueDistanceRow[] | null>(null);
+  const [zipVenuePreviewChecking, setZipVenuePreviewChecking] = useState(false);
+  const [zipVenuePreviewEmpty, setZipVenuePreviewEmpty] = useState<boolean | null>(null);
 
   const signedEmail = session?.user?.email ?? "";
 
   const zipDigits = zipCode.replace(/\D/g, "").slice(0, 5);
   const zipOk = zipDigits.length === 5;
+
+  useEffect(() => {
+    if (!zipOk || postSaveVenues !== null) {
+      setZipVenuePreviewEmpty(null);
+      setZipVenuePreviewChecking(false);
+      return;
+    }
+    setZipVenuePreviewEmpty(null);
+    let cancelled = false;
+    const tid = setTimeout(() => {
+      void (async () => {
+        setZipVenuePreviewChecking(true);
+        let rows: VenueDistanceRow[] = [];
+        try {
+          const origin = siteOrigin();
+          if (origin) {
+            rows = await getNearestVenuesFromApi(zipDigits, origin, session?.access_token);
+          }
+          if (rows.length === 0) {
+            rows = getNearestVenues(zipDigits);
+          }
+        } catch {
+          rows = [];
+        }
+        if (cancelled) return;
+        setZipVenuePreviewChecking(false);
+        setZipVenuePreviewEmpty(rows.length === 0);
+      })();
+    }, 450);
+    return () => {
+      cancelled = true;
+      clearTimeout(tid);
+    };
+  }, [zipOk, zipDigits, postSaveVenues, session?.access_token]);
 
   const canContinue = useMemo(() => {
     if (
@@ -210,23 +231,8 @@ export default function CompleteProfileScreen() {
       !username.trim()
     )
       return false;
-    if (esportsInterest === null) return false;
-    if (esportsInterest === true) {
-      if (!esportsPlatform || !esportsConsole.trim() || !esportsOnlineId.trim()) return false;
-    }
     return true;
-  }, [
-    firstName,
-    lastName,
-    playingPosition,
-    instagram,
-    zipOk,
-    username,
-    esportsInterest,
-    esportsPlatform,
-    esportsConsole,
-    esportsOnlineId,
-  ]);
+  }, [firstName, lastName, playingPosition, instagram, zipOk, username]);
 
   const liveErrors = useMemo((): Partial<Record<FieldKey, string>> => {
     const e: Partial<Record<FieldKey, string>> = {};
@@ -237,26 +243,8 @@ export default function CompleteProfileScreen() {
     if (!zipDigits) e.zip_code = "Required";
     else if (!zipOk) e.zip_code = "Enter a 5-digit zip";
     if (!username.trim()) e.username = "Required";
-    if (esportsInterest === null) e.esports_interest = "Required";
-    if (esportsInterest === true) {
-      if (!esportsPlatform) e.esports_platform = "Required";
-      if (!esportsConsole.trim()) e.esports_console = "Required";
-      if (!esportsOnlineId.trim()) e.esports_online_id = "Required";
-    }
     return e;
-  }, [
-    firstName,
-    lastName,
-    playingPosition,
-    instagram,
-    zipDigits,
-    zipOk,
-    username,
-    esportsInterest,
-    esportsPlatform,
-    esportsConsole,
-    esportsOnlineId,
-  ]);
+  }, [firstName, lastName, playingPosition, instagram, zipDigits, zipOk, username]);
 
   const postSaveVenueSections = useMemo(
     () => (postSaveVenues && postSaveVenues.length > 0 ? nearestVenueSections(postSaveVenues) : []),
@@ -271,10 +259,6 @@ export default function CompleteProfileScreen() {
       "instagram",
       "zip_code",
       "username",
-      "esports_interest",
-      "esports_platform",
-      "esports_console",
-      "esports_online_id",
     ];
     for (const k of ordered) {
       const m = liveErrors[k];
@@ -336,7 +320,6 @@ export default function CompleteProfileScreen() {
         nearestVenues = [];
       }
 
-      const esportsYes = esportsInterest === true;
       const payload: Record<string, unknown> = {
         first_name: fn,
         last_name: ln,
@@ -348,19 +331,8 @@ export default function CompleteProfileScreen() {
         nearest_venue: nearestVenues[0]?.venue ?? null,
         username: un,
         email: signedEmail,
-        esports_interest: esportsYes ? "yes" : "no",
         updated_at: new Date().toISOString(),
       };
-
-      if (esportsYes) {
-        payload.esports_platform = esportsPlatform;
-        payload.esports_console = esportsConsole.trim();
-        payload.esports_online_id = esportsOnlineId.trim();
-      } else {
-        payload.esports_platform = null;
-        payload.esports_console = null;
-        payload.esports_online_id = null;
-      }
 
       try {
         const { error } = await supabase.from("profiles").update(payload).eq("id", userId);
@@ -420,10 +392,6 @@ export default function CompleteProfileScreen() {
     phone,
     zipDigits,
     username,
-    esportsInterest,
-    esportsPlatform,
-    esportsConsole,
-    esportsOnlineId,
     signedEmail,
     liveErrors,
     session?.user?.id,
@@ -435,15 +403,6 @@ export default function CompleteProfileScreen() {
     markProfileComplete();
     router.replace("/(tabs)" as Href);
   }, [markProfileComplete, router]);
-
-  function setInterest(next: boolean) {
-    setEsportsInterest(next);
-    if (!next) {
-      setEsportsPlatform(null);
-      setEsportsConsole("");
-      setEsportsOnlineId("");
-    }
-  }
 
   if (!isReady) {
     return (
@@ -510,7 +469,7 @@ export default function CompleteProfileScreen() {
               <View style={styles.nearestCard}>
                 <Text style={styles.nearestCardTitle}>Your nearest locations:</Text>
                 {postSaveVenues.length === 0 ? (
-                  <Text style={styles.nearestEmpty}>No estimates for this zip — you can update it anytime in Account.</Text>
+                  <Text style={styles.nearestEmpty}>{COMPLETE_PROFILE_ZIP_NO_VENUE_MSG}</Text>
                 ) : (
                   postSaveVenueSections.map((section, si) => (
                     <View key={section.header}>
@@ -650,6 +609,15 @@ export default function CompleteProfileScreen() {
               autoCorrect={false}
             />
             {liveErrors.zip_code ? <Text style={styles.errText}>{liveErrors.zip_code}</Text> : null}
+            {zipOk && zipVenuePreviewChecking ? (
+              <Text style={styles.zipVenueChecking}>Checking nearby venues…</Text>
+            ) : null}
+            {zipOk &&
+            !zipVenuePreviewChecking &&
+            !liveErrors.zip_code &&
+            zipVenuePreviewEmpty === true ? (
+              <Text style={styles.zipVenueInlineHint}>{COMPLETE_PROFILE_ZIP_NO_VENUE_MSG}</Text>
+            ) : null}
           </View>
 
           <View style={styles.fieldBlock}>
@@ -666,78 +634,6 @@ export default function CompleteProfileScreen() {
             {liveErrors.username ? <Text style={styles.errText}>{liveErrors.username}</Text> : null}
           </View>
 
-          <View style={styles.fieldBlock}>
-            <Text style={styles.label}>Esports interest</Text>
-            <View style={styles.toggleRow}>
-              <Pressable
-                onPress={() => setInterest(true)}
-                style={({ pressed }) => [
-                  styles.toggleBtn,
-                  esportsInterest === true && styles.toggleBtnOn,
-                  pressed && { opacity: 0.88 },
-                ]}
-              >
-                <Text style={[styles.toggleBtnText, esportsInterest === true && styles.toggleBtnTextOn]}>Yes</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setInterest(false)}
-                style={({ pressed }) => [
-                  styles.toggleBtn,
-                  esportsInterest === false && styles.toggleBtnOn,
-                  pressed && { opacity: 0.88 },
-                ]}
-              >
-                <Text style={[styles.toggleBtnText, esportsInterest === false && styles.toggleBtnTextOn]}>No</Text>
-              </Pressable>
-            </View>
-            {liveErrors.esports_interest ? <Text style={styles.errText}>{liveErrors.esports_interest}</Text> : null}
-          </View>
-
-          {esportsInterest === true ? (
-            <>
-              <View style={styles.fieldBlock}>
-                <Text style={styles.label}>Esports platform</Text>
-                <Pressable
-                  onPress={() => setPlatformPickerOpen(true)}
-                  style={[styles.input, styles.selectTrigger, liveErrors.esports_platform ? styles.inputErr : null]}
-                >
-                  <Text style={esportsPlatform ? styles.selectValue : styles.selectPlaceholder}>
-                    {esportsPlatform ? labelFor(PLATFORM_OPTIONS, esportsPlatform) : "Choose…"}
-                  </Text>
-                  <Text style={styles.selectChevron}>▾</Text>
-                </Pressable>
-                {liveErrors.esports_platform ? <Text style={styles.errText}>{liveErrors.esports_platform}</Text> : null}
-              </View>
-
-              <View style={styles.fieldBlock}>
-                <Text style={styles.label}>Esports console</Text>
-                <TextInput
-                  style={[styles.input, liveErrors.esports_console ? styles.inputErr : null]}
-                  placeholder="Console or hardware"
-                  placeholderTextColor="rgba(255,255,255,0.35)"
-                  value={esportsConsole}
-                  onChangeText={setEsportsConsole}
-                  autoCapitalize="sentences"
-                />
-                {liveErrors.esports_console ? <Text style={styles.errText}>{liveErrors.esports_console}</Text> : null}
-              </View>
-
-              <View style={styles.fieldBlock}>
-                <Text style={styles.label}>Esports online ID</Text>
-                <TextInput
-                  style={[styles.input, liveErrors.esports_online_id ? styles.inputErr : null]}
-                  placeholder="Gamertag, PSN ID, etc."
-                  placeholderTextColor="rgba(255,255,255,0.35)"
-                  value={esportsOnlineId}
-                  onChangeText={setEsportsOnlineId}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                {liveErrors.esports_online_id ? <Text style={styles.errText}>{liveErrors.esports_online_id}</Text> : null}
-              </View>
-            </>
-          ) : null}
-
           <SelectModal<GenderValue>
             visible={genderPickerOpen}
             title="Gender"
@@ -745,14 +641,6 @@ export default function CompleteProfileScreen() {
             value={gender}
             onSelect={setGender}
             onClose={() => setGenderPickerOpen(false)}
-          />
-          <SelectModal<PlatformValue>
-            visible={platformPickerOpen}
-            title="Esports platform"
-            options={PLATFORM_OPTIONS}
-            value={esportsPlatform}
-            onSelect={setEsportsPlatform}
-            onClose={() => setPlatformPickerOpen(false)}
           />
           <SelectModal<PositionValue>
             visible={positionPickerOpen}
@@ -875,32 +763,6 @@ const styles = StyleSheet.create({
     color: LIME,
     marginLeft: 8,
   },
-  toggleRow: {
-    marginTop: 10,
-    flexDirection: "row",
-    gap: 12,
-  },
-  toggleBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.35)",
-  },
-  toggleBtnOn: {
-    borderColor: LIME,
-    backgroundColor: "rgba(163,230,53,0.12)",
-  },
-  toggleBtnText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "rgba(255,255,255,0.55)",
-  },
-  toggleBtnTextOn: {
-    color: LIME,
-  },
   inputErr: {
     borderColor: "rgba(252,165,165,0.65)",
   },
@@ -908,6 +770,17 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 13,
     color: "#fca5a5",
+  },
+  zipVenueInlineHint: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 19,
+    color: "rgba(255,255,255,0.5)",
+  },
+  zipVenueChecking: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "rgba(255,255,255,0.45)",
   },
   submitErr: {
     marginTop: 16,

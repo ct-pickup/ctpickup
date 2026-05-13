@@ -11,6 +11,7 @@ import {
   PASSCODE_REQUIREMENTS,
 } from "@/lib/appLock";
 import { siteOrigin } from "@/lib/env";
+import { ACCOUNT_ZIP_NO_NEAREST_VENUE_MSG } from "@/lib/playerLocationHints";
 import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
 import { fetchPickupStanding, postMobilePushPreference, postMobilePushToken } from "@/lib/siteApi";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -102,16 +103,17 @@ type ProfileRow = {
   instagram: string | null;
   phone: string | null;
   zip_code: string | null;
+  nearest_venue: string | null;
   playing_position: string | null;
   username: string | null;
   push_notifications_enabled: boolean | null;
 };
 
 const PROFILE_SELECT_WITH_PUSH =
-  "first_name,last_name,approved,instagram,phone,zip_code,playing_position,username,push_notifications_enabled";
+  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled";
 
 const PROFILE_SELECT_WITHOUT_PUSH =
-  "first_name,last_name,approved,instagram,phone,zip_code,playing_position,username";
+  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username";
 
 function supabaseLooksLikeMissingColumn(err: { message?: string } | null | undefined, col: string): boolean {
   const msg = err?.message ?? "";
@@ -470,6 +472,7 @@ export default function AccountScreen() {
         phone: phone || null,
         zip_code: zipDigits.length === 5 ? zipDigits : null,
         username: username || null,
+        nearest_venue: nearestVenue,
       };
       setProfile((p) => {
         if (p) {
@@ -742,6 +745,10 @@ export default function AccountScreen() {
             placeholderTextColor="rgba(255,255,255,0.35)"
             editable={!editBusy}
           />
+          {editZipCode.replace(/\D/g, "").length === 5 &&
+          !String(profile?.nearest_venue ?? "").trim() ? (
+            <Text style={styles.zipNearestHint}>{ACCOUNT_ZIP_NO_NEAREST_VENUE_MSG}</Text>
+          ) : null}
 
           <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Username</Text>
           <TextInput
@@ -1276,6 +1283,12 @@ const styles = StyleSheet.create({
   email: { marginTop: 10, fontSize: 18, fontWeight: "700", color: "#fff" },
   signedAssist: { marginTop: 10, fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 20 },
   fieldLabel: { fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.55)" },
+  zipNearestHint: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 18,
+    color: "rgba(255,255,255,0.5)",
+  },
   fieldLabelStrong: { fontSize: 13, fontWeight: "800", color: "rgba(255,255,255,0.75)" },
   input: {
     marginTop: 8,
