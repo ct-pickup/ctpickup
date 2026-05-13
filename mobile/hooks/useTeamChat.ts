@@ -106,7 +106,7 @@ export function useTeamChatRoom(enabled: boolean, lookup: RoomLookup) {
   return { room, loading, error };
 }
 
-/** Matches `chat_messages_set_sender_display` in `20260502160000_team_chat.sql`. */
+/** Matches `chat_messages_set_sender_display` (display name + `sender_is_admin`). */
 function profileToChatSenderDisplay(first: string | null | undefined, last: string | null | undefined): string {
   const s = `${String(first ?? "").trim()} ${String(last ?? "").trim()}`.trim();
   return s || "Player";
@@ -260,7 +260,7 @@ export function useTeamChatMessages(roomId: string | null) {
     setError(null);
     const { data, error: qErr } = await supabase
       .from("chat_messages")
-      .select("id,room_id,user_id,body,sender_display_name,created_at")
+      .select("id,room_id,user_id,body,sender_display_name,sender_is_admin,created_at")
       .eq("room_id", roomId)
       .order("created_at", { ascending: true })
       .limit(300);

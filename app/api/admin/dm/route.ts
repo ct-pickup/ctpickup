@@ -120,7 +120,7 @@ export async function POST(req: Request) {
   const insMsg = await admin
     .from("chat_messages")
     .insert({ room_id: roomId, user_id: guard.userId, body: message })
-    .select("id,room_id,user_id,body,sender_display_name,created_at")
+    .select("id,room_id,user_id,body,sender_display_name,sender_is_admin,created_at")
     .single();
 
   if (insMsg.error) {

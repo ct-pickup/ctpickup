@@ -99,7 +99,7 @@ export async function POST(req: Request) {
   const ins = await admin
     .from("chat_messages")
     .insert({ room_id, user_id: uid, body })
-    .select("id,room_id,user_id,body,sender_display_name,created_at")
+    .select("id,room_id,user_id,body,sender_display_name,sender_is_admin,created_at")
     .single();
 
   if (ins.error) {

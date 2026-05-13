@@ -302,6 +302,9 @@ export default function TeamChatThreadScreen() {
           }
 
           const initialsSource = (m.sender_display_name || senderLabel || "Player").trim();
+          const senderIsAdminProfile =
+            m.sender_is_admin === true || (m.sender_is_admin == null && senderIsAdmin);
+          const avatarLetters = senderIsAdminProfile ? "A" : senderInitials(initialsSource);
 
           const nameTextStyle = isAdminMessage ? styles.msgSenderAdmin : styles.msgSenderOther;
 
@@ -332,7 +335,7 @@ export default function TeamChatThreadScreen() {
                         isAdminMessage ? styles.msgSenderAvatarTextAdmin : styles.msgSenderAvatarTextOther,
                       ]}
                     >
-                      {senderInitials(initialsSource)}
+                      {avatarLetters}
                     </Text>
                   </View>
                   {m.user_id ? (

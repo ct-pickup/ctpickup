@@ -20,6 +20,8 @@ export type ChatMessageRow = {
   user_id: string;
   body: string;
   sender_display_name: string;
+  /** Mirrors `profiles.is_admin` at insert time; see `chat_messages_set_sender_display`. */
+  sender_is_admin: boolean;
   created_at: string;
 };
 
