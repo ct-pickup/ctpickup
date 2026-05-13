@@ -1,4 +1,4 @@
-import { hapticGoal, hapticKick, hapticTap } from "@/lib/haptics";
+import { hapticError, hapticGoal, hapticKick, hapticTap, hapticWhistle } from "@/lib/haptics";
 import { postMobilePushToken } from "@/lib/siteApi";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
@@ -98,16 +98,11 @@ function schedulePostLoadNavigation(action: () => void) {
 
 function hapticForForegroundPushKind(kind: string) {
   if (kind === "pickup_invite") void hapticKick();
-  else if (
-    kind === "pickup_confirmed" ||
-    kind === "pickup_finalized" ||
-    kind === "pickup_likely_on" ||
-    kind === "pickup_result" ||
-    kind.startsWith("pickup_award_")
-  )
+  else if (kind === "pickup_result" || kind.startsWith("pickup_award_")) void hapticWhistle();
+  else if (kind === "pickup_confirmed" || kind === "pickup_finalized" || kind === "pickup_likely_on")
     void hapticGoal();
   else if (kind === "pickup_waitlist_offer" || kind === "pickup_promoted") void hapticKick();
-  else if (kind === "pickup_canceled") void hapticTap();
+  else if (kind === "pickup_canceled") void hapticError();
   else if (kind === "admin_availability") void hapticTap();
   else if (kind === "chat_message" || kind === "announcement") void hapticTap();
   else if (
@@ -117,18 +112,32 @@ function hapticForForegroundPushKind(kind: string) {
     kind === "tournament_roster_invite"
   )
     void hapticKick();
+  else if (kind === "tournament_bracket_generated" || kind === "tournament_starts_soon") void hapticWhistle();
+  else if (kind === "tournament_canceled") void hapticError();
   else if (
-    kind === "tournament_canceled" ||
-    kind === "tournament_bracket_generated" ||
     kind === "tournament_roster_response" ||
     kind === "tournament_join_request" ||
     kind === "tournament_join_decision" ||
-    kind === "tournament_starts_soon" ||
     kind === "tournament_captain_payment_confirmed"
   )
     void hapticGoal();
   else if (kind === "tournament_captain_claim_admin" || kind === "tier_suggestions_ready") void hapticTap();
   else void hapticTap();
+}
+
+function hapticForNotificationTap(kind: string) {
+  if (
+    kind.startsWith("pickup_award_") ||
+    kind === "pickup_result" ||
+    kind === "tournament_bracket_generated" ||
+    kind === "tournament_starts_soon"
+  ) {
+    void hapticWhistle();
+  } else if (kind === "pickup_canceled" || kind === "tournament_canceled") {
+    void hapticError();
+  } else {
+    void hapticTap();
+  }
 }
 
 export function usePushRegistration(accessToken: string | null) {
@@ -159,6 +168,7 @@ export function usePushRegistration(accessToken: string | null) {
       const navigate = () => {
         if (kind === "pickup_canceled") {
           router.push("/(tabs)/runs" as const);
+          void hapticForNotificationTap(kind);
           return;
         }
         if (PICKUP_RUN_DEEP_LINK_KINDS.has(kind)) {
@@ -168,10 +178,12 @@ export function usePushRegistration(accessToken: string | null) {
           } else {
             router.push("/(tabs)/runs" as const);
           }
+          void hapticForNotificationTap(kind);
           return;
         }
         if (kind === "admin_availability") {
           router.push("/admin/pickup" as const);
+          void hapticForNotificationTap(kind);
           return;
         }
         if (kind === "chat_message" || kind === "announcement") {
@@ -182,6 +194,7 @@ export function usePushRegistration(accessToken: string | null) {
           } else {
             router.push("/(tabs)/messages" as const);
           }
+          void hapticForNotificationTap(kind);
           return;
         }
         if (kind === "tournament_bracket_generated") {
@@ -194,6 +207,7 @@ export function usePushRegistration(accessToken: string | null) {
           } else {
             router.push("/(tabs)/tournaments" as const);
           }
+          void hapticForNotificationTap(kind);
           return;
         }
         if (
@@ -208,18 +222,22 @@ export function usePushRegistration(accessToken: string | null) {
           kind === "tournament_captain_payment_confirmed"
         ) {
           router.push("/(tabs)/tournaments" as const);
+          void hapticForNotificationTap(kind);
           return;
         }
         if (kind === "tournament_captain_claim_admin") {
           router.push("/admin/tournament" as const);
+          void hapticForNotificationTap(kind);
           return;
         }
         if (kind === "tier_suggestions_ready") {
           router.push("/admin/members" as const);
+          void hapticForNotificationTap(kind);
           return;
         }
         if (kind === "roster_invite") {
           router.push("/field-tournament" as const);
+          void hapticForNotificationTap(kind);
           return;
         }
       };
