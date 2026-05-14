@@ -41,6 +41,7 @@ type ApiRow = {
 };
 
 type LeaderboardsPayload = {
+  ok?: boolean;
   region: string;
   wins: ApiRow[];
   sessions: ApiRow[];
@@ -57,12 +58,12 @@ const TABS: Array<{ id: TabId; label: string }> = [
   { id: "wins", label: "Wins" },
   { id: "sessions", label: "Sessions" },
   { id: "win_rate", label: "Win Rate" },
-  { id: "potd", label: "POTD" },
-  { id: "goalie", label: "Goalie of Day 🧤" },
-  { id: "defender", label: "Defender of Day 🛡️" },
-  { id: "midfielder", label: "Midfielder of Day 🎯" },
-  { id: "attacker", label: "Attacker of Day ⚡" },
-  { id: "goals", label: "Goals" },
+  { id: "potd", label: "🏆 POTD" },
+  { id: "goalie", label: "🧤 Goalie" },
+  { id: "defender", label: "🛡️ Defender" },
+  { id: "midfielder", label: "🎯 Mid" },
+  { id: "attacker", label: "⚡ Attacker" },
+  { id: "goals", label: "⚽ Goals" },
 ];
 
 const REGIONS: RegionFilter[] = ["ALL", "CT", "NY", "NJ", "MD"];
@@ -73,6 +74,7 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 function parsePayload(json: unknown): LeaderboardsPayload | null {
   if (!isRecord(json)) return null;
+  if (json.ok === false) return null;
   const wins = json.wins;
   const sessions = json.sessions;
   const win_rate = json.win_rate;
@@ -96,7 +98,8 @@ function parsePayload(json: unknown): LeaderboardsPayload | null {
     return null;
   }
   const region = typeof json.region === "string" ? json.region : "ALL";
-  return { region, wins, sessions, win_rate, potd, goalie, defender, midfielder, attacker, goals };
+  const ok = json.ok === true;
+  return { ok, region, wins, sessions, win_rate, potd, goalie, defender, midfielder, attacker, goals };
 }
 
 function parseRow(v: unknown): ApiRow | null {
@@ -143,9 +146,9 @@ function formatStat(tab: TabId, row: ApiRow): string {
 }
 
 function medalForRank(rank: number): string {
-  if (rank === 1) return "🥇 ";
-  if (rank === 2) return "🥈 ";
-  if (rank === 3) return "🥉 ";
+  if (rank === 1) return "🥇";
+  if (rank === 2) return "🥈";
+  if (rank === 3) return "🥉";
   return "";
 }
 
@@ -268,11 +271,29 @@ export default function LeaderboardsScreen() {
     void load(true);
   }, [load]);
 
-  const listEmpty = !loading && !err && rowsForTab.length === 0;
+  const showInitialSpinner = loading && !refreshing;
+  const listEmpty = !loading && !err && payload != null && rowsForTab.length === 0;
+
+  const listEmptyBody = err ? (
+    <View style={styles.emptyStateBlock}>
+      <Text style={styles.errText}>{err}</Text>
+      <Pressable onPress={() => void load(false)} style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.9 }]}>
+        <Text style={styles.retryBtnText}>Retry</Text>
+      </Pressable>
+    </View>
+  ) : (
+    <Text style={styles.emptyText}>No stats yet</Text>
+  );
 
   return (
     <View style={styles.root}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabScroll}
+        contentContainerStyle={styles.tabRow}
+        keyboardShouldPersistTaps="handled"
+      >
         {TABS.map((t) => {
           const on = tab === t.id;
           return (
@@ -287,102 +308,94 @@ export default function LeaderboardsScreen() {
         })}
       </ScrollView>
 
-      {loading && !refreshing ? (
-        <View style={styles.centerFill}>
-          <ActivityIndicator color={LIME} size="large" />
-        </View>
-      ) : err ? (
-        <View style={styles.centerFill}>
-          <Text style={styles.errText}>{err}</Text>
-          <Pressable onPress={() => void load(false)} style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.9 }]}>
-            <Text style={styles.retryBtnText}>Retry</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <FlatList
-          data={rowsForTab}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={listEmpty ? styles.listEmptyContainer : styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={LIME} />}
-          ListEmptyComponent={
-            listEmpty ? (
-              <Text style={styles.emptyText}>No stats yet</Text>
-            ) : null
-          }
-          renderItem={({ item, index }) => {
-            const rank = index + 1;
-            const ig = formatInstagram(item.instagram);
-            const mine = myUserId != null && item.id === myUserId;
-            const un = (item.username ?? "").trim();
-            const fn = (item.first_name ?? "").trim();
-            const ln = (item.last_name ?? "").trim();
-            const hasFullName = Boolean(`${fn} ${ln}`.trim());
-            return (
-              <Pressable
-                onPress={() => router.push(`/player/${encodeURIComponent(item.id)}`)}
-                style={({ pressed }) => [
-                  styles.row,
-                  mine && styles.rowMine,
-                  pressed && { opacity: 0.92 },
-                ]}
-              >
-                <View style={styles.rankCol}>
-                  <Text style={styles.rankText}>
-                    {medalForRank(rank)}
-                    {rank}
+      <View style={styles.listWrap}>
+        {showInitialSpinner ? (
+          <View style={styles.centerFill}>
+            <ActivityIndicator color={LIME} size="large" />
+          </View>
+        ) : (
+          <FlatList
+            style={styles.listFlex}
+            data={err ? [] : rowsForTab}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={
+              err || rowsForTab.length === 0 ? styles.listContentGrow : styles.listContent
+            }
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={LIME} />}
+            ListEmptyComponent={err || listEmpty ? listEmptyBody : null}
+            renderItem={({ item, index }) => {
+              const rank = index + 1;
+              const ig = formatInstagram(item.instagram);
+              const mine = myUserId != null && item.id === myUserId;
+              const medal = medalForRank(rank);
+              const nameIg =
+                ig != null ? `${displayPlayerName(item)} · ${ig}` : displayPlayerName(item);
+              return (
+                <Pressable
+                  onPress={() => router.push(`/player/${encodeURIComponent(item.id)}`)}
+                  style={({ pressed }) => [
+                    styles.row,
+                    mine && styles.rowMine,
+                    pressed && { opacity: 0.92 },
+                  ]}
+                >
+                  <Text style={styles.rankText} numberOfLines={1}>
+                    {medal ? `${medal}${rank}` : String(rank)}
                   </Text>
-                </View>
-                <View style={styles.nameCol}>
-                  <Text style={styles.nameText} numberOfLines={1}>
-                    {displayPlayerName(item)}
+                  <Text style={styles.nameIgText} numberOfLines={1}>
+                    {nameIg}
                   </Text>
-                  {un && hasFullName ? (
-                    <Text style={styles.usernameSub} numberOfLines={1}>
-                      @{un}
-                    </Text>
-                  ) : null}
-                  {ig ? (
-                    <Text style={styles.igText} numberOfLines={1}>
-                      {ig}
-                    </Text>
-                  ) : null}
-                </View>
-                <Text style={styles.statText}>{formatStat(tab, item)}</Text>
-              </Pressable>
-            );
-          }}
-        />
-      )}
+                  <Text style={styles.statText} numberOfLines={1}>
+                    {formatStat(tab, item)}
+                  </Text>
+                </Pressable>
+              );
+            }}
+          />
+        )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
-  tabRow: {
+  tabScroll: {
     flexGrow: 0,
-    flexDirection: "row",
-    flexWrap: "nowrap",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 8,
-    paddingRight: 20,
+    flexShrink: 0,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(255,255,255,0.12)",
   },
+  tabRow: {
+    flexDirection: "row",
+    flexWrap: "nowrap",
+    alignItems: "center",
+    paddingLeft: 10,
+    paddingRight: 14,
+    paddingVertical: 6,
+    gap: 6,
+  },
   tab: {
     flexShrink: 0,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.14)",
     backgroundColor: "rgba(255,255,255,0.05)",
   },
   tabOn: { borderColor: "rgba(163,230,53,0.55)", backgroundColor: "rgba(163,230,53,0.12)" },
-  tabText: { color: "rgba(255,255,255,0.65)", fontWeight: "800", fontSize: 13 },
+  tabText: { color: "rgba(255,255,255,0.65)", fontWeight: "800", fontSize: 12 },
   tabTextOn: { color: LIME },
+
+  listWrap: { flex: 1, minHeight: 0 },
+  listFlex: { flex: 1 },
+  listContentGrow: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
 
   headerRegionRow: {
     flexDirection: "row",
@@ -407,6 +420,7 @@ const styles = StyleSheet.create({
   headerRegionChipTextOn: { color: LIME },
 
   centerFill: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 14 },
+  emptyStateBlock: { alignItems: "center", justifyContent: "center", gap: 14, paddingVertical: 24 },
   errText: { color: "#fca5a5", fontSize: 14, textAlign: "center", lineHeight: 20 },
   retryBtn: {
     paddingVertical: 10,
@@ -418,32 +432,33 @@ const styles = StyleSheet.create({
   },
   retryBtnText: { color: LIME, fontWeight: "800", fontSize: 14 },
 
-  listContent: { paddingHorizontal: 12, paddingBottom: 28, paddingTop: 8 },
-  listEmptyContainer: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 20, minHeight: 280 },
+  listContent: { paddingHorizontal: 10, paddingBottom: 24, paddingTop: 4 },
   emptyText: { color: "rgba(255,255,255,0.5)", fontSize: 15, textAlign: "center" },
 
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    borderWidth: 1,
+    gap: 8,
+    marginBottom: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: "rgba(255,255,255,0.1)",
     backgroundColor: "rgba(255,255,255,0.04)",
   },
   rowMine: {
-    borderLeftWidth: 3,
+    borderLeftWidth: 2,
     borderLeftColor: "rgba(163,230,53,0.42)",
-    paddingLeft: 9,
+    paddingLeft: 6,
   },
-  rankCol: { width: 44, alignItems: "flex-start" },
-  rankText: { color: "rgba(255,255,255,0.85)", fontWeight: "900", fontSize: 15 },
-  nameCol: { flex: 1, minWidth: 0 },
-  nameText: { color: "#fff", fontWeight: "800", fontSize: 15 },
-  usernameSub: { marginTop: 2, color: "rgba(163,230,53,0.85)", fontSize: 13, fontWeight: "700" },
-  igText: { marginTop: 3, color: "rgba(255,255,255,0.42)", fontSize: 13, fontWeight: "600" },
-  statText: { color: LIME, fontWeight: "900", fontSize: 16, minWidth: 52, textAlign: "right" },
+  rankText: {
+    color: "rgba(255,255,255,0.85)",
+    fontWeight: "900",
+    fontSize: 13,
+    width: 34,
+    textAlign: "left",
+  },
+  nameIgText: { flex: 1, minWidth: 0, color: "#fff", fontWeight: "700", fontSize: 14 },
+  statText: { color: LIME, fontWeight: "900", fontSize: 14, minWidth: 44, textAlign: "right", flexShrink: 0 },
 });

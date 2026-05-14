@@ -738,19 +738,19 @@ export default function PlayerProfileScreen() {
         ) : (
           <>
             <Text style={styles.valueLine}>
-              <Text style={styles.valueK}>Player of the Day</Text> {awardCounts.potd}
+              <Text style={styles.valueK}>🏆 Player of the Day</Text> {awardCounts.potd}
             </Text>
             <Text style={styles.valueLine}>
               <Text style={styles.valueK}>🧤 Goalie of the Day</Text> {awardCounts.gotd}
             </Text>
             <Text style={styles.valueLine}>
-              <Text style={styles.valueK}>Defender of the Day</Text> {awardCounts.def}
+              <Text style={styles.valueK}>🛡️ Defender of the Day</Text> {awardCounts.def}
             </Text>
             <Text style={styles.valueLine}>
-              <Text style={styles.valueK}>Midfielder of the Day</Text> {awardCounts.mid}
+              <Text style={styles.valueK}>🎯 Midfielder of the Day</Text> {awardCounts.mid}
             </Text>
             <Text style={styles.valueLine}>
-              <Text style={styles.valueK}>Attacker of the Day</Text> {awardCounts.att}
+              <Text style={styles.valueK}>⚡ Attacker of the Day</Text> {awardCounts.att}
             </Text>
           </>
         )}
