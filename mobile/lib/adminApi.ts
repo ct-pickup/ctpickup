@@ -138,6 +138,52 @@ export function fetchAdminPickupAnalytics(accessToken: string, opts?: { region?:
   return adminFetch<PickupAnalyticsResponse>(u.pathname + u.search, accessToken, { method: "GET" });
 }
 
+export type AdminAnalyticsBestTimeSlot = {
+  day_of_week: number;
+  hour: number;
+  avg_confirmed: number;
+  run_count: number;
+};
+
+export type AdminAnalyticsDashboardResponse = {
+  ok: boolean;
+  month: string;
+  revenue: { current_month_cents: number; prev_month_cents: number };
+  runs_per_region: { region: string; count: number }[];
+  attendance: { avg_attendance_rate: number | null };
+  most_active_players: {
+    user_id: string;
+    first_name: string | null;
+    last_name: string | null;
+    instagram: string | null;
+    sessions_this_month: number;
+  }[];
+  churn_at_risk: {
+    user_id: string;
+    first_name: string | null;
+    last_name: string | null;
+    instagram: string | null;
+    last_attended_at: string | null;
+  }[];
+  best_times: AdminAnalyticsBestTimeSlot[];
+  error?: string;
+};
+
+export function fetchAdminAnalyticsDashboard(
+  accessToken: string,
+  opts?: { month?: string; schedule_region?: string | null },
+) {
+  const origin = originOrThrow();
+  if (typeof origin !== "string") {
+    return Promise.resolve(missingSiteUrlAdminResult<AdminAnalyticsDashboardResponse>());
+  }
+  const u = new URL("/api/admin/analytics", origin);
+  if (opts?.month) u.searchParams.set("month", opts.month);
+  const reg = opts?.schedule_region != null ? String(opts.schedule_region).trim().toUpperCase() : "";
+  if (reg && reg !== "ALL") u.searchParams.set("schedule_region", reg);
+  return adminFetch<AdminAnalyticsDashboardResponse>(u.pathname + u.search, accessToken, { method: "GET" });
+}
+
 export function postAdminCreateRun(
   accessToken: string,
   body: {
@@ -542,6 +588,37 @@ export function postAdminAnnouncement(
     room_type?: string;
     error?: string;
   }>("/api/admin/chat/announce", accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function fetchAdminBulkMessageCount(
+  accessToken: string,
+  opts: { filter: string; filter_value?: string | null },
+) {
+  const origin = originOrThrow();
+  if (typeof origin !== "string") {
+    return Promise.resolve(missingSiteUrlAdminResult<{ ok: boolean; count: number }>());
+  }
+  const u = new URL("/api/admin/bulk-message", origin);
+  u.searchParams.set("filter", opts.filter);
+  if (opts.filter_value != null && String(opts.filter_value).trim()) {
+    u.searchParams.set("filter_value", String(opts.filter_value).trim());
+  }
+  return adminFetch<{ ok: boolean; count: number }>(u.pathname + u.search, accessToken, { method: "GET" });
+}
+
+export function postAdminBulkMessage(
+  accessToken: string,
+  body: {
+    filter: "all" | "region" | "tier" | "run";
+    filter_value?: string | null;
+    message: string;
+  },
+) {
+  return adminFetch<{ ok: boolean; sent_to: number }>("/api/admin/bulk-message", accessToken, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

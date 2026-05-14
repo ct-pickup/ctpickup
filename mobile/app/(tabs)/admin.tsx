@@ -1,4 +1,4 @@
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, useRouter, type Href } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAdminMode } from "@/context/AdminModeContext";
 import { useAuth } from "@/context/AuthContext";
@@ -26,6 +26,22 @@ export default function AdminScreen() {
         <Pressable style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]} onPress={() => router.push("/admin/pickup")}>
           <Text style={styles.cardTitle}>Pickup ops</Text>
           <Text style={styles.cardBody}>Create runs, view roster, promote standby, mark attendance, record late cancels.</Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
+          onPress={() => router.push("/admin/analytics")}
+        >
+          <Text style={styles.cardTitle}>Analytics 📊</Text>
+          <Text style={styles.cardBody}>Revenue, runs by region, attendance, top players, and churn signals by month.</Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
+          onPress={() => router.push("/admin/bulk-message" as Href)}
+        >
+          <Text style={styles.cardTitle}>Broadcast 📣</Text>
+          <Text style={styles.cardBody}>Send a push and announcements-room message to a filtered group of players.</Text>
         </Pressable>
 
         <Pressable style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]} onPress={() => router.push("/admin/members")}>

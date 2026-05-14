@@ -587,3 +587,89 @@ export async function fetchPublicPlayerProfile(
   }
   return { ok: true, profile: json as PublicPlayerProfile };
 }
+
+export type PlayerFollowStats = {
+  followers_count: number;
+  following_count: number;
+  is_following: boolean;
+};
+
+export async function fetchPlayerFollowStats(
+  accessToken: string,
+  profileId: string,
+): Promise<{ ok: true; stats: PlayerFollowStats } | { ok: false; status: number; error: string }> {
+  const origin = siteOrigin();
+  if (!origin) {
+    return { ok: false, status: 0, error: "missing_site_url" };
+  }
+  const u = new URL(`${origin}/api/player/follow`);
+  u.searchParams.set("profile_id", profileId);
+  const r = await fetch(u.toString(), {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+  const json = (await r.json().catch(() => null)) as unknown;
+  if (!r.ok) {
+    const err =
+      json && typeof json === "object" && "error" in json && typeof (json as { error: unknown }).error === "string"
+        ? (json as { error: string }).error
+        : "request_failed";
+    return { ok: false, status: r.status, error: err };
+  }
+  if (!json || typeof json !== "object") {
+    return { ok: false, status: r.status, error: "invalid_response" };
+  }
+  const o = json as Record<string, unknown>;
+  const followers_count = typeof o.followers_count === "number" ? o.followers_count : Number(o.followers_count ?? 0);
+  const following_count = typeof o.following_count === "number" ? o.following_count : Number(o.following_count ?? 0);
+  const is_following = o.is_following === true;
+  return {
+    ok: true,
+    stats: {
+      followers_count: Number.isFinite(followers_count) ? followers_count : 0,
+      following_count: Number.isFinite(following_count) ? following_count : 0,
+      is_following,
+    },
+  };
+}
+
+export async function togglePlayerFollow(
+  accessToken: string,
+  followingId: string,
+): Promise<
+  | { ok: true; following: boolean; followers_count: number }
+  | { ok: false; status: number; error: string }
+> {
+  const origin = siteOrigin();
+  if (!origin) {
+    return { ok: false, status: 0, error: "missing_site_url" };
+  }
+  const r = await fetch(`${origin}/api/player/follow`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ following_id: followingId }),
+  });
+  const json = (await r.json().catch(() => null)) as unknown;
+  if (!r.ok) {
+    const err =
+      json && typeof json === "object" && "error" in json && typeof (json as { error: unknown }).error === "string"
+        ? (json as { error: string }).error
+        : "request_failed";
+    return { ok: false, status: r.status, error: err };
+  }
+  if (!json || typeof json !== "object") {
+    return { ok: false, status: r.status, error: "invalid_response" };
+  }
+  const o = json as Record<string, unknown>;
+  if (o.ok !== true || typeof o.following !== "boolean") {
+    return { ok: false, status: r.status, error: "invalid_response" };
+  }
+  const fc = typeof o.followers_count === "number" ? o.followers_count : Number(o.followers_count ?? 0);
+  return { ok: true, following: o.following, followers_count: Number.isFinite(fc) ? fc : 0 };
+}

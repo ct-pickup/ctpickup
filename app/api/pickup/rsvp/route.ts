@@ -9,6 +9,7 @@ import { paymentIntentIdFromCheckoutSession } from "@/lib/payments/stripeSession
 import { recordPlatformCheckoutStarted } from "@/lib/payments/recordCheckoutStarted";
 import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { addUserToRunBanterRoom, removeUserFromRunBanterRoom } from "@/lib/chat/runBanterRoom";
+import { notifyFollowersWhenFollowedPlayerConfirmsRun } from "@/lib/pickup/notifyFollowersOnPickupConfirm";
 import { deletePendingWaitlistExpiringReminders, promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
 import { pickupPlayerRefundEligibleNow } from "@/lib/pickup/runScheduling";
@@ -426,6 +427,7 @@ export async function POST(req: Request) {
 
   const feeCents = Number(run.fee_cents || 0);
   if (feeCents <= 0) {
+    const prevRsvpStatus = existing.data?.status ?? null;
     await admin.from("pickup_run_rsvps").upsert(
       {
         run_id: run.id,
@@ -444,6 +446,17 @@ export async function POST(req: Request) {
     }
     await ensurePickupRunInviteLink(admin, run.id, targetUserId);
     await addUserToRunBanterRoom(admin, String(run.id), targetUserId);
+    if (prevRsvpStatus !== "confirmed") {
+      try {
+        await notifyFollowersWhenFollowedPlayerConfirmsRun(admin, {
+          runId: String(run.id),
+          playerId: String(targetUserId),
+        });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("pickup_rsvp_follower_join_notify_error:", msg);
+      }
+    }
     return NextResponse.json({ ok: true, status: "confirmed" });
   }
 

@@ -1,7 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
-import { fetchPublicPlayerProfile, type PublicPlayerProfile } from "@/lib/siteApi";
+import { fetchPlayerFollowStats, fetchPublicPlayerProfile, togglePlayerFollow, type PublicPlayerProfile } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter, type Href } from "expo-router";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { useEffect, useLayoutEffect, useState } from "react";
 import {
@@ -110,6 +110,12 @@ export default function PlayerProfileScreen() {
   const [h2hLoading, setH2hLoading] = useState(false);
   const [headToHead, setHeadToHead] = useState<HeadToHeadStats | null>(null);
 
+  const [followStatsLoading, setFollowStatsLoading] = useState(false);
+  const [followersCount, setFollowersCount] = useState<number | null>(null);
+  const [followingCount, setFollowingCount] = useState<number | null>(null);
+  const [isFollowingThem, setIsFollowingThem] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
+
   useEffect(() => {
     if (!userId || !token) {
       setLoading(false);
@@ -132,6 +138,29 @@ export default function PlayerProfileScreen() {
         setNameForTitle(r.profile.display_name || "Profile");
       }
       setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, token]);
+
+  useEffect(() => {
+    if (!userId || !token) return;
+    let cancelled = false;
+    void (async () => {
+      setFollowStatsLoading(true);
+      const r = await fetchPlayerFollowStats(token, userId);
+      if (cancelled) return;
+      if (r.ok) {
+        setFollowersCount(r.stats.followers_count);
+        setFollowingCount(r.stats.following_count);
+        setIsFollowingThem(r.stats.is_following);
+      } else {
+        setFollowersCount(null);
+        setFollowingCount(null);
+        setIsFollowingThem(false);
+      }
+      setFollowStatsLoading(false);
     })();
     return () => {
       cancelled = true;
@@ -522,6 +551,55 @@ export default function PlayerProfileScreen() {
         )}
         <Text style={styles.heroLabel}>Full name</Text>
         <Text style={styles.displayName}>{profile.display_name}</Text>
+        {followStatsLoading && followersCount == null && followingCount == null ? (
+          <Text style={styles.followCountsMuted}>…</Text>
+        ) : followersCount != null && followingCount != null ? (
+          <Pressable
+            onPress={() => {
+              if (isOwnProfile) {
+                router.push("/following" as Href);
+              } else {
+                router.push({ pathname: "/following", params: { profileId: userId } } as Href);
+              }
+            }}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="View followers and following"
+          >
+            <Text style={styles.followCountsMuted}>
+              {followersCount} follower{followersCount === 1 ? "" : "s"} · {followingCount} following
+            </Text>
+          </Pressable>
+        ) : !followStatsLoading ? (
+          <Text style={styles.followCountsMuted}>—</Text>
+        ) : null}
+        {!isOwnProfile && token ? (
+          <Pressable
+            onPress={() => {
+              if (followBusy || !token) return;
+              void (async () => {
+                setFollowBusy(true);
+                const r = await togglePlayerFollow(token, userId);
+                if (r.ok) {
+                  setIsFollowingThem(r.following);
+                  setFollowersCount(r.followers_count);
+                }
+                setFollowBusy(false);
+              })();
+            }}
+            disabled={followBusy}
+            style={({ pressed }) => [
+              isFollowingThem ? styles.followBtnFollowing : styles.followBtn,
+              { opacity: followBusy ? 0.6 : pressed ? 0.85 : 1 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={isFollowingThem ? "Unfollow" : "Follow"}
+          >
+            <Text style={isFollowingThem ? styles.followBtnFollowingText : styles.followBtnText}>
+              {isFollowingThem ? "Following ✓" : "Follow"}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={styles.block}>
@@ -761,6 +839,32 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   displayName: { fontSize: 22, fontWeight: "700", color: "#fff", textAlign: "center" },
+  followCountsMuted: {
+    marginTop: 8,
+    fontSize: 13,
+    color: "rgba(255,255,255,0.45)",
+    textAlign: "center",
+  },
+  followBtn: {
+    marginTop: 14,
+    alignSelf: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 28,
+    borderRadius: 10,
+    backgroundColor: LIME,
+  },
+  followBtnText: { fontSize: 15, fontWeight: "800", color: "#0a0a0a" },
+  followBtnFollowing: {
+    marginTop: 14,
+    alignSelf: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 22,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+    backgroundColor: "transparent",
+  },
+  followBtnFollowingText: { fontSize: 15, fontWeight: "700", color: "rgba(255,255,255,0.85)" },
   block: {
     marginBottom: 20,
     paddingBottom: 16,

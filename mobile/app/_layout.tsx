@@ -265,6 +265,16 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
+                            name="following"
+                            options={{
+                              headerShown: true,
+                              title: "Followers & following",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
                             name="players"
                             options={{
                               headerShown: true,

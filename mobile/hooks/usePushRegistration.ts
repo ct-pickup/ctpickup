@@ -61,6 +61,8 @@ const ROUTABLE_NOTIFICATION_KINDS = new Set([
   "tournament_captain_payment_confirmed",
   "tournament_captain_claim_admin",
   "tier_suggestions_ready",
+  "player_follow",
+  "player_followed_joined",
 ]);
 
 const PICKUP_RUN_DEEP_LINK_KINDS = new Set([
@@ -171,6 +173,28 @@ export function usePushRegistration(accessToken: string | null) {
             : "";
 
       const navigate = () => {
+        if (kind === "player_follow") {
+          const raw = data?.follower_id;
+          const fid =
+            typeof raw === "string" ? raw.trim() : raw != null ? String(raw).trim() : "";
+          if (fid) {
+            router.push({ pathname: "/player/[id]", params: { id: fid } } as const);
+          } else {
+            router.push("/players" as const);
+          }
+          void hapticForNotificationTap(kind);
+          return;
+        }
+        if (kind === "player_followed_joined") {
+          const runId = pickupRunIdFromNotificationData(data);
+          if (runId) {
+            router.push({ pathname: "/(tabs)/runs", params: { run_id: runId } } as const);
+          } else {
+            router.push("/(tabs)/runs" as const);
+          }
+          void hapticForNotificationTap(kind);
+          return;
+        }
         if (kind === "pickup_canceled") {
           router.push("/(tabs)/runs" as const);
           void hapticForNotificationTap(kind);

@@ -27,6 +27,16 @@ export function serviceRegionForVenueName(name: string | null | undefined): stri
   return VENUE_TO_SERVICE_REGION[key] ?? null;
 }
 
+/** Venue display names whose mapped hub region equals `region` (e.g. CT, NY). */
+export function venueNamesForServiceRegion(region: string | null | undefined): string[] {
+  if (region == null) return [];
+  const r = String(region).trim().toUpperCase();
+  if (!r) return [];
+  return Object.entries(VENUE_TO_SERVICE_REGION)
+    .filter(([, v]) => v === r)
+    .map(([k]) => k);
+}
+
 /**
  * Whether a profile may participate in notifications / tier gates for a run with `service_region`.
  * - Runs with no `service_region` impose no venue-based restriction.
