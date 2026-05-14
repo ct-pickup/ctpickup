@@ -2,9 +2,9 @@ import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRouter } from "expo-router";
-import { useCallback, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
+  Animated,
   FlatList,
   Modal,
   Pressable,
@@ -17,7 +17,15 @@ import {
 
 const BG = "#0a0a0a";
 const LIME = "#a3e635";
+const CARD = "#141414";
+const CARD_BORDER = "#222";
+const TAB_INACTIVE_BORDER = "#3f3f3f";
 const MUTED = "rgba(255,255,255,0.45)";
+const TAB_ACTIVE_TEXT = "#0a0a0a";
+
+const RANK1_BG = "#1a1500";
+const RANK2_BG = "#111315";
+const RANK3_BG = "#150e00";
 
 type RegionFilter = "ALL" | "CT" | "NY" | "NJ" | "MD";
 type TabId =
@@ -149,6 +157,35 @@ function medalForRank(rank: number): string {
   return "";
 }
 
+function LeaderboardSkeleton() {
+  const opacity = useRef(new Animated.Value(0.28)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.55, duration: 650, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.28, duration: 650, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+
+  return (
+    <View style={styles.skeletonList}>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <View key={i} style={styles.skeletonCard}>
+          <Animated.View style={[styles.skeletonCircle, { opacity }]} />
+          <View style={styles.skeletonTextCol}>
+            <Animated.View style={[styles.skeletonLineLg, { opacity }]} />
+            <Animated.View style={[styles.skeletonLineSm, { opacity }]} />
+          </View>
+          <Animated.View style={[styles.skeletonStat, { opacity }]} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export default function LeaderboardsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -191,79 +228,58 @@ export default function LeaderboardsScreen() {
     return out;
   }, [payload, tab]);
 
-  const load = useCallback(
-    async (isRefresh: boolean) => {
-      const origin = siteOrigin();
-      if (!origin) {
-        setErr("App configuration error.");
+  const load = useCallback(async (isRefresh: boolean) => {
+    const origin = siteOrigin();
+    console.log("[leaderboards] siteOrigin:", origin);
+    if (!origin) {
+      setErr("App configuration error. Please restart.");
+      setLoading(false);
+      return;
+    }
+
+    if (isRefresh) setRefreshing(true);
+    else {
+      setLoading(true);
+      setErr(null);
+    }
+
+    try {
+      const u = new URL(`${origin}/api/leaderboards`);
+      if (region !== "ALL") u.searchParams.set("region", region);
+
+      const r = await fetch(u.toString(), {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+      console.log("[leaderboards] status:", r.status);
+      const text = await r.text();
+      console.log("[leaderboards] raw response:", text.slice(0, 200));
+      const json = JSON.parse(text) as unknown;
+
+      if (!r.ok) {
+        setErr("Something went wrong. Please try again.");
         setPayload(null);
-        setLoading(false);
-        setRefreshing(false);
         return;
       }
-      const token = session?.access_token ?? null;
-      if (!token) {
-        setErr("Sign in to view leaderboards.");
+
+      const parsed = parsePayload(json);
+      if (!parsed) {
+        setErr("Unexpected response from server.");
         setPayload(null);
-        setLoading(false);
-        setRefreshing(false);
         return;
       }
-      if (isRefresh) setRefreshing(true);
-      else {
-        setLoading(true);
-        setErr(null);
-      }
-      try {
-        const u = new URL(`${origin}/api/leaderboards`);
-        if (region !== "ALL") u.searchParams.set("region", region);
-        console.log("[leaderboards] loading", {
-          hasToken: Boolean(token),
-          origin,
-          region,
-          tokenPreview: token ? token.slice(0, 20) + "..." : null,
-        });
-        const r = await fetch(u.toString(), {
-          method: "GET",
-          headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        });
-        console.log("[leaderboards] response", {
-          status: r.status,
-          ok: r.ok,
-        });
-        if (!r.ok) {
-          const errorBody = await r.clone().text();
-          console.log("[leaderboards] error body", errorBody);
-        }
-        const json = (await r.json().catch(() => null)) as unknown;
-        if (!r.ok) {
-          if (r.status === 401) {
-            setErr("Sign in to view leaderboards.");
-          } else {
-            setErr("Something went wrong. Please try again.");
-          }
-          setPayload(null);
-          return;
-        }
-        const parsed = parsePayload(json);
-        if (!parsed) {
-          setErr("Unexpected response from server.");
-          setPayload(null);
-          return;
-        }
-        setErr(null);
-        setPayload(parsed);
-      } catch {
-        setErr("Network error. Try again.");
-        setPayload(null);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [region, session?.access_token],
-  );
+      setErr(null);
+      setPayload(parsed);
+    } catch (e) {
+      console.error("[leaderboards] failed:", e);
+      setErr("Something went wrong. Please try again.");
+      setPayload(null);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [region]);
 
   useLayoutEffect(() => {
     void load(false);
@@ -288,7 +304,7 @@ export default function LeaderboardsScreen() {
     void load(true);
   }, [load]);
 
-  const showInitialSpinner = loading && !refreshing;
+  const showInitialSkeleton = loading && !refreshing;
   const listEmpty = !loading && !err && payload != null && rowsForTab.length === 0;
 
   const listEmptyBody =
@@ -302,7 +318,8 @@ export default function LeaderboardsScreen() {
     ) : (
       <View style={styles.emptyStatsWrap}>
         <Text style={styles.emptyEmoji}>⚽</Text>
-        <Text style={styles.emptyStatsText}>No stats yet. Play some runs!</Text>
+        <Text style={styles.emptyTitle}>No stats yet</Text>
+        <Text style={styles.emptySubtitle}>Play some runs to appear here!</Text>
       </View>
     );
 
@@ -321,7 +338,7 @@ export default function LeaderboardsScreen() {
             <Pressable
               key={t.id}
               onPress={() => setTab(t.id)}
-              style={({ pressed }) => [styles.tabPill, on && styles.tabPillOn, pressed && { opacity: 0.9 }]}
+              style={({ pressed }) => [styles.tabPill, on ? styles.tabPillOn : styles.tabPillOff, pressed && { opacity: 0.92 }]}
             >
               <Text style={[styles.tabPillText, on && styles.tabPillTextOn]} numberOfLines={1}>
                 {t.label}
@@ -332,33 +349,51 @@ export default function LeaderboardsScreen() {
       </ScrollView>
 
       <View style={styles.listWrap}>
-        {showInitialSpinner ? (
-          <View style={styles.centerFill}>
-            <ActivityIndicator color={LIME} size="large" />
+        {showInitialSkeleton ? (
+          <View style={styles.skeletonFill}>
+            <LeaderboardSkeleton />
           </View>
         ) : (
           <FlatList
             style={styles.listFlex}
             data={err ? [] : rowsForTab}
             keyExtractor={(item) => item.id}
-            ItemSeparatorComponent={() => <View style={styles.rowSep} />}
-            contentContainerStyle={err || rowsForTab.length === 0 ? styles.listContentGrow : styles.listContent}
+            contentContainerStyle={
+              err || rowsForTab.length === 0 ? styles.listContentGrow : styles.listContent
+            }
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={LIME} />}
             ListEmptyComponent={err || listEmpty ? listEmptyBody : null}
+            ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
             renderItem={({ item, index }) => {
               const rank = index + 1;
               const mine = myUserId != null && item.id === myUserId;
               const medal = medalForRank(rank);
               const userLine = displayUsernameLine(item);
+              const topBg =
+                rank === 1 ? styles.rowCardRank1 : rank === 2 ? styles.rowCardRank2 : rank === 3 ? styles.rowCardRank3 : null;
+
               return (
                 <Pressable
                   onPress={() => router.push(`/player/${encodeURIComponent(item.id)}`)}
-                  style={({ pressed }) => [styles.rowCard, mine && styles.rowCardMine, pressed && { opacity: 0.94 }]}
+                  style={({ pressed }) => [
+                    styles.rowCard,
+                    topBg,
+                    mine && styles.rowCardMine,
+                    pressed && { opacity: 0.92 },
+                  ]}
                 >
-                  <View style={styles.rankCell}>
-                    <Text style={styles.rankCellText} numberOfLines={1}>
-                      {medal || String(rank)}
-                    </Text>
+                  <View style={[styles.rankCell, rank <= 3 && styles.rankCellTop3]}>
+                    {medal ? (
+                      <Text style={[styles.medalText, rank <= 3 && styles.medalTextTop3]} numberOfLines={1}>
+                        {medal}
+                      </Text>
+                    ) : (
+                      <View style={styles.rankCircle}>
+                        <Text style={styles.rankCircleText} numberOfLines={1}>
+                          {rank}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                   <View style={styles.nameBlock}>
                     <Text style={styles.nameTitle} numberOfLines={1}>
@@ -380,30 +415,36 @@ export default function LeaderboardsScreen() {
         )}
       </View>
 
-      <Modal visible={filterOpen} transparent animationType="fade" onRequestClose={() => setFilterOpen(false)}>
+      <Modal visible={filterOpen} transparent animationType="slide" onRequestClose={() => setFilterOpen(false)}>
         <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setFilterOpen(false)} accessibilityLabel="Close region filter" />
-          <View style={styles.modalInner} pointerEvents="box-none">
-            <View style={styles.modalCard}>
-              <Text style={styles.modalTitle}>Hub region</Text>
-              <View style={styles.modalChips}>
-                {REGIONS.map((r) => {
-                  const on = region === r;
-                  return (
-                    <Pressable
-                      key={r}
-                      onPress={() => {
-                        setRegion(r);
-                        setFilterOpen(false);
-                      }}
-                      style={({ pressed }) => [styles.modalChip, on && styles.modalChipOn, pressed && { opacity: 0.88 }]}
-                    >
-                      <Text style={[styles.modalChipText, on && styles.modalChipTextOn]}>{r === "ALL" ? "All hubs" : r}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+          <Pressable style={styles.modalBackdrop} onPress={() => setFilterOpen(false)} accessibilityLabel="Dismiss filter" />
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Filter by Region</Text>
+            <View style={styles.modalChips}>
+              {REGIONS.map((reg) => {
+                const on = region === reg;
+                const label = reg === "ALL" ? "All" : reg;
+                return (
+                  <Pressable
+                    key={reg}
+                    onPress={() => {
+                      setRegion(reg);
+                      setFilterOpen(false);
+                    }}
+                    style={({ pressed }) => [styles.modalChip, on && styles.modalChipOn, pressed && { opacity: 0.9 }]}
+                  >
+                    <Text style={[styles.modalChipText, on && styles.modalChipTextOn]}>{label}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
+            <Pressable
+              onPress={() => setFilterOpen(false)}
+              style={({ pressed }) => [styles.modalCloseBtn, pressed && { opacity: 0.88 }]}
+            >
+              <Text style={styles.modalCloseBtnText}>Close</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -423,32 +464,34 @@ const styles = StyleSheet.create({
   tabScroll: {
     flexGrow: 0,
     flexShrink: 0,
-    maxHeight: 40,
+    maxHeight: 44,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255,255,255,0.1)",
+    borderBottomColor: "rgba(255,255,255,0.08)",
   },
   tabRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
   },
   tabPill: {
     flexShrink: 0,
-    paddingVertical: 5,
-    paddingHorizontal: 11,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: 999,
+  },
+  tabPillOff: {
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: TAB_INACTIVE_BORDER,
+    backgroundColor: "transparent",
   },
   tabPillOn: {
-    borderColor: "rgba(163,230,53,0.5)",
-    backgroundColor: "rgba(163,230,53,0.1)",
+    backgroundColor: LIME,
+    borderWidth: 0,
   },
   tabPillText: { color: MUTED, fontWeight: "700", fontSize: 12 },
-  tabPillTextOn: { color: LIME },
+  tabPillTextOn: { color: TAB_ACTIVE_TEXT },
 
   listWrap: { flex: 1, minHeight: 0 },
   listFlex: { flex: 1 },
@@ -456,15 +499,39 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingVertical: 24,
   },
-  listContent: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 28 },
+  listContent: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 32 },
 
-  centerFill: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 14 },
-  emptyStateBlock: { alignItems: "center", justifyContent: "center", gap: 14, paddingVertical: 24 },
-  emptyStatsWrap: { alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 32 },
-  emptyEmoji: { fontSize: 40 },
-  emptyStatsText: { color: MUTED, fontSize: 16, textAlign: "center", lineHeight: 22 },
+  skeletonFill: { flex: 1, paddingHorizontal: 14, paddingTop: 12 },
+  skeletonList: { gap: 10 },
+  skeletonCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    backgroundColor: CARD,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    gap: 12,
+  },
+  skeletonCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#2a2a2a",
+  },
+  skeletonTextCol: { flex: 1, gap: 8 },
+  skeletonLineLg: { height: 14, borderRadius: 6, backgroundColor: "#2a2a2a", width: "72%" },
+  skeletonLineSm: { height: 11, borderRadius: 5, backgroundColor: "#242424", width: "44%" },
+  skeletonStat: { width: 44, height: 18, borderRadius: 6, backgroundColor: "#2a2a2a" },
+
+  emptyStateBlock: { alignItems: "center", justifyContent: "center", gap: 16, paddingVertical: 24 },
+  emptyStatsWrap: { alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 48 },
+  emptyEmoji: { fontSize: 48, lineHeight: 56 },
+  emptyTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
+  emptySubtitle: { color: MUTED, fontSize: 15, textAlign: "center", lineHeight: 22, paddingHorizontal: 24 },
   errText: { color: "#fca5a5", fontSize: 14, textAlign: "center", lineHeight: 20 },
   retryBtn: {
     paddingVertical: 10,
@@ -476,49 +543,67 @@ const styles = StyleSheet.create({
   },
   retryBtnText: { color: LIME, fontWeight: "800", fontSize: 14 },
 
-  rowSep: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: "rgba(255,255,255,0.07)",
-    marginVertical: 6,
-  },
-
   rowCard: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.08)",
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    backgroundColor: CARD,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
   },
+  rowCardRank1: { backgroundColor: RANK1_BG },
+  rowCardRank2: { backgroundColor: RANK2_BG },
+  rowCardRank3: { backgroundColor: RANK3_BG },
   rowCardMine: {
     borderLeftWidth: 3,
-    borderLeftColor: "rgba(163,230,53,0.55)",
-    paddingLeft: 9,
+    borderLeftColor: LIME,
+    paddingLeft: 11,
   },
 
   rankCell: {
-    width: 36,
-    alignItems: "flex-start",
+    width: 40,
+    alignItems: "center",
     justifyContent: "center",
   },
-  rankCellText: {
-    color: "rgba(255,255,255,0.88)",
+  rankCellTop3: {
+    width: 44,
+  },
+  medalText: {
+    fontSize: 20,
+    lineHeight: 26,
+  },
+  medalTextTop3: {
+    fontSize: 28,
+    lineHeight: 34,
+  },
+  rankCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rankCircleText: {
+    color: "rgba(255,255,255,0.85)",
     fontWeight: "800",
-    fontSize: 15,
+    fontSize: 12,
   },
 
   nameBlock: {
     flex: 1,
     minWidth: 0,
     marginRight: 10,
-    gap: 2,
+    gap: 3,
   },
   nameTitle: {
     color: "#fff",
     fontWeight: "800",
-    fontSize: 15,
+    fontSize: 16,
     letterSpacing: -0.2,
   },
   usernameSub: {
@@ -530,54 +615,76 @@ const styles = StyleSheet.create({
   statValue: {
     color: LIME,
     fontWeight: "800",
-    fontSize: 16,
-    minWidth: 40,
+    fontSize: 18,
+    minWidth: 44,
     textAlign: "right",
     flexShrink: 0,
   },
 
   modalRoot: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.6)",
   },
-  modalInner: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 72,
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalSheet: {
+    backgroundColor: "#121212",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderTopWidth: 1,
+    borderColor: CARD_BORDER,
     paddingHorizontal: 20,
-    alignItems: "stretch",
+    paddingTop: 10,
+    paddingBottom: 28,
   },
-  modalCard: {
-    backgroundColor: "#141414",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    padding: 16,
+  modalHandle: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    marginBottom: 16,
   },
   modalTitle: {
     color: "#fff",
     fontWeight: "800",
-    fontSize: 16,
-    marginBottom: 12,
+    fontSize: 18,
+    marginBottom: 18,
+    textAlign: "center",
   },
   modalChips: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 10,
+    justifyContent: "center",
+    marginBottom: 22,
   },
   modalChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 999,
+    minWidth: 72,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: TAB_INACTIVE_BORDER,
+    backgroundColor: CARD,
+    alignItems: "center",
   },
   modalChipOn: {
-    borderColor: "rgba(163,230,53,0.55)",
-    backgroundColor: "rgba(163,230,53,0.14)",
+    borderColor: LIME,
+    backgroundColor: LIME,
   },
-  modalChipText: { color: "rgba(255,255,255,0.75)", fontWeight: "700", fontSize: 13 },
-  modalChipTextOn: { color: LIME },
+  modalChipText: { color: "rgba(255,255,255,0.85)", fontWeight: "800", fontSize: 16 },
+  modalChipTextOn: { color: TAB_ACTIVE_TEXT },
+  modalCloseBtn: {
+    marginTop: 4,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    backgroundColor: CARD,
+    alignItems: "center",
+  },
+  modalCloseBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
 });

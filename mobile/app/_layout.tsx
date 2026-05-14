@@ -281,6 +281,7 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Leaderboards",
+                              headerTitleAlign: "center",
                               headerStyle: { backgroundColor: "#0a0a0a" },
                               headerTintColor: "#fff",
                               headerShadowVisible: false,

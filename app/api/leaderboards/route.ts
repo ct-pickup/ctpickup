@@ -1,4 +1,3 @@
-import { jwtDecode } from "jwt-decode";
 import { NextResponse } from "next/server";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
@@ -30,11 +29,6 @@ function parseRegion(param: string | null): string | null {
   if (!param) return null;
   const u = param.trim().toUpperCase();
   return HUB_REGIONS.has(u) ? u : null;
-}
-
-function bearerToken(req: Request): string | null {
-  const auth = req.headers.get("authorization") || "";
-  return auth.startsWith("Bearer ") ? auth.slice(7).trim() || null : null;
 }
 
 function normalizeNameKey(first: string | null | undefined, last: string | null | undefined): string {
@@ -299,31 +293,14 @@ const EMPTY_PAYLOAD = {
 };
 
 export async function GET(req: Request) {
+  console.log("[leaderboards] GET hit");
+
   let admin: SupabaseClient;
   try {
     admin = getSupabaseAdmin();
   } catch (err) {
     return jsonConfigErrorResponse(ROUTE, "getSupabaseAdmin", err);
   }
-
-  const token = bearerToken(req);
-  if (!token) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-  let userId: string;
-  try {
-    const decoded = jwtDecode<{ sub?: string }>(token);
-    if (!decoded?.sub) {
-      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-    }
-    userId = decoded.sub;
-  } catch {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-  console.log(`[api/${ROUTE}] auth`, {
-    hasUser: Boolean(userId),
-    userId,
-  });
 
   const url = new URL(req.url);
   const region = parseRegion(url.searchParams.get("region"));
@@ -355,8 +332,6 @@ export async function GET(req: Request) {
       profiles = [];
       hasWinLossColumns = false;
     }
-
-    const profileById = new Map(profiles.map((p) => [p.id, p]));
 
     try {
       if (hasWinLossColumns) {
@@ -403,6 +378,8 @@ export async function GET(req: Request) {
           });
       }
       console.log(`[api/${ROUTE}] category=wins_win_rate`, { wins: wins.length, win_rate: win_rate.length });
+      console.log("[leaderboards] category wins result", wins.length);
+      console.log("[leaderboards] category win_rate result", win_rate.length);
     } catch (err) {
       console.log(`[api/${ROUTE}] category=wins_win_rate error`, err);
       logPublicApiRouteError(ROUTE, "category_wins_win_rate", err);
@@ -414,6 +391,7 @@ export async function GET(req: Request) {
       const { rows, error } = await fetchSessionsLeaderboard(admin, region);
       sessions = rows;
       console.log(`[api/${ROUTE}] category=sessions`, { rows: sessions.length, supabaseError: error?.message ?? null });
+      console.log("[leaderboards] category sessions result", sessions.length);
     } catch (err) {
       console.log(`[api/${ROUTE}] category=sessions threw`, err);
       logPublicApiRouteError(ROUTE, "category_sessions", err);
@@ -424,6 +402,7 @@ export async function GET(req: Request) {
       const { counts, error } = await countPickupRunResultsUuidColumn(admin, "player_of_day", "potd");
       console.log(`[api/${ROUTE}] category=potd scan`, { error: error?.message ?? null, distinctIds: counts.size });
       potd = await rowsFromUuidCounts(admin, counts, region, "potd");
+      console.log("[leaderboards] category potd result", potd.length);
     } catch (err) {
       console.log(`[api/${ROUTE}] category=potd error`, err);
       logPublicApiRouteError(ROUTE, "category_potd", err);
@@ -434,6 +413,7 @@ export async function GET(req: Request) {
       const { counts, error } = await countPickupRunResultsUuidColumn(admin, "goalie_of_the_day", "goalie");
       console.log(`[api/${ROUTE}] category=goalie scan`, { error: error?.message ?? null, distinctIds: counts.size });
       goalie = await rowsFromUuidCounts(admin, counts, region, "goalie");
+      console.log("[leaderboards] category goalie result", goalie.length);
     } catch (err) {
       console.log(`[api/${ROUTE}] category=goalie error`, err);
       goalie = [];
@@ -443,6 +423,7 @@ export async function GET(req: Request) {
       const { counts, error } = await countPickupRunResultsUuidColumn(admin, "defender_of_day", "defender");
       console.log(`[api/${ROUTE}] category=defender scan`, { error: error?.message ?? null, distinctIds: counts.size });
       defender = await rowsFromUuidCounts(admin, counts, region, "defender");
+      console.log("[leaderboards] category defender result", defender.length);
     } catch (err) {
       console.log(`[api/${ROUTE}] category=defender error`, err);
       defender = [];
@@ -452,6 +433,7 @@ export async function GET(req: Request) {
       const { counts, error } = await countPickupRunResultsUuidColumn(admin, "midfielder_of_day", "midfielder");
       console.log(`[api/${ROUTE}] category=midfielder scan`, { error: error?.message ?? null, distinctIds: counts.size });
       midfielder = await rowsFromUuidCounts(admin, counts, region, "midfielder");
+      console.log("[leaderboards] category midfielder result", midfielder.length);
     } catch (err) {
       console.log(`[api/${ROUTE}] category=midfielder error`, err);
       midfielder = [];
@@ -461,6 +443,7 @@ export async function GET(req: Request) {
       const { counts, error } = await countPickupRunResultsUuidColumn(admin, "attacker_of_day", "attacker");
       console.log(`[api/${ROUTE}] category=attacker scan`, { error: error?.message ?? null, distinctIds: counts.size });
       attacker = await rowsFromUuidCounts(admin, counts, region, "attacker");
+      console.log("[leaderboards] category attacker result", attacker.length);
     } catch (err) {
       console.log(`[api/${ROUTE}] category=attacker error`, err);
       attacker = [];
@@ -481,6 +464,7 @@ export async function GET(req: Request) {
         .slice(0, 25)
         .map(({ p, goals: g }) => toLeaderboardRow(p, g));
       console.log(`[api/${ROUTE}] category=goals`, { rowCount: goals.length });
+      console.log("[leaderboards] category goals result", goals.length);
     } catch (err) {
       console.log(`[api/${ROUTE}] category=goals error`, err);
       logPublicApiRouteError(ROUTE, "category_goals", err);
