@@ -25,6 +25,8 @@ export async function fetchPickupRunCandidate(
       .select("*")
       .eq("id", opts.runId)
       .neq("status", "canceled")
+      .neq("status", "completed")
+      .neq("status", "in_progress")
       .maybeSingle();
     return (r.data as PublicPickupRunRow | null) ?? null;
   }
@@ -36,6 +38,8 @@ export async function fetchPickupRunCandidate(
       .eq("service_region", opts.region)
       .eq("is_current", true)
       .neq("status", "canceled")
+      .neq("status", "completed")
+      .neq("status", "in_progress")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -48,6 +52,8 @@ export async function fetchPickupRunCandidate(
       .is("service_region", null)
       .eq("is_current", true)
       .neq("status", "canceled")
+      .neq("status", "completed")
+      .neq("status", "in_progress")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -62,13 +68,17 @@ export async function fetchPickupRunCandidate(
     .select("*")
     .eq("is_current", true)
     .neq("status", "canceled")
+    .neq("status", "completed")
+    .neq("status", "in_progress")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (cur.data) return cur.data as PublicPickupRunRow;
 
-  const up = await publicUpcomingRunsQuery(admin, "*").limit(1);
+  const up = await publicUpcomingRunsQuery(admin, "*")
+    .neq("status", "in_progress")
+    .limit(1);
   return (up.data?.[0] as PublicPickupRunRow | undefined) ?? null;
 }
 
@@ -77,7 +87,9 @@ export async function fetchFirstPublicUpcomingPickupRun(
   admin: SupabaseClient,
   serviceRegion?: string | null,
 ): Promise<PublicPickupRunRow | null> {
-  const res = await publicUpcomingRunsQuery(admin, "*", serviceRegion ?? undefined).limit(40);
+  const res = await publicUpcomingRunsQuery(admin, "*", serviceRegion ?? undefined)
+    .neq("status", "completed")
+    .limit(40);
   const rows = (res.data || []) as unknown as PublicPickupRunRow[];
   return rows.find((r) => isPublicPickupRunType(r.run_type)) ?? null;
 }

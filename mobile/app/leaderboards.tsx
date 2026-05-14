@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
   tabScroll: {
     flexGrow: 0,
     flexShrink: 0,
-    maxHeight: 44,
+    maxHeight: 54,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(255,255,255,0.08)",
   },
@@ -477,21 +477,21 @@ const styles = StyleSheet.create({
   },
   tabPill: {
     flexShrink: 0,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 999,
   },
   tabPillOff: {
     borderWidth: 1,
-    borderColor: TAB_INACTIVE_BORDER,
+    borderColor: "#262626",
     backgroundColor: "transparent",
   },
   tabPillOn: {
-    backgroundColor: LIME,
+    backgroundColor: "#a3e635",
     borderWidth: 0,
   },
-  tabPillText: { color: MUTED, fontWeight: "700", fontSize: 12 },
-  tabPillTextOn: { color: TAB_ACTIVE_TEXT },
+  tabPillText: { color: "#fff", fontWeight: "600", fontSize: 14 },
+  tabPillTextOn: { color: "#0a0a0a", fontWeight: "800" },
 
   listWrap: { flex: 1, minHeight: 0 },
   listFlex: { flex: 1 },
