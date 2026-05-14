@@ -1,476 +1,439 @@
 import { useAuth } from "@/context/AuthContext";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { siteOrigin } from "@/lib/env";
 import { useNavigation, useRouter } from "expo-router";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useLayoutEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 const BG = "#0a0a0a";
 const LIME = "#a3e635";
 
-type Team = "A" | "B" | "C";
-type Region = "ALL" | "CT" | "NY" | "NJ" | "MD";
-
-type Category =
-  | "most_wins"
-  | "highest_win_rate"
-  | "most_games"
-  | "most_reliable"
+type RegionFilter = "ALL" | "CT" | "NY" | "NJ" | "MD";
+type TabId =
+  | "wins"
+  | "sessions"
+  | "win_rate"
   | "potd"
-  | "gotd"
-  | "def"
-  | "mid"
-  | "att";
+  | "goalie"
+  | "defender"
+  | "midfielder"
+  | "attacker"
+  | "goals";
 
-type ProfileRow = {
+type ApiRow = {
   id: string;
   first_name: string | null;
   last_name: string | null;
   username: string | null;
+  instagram: string | null;
   nearest_venue: string | null;
-  attended_count: number | null;
-  confirmed_count: number | null;
-  strike_count: number | null;
+  value: number;
+  win_rate?: number;
+  games_played?: number;
 };
 
-type BoardRow = {
-  userId: string;
-  name: string;
-  username: string | null;
-  valueLabel: string;
-  valueSort: number;
+type LeaderboardsPayload = {
+  region: string;
+  wins: ApiRow[];
+  sessions: ApiRow[];
+  win_rate: ApiRow[];
+  potd: ApiRow[];
+  goalie: ApiRow[];
+  defender: ApiRow[];
+  midfielder: ApiRow[];
+  attacker: ApiRow[];
+  goals: ApiRow[];
 };
 
-const CATEGORY_OPTIONS: Array<{ id: Category; label: string }> = [
-  { id: "most_wins", label: "Most Wins" },
-  { id: "highest_win_rate", label: "Highest Win Rate" },
-  { id: "most_games", label: "Most Games" },
-  { id: "most_reliable", label: "Most Reliable" },
-  { id: "potd", label: "Player of the Day" },
-  { id: "gotd", label: "Goalie of the Day" },
-  { id: "def", label: "Defender of the Day" },
-  { id: "mid", label: "Midfielder of the Day" },
-  { id: "att", label: "Attacker of the Day" },
+const TABS: Array<{ id: TabId; label: string }> = [
+  { id: "wins", label: "Wins" },
+  { id: "sessions", label: "Sessions" },
+  { id: "win_rate", label: "Win Rate" },
+  { id: "potd", label: "POTD" },
+  { id: "goalie", label: "Goalie of Day 🧤" },
+  { id: "defender", label: "Defender of Day 🛡️" },
+  { id: "midfielder", label: "Midfielder of Day 🎯" },
+  { id: "attacker", label: "Attacker of Day ⚡" },
+  { id: "goals", label: "Goals" },
 ];
 
-const REGION_OPTIONS: Region[] = ["ALL", "CT", "NY", "NJ", "MD"];
+const REGIONS: RegionFilter[] = ["ALL", "CT", "NY", "NJ", "MD"];
 
-const VENUE_TO_REGION: Record<string, Exclude<Region, "ALL">> = {
-  // NJ
-  "Sofive Meadowlands": "NJ",
-  "Sofive Cherry Hill": "NJ",
-  // NY
-  "Sofive Brooklyn": "NY",
-  "Hudson Sports Complex": "NY",
-  "New Rochelle SoccerRoof": "NY",
-  // MD
-  "Sofive Rockville": "MD",
-  "SoccerDome Jessup": "MD",
-  "SoccerDome Harmans": "MD",
-  // CT
-  "New Haven SoccerRoof": "CT",
-};
-
-function s(v: unknown): string {
-  return typeof v === "string" ? v : v == null ? "" : String(v);
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return v != null && typeof v === "object";
 }
 
-function displayName(p: ProfileRow): string {
-  const fn = (p.first_name ?? "").trim();
-  const ln = (p.last_name ?? "").trim();
+function parsePayload(json: unknown): LeaderboardsPayload | null {
+  if (!isRecord(json)) return null;
+  const wins = json.wins;
+  const sessions = json.sessions;
+  const win_rate = json.win_rate;
+  const potd = json.potd;
+  const goalie = json.goalie;
+  const defender = json.defender;
+  const midfielder = json.midfielder;
+  const attacker = json.attacker;
+  const goals = json.goals;
+  if (
+    !Array.isArray(wins) ||
+    !Array.isArray(sessions) ||
+    !Array.isArray(win_rate) ||
+    !Array.isArray(potd) ||
+    !Array.isArray(goalie) ||
+    !Array.isArray(defender) ||
+    !Array.isArray(midfielder) ||
+    !Array.isArray(attacker) ||
+    !Array.isArray(goals)
+  ) {
+    return null;
+  }
+  const region = typeof json.region === "string" ? json.region : "ALL";
+  return { region, wins, sessions, win_rate, potd, goalie, defender, midfielder, attacker, goals };
+}
+
+function parseRow(v: unknown): ApiRow | null {
+  if (!isRecord(v)) return null;
+  const id = typeof v.id === "string" ? v.id : null;
+  if (!id) return null;
+  const value = typeof v.value === "number" && Number.isFinite(v.value) ? v.value : Number(v.value);
+  if (!Number.isFinite(value)) return null;
+  return {
+    id,
+    first_name: typeof v.first_name === "string" ? v.first_name : null,
+    last_name: typeof v.last_name === "string" ? v.last_name : null,
+    username: typeof v.username === "string" ? v.username : null,
+    instagram: typeof v.instagram === "string" ? v.instagram : null,
+    nearest_venue: typeof v.nearest_venue === "string" ? v.nearest_venue : null,
+    value,
+    win_rate: typeof v.win_rate === "number" ? v.win_rate : undefined,
+    games_played: typeof v.games_played === "number" ? v.games_played : undefined,
+  };
+}
+
+function displayPlayerName(r: ApiRow): string {
+  const fn = (r.first_name ?? "").trim();
+  const ln = (r.last_name ?? "").trim();
   const full = `${fn} ${ln}`.trim();
   if (full) return full;
-  const u = (p.username ?? "").trim();
+  const u = (r.username ?? "").trim();
   return u ? `@${u}` : "Player";
 }
 
-function regionFromVenue(venue: string | null): Exclude<Region, "ALL"> | null {
-  const v = (venue ?? "").trim();
-  if (!v) return null;
-  return VENUE_TO_REGION[v] ?? null;
+function formatInstagram(raw: string | null): string | null {
+  const s = (raw ?? "").trim();
+  if (!s) return null;
+  return s.startsWith("@") ? s : `@${s}`;
 }
 
-function pct(n: number): string {
-  return `${Math.round(n)}%`;
+function formatStat(tab: TabId, row: ApiRow): string {
+  if (tab === "win_rate") {
+    const pct = row.value;
+    const rounded = Math.abs(pct - Math.round(pct)) < 1e-6 ? String(Math.round(pct)) : pct.toFixed(1);
+    return `${rounded}%`;
+  }
+  return String(Math.round(row.value));
+}
+
+function medalForRank(rank: number): string {
+  if (rank === 1) return "🥇 ";
+  if (rank === 2) return "🥈 ";
+  if (rank === 3) return "🥉 ";
+  return "";
 }
 
 export default function LeaderboardsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { supabase, isReady } = useAuth();
+  const { session } = useAuth();
+  const myUserId = session?.user?.id ?? null;
 
-  const [region, setRegion] = useState<Region>("ALL");
-  const [category, setCategory] = useState<Category>("most_wins");
-  const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState<TabId>("wins");
+  const [region, setRegion] = useState<RegionFilter>("ALL");
+  const [payload, setPayload] = useState<LeaderboardsPayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [rows, setRows] = useState<BoardRow[]>([]);
 
-  const loadSeq = useRef(0);
+  const rowsForTab = useMemo(() => {
+    if (!payload) return [];
+    const raw =
+      tab === "wins"
+        ? payload.wins
+        : tab === "sessions"
+          ? payload.sessions
+          : tab === "win_rate"
+            ? payload.win_rate
+            : tab === "potd"
+              ? payload.potd
+              : tab === "goalie"
+                ? payload.goalie
+                : tab === "defender"
+                  ? payload.defender
+                  : tab === "midfielder"
+                    ? payload.midfielder
+                    : tab === "attacker"
+                      ? payload.attacker
+                      : payload.goals;
+    const out: ApiRow[] = [];
+    for (const item of raw) {
+      const r = parseRow(item);
+      if (r) out.push(r);
+    }
+    return out;
+  }, [payload, tab]);
+
+  const load = useCallback(async (isRefresh: boolean) => {
+    const origin = siteOrigin();
+    if (!origin) {
+      setErr("App configuration error.");
+      setPayload(null);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    if (isRefresh) setRefreshing(true);
+    else {
+      setLoading(true);
+      setErr(null);
+    }
+    try {
+      const u = new URL(`${origin}/api/leaderboards`);
+      if (region !== "ALL") u.searchParams.set("region", region);
+      const r = await fetch(u.toString(), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" });
+      const json = (await r.json().catch(() => null)) as unknown;
+      if (!r.ok) {
+        const msg =
+          json && typeof json === "object" && typeof (json as { error?: unknown }).error === "string"
+            ? String((json as { error: string }).error)
+            : "Couldn’t load leaderboards.";
+        setErr(msg);
+        setPayload(null);
+        return;
+      }
+      const parsed = parsePayload(json);
+      if (!parsed) {
+        setErr("Unexpected response from server.");
+        setPayload(null);
+        return;
+      }
+      setErr(null);
+      setPayload(parsed);
+    } catch {
+      setErr("Network error. Try again.");
+      setPayload(null);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [region]);
+
+  useLayoutEffect(() => {
+    void load(false);
+  }, [load]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: "Leaderboards",
-      headerStyle: { backgroundColor: BG },
-      headerTintColor: "#fff",
-      headerShadowVisible: false,
+      headerRight: () => (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.headerRegionRow}
+        >
+          {REGIONS.map((r) => {
+            const on = region === r;
+            return (
+              <Pressable
+                key={r}
+                onPress={() => setRegion(r)}
+                style={({ pressed }) => [styles.headerRegionChip, on && styles.headerRegionChipOn, pressed && { opacity: 0.88 }]}
+              >
+                <Text style={[styles.headerRegionChipText, on && styles.headerRegionChipTextOn]}>{r === "ALL" ? "All" : r}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ),
     });
-  }, [navigation]);
+  }, [navigation, region]);
 
-  const venueAllowList = useMemo(() => {
-    if (region === "ALL") return null;
-    const venues = Object.keys(VENUE_TO_REGION).filter((v) => VENUE_TO_REGION[v] === region);
-    return venues.length ? venues : null;
-  }, [region]);
+  const onRefresh = useCallback(() => {
+    void load(true);
+  }, [load]);
 
-  useEffect(() => {
-    if (!isReady || !supabase) return;
-    const seq = ++loadSeq.current;
-    setLoading(true);
-    setErr(null);
-
-    void (async () => {
-      // Start from profiles so we can label rows.
-      let profQuery = supabase
-        .from("profiles")
-        .select("id,first_name,last_name,username,nearest_venue,attended_count,confirmed_count,strike_count")
-        .eq("approved", true)
-        .order("attended_count", { ascending: false })
-        .limit(400);
-
-      if (venueAllowList) profQuery = profQuery.in("nearest_venue", venueAllowList);
-
-      const profRes = await profQuery;
-      if (loadSeq.current !== seq) return;
-      if (profRes.error || !profRes.data) {
-        setRows([]);
-        setErr(profRes.error?.message ?? "Couldn’t load leaderboards.");
-        setLoading(false);
-        return;
-      }
-
-      const profiles = (profRes.data as ProfileRow[]).filter((p) => !!p.id);
-      const ids = profiles.map((p) => p.id);
-
-      // Simple categories that can be derived from profiles alone.
-      if (category === "most_games") {
-        const out = profiles
-          .map((p) => ({
-            userId: p.id,
-            name: displayName(p),
-            username: (p.username ?? "").trim() || null,
-            valueSort: Math.max(0, Number(p.attended_count ?? 0) || 0),
-            valueLabel: String(Math.max(0, Number(p.attended_count ?? 0) || 0)),
-          }))
-          .sort((a, b) => b.valueSort - a.valueSort)
-          .slice(0, 10);
-        setRows(out);
-        setLoading(false);
-        return;
-      }
-
-      if (category === "most_reliable") {
-        const out = profiles
-          .map((p) => {
-            const confirmed = Math.max(0, Number(p.confirmed_count ?? 0) || 0);
-            const attended = Math.max(0, Number(p.attended_count ?? 0) || 0);
-            const score = confirmed > 0 ? (attended / confirmed) * 100 : 0;
-            return {
-              userId: p.id,
-              name: displayName(p),
-              username: (p.username ?? "").trim() || null,
-              valueSort: score,
-              valueLabel: confirmed >= 5 ? pct(score) : "—",
-              confirmed,
-            };
-          })
-          .filter((r) => r.confirmed >= 5)
-          .sort((a, b) => b.valueSort - a.valueSort)
-          .slice(0, 10)
-          .map(({ confirmed, ...rest }) => rest);
-        setRows(out);
-        setLoading(false);
-        return;
-      }
-
-      // For win/award leaderboards, compute from assignments + results.
-      const { data: assignments, error: assignmentsError } = await supabase
-        .from("pickup_run_team_assignments")
-        .select("user_id,team,run_id")
-        .in("user_id", ids)
-        .limit(8000);
-
-      if (loadSeq.current !== seq) return;
-      if (assignmentsError || !assignments) {
-        setRows([]);
-        setErr(assignmentsError?.message ?? "Couldn’t load stats.");
-        setLoading(false);
-        return;
-      }
-
-      const base = new Map<string, { played: number; wins: number; potd: number; gotd: number; def: number; mid: number; att: number }>();
-      for (const p of profiles) {
-        base.set(p.id, { played: 0, wins: 0, potd: 0, gotd: 0, def: 0, mid: 0, att: 0 });
-      }
-
-      const assignmentRows = assignments as unknown as Array<{ user_id: string; team: Team; run_id: string }>;
-      const runIds = Array.from(new Set(assignmentRows.map((r) => r.run_id).filter(Boolean)));
-
-      const CHUNK = 250;
-      const resultsByRunId = new Map<
-        string,
-        {
-          winning_team: Team | null;
-          player_of_day: string | null;
-          goalie_of_the_day: string | null;
-          defender_of_day: string | null;
-          midfielder_of_day: string | null;
-          attacker_of_day: string | null;
-        }
-      >();
-
-      for (let i = 0; i < runIds.length; i += CHUNK) {
-        const chunk = runIds.slice(i, i + CHUNK);
-        const { data: resRows, error: resErr } = await supabase
-          .from("pickup_run_results")
-          .select("run_id,winning_team,player_of_day,goalie_of_the_day,defender_of_day,midfielder_of_day,attacker_of_day")
-          .in("run_id", chunk);
-        if (loadSeq.current !== seq) return;
-        if (resErr || !resRows) continue;
-        for (const r of resRows as unknown as Array<{
-          run_id: string;
-          winning_team: Team | null;
-          player_of_day: string | null;
-          goalie_of_the_day: string | null;
-          defender_of_day: string | null;
-          midfielder_of_day: string | null;
-          attacker_of_day: string | null;
-        }>) {
-          if (!r?.run_id) continue;
-          resultsByRunId.set(r.run_id, {
-            winning_team: r.winning_team ?? null,
-            player_of_day: r.player_of_day ?? null,
-            goalie_of_the_day: r.goalie_of_the_day ?? null,
-            defender_of_day: r.defender_of_day ?? null,
-            midfielder_of_day: r.midfielder_of_day ?? null,
-            attacker_of_day: r.attacker_of_day ?? null,
-          });
-        }
-      }
-
-      for (const row of assignmentRows) {
-        const uid = row.user_id;
-        const agg = base.get(uid);
-        if (!agg) continue;
-        const res = resultsByRunId.get(row.run_id) ?? null;
-        if (!res?.winning_team) continue;
-        agg.played += 1;
-        if (row.team === res.winning_team) agg.wins += 1;
-        if (res.player_of_day === uid) agg.potd += 1;
-        if (res.goalie_of_the_day === uid) agg.gotd += 1;
-        if (res.defender_of_day === uid) agg.def += 1;
-        if (res.midfielder_of_day === uid) agg.mid += 1;
-        if (res.attacker_of_day === uid) agg.att += 1;
-      }
-
-      const profById = new Map(profiles.map((p) => [p.id, p]));
-
-      const out: BoardRow[] = [];
-      for (const [uid, agg] of base.entries()) {
-        const p = profById.get(uid);
-        if (!p) continue;
-        if (category === "most_wins") {
-          out.push({
-            userId: uid,
-            name: displayName(p),
-            username: (p.username ?? "").trim() || null,
-            valueSort: agg.wins,
-            valueLabel: String(agg.wins),
-          });
-        } else if (category === "highest_win_rate") {
-          if (agg.played < 5) continue;
-          const wr = (agg.wins / agg.played) * 100;
-          out.push({
-            userId: uid,
-            name: displayName(p),
-            username: (p.username ?? "").trim() || null,
-            valueSort: wr,
-            valueLabel: pct(wr),
-          });
-        } else if (category === "potd") {
-          out.push({ userId: uid, name: displayName(p), username: (p.username ?? "").trim() || null, valueSort: agg.potd, valueLabel: String(agg.potd) });
-        } else if (category === "gotd") {
-          out.push({ userId: uid, name: displayName(p), username: (p.username ?? "").trim() || null, valueSort: agg.gotd, valueLabel: String(agg.gotd) });
-        } else if (category === "def") {
-          out.push({ userId: uid, name: displayName(p), username: (p.username ?? "").trim() || null, valueSort: agg.def, valueLabel: String(agg.def) });
-        } else if (category === "mid") {
-          out.push({ userId: uid, name: displayName(p), username: (p.username ?? "").trim() || null, valueSort: agg.mid, valueLabel: String(agg.mid) });
-        } else if (category === "att") {
-          out.push({ userId: uid, name: displayName(p), username: (p.username ?? "").trim() || null, valueSort: agg.att, valueLabel: String(agg.att) });
-        }
-      }
-
-      out.sort((a, b) => b.valueSort - a.valueSort);
-      setRows(out.slice(0, 10));
-      setLoading(false);
-    })();
-  }, [isReady, supabase, venueAllowList, category]);
-
-  const regionLabel = useMemo(() => (region === "ALL" ? "All" : region), [region]);
-  const categoryLabel = useMemo(() => CATEGORY_OPTIONS.find((c) => c.id === category)?.label ?? "Leaderboards", [category]);
+  const listEmpty = !loading && !err && rowsForTab.length === 0;
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      <Text style={styles.h1}>Leaderboards</Text>
-      <Text style={styles.sub}>Top 10 — win rate requires at least 5 games.</Text>
-
-      <Text style={styles.filterLabel}>Region</Text>
-      <View style={styles.chipRow}>
-        {REGION_OPTIONS.map((r) => {
-          const on = region === r;
-          return (
-            <Pressable key={r} onPress={() => setRegion(r)} style={({ pressed }) => [styles.chip, on && styles.chipOn, pressed && { opacity: 0.9 }]}>
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>{r === "ALL" ? "All" : r}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <Text style={styles.filterLabel}>Category</Text>
+    <View style={styles.root}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabRow}>
-        {CATEGORY_OPTIONS.map((c) => {
-          const on = category === c.id;
+        {TABS.map((t) => {
+          const on = tab === t.id;
           return (
             <Pressable
-              key={c.id}
-              onPress={() => setCategory(c.id)}
+              key={t.id}
+              onPress={() => setTab(t.id)}
               style={({ pressed }) => [styles.tab, on && styles.tabOn, pressed && { opacity: 0.9 }]}
             >
-              <Text style={[styles.tabText, on && styles.tabTextOn]}>{c.label}</Text>
+              <Text style={[styles.tabText, on && styles.tabTextOn]}>{t.label}</Text>
             </Pressable>
           );
         })}
       </ScrollView>
 
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>{categoryLabel}</Text>
-        <Text style={styles.headerSub}>{regionLabel}</Text>
-      </View>
-
-      {loading ? (
-        <View style={styles.centerRow}>
-          <ActivityIndicator color={LIME} />
-          <Text style={styles.centerText}>Loading…</Text>
+      {loading && !refreshing ? (
+        <View style={styles.centerFill}>
+          <ActivityIndicator color={LIME} size="large" />
         </View>
       ) : err ? (
-        <Text style={styles.errText}>{err}</Text>
-      ) : rows.length === 0 ? (
-        <Text style={styles.emptyText}>No data yet.</Text>
-      ) : (
-        <View style={styles.list}>
-          {rows.map((r, idx) => (
-            <Pressable
-              key={r.userId}
-              onPress={() => router.push(`/player/${encodeURIComponent(r.userId)}`)}
-              style={({ pressed }) => [styles.rowCard, pressed && { opacity: 0.92 }]}
-            >
-              <View style={styles.rankWrap}>
-                <Text style={styles.rank}>{idx + 1}</Text>
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.name} numberOfLines={1}>
-                  {r.name}
-                </Text>
-                <Text style={styles.username} numberOfLines={1}>
-                  {r.username ? `@${r.username}` : "—"}
-                </Text>
-              </View>
-              <View style={styles.valueWrap}>
-                <Text style={styles.value}>{r.valueLabel}</Text>
-                <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
-              </View>
-            </Pressable>
-          ))}
+        <View style={styles.centerFill}>
+          <Text style={styles.errText}>{err}</Text>
+          <Pressable onPress={() => void load(false)} style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.9 }]}>
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </Pressable>
         </View>
+      ) : (
+        <FlatList
+          data={rowsForTab}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={listEmpty ? styles.listEmptyContainer : styles.listContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={LIME} />}
+          ListEmptyComponent={
+            listEmpty ? (
+              <Text style={styles.emptyText}>No stats yet</Text>
+            ) : null
+          }
+          renderItem={({ item, index }) => {
+            const rank = index + 1;
+            const ig = formatInstagram(item.instagram);
+            const mine = myUserId != null && item.id === myUserId;
+            return (
+              <Pressable
+                onPress={() => router.push(`/player/${encodeURIComponent(item.id)}`)}
+                style={({ pressed }) => [
+                  styles.row,
+                  mine && styles.rowMine,
+                  pressed && { opacity: 0.92 },
+                ]}
+              >
+                <View style={styles.rankCol}>
+                  <Text style={styles.rankText}>
+                    {medalForRank(rank)}
+                    {rank}
+                  </Text>
+                </View>
+                <View style={styles.nameCol}>
+                  <Text style={styles.nameText} numberOfLines={1}>
+                    {displayPlayerName(item)}
+                  </Text>
+                  {ig ? (
+                    <Text style={styles.igText} numberOfLines={1}>
+                      {ig}
+                    </Text>
+                  ) : null}
+                </View>
+                <Text style={styles.statText}>{formatStat(tab, item)}</Text>
+              </Pressable>
+            );
+          }}
+        />
       )}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: BG },
-  content: { padding: 20, paddingBottom: 40 },
-  h1: { fontSize: 26, fontWeight: "900", color: "#fff" },
-  sub: { marginTop: 10, color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
-
-  filterLabel: {
-    marginTop: 18,
-    marginBottom: 10,
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 1.1,
-    textTransform: "uppercase",
-    color: "rgba(255,255,255,0.45)",
-  },
-
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  chip: {
-    paddingVertical: 10,
+  root: { flex: 1, backgroundColor: BG },
+  tabRow: {
+    flexGrow: 0,
+    flexDirection: "row",
+    flexWrap: "nowrap",
+    alignItems: "center",
     paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    paddingVertical: 10,
+    gap: 8,
+    paddingRight: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.12)",
   },
-  chipOn: { borderColor: "rgba(163,230,53,0.55)", backgroundColor: "rgba(163,230,53,0.10)" },
-  chipText: { color: "rgba(255,255,255,0.7)", fontWeight: "700", fontSize: 13 },
-  chipTextOn: { color: LIME },
-
-  tabRow: { gap: 10, paddingRight: 6 },
   tab: {
-    paddingVertical: 10,
+    flexShrink: 0,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
+    borderColor: "rgba(255,255,255,0.14)",
     backgroundColor: "rgba(255,255,255,0.05)",
   },
   tabOn: { borderColor: "rgba(163,230,53,0.55)", backgroundColor: "rgba(163,230,53,0.12)" },
   tabText: { color: "rgba(255,255,255,0.65)", fontWeight: "800", fontSize: 13 },
   tabTextOn: { color: LIME },
 
-  headerRow: { marginTop: 18, flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 10 },
-  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "900" },
-  headerSub: { color: "rgba(255,255,255,0.45)", fontWeight: "800" },
-
-  centerRow: { marginTop: 18, flexDirection: "row", alignItems: "center", gap: 10 },
-  centerText: { color: "rgba(255,255,255,0.55)", fontSize: 14 },
-  errText: { marginTop: 18, color: "#fca5a5", fontSize: 14, lineHeight: 20 },
-  emptyText: { marginTop: 18, color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
-
-  list: { marginTop: 16, gap: 10 },
-  rowCard: {
+  headerRegionRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    gap: 6,
+    paddingRight: 8,
+    maxWidth: 220,
   },
-  rankWrap: {
-    width: 34,
-    height: 34,
+  headerRegionChip: {
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  headerRegionChipOn: {
+    borderColor: "rgba(163,230,53,0.5)",
+    backgroundColor: "rgba(163,230,53,0.12)",
+  },
+  headerRegionChipText: { color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: "800" },
+  headerRegionChipTextOn: { color: LIME },
+
+  centerFill: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 14 },
+  errText: { color: "#fca5a5", fontSize: 14, textAlign: "center", lineHeight: 20 },
+  retryBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 18,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.10)",
-    alignItems: "center",
-    justifyContent: "center",
+    borderColor: "rgba(163,230,53,0.45)",
+    backgroundColor: "rgba(163,230,53,0.12)",
   },
-  rank: { color: LIME, fontWeight: "900" },
-  name: { color: "#fff", fontWeight: "900", fontSize: 15 },
-  username: { marginTop: 4, color: "rgba(255,255,255,0.55)", fontWeight: "700" },
-  valueWrap: { flexDirection: "row", alignItems: "center", gap: 10 },
-  value: { color: "#fff", fontWeight: "900", fontSize: 16 },
-});
+  retryBtnText: { color: LIME, fontWeight: "800", fontSize: 14 },
 
+  listContent: { paddingHorizontal: 12, paddingBottom: 28, paddingTop: 8 },
+  listEmptyContainer: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 20, minHeight: 280 },
+  emptyText: { color: "rgba(255,255,255,0.5)", fontSize: 15, textAlign: "center" },
+
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  rowMine: {
+    borderLeftWidth: 3,
+    borderLeftColor: "rgba(163,230,53,0.42)",
+    paddingLeft: 9,
+  },
+  rankCol: { width: 44, alignItems: "flex-start" },
+  rankText: { color: "rgba(255,255,255,0.85)", fontWeight: "900", fontSize: 15 },
+  nameCol: { flex: 1, minWidth: 0 },
+  nameText: { color: "#fff", fontWeight: "800", fontSize: 15 },
+  igText: { marginTop: 3, color: "rgba(255,255,255,0.42)", fontSize: 13, fontWeight: "600" },
+  statText: { color: LIME, fontWeight: "900", fontSize: 16, minWidth: 52, textAlign: "right" },
+});

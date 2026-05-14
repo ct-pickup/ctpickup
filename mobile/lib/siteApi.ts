@@ -345,7 +345,7 @@ export async function postTournamentRoster(
   return { ok: r.ok, status: r.status, json };
 }
 
-/** Signed-in player read-only bracket (teams, matches, standings). */
+/** Signed-in player read-only bracket (teams, matches, standings, top_scorers). */
 export async function fetchTournamentBracketPlayer(accessToken: string, tournamentId: string) {
   const origin = siteOrigin();
   if (!origin) {
@@ -358,6 +358,41 @@ export async function fetchTournamentBracketPlayer(accessToken: string, tourname
     cache: "no-store",
   });
   const json = await r.json().catch(() => null);
+  return { ok: r.ok, status: r.status, json };
+}
+
+export type TournamentMvpTally = { name: string; votes: number; is_winner: boolean };
+
+/** GET tallies; pass accessToken to receive my_vote, can_vote, eligible_players for MVP picker. */
+export async function fetchTournamentMvpVotes(accessToken: string | null, matchId: string) {
+  const origin = siteOrigin();
+  if (!origin) {
+    return { ok: false, status: 0, json: null as unknown };
+  }
+  const u = new URL(`${origin}/api/tournament/mvp-vote`);
+  u.searchParams.set("match_id", matchId);
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  const r = await fetch(u.toString(), { headers, cache: "no-store" });
+  const json = await r.json().catch(() => null);
+  return { ok: r.ok, status: r.status, json };
+}
+
+export async function postTournamentMvpVote(accessToken: string, matchId: string, votedForName: string) {
+  const origin = siteOrigin();
+  if (!origin) {
+    return { ok: false, status: 0, json: { error: "missing_site_url" } };
+  }
+  const r = await fetch(`${origin}/api/tournament/mvp-vote`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ match_id: matchId, voted_for_name: votedForName }),
+  });
+  const json = await r.json().catch(() => ({}));
   return { ok: r.ok, status: r.status, json };
 }
 

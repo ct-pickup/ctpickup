@@ -50,6 +50,7 @@ export default function MessagesIndex() {
     () => rooms.filter((r) => r.room_type === "group" && !isAdminDmGroupSlug(r.slug)),
     [rooms],
   );
+  const tournamentTeamRooms = useMemo(() => rooms.filter((r) => r.room_type === "tournament_team"), [rooms]);
   const runBanterRooms = useMemo(() => rooms.filter((r) => r.room_type === "run_banter"), [rooms]);
   const dmGroupRooms = useMemo(
     () => rooms.filter((r) => r.room_type === "group" && isAdminDmGroupSlug(r.slug)),
@@ -133,6 +134,26 @@ export default function MessagesIndex() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle}>{titleForRoomRow(r, isAdmin === true, adminDmPeerLabels)}</Text>
                 <Text style={styles.rowSub}>Group chat</Text>
+              </View>
+              <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+            </Pressable>
+          ))}
+        </>
+      ) : null}
+
+      {tournamentTeamRooms.length > 0 ? (
+        <>
+          <Text style={[styles.section, { marginTop: 22 }]}>Tournament teams</Text>
+          {tournamentTeamRooms.map((r) => (
+            <Pressable
+              key={r.id}
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+              onPress={() => router.push({ pathname: "/(tabs)/messages/thread", params: { id: r.id } })}
+            >
+              <FontAwesome name="users" size={18} color={LIME} style={styles.rowIcon} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowTitle}>{r.title}</Text>
+                <Text style={styles.rowSub}>Tournament team</Text>
               </View>
               <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
             </Pressable>

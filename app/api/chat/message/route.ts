@@ -87,7 +87,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "This chat has closed." }, { status: 403 });
   }
 
-  if (room.room_type === "group" || room.room_type === "run_banter") {
+  if (room.room_type === "group" || room.room_type === "run_banter" || room.room_type === "tournament_team") {
     const mem = await admin.from("chat_room_members").select("user_id").eq("room_id", room_id).eq("user_id", uid).maybeSingle();
     if (mem.error) return NextResponse.json({ error: mem.error.message }, { status: 500 });
     if (!mem.data && !isAdmin) {
@@ -131,7 +131,7 @@ export async function POST(req: Request) {
 
   let pushTargetIds: string[] = [];
 
-  if (room.room_type === "group") {
+  if (room.room_type === "group" || room.room_type === "tournament_team") {
     const mem = await admin.from("chat_room_members").select("user_id").eq("room_id", room_id);
     if (!mem.error) {
       pushTargetIds = (mem.data ?? [])

@@ -3,6 +3,7 @@ import { lookupPickupPlayerByUsernameOrEmail } from "@/lib/pickup/lookupPlayerBy
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin, getSupabaseAnon } from "@/lib/server/runtimeClients";
 import { captainMayManageRosterStatus, PAID_OR_READY_CAPTAIN_STATUSES } from "@/lib/tournament/outdoorTournamentConstants";
+import { addUserToTournamentTeamRoom } from "@/lib/chat/tournamentTeamRoom";
 import { syncCaptainPlayersPaid } from "@/lib/tournament/syncCaptainPlayersPaid";
 
 export const runtime = "nodejs";
@@ -331,6 +332,15 @@ export async function POST(req: Request) {
       .single();
     if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
 
+    if (accept) {
+      await addUserToTournamentTeamRoom(
+        admin,
+        String(row.captain_id),
+        String(row.tournament_id),
+        String(upd.user_id),
+      );
+    }
+
     const { data: cap } = await admin.from("tournament_captains").select("user_id, team_name").eq("id", row.captain_id).maybeSingle();
     if (cap?.user_id) {
       const who = await playerDisplayName(admin, String(upd.user_id));
@@ -546,6 +556,13 @@ export async function POST(req: Request) {
       .select("*")
       .single();
     if (rqErr) return NextResponse.json({ error: rqErr.message }, { status: 500 });
+
+    await addUserToTournamentTeamRoom(
+      admin,
+      String(reqRow.captain_id),
+      String(reqRow.tournament_id),
+      String(reqRow.requester_user_id),
+    );
 
     await sendPushToUsers(admin, [String(reqRow.requester_user_id)], {
       title: "You're on the team",

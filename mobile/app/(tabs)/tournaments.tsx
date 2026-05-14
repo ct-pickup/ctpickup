@@ -111,10 +111,10 @@ export default function TournamentsScreen() {
               )
             }
             accessibilityRole="button"
-            accessibilityLabel="Live bracket"
+            accessibilityLabel="Live standings, bracket, and top scorers for this tournament"
           >
             <FontAwesome name="sitemap" size={16} color="#111" style={{ marginRight: 8 }} />
-            <Text style={styles.bracketBtnText}>View bracket</Text>
+            <Text style={styles.bracketBtnText}>Standings · bracket · scorers</Text>
           </Pressable>
         ) : null}
       </>

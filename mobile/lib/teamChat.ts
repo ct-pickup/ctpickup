@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 export const TEAM_CHAT_SLUG = "team" as const;
 export const ANNOUNCEMENTS_CHAT_SLUG = "announcements" as const;
 
-export type ChatRoomType = "public" | "announcement" | "group" | "run_banter";
+export type ChatRoomType = "public" | "announcement" | "group" | "run_banter" | "tournament_team";
 
 /** Admin↔player DMs use `room_type: group` and slugs `dm` + 32 hex (see `lib/chat/adminDmRoom.ts`). */
 const DM_GROUP_SLUG_RE = /^dm[a-f0-9]{32}$/i;

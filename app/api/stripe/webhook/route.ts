@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ensurePickupRunInviteLink } from "@/lib/pickup/ensureRunInviteLink";
 import { addUserToRunBanterRoom } from "@/lib/chat/runBanterRoom";
+import { ensureTournamentTeamRoom } from "@/lib/chat/tournamentTeamRoom";
 import {
   findPlatformPaymentIdByPaymentIntent,
   findPlatformPaymentIdBySession,
@@ -147,9 +148,18 @@ async function fulfillTournament(
 
   const { data: capRow } = await admin
     .from("tournament_captains")
-    .select("user_id,tournament_id")
+    .select("user_id,tournament_id,team_name")
     .eq("id", pay.captain_id)
     .maybeSingle();
+  if (capRow?.user_id && capRow.tournament_id) {
+    await ensureTournamentTeamRoom(
+      admin,
+      pay.captain_id,
+      String(capRow.tournament_id),
+      String(capRow.team_name ?? "Team"),
+      String(capRow.user_id),
+    );
+  }
   if (capRow?.user_id) {
     await sendPushToUsers(admin, [String(capRow.user_id)], {
       title: "Payment received",

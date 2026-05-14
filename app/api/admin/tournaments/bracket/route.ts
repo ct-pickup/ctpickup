@@ -198,6 +198,9 @@ export async function POST(req: Request) {
     const matchRes = await admin.from("tournament_matches").select("*").eq("id", match_id).maybeSingle();
     if (!matchRes.data) return NextResponse.json({ error: "Match not found" }, { status: 404 });
     const match = matchRes.data;
+    if (String(match.tournament_id) !== String(tournament_id)) {
+      return NextResponse.json({ error: "Tournament mismatch" }, { status: 400 });
+    }
 
     let winner_id = null;
     if (score_a !== score_b) {
@@ -232,6 +235,53 @@ export async function POST(req: Request) {
     if (match.stage === "group") {
       const recap = await recalculateOutdoorGroupStandings(admin, tournament_id);
       if (!recap.ok) return NextResponse.json({ error: recap.error }, { status: 500 });
+    }
+
+    const teamAId = match.team_a_id as string | null;
+    const teamBId = match.team_b_id as string | null;
+    const isBye = Boolean(match.is_bye);
+    if (teamAId && teamBId && !isBye) {
+      const { data: capTeams } = await admin
+        .from("tournament_captains")
+        .select("id, user_id, team_name")
+        .in("id", [teamAId, teamBId]);
+      const teamAName = String(
+        (capTeams || []).find((c: { id: string }) => String(c.id) === String(teamAId))?.team_name ?? "Team A",
+      );
+      const teamBName = String(
+        (capTeams || []).find((c: { id: string }) => String(c.id) === String(teamBId))?.team_name ?? "Team B",
+      );
+      const captainUserIds = [
+        ...new Set(
+          (capTeams || [])
+            .map((c: { user_id?: string | null }) => (typeof c.user_id === "string" ? c.user_id : ""))
+            .filter(Boolean),
+        ),
+      ];
+      const { data: rosterRows } = await admin
+        .from("tournament_roster")
+        .select("user_id")
+        .in("captain_id", [teamAId, teamBId])
+        .eq("status", "accepted");
+      const rosterUserIds = [
+        ...new Set(
+          (rosterRows || [])
+            .map((r: { user_id?: string | null }) => (typeof r.user_id === "string" ? r.user_id : ""))
+            .filter(Boolean),
+        ),
+      ];
+      const notifyUserIds = [...new Set([...captainUserIds, ...rosterUserIds])];
+      if (notifyUserIds.length) {
+        await sendPushToUsers(admin, notifyUserIds, {
+          title: "Vote for Match MVP ⭐",
+          body: `Who stood out in ${teamAName} vs ${teamBName}? Vote now.`,
+          data: {
+            kind: "tournament_mvp_vote",
+            match_id,
+            tournament_id: String(tournament_id),
+          },
+        });
+      }
     }
 
     return NextResponse.json({ ok: true });

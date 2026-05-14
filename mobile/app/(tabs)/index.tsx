@@ -54,14 +54,6 @@ export default function HomeScreen() {
           >
             <FontAwesome name="search" size={16} color={LIME} />
           </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Leaderboards"
-            onPress={() => (router.push as (href: string) => void)("/leaderboards")}
-            style={({ pressed }) => [styles.profileBtn, pressed && { opacity: 0.92 }]}
-          >
-            <FontAwesome name="trophy" size={16} color={LIME} />
-          </Pressable>
         </View>
         <View style={styles.topMiddle}>
           <Text style={styles.welcomeLine} numberOfLines={1}>
@@ -85,6 +77,22 @@ export default function HomeScreen() {
         Find Your{"\n"}Next <Text style={styles.headlineAccent}>Run</Text>.
       </Text>
       <Text style={styles.tagline}>Tonight / this week stay locked in.</Text>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open leaderboards"
+        onPress={() => (router.push as (href: string) => void)("/leaderboards")}
+        style={({ pressed }) => [styles.leaderboardsCard, pressed && { opacity: 0.92 }]}
+      >
+        <View style={styles.leaderboardsIconWrap}>
+          <Text style={styles.leaderboardsEmoji}>🏆</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.leaderboardsTitle}>Leaderboards 🏆</Text>
+          <Text style={styles.leaderboardsSub}>All-time stats · wins · sessions · POTD & more</Text>
+        </View>
+        <FontAwesome name="chevron-right" size={16} color="rgba(255,255,255,0.5)" />
+      </Pressable>
 
       <Pressable
         accessibilityRole="button"
@@ -151,6 +159,29 @@ const styles = StyleSheet.create({
   },
   headlineAccent: { color: LIME },
   tagline: { marginTop: 8, fontSize: 15, color: "rgba(255,255,255,0.5)" },
+  leaderboardsCard: {
+    marginTop: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.22)",
+    backgroundColor: "rgba(163,230,53,0.07)",
+    gap: 14,
+  },
+  leaderboardsIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "rgba(163,230,53,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  leaderboardsEmoji: { fontSize: 22 },
+  leaderboardsTitle: { fontSize: 17, fontWeight: "800", color: "#fff", letterSpacing: -0.2 },
+  leaderboardsSub: { marginTop: 4, fontSize: 13, color: "rgba(255,255,255,0.48)" },
   regionHub: {
     marginTop: 18,
     flexDirection: "row",

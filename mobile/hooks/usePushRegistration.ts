@@ -52,6 +52,7 @@ const ROUTABLE_NOTIFICATION_KINDS = new Set([
   "tournament_live",
   "tournament_canceled",
   "tournament_bracket_generated",
+  "tournament_mvp_vote",
   "tournament_roster_invite",
   "tournament_roster_response",
   "tournament_join_request",
@@ -114,7 +115,8 @@ function hapticForForegroundPushKind(kind: string) {
     kind === "tournament_roster_invite"
   )
     void hapticKick();
-  else if (kind === "tournament_bracket_generated" || kind === "tournament_starts_soon") void hapticWhistle();
+  else if (kind === "tournament_bracket_generated" || kind === "tournament_mvp_vote" || kind === "tournament_starts_soon")
+    void hapticWhistle();
   else if (kind === "tournament_canceled") void hapticError();
   else if (
     kind === "tournament_roster_response" ||
@@ -132,6 +134,7 @@ function hapticForNotificationTap(kind: string) {
     kind.startsWith("pickup_award_") ||
     kind === "pickup_result" ||
     kind === "tournament_bracket_generated" ||
+    kind === "tournament_mvp_vote" ||
     kind === "tournament_starts_soon"
   ) {
     void hapticWhistle();
@@ -199,7 +202,7 @@ export function usePushRegistration(accessToken: string | null) {
           void hapticForNotificationTap(kind);
           return;
         }
-        if (kind === "tournament_bracket_generated") {
+        if (kind === "tournament_bracket_generated" || kind === "tournament_mvp_vote") {
           const tid = tournamentIdFromNotificationData(data);
           if (tid) {
             router.push({

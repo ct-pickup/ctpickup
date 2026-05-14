@@ -90,7 +90,7 @@ async function authorizeMessageAccess(
     return { ok: false, status: 403, error: "This chat has closed." };
   }
 
-  if (room.room_type === "group" || room.room_type === "run_banter") {
+  if (room.room_type === "group" || room.room_type === "run_banter" || room.room_type === "tournament_team") {
     const mem = await admin
       .from("chat_room_members")
       .select("user_id")
