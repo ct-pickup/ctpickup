@@ -102,6 +102,15 @@ function formatHourEt(hour: number): string {
   return `${hour - 12}:00 PM ET`;
 }
 
+const ANALYTICS_LOAD_FAILED_MESSAGE =
+  "Couldn't load analytics. Pull down to refresh.";
+
+function userFacingAnalyticsError(raw: string): string {
+  const t = String(raw || "").trim();
+  if (t === "load_failed" || t === "") return ANALYTICS_LOAD_FAILED_MESSAGE;
+  return raw;
+}
+
 function dowName(dayOfWeek: number): string {
   if (dayOfWeek < 0 || dayOfWeek > 6) return "Day";
   return DOW_NAMES[dayOfWeek] ?? "Day";
@@ -157,12 +166,12 @@ export default function AdminAnalyticsScreen() {
     });
     setLoading(false);
     if (!r.ok) {
-      setError(r.error);
+      setError(userFacingAnalyticsError(r.error || "load_failed"));
       setData(null);
       return;
     }
     if (!r.data.ok) {
-      setError(r.data.error || "load_failed");
+      setError(userFacingAnalyticsError(r.data.error || "load_failed"));
       setData(null);
       return;
     }
@@ -211,12 +220,13 @@ export default function AdminAnalyticsScreen() {
           </Pressable>
         </View>
 
+        {error ? <Text style={styles.errSubtitle}>{error}</Text> : null}
+
         <Pressable onPress={() => void load()} style={({ pressed }) => [styles.refresh, pressed && { opacity: 0.88 }]}>
           <Text style={styles.refreshText}>Refresh</Text>
         </Pressable>
 
         {loading ? <ActivityIndicator color="#fff" style={{ marginTop: 16 }} /> : null}
-        {error ? <Text style={styles.err}>{error}</Text> : null}
 
         {rev ? (
           <View style={styles.card}>
@@ -389,6 +399,15 @@ const styles = StyleSheet.create({
   },
   monthArrowText: { color: "#fff", fontSize: 22, fontWeight: "900", marginTop: -2 },
   monthTitle: { color: "#fff", fontSize: 20, fontWeight: "900", minWidth: 160, textAlign: "center" },
+  errSubtitle: {
+    marginTop: 10,
+    paddingHorizontal: 12,
+    color: "rgba(255,255,255,0.45)",
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "center",
+    lineHeight: 18,
+  },
   refresh: {
     alignSelf: "center",
     marginTop: 12,
@@ -400,7 +419,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(163,230,53,0.08)",
   },
   refreshText: { color: LIME, fontWeight: "900", fontSize: 13 },
-  err: { marginTop: 14, color: "#fca5a5", textAlign: "center" },
   card: {
     marginTop: 14,
     padding: 16,
