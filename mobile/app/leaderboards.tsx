@@ -1,10 +1,12 @@
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRouter } from "expo-router";
 import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -15,6 +17,7 @@ import {
 
 const BG = "#0a0a0a";
 const LIME = "#a3e635";
+const MUTED = "rgba(255,255,255,0.45)";
 
 type RegionFilter = "ALL" | "CT" | "NY" | "NJ" | "MD";
 type TabId =
@@ -43,27 +46,27 @@ type ApiRow = {
 type LeaderboardsPayload = {
   ok?: boolean;
   region: string;
-  wins: ApiRow[];
-  sessions: ApiRow[];
-  win_rate: ApiRow[];
-  potd: ApiRow[];
-  goalie: ApiRow[];
-  defender: ApiRow[];
-  midfielder: ApiRow[];
-  attacker: ApiRow[];
-  goals: ApiRow[];
+  wins: unknown[];
+  sessions: unknown[];
+  win_rate: unknown[];
+  potd: unknown[];
+  goalie: unknown[];
+  defender: unknown[];
+  midfielder: unknown[];
+  attacker: unknown[];
+  goals: unknown[];
 };
 
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: "wins", label: "Wins" },
   { id: "sessions", label: "Sessions" },
-  { id: "win_rate", label: "Win Rate" },
-  { id: "potd", label: "🏆 POTD" },
-  { id: "goalie", label: "🧤 Goalie" },
-  { id: "defender", label: "🛡️ Defender" },
-  { id: "midfielder", label: "🎯 Mid" },
-  { id: "attacker", label: "⚡ Attacker" },
-  { id: "goals", label: "⚽ Goals" },
+  { id: "win_rate", label: "Win %" },
+  { id: "potd", label: "POTD" },
+  { id: "goalie", label: "Goalie" },
+  { id: "defender", label: "Def" },
+  { id: "midfielder", label: "Mid" },
+  { id: "attacker", label: "Atk" },
+  { id: "goals", label: "Goals" },
 ];
 
 const REGIONS: RegionFilter[] = ["ALL", "CT", "NY", "NJ", "MD"];
@@ -72,34 +75,28 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return v != null && typeof v === "object";
 }
 
+function asRowArray(v: unknown): unknown[] {
+  return Array.isArray(v) ? v : [];
+}
+
 function parsePayload(json: unknown): LeaderboardsPayload | null {
   if (!isRecord(json)) return null;
   if (json.ok === false) return null;
-  const wins = json.wins;
-  const sessions = json.sessions;
-  const win_rate = json.win_rate;
-  const potd = json.potd;
-  const goalie = json.goalie;
-  const defender = json.defender;
-  const midfielder = json.midfielder;
-  const attacker = json.attacker;
-  const goals = json.goals;
-  if (
-    !Array.isArray(wins) ||
-    !Array.isArray(sessions) ||
-    !Array.isArray(win_rate) ||
-    !Array.isArray(potd) ||
-    !Array.isArray(goalie) ||
-    !Array.isArray(defender) ||
-    !Array.isArray(midfielder) ||
-    !Array.isArray(attacker) ||
-    !Array.isArray(goals)
-  ) {
-    return null;
-  }
   const region = typeof json.region === "string" ? json.region : "ALL";
   const ok = json.ok === true;
-  return { ok, region, wins, sessions, win_rate, potd, goalie, defender, midfielder, attacker, goals };
+  return {
+    ok,
+    region,
+    wins: asRowArray(json.wins),
+    sessions: asRowArray(json.sessions),
+    win_rate: asRowArray(json.win_rate),
+    potd: asRowArray(json.potd),
+    goalie: asRowArray(json.goalie),
+    defender: asRowArray(json.defender),
+    midfielder: asRowArray(json.midfielder),
+    attacker: asRowArray(json.attacker),
+    goals: asRowArray(json.goals),
+  };
 }
 
 function parseRow(v: unknown): ApiRow | null {
@@ -130,10 +127,10 @@ function displayPlayerName(r: ApiRow): string {
   return u ? `@${u}` : "Player";
 }
 
-function formatInstagram(raw: string | null): string | null {
-  const s = (raw ?? "").trim();
-  if (!s) return null;
-  return s.startsWith("@") ? s : `@${s}`;
+function displayUsernameLine(r: ApiRow): string | null {
+  const u = (r.username ?? "").trim();
+  if (!u) return null;
+  return `@${u}`;
 }
 
 function formatStat(tab: TabId, row: ApiRow): string {
@@ -160,6 +157,7 @@ export default function LeaderboardsScreen() {
 
   const [tab, setTab] = useState<TabId>("wins");
   const [region, setRegion] = useState<RegionFilter>("ALL");
+  const [filterOpen, setFilterOpen] = useState(false);
   const [payload, setPayload] = useState<LeaderboardsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -193,62 +191,65 @@ export default function LeaderboardsScreen() {
     return out;
   }, [payload, tab]);
 
-  const load = useCallback(async (isRefresh: boolean) => {
-    const origin = siteOrigin();
-    if (!origin) {
-      setErr("App configuration error.");
-      setPayload(null);
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
-    const token = session?.access_token ?? null;
-    if (!token) {
-      setErr("Sign in to view leaderboards.");
-      setPayload(null);
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
-    if (isRefresh) setRefreshing(true);
-    else {
-      setLoading(true);
-      setErr(null);
-    }
-    try {
-      const u = new URL(`${origin}/api/leaderboards`);
-      if (region !== "ALL") u.searchParams.set("region", region);
-      const r = await fetch(u.toString(), {
-        method: "GET",
-        headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      const json = (await r.json().catch(() => null)) as unknown;
-      if (!r.ok) {
-        if (r.status === 401) {
-          setErr("Sign in to view leaderboards.");
-        } else {
-          setErr("Something went wrong. Please try again.");
+  const load = useCallback(
+    async (isRefresh: boolean) => {
+      const origin = siteOrigin();
+      if (!origin) {
+        setErr("App configuration error.");
+        setPayload(null);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+      const token = session?.access_token ?? null;
+      if (!token) {
+        setErr("Sign in to view leaderboards.");
+        setPayload(null);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+      if (isRefresh) setRefreshing(true);
+      else {
+        setLoading(true);
+        setErr(null);
+      }
+      try {
+        const u = new URL(`${origin}/api/leaderboards`);
+        if (region !== "ALL") u.searchParams.set("region", region);
+        const r = await fetch(u.toString(), {
+          method: "GET",
+          headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        const json = (await r.json().catch(() => null)) as unknown;
+        if (!r.ok) {
+          if (r.status === 401) {
+            setErr("Sign in to view leaderboards.");
+          } else {
+            setErr("Something went wrong. Please try again.");
+          }
+          setPayload(null);
+          return;
         }
+        const parsed = parsePayload(json);
+        if (!parsed) {
+          setErr("Unexpected response from server.");
+          setPayload(null);
+          return;
+        }
+        setErr(null);
+        setPayload(parsed);
+      } catch {
+        setErr("Network error. Try again.");
         setPayload(null);
-        return;
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-      const parsed = parsePayload(json);
-      if (!parsed) {
-        setErr("Unexpected response from server.");
-        setPayload(null);
-        return;
-      }
-      setErr(null);
-      setPayload(parsed);
-    } catch {
-      setErr("Network error. Try again.");
-      setPayload(null);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [region, session?.access_token]);
+    },
+    [region, session?.access_token],
+  );
 
   useLayoutEffect(() => {
     void load(false);
@@ -257,27 +258,17 @@ export default function LeaderboardsScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.headerRegionRow}
+        <Pressable
+          onPress={() => setFilterOpen(true)}
+          hitSlop={12}
+          style={({ pressed }) => [styles.headerFilterBtn, pressed && { opacity: 0.75 }]}
+          accessibilityLabel="Filter by region"
         >
-          {REGIONS.map((r) => {
-            const on = region === r;
-            return (
-              <Pressable
-                key={r}
-                onPress={() => setRegion(r)}
-                style={({ pressed }) => [styles.headerRegionChip, on && styles.headerRegionChipOn, pressed && { opacity: 0.88 }]}
-              >
-                <Text style={[styles.headerRegionChipText, on && styles.headerRegionChipTextOn]}>{r === "ALL" ? "All" : r}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+          <Ionicons name="options-outline" size={22} color="#fff" />
+        </Pressable>
       ),
     });
-  }, [navigation, region]);
+  }, [navigation]);
 
   const onRefresh = useCallback(() => {
     void load(true);
@@ -286,16 +277,20 @@ export default function LeaderboardsScreen() {
   const showInitialSpinner = loading && !refreshing;
   const listEmpty = !loading && !err && payload != null && rowsForTab.length === 0;
 
-  const listEmptyBody = err ? (
-    <View style={styles.emptyStateBlock}>
-      <Text style={styles.errText}>{err}</Text>
-      <Pressable onPress={() => void load(false)} style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.9 }]}>
-        <Text style={styles.retryBtnText}>Retry</Text>
-      </Pressable>
-    </View>
-  ) : (
-    <Text style={styles.emptyText}>No stats yet</Text>
-  );
+  const listEmptyBody =
+    err != null ? (
+      <View style={styles.emptyStateBlock}>
+        <Text style={styles.errText}>{err}</Text>
+        <Pressable onPress={() => void load(false)} style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.9 }]}>
+          <Text style={styles.retryBtnText}>Retry</Text>
+        </Pressable>
+      </View>
+    ) : (
+      <View style={styles.emptyStatsWrap}>
+        <Text style={styles.emptyEmoji}>⚽</Text>
+        <Text style={styles.emptyStatsText}>No stats yet. Play some runs!</Text>
+      </View>
+    );
 
   return (
     <View style={styles.root}>
@@ -312,9 +307,11 @@ export default function LeaderboardsScreen() {
             <Pressable
               key={t.id}
               onPress={() => setTab(t.id)}
-              style={({ pressed }) => [styles.tab, on && styles.tabOn, pressed && { opacity: 0.9 }]}
+              style={({ pressed }) => [styles.tabPill, on && styles.tabPillOn, pressed && { opacity: 0.9 }]}
             >
-              <Text style={[styles.tabText, on && styles.tabTextOn]}>{t.label}</Text>
+              <Text style={[styles.tabPillText, on && styles.tabPillTextOn]} numberOfLines={1}>
+                {t.label}
+              </Text>
             </Pressable>
           );
         })}
@@ -330,34 +327,36 @@ export default function LeaderboardsScreen() {
             style={styles.listFlex}
             data={err ? [] : rowsForTab}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={
-              err || rowsForTab.length === 0 ? styles.listContentGrow : styles.listContent
-            }
+            ItemSeparatorComponent={() => <View style={styles.rowSep} />}
+            contentContainerStyle={err || rowsForTab.length === 0 ? styles.listContentGrow : styles.listContent}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={LIME} />}
             ListEmptyComponent={err || listEmpty ? listEmptyBody : null}
             renderItem={({ item, index }) => {
               const rank = index + 1;
-              const ig = formatInstagram(item.instagram);
               const mine = myUserId != null && item.id === myUserId;
               const medal = medalForRank(rank);
-              const nameIg =
-                ig != null ? `${displayPlayerName(item)} · ${ig}` : displayPlayerName(item);
+              const userLine = displayUsernameLine(item);
               return (
                 <Pressable
                   onPress={() => router.push(`/player/${encodeURIComponent(item.id)}`)}
-                  style={({ pressed }) => [
-                    styles.row,
-                    mine && styles.rowMine,
-                    pressed && { opacity: 0.92 },
-                  ]}
+                  style={({ pressed }) => [styles.rowCard, mine && styles.rowCardMine, pressed && { opacity: 0.94 }]}
                 >
-                  <Text style={styles.rankText} numberOfLines={1}>
-                    {medal ? `${medal}${rank}` : String(rank)}
-                  </Text>
-                  <Text style={styles.nameIgText} numberOfLines={1}>
-                    {nameIg}
-                  </Text>
-                  <Text style={styles.statText} numberOfLines={1}>
+                  <View style={styles.rankCell}>
+                    <Text style={styles.rankCellText} numberOfLines={1}>
+                      {medal || String(rank)}
+                    </Text>
+                  </View>
+                  <View style={styles.nameBlock}>
+                    <Text style={styles.nameTitle} numberOfLines={1}>
+                      {displayPlayerName(item)}
+                    </Text>
+                    {userLine != null ? (
+                      <Text style={styles.usernameSub} numberOfLines={1}>
+                        {userLine}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Text style={styles.statValue} numberOfLines={1}>
                     {formatStat(tab, item)}
                   </Text>
                 </Pressable>
@@ -366,73 +365,92 @@ export default function LeaderboardsScreen() {
           />
         )}
       </View>
+
+      <Modal visible={filterOpen} transparent animationType="fade" onRequestClose={() => setFilterOpen(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setFilterOpen(false)} accessibilityLabel="Close region filter" />
+          <View style={styles.modalInner} pointerEvents="box-none">
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>Hub region</Text>
+              <View style={styles.modalChips}>
+                {REGIONS.map((r) => {
+                  const on = region === r;
+                  return (
+                    <Pressable
+                      key={r}
+                      onPress={() => {
+                        setRegion(r);
+                        setFilterOpen(false);
+                      }}
+                      style={({ pressed }) => [styles.modalChip, on && styles.modalChipOn, pressed && { opacity: 0.88 }]}
+                    >
+                      <Text style={[styles.modalChipText, on && styles.modalChipTextOn]}>{r === "ALL" ? "All hubs" : r}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
+  headerFilterBtn: {
+    marginRight: 4,
+    padding: 6,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
   tabScroll: {
     flexGrow: 0,
     flexShrink: 0,
+    maxHeight: 40,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255,255,255,0.12)",
+    borderBottomColor: "rgba(255,255,255,0.1)",
   },
   tabRow: {
     flexDirection: "row",
-    flexWrap: "nowrap",
     alignItems: "center",
-    paddingLeft: 10,
-    paddingRight: 14,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     gap: 6,
   },
-  tab: {
+  tabPill: {
     flexShrink: 0,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 11,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.04)",
   },
-  tabOn: { borderColor: "rgba(163,230,53,0.55)", backgroundColor: "rgba(163,230,53,0.12)" },
-  tabText: { color: "rgba(255,255,255,0.65)", fontWeight: "800", fontSize: 12 },
-  tabTextOn: { color: LIME },
+  tabPillOn: {
+    borderColor: "rgba(163,230,53,0.5)",
+    backgroundColor: "rgba(163,230,53,0.1)",
+  },
+  tabPillText: { color: MUTED, fontWeight: "700", fontSize: 12 },
+  tabPillTextOn: { color: LIME },
 
   listWrap: { flex: 1, minHeight: 0 },
   listFlex: { flex: 1 },
   listContentGrow: {
     flexGrow: 1,
     justifyContent: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
   },
-
-  headerRegionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingRight: 8,
-    maxWidth: 220,
-  },
-  headerRegionChip: {
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    backgroundColor: "rgba(255,255,255,0.06)",
-  },
-  headerRegionChipOn: {
-    borderColor: "rgba(163,230,53,0.5)",
-    backgroundColor: "rgba(163,230,53,0.12)",
-  },
-  headerRegionChipText: { color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: "800" },
-  headerRegionChipTextOn: { color: LIME },
+  listContent: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 28 },
 
   centerFill: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 14 },
   emptyStateBlock: { alignItems: "center", justifyContent: "center", gap: 14, paddingVertical: 24 },
+  emptyStatsWrap: { alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 32 },
+  emptyEmoji: { fontSize: 40 },
+  emptyStatsText: { color: MUTED, fontSize: 16, textAlign: "center", lineHeight: 22 },
   errText: { color: "#fca5a5", fontSize: 14, textAlign: "center", lineHeight: 20 },
   retryBtn: {
     paddingVertical: 10,
@@ -444,33 +462,108 @@ const styles = StyleSheet.create({
   },
   retryBtnText: { color: LIME, fontWeight: "800", fontSize: 14 },
 
-  listContent: { paddingHorizontal: 10, paddingBottom: 24, paddingTop: 4 },
-  emptyText: { color: "rgba(255,255,255,0.5)", fontSize: 15, textAlign: "center" },
+  rowSep: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    marginVertical: 6,
+  },
 
-  row: {
+  rowCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  rowCardMine: {
+    borderLeftWidth: 3,
+    borderLeftColor: "rgba(163,230,53,0.55)",
+    paddingLeft: 9,
+  },
+
+  rankCell: {
+    width: 36,
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  rankCellText: {
+    color: "rgba(255,255,255,0.88)",
+    fontWeight: "800",
+    fontSize: 15,
+  },
+
+  nameBlock: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 10,
+    gap: 2,
+  },
+  nameTitle: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 15,
+    letterSpacing: -0.2,
+  },
+  usernameSub: {
+    color: MUTED,
+    fontSize: 12,
+    fontWeight: "500",
+  },
+
+  statValue: {
+    color: LIME,
+    fontWeight: "800",
+    fontSize: 16,
+    minWidth: 40,
+    textAlign: "right",
+    flexShrink: 0,
+  },
+
+  modalRoot: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  modalInner: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 72,
+    paddingHorizontal: 20,
+    alignItems: "stretch",
+  },
+  modalCard: {
+    backgroundColor: "#141414",
+    borderRadius: 14,
+    borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    padding: 16,
   },
-  rowMine: {
-    borderLeftWidth: 2,
-    borderLeftColor: "rgba(163,230,53,0.42)",
-    paddingLeft: 6,
+  modalTitle: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 16,
+    marginBottom: 12,
   },
-  rankText: {
-    color: "rgba(255,255,255,0.85)",
-    fontWeight: "900",
-    fontSize: 13,
-    width: 34,
-    textAlign: "left",
+  modalChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
   },
-  nameIgText: { flex: 1, minWidth: 0, color: "#fff", fontWeight: "700", fontSize: 14 },
-  statText: { color: LIME, fontWeight: "900", fontSize: 14, minWidth: 44, textAlign: "right", flexShrink: 0 },
+  modalChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  modalChipOn: {
+    borderColor: "rgba(163,230,53,0.55)",
+    backgroundColor: "rgba(163,230,53,0.14)",
+  },
+  modalChipText: { color: "rgba(255,255,255,0.75)", fontWeight: "700", fontSize: 13 },
+  modalChipTextOn: { color: LIME },
 });

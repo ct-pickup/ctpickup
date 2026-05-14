@@ -186,7 +186,7 @@ export default function EsportsPlayScreen() {
         <Pressable
           onPress={() => {
             if (router.canGoBack()) router.back();
-            else router.replace(`/(tabs)/esports`);
+            else router.replace("/(tabs)/tournaments");
           }}
           style={styles.headerBack}
           hitSlop={{ top: 12, bottom: 12, left: 8, right: 12 }}

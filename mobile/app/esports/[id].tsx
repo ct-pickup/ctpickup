@@ -46,7 +46,7 @@ export default function EsportsDetailScreen() {
             if (router.canGoBack()) {
               router.back();
             } else {
-              router.replace("/(tabs)/esports");
+              router.replace("/(tabs)/tournaments");
             }
           }}
           style={{

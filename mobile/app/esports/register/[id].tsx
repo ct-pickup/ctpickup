@@ -114,7 +114,7 @@ export default function EsportsRegisterScreen() {
             } else if (id) {
               router.replace(`/esports/${id}`);
             } else {
-              router.replace("/(tabs)/esports");
+              router.replace("/(tabs)/tournaments");
             }
           }}
           style={{
