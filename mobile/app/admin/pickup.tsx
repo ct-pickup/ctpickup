@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import * as Sentry from "@sentry/react-native";
 import DateTimePicker from "@/components/DateTimePicker";
 import {
   fetchAdminTierSuggestions,
@@ -599,6 +600,7 @@ export default function AdminPickupOpsScreen() {
               void loadRuns();
             } catch (e) {
               console.warn("[admin pickup] action failed", e);
+              Sentry.captureException(e);
               Alert.alert("Something went wrong", "Please try again.");
             } finally {
               setBusy(null);
@@ -647,6 +649,7 @@ export default function AdminPickupOpsScreen() {
               void loadRuns();
             } catch (e) {
               console.warn("[admin pickup] action failed", e);
+              Sentry.captureException(e);
               Alert.alert("Something went wrong", "Please try again.");
             } finally {
               setBusy(null);
@@ -675,6 +678,7 @@ export default function AdminPickupOpsScreen() {
               void loadDetail();
             } catch (e) {
               console.warn("[admin pickup] action failed", e);
+              Sentry.captureException(e);
               Alert.alert("Something went wrong", "Please try again.");
             } finally {
               setBusy(null);
@@ -746,6 +750,7 @@ export default function AdminPickupOpsScreen() {
               void loadRuns();
             } catch (e) {
               console.warn("[admin pickup] action failed", e);
+              Sentry.captureException(e);
               Alert.alert("Something went wrong", "Please try again.");
             } finally {
               setBusy(null);
@@ -778,6 +783,7 @@ export default function AdminPickupOpsScreen() {
               if (selectedRunId === runId) void loadDetail();
             } catch (e) {
               console.warn("[admin pickup] action failed", e);
+              Sentry.captureException(e);
               Alert.alert("Something went wrong", "Please try again.");
             } finally {
               setBusy(null);
@@ -822,6 +828,7 @@ export default function AdminPickupOpsScreen() {
       setTeamAssignByUser(initial);
     } catch (e) {
       console.warn("[admin pickup] action failed", e);
+      Sentry.captureException(e);
       Alert.alert("Something went wrong", "Please try again.");
       setTeamAssignOpen(false);
       setTeamAssignRunId(null);
@@ -900,6 +907,7 @@ export default function AdminPickupOpsScreen() {
                 await openTeamAssignAfterStart(runId);
               } catch (e) {
                 console.warn("[admin pickup] action failed", e);
+                Sentry.captureException(e);
                 Alert.alert("Something went wrong", "Please try again.");
               } finally {
                 setBusy(null);
@@ -975,6 +983,7 @@ export default function AdminPickupOpsScreen() {
               void loadDetail();
             } catch (e) {
               console.warn("[admin pickup] action failed", e);
+              Sentry.captureException(e);
               Alert.alert("Something went wrong", "Please try again.");
             } finally {
               setBusy(null);
@@ -1002,6 +1011,7 @@ export default function AdminPickupOpsScreen() {
               void loadTierBadge();
             } catch (e) {
               console.warn("[admin pickup] action failed", e);
+              Sentry.captureException(e);
               Alert.alert("Something went wrong", "Please try again.");
             } finally {
               setBusy(null);

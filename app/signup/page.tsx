@@ -41,6 +41,7 @@ import {
   PROFILE_USERNAME_MAX_LEN,
   type ProfileGender,
   normalizeProfileUsername,
+  USERNAME_TAKEN_USER_MESSAGE,
   profileIdentityColumns,
   normalizePlayingPosition,
 } from "@/lib/profileIdentityFields";
@@ -452,7 +453,7 @@ function SignupForm({
       if (!userNorm) {
         setBusy(false);
         setMsg(
-          `Username must be 3–${PROFILE_USERNAME_MAX_LEN} characters (lowercase letters, digits, underscores).`,
+          `Username must be 3–${PROFILE_USERNAME_MAX_LEN} characters (lowercase letters and digits only).`,
         );
         return;
       }
@@ -513,7 +514,7 @@ function SignupForm({
           /profiles_username_lower_unique|duplicate key/i.test(error.message ?? "");
         setMsg(
           dup
-            ? "That username is already taken. Try another."
+            ? USERNAME_TAKEN_USER_MESSAGE
             : isMissingProfileColumnError(error.message)
               ? profileSchemaMismatchUserMessage()
               : error.message,
@@ -805,7 +806,7 @@ function SignupForm({
                     />
 
                     <Input
-                      placeholder={`Username (${PROFILE_USERNAME_MAX_LEN} chars max, a–z, 0–9, _)`}
+                      placeholder={`Username (${PROFILE_USERNAME_MAX_LEN} chars max, a–z, 0–9)`}
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       disabled={busy}

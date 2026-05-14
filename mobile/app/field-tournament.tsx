@@ -11,6 +11,7 @@ import {
   postTournamentRoster,
   type PickupFindPlayerResult,
 } from "@/lib/siteApi";
+import * as Sentry from "@sentry/react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect } from "@react-navigation/native";
 import { useNavigation, useRouter } from "expo-router";
@@ -389,6 +390,7 @@ export default function FieldTournamentDetailScreen() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong.";
       console.warn("[field-tournament] invite search failed", e);
+      Sentry.captureException(e);
       Alert.alert("", msg);
     } finally {
       setInviteSearchBusy(false);
@@ -425,6 +427,7 @@ export default function FieldTournamentDetailScreen() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong.";
       console.warn("[field-tournament] invite send failed", e);
+      Sentry.captureException(e);
       Alert.alert("", msg);
     } finally {
       setInviteSendBusy(false);

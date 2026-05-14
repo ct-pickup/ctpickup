@@ -1,3 +1,12 @@
+import * as Sentry from "@sentry/react-native";
+
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  enabled: !__DEV__,
+  debug: false,
+  tracesSampleRate: 0.1,
+});
+
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { AppOpeningTheme, clearAppOpeningThemeFlag } from "@/components/AppOpeningTheme";
@@ -42,7 +51,7 @@ function AuthRouteTracker() {
   return null;
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
     ...FontAwesome.font,
@@ -370,3 +379,5 @@ function RootLayoutNav() {
     </ReplayOpeningThemeContext.Provider>
   );
 }
+
+export default Sentry.wrap(RootLayout);

@@ -1,5 +1,6 @@
 import { hapticError, hapticGoal, hapticKick, hapticTap, hapticWhistle } from "@/lib/haptics";
 import { postMobilePushToken } from "@/lib/siteApi";
+import * as Sentry from "@sentry/react-native";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
@@ -18,6 +19,7 @@ try {
   });
 } catch (e) {
   console.warn("[push] setNotificationHandler failed:", e);
+  Sentry.captureException(e);
 }
 
 /**
@@ -297,7 +299,10 @@ export function usePushRegistration(accessToken: string | null) {
         if (cancelled || !response) return;
         handleNotificationResponse(response);
       })
-      .catch((e) => console.warn("[push] cold start replay failed", e));
+      .catch((e) => {
+        console.warn("[push] cold start replay failed", e);
+        Sentry.captureException(e);
+      });
     return () => {
       cancelled = true;
     };
@@ -334,6 +339,7 @@ export function usePushRegistration(accessToken: string | null) {
         expoPushToken = tokenRes.data;
       } catch (e) {
         console.warn("[push] getExpoPushTokenAsync failed:", e);
+        Sentry.captureException(e);
         return;
       }
 

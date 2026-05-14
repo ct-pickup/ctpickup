@@ -8,6 +8,7 @@ import {
   verifyStoredPin,
 } from "@/lib/appLock";
 import { useAuth } from "@/context/AuthContext";
+import * as Sentry from "@sentry/react-native";
 import * as LocalAuthentication from "expo-local-authentication";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, type AppStateStatus, View } from "react-native";
@@ -62,6 +63,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
         await refreshBiometricAvailability();
       } catch (e) {
         console.warn("[appLock] bootstrap failed:", e);
+        Sentry.captureException(e);
       } finally {
         setBootReady(true);
       }
@@ -86,6 +88,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (e) {
         console.warn("[appLock] post-signOut resync failed:", e);
+        Sentry.captureException(e);
       }
     })();
     return () => {

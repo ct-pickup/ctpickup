@@ -56,7 +56,8 @@
         {
           "faceIDPermission": "Allow CT Pickup to use Face ID to unlock the app."
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true

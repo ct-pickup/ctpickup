@@ -3,10 +3,16 @@ import { useAuth } from "@/context/AuthContext";
 import { useWaiver } from "@/context/WaiverContext";
 import { CT_PICKUP_LIME } from "@/constants/Colors";
 import { siteOrigin } from "@/lib/env";
+import {
+  normalizeProfileUsername,
+  PROFILE_USERNAME_MAX_LEN,
+  USERNAME_TAKEN_USER_MESSAGE,
+} from "../../lib/profileIdentityFields";
+import { allocateUniqueProfileUsername } from "../../lib/profileUsernameAllocate";
 import { COMPLETE_PROFILE_ZIP_NO_VENUE_MSG } from "@/lib/playerLocationHints";
 import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
 import { Redirect, useRouter, type Href } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -172,6 +178,7 @@ export default function CompleteProfileScreen() {
   const [phone, setPhone] = useState("");
   const [zipCode, setZipCode] = useState("");
   const [username, setUsername] = useState("");
+  const usernameUserEdited = useRef(false);
 
   const [genderPickerOpen, setGenderPickerOpen] = useState(false);
   const [positionPickerOpen, setPositionPickerOpen] = useState(false);
@@ -221,6 +228,30 @@ export default function CompleteProfileScreen() {
     };
   }, [zipOk, zipDigits, postSaveVenues, session?.access_token]);
 
+  useEffect(() => {
+    if (usernameUserEdited.current) return;
+    const fn = firstName.trim();
+    const ln = lastName.trim();
+    const uid = session?.user?.id;
+    if (!fn || !ln || !supabase || !uid) return;
+    let cancelled = false;
+    const tid = setTimeout(() => {
+      void (async () => {
+        try {
+          const suggestion = await allocateUniqueProfileUsername(supabase, fn, ln, uid);
+          if (cancelled) return;
+          setUsername(suggestion);
+        } catch (e) {
+          console.error("[complete-profile] username suggestion failed", e);
+        }
+      })();
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(tid);
+    };
+  }, [firstName, lastName, supabase, session?.user?.id]);
+
   const canContinue = useMemo(() => {
     if (
       !firstName.trim() ||
@@ -243,6 +274,8 @@ export default function CompleteProfileScreen() {
     if (!zipDigits) e.zip_code = "Required";
     else if (!zipOk) e.zip_code = "Enter a 5-digit zip";
     if (!username.trim()) e.username = "Required";
+    else if (!normalizeProfileUsername(username))
+      e.username = "3–30 characters, lowercase letters and numbers only";
     return e;
   }, [firstName, lastName, playingPosition, instagram, zipDigits, zipOk, username]);
 
@@ -286,7 +319,14 @@ export default function CompleteProfileScreen() {
     const ig = cleanInstagram(instagram);
     const ph = phone.trim() || null;
     const zc = zipDigits;
-    const un = username.trim();
+    const unNorm = normalizeProfileUsername(username.trim());
+    if (!unNorm) {
+      const m = "Username must be 3–30 characters, lowercase letters and numbers only.";
+      setSubmitError(m);
+      Alert.alert("Invalid username", m);
+      return;
+    }
+    const un = unNorm;
     const userId = session?.user?.id;
 
     if (!supabase || !userId) {
@@ -342,9 +382,7 @@ export default function CompleteProfileScreen() {
           const dup =
             code === "23505" ||
             /profiles_username_lower_unique|duplicate key/i.test(error.message ?? "");
-          const userMsg = dup
-            ? "That username is already taken. Try another."
-            : "We couldn’t save your profile right now. Please try again.";
+          const userMsg = dup ? USERNAME_TAKEN_USER_MESSAGE : "We couldn’t save your profile right now. Please try again.";
           setSubmitError(userMsg);
           Alert.alert("Couldn’t save profile", userMsg);
           console.error("[complete-profile] supabase profiles.update failed", {
@@ -622,15 +660,23 @@ export default function CompleteProfileScreen() {
 
           <View style={styles.fieldBlock}>
             <Text style={styles.label}>Username</Text>
+            <Text style={styles.fieldHint}>Your username — you can change this</Text>
             <TextInput
               style={[styles.input, liveErrors.username ? styles.inputErr : null]}
-              placeholder="Public handle"
+              placeholder="letters and numbers"
               placeholderTextColor="rgba(255,255,255,0.35)"
               value={username}
-              onChangeText={setUsername}
+              onChangeText={(t) => {
+                usernameUserEdited.current = true;
+                setUsername(t);
+              }}
               autoCapitalize="none"
               autoCorrect={false}
+              maxLength={PROFILE_USERNAME_MAX_LEN}
             />
+            {username.trim() ? (
+              <Text style={styles.atPreview}>You&apos;ll show as @{username.trim().toLowerCase()}</Text>
+            ) : null}
             {liveErrors.username ? <Text style={styles.errText}>{liveErrors.username}</Text> : null}
           </View>
 
@@ -720,6 +766,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     color: "rgba(255,255,255,0.55)",
+  },
+  fieldHint: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 18,
+    color: "rgba(255,255,255,0.48)",
+  },
+  atPreview: {
+    marginTop: 6,
+    fontSize: 13,
+    color: "rgba(163,230,53,0.85)",
+    fontWeight: "600",
   },
   input: {
     marginTop: 8,

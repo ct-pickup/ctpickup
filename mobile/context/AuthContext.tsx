@@ -1,6 +1,7 @@
 import { authRouteRef } from "@/lib/authRouteRef";
 import { clearStoredPin } from "@/lib/appLock";
 import { getMobileSupabaseClient } from "@/lib/supabase";
+import * as Sentry from "@sentry/react-native";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { router, useNavigationContainerRef } from "expo-router";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -57,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(data.session ?? null);
       } catch (e) {
         console.warn("[auth] getSession failed:", e);
+        Sentry.captureException(e);
       } finally {
         setIsReady(true);
       }
@@ -78,6 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(data.session ?? null);
     } catch (e) {
       console.warn("[auth] refreshSession getSession failed:", e);
+      Sentry.captureException(e);
     }
   }, [supabase]);
 
@@ -88,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await clearStoredPin();
     } catch (e) {
       console.warn("[auth] clearStoredPin failed during signOut:", e);
+      Sentry.captureException(e);
     }
     await supabase.auth.signOut();
   }, [supabase]);

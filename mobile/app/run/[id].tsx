@@ -188,7 +188,7 @@ export default function RunDetailScreen() {
       const profs = await supabase.from("profiles").select("id,full_name,username").in("id", uniqueIds);
       if (profs.data) {
         for (const p of profs.data as Array<{ id: string; full_name: string | null; username: string | null }>) {
-          const nm = (p.full_name ?? "").trim() || (p.username ?? "").trim() || p.id;
+          const nm = (p.full_name ?? "").trim() || (p.username ? `@${(p.username ?? "").trim()}` : "") || p.id;
           nameById.set(p.id, nm);
         }
       }

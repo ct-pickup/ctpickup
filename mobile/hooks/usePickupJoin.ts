@@ -1,4 +1,5 @@
 import { hapticError } from "@/lib/haptics";
+import * as Sentry from "@sentry/react-native";
 import { pickupPlayerRefundEligibleClient, type PickupRunRefundTiming } from "@/lib/pickupRefundEligibility";
 import { postPickupCommit, postPickupPay, postPickupRsvp } from "@/lib/siteApi";
 import * as WebBrowser from "expo-web-browser";
@@ -137,6 +138,7 @@ export function usePickupJoin() {
         void hapticError();
         const msg = e instanceof Error ? e.message : String(e);
         console.warn("[pickup join] joinPickup failed", e);
+        Sentry.captureException(e);
         Alert.alert("Something went wrong", msg || "Please try again.");
       } finally {
         setJoinBusy(false);
@@ -173,6 +175,7 @@ export function usePickupJoin() {
         void hapticError();
         const msg = e instanceof Error ? e.message : String(e);
         console.warn("[pickup join] payPickup failed", e);
+        Sentry.captureException(e);
         Alert.alert("Something went wrong", msg || "Please try again.");
       } finally {
         setPayBusy(false);
@@ -263,6 +266,7 @@ export function usePickupJoin() {
         void hapticError();
         const msg = e instanceof Error ? e.message : String(e);
         console.warn("[pickup join] commitAvailability failed", e);
+        Sentry.captureException(e);
         Alert.alert("Something went wrong", msg || "Please try again.");
       } finally {
         setAvailabilityBusy(false);

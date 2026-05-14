@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import * as Sentry from "@sentry/react-native";
 import { hapticError, hapticGoal, hapticTap, hapticWhistle } from "@/lib/haptics";
 import {
   fetchAdminPickupSwitchDetail,
@@ -268,6 +269,7 @@ export default function AdminRunResultScreen() {
       } catch (e) {
         if (!cancelled) {
           console.warn("[run-result] load failed", e);
+          Sentry.captureException(e);
           setErr(e instanceof Error ? e.message : "Something went wrong. Please try again.");
           setConfirmed([]);
           setRegion(null);

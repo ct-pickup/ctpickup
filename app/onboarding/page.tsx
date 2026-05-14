@@ -24,6 +24,7 @@ import {
   PROFILE_USERNAME_MAX_LEN,
   type ProfileGender,
   normalizeProfileUsername,
+  USERNAME_TAKEN_USER_MESSAGE,
   profileIdentityColumns,
   normalizePlayingPosition,
 } from "@/lib/profileIdentityFields";
@@ -99,7 +100,7 @@ export default function OnboardingPage() {
     const userNorm = normalizeProfileUsername(username);
     if (!userNorm) {
       return setMsg(
-        `Username must be 3–${PROFILE_USERNAME_MAX_LEN} characters (lowercase letters, digits, underscores).`,
+        `Username must be 3–${PROFILE_USERNAME_MAX_LEN} characters (lowercase letters and digits only).`,
       );
     }
     if (!normalizePlayingPosition(playingPosition)) return setMsg("Playing position is required.");
@@ -175,7 +176,7 @@ export default function OnboardingPage() {
         /profiles_username_lower_unique|duplicate key/i.test(error.message ?? "");
       return setMsg(
         dup
-          ? "That username is already taken. Try another."
+          ? USERNAME_TAKEN_USER_MESSAGE
           : isMissingProfileColumnError(error.message)
             ? profileSchemaMismatchUserMessage()
             : error.message,
@@ -303,7 +304,7 @@ export default function OnboardingPage() {
 
         <input
           className="rounded-lg border p-3 w-full"
-          placeholder={`Username (${PROFILE_USERNAME_MAX_LEN} chars max, a–z, 0–9, _)`}
+          placeholder={`Username (${PROFILE_USERNAME_MAX_LEN} chars max, a–z, 0–9)`}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoComplete="username"

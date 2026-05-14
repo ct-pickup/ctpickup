@@ -313,6 +313,10 @@ export default function LeaderboardsScreen() {
             const rank = index + 1;
             const ig = formatInstagram(item.instagram);
             const mine = myUserId != null && item.id === myUserId;
+            const un = (item.username ?? "").trim();
+            const fn = (item.first_name ?? "").trim();
+            const ln = (item.last_name ?? "").trim();
+            const hasFullName = Boolean(`${fn} ${ln}`.trim());
             return (
               <Pressable
                 onPress={() => router.push(`/player/${encodeURIComponent(item.id)}`)}
@@ -332,6 +336,11 @@ export default function LeaderboardsScreen() {
                   <Text style={styles.nameText} numberOfLines={1}>
                     {displayPlayerName(item)}
                   </Text>
+                  {un && hasFullName ? (
+                    <Text style={styles.usernameSub} numberOfLines={1}>
+                      @{un}
+                    </Text>
+                  ) : null}
                   {ig ? (
                     <Text style={styles.igText} numberOfLines={1}>
                       {ig}
@@ -434,6 +443,7 @@ const styles = StyleSheet.create({
   rankText: { color: "rgba(255,255,255,0.85)", fontWeight: "900", fontSize: 15 },
   nameCol: { flex: 1, minWidth: 0 },
   nameText: { color: "#fff", fontWeight: "800", fontSize: 15 },
+  usernameSub: { marginTop: 2, color: "rgba(163,230,53,0.85)", fontSize: 13, fontWeight: "700" },
   igText: { marginTop: 3, color: "rgba(255,255,255,0.42)", fontSize: 13, fontWeight: "600" },
   statText: { color: LIME, fontWeight: "900", fontSize: 16, minWidth: 52, textAlign: "right" },
 });

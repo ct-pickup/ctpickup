@@ -29,6 +29,7 @@ import {
   PROFILE_USERNAME_MAX_LEN,
   type ProfileGender,
   normalizeProfileUsername,
+  USERNAME_TAKEN_USER_MESSAGE,
   parseProfileGender,
   profileIdentityColumns,
   normalizePlayingPosition,
@@ -398,7 +399,7 @@ export default function ProfilePage() {
     const userNorm = normalizeProfileUsername(basicsUsername);
     if (!userNorm) {
       return setBasicsMsg(
-        `Username must be 3–${PROFILE_USERNAME_MAX_LEN} characters (lowercase letters, digits, underscores).`,
+        `Username must be 3–${PROFILE_USERNAME_MAX_LEN} characters (lowercase letters and digits only).`,
       );
     }
 
@@ -434,7 +435,7 @@ export default function ProfilePage() {
         /profiles_username_lower_unique|duplicate key/i.test(error.message ?? "");
       setBasicsMsg(
         dup
-          ? "That username is already taken. Try another."
+          ? USERNAME_TAKEN_USER_MESSAGE
           : isMissingProfileColumnError(error.message)
             ? profileSchemaMismatchUserMessage()
             : error.message,
@@ -541,7 +542,10 @@ export default function ProfilePage() {
                     String(profile.gender)
                 : null,
             )}
-            {fieldRow("Username", profile?.username)}
+            {fieldRow(
+              "Username",
+              profile?.username ? `@${String(profile.username).trim()}` : null,
+            )}
             {profile?.gender === "other"
               ? fieldRow("Gender description", profile?.gender_other)
               : null}
@@ -656,7 +660,7 @@ export default function ProfilePage() {
               value={basicsUsername}
               onChange={(e) => setBasicsUsername(e.target.value)}
               disabled={basicsBusy}
-              placeholder={`Username (${PROFILE_USERNAME_MAX_LEN} chars max, a–z, 0–9, _)`}
+              placeholder={`Username (${PROFILE_USERNAME_MAX_LEN} chars max, a–z, 0–9)`}
               autoComplete="username"
               maxLength={PROFILE_USERNAME_MAX_LEN}
             />
