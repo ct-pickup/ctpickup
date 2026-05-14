@@ -6,11 +6,11 @@
     },
     {
       "path": "/api/cron/pickup-waves",
-      "schedule": "0 * * * *"
+      "schedule": "0 12 * * *"
     },
     {
       "path": "/api/cron/push-scheduled",
-      "schedule": "0 * * * *"
+      "schedule": "0 11 * * *"
     }
   ]
 }
