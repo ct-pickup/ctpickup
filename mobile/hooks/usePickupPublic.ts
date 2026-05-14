@@ -1,10 +1,14 @@
 import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { siteOrigin } from "@/lib/env";
+import { cacheData, getCachedData } from "@/lib/offlineCache";
 import { fetchPickupPublic } from "@/lib/siteApi";
 import { parsePickupPayload, type PickupPublicPayload } from "@/lib/pickupPublic";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import NetInfo from "@react-native-community/netinfo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+export type PickupPublicLoadOpts = { background?: boolean };
 
 export function usePickupPublic(accessToken: string | null, opts?: { focusRunId?: string | null }) {
   const { supabase } = useAuth();
@@ -13,37 +17,134 @@ export function usePickupPublic(accessToken: string | null, opts?: { focusRunId?
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
+  const [netOffline, setNetOffline] = useState(false);
+  const [offlineNoCache, setOfflineNoCache] = useState(false);
+  const [displaySource, setDisplaySource] = useState<"live" | "cache">("live");
+  const [dataAsOfMs, setDataAsOfMs] = useState<number | null>(null);
+  const [lastLiveSuccessAt, setLastLiveSuccessAt] = useState<number | null>(null);
 
   const focusRunId = typeof opts?.focusRunId === "string" ? opts.focusRunId.trim() : "";
   const effectiveRunIdParam = focusRunId || undefined;
 
   const originOk = useMemo(() => Boolean(siteOrigin()), []);
 
-  const load = useCallback(async () => {
-    if (!originOk) {
-      setError("Set EXPO_PUBLIC_SITE_URL in mobile/.env");
-      setLoading(false);
-      return;
-    }
-    if (!regionReady) {
-      // Avoid flashing "no runs" before AsyncStorage region is ready.
-      setLoading(true);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    const r = await fetchPickupPublic(accessToken, { region, run_id: effectiveRunIdParam });
-    if (!r.ok) {
-      setError(
-        typeof (r.json as { error?: string })?.error === "string" ? String((r.json as { error: string }).error) : "Could not load pickup.",
-      );
-      setData(null);
-    } else {
-      setData(r.json);
+  const loadRef = useRef<(opts?: PickupPublicLoadOpts) => Promise<void>>(async () => {});
+
+  const load = useCallback(
+    async (loadOpts?: PickupPublicLoadOpts) => {
+      const background = loadOpts?.background === true;
+      if (!originOk) {
+        setError("Set EXPO_PUBLIC_SITE_URL in mobile/.env");
+        setLoading(false);
+        return;
+      }
+      if (!regionReady) {
+        // Avoid flashing "no runs" before AsyncStorage region is ready.
+        if (!background) setLoading(true);
+        return;
+      }
+      if (!background) setLoading(true);
       setError(null);
-    }
-    setLoading(false);
-  }, [accessToken, originOk, region, regionReady, effectiveRunIdParam]);
+      setOfflineNoCache(false);
+
+      let netState;
+      try {
+        netState = await NetInfo.fetch();
+      } catch {
+        netState = { isConnected: true };
+      }
+      const offline = netState.isConnected === false;
+      setNetOffline(offline);
+
+      if (offline) {
+        const cached = await getCachedData<unknown>("pickup_run");
+        if (cached) {
+          setData(cached.data);
+          setError(null);
+          setDisplaySource("cache");
+          setDataAsOfMs(cached.cachedAt);
+        } else {
+          setData(null);
+          setDisplaySource("cache");
+          setDataAsOfMs(null);
+          setOfflineNoCache(true);
+        }
+        if (!background) setLoading(false);
+        return;
+      }
+
+      try {
+        const r = await fetchPickupPublic(accessToken, { region, run_id: effectiveRunIdParam });
+        if (r.ok) {
+          await cacheData("pickup_run", r.json);
+          setData(r.json);
+          setError(null);
+          setDisplaySource("live");
+          const now = Date.now();
+          setDataAsOfMs(now);
+          setLastLiveSuccessAt(now);
+        } else {
+          const cached = await getCachedData<unknown>("pickup_run");
+          if (cached) {
+            setData(cached.data);
+            setError(null);
+            setDisplaySource("cache");
+            setDataAsOfMs(cached.cachedAt);
+          } else {
+            setError(
+              typeof (r.json as { error?: string })?.error === "string"
+                ? String((r.json as { error: string }).error)
+                : "Could not load pickup.",
+            );
+            setData(null);
+            setDataAsOfMs(null);
+          }
+        }
+      } catch {
+        const cached = await getCachedData<unknown>("pickup_run");
+        if (cached) {
+          setData(cached.data);
+          setError(null);
+          setDisplaySource("cache");
+          setDataAsOfMs(cached.cachedAt);
+        } else {
+          setError("Network error. Pull down to retry.");
+          setData(null);
+          setDataAsOfMs(null);
+        }
+      }
+      if (!background) setLoading(false);
+    },
+    [accessToken, originOk, region, regionReady, effectiveRunIdParam],
+  );
+
+  loadRef.current = load;
+
+  useEffect(() => {
+    let cancelled = false;
+    const wasOfflineRef = { current: false };
+    void NetInfo.fetch()
+      .then((s) => {
+        if (cancelled) return;
+        const off = s.isConnected === false;
+        wasOfflineRef.current = off;
+        setNetOffline(off);
+      })
+      .catch(() => {});
+    const unsub = NetInfo.addEventListener((s) => {
+      if (cancelled) return;
+      const off = s.isConnected === false;
+      if (wasOfflineRef.current && !off) {
+        void loadRef.current?.({ background: true });
+      }
+      wasOfflineRef.current = off;
+      setNetOffline(off);
+    });
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, []);
 
   useEffect(() => {
     void load();
@@ -147,5 +248,10 @@ export function usePickupPublic(accessToken: string | null, opts?: { focusRunId?
     noFeaturedRun,
     load,
     originOk,
+    netOffline,
+    offlineNoCache,
+    displaySource,
+    dataAsOfMs,
+    lastLiveSuccessAt,
   };
 }

@@ -1,9 +1,13 @@
 import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
-import { fetchTournamentPublic } from "@/lib/siteApi";
 import { siteOrigin } from "@/lib/env";
+import { cacheData, getCachedData } from "@/lib/offlineCache";
+import { fetchTournamentPublic } from "@/lib/siteApi";
+import NetInfo from "@react-native-community/netinfo";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+export type FieldTournamentReloadOpts = { background?: boolean };
 
 export type FieldTournamentTeamRow = {
   id: string;
@@ -113,38 +117,150 @@ export function useFieldTournament() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [payload, setPayload] = useState<FieldTournamentPayload | null>(null);
+  const [netOffline, setNetOffline] = useState(false);
+  const [offlineNoCache, setOfflineNoCache] = useState(false);
+  const [displaySource, setDisplaySource] = useState<"live" | "cache">("live");
+  const [dataAsOfMs, setDataAsOfMs] = useState<number | null>(null);
 
-  const reload = useCallback(async () => {
-    if (!siteOrigin()) {
-      setError("Set EXPO_PUBLIC_SITE_URL in mobile/.env");
-      setPayload(null);
-      setLoading(false);
-      return;
-    }
-    if (!regionReady) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    const r = await fetchTournamentPublic({ region, accessToken: session?.access_token ?? null });
-    if (!r.ok) {
-      setError("Could not load in-person tournament.");
-      setPayload(null);
-    } else {
-      setPayload(parseFieldPayload(r.json));
-    }
-    setLoading(false);
-  }, [region, regionReady, session?.access_token]);
+  const reloadRef = useRef<(opts?: FieldTournamentReloadOpts) => Promise<void>>(async () => {});
+
+  const reload = useCallback(
+    async (opts?: FieldTournamentReloadOpts) => {
+      const background = opts?.background === true;
+      if (!siteOrigin()) {
+        setError("Set EXPO_PUBLIC_SITE_URL in mobile/.env");
+        setPayload(null);
+        setLoading(false);
+        return;
+      }
+      if (!regionReady) {
+        if (!background) setLoading(false);
+        return;
+      }
+      if (!background) setLoading(true);
+      setError(null);
+      setOfflineNoCache(false);
+
+      let netState;
+      try {
+        netState = await NetInfo.fetch();
+      } catch {
+        netState = { isConnected: true };
+      }
+      const offline = netState.isConnected === false;
+      setNetOffline(offline);
+
+      if (offline) {
+        const cached = await getCachedData<unknown>("tournament_hub");
+        if (cached) {
+          const parsed = parseFieldPayload(cached.data);
+          if (parsed) {
+            setPayload(parsed);
+            setError(null);
+            setDisplaySource("cache");
+            setDataAsOfMs(cached.cachedAt);
+          } else {
+            setPayload(null);
+            setDisplaySource("cache");
+            setDataAsOfMs(null);
+            setOfflineNoCache(true);
+          }
+        } else {
+          setPayload(null);
+          setDisplaySource("cache");
+          setDataAsOfMs(null);
+          setOfflineNoCache(true);
+        }
+        if (!background) setLoading(false);
+        return;
+      }
+
+      try {
+        const r = await fetchTournamentPublic({ region, accessToken: session?.access_token ?? null });
+        if (r.ok) {
+          await cacheData("tournament_hub", r.json);
+          setPayload(parseFieldPayload(r.json));
+          setError(null);
+          setDisplaySource("live");
+          setDataAsOfMs(Date.now());
+        } else {
+          const cached = await getCachedData<unknown>("tournament_hub");
+          if (cached) {
+            const parsed = parseFieldPayload(cached.data);
+            if (parsed) {
+              setPayload(parsed);
+              setError(null);
+              setDisplaySource("cache");
+              setDataAsOfMs(cached.cachedAt);
+            } else {
+              setError("Could not load in-person tournament.");
+              setPayload(null);
+              setDataAsOfMs(null);
+            }
+          } else {
+            setError("Could not load in-person tournament.");
+            setPayload(null);
+            setDataAsOfMs(null);
+          }
+        }
+      } catch {
+        const cached = await getCachedData<unknown>("tournament_hub");
+        if (cached) {
+          const parsed = parseFieldPayload(cached.data);
+          if (parsed) {
+            setPayload(parsed);
+            setError(null);
+            setDisplaySource("cache");
+            setDataAsOfMs(cached.cachedAt);
+          } else {
+            setError("Could not load in-person tournament.");
+            setPayload(null);
+            setDataAsOfMs(null);
+          }
+        } else {
+          setError("Could not load in-person tournament.");
+          setPayload(null);
+          setDataAsOfMs(null);
+        }
+      }
+      if (!background) setLoading(false);
+    },
+    [region, regionReady, session?.access_token],
+  );
+
+  reloadRef.current = reload;
+
+  useEffect(() => {
+    let cancelled = false;
+    const wasOfflineRef = { current: false };
+    void NetInfo.fetch()
+      .then((s) => {
+        if (cancelled) return;
+        const off = s.isConnected === false;
+        wasOfflineRef.current = off;
+        setNetOffline(off);
+      })
+      .catch(() => {});
+    const unsub = NetInfo.addEventListener((s) => {
+      if (cancelled) return;
+      const off = s.isConnected === false;
+      if (wasOfflineRef.current && !off) {
+        void reloadRef.current?.({ background: true });
+      }
+      wasOfflineRef.current = off;
+      setNetOffline(off);
+    });
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, []);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
   const tournamentId = payload?.tournament?.id?.trim() ? payload.tournament.id : null;
-
-  const reloadRef = useRef(reload);
-  reloadRef.current = reload;
 
   useEffect(() => {
     if (!supabase || !tournamentId) return;
@@ -194,5 +310,14 @@ export function useFieldTournament() {
     };
   }, [supabase, tournamentId]);
 
-  return { loading, error, payload, reload };
+  return {
+    loading,
+    error,
+    payload,
+    reload,
+    netOffline,
+    offlineNoCache,
+    displaySource,
+    dataAsOfMs,
+  };
 }

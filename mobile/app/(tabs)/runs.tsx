@@ -15,7 +15,9 @@ import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions"
 import { NO_NEARBY_VENUE_HUB_MSG } from "@/lib/playerLocationHints";
 import { getNearestVenuesFromApi } from "@/lib/venueDistance";
 import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
+import { formatCacheAge } from "@/lib/offlineCache";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
@@ -27,6 +29,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -109,6 +112,11 @@ export default function RunsScreen() {
     counts,
     visibility,
     invitedNow,
+    netOffline,
+    offlineNoCache,
+    displaySource,
+    lastLiveSuccessAt,
+    dataAsOfMs,
   } = usePickupPublic(token, { focusRunId: pickupFocusRunId });
   const {
     joinBusy,
@@ -142,6 +150,26 @@ export default function RunsScreen() {
   const [myTeamLetter, setMyTeamLetter] = useState<"A" | "B" | "C" | null>(null);
   const [myWaitlistPosition, setMyWaitlistPosition] = useState<number | null>(null);
   const [preRunCountdownLabel, setPreRunCountdownLabel] = useState<string | null>(null);
+  const [listRefreshing, setListRefreshing] = useState(false);
+  const [, setUpdatedLabelTick] = useState(0);
+
+  const onRunsRefresh = useCallback(async () => {
+    setListRefreshing(true);
+    try {
+      await load({ background: true });
+    } finally {
+      setListRefreshing(false);
+    }
+  }, [load]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setUpdatedLabelTick((n) => n + 1);
+    }, 30_000);
+    return () => {
+      clearInterval(id);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     registerReset(() => setShowStatePicker(true));
@@ -655,7 +683,8 @@ export default function RunsScreen() {
     return items;
   }, [counts]);
 
-  const showEmpty = !loading && !error && noFeaturedRun;
+  const showEmpty = !loading && !error && noFeaturedRun && !offlineNoCache;
+  const showOfflineBanner = netOffline && run != null && dataAsOfMs != null;
   const emptyBlockMinHeight = Math.max(260, Math.round(windowHeight * 0.42));
   const showNoNearbyVenueRunsMessage =
     showEmpty && Boolean(session?.user?.id) && !String(profileNearestVenue ?? "").trim();
@@ -690,7 +719,22 @@ export default function RunsScreen() {
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={[styles.content, showEmpty && styles.contentEmpty]}
+      refreshControl={
+        <RefreshControl
+          refreshing={listRefreshing}
+          onRefresh={() => void onRunsRefresh()}
+          tintColor="#fff"
+        />
+      }
     >
+      {showOfflineBanner ? (
+        <View style={styles.offlineBanner} accessibilityRole="text">
+          <MaterialCommunityIcons name="wifi-off" size={18} color="#fff" style={styles.offlineBannerIcon} />
+          <Text style={styles.offlineBannerText}>
+            Offline — last updated {formatCacheAge(Date.now() - dataAsOfMs!)}
+          </Text>
+        </View>
+      ) : null}
       <View style={styles.titleRow}>
         <Text style={styles.title} numberOfLines={1}>
           Runs
@@ -730,6 +774,10 @@ export default function RunsScreen() {
 
       {loading ? (
         <ActivityIndicator size="large" color="#fff" style={{ marginTop: 24 }} />
+      ) : offlineNoCache ? (
+        <Text style={styles.offlineNoCacheText}>
+          No internet connection. Pull down to retry.
+        </Text>
       ) : error ? (
         <Text style={styles.err}>{error}</Text>
       ) : noFeaturedRun ? (
@@ -1042,6 +1090,11 @@ export default function RunsScreen() {
                 Cancel by {fmtPickupDt(cancellationDeadline)} for a refund (24 hours before start)
               </Text>
             ) : null}
+            {displaySource === "live" && lastLiveSuccessAt != null ? (
+              <Text style={styles.updatedFooter}>
+                Updated {formatCacheAge(Date.now() - lastLiveSuccessAt)}
+              </Text>
+            ) : null}
           </View>
 
           {attendanceVisible ? (
@@ -1191,6 +1244,37 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   scroll: { flex: 1, backgroundColor: "#0a0a0a" },
+  offlineBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginBottom: 4,
+    backgroundColor: "#f59e0b",
+  },
+  offlineBannerIcon: { flexShrink: 0 },
+  offlineBannerText: {
+    flex: 1,
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 20,
+  },
+  offlineNoCacheText: {
+    marginTop: 20,
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 16,
+    lineHeight: 22,
+    textAlign: "center",
+  },
+  updatedFooter: {
+    marginTop: 12,
+    fontSize: 11,
+    color: "rgba(255,255,255,0.38)",
+    fontWeight: "500",
+  },
   content: { padding: 20, paddingBottom: 40 },
   contentEmpty: { flexGrow: 1 },
   titleRow: {

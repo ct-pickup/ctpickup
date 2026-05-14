@@ -4,21 +4,41 @@ import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { useFieldTournament } from "@/hooks/useFieldTournament";
 import { NO_NEARBY_VENUE_HUB_MSG } from "@/lib/playerLocationHints";
+import { formatCacheAge } from "@/lib/offlineCache";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function TournamentsScreen() {
   const router = useRouter();
   const { setRegion, region } = useSelectedRegion();
   const { session, supabase } = useAuth();
-  const { loading: fieldLoading, error: fieldError, payload: fieldPayload } = useFieldTournament();
+  const {
+    loading: fieldLoading,
+    error: fieldError,
+    payload: fieldPayload,
+    reload,
+    netOffline,
+    offlineNoCache,
+    dataAsOfMs,
+  } = useFieldTournament();
   const navigation = useNavigation();
   const [showStatePicker, setShowStatePicker] = useState(true);
   const [profileNearestVenue, setProfileNearestVenue] = useState<string | null>(null);
+  const [listRefreshing, setListRefreshing] = useState(false);
+
+  const onTournamentRefresh = useCallback(async () => {
+    setListRefreshing(true);
+    try {
+      await reload({ background: true });
+    } finally {
+      setListRefreshing(false);
+    }
+  }, [reload]);
 
   useEffect(() => {
     if (!supabase || !session?.user?.id) {
@@ -76,60 +96,8 @@ export default function TournamentsScreen() {
       ? NO_NEARBY_VENUE_HUB_MSG
       : null;
 
-  const body = useMemo(
-    () => (
-      <>
-        <View style={styles.titleRow}>
-          <Text style={styles.title} numberOfLines={1}>
-            Tournaments
-          </Text>
-          <Pressable
-            onPress={() => setShowStatePicker(true)}
-            style={({ pressed }) => [styles.statesChip, pressed && { opacity: 0.85 }]}
-          >
-            <FontAwesome name="map-marker" size={14} color="#a3e635" />
-            <Text style={styles.statesChipText}> States</Text>
-          </Pressable>
-        </View>
-        <Text style={styles.sub}>
-          Outdoor / in-person bracket for {serviceRegionName(region)} ({region}). Online esports lives in its own tab.
-        </Text>
-        <FieldTournamentCard
-          loading={fieldLoading}
-          error={fieldError}
-          payload={fieldPayload}
-          emptyAlternateMessage={tournamentEmptyAlternate}
-          style={{ marginTop: 18, marginBottom: 8 }}
-          onPress={() => router.push("/field-tournament")}
-        />
-        {fieldPayload?.tournament?.id ? (
-          <Pressable
-            style={({ pressed }) => [styles.bracketBtn, pressed && { opacity: 0.9 }]}
-            onPress={() =>
-              (router.push as (href: string) => void)(
-                `/tournament-bracket-view?tournament_id=${encodeURIComponent(fieldPayload.tournament!.id)}`,
-              )
-            }
-            accessibilityRole="button"
-            accessibilityLabel="Live standings, bracket, and top scorers for this tournament"
-          >
-            <FontAwesome name="sitemap" size={16} color="#111" style={{ marginRight: 8 }} />
-            <Text style={styles.bracketBtnText}>Standings · bracket · scorers</Text>
-          </Pressable>
-        ) : null}
-      </>
-    ),
-    [
-      fieldLoading,
-      fieldError,
-      fieldPayload,
-      region,
-      router,
-      session?.user?.id,
-      profileNearestVenue,
-      tournamentEmptyAlternate,
-    ],
-  );
+  const showFieldOfflineBanner =
+    netOffline && fieldPayload?.tournament != null && dataAsOfMs != null;
 
   if (showStatePicker) {
     return (
@@ -144,8 +112,66 @@ export default function TournamentsScreen() {
       style={styles.container}
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
+      refreshControl={
+        <RefreshControl
+          refreshing={listRefreshing}
+          onRefresh={() => void onTournamentRefresh()}
+          tintColor="#fff"
+        />
+      }
     >
-      {body}
+      <View style={styles.titleRow}>
+        <Text style={styles.title} numberOfLines={1}>
+          Tournaments
+        </Text>
+        <Pressable
+          onPress={() => setShowStatePicker(true)}
+          style={({ pressed }) => [styles.statesChip, pressed && { opacity: 0.85 }]}
+        >
+          <FontAwesome name="map-marker" size={14} color="#a3e635" />
+          <Text style={styles.statesChipText}> States</Text>
+        </Pressable>
+      </View>
+      <Text style={styles.sub}>
+        Outdoor / in-person bracket for {serviceRegionName(region)} ({region}). Online esports lives in its own tab.
+      </Text>
+      {showFieldOfflineBanner ? (
+        <View style={styles.offlineBanner} accessibilityRole="text">
+          <MaterialCommunityIcons name="wifi-off" size={18} color="#fff" style={styles.offlineBannerIcon} />
+          <Text style={styles.offlineBannerText}>
+            Offline — last updated {formatCacheAge(Date.now() - dataAsOfMs)}
+          </Text>
+        </View>
+      ) : null}
+      {offlineNoCache && !fieldLoading ? (
+        <Text style={styles.offlineNoCacheText}>
+          No internet connection. Pull down to retry.
+        </Text>
+      ) : (
+        <FieldTournamentCard
+          loading={fieldLoading}
+          error={fieldError}
+          payload={fieldPayload}
+          emptyAlternateMessage={tournamentEmptyAlternate}
+          style={{ marginTop: 18, marginBottom: 8 }}
+          onPress={() => router.push("/field-tournament")}
+        />
+      )}
+      {fieldPayload?.tournament?.id ? (
+        <Pressable
+          style={({ pressed }) => [styles.bracketBtn, pressed && { opacity: 0.9 }]}
+          onPress={() =>
+            (router.push as (href: string) => void)(
+              `/tournament-bracket-view?tournament_id=${encodeURIComponent(fieldPayload.tournament!.id)}`,
+            )
+          }
+          accessibilityRole="button"
+          accessibilityLabel="Live standings, bracket, and top scorers for this tournament"
+        >
+          <FontAwesome name="sitemap" size={16} color="#111" style={{ marginRight: 8 }} />
+          <Text style={styles.bracketBtnText}>Standings · bracket · scorers</Text>
+        </Pressable>
+      ) : null}
     </ScrollView>
   );
 }
@@ -154,6 +180,32 @@ const styles = StyleSheet.create({
   pickerSafe: { flex: 1, backgroundColor: "#0a0a0a" },
   container: { flex: 1, backgroundColor: "#0a0a0a" },
   scrollContent: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 40 },
+  offlineBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginTop: 14,
+    marginBottom: 4,
+    backgroundColor: "#f59e0b",
+  },
+  offlineBannerIcon: { flexShrink: 0 },
+  offlineBannerText: {
+    flex: 1,
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 20,
+  },
+  offlineNoCacheText: {
+    marginTop: 20,
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 16,
+    lineHeight: 22,
+    textAlign: "center",
+  },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",

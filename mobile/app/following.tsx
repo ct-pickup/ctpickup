@@ -256,18 +256,24 @@ export default function FollowingScreen() {
                     </Text>
                   </View>
                 </Pressable>
-                <Pressable
-                  onPress={() => void onToggleRow(item.id)}
-                  disabled={busy}
-                  style={({ pressed }) => [
-                    followingThem ? styles.rowBtnFollowing : styles.rowBtnFollow,
-                    { opacity: busy ? 0.55 : pressed ? 0.85 : 1 },
-                  ]}
-                >
-                  <Text style={followingThem ? styles.rowBtnFollowingText : styles.rowBtnFollowText}>
-                    {followingThem ? "Following ✓" : "Follow"}
-                  </Text>
-                </Pressable>
+                {item.id === viewerId ? (
+                  <View style={styles.rowYouPill}>
+                    <Text style={styles.rowYouPillText}>You</Text>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={() => void onToggleRow(item.id)}
+                    disabled={busy}
+                    style={({ pressed }) => [
+                      followingThem ? styles.rowBtnFollowing : styles.rowBtnFollow,
+                      { opacity: busy ? 0.55 : pressed ? 0.85 : 1 },
+                    ]}
+                  >
+                    <Text style={followingThem ? styles.rowBtnFollowingText : styles.rowBtnFollowText}>
+                      {followingThem ? "Following ✓" : "Follow"}
+                    </Text>
+                  </Pressable>
+                )}
               </View>
             );
           }}
@@ -350,4 +356,11 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   rowBtnFollowingText: { fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.85)" },
+  rowYouPill: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  rowYouPillText: { fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.5)" },
 });

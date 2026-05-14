@@ -559,7 +559,7 @@ export default function PlayerProfileScreen() {
               if (isOwnProfile) {
                 router.push("/following" as Href);
               } else {
-                router.push({ pathname: "/following", params: { profileId: userId } } as Href);
+                router.push({ pathname: "/following", params: { profileId: userId } } as unknown as Href);
               }
             }}
             hitSlop={6}
