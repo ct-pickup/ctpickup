@@ -1,3 +1,7 @@
+/**
+ * Legacy player-facing esports tab screen (not mounted in the app router).
+ * Preserved for reference; routing was removed from player-facing builds.
+ */
 import { useAuth } from "@/context/AuthContext";
 import { formatTournamentStartEt } from "@/lib/formatTournament";
 import FontAwesome from "@expo/vector-icons/FontAwesome";

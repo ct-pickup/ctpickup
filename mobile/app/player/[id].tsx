@@ -132,7 +132,10 @@ export default function PlayerProfileScreen() {
         setProfile(null);
         if (r.status === 404) setErr("Player not found or not visible.");
         else if (r.status === 403) setErr("You need an approved account to view profiles.");
-        else setErr(r.error || "Couldn’t load profile.");
+        else {
+          console.warn("[player profile] load failed", r.status, r.error);
+          setErr("Something went wrong. Please try again.");
+        }
       } else {
         setProfile(r.profile);
         setNameForTitle(r.profile.display_name || "Profile");

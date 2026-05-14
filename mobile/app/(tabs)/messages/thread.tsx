@@ -134,7 +134,8 @@ export default function TeamChatThreadScreen() {
     if (res.ok) {
       setModerationToast("Report submitted. We’ll review it shortly.");
     } else {
-      setModerationToast(res.error || "Couldn’t submit report.");
+      console.warn("[thread] submitReport failed", res.error);
+      setModerationToast("Something went wrong. Please try again.");
     }
     setTimeout(() => setModerationToast(null), 3500);
   }
@@ -158,7 +159,8 @@ export default function TeamChatThreadScreen() {
                 addBlockedLocal(target.userId);
                 setModerationToast("Blocked. You won’t see their messages.");
               } else {
-                setModerationToast(res.error || "Couldn’t block user.");
+                console.warn("[thread] block user failed", res.error);
+                setModerationToast("Something went wrong. Please try again.");
               }
               setTimeout(() => setModerationToast(null), 3500);
             })();
@@ -216,11 +218,12 @@ export default function TeamChatThreadScreen() {
     const res = await send(body);
     setSendBusy(false);
     if (!res.ok) {
-      const msg = res.error || "Could not send.";
-      if (msg.toLowerCase().includes("row-level security")) {
+      const errText = (res.error || "").toLowerCase();
+      if (errText.includes("row-level security")) {
         setSendError("You can’t send right now (muted, closed, or announcements-only).");
       } else {
-        setSendError(msg);
+        console.warn("[thread] send message failed", res.error);
+        setSendError("Something went wrong. Please try again.");
       }
       return;
     }
@@ -278,7 +281,7 @@ export default function TeamChatThreadScreen() {
     return (
       <View style={styles.screenCenter}>
         <Text style={styles.title}>Team chat</Text>
-        <Text style={styles.body}>Couldn’t load chat: {roomError}</Text>
+        <Text style={styles.body}>Something went wrong. Please try again.</Text>
       </View>
     );
   }
@@ -319,7 +322,7 @@ export default function TeamChatThreadScreen() {
       ) : null}
       {msgsError ? (
         <View style={[styles.notice, styles.noticeRed]}>
-          <Text style={styles.noticeText}>Couldn’t load messages: {msgsError}</Text>
+          <Text style={styles.noticeText}>Couldn’t load messages. Something went wrong. Please try again.</Text>
         </View>
       ) : null}
       {sendError ? (

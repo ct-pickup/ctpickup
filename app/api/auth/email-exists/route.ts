@@ -9,8 +9,39 @@ const LIST_USERS_PAGE_SIZE = 1000;
 /** Safety cap so a pathological case cannot loop unbounded. */
 const LIST_USERS_MAX_PAGES = 500;
 
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX_PER_WINDOW = 5;
+const rateLimitHits = new Map<string, number[]>();
+
+function clientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) {
+    const first = xff.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return "unknown";
+}
+
+function isEmailExistsRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const prev = rateLimitHits.get(ip) ?? [];
+  const pruned = prev.filter((t) => now - t < RATE_WINDOW_MS);
+  if (pruned.length >= RATE_MAX_PER_WINDOW) {
+    rateLimitHits.set(ip, pruned);
+    return true;
+  }
+  pruned.push(now);
+  rateLimitHits.set(ip, pruned);
+  return false;
+}
+
 export async function POST(req: Request) {
   try {
+    const ip = clientIp(req);
+    if (isEmailExistsRateLimited(ip)) {
+      return NextResponse.json({ error: "Too many requests. Try again later." }, { status: 429 });
+    }
+
     const admin = getSupabaseAdmin({
       auth: { autoRefreshToken: false, persistSession: false },
     });

@@ -151,8 +151,9 @@ export default function PlayersScreen() {
       const { data, error } = await query;
       if (profilesLoadSeq.current !== seq) return;
       if (error) {
+        console.warn("[players] profiles query failed", error.message ?? error);
         setRows([]);
-        setErr(error.message ?? "Couldn’t load players.");
+        setErr("Something went wrong. Please try again.");
         setLoading(false);
         return;
       }

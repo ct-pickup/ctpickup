@@ -23,9 +23,7 @@ export default function RegionsScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="More options"
-              onPress={() => {
-                // Placeholder for future actions menu.
-              }}
+              onPress={() => {}}
               style={({ pressed }) => [styles.moreBtn, pressed && { opacity: 0.85 }]}
               hitSlop={10}
             >

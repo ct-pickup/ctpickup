@@ -202,6 +202,14 @@ export default function LeaderboardsScreen() {
       setRefreshing(false);
       return;
     }
+    const token = session?.access_token ?? null;
+    if (!token) {
+      setErr("Sign in to view leaderboards.");
+      setPayload(null);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     if (isRefresh) setRefreshing(true);
     else {
       setLoading(true);
@@ -210,14 +218,18 @@ export default function LeaderboardsScreen() {
     try {
       const u = new URL(`${origin}/api/leaderboards`);
       if (region !== "ALL") u.searchParams.set("region", region);
-      const r = await fetch(u.toString(), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" });
+      const r = await fetch(u.toString(), {
+        method: "GET",
+        headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
       const json = (await r.json().catch(() => null)) as unknown;
       if (!r.ok) {
-        const msg =
-          json && typeof json === "object" && typeof (json as { error?: unknown }).error === "string"
-            ? String((json as { error: string }).error)
-            : "Couldn’t load leaderboards.";
-        setErr(msg);
+        if (r.status === 401) {
+          setErr("Sign in to view leaderboards.");
+        } else {
+          setErr("Something went wrong. Please try again.");
+        }
         setPayload(null);
         return;
       }
@@ -236,7 +248,7 @@ export default function LeaderboardsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [region]);
+  }, [region, session?.access_token]);
 
   useLayoutEffect(() => {
     void load(false);

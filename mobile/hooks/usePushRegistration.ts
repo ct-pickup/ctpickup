@@ -34,7 +34,6 @@ const NOTIFICATION_NAV_DELAY_MS = 450;
 const ROUTABLE_NOTIFICATION_KINDS = new Set([
   "pickup_invite",
   "pickup_likely_on",
-  "pickup_confirmed",
   "pickup_finalized",
   "pickup_canceled",
   "pickup_promoted",
@@ -49,7 +48,6 @@ const ROUTABLE_NOTIFICATION_KINDS = new Set([
   "admin_availability",
   "chat_message",
   "announcement",
-  "tournament_invite",
   "roster_invite",
   "tournament_live",
   "tournament_canceled",
@@ -70,7 +68,6 @@ const ROUTABLE_NOTIFICATION_KINDS = new Set([
 const PICKUP_RUN_DEEP_LINK_KINDS = new Set([
   "pickup_invite",
   "pickup_likely_on",
-  "pickup_confirmed",
   "pickup_finalized",
   "pickup_promoted",
   "pickup_waitlist_offer",
@@ -106,14 +103,12 @@ function schedulePostLoadNavigation(action: () => void) {
 function hapticForForegroundPushKind(kind: string) {
   if (kind === "pickup_invite") void hapticKick();
   else if (kind === "pickup_result" || kind.startsWith("pickup_award_")) void hapticWhistle();
-  else if (kind === "pickup_confirmed" || kind === "pickup_finalized" || kind === "pickup_likely_on")
-    void hapticGoal();
+  else if (kind === "pickup_finalized" || kind === "pickup_likely_on") void hapticGoal();
   else if (kind === "pickup_waitlist_offer" || kind === "pickup_waitlist_expiring" || kind === "pickup_promoted") void hapticKick();
   else if (kind === "pickup_canceled") void hapticError();
   else if (kind === "admin_availability") void hapticTap();
   else if (kind === "chat_message" || kind === "announcement") void hapticTap();
   else if (
-    kind === "tournament_invite" ||
     kind === "roster_invite" ||
     kind === "tournament_live" ||
     kind === "tournament_roster_invite"
@@ -242,7 +237,6 @@ export function usePushRegistration(accessToken: string | null) {
           return;
         }
         if (
-          kind === "tournament_invite" ||
           kind === "tournament_live" ||
           kind === "tournament_canceled" ||
           kind === "tournament_roster_invite" ||

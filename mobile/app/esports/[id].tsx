@@ -87,7 +87,8 @@ export default function EsportsDetailScreen() {
 
       if (cancelled) return;
       if (error) {
-        setErr(error.message);
+        console.warn("[esports detail] tournament load failed", error.message ?? error);
+        setErr("Something went wrong. Please try again.");
         setRow(null);
       } else if (!data) {
         setErr("This tournament isn’t available in the app (it may be completed or not published).");

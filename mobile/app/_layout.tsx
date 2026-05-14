@@ -229,33 +229,6 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
-                            name="esports/[id]"
-                            options={{
-                              headerShown: true,
-                              title: "Esports",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
-                            }}
-                          />
-                          <Stack.Screen
-                            name="esports/register/[id]"
-                            options={{
-                              headerShown: true,
-                              title: "Register",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
-                            }}
-                          />
-                          <Stack.Screen
-                            name="esports/play/[id]"
-                            options={{
-                              headerShown: true,
-                              title: "Tournament play",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
-                            }}
-                            />
-                          <Stack.Screen
                             name="tournament-join"
                             options={{
                               headerShown: true,

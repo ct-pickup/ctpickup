@@ -116,7 +116,8 @@ export default function RunDetailScreen() {
     ]);
 
     if (runRes.error) {
-      setErr(runRes.error.message ?? "Couldn’t load run.");
+      console.warn("[run detail] pickup_runs load failed", runRes.error.message ?? runRes.error);
+      setErr("Something went wrong. Please try again.");
       setLoading(false);
       return;
     }

@@ -31,6 +31,11 @@ function parseRegion(param: string | null): string | null {
   return HUB_REGIONS.has(u) ? u : null;
 }
 
+function bearerToken(req: Request): string | null {
+  const auth = req.headers.get("authorization") || "";
+  return auth.startsWith("Bearer ") ? auth.slice(7).trim() || null : null;
+}
+
 function normalizeNameKey(first: string | null | undefined, last: string | null | undefined): string {
   return `${String(first ?? "").trim()} ${String(last ?? "").trim()}`.trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -198,6 +203,15 @@ export async function GET(req: Request) {
     admin = getSupabaseAdmin();
   } catch (err) {
     return jsonConfigErrorResponse(ROUTE, "getSupabaseAdmin", err);
+  }
+
+  const token = bearerToken(req);
+  if (!token) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  const { data: authUser, error: authErr } = await admin.auth.getUser(token);
+  if (authErr || !authUser.user?.id) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   try {

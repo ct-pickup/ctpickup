@@ -75,7 +75,8 @@ export default function ResetPasswordScreen() {
     async function handleUrl(url: string) {
       const p = parseRecoveryParams(url);
       if (p.error_description) {
-        setMsg(p.error_description);
+        console.warn("[reset-password] recovery URL error_description", p.error_description);
+        setMsg("Something went wrong. Please try again.");
       }
       if (p.type !== "recovery") return;
       if (!p.access_token || !p.refresh_token) return;
@@ -92,7 +93,8 @@ export default function ResetPasswordScreen() {
           refresh_token: p.refresh_token,
         });
         if (error) {
-          setMsg(error.message);
+          console.warn("[reset-password] setSession failed", error.message ?? error);
+          setMsg("Something went wrong. Please try again.");
           return;
         }
         setMode("set");
@@ -131,7 +133,8 @@ export default function ResetPasswordScreen() {
       const redirectTo = Linking.createURL("reset-password");
       const { error } = await supabase.auth.resetPasswordForEmail(emailClean, { redirectTo });
       if (error) {
-        setMsg(error.message);
+        console.warn("[reset-password] resetPasswordForEmail failed", error.message ?? error);
+        setMsg("Something went wrong. Please try again.");
         return;
       }
       setMsg("Check your email for the reset link.");
@@ -161,7 +164,8 @@ export default function ResetPasswordScreen() {
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) {
-        setMsg(error.message);
+        console.warn("[reset-password] updateUser password failed", error.message ?? error);
+        setMsg("Something went wrong. Please try again.");
         return;
       }
       setMsg("Password updated. You can return to sign in.");

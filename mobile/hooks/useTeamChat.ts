@@ -58,7 +58,8 @@ export function useTeamChatRoom(enabled: boolean, lookup: RoomLookup) {
       const { data, error: qErr } = await query.maybeSingle();
       if (cancelled) return;
       if (qErr) {
-        setError(qErr.message);
+        console.warn("[useTeamChatRoom] chat_rooms query failed", qErr.message ?? qErr);
+        setError("Something went wrong. Please try again.");
         setRoom(null);
       } else if (data?.id) {
         setRoom(data as ChatRoomRow);
@@ -318,7 +319,8 @@ export function useTeamChatMessages(roomId: string | null) {
       .order("created_at", { ascending: true })
       .limit(300);
     if (qErr) {
-      setError(qErr.message);
+      console.warn("[useTeamChatMessages] chat_messages load failed", qErr.message ?? qErr);
+      setError("Something went wrong. Please try again.");
       setMessages([]);
       setReactionsByMessageId({});
     } else {

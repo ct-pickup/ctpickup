@@ -107,12 +107,6 @@ function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; isAdmin: bo
         }}
       />
       <Tabs.Screen
-        name="esports"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
         name="messages"
         options={{
           title: "Messages",
