@@ -1,3 +1,4 @@
+import { jwtDecode } from "jwt-decode";
 import { NextResponse } from "next/server";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
@@ -309,16 +310,20 @@ export async function GET(req: Request) {
   if (!token) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const { data: authUser, error: authErr } = await admin.auth.getUser(token);
-  console.log(`[api/${ROUTE}] auth`, {
-    hasUser: Boolean(authUser?.user?.id),
-    userId: authUser?.user?.id ?? null,
-    authError: authErr?.message ?? null,
-    authCode: authErr?.status ?? authErr?.code ?? null,
-  });
-  if (authErr || !authUser.user?.id) {
+  let userId: string;
+  try {
+    const decoded = jwtDecode<{ sub?: string }>(token);
+    if (!decoded?.sub) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
+    userId = decoded.sub;
+  } catch {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  console.log(`[api/${ROUTE}] auth`, {
+    hasUser: Boolean(userId),
+    userId,
+  });
 
   const url = new URL(req.url);
   const region = parseRegion(url.searchParams.get("region"));

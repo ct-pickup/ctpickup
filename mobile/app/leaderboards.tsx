@@ -217,11 +217,25 @@ export default function LeaderboardsScreen() {
       try {
         const u = new URL(`${origin}/api/leaderboards`);
         if (region !== "ALL") u.searchParams.set("region", region);
+        console.log("[leaderboards] loading", {
+          hasToken: Boolean(token),
+          origin,
+          region,
+          tokenPreview: token ? token.slice(0, 20) + "..." : null,
+        });
         const r = await fetch(u.toString(), {
           method: "GET",
           headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
           cache: "no-store",
         });
+        console.log("[leaderboards] response", {
+          status: r.status,
+          ok: r.ok,
+        });
+        if (!r.ok) {
+          const errorBody = await r.clone().text();
+          console.log("[leaderboards] error body", errorBody);
+        }
         const json = (await r.json().catch(() => null)) as unknown;
         if (!r.ok) {
           if (r.status === 401) {
