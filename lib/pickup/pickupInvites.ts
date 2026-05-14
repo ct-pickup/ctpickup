@@ -1,4 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  isSelectPickupRunType,
+  SELECT_PICKUP_MAX_INVITE_TIER_RANK,
+} from "@/lib/pickup/pickupRunType";
 import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion";
 import { sendSms } from "@/lib/twilio/sendSms";
 
@@ -9,6 +13,11 @@ export type InvitePlayer = {
   phone: string | null;
 };
 
+/** When set, {@link insertInvitesForTierRanks} may invite tier_rank 5–6 on select runs (last-call only). */
+export type InsertInvitesForTierRanksOptions = {
+  selectEmergencyLastCall?: boolean;
+};
+
 export async function insertInvitesForTierRanks(
   admin: SupabaseClient,
   run_id: string,
@@ -16,9 +25,21 @@ export async function insertInvitesForTierRanks(
   wave: number,
   now: string,
   service_region?: string | null,
+  pickupRunType?: unknown,
+  options?: InsertInvitesForTierRanksOptions,
 ): Promise<{ ok: false; error: string } | { ok: true; newlyInvited: InvitePlayer[] }> {
   const uniqTiers = Array.from(new Set(tierRanks)).filter((n) => Number.isFinite(n));
   if (!uniqTiers.length) return { ok: true, newlyInvited: [] };
+
+  if (isSelectPickupRunType(pickupRunType ?? "select") && !options?.selectEmergencyLastCall) {
+    const disallowed = uniqTiers.filter((n) => n > SELECT_PICKUP_MAX_INVITE_TIER_RANK);
+    if (disallowed.length) {
+      return {
+        ok: false,
+        error: `Select pickup runs cannot invite tier_rank ${disallowed.join(", ")} (maximum is ${SELECT_PICKUP_MAX_INVITE_TIER_RANK}).`,
+      };
+    }
+  }
 
   console.log("[insertInvitesForTierRanks] start", { run_id, tier_ranks: uniqTiers, wave, service_region: service_region ?? null });
 

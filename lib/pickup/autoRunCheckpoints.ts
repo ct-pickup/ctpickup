@@ -9,9 +9,14 @@ import {
   finalizeMinCommitted,
 } from "@/lib/pickup/autoRunConfig";
 import { insertInvitesForTierRanks, sendPickupInviteSms } from "@/lib/pickup/pickupInvites";
-import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
+import {
+  isPublicPickupRunType,
+  isSelectPickupEmergencyLastCallWindow,
+  SELECT_PICKUP_MAX_INVITE_TIER_RANK,
+} from "@/lib/pickup/pickupRunType";
 import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
 import { expireWaitlistOffersAndPromote } from "@/lib/pickup/waitlist";
+import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 
 function isTier1(rank: number) {
   return rank === 1 || rank === 2;
@@ -35,6 +40,7 @@ function waveLabel(open: number | null | undefined): string {
   if (open === 3) return "Through Tier 2";
   if (open === 4) return "Through Tier 3";
   if (open === 5) return "Through Tier 4";
+  if (open === 6) return "Through Tier 5 (last-call window)";
   return "Public tier window";
 }
 
@@ -247,10 +253,46 @@ export async function processAutoPickupRun(
   if (fire24) {
     let patch: Record<string, unknown> = { auto_cp_24h_at: isoNow, updated_at: isoNow };
     const waveCronActive = !!(run.next_wave_at as string | null | undefined);
-    if (!publicRun && !waveCronActive && committed < EXPAND_WAVE_MIN_COMMITTED) {
+    const emergencyLastCall = !publicRun && isSelectPickupEmergencyLastCallWindow(anchorMs, nowMs);
+    const cap = Number(run.capacity || 0);
+    const notFull = cap <= 0 || committed < cap;
+
+    if (!publicRun && !waveCronActive) {
       const open = Number(run.open_tier_rank ?? 2);
-      if (open < 6) {
-        const nextOpen = Math.min(6, open + 1);
+      if (emergencyLastCall && notFull && open >= 4 && open < 6) {
+        const tiers = open <= 4 ? [5, 6] : [6];
+        const inv = await insertInvitesForTierRanks(
+          admin,
+          runId,
+          tiers,
+          2,
+          isoNow,
+          (run.service_region as string | null | undefined) ?? null,
+          run.run_type,
+          { selectEmergencyLastCall: true },
+        );
+        if (!inv.ok) {
+          messages.push(`24h checkpoint: invite insert failed: ${inv.error}`);
+        } else {
+          patch.open_tier_rank = 6;
+          run.open_tier_rank = 6;
+          if (inv.newlyInvited.length > 0) {
+            await sendPushToUsers(
+              admin,
+              inv.newlyInvited.map((p) => p.user_id),
+              {
+                title: "Last call — pickup tonight",
+                body: "A spot just opened for tonight's run.\n\nConfirm now — run starts in under 2 hours.",
+                data: { kind: "pickup_invite", run_id: runId },
+              },
+            );
+          }
+          messages.push(
+            `24h checkpoint: emergency last-call tiers ${tiers.join("+")}; open_tier_rank=6; ${inv.newlyInvited.length} new invites (push).`,
+          );
+        }
+      } else if (committed < EXPAND_WAVE_MIN_COMMITTED && open < SELECT_PICKUP_MAX_INVITE_TIER_RANK) {
+        const nextOpen = Math.min(SELECT_PICKUP_MAX_INVITE_TIER_RANK, open + 1);
         const newTier = nextOpen;
         const inv = await insertInvitesForTierRanks(
           admin,
@@ -259,6 +301,7 @@ export async function processAutoPickupRun(
           2,
           isoNow,
           (run.service_region as string | null | undefined) ?? null,
+          run.run_type,
         );
         if (!inv.ok) {
           messages.push(`24h checkpoint: invite insert failed: ${inv.error}`);
@@ -268,7 +311,7 @@ export async function processAutoPickupRun(
           const txt = `CT Pickup: you’re invited to submit availability for an upcoming run. Details: ${process.env.NEXT_PUBLIC_SITE_URL || ""}/pickup`;
           await sendPickupInviteSms(inv.newlyInvited, txt);
           messages.push(
-            `24h checkpoint: expanded open_tier_rank to ${nextOpen}; ${inv.newlyInvited.length} new invites (SMS to numbers on file).`
+            `24h checkpoint: expanded open_tier_rank to ${nextOpen}; ${inv.newlyInvited.length} new invites (SMS to numbers on file).`,
           );
         }
       }
@@ -292,10 +335,51 @@ export async function processAutoPickupRun(
   if (fire12) {
     committed = countDistinctCommittedPlayers(await reloadAvailability());
     const waveCronActive = !!(run.next_wave_at as string | null | undefined);
-    if (!publicRun && !waveCronActive && committed < EXPAND_WAVE_MIN_COMMITTED) {
+    const emergencyLastCall = !publicRun && isSelectPickupEmergencyLastCallWindow(anchorMs, nowMs);
+    const cap = Number(run.capacity || 0);
+    const notFull = cap <= 0 || committed < cap;
+
+    if (!publicRun && !waveCronActive) {
       const open = Number(run.open_tier_rank ?? 2);
-      if (open < 6) {
-        const nextOpen = Math.min(6, open + 1);
+      if (emergencyLastCall && notFull && open >= 4 && open < 6) {
+        const tiers = open <= 4 ? [5, 6] : [6];
+        const inv = await insertInvitesForTierRanks(
+          admin,
+          runId,
+          tiers,
+          3,
+          isoNow,
+          (run.service_region as string | null | undefined) ?? null,
+          run.run_type,
+          { selectEmergencyLastCall: true },
+        );
+        if (!inv.ok) {
+          messages.push(`12h checkpoint: invite insert failed: ${inv.error}`);
+        } else {
+          const up = await admin
+            .from("pickup_runs")
+            .update({ open_tier_rank: 6, updated_at: isoNow })
+            .eq("id", runId);
+          if (!up.error) {
+            run.open_tier_rank = 6;
+            if (inv.newlyInvited.length > 0) {
+              await sendPushToUsers(
+                admin,
+                inv.newlyInvited.map((p) => p.user_id),
+                {
+                  title: "Last call — pickup tonight",
+                  body: "A spot just opened for tonight's run.\n\nConfirm now — run starts in under 2 hours.",
+                  data: { kind: "pickup_invite", run_id: runId },
+                },
+              );
+            }
+            messages.push(
+              `12h checkpoint: emergency last-call tiers ${tiers.join("+")}; open_tier_rank=6; ${inv.newlyInvited.length} new invites (push).`,
+            );
+          }
+        }
+      } else if (committed < EXPAND_WAVE_MIN_COMMITTED && open < SELECT_PICKUP_MAX_INVITE_TIER_RANK) {
+        const nextOpen = Math.min(SELECT_PICKUP_MAX_INVITE_TIER_RANK, open + 1);
         const newTier = nextOpen;
         const inv = await insertInvitesForTierRanks(
           admin,
@@ -304,6 +388,7 @@ export async function processAutoPickupRun(
           3,
           isoNow,
           (run.service_region as string | null | undefined) ?? null,
+          run.run_type,
         );
         if (!inv.ok) {
           messages.push(`12h checkpoint: invite insert failed: ${inv.error}`);
@@ -317,7 +402,7 @@ export async function processAutoPickupRun(
             const txt = `CT Pickup: you’re invited to submit availability for an upcoming run. Details: ${process.env.NEXT_PUBLIC_SITE_URL || ""}/pickup`;
             await sendPickupInviteSms(inv.newlyInvited, txt);
             messages.push(
-              `12h checkpoint: expanded open_tier_rank to ${nextOpen}; ${inv.newlyInvited.length} new invites.`
+              `12h checkpoint: expanded open_tier_rank to ${nextOpen}; ${inv.newlyInvited.length} new invites.`,
             );
           }
         }

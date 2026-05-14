@@ -543,18 +543,22 @@ export async function POST(req: Request) {
     });
 
     if (!publicRun) {
+      /** Initial select outreach: tier_rank 1 and 2 only (never 5 or 6). */
+      const SELECT_LAUNCH_INVITE_TIER_RANKS = [1, 2] as const;
+
       console.log("[pickup/switch launch_outreach] tier invite path (non-public run_type)", {
         run_id,
-        tier_ranks: [1, 2],
+        tier_ranks: [...SELECT_LAUNCH_INVITE_TIER_RANKS],
       });
 
       const inv = await insertInvitesForTierRanks(
         admin,
         run_id,
-        [1, 2],
+        [...SELECT_LAUNCH_INVITE_TIER_RANKS],
         1,
         now,
         run.service_region ?? null,
+        runTypeRaw,
       );
       if (!inv.ok) {
         console.error("[pickup/switch launch_outreach] insertInvitesForTierRanks failed", { run_id, error: inv.error });

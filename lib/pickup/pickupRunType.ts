@@ -20,3 +20,17 @@ export function isPublicPickupRunType(runType: unknown): boolean {
 export function isSelectPickupRunType(runType: unknown): boolean {
   return !isPublicPickupRunType(runType);
 }
+
+/**
+ * Select pickup runs: during normal waves (more than {@link SELECT_PICKUP_EMERGENCY_LAST_CALL_MS}
+ * before kickoff), invites stay at or below this tier_rank (display Tier 3).
+ */
+export const SELECT_PICKUP_MAX_INVITE_TIER_RANK = 4;
+
+/** Within this window before anchor kickoff, select runs may invite tier_rank 5–6 as a last resort. */
+export const SELECT_PICKUP_EMERGENCY_LAST_CALL_MS = 2 * 60 * 60 * 1000;
+
+export function isSelectPickupEmergencyLastCallWindow(kickoffMs: number, nowMs: number): boolean {
+  const ms = kickoffMs - nowMs;
+  return ms > 0 && ms <= SELECT_PICKUP_EMERGENCY_LAST_CALL_MS;
+}
