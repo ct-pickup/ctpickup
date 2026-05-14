@@ -7,8 +7,8 @@ import {
   normalizeProfileUsername,
   PROFILE_USERNAME_MAX_LEN,
   USERNAME_TAKEN_USER_MESSAGE,
-} from "../../lib/profileIdentityFields";
-import { allocateUniqueProfileUsername } from "../../lib/profileUsernameAllocate";
+} from "@/lib/profileIdentityFields";
+import { allocateUniqueProfileUsername } from "@/lib/profileUsernameAllocate";
 import { COMPLETE_PROFILE_ZIP_NO_VENUE_MSG } from "@/lib/playerLocationHints";
 import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
 import { Redirect, useRouter, type Href } from "expo-router";
