@@ -9,13 +9,19 @@ import {
   useTeamChatMessages,
   useTeamChatRoom,
 } from "@/hooks/useTeamChat";
-import { postChatBlockViaApi, postChatReportViaApi, type ChatReportReason } from "@/lib/chatApi";
+import {
+  postChatBlockViaApi,
+  postChatReactionToggleViaApi,
+  postChatReportViaApi,
+  type ChatReportReason,
+} from "@/lib/chatApi";
 import { ANNOUNCEMENTS_CHAT_SLUG, isAdminDmGroupSlug } from "@/lib/teamChat";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -37,6 +43,22 @@ const REPORT_REASONS: readonly ReportOption[] = [
 ];
 
 const LIME = "#a3e635";
+
+const REACTION_PICKER_EMOJIS = ["👍", "❤️", "😂", "🔥", "💪", "⚽"] as const;
+
+function formatRunChatClosesRelative(iso: string, nowMs: number): string {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "";
+  const diff = t - nowMs;
+  if (diff <= 0) return "";
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Chat closes soon";
+  if (mins < 60) return `Chat closes in ${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 48) return `Chat closes in ${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  return `Chat closes in ${days}d`;
+}
 
 function senderInitials(displayName: string) {
   const parts = displayName.trim().split(/\s+/).filter(Boolean);
@@ -63,7 +85,15 @@ export default function TeamChatThreadScreen() {
   const { room, loading: roomLoading, error: roomError } = useTeamChatRoom(enabled, lookup);
   const roomId = room?.id ?? null;
 
-  const { messages, loading: msgsLoading, error: msgsError, send, currentUserId } = useTeamChatMessages(roomId);
+  const {
+    messages,
+    reactionsByMessageId,
+    applyReactionGroupsFromServer,
+    loading: msgsLoading,
+    error: msgsError,
+    send,
+    currentUserId,
+  } = useTeamChatMessages(roomId);
   const { adminIds, adminSenderDisplayNorms } = useChatAdminUserIds(enabled);
   const { blockedIds, addLocal: addBlockedLocal } = useChatBlockedUserIds(enabled);
 
@@ -84,7 +114,16 @@ export default function TeamChatThreadScreen() {
   const [draft, setDraft] = useState("");
   const [sendBusy, setSendBusy] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [runChatTimeTick, setRunChatTimeTick] = useState(0);
   const listRef = useRef<FlatList<unknown> | null>(null);
+  const bubbleMeasureRefs = useRef<Map<string, View>>(new Map());
+
+  type ReactionPickerState = {
+    messageId: string;
+    anchor: { x: number; y: number; width: number; height: number };
+    modTarget: MenuTarget | null;
+  };
+  const [reactionPicker, setReactionPicker] = useState<ReactionPickerState | null>(null);
 
   async function submitReport(reason: ChatReportReason) {
     if (!reportTarget || !accessToken || reportBusy) return;
@@ -133,11 +172,41 @@ export default function TeamChatThreadScreen() {
   /** Group threads use `id` routing; slug threads are announcements / team. */
   const isGroupRoom = !!trimmedId;
   const isDmGroup = !!(room?.slug && isAdminDmGroupSlug(room.slug));
+  const isRunBanterRoom = room?.room_type === "run_banter";
+  const runBanterAutoCloseAt = room?.auto_close_at ?? null;
+
+  useEffect(() => {
+    if (!isRunBanterRoom || !runBanterAutoCloseAt) return;
+    const id = setInterval(() => setRunChatTimeTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, [isRunBanterRoom, runBanterAutoCloseAt]);
+
+  const runBanterAutoCloseUi = useMemo(() => {
+    void runChatTimeTick;
+    if (!isRunBanterRoom || !runBanterAutoCloseAt) {
+      return {
+        bannerPast: false,
+        bannerFutureText: null as string | null,
+        closedForPlayer: false,
+      };
+    }
+    const closeMs = Date.parse(runBanterAutoCloseAt);
+    if (!Number.isFinite(closeMs)) {
+      return { bannerPast: false, bannerFutureText: null, closedForPlayer: false };
+    }
+    const now = Date.now();
+    const past = closeMs <= now;
+    const closedForPlayer = isAdmin !== true && past;
+    const bannerFutureText = !past ? formatRunChatClosesRelative(runBanterAutoCloseAt, now) : null;
+    return { bannerPast: past, bannerFutureText, closedForPlayer };
+  }, [isRunBanterRoom, runBanterAutoCloseAt, isAdmin, runChatTimeTick]);
+
   const canCompose = useMemo(() => {
     if (!roomId) return false;
+    if (runBanterAutoCloseUi.closedForPlayer) return false;
     if (isAdmin === true) return true;
     return enabled === true && announcementsOnly === false;
-  }, [roomId, isAdmin, enabled, announcementsOnly]);
+  }, [roomId, isAdmin, enabled, announcementsOnly, runBanterAutoCloseUi.closedForPlayer]);
 
   async function onSend() {
     const body = draft.trim();
@@ -239,6 +308,15 @@ export default function TeamChatThreadScreen() {
           </Text>
         </View>
       ) : null}
+      {runBanterAutoCloseUi.bannerPast ? (
+        <View style={styles.runBanterBanner}>
+          <Text style={styles.runBanterBannerText}>This chat has closed 🔒</Text>
+        </View>
+      ) : runBanterAutoCloseUi.bannerFutureText ? (
+        <View style={styles.runBanterBannerHint}>
+          <Text style={styles.runBanterBannerHintText}>{runBanterAutoCloseUi.bannerFutureText}</Text>
+        </View>
+      ) : null}
       {msgsError ? (
         <View style={[styles.notice, styles.noticeRed]}>
           <Text style={styles.noticeText}>Couldn’t load messages: {msgsError}</Text>
@@ -309,15 +387,27 @@ export default function TeamChatThreadScreen() {
           const nameTextStyle = isAdminMessage ? styles.msgSenderAdmin : styles.msgSenderOther;
 
           const canModerate = !mine && !!m.user_id;
-          const onLongPressBubble = canModerate
-            ? () => {
-                setMenuTarget({
-                  messageId: m.id,
-                  userId: m.user_id,
-                  senderLabel: senderLabel || m.sender_display_name || "Player",
-                });
+          const modTarget: MenuTarget | null = canModerate
+            ? {
+                messageId: m.id,
+                userId: m.user_id,
+                senderLabel: senderLabel || m.sender_display_name || "Player",
               }
-            : undefined;
+            : null;
+
+          const openReactionPicker = () => {
+            const node = bubbleMeasureRefs.current.get(m.id);
+            if (!node) return;
+            node.measureInWindow((x, y, width, height) => {
+              setReactionPicker({
+                messageId: m.id,
+                anchor: { x, y, width, height },
+                modTarget,
+              });
+            });
+          };
+
+          const messageReactions = reactionsByMessageId[m.id] ?? [];
 
           return (
             <View style={[styles.msgRow, mine ? styles.msgRowMine : styles.msgRowOther]}>
@@ -353,34 +443,134 @@ export default function TeamChatThreadScreen() {
                   )}
                 </View>
               ) : null}
-              <Pressable
-                onLongPress={onLongPressBubble}
-                delayLongPress={350}
-                accessibilityRole={canModerate ? "button" : undefined}
-                accessibilityHint={canModerate ? "Long-press to report or block this user." : undefined}
-                style={({ pressed }) => [
-                  styles.bubble,
-                  mine ? styles.bubbleMine : isAdminMessage ? styles.bubbleAdmin : styles.bubbleOther,
-                  pressed && canModerate ? { opacity: 0.85 } : null,
-                ]}
+              <View
+                collapsable={false}
+                ref={(r) => {
+                  if (r) bubbleMeasureRefs.current.set(m.id, r);
+                  else bubbleMeasureRefs.current.delete(m.id);
+                }}
               >
-                <Text
-                  style={[
-                    styles.bubbleText,
-                    mine
-                      ? styles.bubbleTextMine
-                      : isAdminMessage
-                        ? styles.bubbleTextAdmin
-                        : styles.bubbleTextOther,
+                <Pressable
+                  onLongPress={openReactionPicker}
+                  delayLongPress={350}
+                  accessibilityRole="button"
+                  accessibilityHint="Long-press to add a reaction."
+                  style={({ pressed }) => [
+                    styles.bubble,
+                    mine ? styles.bubbleMine : isAdminMessage ? styles.bubbleAdmin : styles.bubbleOther,
+                    pressed ? { opacity: 0.92 } : null,
                   ]}
                 >
-                  {m.body}
-                </Text>
-              </Pressable>
+                  <Text
+                    style={[
+                      styles.bubbleText,
+                      mine
+                        ? styles.bubbleTextMine
+                        : isAdminMessage
+                          ? styles.bubbleTextAdmin
+                          : styles.bubbleTextOther,
+                    ]}
+                  >
+                    {m.body}
+                  </Text>
+                </Pressable>
+              </View>
+              {messageReactions.length > 0 ? (
+                <View style={[styles.reactionPillsRow, mine ? styles.reactionPillsRowMine : styles.reactionPillsRowOther]}>
+                  {messageReactions.map((g) => (
+                    <Pressable
+                      key={g.emoji}
+                      onPress={() => {
+                        void (async () => {
+                          if (!accessToken) return;
+                          const res = await postChatReactionToggleViaApi(accessToken, m.id, g.emoji);
+                          if (res.ok) applyReactionGroupsFromServer(m.id, res.reactions);
+                        })();
+                      }}
+                      style={({ pressed }) => [
+                        styles.reactionPill,
+                        g.reacted_by_me ? styles.reactionPillMine : null,
+                        pressed ? { opacity: 0.88 } : null,
+                      ]}
+                      hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
+                    >
+                      <Text style={styles.reactionPillEmoji}>{g.emoji}</Text>
+                      <Text style={[styles.reactionPillCount, g.reacted_by_me && styles.reactionPillCountMine]}>{g.count}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
             </View>
           );
         }}
       />
+
+      <Modal
+        visible={reactionPicker != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setReactionPicker(null)}
+      >
+        {reactionPicker ? (
+          <View style={styles.reactionPickerRoot}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => setReactionPicker(null)} />
+            <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+              {(() => {
+                const winW = Dimensions.get("window").width;
+                const barPad = reactionPicker.modTarget ? 44 : 0;
+                const barW = REACTION_PICKER_EMOJIS.length * 40 + barPad + 20;
+                const top = Math.max(52, reactionPicker.anchor.y - 54);
+                const center = reactionPicker.anchor.x + reactionPicker.anchor.width / 2;
+                let left = center - barW / 2;
+                if (left < 10) left = 10;
+                if (left + barW > winW - 10) left = Math.max(10, winW - barW - 10);
+                return (
+                  <View style={[styles.reactionPickerBar, { top, left }]}>
+                    {REACTION_PICKER_EMOJIS.map((em) => (
+                      <Pressable
+                        key={em}
+                        accessibilityRole="button"
+                        accessibilityLabel={`React with ${em}`}
+                        hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                        onPress={() => {
+                          void (async () => {
+                            if (!accessToken) {
+                              setReactionPicker(null);
+                              return;
+                            }
+                            const mid = reactionPicker.messageId;
+                            const res = await postChatReactionToggleViaApi(accessToken, mid, em);
+                            setReactionPicker(null);
+                            if (res.ok) applyReactionGroupsFromServer(mid, res.reactions);
+                          })();
+                        }}
+                        style={({ pressed }) => [styles.reactionPickerEmojiBtn, pressed && { opacity: 0.75 }]}
+                      >
+                        <Text style={styles.reactionPickerEmoji}>{em}</Text>
+                      </Pressable>
+                    ))}
+                    {reactionPicker.modTarget ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="More message options"
+                        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                        onPress={() => {
+                          const t = reactionPicker.modTarget;
+                          setReactionPicker(null);
+                          if (t) setMenuTarget(t);
+                        }}
+                        style={({ pressed }) => [styles.reactionPickerMoreBtn, pressed && { opacity: 0.75 }]}
+                      >
+                        <FontAwesome name="ellipsis-h" size={18} color="rgba(255,255,255,0.85)" />
+                      </Pressable>
+                    ) : null}
+                  </View>
+                );
+              })()}
+            </View>
+          </View>
+        ) : null}
+      </Modal>
 
       <Modal
         visible={menuTarget != null}
@@ -474,9 +664,11 @@ export default function TeamChatThreadScreen() {
           style={[styles.input, !canCompose && styles.inputDisabled]}
           placeholder={
             !canCompose
-              ? announcementsOnly
-                ? "Announcements only"
-                : "Chat is unavailable"
+              ? runBanterAutoCloseUi.closedForPlayer
+                ? "This chat has closed"
+                : announcementsOnly
+                  ? "Announcements only"
+                  : "Chat is unavailable"
               : isAdmin === true && announcementsOnly
                 ? "Post an announcement"
                 : isGroupRoom
@@ -557,6 +749,30 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(163,230,53,0.1)",
   },
   noticeText: { color: "rgba(255,255,255,0.75)", fontSize: 13, lineHeight: 18 },
+  runBanterBanner: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.03)",
+  },
+  runBanterBannerText: {
+    color: "rgba(255,255,255,0.42)",
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
+    fontWeight: "600",
+  },
+  runBanterBannerHint: { paddingVertical: 6, paddingHorizontal: 10, marginBottom: 6 },
+  runBanterBannerHintText: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 12,
+    lineHeight: 16,
+    textAlign: "center",
+    fontWeight: "600",
+  },
   sheetBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.55)",
@@ -659,6 +875,54 @@ const styles = StyleSheet.create({
   bubbleTextMine: { color: "#0a0a0a", fontWeight: "700" },
   bubbleTextOther: { color: "rgba(255,255,255,0.72)", fontWeight: "500" },
   bubbleTextAdmin: { color: "#ffffff", fontWeight: "600" },
+  reactionPickerRoot: { flex: 1 },
+  reactionPickerBar: {
+    position: "absolute",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "rgba(22,22,22,0.97)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.16)",
+    gap: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  reactionPickerEmojiBtn: { paddingHorizontal: 4, paddingVertical: 2 },
+  reactionPickerEmoji: { fontSize: 26, lineHeight: 32 },
+  reactionPickerMoreBtn: { paddingHorizontal: 8, paddingVertical: 4 },
+  reactionPillsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 6,
+    maxWidth: "100%",
+  },
+  reactionPillsRowMine: { alignSelf: "flex-end" },
+  reactionPillsRowOther: { alignSelf: "flex-start" },
+  reactionPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  reactionPillMine: {
+    backgroundColor: "rgba(163,230,53,0.22)",
+    borderColor: LIME,
+  },
+  reactionPillEmoji: { fontSize: 14, lineHeight: 18 },
+  reactionPillCount: { fontSize: 12, fontWeight: "800", color: "rgba(255,255,255,0.7)" },
+  reactionPillCountMine: { color: "#0a0a0a" },
   composer: {
     flexDirection: "row",
     gap: 10,

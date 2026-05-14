@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
+import { deletePendingWaitlistExpiringReminders } from "@/lib/pickup/waitlist";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -58,6 +59,8 @@ export async function POST(req: Request) {
   );
 
   if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
+
+  await deletePendingWaitlistExpiringReminders(admin, user_id, run_id);
 
   revalidatePath("/pickup");
   revalidatePath("/status/pickup");

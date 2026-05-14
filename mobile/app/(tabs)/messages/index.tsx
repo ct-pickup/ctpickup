@@ -46,7 +46,15 @@ export default function MessagesIndex() {
   const announcementsTitle = bySlug.get(ANNOUNCEMENTS_CHAT_SLUG)?.title ?? "Announcements";
   const teamTitle = bySlug.get(TEAM_CHAT_SLUG)?.title ?? "Team chat";
 
-  const groupRooms = useMemo(() => rooms.filter((r) => r.room_type === "group"), [rooms]);
+  const groupRoomsNonDm = useMemo(
+    () => rooms.filter((r) => r.room_type === "group" && !isAdminDmGroupSlug(r.slug)),
+    [rooms],
+  );
+  const runBanterRooms = useMemo(() => rooms.filter((r) => r.room_type === "run_banter"), [rooms]);
+  const dmGroupRooms = useMemo(
+    () => rooms.filter((r) => r.room_type === "group" && isAdminDmGroupSlug(r.slug)),
+    [rooms],
+  );
 
   if (!isReady) {
     return (
@@ -112,26 +120,59 @@ export default function MessagesIndex() {
         <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
       </Pressable>
 
-      {groupRooms.length > 0 ? (
+      {groupRoomsNonDm.length > 0 ? (
         <>
-          <Text style={[styles.section, { marginTop: 22 }]}>Groups & direct</Text>
-          {groupRooms.map((r) => (
+          <Text style={[styles.section, { marginTop: 22 }]}>Group chats</Text>
+          {groupRoomsNonDm.map((r) => (
             <Pressable
               key={r.id}
               style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
               onPress={() => router.push({ pathname: "/(tabs)/messages/thread", params: { id: r.id } })}
             >
-              <FontAwesome
-                name={isAdminDmGroupSlug(r.slug) ? "user" : "users"}
-                size={18}
-                color={LIME}
-                style={styles.rowIcon}
-              />
+              <FontAwesome name="users" size={18} color={LIME} style={styles.rowIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle}>{titleForRoomRow(r, isAdmin === true, adminDmPeerLabels)}</Text>
-                <Text style={styles.rowSub}>
-                  {isAdminDmGroupSlug(r.slug) ? "Direct message" : "Group chat"}
-                </Text>
+                <Text style={styles.rowSub}>Group chat</Text>
+              </View>
+              <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+            </Pressable>
+          ))}
+        </>
+      ) : null}
+
+      {runBanterRooms.length > 0 ? (
+        <>
+          <Text style={[styles.section, { marginTop: 22 }]}>Run chats</Text>
+          {runBanterRooms.map((r) => (
+            <Pressable
+              key={r.id}
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+              onPress={() => router.push({ pathname: "/(tabs)/messages/thread", params: { id: r.id } })}
+            >
+              <FontAwesome name="comments" size={18} color={LIME} style={styles.rowIcon} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowTitle}>{r.title}</Text>
+                <Text style={styles.rowSub}>Pickup run</Text>
+              </View>
+              <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+            </Pressable>
+          ))}
+        </>
+      ) : null}
+
+      {dmGroupRooms.length > 0 ? (
+        <>
+          <Text style={[styles.section, { marginTop: 22 }]}>Direct messages</Text>
+          {dmGroupRooms.map((r) => (
+            <Pressable
+              key={r.id}
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+              onPress={() => router.push({ pathname: "/(tabs)/messages/thread", params: { id: r.id } })}
+            >
+              <FontAwesome name="user" size={18} color={LIME} style={styles.rowIcon} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowTitle}>{titleForRoomRow(r, isAdmin === true, adminDmPeerLabels)}</Text>
+                <Text style={styles.rowSub}>Direct message</Text>
               </View>
               <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
             </Pressable>

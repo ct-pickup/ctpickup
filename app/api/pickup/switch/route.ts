@@ -12,6 +12,7 @@ import { addWaveIntervalIso } from "@/lib/pickup/pickupWaveSchedule";
 import { cancelAllPickupRsvpsAndRefundPaidConfirmed } from "@/lib/pickup/refundAllPickupPlayersOnRunCancel";
 import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
+import { ensureRunBanterRoomAndMembers } from "@/lib/chat/runBanterRoom";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -750,6 +751,8 @@ export async function POST(req: Request) {
         data: { kind: "pickup_finalized", run_id },
       });
     }
+
+    await ensureRunBanterRoomAndMembers(admin, run_id, String(slot.start_at));
 
     revalidatePath("/pickup");
     revalidatePath("/status/pickup");

@@ -391,7 +391,7 @@ export function patchAdminPickupStanding(
   );
 }
 
-export type ChatRoomType = "public" | "announcement" | "group";
+export type ChatRoomType = "public" | "announcement" | "group" | "run_banter";
 
 export type ChatRoom = {
   id: string;

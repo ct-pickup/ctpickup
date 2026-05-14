@@ -38,6 +38,28 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const LIME = "#a3e635";
 
+const MS_DAY = 24 * 60 * 60 * 1000;
+const MS_HOUR = 60 * 60 * 1000;
+const MS_MINUTE = 60 * 1000;
+
+/** Live copy for confirmed players before `in_progress`; `nowMs` should be `Date.now()`. */
+function formatPreRunCountdownLabel(startMs: number, nowMs: number): string {
+  const totalMs = startMs - nowMs;
+  if (totalMs <= 0) return "Starting soon...";
+  if (totalMs > MS_DAY) {
+    const d = Math.floor(totalMs / MS_DAY);
+    const h = Math.floor((totalMs % MS_DAY) / MS_HOUR);
+    return `Run starts in ${d}d ${h}h`;
+  }
+  if (totalMs > MS_HOUR) {
+    const h = Math.floor(totalMs / MS_HOUR);
+    const m = Math.floor((totalMs % MS_HOUR) / MS_MINUTE);
+    return `Run starts in ${h}h ${m}m`;
+  }
+  const m = Math.max(1, Math.floor(totalMs / MS_MINUTE));
+  return `Run starts in ${m}m`;
+}
+
 const FRIEND_FIND_NO_PLAYERS_MSG = "No players found. Try a different name or username.";
 
 function isFriendFindNotFoundError(message: string | null | undefined): boolean {
@@ -118,6 +140,8 @@ export default function RunsScreen() {
   const [friendAutocompleteEmpty, setFriendAutocompleteEmpty] = useState(false);
   const [friendAutocompleteError, setFriendAutocompleteError] = useState<string | null>(null);
   const [myTeamLetter, setMyTeamLetter] = useState<"A" | "B" | "C" | null>(null);
+  const [myWaitlistPosition, setMyWaitlistPosition] = useState<number | null>(null);
+  const [preRunCountdownLabel, setPreRunCountdownLabel] = useState<string | null>(null);
 
   useLayoutEffect(() => {
     registerReset(() => setShowStatePicker(true));
@@ -247,6 +271,68 @@ export default function RunsScreen() {
   }, [runId, supabase, session?.user?.id, myStatus, runIsInProgress]);
 
   useEffect(() => {
+    if (!runId || !supabase || !session?.user?.id || myStatus !== "waitlist") {
+      setMyWaitlistPosition(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data: rows, error } = await supabase
+        .from("pickup_run_rsvps")
+        .select("user_id, created_at")
+        .eq("run_id", runId)
+        .eq("status", "waitlist")
+        .order("created_at", { ascending: true });
+      if (cancelled) return;
+      if (error || !Array.isArray(rows)) {
+        setMyWaitlistPosition(null);
+        return;
+      }
+      const uid = session.user.id;
+      const idx = rows.findIndex((r) => {
+        if (!r || typeof r !== "object") return false;
+        return (r as { user_id?: unknown }).user_id === uid;
+      });
+      setMyWaitlistPosition(idx >= 0 ? idx + 1 : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [runId, supabase, session?.user?.id, myStatus, data]);
+
+  useEffect(() => {
+    if (myStatus !== "confirmed") {
+      setPreRunCountdownLabel(null);
+      return;
+    }
+    const rawStart = typeof run?.start_at === "string" ? run.start_at.trim() : "";
+    if (!rawStart) {
+      setPreRunCountdownLabel(null);
+      return;
+    }
+    const st = typeof run?.status === "string" ? run.status : "";
+    if (st === "in_progress") {
+      setPreRunCountdownLabel(null);
+      return;
+    }
+
+    const tick = () => {
+      const startMs = new Date(rawStart).getTime();
+      if (!Number.isFinite(startMs)) {
+        setPreRunCountdownLabel(null);
+        return;
+      }
+      setPreRunCountdownLabel(formatPreRunCountdownLabel(startMs, Date.now()));
+    };
+
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => {
+      clearInterval(id);
+    };
+  }, [myStatus, run?.start_at, run?.status]);
+
+  useEffect(() => {
     if (!friendModalOpen || !token) return;
 
     let cancelled = false;
@@ -359,13 +445,6 @@ export default function RunsScreen() {
     () => (data && typeof data === "object" ? (data as Record<string, unknown>) : {}),
     [data],
   );
-
-  const myWaitlistPosition: number | null = useMemo(() => {
-    const v = (dataObj as Record<string, unknown>)?.my_waitlist_position;
-    if (v === null || v === undefined) return null;
-    const n = typeof v === "number" ? v : Number(v);
-    return Number.isFinite(n) ? n : null;
-  }, [dataObj]);
 
   const updateMessages = useMemo(() => {
     const out: { key: string; text: string }[] = [];
@@ -830,6 +909,9 @@ export default function RunsScreen() {
 
             {myStatus === "confirmed" ? (
               <>
+                {preRunCountdownLabel != null ? (
+                  <Text style={styles.preRunCountdown}>{preRunCountdownLabel}</Text>
+                ) : null}
                 <View style={styles.confirmedBanner}>
                   <FontAwesome name="check-circle" size={18} color="#bbf7d0" />
                   <Text style={styles.confirmedBannerText}>You&apos;re in. See you on the field.</Text>
@@ -894,11 +976,16 @@ export default function RunsScreen() {
                 </Text>
               </View>
             ) : myStatus === "waitlist" ? (
-              <View style={styles.standbyBanner}>
-                <FontAwesome name="list-ol" size={16} color="#fcd34d" />
-                <Text style={styles.standbyBannerText}>
-                  You&apos;re #{myWaitlistPosition ?? "—"} on waitlist.
-                </Text>
+              <View style={[styles.standbyBanner, styles.waitlistBanner]}>
+                <View style={styles.waitlistBadgeRow}>
+                  <FontAwesome name="list-ol" size={16} color="#fcd34d" />
+                  <Text style={styles.standbyBannerText}>Waitlist</Text>
+                </View>
+                {myWaitlistPosition != null ? (
+                  <Text style={styles.waitlistPositionSub}>
+                    You are #{myWaitlistPosition} on the waitlist
+                  </Text>
+                ) : null}
               </View>
             ) : myStatus === "pending_payment" ? (
               runLocked ? null : (
@@ -1507,6 +1594,12 @@ const styles = StyleSheet.create({
   },
   primaryJoinDisabled: { opacity: 0.45 },
   primaryJoinText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  preRunCountdown: {
+    color: LIME,
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 10,
+  },
   confirmedBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -1553,6 +1646,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(245,158,11,0.45)",
     backgroundColor: "rgba(245,158,11,0.18)",
+  },
+  waitlistBanner: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: 6,
+  },
+  waitlistBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  waitlistPositionSub: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: "rgba(255,255,255,0.45)",
+    marginLeft: 26,
   },
   standbyBannerText: { color: "#fcd34d", fontWeight: "600", fontSize: 14, flexShrink: 1, lineHeight: 20 },
   err: { marginTop: 16, color: "#fca5a5" },

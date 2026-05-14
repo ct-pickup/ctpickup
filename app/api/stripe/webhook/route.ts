@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ensurePickupRunInviteLink } from "@/lib/pickup/ensureRunInviteLink";
+import { addUserToRunBanterRoom } from "@/lib/chat/runBanterRoom";
 import {
   findPlatformPaymentIdByPaymentIntent,
   findPlatformPaymentIdBySession,
@@ -10,7 +11,7 @@ import {
   patchPlatformPaymentBySessionId,
 } from "@/lib/payments/webhookPersistence";
 import { recomputePickupStandingForUser } from "@/lib/pickup/standing/recomputePickupStanding";
-import { promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
+import { deletePendingWaitlistExpiringReminders, promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
 import {
   verifyEsportsRegistrationPaid,
   verifyPickupPaidAndConfirmed,
@@ -71,7 +72,9 @@ async function fulfillPickup(
       })
       .eq("run_id", runId)
       .eq("user_id", userId);
+    await deletePendingWaitlistExpiringReminders(admin, userId, runId);
     await ensurePickupRunInviteLink(admin, runId, userId);
+    await addUserToRunBanterRoom(admin, runId, userId);
     return;
   }
   if (!sessionId) return;
@@ -91,7 +94,9 @@ async function fulfillPickup(
     })
     .eq("run_id", rsvp.run_id)
     .eq("user_id", rsvp.user_id);
+  await deletePendingWaitlistExpiringReminders(admin, String(rsvp.user_id), String(rsvp.run_id));
   await ensurePickupRunInviteLink(admin, rsvp.run_id, rsvp.user_id);
+  await addUserToRunBanterRoom(admin, String(rsvp.run_id), String(rsvp.user_id));
 }
 
 async function fulfillTournament(

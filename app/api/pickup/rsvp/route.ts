@@ -8,7 +8,8 @@ import { PICKUP_FIELD_FEE_STRIPE_DESCRIPTION } from "@/lib/fees/refundPolicyCopy
 import { paymentIntentIdFromCheckoutSession } from "@/lib/payments/stripeSessionIds";
 import { recordPlatformCheckoutStarted } from "@/lib/payments/recordCheckoutStarted";
 import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
-import { promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
+import { addUserToRunBanterRoom, removeUserFromRunBanterRoom } from "@/lib/chat/runBanterRoom";
+import { deletePendingWaitlistExpiringReminders, promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
 import { pickupPlayerRefundEligibleNow } from "@/lib/pickup/runScheduling";
 
@@ -182,6 +183,12 @@ export async function POST(req: Request) {
         { onConflict: "run_id,user_id" },
       );
     }
+
+    if (prev === "pending_confirm") {
+      await deletePendingWaitlistExpiringReminders(admin, user.id, run.id);
+    }
+
+    await removeUserFromRunBanterRoom(admin, String(run.id), user.id);
 
     if (prev === "confirmed" || prev === "pending_confirm") {
       await promoteNextWaitlistPlayer(admin, String(run.id), {
@@ -389,6 +396,9 @@ export async function POST(req: Request) {
       },
       { onConflict: "run_id,user_id" },
     );
+    if (existing.data?.status === "pending_confirm") {
+      await deletePendingWaitlistExpiringReminders(admin, targetUserId, run.id);
+    }
     await ensurePickupRunInviteLink(admin, run.id, targetUserId);
     return NextResponse.json({ ok: true, status: "waitlist", waitlist_position: nextPos });
   }
@@ -409,6 +419,7 @@ export async function POST(req: Request) {
         })
         .eq("run_id", run.id)
         .eq("user_id", targetUserId);
+      await deletePendingWaitlistExpiringReminders(admin, targetUserId, run.id);
       return NextResponse.json({ error: "Waitlist offer expired." }, { status: 410 });
     }
   }
@@ -428,7 +439,11 @@ export async function POST(req: Request) {
       },
       { onConflict: "run_id,user_id" },
     );
+    if (existing.data?.status === "pending_confirm") {
+      await deletePendingWaitlistExpiringReminders(admin, targetUserId, run.id);
+    }
     await ensurePickupRunInviteLink(admin, run.id, targetUserId);
+    await addUserToRunBanterRoom(admin, String(run.id), targetUserId);
     return NextResponse.json({ ok: true, status: "confirmed" });
   }
 
@@ -559,6 +574,10 @@ export async function POST(req: Request) {
     },
     { onConflict: "run_id,user_id" },
   );
+
+  if (existing.data?.status === "pending_confirm") {
+    await deletePendingWaitlistExpiringReminders(admin, targetUserId, run.id);
+  }
 
   await recordPlatformCheckoutStarted(admin, {
     productType: "pickup",

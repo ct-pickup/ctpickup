@@ -1,9 +1,9 @@
 import { useAuth } from "@/context/AuthContext";
-import { postChatMessageViaApi } from "@/lib/chatApi";
+import { type ChatReactionGroup, postChatMessageViaApi } from "@/lib/chatApi";
 import { CHAT_PROFANITY_USER_MESSAGE, messageContainsProfanity } from "@/lib/chatProfanity";
 import { isAdminDmGroupSlug, type ChatMessageRow, type ChatRoomSummary } from "@/lib/teamChat";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type ChatRoomRow = {
   id: string;
@@ -13,6 +13,7 @@ export type ChatRoomRow = {
   is_active: boolean;
   announcements_only: boolean;
   closes_at: string | null;
+  auto_close_at: string | null;
   created_at: string;
 };
 
@@ -52,7 +53,7 @@ export function useTeamChatRoom(enabled: boolean, lookup: RoomLookup) {
     void (async () => {
       const base = supabase
         .from("chat_rooms")
-        .select("id,slug,title,room_type,is_active,announcements_only,closes_at,created_at");
+        .select("id,slug,title,room_type,is_active,announcements_only,closes_at,auto_close_at,created_at");
       const query = id ? base.eq("id", id) : base.eq("slug", slug);
       const { data, error: qErr } = await query.maybeSingle();
       if (cancelled) return;
@@ -242,17 +243,69 @@ export function useTeamChatAccess() {
   return { allowed, isAdmin };
 }
 
+function aggregateReactionRowsForMessages(
+  rows: { message_id: string; emoji: string; user_id: string }[],
+  myUserId: string | null,
+): Record<string, ChatReactionGroup[]> {
+  const byMessage = new Map<string, Map<string, { count: number; reacted_by_me: boolean }>>();
+  for (const row of rows) {
+    const mid = row.message_id;
+    if (!byMessage.has(mid)) byMessage.set(mid, new Map());
+    const em = byMessage.get(mid)!;
+    const e = String(row.emoji ?? "").trim();
+    if (!e) continue;
+    const cur = em.get(e) ?? { count: 0, reacted_by_me: false };
+    cur.count += 1;
+    if (myUserId && row.user_id === myUserId) cur.reacted_by_me = true;
+    em.set(e, cur);
+  }
+  const out: Record<string, ChatReactionGroup[]> = {};
+  for (const [mid, em] of byMessage) {
+    out[mid] = [...em.entries()]
+      .map(([emoji, v]) => ({ emoji, count: v.count, reacted_by_me: v.reacted_by_me }))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.emoji.localeCompare(b.emoji);
+      });
+  }
+  return out;
+}
+
 export function useTeamChatMessages(roomId: string | null) {
   const { supabase, session } = useAuth();
   const uid = session?.user?.id ?? null;
   const accessToken = session?.access_token ?? null;
   const [messages, setMessages] = useState<ChatMessageRow[]>([]);
+  const [reactionsByMessageId, setReactionsByMessageId] = useState<Record<string, ChatReactionGroup[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const roomMessageIdsRef = useRef<Set<string>>(new Set());
+  roomMessageIdsRef.current = new Set(messages.map((m) => m.id));
+
+  const refetchReactionsForMessage = useCallback(
+    async (messageId: string) => {
+      if (!supabase) return;
+      const { data, error: rxErr } = await supabase.from("chat_reactions").select("emoji,user_id").eq("message_id", messageId);
+      if (rxErr) return;
+      const rows = (data ?? []).map((r) => {
+        const row = r as { emoji: string; user_id: string };
+        return { message_id: messageId, emoji: row.emoji, user_id: row.user_id };
+      });
+      const map = aggregateReactionRowsForMessages(rows, uid);
+      const groups = map[messageId] ?? [];
+      setReactionsByMessageId((prev) => ({ ...prev, [messageId]: groups }));
+    },
+    [supabase, uid],
+  );
+
+  const applyReactionGroupsFromServer = useCallback((messageId: string, groups: ChatReactionGroup[]) => {
+    setReactionsByMessageId((prev) => ({ ...prev, [messageId]: groups }));
+  }, []);
 
   const load = useCallback(async () => {
     if (!supabase || !roomId) {
       setMessages([]);
+      setReactionsByMessageId({});
       setLoading(false);
       return;
     }
@@ -267,11 +320,26 @@ export function useTeamChatMessages(roomId: string | null) {
     if (qErr) {
       setError(qErr.message);
       setMessages([]);
+      setReactionsByMessageId({});
     } else {
-      setMessages((data ?? []) as ChatMessageRow[]);
+      const list = (data ?? []) as ChatMessageRow[];
+      setMessages(list);
+      if (list.length === 0) {
+        setReactionsByMessageId({});
+      } else {
+        const ids = list.map((m) => m.id);
+        const rx = await supabase.from("chat_reactions").select("message_id,emoji,user_id").in("message_id", ids);
+        if (rx.error) {
+          setReactionsByMessageId({});
+        } else {
+          setReactionsByMessageId(
+            aggregateReactionRowsForMessages((rx.data ?? []) as { message_id: string; emoji: string; user_id: string }[], uid),
+          );
+        }
+      }
     }
     setLoading(false);
-  }, [supabase, roomId]);
+  }, [supabase, roomId, uid]);
 
   useEffect(() => {
     void load();
@@ -320,6 +388,37 @@ export function useTeamChatMessages(roomId: string | null) {
     };
   }, [supabase, roomId]);
 
+  useEffect(() => {
+    if (!supabase || !roomId) return;
+
+    const onReactionEvent = (messageId: string | undefined) => {
+      if (!messageId || !roomMessageIdsRef.current.has(messageId)) return;
+      void refetchReactionsForMessage(messageId);
+    };
+
+    const ch = supabase
+      .channel(`chat-reactions:${roomId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_reactions" },
+        (payload) => {
+          onReactionEvent((payload.new as { message_id?: string })?.message_id);
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "chat_reactions" },
+        (payload) => {
+          onReactionEvent((payload.old as { message_id?: string })?.message_id);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(ch);
+    };
+  }, [supabase, roomId, refetchReactionsForMessage]);
+
   const send = useCallback(
     async (body: string) => {
       const trimmed = body.trim();
@@ -338,6 +437,8 @@ export function useTeamChatMessages(roomId: string | null) {
 
   return {
     messages,
+    reactionsByMessageId,
+    applyReactionGroupsFromServer,
     loading,
     error,
     reload: load,

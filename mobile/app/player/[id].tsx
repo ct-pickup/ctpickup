@@ -2,6 +2,7 @@ import { useAuth } from "@/context/AuthContext";
 import { fetchPublicPlayerProfile, type PublicPlayerProfile } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { useEffect, useLayoutEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -48,6 +49,37 @@ function initials(displayName: string) {
   return w.slice(0, 2).toUpperCase();
 }
 
+type HeadToHeadStats = {
+  sharedCount: number;
+  facedOff: number;
+  playedTogether: number;
+  viewerWins: number;
+  profileWins: number;
+};
+
+type H2hAssignRow = { run_id?: unknown; user_id?: unknown; team?: unknown };
+
+async function fetchConfirmedRsvpRunIds(supabase: SupabaseClient, uid: string): Promise<string[] | null> {
+  const RSVP_PAGE = 1000;
+  const ids: string[] = [];
+  for (let from = 0; ; from += RSVP_PAGE) {
+    const { data: rpage, error } = await supabase
+      .from("pickup_run_rsvps")
+      .select("run_id")
+      .eq("user_id", uid)
+      .eq("status", "confirmed")
+      .range(from, from + RSVP_PAGE - 1);
+    if (error) return null;
+    if (!rpage?.length) break;
+    for (const row of rpage as { run_id?: unknown }[]) {
+      const id = typeof row.run_id === "string" ? row.run_id : null;
+      if (id) ids.push(id);
+    }
+    if (rpage.length < RSVP_PAGE) break;
+  }
+  return ids;
+}
+
 export default function PlayerProfileScreen() {
   const { id: raw } = useLocalSearchParams<{ id: string | string[] }>();
   const userId = typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : "";
@@ -73,6 +105,10 @@ export default function PlayerProfileScreen() {
   const [sessionsPlayed, setSessionsPlayed] = useState<number | null>(null);
   const [tournamentsPlayed, setTournamentsPlayed] = useState<number | null>(null);
   const [awardCounts, setAwardCounts] = useState<{ potd: number; gotd: number; def: number; mid: number; att: number } | null>(null);
+  const [currentStreak, setCurrentStreak] = useState<number | null>(null);
+  const [longestStreak, setLongestStreak] = useState<number | null>(null);
+  const [h2hLoading, setH2hLoading] = useState(false);
+  const [headToHead, setHeadToHead] = useState<HeadToHeadStats | null>(null);
 
   useEffect(() => {
     if (!userId || !token) {
@@ -114,7 +150,7 @@ export default function PlayerProfileScreen() {
           await Promise.all([
             supabase
               .from("profiles")
-              .select("nearest_venue, pickup_wins_count, pickup_losses_count")
+              .select("nearest_venue, pickup_wins_count, pickup_losses_count, current_streak, longest_streak")
               .eq("id", userId)
               .maybeSingle(),
             supabase.from("pickup_run_team_assignments").select("team,run_id").eq("user_id", userId).limit(2000),
@@ -128,11 +164,15 @@ export default function PlayerProfileScreen() {
           setWins(null);
           setLosses(null);
           setWinRatePct(null);
+          setCurrentStreak(null);
+          setLongestStreak(null);
         } else {
           const row = profileData as {
             nearest_venue?: unknown;
             pickup_wins_count?: unknown;
             pickup_losses_count?: unknown;
+            current_streak?: unknown;
+            longest_streak?: unknown;
           };
           const v = row.nearest_venue;
           setNearestVenue(typeof v === "string" ? v : null);
@@ -143,6 +183,8 @@ export default function PlayerProfileScreen() {
           const played = w + l;
           setGames(played);
           setWinRatePct(played > 0 ? Math.round((w / played) * 100) : null);
+          setCurrentStreak(Math.max(0, Math.trunc(Number(row.current_streak ?? 0))));
+          setLongestStreak(Math.max(0, Math.trunc(Number(row.longest_streak ?? 0))));
         }
 
         const RSVP_PAGE = 1000;
@@ -301,6 +343,131 @@ export default function PlayerProfileScreen() {
       cancelled = true;
     };
   }, [isReady, supabase, userId]);
+
+  useEffect(() => {
+    if (!isReady || !supabase || !userId || !viewerId || viewerId === userId) {
+      setH2hLoading(false);
+      setHeadToHead(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      setH2hLoading(true);
+      setHeadToHead(null);
+      try {
+        const [profileRsvpIds, viewerRsvpIds] = await Promise.all([
+          fetchConfirmedRsvpRunIds(supabase, userId),
+          fetchConfirmedRsvpRunIds(supabase, viewerId),
+        ]);
+        if (cancelled) return;
+        if (profileRsvpIds === null || viewerRsvpIds === null) {
+          setHeadToHead(null);
+          return;
+        }
+        const viewerSet = new Set(viewerRsvpIds);
+        const intersection = Array.from(new Set(profileRsvpIds.filter((id) => viewerSet.has(id))));
+        if (intersection.length === 0) {
+          setHeadToHead(null);
+          return;
+        }
+
+        const CHUNK_RUNS = 250;
+        const completedSharedRunIds: string[] = [];
+        for (let i = 0; i < intersection.length; i += CHUNK_RUNS) {
+          const chunk = intersection.slice(i, i + CHUNK_RUNS);
+          const { data: runRows, error: runErr } = await supabase
+            .from("pickup_runs")
+            .select("id")
+            .in("id", chunk)
+            .eq("is_completed", true);
+          if (cancelled) return;
+          if (runErr || !runRows) continue;
+          for (const r of runRows as { id?: unknown }[]) {
+            const id = typeof r.id === "string" ? r.id : null;
+            if (id) completedSharedRunIds.push(id);
+          }
+        }
+        if (cancelled) return;
+        if (completedSharedRunIds.length === 0) {
+          setHeadToHead(null);
+          return;
+        }
+
+        const uniqueCompletedShared = Array.from(new Set(completedSharedRunIds));
+
+        const profileTeamByRun = new Map<string, Team>();
+        const viewerTeamByRun = new Map<string, Team>();
+        const winningByRun = new Map<string, Team>();
+
+        for (let i = 0; i < uniqueCompletedShared.length; i += CHUNK_RUNS) {
+          const chunk = uniqueCompletedShared.slice(i, i + CHUNK_RUNS);
+          const [{ data: rawAssignRows, error: assignErr }, { data: resRows, error: resErr }] = await Promise.all([
+            supabase
+              .from("pickup_run_team_assignments")
+              .select("run_id,user_id,team")
+              .in("run_id", chunk)
+              .in("user_id", [userId, viewerId]),
+            supabase.from("pickup_run_results").select("run_id,winning_team").in("run_id", chunk),
+          ]);
+          if (cancelled) return;
+          if (!assignErr) {
+            const assignRows: H2hAssignRow[] = Array.isArray(rawAssignRows) ? (rawAssignRows as H2hAssignRow[]) : [];
+            for (const row of assignRows) {
+              const rid = typeof row.run_id === "string" ? row.run_id : null;
+              const uidRow = typeof row.user_id === "string" ? row.user_id : null;
+              const tm = row.team === "A" || row.team === "B" || row.team === "C" ? row.team : null;
+              if (!rid || !uidRow || !tm) continue;
+              if (uidRow === userId) profileTeamByRun.set(rid, tm);
+              else if (uidRow === viewerId) viewerTeamByRun.set(rid, tm);
+            }
+          }
+
+          if (!resErr && resRows) {
+            for (const row of resRows as { run_id?: unknown; winning_team?: unknown }[]) {
+              const rid = typeof row.run_id === "string" ? row.run_id : null;
+              const wt = row.winning_team === "A" || row.winning_team === "B" || row.winning_team === "C" ? row.winning_team : null;
+              if (rid && wt) winningByRun.set(rid, wt);
+            }
+          }
+        }
+
+        if (cancelled) return;
+
+        let facedOff = 0;
+        let playedTogether = 0;
+        let viewerWins = 0;
+        let profileWins = 0;
+
+        for (const runId of uniqueCompletedShared) {
+          const pTeam = profileTeamByRun.get(runId);
+          const vTeam = viewerTeamByRun.get(runId);
+          if (!pTeam || !vTeam) continue;
+          if (pTeam === vTeam) {
+            playedTogether += 1;
+            continue;
+          }
+          const wt = winningByRun.get(runId);
+          if (!wt) continue;
+          facedOff += 1;
+          if (wt === vTeam) viewerWins += 1;
+          else if (wt === pTeam) profileWins += 1;
+        }
+
+        setHeadToHead({
+          sharedCount: uniqueCompletedShared.length,
+          facedOff,
+          playedTogether,
+          viewerWins,
+          profileWins,
+        });
+      } finally {
+        if (!cancelled) setH2hLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isReady, supabase, userId, viewerId]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -464,6 +631,22 @@ export default function PlayerProfileScreen() {
                 </Text>
               </>
             )}
+            {!statsLoading && currentStreak != null && longestStreak != null ? (
+              <>
+                {currentStreak >= 5 ? (
+                  <Text style={styles.streakHotLime}>
+                    🔥 {currentStreak} run streak
+                  </Text>
+                ) : currentStreak >= 1 ? (
+                  <Text style={styles.streakHotWhite}>
+                    🔥 {currentStreak} run streak
+                  </Text>
+                ) : null}
+                {longestStreak > 0 ? (
+                  <Text style={styles.streakBest}>Best streak: {longestStreak}</Text>
+                ) : null}
+              </>
+            ) : null}
           </>
         )}
       </View>
@@ -494,6 +677,51 @@ export default function PlayerProfileScreen() {
           </>
         )}
       </View>
+
+      {!isOwnProfile && (h2hLoading || headToHead != null) ? (
+        <View style={styles.block}>
+          <View style={styles.h2hHairline} />
+          <Text style={styles.label}>Head to Head</Text>
+          <View style={styles.h2hHairline} />
+          {h2hLoading ? (
+            <Text style={styles.valueMuted}>Loading…</Text>
+          ) : headToHead ? (
+            headToHead.facedOff === 0 && headToHead.playedTogether > 0 ? (
+              <>
+                <Text style={styles.valueLine}>
+                  <Text style={styles.valueK}>Played together</Text> {headToHead.playedTogether}{" "}
+                  {headToHead.playedTogether === 1 ? "time" : "times"}
+                </Text>
+                <Text style={[styles.valueLine, styles.h2hNeverFaced]}>Never faced off</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.valueLine}>
+                  <Text style={styles.valueK}>Faced off</Text> {headToHead.facedOff}{" "}
+                  {headToHead.facedOff === 1 ? "time" : "times"}
+                </Text>
+                <Text
+                  style={[
+                    styles.valueLine,
+                    headToHead.viewerWins > 0 ? styles.h2hYouWon : null,
+                  ]}
+                >
+                  <Text style={[styles.valueK, headToHead.viewerWins > 0 ? styles.h2hYouWonK : null]}>You won</Text>{" "}
+                  {headToHead.viewerWins}
+                </Text>
+                <Text style={[styles.valueLine, styles.h2hTheyWon]}>
+                  <Text style={[styles.valueK, styles.h2hTheyWon]}>They won</Text> {headToHead.profileWins}
+                </Text>
+                <Text style={styles.valueLine}>
+                  <Text style={styles.valueK}>Played together</Text> {headToHead.playedTogether}{" "}
+                  {headToHead.playedTogether === 1 ? "time" : "times"}
+                </Text>
+              </>
+            )
+          ) : null}
+          <View style={styles.h2hHairline} />
+        </View>
+      ) : null}
 
       <Text style={styles.note}>Public info only. Contact details stay private.</Text>
     </ScrollView>
@@ -550,9 +778,36 @@ const styles = StyleSheet.create({
   value: { fontSize: 16, color: "rgba(255,255,255,0.92)" },
   valueMuted: { fontSize: 16, color: "rgba(255,255,255,0.55)", fontWeight: "700" },
   valueLine: { fontSize: 15, color: "rgba(255,255,255,0.9)", fontWeight: "700", marginTop: 8 },
+  streakHotLime: {
+    marginTop: 10,
+    fontSize: 17,
+    fontWeight: "800",
+    color: LIME,
+  },
+  streakHotWhite: {
+    marginTop: 10,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  streakBest: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "rgba(255,255,255,0.4)",
+    fontWeight: "600",
+  },
   valueK: { color: "rgba(255,255,255,0.45)", fontWeight: "900" },
   linkRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   linkText: { fontSize: 16, color: LIME },
+  h2hHairline: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    marginVertical: 10,
+  },
+  h2hYouWon: { color: LIME },
+  h2hYouWonK: { color: LIME },
+  h2hTheyWon: { color: "rgba(255,255,255,0.55)" },
+  h2hNeverFaced: { color: "rgba(255,255,255,0.55)", marginTop: 8 },
   note: { marginTop: 8, fontSize: 13, color: "rgba(255,255,255,0.35)", lineHeight: 18 },
 });
 

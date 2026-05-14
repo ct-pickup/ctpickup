@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { recomputePickupStandingForUser } from "@/lib/pickup/standing/recomputePickupStanding";
-import { promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
+import { deletePendingWaitlistExpiringReminders, promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 /**
@@ -67,6 +67,10 @@ export async function POST(req: Request) {
       .update({ status: "late_canceled", updated_at: new Date().toISOString() })
       .eq("run_id", run_id)
       .eq("user_id", user_id);
+
+    if (prev === "pending_confirm") {
+      await deletePendingWaitlistExpiringReminders(admin, user_id, run_id);
+    }
 
     await promoteNextWaitlistPlayer(admin, run_id, {
       requestedBy: user.id,

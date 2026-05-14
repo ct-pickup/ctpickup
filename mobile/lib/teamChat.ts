@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 export const TEAM_CHAT_SLUG = "team" as const;
 export const ANNOUNCEMENTS_CHAT_SLUG = "announcements" as const;
 
-export type ChatRoomType = "public" | "announcement" | "group";
+export type ChatRoomType = "public" | "announcement" | "group" | "run_banter";
 
 /** Admin↔player DMs use `room_type: group` and slugs `dm` + 32 hex (see `lib/chat/adminDmRoom.ts`). */
 const DM_GROUP_SLUG_RE = /^dm[a-f0-9]{32}$/i;
@@ -32,6 +32,8 @@ export type ChatRoomSummary = {
   room_type: ChatRoomType;
   announcements_only: boolean;
   is_active: boolean;
+  auto_close_at: string | null;
+  run_id: string | null;
 };
 
 /**
@@ -59,7 +61,7 @@ export function useUserChatRooms(enabled: boolean) {
     void (async () => {
       const { data, error: qErr } = await supabase
         .from("chat_rooms")
-        .select("id,slug,title,room_type,announcements_only,is_active")
+        .select("id,slug,title,room_type,announcements_only,is_active,auto_close_at,run_id")
         .order("created_at", { ascending: true });
       if (cancelled) return;
       if (qErr) {

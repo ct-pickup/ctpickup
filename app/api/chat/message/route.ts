@@ -15,12 +15,20 @@ type RoomRow = {
   announcements_only: boolean;
   is_active: boolean;
   closes_at: string | null;
+  auto_close_at: string | null;
 };
 
 function roomEffectivelyClosed(room: RoomRow): boolean {
   if (!room.is_active) return true;
   if (room.closes_at && new Date(room.closes_at).getTime() <= Date.now()) return true;
   return false;
+}
+
+function runBanterChatClosedForPlayer(room: RoomRow, isAdmin: boolean): boolean {
+  if (isAdmin) return false;
+  if (room.room_type !== "run_banter") return false;
+  if (!room.auto_close_at) return false;
+  return new Date(room.auto_close_at).getTime() <= Date.now();
 }
 
 function displayNameFromProfile(p: { first_name?: string | null; last_name?: string | null } | null): string {
@@ -59,7 +67,7 @@ export async function POST(req: Request) {
 
   const roomRes = await admin
     .from("chat_rooms")
-    .select("id,slug,title,room_type,announcements_only,is_active,closes_at")
+    .select("id,slug,title,room_type,announcements_only,is_active,closes_at,auto_close_at")
     .eq("id", room_id)
     .maybeSingle();
 
@@ -75,7 +83,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Room is closed" }, { status: 403 });
   }
 
-  if (room.room_type === "group") {
+  if (runBanterChatClosedForPlayer(room, isAdmin)) {
+    return NextResponse.json({ error: "This chat has closed." }, { status: 403 });
+  }
+
+  if (room.room_type === "group" || room.room_type === "run_banter") {
     const mem = await admin.from("chat_room_members").select("user_id").eq("room_id", room_id).eq("user_id", uid).maybeSingle();
     if (mem.error) return NextResponse.json({ error: mem.error.message }, { status: 500 });
     if (!mem.data && !isAdmin) {

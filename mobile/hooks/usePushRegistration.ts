@@ -37,6 +37,7 @@ const ROUTABLE_NOTIFICATION_KINDS = new Set([
   "pickup_canceled",
   "pickup_promoted",
   "pickup_waitlist_offer",
+  "pickup_waitlist_expiring",
   "pickup_result",
   "pickup_award_player",
   "pickup_award_goalie",
@@ -68,6 +69,7 @@ const PICKUP_RUN_DEEP_LINK_KINDS = new Set([
   "pickup_finalized",
   "pickup_promoted",
   "pickup_waitlist_offer",
+  "pickup_waitlist_expiring",
   "pickup_result",
   "pickup_award_player",
   "pickup_award_goalie",
@@ -101,7 +103,7 @@ function hapticForForegroundPushKind(kind: string) {
   else if (kind === "pickup_result" || kind.startsWith("pickup_award_")) void hapticWhistle();
   else if (kind === "pickup_confirmed" || kind === "pickup_finalized" || kind === "pickup_likely_on")
     void hapticGoal();
-  else if (kind === "pickup_waitlist_offer" || kind === "pickup_promoted") void hapticKick();
+  else if (kind === "pickup_waitlist_offer" || kind === "pickup_waitlist_expiring" || kind === "pickup_promoted") void hapticKick();
   else if (kind === "pickup_canceled") void hapticError();
   else if (kind === "admin_availability") void hapticTap();
   else if (kind === "chat_message" || kind === "announcement") void hapticTap();

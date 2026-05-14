@@ -3,6 +3,25 @@ import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 
 export const WAITLIST_OFFER_MINUTES = 30;
 
+export const PICKUP_WAITLIST_EXPIRING_KIND = "pickup_waitlist_expiring";
+
+const WAITLIST_EXPIRING_REMINDER_MINUTES_BEFORE = 10;
+
+/** Removes unsent scheduled expiry reminders so they are not delivered after the offer ends. */
+export async function deletePendingWaitlistExpiringReminders(
+  admin: SupabaseClient,
+  user_id: string,
+  run_id: string,
+): Promise<void> {
+  await admin
+    .from("pickup_push_scheduled")
+    .delete()
+    .eq("user_id", user_id)
+    .eq("run_id", run_id)
+    .eq("kind", PICKUP_WAITLIST_EXPIRING_KIND)
+    .is("sent_at", null);
+}
+
 /** Only fully confirmed (paid) RSVPs occupy capacity; waitlist promotion uses this count. */
 const RESERVED_STATUSES = ["confirmed"] as const;
 
@@ -81,6 +100,25 @@ export async function promoteNextWaitlistPlayer(
     data: { kind: "pickup_waitlist_offer", run_id },
   });
 
+  const promotedUserId = String(next.user_id);
+  await deletePendingWaitlistExpiringReminders(admin, promotedUserId, run_id);
+
+  const reminderAt = new Date(expires.getTime() - WAITLIST_EXPIRING_REMINDER_MINUTES_BEFORE * 60 * 1000);
+  if (reminderAt.getTime() > now.getTime()) {
+    const ins = await admin.from("pickup_push_scheduled").insert({
+      user_id: promotedUserId,
+      run_id,
+      send_at: reminderAt.toISOString(),
+      kind: PICKUP_WAITLIST_EXPIRING_KIND,
+      title: "Spot expiring soon ⏰",
+      body: "Your waitlist spot expires in 10 minutes. Confirm now before it's gone.",
+      data: { run_id },
+    });
+    if (ins.error) {
+      console.error("[waitlist] schedule expiring reminder failed:", ins.error.message, { run_id, promotedUserId });
+    }
+  }
+
   // Best-effort: attach a small audit note for admins in logs.
   if (opts?.requestedBy || opts?.reason) {
     console.log(
@@ -114,6 +152,12 @@ export async function expireWaitlistOffersAndPromote(
   if (expiredRes.error) return { ok: false, error: expiredRes.error.message };
   const expired = expiredRes.data || [];
   if (expired.length === 0) return { ok: true, expired: 0, promoted: 0 };
+
+  for (const row of expired) {
+    if (row.user_id && row.run_id) {
+      await deletePendingWaitlistExpiringReminders(admin, String(row.user_id), String(row.run_id));
+    }
+  }
 
   // Expire all offers first.
   const runIds = Array.from(new Set(expired.map((r) => String(r.run_id))));
