@@ -278,6 +278,47 @@ async function loadCompletedRunIdsHalfOpen(
   return ids;
 }
 
+/** Approved profiles: counts by `nearest_venue` (non-empty) and top zip codes (5-digit US). */
+async function aggregateApprovedPlayerLocations(svc: ReturnType<typeof supabaseService>): Promise<{
+  players_by_venue: { venue: string; count: number }[];
+  players_by_zip: { zip_code: string; count: number }[];
+}> {
+  const venueMap = new Map<string, number>();
+  const zipMap = new Map<string, number>();
+  let from = 0;
+  for (;;) {
+    const { data, error } = await svc
+      .from("profiles")
+      .select("nearest_venue,zip_code")
+      .eq("approved", true)
+      .order("id", { ascending: true })
+      .range(from, from + ROW_PAGE - 1);
+    if (error) throw new Error(error.message);
+    const rows = (data || []) as { nearest_venue: string | null; zip_code: string | null }[];
+    for (const row of rows) {
+      const nv = row.nearest_venue != null ? String(row.nearest_venue).trim() : "";
+      if (nv) venueMap.set(nv, (venueMap.get(nv) || 0) + 1);
+
+      const zDigits = row.zip_code != null ? String(row.zip_code).replace(/\D/g, "") : "";
+      const z = zDigits.slice(0, 5);
+      if (z.length === 5) zipMap.set(z, (zipMap.get(z) || 0) + 1);
+    }
+    if (rows.length < ROW_PAGE) break;
+    from += ROW_PAGE;
+  }
+
+  const players_by_venue = Array.from(venueMap.entries())
+    .map(([venue, count]) => ({ venue, count }))
+    .sort((a, b) => b.count - a.count || a.venue.localeCompare(b.venue));
+
+  const players_by_zip = Array.from(zipMap.entries())
+    .map(([zip_code, count]) => ({ zip_code, count }))
+    .sort((a, b) => b.count - a.count || a.zip_code.localeCompare(b.zip_code))
+    .slice(0, 10);
+
+  return { players_by_venue, players_by_zip };
+}
+
 /** Inclusive upper bound on `start_at`: [low, highInclusive]. */
 async function loadCompletedRunIdsClosedEnd(
   svc: ReturnType<typeof supabaseService>,
@@ -321,9 +362,10 @@ export async function GET(req: Request) {
   const sixtyDaysBeforeMonth = new Date(Date.parse(monthStart) - 60 * 864e5).toISOString();
 
   try {
-    const [current_month_cents, prev_month_cents] = await Promise.all([
+    const [current_month_cents, prev_month_cents, locationAgg] = await Promise.all([
       sumPaymentsCents(svc, monthStart, monthEnd),
       sumPaymentsCents(svc, prevStart, prevEnd),
+      aggregateApprovedPlayerLocations(svc),
     ]);
 
     let monthRuns: { id: string; service_region: string | null; start_at: string }[];
@@ -608,6 +650,8 @@ export async function GET(req: Request) {
       ok: true,
       month: `${year}-${String(month).padStart(2, "0")}`,
       revenue: { current_month_cents, prev_month_cents },
+      players_by_venue: locationAgg.players_by_venue,
+      players_by_zip: locationAgg.players_by_zip,
       runs_per_region,
       attendance: { avg_attendance_rate },
       most_active_players,

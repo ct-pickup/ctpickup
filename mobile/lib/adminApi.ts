@@ -166,6 +166,8 @@ export type AdminAnalyticsDashboardResponse = {
     last_attended_at: string | null;
   }[];
   best_times: AdminAnalyticsBestTimeSlot[];
+  players_by_venue?: { venue: string; count: number }[];
+  players_by_zip?: { zip_code: string; count: number }[];
   error?: string;
 };
 

@@ -14,11 +14,20 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { PlayerLocationBreakdown } from "@/components/admin/PlayerLocationBreakdown";
 import { useAuth } from "@/context/AuthContext";
+import { fetchAdminAnalyticsDashboard } from "@/lib/adminApi";
 import { hapticError, hapticGoal, hapticTap } from "@/lib/haptics";
 import { siteOrigin } from "@/lib/env";
 
 const LIME = "#a3e635";
+
+function utcMonthKey(d = new Date()): string {
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth() + 1;
+  return `${y}-${String(m).padStart(2, "0")}`;
+}
+
 const TIERS = [
   { rank: 1, label: "1a" },
   { rank: 2, label: "1b" },
@@ -63,6 +72,8 @@ export default function AdminMembersScreen() {
   const [dmTarget, setDmTarget] = useState<Member | null>(null);
   const [dmText, setDmText] = useState("");
   const [dmSending, setDmSending] = useState(false);
+  const [playersByVenue, setPlayersByVenue] = useState<{ venue: string; count: number }[]>([]);
+  const [playersByZip, setPlayersByZip] = useState<{ zip_code: string; count: number }[]>([]);
 
   const load = useCallback(async () => {
     const token = session?.access_token;
@@ -70,12 +81,33 @@ export default function AdminMembersScreen() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${siteOrigin()}/api/admin/members`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const origin = siteOrigin();
+      if (!origin) {
+        setError("Missing site URL.");
+        setMembers([]);
+        setPlayersByVenue([]);
+        setPlayersByZip([]);
+        return;
+      }
+      const [res, analyticsRes] = await Promise.all([
+        fetch(`${origin}/api/admin/members`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetchAdminAnalyticsDashboard(token, { month: utcMonthKey() }),
+      ]);
       const j = await res.json();
-      if (!res.ok) { setError(j.error || "Failed to load"); return; }
-      setMembers(j.members || []);
+      if (analyticsRes.ok && analyticsRes.data.ok) {
+        setPlayersByVenue(analyticsRes.data.players_by_venue ?? []);
+        setPlayersByZip(analyticsRes.data.players_by_zip ?? []);
+      } else {
+        setPlayersByVenue([]);
+        setPlayersByZip([]);
+      }
+      if (!res.ok) {
+        setError((j as { error?: string }).error || "Failed to load");
+        return;
+      }
+      setMembers((j as { members?: Member[] }).members || []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Request failed");
     } finally {
@@ -392,6 +424,9 @@ export default function AdminMembersScreen() {
         keyExtractor={(m) => m.id}
         renderItem={renderItem}
         contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
+        ListHeaderComponent={
+          <PlayerLocationBreakdown playersByVenue={playersByVenue} playersByZip={playersByZip} />
+        }
         ListEmptyComponent={!loading ? <Text style={styles.muted}>No members found.</Text> : null}
         onRefresh={load}
         refreshing={loading}

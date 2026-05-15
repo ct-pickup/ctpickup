@@ -1,3 +1,4 @@
+import { PlayerLocationBreakdown } from "@/components/admin/PlayerLocationBreakdown";
 import { useAuth } from "@/context/AuthContext";
 import { fetchAdminAnalyticsDashboard, type AdminAnalyticsDashboardResponse } from "@/lib/adminApi";
 import { useRouter } from "expo-router";
@@ -245,6 +246,13 @@ export default function AdminAnalyticsScreen() {
               </Text>
             ) : null}
           </View>
+        ) : null}
+
+        {data ? (
+          <PlayerLocationBreakdown
+            playersByVenue={data.players_by_venue ?? []}
+            playersByZip={data.players_by_zip ?? []}
+          />
         ) : null}
 
         <View style={styles.card}>
