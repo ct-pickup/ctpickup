@@ -107,7 +107,7 @@ function pickupNextSteps(
   const publicRun = isPublicPickupRunType(selectedRun.run_type);
   if (!publicRun && !selectedRun.outreach_started_at) {
     if (launchBlockedReason) out.push(launchBlockedReason);
-    else if (slots) out.push("Begin outreach phase (36h+ before kickoff), then invite Select players from the mobile admin app.");
+    else if (slots) out.push("Begin outreach phase, then invite Select players from the mobile admin app.");
   }
   if (!selectedRun.final_slot_id && String(selectedRun.status) !== "active") {
     out.push("Finalize a slot for RSVP.");
@@ -376,8 +376,6 @@ export default function PickupOperatorClient() {
     if (!st) return "Add a kickoff slot first.";
     const ms = Date.parse(st);
     if (!Number.isFinite(ms)) return "Add a kickoff slot first.";
-    const hours = (ms - Date.now()) / 3600000;
-    if (hours < 36) return "Kickoff must be at least 36 hours away.";
     return null;
   }
 

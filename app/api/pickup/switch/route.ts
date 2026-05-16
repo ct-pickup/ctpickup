@@ -530,13 +530,6 @@ export async function POST(req: Request) {
     if (anchorMsGate === null) {
       return NextResponse.json({ error: "Add at least one kickoff slot before launching outreach." }, { status: 400 });
     }
-    const hoursUntilStart = (anchorMsGate - Date.parse(now)) / 3600000;
-    if (!Number.isFinite(hoursUntilStart) || hoursUntilStart < 36) {
-      return NextResponse.json(
-        { error: "Kickoff must be at least 36 hours away to launch outreach." },
-        { status: 400 },
-      );
-    }
 
     const runTypeRaw = run.run_type;
     const publicRun = isPublicPickupRunType(runTypeRaw);
@@ -637,15 +630,6 @@ export async function POST(req: Request) {
     const startMs = row.start_at ? Date.parse(String(row.start_at)) : NaN;
     if (!Number.isFinite(startMs)) {
       return NextResponse.json({ error: "Run needs a scheduled kickoff time." }, { status: 400 });
-    }
-
-    const now = Date.now();
-    const oneH = 60 * 60 * 1000;
-    if (now < startMs - oneH || now > startMs + oneH) {
-      return NextResponse.json(
-        { error: "Start Run Now is only available within 1 hour before or after kickoff." },
-        { status: 400 },
-      );
     }
 
     const nowIso = new Date().toISOString();
