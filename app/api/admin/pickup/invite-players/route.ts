@@ -109,7 +109,11 @@ export async function POST(req: Request) {
     if (!run_id) return NextResponse.json({ error: "Missing run_id" }, { status: 400 });
     if (!user_ids.length) return NextResponse.json({ error: "No user_ids provided" }, { status: 400 });
 
-    const runRes = await admin.from("pickup_runs").select("id,title,run_type,status,outreach_started_at").eq("id", run_id).maybeSingle();
+    const runRes = await admin
+      .from("pickup_runs")
+      .select("id,title,run_type,status,outreach_started_at,service_region")
+      .eq("id", run_id)
+      .maybeSingle();
     const run = runRes.data;
     if (!run) return NextResponse.json({ error: "Run not found" }, { status: 404 });
     if (isPublicPickupRunType(run.run_type)) {
@@ -170,6 +174,33 @@ export async function POST(req: Request) {
       body: `You're invited to ${title}. Open the app to confirm or decline.`,
       data: { kind: "pickup_invite", run_id },
     });
+
+    const promotedRegion =
+      run.service_region === null || run.service_region === undefined
+        ? null
+        : String(run.service_region).trim().toUpperCase();
+
+    if (promotedRegion !== null) {
+      const clear = await admin
+        .from("pickup_runs")
+        .update({ is_current: false, updated_at: now })
+        .eq("is_current", true)
+        .eq("service_region", promotedRegion);
+      if (clear.error) return NextResponse.json({ error: clear.error.message }, { status: 500 });
+    } else {
+      const clear = await admin
+        .from("pickup_runs")
+        .update({ is_current: false, updated_at: now })
+        .eq("is_current", true)
+        .is("service_region", null);
+      if (clear.error) return NextResponse.json({ error: clear.error.message }, { status: 500 });
+    }
+
+    const promote = await admin
+      .from("pickup_runs")
+      .update({ is_current: true, updated_at: now })
+      .eq("id", run_id);
+    if (promote.error) return NextResponse.json({ error: promote.error.message }, { status: 500 });
 
     return NextResponse.json({ ok: true, invited: toAdd.length, already_invited: user_ids.length - toAdd.length });
   } catch (err: unknown) {

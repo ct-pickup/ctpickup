@@ -359,6 +359,7 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen name="admin/pickup" options={{ headerShown: false }} />
+                          <Stack.Screen name="admin/invite-players" options={{ headerShown: false }} />
                           <Stack.Screen name="admin/run-result" options={{ headerShown: false }} />
                           <Stack.Screen name="admin/tournament" options={{ headerShown: false }} />
                           <Stack.Screen name="admin/tournament-bracket" options={{ headerShown: false }} />

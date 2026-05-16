@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { PublicPickupRunRow } from "@/lib/pickup/publicUpcomingRuns";
 import {
   fetchFirstPublicUpcomingPickupRun,
+  fetchInvitedFeaturedPickupRun,
   fetchPickupRunCandidate,
   userCanViewPickupRun,
 } from "@/lib/pickup/featuredPickupRun";
@@ -104,6 +105,11 @@ export async function GET(req: Request) {
         tierRank,
       });
       if (!canView) run = null;
+    }
+
+    if (!run && userId && approved && !runIdParam) {
+      const invitedRun = await fetchInvitedFeaturedPickupRun(admin, userId);
+      if (invitedRun) run = invitedRun;
     }
 
     if (!run && !runIdParam && !hubRegion) {

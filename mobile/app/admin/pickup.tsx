@@ -371,9 +371,9 @@ export default function AdminPickupOpsScreen() {
     setListError(null);
     const r = await fetchAdminPickupSwitchList(token, { region });
     console.log("[loadRuns] r.ok:", r.ok);
-    console.log("[loadRuns] runs count:", r.data?.runs?.length);
-    console.log("[loadRuns] error:", r.error);
-    console.log("[loadRuns] runs:", JSON.stringify(r.data?.runs?.slice(0, 2)));
+    console.log("[loadRuns] runs count:", r.ok ? r.data.runs?.length : undefined);
+    console.log("[loadRuns] error:", r.ok ? undefined : r.error);
+    console.log("[loadRuns] runs:", r.ok ? JSON.stringify(r.data.runs?.slice(0, 2)) : undefined);
     setListLoading(false);
     if (!r.ok) {
       setListError(r.error);

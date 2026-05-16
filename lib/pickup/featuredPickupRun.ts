@@ -136,3 +136,54 @@ export async function userCanViewPickupRun(
 
   return (inv.data || []).length > 0;
 }
+
+/**
+ * Latest invite for an approved player whose run is still planning or active (hub fallback when no promoted run).
+ */
+export async function fetchInvitedFeaturedPickupRun(
+  admin: SupabaseClient,
+  userId: string,
+): Promise<PublicPickupRunRow | null> {
+  const invRes = await admin
+    .from("pickup_run_invites")
+    .select("run_id, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(25);
+
+  if (invRes.error) {
+    console.error("[pickup/featured] pickup_run_invites_invited_run:", invRes.error.message, invRes.error);
+    return null;
+  }
+
+  const invites = invRes.data || [];
+  if (!invites.length) return null;
+
+  const runIds = Array.from(new Set(invites.map((r) => String(r.run_id)).filter(Boolean)));
+  if (!runIds.length) return null;
+
+  const runsRes = await admin
+    .from("pickup_runs")
+    .select("*")
+    .in("id", runIds)
+    .in("status", ["planning", "active"])
+    .neq("status", "canceled")
+    .neq("status", "completed");
+
+  if (runsRes.error) {
+    console.error("[pickup/featured] pickup_runs_invited_run:", runsRes.error.message, runsRes.error);
+    return null;
+  }
+
+  const runById = new Map<string, PublicPickupRunRow>();
+  for (const row of runsRes.data || []) {
+    runById.set(String(row.id), row as PublicPickupRunRow);
+  }
+
+  for (const inv of invites) {
+    const match = runById.get(String(inv.run_id));
+    if (match) return match;
+  }
+
+  return null;
+}

@@ -17,6 +17,13 @@ function pad(n: number) {
 
 type EtParts = { year: number; month: number; day: number; hour12: number; ampm: "AM" | "PM"; minute: number };
 
+/** Wheel values (1–12 + AM/PM) → 24h Eastern wall clock hour. */
+function toHour24(hour12: number, ampm: "AM" | "PM"): number {
+  if (ampm === "PM" && hour12 !== 12) return hour12 + 12;
+  if (ampm === "AM" && hour12 === 12) return 0;
+  return hour12;
+}
+
 function isDST(y: number, m: number, d: number) {
   const date = new Date(y, m, d);
   const march = new Date(y, 2, 1);
@@ -26,11 +33,31 @@ function isDST(y: number, m: number, d: number) {
   return date >= dstStart && date < dstEnd;
 }
 
+/** Resolve UTC millis for Eastern *wall* datetime (America/New_York) via Intl, not device-local DST guesses. */
+function etWallClockToUtcMilliseconds(y: number, mo: number, d: number, hour24: number, minute: number): number {
+  const coarse = Date.UTC(y, mo - 1, d, hour24, minute, 0);
+  const lo = coarse - 24 * 60 * 60 * 1000;
+  const hi = coarse + 24 * 60 * 60 * 1000;
+  const step = 60 * 1000;
+  for (let t = lo; t <= hi; t += step) {
+    const p = getEtCalendarParts(new Date(t));
+    if (
+      p.year === y &&
+      p.month === mo &&
+      p.day === d &&
+      p.hour24 === hour24 &&
+      p.minute === minute
+    ) {
+      return t;
+    }
+  }
+  /* Should be unreachable with valid Intl; approximate fallback (~EST). */
+  return Date.UTC(y, mo - 1, d, hour24 + 5, minute, 0);
+}
+
 function selectionToUtcMs(y: number, mo: number, d: number, hour12: number, ampm: "AM" | "PM", minute: number): number {
-  let h = hour12 % 12;
-  if (ampm === "PM") h += 12;
-  const offset = isDST(y, mo - 1, d) ? 4 : 5;
-  return Date.UTC(y, mo - 1, d, h + offset, minute, 0);
+  const hour24 = toHour24(hour12, ampm);
+  return etWallClockToUtcMilliseconds(y, mo, d, hour24, minute);
 }
 
 function daysInMonth(y: number, mo: number): number {
@@ -54,12 +81,25 @@ function getEtCalendarParts(date: Date): EtCal {
   for (const p of parts) {
     if (p.type !== "literal") m[p.type] = p.value;
   }
+  let hour24 = Number(m.hour);
+  let minuteNum = Number(m.minute);
+
+  /** Hermes / some Intl builds omit numeric hour/minute parts; parse formatted string fallback. */
+  if (!Number.isFinite(hour24) || !Number.isFinite(minuteNum)) {
+    const s = f.format(date);
+    const mm = /^(\d{1,2})\/(\d{1,2})\/(\d{4}),\s*(\d{1,2}):(\d{2})/.exec(s);
+    if (mm) {
+      hour24 = Number(mm[4]);
+      minuteNum = Number(mm[5]);
+    }
+  }
+
   return {
     year: Number(m.year),
     month: Number(m.month),
     day: Number(m.day),
-    hour24: Number(m.hour),
-    minute: Number(m.minute),
+    hour24,
+    minute: minuteNum,
   };
 }
 
@@ -156,27 +196,31 @@ export function formatDateTimePickerEtLabel(iso: string): string {
   if (!trimmed) return "";
   const d = new Date(trimmed);
   if (!Number.isFinite(d.getTime())) return "";
-  const f = new Intl.DateTimeFormat("en-US", {
+  const df = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
     weekday: "short",
     month: "short",
     day: "numeric",
+  });
+  const formatted = df.formatToParts(d);
+  const dateParts: Record<string, string> = {};
+  for (const fp of formatted) {
+    if (fp.type !== "literal") dateParts[fp.type] = fp.value;
+  }
+  const weekday = dateParts.weekday ?? "";
+  const month = dateParts.month ?? "";
+  const dayNum = dateParts.day ?? "";
+
+  /** Single pattern keeps hour/minute on Hermes/Android (formatToParts can omit hour with hour12:true). */
+  const tf = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
   });
-  const formatted = f.formatToParts(d);
-  const m: Record<string, string> = {};
-  for (const fp of formatted) {
-    if (fp.type !== "literal") m[fp.type] = fp.value;
-  }
-  const dayPeriod = (m.dayPeriod || "").toUpperCase();
-  const hour = m.hour ?? "";
-  const minute = m.minute ?? "";
-  const weekday = m.weekday ?? "";
-  const month = m.month ?? "";
-  const dayNum = m.day ?? "";
-  return `${weekday} ${month} ${dayNum} · ${hour}:${minute} ${dayPeriod} ET`;
+  const timeEt = tf.format(d);
+
+  return `${weekday} ${month} ${dayNum} · ${timeEt} ET`;
 }
 
 export default function DateTimePicker({ value, onChange, label, enforceFuture, prominent }: Props) {
