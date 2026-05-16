@@ -221,8 +221,6 @@ export default function AdminTournamentScreen() {
   }
 
   async function onCreateTournament() {
-    console.log("[onCreateTournament] called");
-    console.log("[onCreateTournament] token:", token ? "exists" : "null");
     if (!token) return Alert.alert("Not signed in", "Sign in again.");
     const title = createTitle.trim();
     if (title.length < 2) return Alert.alert("Title required", "Enter at least 2 characters.");
@@ -570,10 +568,7 @@ export default function AdminTournamentScreen() {
             <DateTimePicker label="Tournament date" value={createStartAt} onChange={setCreateStartAt} />
             <DateTimePicker label="Registration deadline" value={createDeadline} onChange={setCreateDeadline} />
             <Pressable
-              onPress={() => {
-                Alert.alert("Tournament button tapped");
-                void onCreateTournament();
-              }}
+              onPress={() => void onCreateTournament()}
               disabled={busy === "create"}
               style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busy === "create" && styles.disabled]}
             >

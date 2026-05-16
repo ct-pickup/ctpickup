@@ -690,19 +690,15 @@ export default function AdminPickupOpsScreen() {
   }
 
   async function onCreateRun() {
-    console.log("[onCreateRun] called");
     const t = await requireToken();
-    console.log("[onCreateRun] token:", t ? "exists" : "null");
     if (!t) return;
     const start_at = createStartAt.trim();
-    console.log("[onCreateRun] start_at:", start_at);
     if (!start_at) {
       Alert.alert("Missing start time", "Enter an ISO string like 2026-05-03T20:00:00Z");
       return;
     }
     const fc = Number(createFieldCost);
     const ep = Number(createExpectedPlayers);
-    console.log("[onCreateRun] fc:", fc, "ep:", ep);
     if (!Number.isFinite(fc) || fc < 0) {
       return Alert.alert("Invalid field cost", "Enter a valid number for field cost ($).");
     }
@@ -1168,11 +1164,7 @@ export default function AdminPickupOpsScreen() {
         </Pressable>
       </View>
       <Pressable
-        onPress={() => {
-          console.log("[Create run Pressable] busy:", busy, "busy === \"create\":", busy === "create");
-          Alert.alert("Button tapped");
-          void onCreateRun();
-        }}
+        onPress={() => void onCreateRun()}
         disabled={busy === "create"}
         style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busy === "create" && styles.disabled]}
       >
