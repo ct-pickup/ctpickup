@@ -31,7 +31,7 @@ export default function TournamentsScreen() {
   } = useFieldTournament();
   const navigation = useNavigation();
   const reduceMotion = useReduceMotion();
-  const listEnter = reduceMotion ? undefined : FadeInDown.duration(340).springify().damping(16);
+  const listEnter = reduceMotion ? undefined : FadeInDown.duration(600).springify().damping(28).stiffness(80);
   const [showStatePicker, setShowStatePicker] = useState(true);
   const [profileNearestVenue, setProfileNearestVenue] = useState<string | null>(null);
   const [listRefreshing, setListRefreshing] = useState(false);
