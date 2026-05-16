@@ -617,7 +617,7 @@ export default function PlayerProfileScreen() {
             accessibilityLabel={isFollowingThem ? "Unfollow" : "Follow"}
           >
             <Text style={isFollowingThem ? styles.followBtnFollowingText : styles.followBtnText}>
-              {isFollowingThem ? "Following ✓" : "Follow"}
+              {isFollowingThem ? "Unfollow" : "Follow"}
             </Text>
           </Pressable>
         ) : null}

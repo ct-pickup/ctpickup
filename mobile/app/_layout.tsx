@@ -327,6 +327,10 @@ function RootLayoutNav() {
                               headerShadowVisible: false,
                             }}
                           />
+                          <Stack.Screen name="admin/pickup" options={{ headerShown: false }} />
+                          <Stack.Screen name="admin/tournament" options={{ headerShown: false }} />
+                          <Stack.Screen name="admin/tournament-bracket" options={{ headerShown: false }} />
+                          <Stack.Screen name="admin/members" options={{ headerShown: false }} />
                           <Stack.Screen
                             name="admin/analytics"
                             options={{

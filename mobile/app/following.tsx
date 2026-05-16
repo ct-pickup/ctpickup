@@ -264,13 +264,15 @@ export default function FollowingScreen() {
                   <Pressable
                     onPress={() => void onToggleRow(item.id)}
                     disabled={busy}
+                    accessibilityRole="button"
+                    accessibilityLabel={followingThem ? "Unfollow" : "Follow"}
                     style={({ pressed }) => [
                       followingThem ? styles.rowBtnFollowing : styles.rowBtnFollow,
                       { opacity: busy ? 0.55 : pressed ? 0.85 : 1 },
                     ]}
                   >
                     <Text style={followingThem ? styles.rowBtnFollowingText : styles.rowBtnFollowText}>
-                      {followingThem ? "Following ✓" : "Follow"}
+                      {followingThem ? "Unfollow" : "Follow"}
                     </Text>
                   </Pressable>
                 )}
