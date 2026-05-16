@@ -12,7 +12,7 @@ import { useUserChatRooms } from "@/lib/teamChat";
 import { serviceRegionName } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -65,9 +65,38 @@ function CardDivider() {
 
 export default function RunsScreen() {
   const router = useRouter();
-  const { session } = useAuth();
+  const { session, supabase } = useAuth();
   const token = session?.access_token ?? null;
+  const userId = session?.user?.id ?? null;
   const { region } = useSelectedRegion();
+  const [profileZip, setProfileZip] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!supabase || !userId) {
+      setProfileZip(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("zip_code")
+        .eq("id", userId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error) {
+        setProfileZip(null);
+        return;
+      }
+      const z = data?.zip_code;
+      setProfileZip(typeof z === "string" && z.trim().length > 0 ? z.trim() : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, userId]);
+
+  const pillLabel = profileZip ?? region;
   const { allowed: chatAllowed } = useTeamChatAccess();
 
   const { loading, error, data, run, counts, myStatus, invitedNow, noFeaturedRun, load } = usePickupPublic(token);
@@ -137,7 +166,7 @@ export default function RunsScreen() {
     spotsLeft != null &&
     spotsLeft > 0;
 
-  const showJoin =
+  const eligibleToJoin =
     !!token &&
     !!runId &&
     !runLocked &&
@@ -145,6 +174,11 @@ export default function RunsScreen() {
     (myStatus == null || myStatus === "declined") &&
     (isPublicPickupRunType(run?.run_type) ||
       (isSelectPickupRunType(run?.run_type) && run?.final_slot_id != null));
+
+  const timeFinalized = runStatus === "active" || runStatus === "likely_on";
+  const showImIn = eligibleToJoin && timeFinalized;
+  const showCantMakeIt = eligibleToJoin && (timeFinalized || runStatus === "planning");
+  const isPlanning = runStatus === "planning";
 
   const hasRsvp =
     myStatus === "confirmed" ||
@@ -208,7 +242,7 @@ export default function RunsScreen() {
         <View style={styles.header}>
           <Text style={styles.h1}>Runs</Text>
           <View style={styles.regionPill}>
-            <Text style={styles.regionPillText}>{region}</Text>
+            <Text style={styles.regionPillText}>{pillLabel}</Text>
           </View>
         </View>
         <Text style={styles.regionSub}>{serviceRegionName(region)}</Text>
@@ -258,12 +292,23 @@ export default function RunsScreen() {
             <CardDivider />
 
             <View style={styles.dateTimeRow}>
-              <Text style={styles.dateEt}>
-                {fmtPickupDateEt(typeof run.start_at === "string" ? run.start_at : null)}
-              </Text>
-              <Text style={styles.timeEt}>
-                {fmtPickupTimeEt(typeof run.start_at === "string" ? run.start_at : null)} ET
-              </Text>
+              {isPlanning ? (
+                <>
+                  <Text style={styles.datePlanning}>
+                    {fmtPickupDateEt(typeof run.start_at === "string" ? run.start_at : null)}
+                  </Text>
+                  <Text style={styles.planningTimeHint}>Time TBD — vote below</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.dateEt}>
+                    {fmtPickupDateEt(typeof run.start_at === "string" ? run.start_at : null)}
+                  </Text>
+                  <Text style={styles.timeEt}>
+                    {fmtPickupTimeEt(typeof run.start_at === "string" ? run.start_at : null)} ET
+                  </Text>
+                </>
+              )}
             </View>
 
             <CardDivider />
@@ -300,9 +345,6 @@ export default function RunsScreen() {
                   run={run}
                   planning={planning}
                   onSubmit={() => {
-                    void load();
-                  }}
-                  onDecline={() => {
                     void load();
                   }}
                 />
@@ -348,28 +390,38 @@ export default function RunsScreen() {
                   ) : null}
                 </View>
               </>
-            ) : showJoin ? (
+            ) : showImIn || showCantMakeIt ? (
               <>
                 <CardDivider />
                 <View style={styles.ctaBlock}>
-                  <Pressable
-                    disabled={joinBusy}
-                    onPress={onImIn}
-                    style={({ pressed }) => [
-                      styles.primaryBtn,
-                      pressed && !joinBusy && { opacity: 0.9 },
-                      joinBusy && styles.btnDisabled,
-                    ]}
-                  >
-                    <Text style={styles.primaryBtnText}>{joinBusy ? "Joining…" : "I'm In"}</Text>
-                  </Pressable>
-                  <Pressable
-                    disabled={availabilityBusy}
-                    onPress={onCantMakeIt}
-                    style={({ pressed }) => [styles.secondaryLinkBtn, pressed && { opacity: 0.75 }]}
-                  >
-                    <Text style={styles.secondaryLinkText}>Can&apos;t make it?</Text>
-                  </Pressable>
+                  {showImIn ? (
+                    <Pressable
+                      disabled={joinBusy}
+                      onPress={onImIn}
+                      style={({ pressed }) => [
+                        styles.primaryBtn,
+                        pressed && !joinBusy && { opacity: 0.9 },
+                        joinBusy && styles.btnDisabled,
+                      ]}
+                    >
+                      <Text style={styles.primaryBtnText}>{joinBusy ? "Joining…" : "I'm In"}</Text>
+                    </Pressable>
+                  ) : null}
+                  {showCantMakeIt ? (
+                    <Pressable
+                      disabled={availabilityBusy}
+                      onPress={onCantMakeIt}
+                      style={({ pressed }) => [
+                        styles.destructiveBtn,
+                        pressed && !availabilityBusy && { opacity: 0.9 },
+                        availabilityBusy && styles.btnDisabled,
+                      ]}
+                    >
+                      <Text style={styles.destructiveBtnText}>
+                        {availabilityBusy ? "Updating…" : "Can't make it?"}
+                      </Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               </>
             ) : isSelectPickupRunType(run.run_type) && !run.final_slot_id ? (
@@ -461,6 +513,8 @@ const styles = StyleSheet.create({
   statusPillText: { color: "rgba(255,255,255,0.65)", fontSize: 11, fontWeight: "700", letterSpacing: 0.2 },
   dateTimeRow: { gap: 6 },
   dateEt: { color: "#fff", fontSize: 18, fontWeight: "700", letterSpacing: -0.2 },
+  datePlanning: { color: "#fff", fontSize: 18, fontWeight: "400", letterSpacing: -0.2 },
+  planningTimeHint: { color: "rgba(255,255,255,0.45)", fontSize: 14, fontWeight: "500", lineHeight: 20 },
   timeEt: { color: LIME, fontSize: 16, fontWeight: "700" },
   locationRow: {
     flexDirection: "row",
@@ -508,8 +562,16 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: { color: "#111", fontWeight: "800", fontSize: 17 },
   btnDisabled: { opacity: 0.65 },
-  secondaryLinkBtn: { paddingVertical: 6, paddingHorizontal: 12 },
-  secondaryLinkText: { color: "rgba(255,255,255,0.38)", fontWeight: "500", fontSize: 14 },
+  destructiveBtn: {
+    width: "100%",
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ef4444",
+  },
+  destructiveBtnText: { color: "#ef4444", fontWeight: "800", fontSize: 17 },
   chatBtn: {
     flexDirection: "row",
     alignItems: "center",

@@ -34,7 +34,6 @@ type Props = {
   run: Record<string, unknown>;
   planning?: PickupPlanningAvailability | null;
   onSubmit: () => void;
-  onDecline: () => void;
 };
 
 function slotDisplayFromRow(row: Record<string, unknown>): string {
@@ -94,11 +93,11 @@ function parseSubmittedLabels(planning: PickupPlanningAvailability | null | unde
   return out;
 }
 
-export function AvailabilityPoll({ run, planning, onSubmit, onDecline }: Props) {
+export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
   const { session } = useAuth();
   const token = session?.access_token ?? null;
   const runId = typeof run.id === "string" ? run.id : null;
-  const { availabilityBusy, commitAvailability, commitAvailabilitySlots, pendingSlotKey } = usePickupJoin();
+  const { availabilityBusy, commitAvailabilitySlots, pendingSlotKey } = usePickupJoin();
 
   const chips = useMemo(() => resolvePickupTimeSlotChips(run), [run]);
   const chipKeySet = useMemo(() => new Set(chips.map((c) => c.key)), [chips]);
@@ -142,16 +141,6 @@ export function AvailabilityPoll({ run, planning, onSubmit, onDecline }: Props) 
       setEditing(false);
     }
   }, [token, runId, selectedKeys, chips, commitAvailabilitySlots, onSubmit]);
-
-  const onPressDecline = useCallback(async () => {
-    if (!token || !runId) return;
-    void hapticTap();
-    await commitAvailability(token, runId, "declined", null, async () => {
-      setSelectedKeys([]);
-      setEditing(false);
-      onDecline();
-    });
-  }, [token, runId, commitAvailability, onDecline]);
 
   const onPressChange = useCallback(() => {
     setEditing(true);
@@ -219,18 +208,6 @@ export function AvailabilityPoll({ run, planning, onSubmit, onDecline }: Props) 
                 <Text style={styles.saveLinkText}>Save availability</Text>
               )}
             </Pressable>
-
-            <Pressable
-              disabled={availabilityBusy || !runId}
-              onPress={() => void onPressDecline()}
-              style={({ pressed }) => [
-                styles.declineLink,
-                availabilityBusy && styles.declineLinkDisabled,
-                pressed && !availabilityBusy && { opacity: 0.75 },
-              ]}
-            >
-              <Text style={styles.declineLinkText}>Can&apos;t make it?</Text>
-            </Pressable>
           </View>
         </>
       ) : (
@@ -270,9 +247,6 @@ const styles = StyleSheet.create({
   saveLink: { paddingVertical: 4 },
   saveLinkDisabled: { opacity: 0.35 },
   saveLinkText: { color: "rgba(255,255,255,0.45)", fontWeight: "600", fontSize: 13 },
-  declineLink: { paddingVertical: 2 },
-  declineLinkDisabled: { opacity: 0.4 },
-  declineLinkText: { color: "rgba(255,255,255,0.35)", fontWeight: "500", fontSize: 13 },
   submittedRow: {
     flexDirection: "row",
     alignItems: "flex-start",

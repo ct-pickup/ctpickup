@@ -460,11 +460,11 @@ export async function POST(req: Request) {
     if (!newId) return NextResponse.json({ error: "Insert returned no id" }, { status: 500 });
 
     if (start_at) {
-      const slotIns = await admin.from("pickup_run_time_slots").insert({
+      const slotIns = await admin.from("pickup_run_time_slots").upsert({
         run_id: newId,
         start_at,
         label: body.slot_label ? String(body.slot_label) : null,
-      });
+      }, { onConflict: "run_id,start_at" });
       if (slotIns.error) {
         console.error("[pickup/switch create_run] slot insert failed", slotIns.error);
         return NextResponse.json({ error: slotIns.error.message }, { status: 500 });
@@ -494,11 +494,11 @@ export async function POST(req: Request) {
 
     console.log("[pickup/switch add_slot] saving slot", JSON.stringify({ run_id, start_at_raw: rawStart.trim(), start_at_utc: start_at, label }));
 
-    const ins = await admin.from("pickup_run_time_slots").insert({
+    const ins = await admin.from("pickup_run_time_slots").upsert({
       run_id,
       start_at,
       label,
-    }).select("id").maybeSingle();
+    }, { onConflict: "run_id,start_at" }).select("id").maybeSingle();
 
     console.log("[pickup/switch add_slot] Supabase insert response", {
       error: ins.error ? { message: ins.error.message, code: (ins.error as { code?: string }).code } : null,
