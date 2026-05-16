@@ -1,4 +1,4 @@
-import DateTimePicker from "@/components/DateTimePicker";
+import DateTimePicker, { formatDateTimePickerEtLabel, isScheduleWallMidnightEt } from "@/components/DateTimePicker";
 import { useAdminOutdoorTournaments } from "@/hooks/useAdminOutdoorTournaments";
 import {
   deleteAdminTournament,
@@ -251,6 +251,15 @@ export default function AdminTournamentScreen() {
       return Alert.alert("Invalid", "Official threshold must be ≥ 1.");
     if (!Number.isFinite(max_teams) || max_teams < 8 || max_teams > 12) return Alert.alert("Invalid", "Max teams must be 8–12.");
 
+    const startTrim = createStartAt.trim();
+    const deadlineTrim = createDeadline.trim();
+    if (startTrim && isScheduleWallMidnightEt(startTrim)) {
+      return Alert.alert("Please select a time for the run");
+    }
+    if (deadlineTrim && isScheduleWallMidnightEt(deadlineTrim)) {
+      return Alert.alert("Please select a time for the run");
+    }
+
     setBusy("create");
     const entryCents = Number(createEntryFee) * 100;
     const minR = Number(createMinRoster);
@@ -263,8 +272,8 @@ export default function AdminTournamentScreen() {
         official_threshold,
         max_teams,
         service_region: createRegion,
-        start_at: createStartAt.trim() || undefined,
-        registration_deadline: createDeadline.trim() || undefined,
+        start_at: startTrim || undefined,
+        registration_deadline: deadlineTrim || undefined,
         venue: createVenue.trim() || undefined,
         format_summary: createFormat.trim() || undefined,
         entry_fee_cents: Number.isFinite(entryCents) && entryCents > 0 ? Math.floor(entryCents) : undefined,
@@ -586,8 +595,16 @@ export default function AdminTournamentScreen() {
                 />
               </View>
             </View>
-            <DateTimePicker label="Tournament date" value={createStartAt} onChange={setCreateStartAt} />
-            <DateTimePicker label="Registration deadline" value={createDeadline} onChange={setCreateDeadline} />
+            <DateTimePicker label="Tournament start (ET)" value={createStartAt} onChange={setCreateStartAt} />
+            {createStartAt.trim() ? (
+              <Text style={styles.fieldHint}>Selected: {formatDateTimePickerEtLabel(createStartAt.trim())}</Text>
+            ) : (
+              <Text style={styles.fieldHint}>Pick date and time together — defaults open to tomorrow 8:00 PM ET.</Text>
+            )}
+            <DateTimePicker label="Registration deadline (ET)" value={createDeadline} onChange={setCreateDeadline} />
+            {createDeadline.trim() ? (
+              <Text style={styles.fieldHint}>Deadline: {formatDateTimePickerEtLabel(createDeadline.trim())}</Text>
+            ) : null}
             <Pressable
               onPress={() => void onCreateTournament()}
               disabled={busy === "create"}

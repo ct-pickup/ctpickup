@@ -1,6 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 import * as Sentry from "@sentry/react-native";
-import DateTimePicker, { formatDateTimePickerEtLabel } from "@/components/DateTimePicker";
+import DateTimePicker, { formatDateTimePickerEtLabel, isScheduleWallMidnightEt } from "@/components/DateTimePicker";
 import {
   fetchAdminTierSuggestions,
   postAdminRunTierSuggestionAlgorithm,
@@ -668,6 +668,7 @@ export default function AdminPickupOpsScreen() {
     ]);
   }
 
+  async function onPromoteHub(opts?: { runId: string }) {
     const t = await requireToken();
     const runId = opts?.runId ?? selectedRunId;
     if (!t || !runId) return;
@@ -702,6 +703,10 @@ export default function AdminPickupOpsScreen() {
     const start_at = createStartAt.trim();
     if (!start_at) {
       Alert.alert("Select a date", "Please select a start date and time.");
+      return;
+    }
+    if (isScheduleWallMidnightEt(start_at)) {
+      Alert.alert("Please select a time for the run");
       return;
     }
     if (new Date(start_at) <= new Date()) {

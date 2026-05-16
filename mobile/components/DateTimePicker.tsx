@@ -5,7 +5,7 @@ type Props = {
   value: string;
   onChange: (iso: string) => void;
   label?: string;
-  /** Draft defaults to tomorrow at the same clock time (ET); blocks confirming past times. */
+  /** Draft defaults to tomorrow 8:00 PM ET; blocks confirming past times. */
   enforceFuture?: boolean;
   /** Larger trigger styling (e.g. create-run form). */
   prominent?: boolean;
@@ -68,33 +68,17 @@ function addOneCalendarDay(y: number, mo: number, d: number): { year: number; mo
   return { year: dt.getUTCFullYear(), month: dt.getUTCMonth() + 1, day: dt.getUTCDate() };
 }
 
-function nearestQuarterMinute(m: number): number {
-  const allowed = [0, 15, 30, 45];
-  let best = allowed[0]!;
-  let bestDist = Infinity;
-  for (const a of allowed) {
-    const dist = Math.abs(a - m);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = a;
-    }
-  }
-  return best;
-}
-
-function defaultTomorrowSameTimeEtParts(): EtParts {
+/** First-open default: next calendar day in Eastern at 8:00 PM. */
+function defaultTomorrowEightPmEtParts(): EtParts {
   const et = getEtCalendarParts(new Date());
   const tomorrow = addOneCalendarDay(et.year, et.month, et.day);
-  const hour24 = et.hour24;
-  const hour12 = hour24 % 12 || 12;
-  const ampm: "AM" | "PM" = hour24 >= 12 ? "PM" : "AM";
   return {
     year: tomorrow.year,
     month: tomorrow.month,
     day: tomorrow.day,
-    hour12,
-    ampm,
-    minute: nearestQuarterMinute(et.minute),
+    hour12: 8,
+    ampm: "PM",
+    minute: 0,
   };
 }
 
@@ -106,39 +90,48 @@ function clampPartsToFuture(parts: EtParts): EtParts {
     const nd = addOneCalendarDay(p.year, p.month, p.day);
     p = { ...p, year: nd.year, month: nd.month, day: nd.day };
   }
-  return defaultTomorrowSameTimeEtParts();
+  return defaultTomorrowEightPmEtParts();
+}
+
+/** Date-only, unparsable, or 12:00 AM Eastern — unsafe for run/tournament schedules. */
+export function isScheduleWallMidnightEt(iso: string): boolean {
+  const s = iso.trim();
+  if (!s) return true;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return true;
+  const d = new Date(s);
+  if (!Number.isFinite(d.getTime())) return true;
+  const f = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "numeric",
+    minute: "numeric",
+    hour12: false,
+  });
+  const parts = f.formatToParts(d);
+  const m: Record<string, string> = {};
+  for (const p of parts) {
+    if (p.type !== "literal") m[p.type] = p.value;
+  }
+  const h = Number(m.hour ?? -1);
+  const min = Number(m.minute ?? -1);
+  return h === 0 && min === 0;
 }
 
 function partsFromValue(value: string, enforceFuture?: boolean): EtParts {
   const trimmed = value.trim();
   if (!trimmed) {
+    const draft = defaultTomorrowEightPmEtParts();
     if (enforceFuture) {
-      return clampPartsToFuture(defaultTomorrowSameTimeEtParts());
+      return clampPartsToFuture(draft);
     }
-    const d = new Date();
-    return {
-      year: d.getFullYear(),
-      month: d.getMonth() + 1,
-      day: d.getDate(),
-      hour12: 6,
-      ampm: "PM",
-      minute: 0,
-    };
+    return draft;
   }
   const parsed = new Date(trimmed);
   if (!Number.isFinite(parsed.getTime())) {
+    const draft = defaultTomorrowEightPmEtParts();
     if (enforceFuture) {
-      return clampPartsToFuture(defaultTomorrowSameTimeEtParts());
+      return clampPartsToFuture(draft);
     }
-    const d = new Date();
-    return {
-      year: d.getFullYear(),
-      month: d.getMonth() + 1,
-      day: d.getDate(),
-      hour12: 6,
-      ampm: "PM",
-      minute: 0,
-    };
+    return draft;
   }
   const etOffset = isDST(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()) ? 4 : 5;
   const etDate = new Date(parsed.getTime() - etOffset * 60 * 60 * 1000);
@@ -198,11 +191,19 @@ export default function DateTimePicker({ value, onChange, label, enforceFuture, 
   const [minute, setMinute] = useState(initial.minute);
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const years = Array.from({ length: 3 }, (_, i) => new Date().getFullYear() + i);
   const dim = daysInMonth(year, month);
   const days = useMemo(() => Array.from({ length: dim }, (_, i) => i + 1), [dim]);
   const hours12 = Array.from({ length: 12 }, (_, i) => i + 1);
-  const minutes = [0, 15, 30, 45];
+  const minutes = useMemo(() => Array.from({ length: 60 }, (_, i) => i), []);
+  const years = useMemo(() => {
+    const y = getEtCalendarParts(new Date()).year;
+    return Array.from({ length: 4 }, (_, i) => y + i);
+  }, [open]);
+
+  const previewEtLabel = useMemo(() => {
+    const utcMs = selectionToUtcMs(year, month, day, hour12, ampm, minute);
+    return formatDateTimePickerEtLabel(new Date(utcMs).toISOString());
+  }, [year, month, day, hour12, ampm, minute]);
 
   useEffect(() => {
     const p = partsFromValue(value, enforceFuture);
@@ -212,7 +213,7 @@ export default function DateTimePicker({ value, onChange, label, enforceFuture, 
     setHour12(p.hour12);
     setAmpm(p.ampm);
     setMinute(p.minute);
-  }, [value, enforceFuture]);
+  }, [value, enforceFuture, open]);
 
   useEffect(() => {
     const dim = daysInMonth(year, month);
@@ -238,7 +239,7 @@ export default function DateTimePicker({ value, onChange, label, enforceFuture, 
       Alert.alert("Invalid date", "Start time must be in the future.");
       return;
     }
-    onChange(new Date(utcMs).toISOString().slice(0, 19) + "Z");
+    onChange(new Date(utcMs).toISOString());
     setOpen(false);
   }
 
@@ -262,8 +263,9 @@ export default function DateTimePicker({ value, onChange, label, enforceFuture, 
         <View style={styles.overlay}>
           <View style={styles.sheet}>
             <Text style={styles.title}>Select date & time (ET)</Text>
-            <View style={styles.row}>
-              <View style={styles.col}>
+            <Text style={styles.sectionSubtitle}>Date</Text>
+            <View style={styles.pickerRow}>
+              <View style={styles.colWide}>
                 <Text style={styles.colLabel}>Month</Text>
                 <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
                   {months.map((m, i) => (
@@ -277,7 +279,7 @@ export default function DateTimePicker({ value, onChange, label, enforceFuture, 
                   ))}
                 </ScrollView>
               </View>
-              <View style={styles.col}>
+              <View style={styles.colNarrow}>
                 <Text style={styles.colLabel}>Day</Text>
                 <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
                   {days.map((d) => (
@@ -287,7 +289,7 @@ export default function DateTimePicker({ value, onChange, label, enforceFuture, 
                   ))}
                 </ScrollView>
               </View>
-              <View style={styles.col}>
+              <View style={styles.colMedium}>
                 <Text style={styles.colLabel}>Year</Text>
                 <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
                   {years.map((y) => (
@@ -297,7 +299,11 @@ export default function DateTimePicker({ value, onChange, label, enforceFuture, 
                   ))}
                 </ScrollView>
               </View>
-              <View style={styles.col}>
+            </View>
+
+            <Text style={styles.sectionSubtitle}>Time</Text>
+            <View style={styles.pickerRow}>
+              <View style={styles.colMedium}>
                 <Text style={styles.colLabel}>Hour</Text>
                 <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
                   {hours12.map((h) => (
@@ -307,8 +313,8 @@ export default function DateTimePicker({ value, onChange, label, enforceFuture, 
                   ))}
                 </ScrollView>
               </View>
-              <View style={styles.col}>
-                <Text style={styles.colLabel}>Min</Text>
+              <View style={styles.colMedium}>
+                <Text style={styles.colLabel}>Minute</Text>
                 <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
                   {minutes.map((m) => (
                     <Pressable key={m} onPress={() => setMinute(m)} style={[styles.item, minute === m ? styles.itemActive : null]}>
@@ -317,8 +323,8 @@ export default function DateTimePicker({ value, onChange, label, enforceFuture, 
                   ))}
                 </ScrollView>
               </View>
-              <View style={styles.col}>
-                <Text style={styles.colLabel}>AM/PM</Text>
+              <View style={styles.colNarrow}>
+                <Text style={styles.colLabel}>AM / PM</Text>
                 <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
                   {(["AM", "PM"] as const).map((a) => (
                     <Pressable key={a} onPress={() => setAmpm(a)} style={[styles.item, ampm === a ? styles.itemActive : null]}>
@@ -328,6 +334,10 @@ export default function DateTimePicker({ value, onChange, label, enforceFuture, 
                 </ScrollView>
               </View>
             </View>
+
+            <Text style={styles.previewLabel}>Confirmed together</Text>
+            <Text style={styles.preview}>{previewEtLabel}</Text>
+
             <Pressable onPress={confirm} style={styles.confirmBtn}>
               <Text style={styles.confirmText}>Confirm</Text>
             </Pressable>
@@ -369,11 +379,37 @@ const styles = StyleSheet.create({
   icon: { fontSize: 16 },
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
   sheet: { backgroundColor: "#111", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 },
-  title: { color: "#fff", fontSize: 17, fontWeight: "700", marginBottom: 16, textAlign: "center" },
-  row: { flexDirection: "row", gap: 6, height: 200 },
-  col: { flex: 1 },
+  title: { color: "#fff", fontSize: 17, fontWeight: "700", marginBottom: 12, textAlign: "center" },
+  sectionSubtitle: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  pickerRow: { flexDirection: "row", gap: 8, height: 200 },
+  colWide: { flex: 1.35 },
+  colMedium: { flex: 1 },
+  colNarrow: { flex: 0.85 },
   colLabel: { color: "rgba(255,255,255,0.45)", fontSize: 10, textAlign: "center", marginBottom: 4 },
   scroll: { flex: 1 },
+  previewLabel: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: 12,
+  },
+  preview: {
+    color: "#a3e635",
+    fontSize: 16,
+    fontWeight: "800",
+    textAlign: "center",
+    marginTop: 6,
+    marginBottom: 4,
+  },
   item: { paddingVertical: 8, alignItems: "center", borderRadius: 6 },
   itemActive: { backgroundColor: "rgba(163,230,53,0.15)" },
   itemText: { color: "rgba(255,255,255,0.55)", fontSize: 13 },
