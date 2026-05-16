@@ -160,13 +160,13 @@ export function AvailabilityPoll({ run, planning, onSubmit, onDecline }: Props) 
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.heading}>Which times work for you?</Text>
+      <Text style={styles.heading}>Optional — let us know which times work</Text>
 
       {hasSubmitted && !editing ? (
         <View style={styles.submittedRow}>
-          <FontAwesome name="check-circle" size={18} color="#bbf7d0" />
+          <FontAwesome name="check-circle" size={14} color="rgba(163,230,53,0.7)" />
           <Text style={styles.submittedText} numberOfLines={3}>
-            You&apos;re available for:{" "}
+            Available:{" "}
             {chips
               .filter((c) => submittedLabels.includes(c.key))
               .map((c) => c.display)
@@ -203,38 +203,40 @@ export function AvailabilityPoll({ run, planning, onSubmit, onDecline }: Props) 
             })}
           </View>
 
-          <Pressable
-            disabled={availabilityBusy || !runId || selectedKeys.length === 0}
-            onPress={() => void onPressSubmit()}
-            style={({ pressed }) => [
-              styles.submitBtn,
-              (availabilityBusy || selectedKeys.length === 0) && styles.submitBtnDisabled,
-              pressed && !availabilityBusy && selectedKeys.length > 0 && { opacity: 0.9 },
-            ]}
-          >
-            {availabilityBusy && pendingSlotKey === "multi" ? (
-              <ActivityIndicator color="#111" size="small" />
-            ) : (
-              <Text style={styles.submitBtnText}>Submit availability</Text>
-            )}
-          </Pressable>
+          <View style={styles.actionsRow}>
+            <Pressable
+              disabled={availabilityBusy || !runId || selectedKeys.length === 0}
+              onPress={() => void onPressSubmit()}
+              style={({ pressed }) => [
+                styles.saveLink,
+                (availabilityBusy || selectedKeys.length === 0) && styles.saveLinkDisabled,
+                pressed && !availabilityBusy && selectedKeys.length > 0 && { opacity: 0.75 },
+              ]}
+            >
+              {availabilityBusy && pendingSlotKey === "multi" ? (
+                <ActivityIndicator color="rgba(255,255,255,0.45)" size="small" />
+              ) : (
+                <Text style={styles.saveLinkText}>Save availability</Text>
+              )}
+            </Pressable>
 
-          <Pressable
-            disabled={availabilityBusy || !runId}
-            onPress={() => void onPressDecline()}
-            style={({ pressed }) => [
-              styles.declineBtn,
-              availabilityBusy && styles.declineBtnDisabled,
-              pressed && !availabilityBusy && { opacity: 0.85 },
-            ]}
-          >
-            <Text style={styles.declineBtnText}>I can&apos;t make it</Text>
-          </Pressable>
+            <Pressable
+              disabled={availabilityBusy || !runId}
+              onPress={() => void onPressDecline()}
+              style={({ pressed }) => [
+                styles.declineLink,
+                availabilityBusy && styles.declineLinkDisabled,
+                pressed && !availabilityBusy && { opacity: 0.75 },
+              ]}
+            >
+              <Text style={styles.declineLinkText}>Can&apos;t make it?</Text>
+            </Pressable>
+          </View>
         </>
       ) : (
         <Pressable
           onPress={onPressChange}
-          style={({ pressed }) => [styles.changeBtn, pressed && { opacity: 0.85 }]}
+          style={({ pressed }) => [styles.changeBtn, pressed && { opacity: 0.75 }]}
           accessibilityRole="button"
           accessibilityLabel="Change availability"
         >
@@ -246,60 +248,41 @@ export function AvailabilityPoll({ run, planning, onSubmit, onDecline }: Props) 
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginTop: 16, gap: 12 },
-  heading: { color: "#fff", fontSize: 16, fontWeight: "800" },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  wrap: { gap: 10 },
+  heading: { color: "rgba(255,255,255,0.4)", fontSize: 13, fontWeight: "500", lineHeight: 18 },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.04)",
-  },
-  chipSelected: {
-    borderColor: "rgba(163,230,53,0.55)",
-    backgroundColor: "rgba(163,230,53,0.14)",
-  },
-  chipDisabled: { opacity: 0.5 },
-  chipText: { color: "rgba(255,255,255,0.75)", fontWeight: "700", fontSize: 14 },
-  chipTextSelected: { color: LIME },
-  submitBtn: {
-    backgroundColor: LIME,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  submitBtnDisabled: { opacity: 0.42 },
-  submitBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
-  declineBtn: {
-    alignItems: "center",
-    paddingVertical: 12,
-    borderRadius: 12,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
     backgroundColor: "rgba(255,255,255,0.02)",
   },
-  declineBtnDisabled: { opacity: 0.5 },
-  declineBtnText: { color: "rgba(255,255,255,0.45)", fontWeight: "700", fontSize: 14 },
+  chipSelected: {
+    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: "rgba(163,230,53,0.08)",
+  },
+  chipDisabled: { opacity: 0.5 },
+  chipText: { color: "rgba(255,255,255,0.55)", fontWeight: "600", fontSize: 12 },
+  chipTextSelected: { color: "rgba(163,230,53,0.9)" },
+  actionsRow: { alignItems: "center", gap: 8, marginTop: 2 },
+  saveLink: { paddingVertical: 4 },
+  saveLinkDisabled: { opacity: 0.35 },
+  saveLinkText: { color: "rgba(255,255,255,0.45)", fontWeight: "600", fontSize: 13 },
+  declineLink: { paddingVertical: 2 },
+  declineLinkDisabled: { opacity: 0.4 },
+  declineLinkText: { color: "rgba(255,255,255,0.35)", fontWeight: "500", fontSize: 13 },
   submittedRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 10,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.25)",
-    backgroundColor: "rgba(163,230,53,0.06)",
+    gap: 8,
+    paddingVertical: 4,
   },
-  submittedText: { flex: 1, color: "rgba(255,255,255,0.8)", fontSize: 14, lineHeight: 20 },
+  submittedText: { flex: 1, color: "rgba(255,255,255,0.5)", fontSize: 13, lineHeight: 18 },
   changeBtn: {
     alignSelf: "flex-start",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
+    paddingVertical: 4,
   },
-  changeBtnText: { color: "#ecfccb", fontSize: 13, fontWeight: "800" },
+  changeBtnText: { color: "rgba(255,255,255,0.4)", fontSize: 12, fontWeight: "600" },
 });

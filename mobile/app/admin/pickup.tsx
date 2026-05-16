@@ -11,6 +11,7 @@ import {
   fetchAdminPickupSwitchList,
   fetchAdminTierSuggestions,
   postAdminCreateRun,
+  postAdminDeleteRun,
   type PickupSwitchDetailResponse,
 } from "@/lib/adminApi";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
@@ -370,6 +371,36 @@ export default function AdminPickupOpsScreen() {
     if (detailOpen && detailRunId) await loadDetail();
   }
 
+  function onDeleteRun() {
+    if (!token || !detailRun) return;
+    const runId = s(detailRun.id);
+    if (!runId) return;
+    Alert.alert(
+      "Delete Run?",
+      "This permanently deletes the run and all its data. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            void (async () => {
+              setActionBusy(true);
+              const r = await postAdminDeleteRun(token, runId);
+              setActionBusy(false);
+              if (!r.ok) {
+                Alert.alert("Error", r.error);
+                return;
+              }
+              closeDetail();
+              await loadRuns();
+            })();
+          },
+        },
+      ],
+    );
+  }
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <ScrollView
@@ -692,6 +723,18 @@ export default function AdminPickupOpsScreen() {
                     onCloseDetail={closeDetail}
                   />
                 ) : null}
+
+                <Pressable
+                  disabled={actionBusy}
+                  onPress={onDeleteRun}
+                  style={({ pressed }) => [
+                    styles.deleteRunBtn,
+                    pressed && { opacity: 0.9 },
+                    actionBusy && { opacity: 0.55 },
+                  ]}
+                >
+                  <Text style={styles.deleteRunBtnText}>Delete Run</Text>
+                </Pressable>
               </ScrollView>
             ) : null}
           </View>
@@ -899,4 +942,13 @@ const styles = StyleSheet.create({
   rosterEmpty: { color: "rgba(255,255,255,0.45)", fontStyle: "italic" },
   rosterRow: { color: "rgba(255,255,255,0.8)", paddingVertical: 6, fontSize: 15 },
   rosterRowMuted: { color: "rgba(255,255,255,0.5)", paddingVertical: 6, fontSize: 14 },
+  deleteRunBtn: {
+    marginTop: 16,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.5)",
+  },
+  deleteRunBtnText: { color: "#fca5a5", fontWeight: "700", fontSize: 15 },
 });

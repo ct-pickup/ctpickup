@@ -26,6 +26,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const BG = "#0a0a0a";
 const LIME = "#a3e635";
+const DIVIDER = "rgba(255,255,255,0.06)";
 
 function SkeletonCard() {
   return (
@@ -39,19 +40,27 @@ function SkeletonCard() {
   );
 }
 
-function statusLabelFor(st: string | null | undefined, myStatus: string | null): string {
-  if (myStatus === "confirmed") return "You're in";
-  if (myStatus === "standby") return "Standby";
-  if (myStatus === "waitlist") return "Waitlist";
-  if (myStatus === "pending_payment") return "Payment pending";
+function runStatusPillLabel(st: string | null | undefined): string {
   if (!st) return "Upcoming";
   if (st === "planning") return "Planning";
-  if (st === "likely_on") return "Likely on";
+  if (st === "likely_on") return "Confirmed";
   if (st === "active") return "Open";
-  if (st === "in_progress") return "Live now";
+  if (st === "in_progress") return "Live";
   if (st === "completed") return "Completed";
   if (st === "canceled") return "Canceled";
   return st.replace(/_/g, " ");
+}
+
+function rsvpStatusMessage(myStatus: string | null): string | null {
+  if (myStatus === "confirmed") return "You're confirmed for this run.";
+  if (myStatus === "pending_payment") return "Finish payment to secure your spot.";
+  if (myStatus === "standby") return "You're on standby — we'll notify you if a spot opens.";
+  if (myStatus === "waitlist") return "You're on the waitlist.";
+  return null;
+}
+
+function CardDivider() {
+  return <View style={styles.divider} />;
 }
 
 export default function RunsScreen() {
@@ -62,7 +71,7 @@ export default function RunsScreen() {
   const { allowed: chatAllowed } = useTeamChatAccess();
 
   const { loading, error, data, run, counts, myStatus, invitedNow, noFeaturedRun, load } = usePickupPublic(token);
-  const { joinBusy, joinPickup, payBusy, payPickup } = usePickupJoin();
+  const { joinBusy, joinPickup, payBusy, payPickup, availabilityBusy, commitAvailability } = usePickupJoin();
 
   const chatEnabled = !!session?.user?.id && chatAllowed === true;
   const { rooms } = useUserChatRooms(chatEnabled);
@@ -80,14 +89,18 @@ export default function RunsScreen() {
   const capacity = Number(run?.capacity ?? 0) || 0;
   const confirmed = Number(counts?.confirmed ?? 0) || 0;
   const spotsLeft = capacity > 0 ? Math.max(0, capacity - confirmed) : null;
+  const fillRatio = capacity > 0 ? Math.min(1, confirmed / capacity) : 0;
 
   const feeCents = typeof run?.fee_cents === "number" ? run.fee_cents : 0;
   const isFree = feeCents <= 0;
 
-  const typeBadge = run
+  const showTypeLabel = run ? isPublicPickupRunType(run.run_type) || isSelectPickupRunType(run.run_type) : false;
+  const typeLabel = run
     ? isPublicPickupRunType(run.run_type)
-      ? "PUBLIC"
-      : "SELECT"
+      ? "Public"
+      : isSelectPickupRunType(run.run_type)
+        ? "Select"
+        : ""
     : "";
 
   const title =
@@ -139,6 +152,8 @@ export default function RunsScreen() {
     myStatus === "waitlist" ||
     myStatus === "pending_payment";
 
+  const rsvpMessage = rsvpStatusMessage(myStatus);
+
   const onRefresh = useCallback(() => {
     void load();
   }, [load]);
@@ -154,6 +169,17 @@ export default function RunsScreen() {
       void hapticGoal();
     });
   }, [token, runId, joinPickup, load]);
+
+  const onCantMakeIt = useCallback(() => {
+    if (!token || !runId) {
+      Alert.alert("Sign in required", "Sign in to respond to this run.");
+      return;
+    }
+    void hapticTap();
+    void commitAvailability(token, runId, "declined", null, async () => {
+      await load();
+    });
+  }, [token, runId, commitAvailability, load]);
 
   const onCompletePayment = useCallback(() => {
     if (!token || !runId) return;
@@ -214,105 +240,148 @@ export default function RunsScreen() {
         ) : (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle} numberOfLines={2}>
-                {title}
-              </Text>
-              <View style={styles.typeBadge}>
-                <Text style={styles.typeBadgeText}>{typeBadge}</Text>
+              <View style={styles.titleBlock}>
+                <View style={styles.titleRow}>
+                  <Text style={styles.cardTitle} numberOfLines={2}>
+                    {title}
+                  </Text>
+                  {showTypeLabel && typeLabel ? (
+                    <Text style={styles.typeLabel}>{typeLabel}</Text>
+                  ) : null}
+                </View>
+              </View>
+              <View style={styles.statusPill}>
+                <Text style={styles.statusPillText}>{runStatusPillLabel(runStatus)}</Text>
               </View>
             </View>
 
-            <Text style={styles.dateEt}>{fmtPickupDateEt(typeof run.start_at === "string" ? run.start_at : null)}</Text>
-            <Text style={styles.timeEt}>{fmtPickupTimeEt(typeof run.start_at === "string" ? run.start_at : null)} ET</Text>
+            <CardDivider />
 
-            <Text style={styles.venue} numberOfLines={2}>
-              {venue}
-            </Text>
+            <View style={styles.dateTimeRow}>
+              <Text style={styles.dateEt}>
+                {fmtPickupDateEt(typeof run.start_at === "string" ? run.start_at : null)}
+              </Text>
+              <Text style={styles.timeEt}>
+                {fmtPickupTimeEt(typeof run.start_at === "string" ? run.start_at : null)} ET
+              </Text>
+            </View>
 
-            <View style={styles.metaRow}>
+            <CardDivider />
+
+            <View style={styles.locationRow}>
+              <FontAwesome name="map-marker" size={14} color="rgba(255,255,255,0.35)" style={styles.locationIcon} />
+              <Text style={styles.venue} numberOfLines={2}>
+                {venue}
+              </Text>
+            </View>
+
+            <CardDivider />
+
+            <View style={styles.feeSpotsRow}>
               <Text style={styles.fee}>
                 {isFree ? "Free" : `$${(feeCents / 100).toFixed(2)} per player`}
               </Text>
-              {spotsLeft != null ? (
-                <Text style={styles.spots}>
-                  {spotsLeft === 0 ? "Full" : `${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left`}
-                </Text>
+              {capacity > 0 ? (
+                <View style={styles.spotsBlock}>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${fillRatio * 100}%` }]} />
+                  </View>
+                  <Text style={styles.spotsLabel}>
+                    {confirmed} / {capacity} spot{capacity === 1 ? "" : "s"}
+                  </Text>
+                </View>
               ) : null}
             </View>
 
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusBadgeText}>{statusLabelFor(runStatus, myStatus)}</Text>
-            </View>
-
             {showAvailabilityPoll ? (
-              <AvailabilityPoll
-                run={run}
-                planning={planning}
-                onSubmit={() => {
-                  void load();
-                }}
-                onDecline={() => {
-                  void load();
-                }}
-              />
+              <>
+                <CardDivider />
+                <AvailabilityPoll
+                  run={run}
+                  planning={planning}
+                  onSubmit={() => {
+                    void load();
+                  }}
+                  onDecline={() => {
+                    void load();
+                  }}
+                />
+              </>
             ) : null}
 
-            {hasRsvp ? (
-              <View style={styles.rsvpBlock}>
-                <Text style={styles.rsvpStatus}>
-                  {myStatus === "confirmed"
-                    ? "You're confirmed for this run."
-                    : myStatus === "pending_payment"
-                      ? "Finish payment to secure your spot."
-                      : myStatus === "standby"
-                        ? "You're on standby — we'll notify you if a spot opens."
-                        : myStatus === "waitlist"
-                          ? "You're on the waitlist."
-                          : "RSVP updated."}
-                </Text>
-                {myStatus === "pending_payment" && !runLocked ? (
-                  <Pressable
-                    disabled={payBusy}
-                    onPress={onCompletePayment}
-                    style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.9 }, payBusy && styles.btnDisabled]}
-                  >
-                    <Text style={styles.primaryBtnText}>{payBusy ? "Opening checkout…" : "Complete payment"}</Text>
-                  </Pressable>
-                ) : null}
-                {(myStatus === "confirmed" || myStatus === "standby") && (
-                  <Pressable
-                    onPress={onOpenChat}
-                    style={({ pressed }) => [styles.chatBtn, pressed && { opacity: 0.9 }]}
-                  >
-                    <FontAwesome name="comments" size={16} color={LIME} />
-                    <Text style={styles.chatBtnText}> Open run chat</Text>
-                  </Pressable>
-                )}
-                {showPayForFriend ? (
-                  <PayForFriendButton
-                    run={run}
-                    onSuccess={() => {
-                      void load();
-                    }}
-                  />
-                ) : null}
-              </View>
+            {hasRsvp && rsvpMessage ? (
+              <>
+                <CardDivider />
+                <View style={styles.rsvpBlock}>
+                  <Text style={styles.rsvpStatus}>{rsvpMessage}</Text>
+                  {myStatus === "pending_payment" && !runLocked ? (
+                    <Pressable
+                      disabled={payBusy}
+                      onPress={onCompletePayment}
+                      style={({ pressed }) => [
+                        styles.primaryBtn,
+                        pressed && { opacity: 0.9 },
+                        payBusy && styles.btnDisabled,
+                      ]}
+                    >
+                      <Text style={styles.primaryBtnText}>
+                        {payBusy ? "Opening checkout…" : "Complete payment"}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                  {(myStatus === "confirmed" || myStatus === "standby") && (
+                    <Pressable
+                      onPress={onOpenChat}
+                      style={({ pressed }) => [styles.chatBtn, pressed && { opacity: 0.9 }]}
+                    >
+                      <FontAwesome name="comments" size={16} color={LIME} />
+                      <Text style={styles.chatBtnText}> Open run chat</Text>
+                    </Pressable>
+                  )}
+                  {showPayForFriend ? (
+                    <PayForFriendButton
+                      run={run}
+                      onSuccess={() => {
+                        void load();
+                      }}
+                    />
+                  ) : null}
+                </View>
+              </>
             ) : showJoin ? (
-              <Pressable
-                disabled={joinBusy}
-                onPress={onImIn}
-                style={({ pressed }) => [
-                  styles.primaryBtn,
-                  pressed && !joinBusy && { opacity: 0.9 },
-                  joinBusy && styles.btnDisabled,
-                ]}
-              >
-                <Text style={styles.primaryBtnText}>{joinBusy ? "Joining…" : "I'm In"}</Text>
-              </Pressable>
+              <>
+                <CardDivider />
+                <View style={styles.ctaBlock}>
+                  <Pressable
+                    disabled={joinBusy}
+                    onPress={onImIn}
+                    style={({ pressed }) => [
+                      styles.primaryBtn,
+                      pressed && !joinBusy && { opacity: 0.9 },
+                      joinBusy && styles.btnDisabled,
+                    ]}
+                  >
+                    <Text style={styles.primaryBtnText}>{joinBusy ? "Joining…" : "I'm In"}</Text>
+                  </Pressable>
+                  <Pressable
+                    disabled={availabilityBusy}
+                    onPress={onCantMakeIt}
+                    style={({ pressed }) => [styles.secondaryLinkBtn, pressed && { opacity: 0.75 }]}
+                  >
+                    <Text style={styles.secondaryLinkText}>Can&apos;t make it?</Text>
+                  </Pressable>
+                </View>
+              </>
             ) : isSelectPickupRunType(run.run_type) && !run.final_slot_id ? (
-              <Text style={styles.hint}>Time not finalized yet — check back when admin confirms the slot.</Text>
+              <>
+                <CardDivider />
+                <Text style={styles.hint}>Time not finalized yet — check back when admin confirms the slot.</Text>
+              </>
             ) : runLocked ? (
-              <Text style={styles.hint}>This run is live — joining is closed.</Text>
+              <>
+                <CardDivider />
+                <Text style={styles.hint}>This run is live — joining is closed.</Text>
+              </>
             ) : null}
           </View>
         )}
@@ -356,41 +425,82 @@ const styles = StyleSheet.create({
   },
   retryBtnText: { color: LIME, fontWeight: "700" },
   card: {
-    padding: 18,
+    padding: 20,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
     backgroundColor: "rgba(255,255,255,0.03)",
+    gap: 20,
   },
-  cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
-  cardTitle: { flex: 1, color: "#fff", fontSize: 18, fontWeight: "800" },
-  typeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: "rgba(163,230,53,0.12)",
+  divider: { height: 1, backgroundColor: DIVIDER, marginVertical: -4 },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
   },
-  typeBadgeText: { color: LIME, fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
-  dateEt: { color: "rgba(255,255,255,0.55)", fontSize: 14, marginTop: 14, fontWeight: "600" },
-  timeEt: { color: LIME, fontSize: 28, fontWeight: "800", marginTop: 4 },
-  venue: { color: "rgba(255,255,255,0.75)", fontSize: 15, marginTop: 12, lineHeight: 22 },
-  metaRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 14, gap: 12 },
-  fee: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  spots: { color: "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: "600" },
-  statusBadge: {
-    alignSelf: "flex-start",
-    marginTop: 12,
+  titleBlock: { flex: 1, minWidth: 0 },
+  titleRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", gap: 8 },
+  cardTitle: { color: "#fff", fontSize: 22, fontWeight: "800", lineHeight: 28 },
+  typeLabel: {
+    color: "rgba(255,255,255,0.35)",
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+  },
+  statusPill: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    flexShrink: 0,
   },
-  statusBadgeText: { color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: "700" },
-  rsvpBlock: { marginTop: 16, gap: 10 },
+  statusPillText: { color: "rgba(255,255,255,0.65)", fontSize: 11, fontWeight: "700", letterSpacing: 0.2 },
+  dateTimeRow: { gap: 6 },
+  dateEt: { color: "#fff", fontSize: 18, fontWeight: "700", letterSpacing: -0.2 },
+  timeEt: { color: LIME, fontSize: 16, fontWeight: "700" },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    paddingTop: 2,
+  },
+  locationIcon: { marginTop: 3 },
+  venue: { flex: 1, color: "rgba(255,255,255,0.75)", fontSize: 15, lineHeight: 22 },
+  feeSpotsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 16,
+  },
+  fee: { color: "#fff", fontWeight: "700", fontSize: 15, flexShrink: 0 },
+  spotsBlock: { flex: 1, maxWidth: 160, gap: 6, alignItems: "flex-end" },
+  progressTrack: {
+    width: "100%",
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: LIME,
+    minWidth: 0,
+  },
+  spotsLabel: {
+    color: "rgba(255,255,255,0.45)",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  rsvpBlock: { gap: 12 },
   rsvpStatus: { color: "rgba(255,255,255,0.75)", lineHeight: 20, fontSize: 14 },
+  ctaBlock: { gap: 10, alignItems: "center" },
   primaryBtn: {
-    marginTop: 16,
+    width: "100%",
     backgroundColor: LIME,
     borderRadius: 12,
     paddingVertical: 16,
@@ -398,6 +508,8 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: { color: "#111", fontWeight: "800", fontSize: 17 },
   btnDisabled: { opacity: 0.65 },
+  secondaryLinkBtn: { paddingVertical: 6, paddingHorizontal: 12 },
+  secondaryLinkText: { color: "rgba(255,255,255,0.38)", fontWeight: "500", fontSize: 14 },
   chatBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -409,7 +521,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(163,230,53,0.06)",
   },
   chatBtnText: { color: LIME, fontWeight: "700", fontSize: 15 },
-  hint: { color: "rgba(255,255,255,0.45)", marginTop: 16, lineHeight: 20, fontSize: 14 },
+  hint: { color: "rgba(255,255,255,0.45)", lineHeight: 20, fontSize: 14 },
   skeletonCard: {
     padding: 18,
     borderRadius: 16,

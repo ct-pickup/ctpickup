@@ -21,7 +21,10 @@ export async function selectActiveOutdoorTournamentForRegion(
 
     const r2 = await admin.from("tournaments").select("*").eq("is_active", true).is("service_region", null).maybeSingle();
     if (r2.error) return { data: null, error: r2.error };
-    return { data: (r2.data as OutdoorTournamentRow | null) ?? null, error: null };
+    if (r2.data) return { data: r2.data as OutdoorTournamentRow, error: null };
+    const rAny = await admin.from("tournaments").select("*").eq("is_active", true).limit(1).maybeSingle();
+    if (rAny.error) return { data: null, error: rAny.error };
+    return { data: (rAny.data as OutdoorTournamentRow | null) ?? null, error: null };
   }
 
   const r0 = await admin.from("tournaments").select("*").eq("is_active", true).is("service_region", null).maybeSingle();

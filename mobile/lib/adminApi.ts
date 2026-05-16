@@ -902,3 +902,11 @@ export function deleteAdminEsportsTournament(accessToken: string, tournamentId: 
   );
 }
 
+export function postAdminDeleteRun(accessToken: string, runId: string) {
+  return adminFetch<{ ok: boolean; error?: string }>(
+    "/api/admin/pickup/delete-run",
+    accessToken,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ run_id: runId }) },
+  );
+}
+
