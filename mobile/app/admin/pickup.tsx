@@ -1295,6 +1295,13 @@ export default function AdminPickupOpsScreen() {
             <Text style={styles.toolbarChipText}>Analytics</Text>
           </Pressable>
           <Pressable
+            onPress={() => router.push("/admin/database")}
+            style={({ pressed }) => [styles.toolbarChip, pressed && { opacity: 0.9 }]}
+          >
+            <FontAwesome name="table" size={13} color={LIME} />
+            <Text style={styles.toolbarChipText}>Database</Text>
+          </Pressable>
+          <Pressable
             onPress={() => router.push("/admin/tier-suggestions")}
             style={({ pressed }) => [styles.toolbarChip, pressed && { opacity: 0.9 }]}
           >

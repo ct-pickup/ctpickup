@@ -36,6 +36,7 @@ export default function AdminLayout() {
       <Stack.Screen name="invite-players" options={{ title: "Invite players" }} />
       <Stack.Screen name="run-result" options={{ title: "Run result" }} />
       <Stack.Screen name="analytics" options={{ title: "Analytics" }} />
+      <Stack.Screen name="database" options={{ title: "Database", headerShown: false }} />
       <Stack.Screen name="bulk-message" options={{ title: "Broadcast Message" }} />
       <Stack.Screen name="tier-suggestions" options={{ title: "Tier Suggestions" }} />
       <Stack.Screen name="standing" options={{ title: "Standing" }} />
