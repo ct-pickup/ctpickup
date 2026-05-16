@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
-import { stateFromUsZipFive } from "@/lib/usZipState";
 import { CT_PICKUP_VENUES } from "@/lib/venues/ctPickupVenues";
+
+function stateFromZip(zip: string): string | null {
+  const prefix = parseInt(zip.substring(0, 3));
+  if (prefix >= 60 && prefix <= 62) return "CT";
+  if (prefix >= 100 && prefix <= 149) return "NY";
+  if (prefix >= 70 && prefix <= 89) return "NJ";
+  if (prefix >= 200 && prefix <= 212) return "MD";
+  return null;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -66,7 +74,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid_zip_code", venues: [] as VenueDistanceRow[] }, { status: 400 });
   }
 
-  const userZipState = normalizeZipState(stateFromUsZipFive(digits));
+  const userZipState = normalizeZipState(stateFromZip(digits));
 
   let departureParam = "now";
   if (bodyObj && "departure_time" in bodyObj && bodyObj.departure_time != null) {

@@ -96,28 +96,8 @@ export function resolveRunVenueDestination(args: {
   return null;
 }
 
-import zipcodes from "zipcodes";
-
-function zipCentroid(zip5: string): { lat: number; lng: number } | null {
-  try {
-    const loc = zipcodes.lookup(zip5);
-    const lat = loc?.latitude;
-    const lng = loc?.longitude;
-    if (typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng)) {
-      return { lat, lng };
-    }
-  } catch {
-    /* lookup failed */
-  }
+function haversineMinutesFromZipToDestination(_zip5: string, _dest: VenueDestination): number | null {
   return null;
-}
-
-function haversineMinutesFromZipToDestination(zip5: string, dest: VenueDestination): number | null {
-  if (!dest.lat || !dest.lng) return null;
-  const centroid = zipCentroid(zip5);
-  if (!centroid) return null;
-  const mi = haversineMiles(centroid.lat, centroid.lng, dest.lat, dest.lng);
-  return driveMinutesFromStraightLineMiles(mi);
 }
 
 function destinationQuery(dest: VenueDestination): string {
