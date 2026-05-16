@@ -152,6 +152,13 @@ function s(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
 
+const defaultStartAt = (): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(20, 0, 0, 0);
+  return d.toISOString();
+};
+
 type AdminPickupWorkflowTab = "planning" | "active" | "past";
 
 function isPastPickupRun(row: Record<string, unknown>): boolean {
@@ -321,7 +328,7 @@ export default function AdminPickupOpsScreen() {
   const slotLabelRef = useRef(slotLabel);
   slotLabelRef.current = slotLabel;
 
-  const [createStartAt, setCreateStartAt] = useState("");
+  const [createStartAt, setCreateStartAt] = useState(defaultStartAt());
   const [createTitle, setCreateTitle] = useState("");
   const [createCapacity, setCreateCapacity] = useState("24");
   const [createFieldCost, setCreateFieldCost] = useState("");
@@ -759,6 +766,10 @@ export default function AdminPickupOpsScreen() {
       Alert.alert("Missing start time", "Enter an ISO string like 2026-05-03T20:00:00Z");
       return;
     }
+    if (new Date(start_at) < new Date()) {
+      Alert.alert("Invalid time", "Start time must be in the future.");
+      return;
+    }
     const fc = Number(createFieldCost);
     const me = Number(createMyEarnings);
     const ep = Number(createExpectedPlayers);
@@ -787,7 +798,7 @@ export default function AdminPickupOpsScreen() {
       });
       if (!r.ok) return Alert.alert("Create failed", r.error);
       Alert.alert("Created", "Run created.");
-      setCreateStartAt("");
+      setCreateStartAt(defaultStartAt());
       setCreateTitle("");
       setCreateFieldCost("");
       setCreateMyEarnings("0");
