@@ -216,7 +216,9 @@ export type InvitePlayersFormPlayer = {
   id: string;
   display_name: string;
   username: string | null;
+  instagram: string | null;
   tier_rank: number | null;
+  distance_minutes: number | null;
 };
 
 export function fetchAdminPickupInvitePlayersForm(accessToken: string, runId: string) {

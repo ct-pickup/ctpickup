@@ -2,24 +2,13 @@ import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
-import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion";
+import { buildProximityInvitePlayerList, resolveRunVenueDestination } from "@/lib/venueDistance";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
 
-const HUB_REGIONS = new Set(["NY", "CT", "NJ", "MD"]);
-
-function displayName(p: {
-  first_name: string | null;
-  last_name: string | null;
-  username: string | null;
-}): string {
-  const n = `${String(p.first_name || "").trim()} ${String(p.last_name || "").trim()}`.trim();
-  return n || String(p.username || "").trim() || "Player";
-}
-
-/** GET — run summary + approved players (optional filter by run service region). */
+/** GET — run summary + approved players with drive-time from ZIP to the run venue. */
 export async function GET(req: Request) {
   const guard = await requireAdminBearer(req);
   if (!guard.ok) return guard.response;
@@ -32,7 +21,7 @@ export async function GET(req: Request) {
 
     const runRes = await admin
       .from("pickup_runs")
-      .select("id,title,run_type,status,service_region")
+      .select("id,title,run_type,status,service_region,location_private")
       .eq("id", run_id)
       .maybeSingle();
     const run = runRes.data;
@@ -41,9 +30,20 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Invite players applies to Select runs only." }, { status: 400 });
     }
 
+    const dest = resolveRunVenueDestination({
+      locationPrivate: run.location_private,
+      serviceRegion: run.service_region,
+    });
+    if (!dest) {
+      return NextResponse.json(
+        { error: "Set a venue on this run (location or service region) before inviting players." },
+        { status: 400 },
+      );
+    }
+
     const profRes = await admin
       .from("profiles")
-      .select("id,first_name,last_name,username,tier_rank,nearest_venue")
+      .select("id,first_name,last_name,username,instagram,tier_rank,zip_code")
       .eq("approved", true)
       .order("first_name", { ascending: true });
 
@@ -51,23 +51,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: profRes.error.message }, { status: 500 });
     }
 
-    const serviceRegion =
-      run.service_region != null && String(run.service_region).trim()
-        ? String(run.service_region).trim().toUpperCase()
-        : null;
-    const regionOk = serviceRegion && HUB_REGIONS.has(serviceRegion) ? serviceRegion : null;
-
-    const rows = (profRes.data || []).filter((p) => {
-      if (!regionOk) return true;
-      return profileMatchesRunServiceRegion(p.nearest_venue, regionOk);
-    });
-
-    const players = rows.map((p) => ({
-      id: p.id,
-      display_name: displayName(p),
-      username: p.username ?? null,
-      tier_rank: p.tier_rank ?? null,
-    }));
+    const players = await buildProximityInvitePlayerList(profRes.data || [], dest);
 
     return NextResponse.json({
       run: {
@@ -76,6 +60,7 @@ export async function GET(req: Request) {
         run_type: run.run_type,
         status: run.status,
         service_region: run.service_region ?? null,
+        venue: dest.venue,
       },
       players,
     });
@@ -174,6 +159,22 @@ export async function POST(req: Request) {
       body: `You're invited to ${title}. Open the app to confirm or decline.`,
       data: { kind: "pickup_invite", run_id },
     });
+
+    const previousInviteeIds = Array.from(already).filter((id) => !toAdd.includes(id));
+    if (previousInviteeIds.length > 0) {
+      const availRes = await admin.from("pickup_run_availability").select("user_id").eq("run_id", run_id);
+      if (availRes.error) return NextResponse.json({ error: availRes.error.message }, { status: 500 });
+
+      const responded = new Set((availRes.data || []).map((r: { user_id: string }) => String(r.user_id)));
+      const toRemind = previousInviteeIds.filter((id) => !responded.has(id));
+      if (toRemind.length > 0) {
+        await sendPushToUsers(admin, toRemind, {
+          title: "Last call — CT Pickup reminder",
+          body: "More players have been invited to your run. Confirm your spot before it fills up.",
+          data: { kind: "pickup_invite", run_id },
+        });
+      }
+    }
 
     const promotedRegion =
       run.service_region === null || run.service_region === undefined

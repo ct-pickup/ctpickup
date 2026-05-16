@@ -1,4 +1,5 @@
 import { Redirect, useRouter, type Href } from "expo-router";
+import { useEffect } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAdminMode } from "@/context/AdminModeContext";
 import { useAuth } from "@/context/AuthContext";
@@ -9,6 +10,12 @@ export default function AdminScreen() {
   const { enabled: adminModeEnabled, isReady: adminModeReady } = useAdminMode();
   const { isAdmin, isReady: profileAdminReady } = useProfileAdmin();
   const router = useRouter();
+
+  useEffect(() => {
+    if (session?.access_token) {
+      console.log("[DEBUG TOKEN]", session.access_token);
+    }
+  }, [session?.access_token]);
 
   const signedEmail = session?.user?.email;
 

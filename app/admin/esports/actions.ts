@@ -263,3 +263,10 @@ export async function deleteEsportsTournament(formData: FormData) {
   revalidatePath("/admin/esports");
   redirect("/admin/esports?ok=deleted");
 }
+In mobile/app/(tabs)/_layout.tsx, find the Esports tab entry. It will have something like name="esports" or href pointing to esports. Either delete it entirely or add tabBarButton: () => null to its options to hide it from the tab bar completely. Save the file.In app/api/venue/distances/route.ts, the import of "zipcodes" is causing a Vercel build failure with "Module not found: Can't resolve 'zipcodes'". The zipcodes package is a CommonJS module that doesn't work well with Next.js Turbopack. 
+
+Please fix this by either:
+1. Removing the zipcodes import entirely and using a different approach to get the state from a zip code (a simple lookup table of state prefixes is fine)
+2. Or finding another way to determine the state from a zip code without the zipcodes package
+
+The only thing we need from zipcodes is: given a zip code string, return the 2-letter state code (e.g. "06880" → "CT", "10001" → "NY"). Save the file.

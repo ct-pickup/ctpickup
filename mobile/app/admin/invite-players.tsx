@@ -20,6 +20,65 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const LIME = "#a3e635";
+const PROXIMITY_AUTO_SELECT_MIN = 30;
+const PROXIMITY_VISIBLE_MAX_MIN = 60;
+
+type TierGroupId = "tier1" | "tier2" | "tier3" | "others";
+
+const TIER_GROUPS: { id: TierGroupId; label: string }[] = [
+  { id: "tier1", label: "Tier 1" },
+  { id: "tier2", label: "Tier 2" },
+  { id: "tier3", label: "Tier 3" },
+  { id: "others", label: "Others" },
+];
+
+function tierGroupId(tierRank: number | null): TierGroupId {
+  const r = tierRank ?? 6;
+  if (r <= 2) return "tier1";
+  if (r === 3) return "tier2";
+  if (r === 4) return "tier3";
+  return "others";
+}
+
+function tierBadgeLabel(tierRank: number | null): string | null {
+  const g = tierGroupId(tierRank);
+  if (g === "tier1") return "T1";
+  if (g === "tier2") return "T2";
+  if (g === "tier3") return "T3";
+  return null;
+}
+
+function formatInstagram(handle: string | null): string | null {
+  if (!handle) return null;
+  const raw = handle.trim();
+  if (!raw) return null;
+  return raw.startsWith("@") ? raw : `@${raw}`;
+}
+
+function playerMatchesQuery(p: InvitePlayersFormPlayer, q: string): boolean {
+  const name = p.display_name.toLowerCase();
+  const un = (p.username || "").toLowerCase();
+  const ig = (p.instagram || "").toLowerCase();
+  return name.includes(q) || un.includes(q) || ig.includes(q);
+}
+
+function isWithinMinutes(distance: number | null, max: number): boolean {
+  return distance != null && distance <= max;
+}
+
+function isVisibleByProximity(p: InvitePlayersFormPlayer, showAll: boolean): boolean {
+  if (showAll) return true;
+  if (p.distance_minutes == null) return false;
+  return p.distance_minutes <= PROXIMITY_VISIBLE_MAX_MIN;
+}
+
+function autoSelectIds(players: InvitePlayersFormPlayer[]): Set<string> {
+  return new Set(
+    players
+      .filter((p) => isWithinMinutes(p.distance_minutes, PROXIMITY_AUTO_SELECT_MIN))
+      .map((p) => p.id),
+  );
+}
 
 export default function InvitePlayersScreen() {
   const router = useRouter();
@@ -32,8 +91,10 @@ export default function InvitePlayersScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [runTitle, setRunTitle] = useState<string>("");
+  const [runVenue, setRunVenue] = useState<string | null>(null);
   const [players, setPlayers] = useState<InvitePlayersFormPlayer[]>([]);
   const [query, setQuery] = useState("");
+  const [showAllPlayers, setShowAllPlayers] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
 
   const load = useCallback(async () => {
@@ -53,21 +114,55 @@ export default function InvitePlayersScreen() {
     }
     const titleRaw = r.data.run?.title;
     setRunTitle(typeof titleRaw === "string" && titleRaw.trim() ? titleRaw.trim() : "Pickup run");
-    setPlayers(Array.isArray(r.data.players) ? r.data.players : []);
+    const venueRaw = r.data.run?.venue;
+    setRunVenue(typeof venueRaw === "string" && venueRaw.trim() ? venueRaw.trim() : null);
+    const list = Array.isArray(r.data.players) ? r.data.players : [];
+    setPlayers(list);
+    setSelected(autoSelectIds(list));
   }, [token, runId]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  const summary = useMemo(() => {
+    let within30 = 0;
+    let within60 = 0;
+    for (const p of players) {
+      if (isWithinMinutes(p.distance_minutes, PROXIMITY_AUTO_SELECT_MIN)) within30 += 1;
+      if (isWithinMinutes(p.distance_minutes, PROXIMITY_VISIBLE_MAX_MIN)) within60 += 1;
+    }
+    return { within30, within60 };
+  }, [players]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return players;
     return players.filter((p) => {
-      const name = p.display_name.toLowerCase();
-      const un = (p.username || "").toLowerCase();
-      return name.includes(q) || un.includes(q);
+      if (q && !playerMatchesQuery(p, q)) return false;
+      if (q) return true;
+      return isVisibleByProximity(p, showAllPlayers);
     });
+  }, [players, query, showAllPlayers]);
+
+  const grouped = useMemo(() => {
+    const buckets = new Map<TierGroupId, InvitePlayersFormPlayer[]>();
+    for (const g of TIER_GROUPS) buckets.set(g.id, []);
+    for (const p of filtered) {
+      buckets.get(tierGroupId(p.tier_rank))!.push(p);
+    }
+    for (const [, list] of buckets) {
+      list.sort((a, b) => {
+        const da = a.distance_minutes ?? Number.POSITIVE_INFINITY;
+        const db = b.distance_minutes ?? Number.POSITIVE_INFINITY;
+        return da - db;
+      });
+    }
+    return TIER_GROUPS.map((g) => ({ ...g, players: buckets.get(g.id)! })).filter((g) => g.players.length > 0);
+  }, [filtered]);
+
+  const farHiddenCount = useMemo(() => {
+    if (query.trim()) return 0;
+    return players.filter((p) => p.distance_minutes != null && p.distance_minutes > PROXIMITY_VISIBLE_MAX_MIN).length;
   }, [players, query]);
 
   const toggle = useCallback((id: string) => {
@@ -75,6 +170,17 @@ export default function InvitePlayersScreen() {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const setGroupSelection = useCallback((groupPlayers: InvitePlayersFormPlayer[], on: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const p of groupPlayers) {
+        if (on) next.add(p.id);
+        else next.delete(p.id);
+      }
       return next;
     });
   }, []);
@@ -126,11 +232,19 @@ export default function InvitePlayersScreen() {
           </Text>
           <Text style={styles.sub} numberOfLines={2}>
             {runTitle}
+            {runVenue ? ` · ${runVenue}` : ""}
           </Text>
         </View>
       </View>
+
+      {!loading && !error ? (
+        <Text style={styles.summary}>
+          {nSel} player{nSel === 1 ? "" : "s"} selected · {summary.within30} within 30 min · {summary.within60} within 60 min
+        </Text>
+      ) : null}
+
       <Text style={styles.help}>
-        Select runs are invite-only. Checked players get a push notification and can confirm or decline in the app.
+        Players within 30 min are pre-selected. Between 30–60 min are listed but not selected. Farther players are hidden unless you show all.
       </Text>
 
       <TextInput
@@ -143,37 +257,92 @@ export default function InvitePlayersScreen() {
         autoCorrect={false}
       />
 
+      {!loading && !error && farHiddenCount > 0 && !query.trim() ? (
+        <Pressable
+          onPress={() => setShowAllPlayers((v) => !v)}
+          style={({ pressed }) => [styles.showAllBtn, pressed && { opacity: 0.9 }]}
+        >
+          <Text style={styles.showAllBtnText}>
+            {showAllPlayers ? "Hide distant players" : `Show all players (${farHiddenCount} over 60 min)`}
+          </Text>
+        </Pressable>
+      ) : null}
+
       {loading ? (
         <ActivityIndicator color="#fff" style={{ marginTop: 24 }} />
       ) : error ? (
         <Text style={styles.err}>{error}</Text>
       ) : (
         <ScrollView style={styles.list} contentContainerStyle={{ paddingBottom: 120 }}>
-          {filtered.length === 0 ? (
+          {grouped.length === 0 ? (
             <Text style={styles.empty}>No players match your search.</Text>
           ) : (
-            filtered.map((p) => {
-              const on = selected.has(p.id);
+            grouped.map((group) => {
+              const allOn = group.players.every((p) => selected.has(p.id));
               return (
-                <Pressable
-                  key={p.id}
-                  onPress={() => toggle(p.id)}
-                  style={({ pressed }) => [styles.row, pressed && { opacity: 0.9 }]}
-                >
-                  <View style={[styles.checkbox, on && styles.checkboxOn]}>
-                    {on ? <FontAwesome name="check" size={14} color="#111" /> : null}
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.name} numberOfLines={1}>
-                      {p.display_name}
-                    </Text>
-                    {p.username ? (
-                      <Text style={styles.username} numberOfLines={1}>
-                        @{p.username}
+                <View key={group.id} style={styles.tierSection}>
+                  <View style={styles.tierHeader}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.tierTitle}>{group.label}</Text>
+                      <Text style={styles.tierCount}>
+                        {group.players.length} player{group.players.length === 1 ? "" : "s"}
                       </Text>
-                    ) : null}
+                    </View>
+                    <Pressable
+                      onPress={() => setGroupSelection(group.players, !allOn)}
+                      style={({ pressed }) => [styles.groupActionBtn, pressed && { opacity: 0.9 }]}
+                    >
+                      <Text style={styles.groupActionBtnText}>{allOn ? "Deselect all" : "Select all"}</Text>
+                    </Pressable>
                   </View>
-                </Pressable>
+                  {group.players.map((p) => {
+                    const on = selected.has(p.id);
+                    const tierLbl = tierBadgeLabel(p.tier_rank);
+                    const ig = formatInstagram(p.instagram);
+                    const dist =
+                      p.distance_minutes != null ? `${p.distance_minutes} min` : null;
+                    return (
+                      <Pressable
+                        key={p.id}
+                        onPress={() => toggle(p.id)}
+                        style={({ pressed }) => [styles.row, pressed && { opacity: 0.9 }]}
+                      >
+                        <View style={[styles.checkbox, on && styles.checkboxOn]}>
+                          {on ? <FontAwesome name="check" size={14} color="#111" /> : null}
+                        </View>
+                        <View style={styles.rowBody}>
+                          <View style={styles.rowTop}>
+                            <Text style={styles.name} numberOfLines={1}>
+                              {p.display_name}
+                            </Text>
+                            <View style={styles.rowBadges}>
+                              {tierLbl ? (
+                                <View style={styles.tierBadge}>
+                                  <Text style={styles.tierBadgeText}>{tierLbl}</Text>
+                                </View>
+                              ) : null}
+                              {dist ? (
+                                <View style={styles.distanceBadge}>
+                                  <Text style={styles.distanceBadgeText}>{dist}</Text>
+                                </View>
+                              ) : null}
+                            </View>
+                          </View>
+                          {p.username ? (
+                            <Text style={styles.username} numberOfLines={1}>
+                              @{p.username}
+                            </Text>
+                          ) : null}
+                          {ig ? (
+                            <Text style={styles.instagram} numberOfLines={1}>
+                              {ig}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               );
             })
           )}
@@ -209,14 +378,20 @@ const styles = StyleSheet.create({
   backIcon: { paddingVertical: 8, paddingRight: 4 },
   h1: { fontSize: 22, fontWeight: "800", color: "#fff" },
   sub: { marginTop: 4, fontSize: 14, color: "rgba(255,255,255,0.55)" },
-  help: {
-    marginTop: 14,
+  summary: {
+    marginTop: 12,
     fontSize: 14,
-    lineHeight: 20,
-    color: "rgba(255,255,255,0.65)",
+    fontWeight: "700",
+    color: LIME,
+  },
+  help: {
+    marginTop: 10,
+    fontSize: 13,
+    lineHeight: 18,
+    color: "rgba(255,255,255,0.55)",
   },
   search: {
-    marginTop: 14,
+    marginTop: 12,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.14)",
     borderRadius: 12,
@@ -225,12 +400,39 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
   },
-  list: { flex: 1, marginTop: 12 },
-  row: {
+  showAllBtn: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    paddingVertical: 8,
+    paddingHorizontal: 2,
+  },
+  showAllBtnText: { fontSize: 14, fontWeight: "700", color: LIME },
+  list: { flex: 1, marginTop: 8 },
+  tierSection: { marginTop: 16 },
+  tierHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 14,
+    marginBottom: 4,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.12)",
+  },
+  tierTitle: { fontSize: 15, fontWeight: "800", color: "#fff" },
+  tierCount: { marginTop: 2, fontSize: 12, color: "rgba(255,255,255,0.45)" },
+  groupActionBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+  },
+  groupActionBtnText: { fontSize: 12, fontWeight: "800", color: "rgba(255,255,255,0.75)" },
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(255,255,255,0.08)",
   },
@@ -243,13 +445,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "transparent",
+    marginTop: 2,
   },
   checkboxOn: {
     borderColor: LIME,
     backgroundColor: LIME,
   },
-  name: { fontSize: 16, fontWeight: "700", color: "#fff" },
+  rowBody: { flex: 1, minWidth: 0 },
+  rowTop: { flexDirection: "row", alignItems: "center", gap: 8 },
+  name: { flex: 1, fontSize: 16, fontWeight: "700", color: "#fff" },
+  rowBadges: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 0 },
+  tierBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.45)",
+    backgroundColor: "rgba(163,230,53,0.12)",
+  },
+  tierBadgeText: { fontSize: 11, fontWeight: "800", color: LIME },
+  distanceBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  distanceBadgeText: { fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.45)" },
   username: { marginTop: 2, fontSize: 13, color: "rgba(255,255,255,0.45)" },
+  instagram: { marginTop: 2, fontSize: 12, color: "rgba(255,255,255,0.35)" },
   empty: { marginTop: 24, color: "rgba(255,255,255,0.45)", fontSize: 15 },
   err: { marginTop: 16, color: "#fca5a5", fontSize: 15 },
   footer: {

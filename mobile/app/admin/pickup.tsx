@@ -1,6 +1,11 @@
 import { useAuth } from "@/context/AuthContext";
 import * as Sentry from "@sentry/react-native";
+import AdminVenuePicker from "@/components/AdminVenuePicker";
 import DateTimePicker, { formatDateTimePickerEtLabel, isScheduleWallMidnightEt } from "@/components/DateTimePicker";
+import {
+  adminVenueLocationPreset,
+  serviceRegionForAdminVenueName,
+} from "@/lib/adminCtPickupVenues";
 import {
   fetchAdminTierSuggestions,
   postAdminRunTierSuggestionAlgorithm,
@@ -161,8 +166,7 @@ function isPastPickupRun(row: Record<string, unknown>): boolean {
 
 function defaultAdminPickupTab(counts: Record<AdminPickupWorkflowTab, number>): AdminPickupWorkflowTab {
   if (counts.active > 0) return "active";
-  if (counts.planning > 0) return "planning";
-  return "past";
+  return "planning";
 }
 
 /** Run start in Eastern Time for admin past-run cards. */
@@ -318,6 +322,7 @@ export default function AdminPickupOpsScreen() {
   const [createHours, setCreateHours] = useState("1.5");
   const [createExpectedPlayers, setCreateExpectedPlayers] = useState("24");
   const [createLocationText, setCreateLocationText] = useState("");
+  const [createVenueName, setCreateVenueName] = useState("");
   const [createSelectedVenueFeePresetId, setCreateSelectedVenueFeePresetId] = useState<string | null>(null);
   const [editSelectedVenueFeePresetId, setEditSelectedVenueFeePresetId] = useState<string | null>(null);
 
@@ -335,10 +340,6 @@ export default function AdminPickupOpsScreen() {
 
   const venueFeePresetsForRegion = useMemo(() => VENUE_FEE_PRESETS.filter((p) => p.region === region), [region]);
   const [createRegion, setCreateRegion] = useState<ServiceRegionCode>("CT");
-  const venueFeePresetsForCreate = useMemo(
-    () => VENUE_FEE_PRESETS.filter((p) => p.region === createRegion),
-    [createRegion],
-  );
 
   const workflowTabCounts = useMemo(() => {
     const c: Record<AdminPickupWorkflowTab, number> = { planning: 0, active: 0, past: 0 };
@@ -725,6 +726,9 @@ export default function AdminPickupOpsScreen() {
     if (!Number.isFinite(ep) || ep <= 0 || !Number.isInteger(ep)) {
       return Alert.alert("Invalid expected players", "Enter a positive whole number of players splitting the cost.");
     }
+    if (!createVenueName.trim() && !createLocationText.trim()) {
+      return Alert.alert("Venue required", "Select a venue or enter a staff location.");
+    }
     const fee_cents = feeCentsFromCalculator(fc, me, ep);
     const admin_fee_cents = Math.round(me * 100);
     setBusy("create");
@@ -769,6 +773,7 @@ export default function AdminPickupOpsScreen() {
       setCreateHours("1.5");
       setCreateExpectedPlayers(createCapacity.trim() || "24");
       setCreateLocationText("");
+      setCreateVenueName("");
       setCreateSelectedVenueFeePresetId(null);
       setCreateModalOpen(false);
       setRegion(createRegion);
@@ -1141,14 +1146,17 @@ export default function AdminPickupOpsScreen() {
         placeholder="24"
         placeholderTextColor="rgba(255,255,255,0.35)"
       />
-      <VenueFeePresetRow
-        presets={venueFeePresetsForCreate}
-        selectedId={createSelectedVenueFeePresetId}
-        onSelect={(p) => {
-          setCreateSelectedVenueFeePresetId(p.id);
-          setCreateLocationText(p.address);
-          if (p.priceDollars > 0) setCreateFieldCost(String(p.priceDollars));
+      <AdminVenuePicker
+        value={createVenueName}
+        onChange={(name) => {
+          setCreateVenueName(name);
+          const region = serviceRegionForAdminVenueName(name);
+          if (region) setCreateRegion(region);
+          const locationPreset = adminVenueLocationPreset(name);
+          if (locationPreset) setCreateLocationText(locationPreset);
+          setCreateSelectedVenueFeePresetId(null);
         }}
+        hint="Service region and staff location fill in from the venue you pick."
       />
       <Text style={styles.label}>Field cost ($)</Text>
       <TextInput
@@ -1279,12 +1287,6 @@ export default function AdminPickupOpsScreen() {
           contentContainerStyle={styles.toolbarScrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <Pressable
-            onPress={() => router.push("/admin/members")}
-            style={({ pressed }) => [styles.toolbarChip, pressed && { opacity: 0.9 }]}>
-            <FontAwesome name="users" size={13} color={LIME} />
-            <Text style={styles.toolbarChipText}>Members</Text>
-          </Pressable>
           <Pressable
             onPress={() => router.push("/admin/analytics")}
             style={({ pressed }) => [styles.toolbarChip, pressed && { opacity: 0.9 }]}

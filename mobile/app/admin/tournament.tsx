@@ -29,6 +29,20 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const LIME = "#a3e635";
 
+const CT_PICKUP_VENUES: readonly { name: string; region: ServiceRegionCode }[] = [
+  { name: "New Haven SoccerRoof", region: "CT" },
+  { name: "Sofive Brooklyn", region: "NY" },
+  { name: "Hudson Sports", region: "NY" },
+  { name: "New Rochelle SoccerRoof", region: "NY" },
+  { name: "Sofive Meadowlands 5v5", region: "NJ" },
+  { name: "Sofive Meadowlands 7v7", region: "NJ" },
+  { name: "Sofive Cherry Hill 5v5", region: "NJ" },
+  { name: "Sofive Cherry Hill 7v7", region: "NJ" },
+  { name: "Sofive Rockville", region: "MD" },
+  { name: "SoccerDome Jessup", region: "MD" },
+  { name: "SoccerDome Harmans", region: "MD" },
+];
+
 const DECISIONS = ["pending", "confirmed", "standby", "rejected"] as const;
 type Decision = (typeof DECISIONS)[number];
 
@@ -74,6 +88,55 @@ function statusBadgeStyle(status: string) {
   if (st.includes("pending") || st.includes("submitted")) return styles.badgeWarn;
   if (st.includes("rejected") || st.includes("canceled")) return styles.badgeBad;
   return styles.badgeNeutral;
+}
+
+function TournamentVenuePicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (name: string, region: ServiceRegionCode) => void;
+}) {
+  const selected = value.trim();
+
+  return (
+    <View>
+      <Text style={styles.label}>Venue</Text>
+      <Text style={styles.fieldHint}>Service region updates automatically from the venue you pick.</Text>
+      {selected ? (
+        <View style={styles.venueSelectedRow}>
+          <Text style={styles.venueSelectedText} numberOfLines={2}>
+            {selected}
+          </Text>
+        </View>
+      ) : (
+        <Text style={styles.venuePlaceholder}>Tap a venue below</Text>
+      )}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        nestedScrollEnabled
+        style={styles.venueScroll}
+        contentContainerStyle={styles.venueScrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {CT_PICKUP_VENUES.map((v) => {
+          const active = selected === v.name;
+          return (
+            <Pressable
+              key={v.name}
+              onPress={() => onChange(v.name, v.region)}
+              style={({ pressed }) => [styles.venueChip, active && styles.venueChipActive, pressed && { opacity: 0.9 }]}
+            >
+              <Text style={[styles.venueChipText, active && styles.venueChipTextActive]} numberOfLines={2}>
+                {v.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
 }
 
 export default function AdminTournamentScreen() {
@@ -557,13 +620,12 @@ export default function AdminTournamentScreen() {
               keyboardType="number-pad"
               placeholderTextColor="rgba(255,255,255,0.35)"
             />
-            <Text style={styles.label}>Venue</Text>
-            <TextInput
-              style={styles.input}
+            <TournamentVenuePicker
               value={createVenue}
-              onChangeText={setCreateVenue}
-              placeholder="e.g. Hudson Sports Complex"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              onChange={(name, region) => {
+                setCreateVenue(name);
+                setCreateRegion(region);
+              }}
             />
             <Text style={styles.label}>Format</Text>
             <TextInput
@@ -962,4 +1024,31 @@ const styles = StyleSheet.create({
     backgroundColor: LIME,
   },
   saveBtnText: { color: "#111", fontWeight: "900", fontSize: 13 },
+  venueSelectedRow: {
+    marginTop: 8,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: "rgba(163,230,53,0.08)",
+  },
+  venueSelectedText: { color: "#fff", fontWeight: "800", fontSize: 15 },
+  venuePlaceholder: { marginTop: 8, fontSize: 14, color: "rgba(255,255,255,0.4)" },
+  venueScroll: { marginTop: 10 },
+  venueScrollContent: { flexDirection: "row", alignItems: "stretch", gap: 8, paddingRight: 8 },
+  venueChip: {
+    maxWidth: 168,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  venueChipActive: {
+    borderColor: "rgba(163,230,53,0.45)",
+    backgroundColor: "rgba(163,230,53,0.12)",
+  },
+  venueChipText: { fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.65)" },
+  venueChipTextActive: { color: LIME },
 });
