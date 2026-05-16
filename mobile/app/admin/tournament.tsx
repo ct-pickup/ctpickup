@@ -9,7 +9,7 @@ import {
 } from "@/lib/adminApi";
 import { useAuth } from "@/context/AuthContext";
 import { getMobileSupabaseClient } from "@/lib/supabase";
-import { SERVICE_REGIONS, serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
+import { SERVICE_REGIONS, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -17,8 +17,10 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Pressable,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -57,6 +59,16 @@ function fmtDate(iso?: string | null) {
   } catch {
     return "—";
   }
+}
+
+function slugFromTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 function fmtMeta(t: AdminOutdoorTournament): string {
@@ -102,7 +114,6 @@ function TournamentVenuePicker({
   return (
     <View>
       <Text style={styles.label}>Venue</Text>
-      <Text style={styles.fieldHint}>Service region updates automatically from the venue you pick.</Text>
       {selected ? (
         <View style={styles.venueSelectedRow}>
           <Text style={styles.venueSelectedText} numberOfLines={2}>
@@ -152,13 +163,14 @@ export default function AdminTournamentScreen() {
     useAdminOutdoorTournaments(region, submissionDecision, true);
 
   const [busy, setBusy] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   const [createTitle, setCreateTitle] = useState("");
-  const [createSlug, setCreateSlug] = useState("");
   const [createTarget, setCreateTarget] = useState("12");
   const [createOfficial, setCreateOfficial] = useState("8");
   const [createMax, setCreateMax] = useState("12");
-  const [createRegion, setCreateRegion] = useState<ServiceRegionCode>("CT");
+  const [createServiceRegion, setCreateServiceRegion] = useState<ServiceRegionCode>("CT");
   const [createStartAt, setCreateStartAt] = useState("");
   const [createDeadline, setCreateDeadline] = useState("");
   const [createVenue, setCreateVenue] = useState("");
@@ -167,6 +179,15 @@ export default function AdminTournamentScreen() {
   const [createMinRoster, setCreateMinRoster] = useState("5");
 
   const [listTab, setListTab] = useState<"all" | "upcoming" | "active" | "past">("active");
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await reload();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [reload]);
 
   const [drafts, setDrafts] = useState<
     Record<string, { decision: Decision; notes: string; reviewed: boolean }>
@@ -326,15 +347,16 @@ export default function AdminTournamentScreen() {
     setBusy("create");
     const entryCents = Number(createEntryFee) * 100;
     const minR = Number(createMinRoster);
+    const slug = slugFromTitle(title);
     try {
       const r = await postAdminTournaments(token, {
         action: "create",
         title,
-        slug: createSlug.trim() || undefined,
+        slug: slug || undefined,
         target_teams,
         official_threshold,
         max_teams,
-        service_region: createRegion,
+        service_region: createServiceRegion,
         start_at: startTrim || undefined,
         registration_deadline: deadlineTrim || undefined,
         venue: createVenue.trim() || undefined,
@@ -344,19 +366,20 @@ export default function AdminTournamentScreen() {
       });
       if (!r.ok) return Alert.alert("Create failed", r.error);
       setCreateTitle("");
-      setCreateSlug("");
       setCreateTarget("12");
       setCreateOfficial("8");
       setCreateMax("12");
+      setCreateServiceRegion("CT");
       setCreateStartAt("");
       setCreateDeadline("");
       setCreateVenue("");
       setCreateFormat("Group stage → knockout");
       setCreateEntryFee("250");
       setCreateMinRoster("5");
-      setRegion(createRegion);
+      setRegion(createServiceRegion);
       setListTab("all");
-      setTimeout(() => void reload(), 300);
+      setCreateModalOpen(false);
+      await reload();
       Alert.alert("Created", "Tournament draft saved. Make it live from the list when ready.");
     } catch (e) {
       console.warn("[onCreateTournament] failed", e);
@@ -366,24 +389,106 @@ export default function AdminTournamentScreen() {
     }
   }
 
+  const listTabs = ["active", "upcoming", "past", "all"] as const;
+
+  const createForm = (
+    <>
+      <Text style={styles.label}>Title</Text>
+      <TextInput
+        style={styles.input}
+        value={createTitle}
+        onChangeText={setCreateTitle}
+        placeholder="Spring invitational"
+        placeholderTextColor="rgba(255,255,255,0.35)"
+      />
+      <View style={styles.twoCol}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.label}>Target teams</Text>
+          <TextInput
+            style={styles.input}
+            value={createTarget}
+            onChangeText={setCreateTarget}
+            keyboardType="number-pad"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.label}>Official threshold</Text>
+          <TextInput
+            style={styles.input}
+            value={createOfficial}
+            onChangeText={setCreateOfficial}
+            keyboardType="number-pad"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+          />
+        </View>
+      </View>
+      <Text style={styles.label}>Max teams</Text>
+      <TextInput
+        style={styles.input}
+        value={createMax}
+        onChangeText={setCreateMax}
+        keyboardType="number-pad"
+        placeholderTextColor="rgba(255,255,255,0.35)"
+      />
+      <TournamentVenuePicker
+        value={createVenue}
+        onChange={(name, regionCode) => {
+          setCreateVenue(name);
+          setCreateServiceRegion(regionCode);
+        }}
+      />
+      <Text style={styles.label}>Format</Text>
+      <TextInput
+        style={styles.input}
+        value={createFormat}
+        onChangeText={setCreateFormat}
+        placeholder="Group stage → knockout"
+        placeholderTextColor="rgba(255,255,255,0.35)"
+      />
+      <View style={styles.twoCol}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.label}>Entry fee ($)</Text>
+          <TextInput
+            style={styles.input}
+            value={createEntryFee}
+            onChangeText={setCreateEntryFee}
+            keyboardType="decimal-pad"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.label}>Min roster</Text>
+          <TextInput
+            style={styles.input}
+            value={createMinRoster}
+            onChangeText={setCreateMinRoster}
+            keyboardType="number-pad"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+          />
+        </View>
+      </View>
+      <DateTimePicker label="Tournament start (ET)" value={createStartAt} onChange={setCreateStartAt} />
+      {createStartAt.trim() ? (
+        <Text style={styles.fieldHint}>Selected: {formatDateTimePickerEtLabel(createStartAt.trim())}</Text>
+      ) : null}
+      <DateTimePicker label="Registration deadline (ET)" value={createDeadline} onChange={setCreateDeadline} />
+      {createDeadline.trim() ? (
+        <Text style={styles.fieldHint}>Deadline: {formatDateTimePickerEtLabel(createDeadline.trim())}</Text>
+      ) : null}
+    </>
+  );
+
   return (
     <KeyboardAvoidingView
       style={[styles.screen, { paddingBottom: insets.bottom }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 200 }]} keyboardShouldPersistTaps="handled">
-          <View style={styles.rowBetween}>
-            <Text style={styles.h1}>Tournaments</Text>
-            <Pressable onPress={reload} style={({ pressed }) => [styles.chip, pressed && { opacity: 0.85 }]}>
-              <Text style={styles.chipText}>Refresh</Text>
-            </Pressable>
-          </View>
-
-          <Text style={styles.lead}>
-            Outdoor / captain hub same controls as the web admin. Filter drafts by state live hub is one tournament at
-            a time.
-          </Text>
-
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: 120 }]}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={LIME} />}
+      >
           <Text style={styles.segmentLabel}>STATE (LIST FILTER)</Text>
           <View style={styles.segmentRow}>
             {SERVICE_REGIONS.map(({ code }) => {
@@ -399,7 +504,6 @@ export default function AdminTournamentScreen() {
               );
             })}
           </View>
-          <Text style={styles.filterHint}>Showing tournaments for {serviceRegionName(region)}.</Text>
 
           {activeTournament ? (
             <View style={styles.liveBanner}>
@@ -431,30 +535,33 @@ export default function AdminTournamentScreen() {
           {panelError ? <Text style={styles.warn}>{panelError}</Text> : null}
 
           <Text style={styles.segmentLabel}>TOURNAMENT LIST</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterChips}
-            keyboardShouldPersistTaps="handled"
-          >
-            {(["active", "upcoming", "past", "all"] as const).map((tab) => {
+          <View style={styles.listTabBar}>
+            {listTabs.map((tab, index) => {
               const active = listTab === tab;
+              const isLast = index === listTabs.length - 1;
               return (
                 <Pressable
                   key={tab}
                   onPress={() => setListTab(tab)}
-                  style={({ pressed }) => [styles.filterChip, active && styles.filterChipActive, pressed && { opacity: 0.9 }]}
+                  style={({ pressed }) => [
+                    styles.listTabSegment,
+                    isLast && styles.listTabSegmentLast,
+                    active && styles.listTabSegmentActive,
+                    pressed && { opacity: 0.9 },
+                  ]}
                 >
-                  <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                  <Text style={[styles.listTabSegmentText, active && styles.listTabSegmentTextActive]}>
                     {tab === "all" ? "All" : tab[0]!.toUpperCase() + tab.slice(1)}
                   </Text>
                 </Pressable>
               );
             })}
-          </ScrollView>
+          </View>
 
+          {filteredTournaments.length === 0 && !loading ? (
+            <Text style={styles.emptyMuted}>No tournaments yet</Text>
+          ) : (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Tournaments ({filteredTournaments.length})</Text>
             {filteredTournaments.map((t) => {
               const isLive = !!t.is_active;
               const isHubBusy = busy === `hub:${t.id}`;
@@ -552,134 +659,13 @@ export default function AdminTournamentScreen() {
                 </View>
               );
             })}
-            {tournaments.length === 0 && !loading ? <Text style={styles.muted}>No tournaments in this state yet.</Text> : null}
           </View>
-
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Create tournament</Text>
-            <Text style={styles.fieldHint}>Creates a draft (not live). Slug is optional we derive from title if empty.</Text>
-            <Text style={styles.label}>Title</Text>
-            <TextInput
-              style={styles.input}
-              value={createTitle}
-              onChangeText={setCreateTitle}
-              placeholder="Spring invitational"
-              placeholderTextColor="rgba(255,255,255,0.35)"
-            />
-            <Text style={styles.label}>URL name (slug)</Text>
-            <TextInput
-              style={styles.input}
-              value={createSlug}
-              onChangeText={setCreateSlug}
-              placeholder="spring-2026"
-              placeholderTextColor="rgba(255,255,255,0.35)"
-              autoCapitalize="none"
-            />
-            <Text style={styles.label}>Service region</Text>
-            <View style={styles.presetRow}>
-              {SERVICE_REGIONS.map(({ code }) => {
-                const active = createRegion === code;
-                return (
-                  <Pressable
-                    key={code}
-                    onPress={() => setCreateRegion(code)}
-                    style={({ pressed }) => [styles.presetChip, active && styles.presetChipActive, pressed && { opacity: 0.9 }]}
-                  >
-                    <Text style={[styles.presetChipText, active && styles.presetChipTextActive]}>{code}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <View style={styles.twoCol}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Target teams</Text>
-                <TextInput
-                  style={styles.input}
-                  value={createTarget}
-                  onChangeText={setCreateTarget}
-                  keyboardType="number-pad"
-                  placeholderTextColor="rgba(255,255,255,0.35)"
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Official threshold</Text>
-                <TextInput
-                  style={styles.input}
-                  value={createOfficial}
-                  onChangeText={setCreateOfficial}
-                  keyboardType="number-pad"
-                  placeholderTextColor="rgba(255,255,255,0.35)"
-                />
-              </View>
-            </View>
-            <Text style={styles.label}>Max teams</Text>
-            <TextInput
-              style={styles.input}
-              value={createMax}
-              onChangeText={setCreateMax}
-              keyboardType="number-pad"
-              placeholderTextColor="rgba(255,255,255,0.35)"
-            />
-            <TournamentVenuePicker
-              value={createVenue}
-              onChange={(name, region) => {
-                setCreateVenue(name);
-                setCreateRegion(region);
-              }}
-            />
-            <Text style={styles.label}>Format</Text>
-            <TextInput
-              style={styles.input}
-              value={createFormat}
-              onChangeText={setCreateFormat}
-              placeholder="Group stage → knockout"
-              placeholderTextColor="rgba(255,255,255,0.35)"
-            />
-            <View style={styles.twoCol}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Entry fee ($)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={createEntryFee}
-                  onChangeText={setCreateEntryFee}
-                  keyboardType="decimal-pad"
-                  placeholderTextColor="rgba(255,255,255,0.35)"
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Min roster</Text>
-                <TextInput
-                  style={styles.input}
-                  value={createMinRoster}
-                  onChangeText={setCreateMinRoster}
-                  keyboardType="number-pad"
-                  placeholderTextColor="rgba(255,255,255,0.35)"
-                />
-              </View>
-            </View>
-            <DateTimePicker label="Tournament start (ET)" value={createStartAt} onChange={setCreateStartAt} />
-            {createStartAt.trim() ? (
-              <Text style={styles.fieldHint}>Selected: {formatDateTimePickerEtLabel(createStartAt.trim())}</Text>
-            ) : (
-              <Text style={styles.fieldHint}>Pick date and time together — defaults open to tomorrow 8:00 PM ET.</Text>
-            )}
-            <DateTimePicker label="Registration deadline (ET)" value={createDeadline} onChange={setCreateDeadline} />
-            {createDeadline.trim() ? (
-              <Text style={styles.fieldHint}>Deadline: {formatDateTimePickerEtLabel(createDeadline.trim())}</Text>
-            ) : null}
-            <Pressable
-              onPress={() => void onCreateTournament()}
-              disabled={busy === "create"}
-              style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busy === "create" && styles.disabled]}
-            >
-              <Text style={styles.primaryText}>{busy === "create" ? "Creating…" : "Create draft"}</Text>
-            </Pressable>
-          </View>
+          )}
 
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Captain claims</Text>
             {!activeTournament ? (
-              <Text style={styles.muted}>Make a tournament live to load captain claims for the active hub tournament.</Text>
+              <Text style={styles.emptyMuted}>No active tournament</Text>
             ) : captains.length === 0 ? (
               <Text style={styles.muted}>No captain claims yet.</Text>
             ) : (
@@ -736,7 +722,6 @@ export default function AdminTournamentScreen() {
             <View style={styles.cardHeaderRow}>
               <Text style={styles.cardTitle}>Tournament signups</Text>
             </View>
-            <Text style={styles.fieldHint}>Filter affects the list only. Save updates one row at a time.</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChips} keyboardShouldPersistTaps="handled">
               {(["all", ...DECISIONS] as const).map((f) => {
                 const active = signupFilter === f;
@@ -814,6 +799,58 @@ export default function AdminTournamentScreen() {
             })}
           </View>
       </ScrollView>
+
+      <Pressable
+        onPress={() => setCreateModalOpen(true)}
+        style={({ pressed }) => [
+          styles.fab,
+          { bottom: insets.bottom + 24 },
+          pressed && { opacity: 0.9 },
+        ]}
+        accessibilityLabel="Create tournament"
+      >
+        <FontAwesome name="plus" size={22} color="#111" />
+      </Pressable>
+
+      <Modal
+        visible={createModalOpen}
+        animationType="slide"
+        presentationStyle={Platform.OS === "ios" ? "pageSheet" : "fullScreen"}
+        onRequestClose={() => setCreateModalOpen(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalScreen}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View style={[styles.modalHeader, { paddingTop: insets.top + 8 }]}>
+            <Text style={styles.modalTitle}>New tournament</Text>
+            <Pressable
+              onPress={() => setCreateModalOpen(false)}
+              hitSlop={12}
+              style={({ pressed }) => [styles.modalClose, pressed && { opacity: 0.85 }]}
+              accessibilityLabel="Close"
+            >
+              <FontAwesome name="times" size={22} color="#fff" />
+            </Pressable>
+          </View>
+          <ScrollView
+            style={styles.modalScroll}
+            contentContainerStyle={styles.modalContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {createForm}
+          </ScrollView>
+          <View style={[styles.modalFooter, { paddingBottom: insets.bottom + 16 }]}>
+            <Pressable
+              onPress={() => void onCreateTournament()}
+              disabled={busy === "create"}
+              style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busy === "create" && styles.disabled]}
+            >
+              <Text style={styles.primaryText}>{busy === "create" ? "Creating…" : "Create draft"}</Text>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -821,19 +858,7 @@ export default function AdminTournamentScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#0a0a0a" },
   content: { padding: 16, paddingBottom: 48 },
-  h1: { fontSize: 28, fontWeight: "800", color: "#fff", letterSpacing: -0.3 },
-  lead: { marginTop: 8, color: "rgba(255,255,255,0.58)", fontSize: 14, lineHeight: 20 },
-  rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.08)",
-  },
-  chipText: { color: LIME, fontWeight: "800", fontSize: 13 },
-  segmentLabel: { marginTop: 18, fontSize: 11, fontWeight: "800", color: "rgba(255,255,255,0.45)", letterSpacing: 1.1 },
+  segmentLabel: { marginTop: 8, fontSize: 11, fontWeight: "800", color: "rgba(255,255,255,0.45)", letterSpacing: 1.1 },
   segmentRow: { marginTop: 10, flexDirection: "row", gap: 8 },
   segment: {
     flex: 1,
@@ -847,7 +872,27 @@ const styles = StyleSheet.create({
   segmentActive: { borderColor: "rgba(163,230,53,0.45)", backgroundColor: "rgba(163,230,53,0.10)" },
   segmentText: { color: "rgba(255,255,255,0.7)", fontWeight: "900", fontSize: 12 },
   segmentTextActive: { color: LIME },
-  filterHint: { marginTop: 8, fontSize: 12, color: "rgba(255,255,255,0.45)" },
+  listTabBar: {
+    marginTop: 10,
+    flexDirection: "row",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  listTabSegment: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: "rgba(255,255,255,0.12)",
+  },
+  listTabSegmentLast: { borderRightWidth: 0 },
+  listTabSegmentActive: { backgroundColor: "rgba(163,230,53,0.12)" },
+  listTabSegmentText: { fontSize: 12, fontWeight: "800", color: "rgba(255,255,255,0.6)" },
+  listTabSegmentTextActive: { color: LIME },
+  emptyMuted: { marginTop: 14, fontSize: 14, color: "rgba(255,255,255,0.45)" },
   liveBanner: {
     marginTop: 14,
     flexDirection: "row",
@@ -888,20 +933,8 @@ const styles = StyleSheet.create({
   },
   notesInput: { minHeight: 72, textAlignVertical: "top" },
   twoCol: { flexDirection: "row", gap: 12 },
-  presetRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
-  presetChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.05)",
-  },
-  presetChipActive: { borderColor: "rgba(163,230,53,0.45)", backgroundColor: "rgba(163,230,53,0.12)" },
-  presetChipText: { fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.65)" },
-  presetChipTextActive: { color: LIME },
   primary: {
-    marginTop: 16,
+    marginTop: 0,
     backgroundColor: LIME,
     paddingVertical: 14,
     borderRadius: 12,
@@ -1051,4 +1084,39 @@ const styles = StyleSheet.create({
   },
   venueChipText: { fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.65)" },
   venueChipTextActive: { color: LIME },
+  fab: {
+    position: "absolute",
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: LIME,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  modalScreen: { flex: 1, backgroundColor: "#0a0a0a" },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.1)",
+  },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  modalClose: { padding: 4 },
+  modalScroll: { flex: 1 },
+  modalContent: { padding: 16, paddingBottom: 24 },
+  modalFooter: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.1)",
+  },
 });
