@@ -221,6 +221,8 @@ export default function AdminTournamentScreen() {
   }
 
   async function onCreateTournament() {
+    console.log("[onCreateTournament] called");
+    console.log("[onCreateTournament] token:", token ? "exists" : "null");
     if (!token) return Alert.alert("Not signed in", "Sign in again.");
     const title = createTitle.trim();
     if (title.length < 2) return Alert.alert("Title required", "Enter at least 2 characters.");
@@ -235,36 +237,42 @@ export default function AdminTournamentScreen() {
     setBusy("create");
     const entryCents = Number(createEntryFee) * 100;
     const minR = Number(createMinRoster);
-    const r = await postAdminTournaments(token, {
-      action: "create",
-      title,
-      slug: createSlug.trim() || undefined,
-      target_teams,
-      official_threshold,
-      max_teams,
-      service_region: createRegion,
-      start_at: createStartAt.trim() || undefined,
-      registration_deadline: createDeadline.trim() || undefined,
-      venue: createVenue.trim() || undefined,
-      format_summary: createFormat.trim() || undefined,
-      entry_fee_cents: Number.isFinite(entryCents) && entryCents > 0 ? Math.floor(entryCents) : undefined,
-      min_roster_players: Number.isFinite(minR) && minR >= 1 ? Math.floor(minR) : undefined,
-    });
-    setBusy(null);
-    if (!r.ok) return Alert.alert("Create failed", r.error);
-    setCreateTitle("");
-    setCreateSlug("");
-    setCreateTarget("12");
-    setCreateOfficial("8");
-    setCreateMax("12");
-    setCreateStartAt("");
-    setCreateDeadline("");
-    setCreateVenue("");
-    setCreateFormat("Group stage → knockout");
-    setCreateEntryFee("250");
-    setCreateMinRoster("5");
-    reload();
-    Alert.alert("Created", "Tournament draft saved. Make it live from the list when ready.");
+    try {
+      const r = await postAdminTournaments(token, {
+        action: "create",
+        title,
+        slug: createSlug.trim() || undefined,
+        target_teams,
+        official_threshold,
+        max_teams,
+        service_region: createRegion,
+        start_at: createStartAt.trim() || undefined,
+        registration_deadline: createDeadline.trim() || undefined,
+        venue: createVenue.trim() || undefined,
+        format_summary: createFormat.trim() || undefined,
+        entry_fee_cents: Number.isFinite(entryCents) && entryCents > 0 ? Math.floor(entryCents) : undefined,
+        min_roster_players: Number.isFinite(minR) && minR >= 1 ? Math.floor(minR) : undefined,
+      });
+      if (!r.ok) return Alert.alert("Create failed", r.error);
+      setCreateTitle("");
+      setCreateSlug("");
+      setCreateTarget("12");
+      setCreateOfficial("8");
+      setCreateMax("12");
+      setCreateStartAt("");
+      setCreateDeadline("");
+      setCreateVenue("");
+      setCreateFormat("Group stage → knockout");
+      setCreateEntryFee("250");
+      setCreateMinRoster("5");
+      reload();
+      Alert.alert("Created", "Tournament draft saved. Make it live from the list when ready.");
+    } catch (e) {
+      console.warn("[onCreateTournament] failed", e);
+      Alert.alert("Something went wrong", "Please try again.");
+    } finally {
+      setBusy(null);
+    }
   }
 
   return (
@@ -332,7 +340,12 @@ export default function AdminTournamentScreen() {
           {panelError ? <Text style={styles.warn}>{panelError}</Text> : null}
 
           <Text style={styles.segmentLabel}>TOURNAMENT LIST</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChips}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterChips}
+            keyboardShouldPersistTaps="handled"
+          >
             {(["active", "upcoming", "past", "all"] as const).map((tab) => {
               const active = listTab === tab;
               return (
@@ -557,7 +570,10 @@ export default function AdminTournamentScreen() {
             <DateTimePicker label="Tournament date" value={createStartAt} onChange={setCreateStartAt} />
             <DateTimePicker label="Registration deadline" value={createDeadline} onChange={setCreateDeadline} />
             <Pressable
-              onPress={() => void onCreateTournament()}
+              onPress={() => {
+                Alert.alert("Tournament button tapped");
+                void onCreateTournament();
+              }}
               disabled={busy === "create"}
               style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busy === "create" && styles.disabled]}
             >

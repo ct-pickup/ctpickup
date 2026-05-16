@@ -690,15 +690,19 @@ export default function AdminPickupOpsScreen() {
   }
 
   async function onCreateRun() {
+    console.log("[onCreateRun] called");
     const t = await requireToken();
+    console.log("[onCreateRun] token:", t ? "exists" : "null");
     if (!t) return;
     const start_at = createStartAt.trim();
+    console.log("[onCreateRun] start_at:", start_at);
     if (!start_at) {
       Alert.alert("Missing start time", "Enter an ISO string like 2026-05-03T20:00:00Z");
       return;
     }
     const fc = Number(createFieldCost);
     const ep = Number(createExpectedPlayers);
+    console.log("[onCreateRun] fc:", fc, "ep:", ep);
     if (!Number.isFinite(fc) || fc < 0) {
       return Alert.alert("Invalid field cost", "Enter a valid number for field cost ($).");
     }
@@ -707,27 +711,34 @@ export default function AdminPickupOpsScreen() {
     }
     const fee_cents = feeCentsFromCalculator(fc, ep);
     setBusy("create");
-    const r = await postAdminCreateRun(t, {
-      start_at,
-      title: createTitle.trim() || undefined,
-      service_region: region,
-      capacity: Number(createCapacity || 24),
-      fee_cents,
-      location_private: createLocationText.trim() || undefined,
-      run_type: createRunType,
-    });
-    setBusy(null);
-    if (!r.ok) return Alert.alert("Create failed", r.error);
-    Alert.alert("Created", "Run created.");
-    setCreateStartAt("");
-    setCreateTitle("");
-    setCreateFieldCost("");
-    setCreateHours("1.5");
-    setCreateExpectedPlayers(createCapacity.trim() || "24");
-    setCreateLocationText("");
-    setCreateSelectedVenueFeePresetId(null);
-    setCreateModalOpen(false);
-    void loadRuns();
+    try {
+      const r = await postAdminCreateRun(t, {
+        start_at,
+        title: createTitle.trim() || undefined,
+        service_region: region,
+        capacity: Number(createCapacity || 24),
+        fee_cents,
+        location_private: createLocationText.trim() || undefined,
+        run_type: createRunType,
+      });
+      if (!r.ok) return Alert.alert("Create failed", r.error);
+      Alert.alert("Created", "Run created.");
+      setCreateStartAt("");
+      setCreateTitle("");
+      setCreateFieldCost("");
+      setCreateHours("1.5");
+      setCreateExpectedPlayers(createCapacity.trim() || "24");
+      setCreateLocationText("");
+      setCreateSelectedVenueFeePresetId(null);
+      setCreateModalOpen(false);
+      void loadRuns();
+    } catch (e) {
+      console.warn("[onCreateRun] request failed", e);
+      Sentry.captureException(e);
+      Alert.alert("Something went wrong", "Please try again.");
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function onCancelRun() {
@@ -1157,7 +1168,11 @@ export default function AdminPickupOpsScreen() {
         </Pressable>
       </View>
       <Pressable
-        onPress={() => void onCreateRun()}
+        onPress={() => {
+          console.log("[Create run Pressable] busy:", busy, "busy === \"create\":", busy === "create");
+          Alert.alert("Button tapped");
+          void onCreateRun();
+        }}
         disabled={busy === "create"}
         style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busy === "create" && styles.disabled]}
       >
@@ -1539,8 +1554,12 @@ export default function AdminPickupOpsScreen() {
       </Pressable>
 
       <Modal visible={createModalOpen} animationType="slide" transparent onRequestClose={() => setCreateModalOpen(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={styles.modalDismiss} onPress={() => setCreateModalOpen(false)} accessibilityLabel="Dismiss" />
+        <View style={styles.modalRoot} pointerEvents="box-none">
+          <Pressable
+            style={[StyleSheet.absoluteFill, styles.modalBackdropHitBox]}
+            onPress={() => setCreateModalOpen(false)}
+            accessibilityLabel="Dismiss"
+          />
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             keyboardVerticalOffset={insets.top}
@@ -1574,8 +1593,8 @@ export default function AdminPickupOpsScreen() {
       </Modal>
 
       <Modal visible={modalOpen} animationType="slide" transparent onRequestClose={closeModal}>
-        <View style={styles.modalRoot}>
-          <Pressable style={styles.modalDismiss} onPress={closeModal} accessibilityLabel="Dismiss" />
+        <View style={styles.modalRoot} pointerEvents="box-none">
+          <Pressable style={[StyleSheet.absoluteFill, styles.modalBackdropHitBox]} onPress={closeModal} accessibilityLabel="Dismiss" />
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             keyboardVerticalOffset={insets.top}
@@ -2061,8 +2080,12 @@ export default function AdminPickupOpsScreen() {
       </Modal>
 
       <Modal visible={teamAssignOpen} animationType="slide" transparent onRequestClose={requestCloseTeamAssignModal}>
-        <View style={styles.modalRoot}>
-          <Pressable style={styles.modalDismiss} onPress={requestCloseTeamAssignModal} accessibilityLabel="Dismiss" />
+        <View style={styles.modalRoot} pointerEvents="box-none">
+          <Pressable
+            style={[StyleSheet.absoluteFill, styles.modalBackdropHitBox]}
+            onPress={requestCloseTeamAssignModal}
+            accessibilityLabel="Dismiss"
+          />
           <View style={[styles.teamAssignSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
             <View style={styles.modalGrabRow}>
               <View style={styles.modalGrab} />
@@ -2411,7 +2434,13 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  createModalKb: { maxHeight: "92%", width: "100%", justifyContent: "flex-end" },
+  createModalKb: {
+    maxHeight: "92%",
+    width: "100%",
+    justifyContent: "flex-end",
+    zIndex: 1,
+    elevation: 8,
+  },
   createModalSheet: {
     backgroundColor: "#0a0a0a",
     borderTopLeftRadius: 20,
@@ -2468,8 +2497,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.55)",
     justifyContent: "flex-end",
   },
-  modalDismiss: { flex: 1 },
-  modalKb: { maxHeight: "92%" },
+  modalBackdropHitBox: { zIndex: 0 },
+  modalKb: { maxHeight: "92%", zIndex: 1, elevation: 8 },
   modalSheet: {
     maxHeight: "92%",
     backgroundColor: "#0a0a0a",
@@ -2718,6 +2747,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     maxHeight: "88%",
+    zIndex: 1,
+    elevation: 8,
+    width: "100%",
   },
   teamAssignHeaderRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 6 },
   teamAssignSub: { marginTop: 4, fontSize: 13, color: "rgba(255,255,255,0.45)" },
