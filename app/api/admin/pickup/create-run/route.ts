@@ -36,7 +36,12 @@ export async function POST(req: Request) {
   const run_type = normalizePickupRunTypeForDb(b.run_type);
   const capacity = Number(b.capacity ?? 24);
   const fee_cents = Number(b.fee_cents ?? 0);
+  const admin_fee_cents = Math.round(Number(b.admin_fee_cents ?? 0));
   const currency = String(b.currency || "usd");
+
+  if (!Number.isFinite(admin_fee_cents) || admin_fee_cents < 0) {
+    return NextResponse.json({ error: "Invalid admin_fee_cents" }, { status: 400 });
+  }
 
   const location_private =
     b.location_private != null && String(b.location_private).trim()
@@ -59,6 +64,7 @@ export async function POST(req: Request) {
       start_at,
       capacity,
       fee_cents,
+      admin_fee_cents,
       currency,
       location_private,
       show_location_to_confirmed_only,

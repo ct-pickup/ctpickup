@@ -244,16 +244,41 @@ function detectPreset(locationPrivate: string): LocationPresetKey {
   return "other";
 }
 
-/** field_cost in dollars; returns fee in whole dollars (ceil). */
-function feePerPlayerDollars(fieldCostDollars: number, expectedPlayers: number): number | null {
-  if (!Number.isFinite(fieldCostDollars) || !Number.isFinite(expectedPlayers) || expectedPlayers <= 0) return null;
-  return Math.ceil(fieldCostDollars / expectedPlayers);
+function feeCentsFromCalculator(fieldCostDollars: number, myEarningsDollars: number, expectedPlayers: number): number {
+  if (
+    !Number.isFinite(fieldCostDollars) ||
+    !Number.isFinite(myEarningsDollars) ||
+    !Number.isFinite(expectedPlayers) ||
+    expectedPlayers <= 0 ||
+    !Number.isInteger(expectedPlayers)
+  ) {
+    return 0;
+  }
+  return Math.ceil(((fieldCostDollars + myEarningsDollars) / expectedPlayers) * 100);
 }
 
-function feeCentsFromCalculator(fieldCostDollars: number, expectedPlayers: number): number {
-  const per = feePerPlayerDollars(fieldCostDollars, expectedPlayers);
-  if (per == null) return 0;
-  return per * 100;
+type PickupFeePreview = {
+  feeCents: number;
+  perPlayer: number;
+  fieldTotal: number;
+  cutTotal: number;
+};
+
+function pickupFeePreview(
+  fieldCostDollars: number,
+  myEarningsDollars: number,
+  expectedPlayers: number,
+): PickupFeePreview | null {
+  if (!Number.isFinite(fieldCostDollars) || fieldCostDollars < 0) return null;
+  if (!Number.isFinite(myEarningsDollars) || myEarningsDollars < 0) return null;
+  if (!Number.isFinite(expectedPlayers) || expectedPlayers <= 0 || !Number.isInteger(expectedPlayers)) return null;
+  const feeCents = feeCentsFromCalculator(fieldCostDollars, myEarningsDollars, expectedPlayers);
+  return {
+    feeCents,
+    perPlayer: feeCents / 100,
+    fieldTotal: fieldCostDollars,
+    cutTotal: myEarningsDollars,
+  };
 }
 
 export default function AdminPickupOpsScreen() {
@@ -284,6 +309,7 @@ export default function AdminPickupOpsScreen() {
   const [createRunType, setCreateRunType] = useState<"select" | "public">("select");
   const [editCapacity, setEditCapacity] = useState("18");
   const [editFieldCost, setEditFieldCost] = useState("");
+  const [editMyEarnings, setEditMyEarnings] = useState("0");
   const [editHours, setEditHours] = useState("1.5");
   const [editExpectedPlayers, setEditExpectedPlayers] = useState("18");
   const [editLocationPrivate, setEditLocationPrivate] = useState("");
@@ -299,6 +325,7 @@ export default function AdminPickupOpsScreen() {
   const [createTitle, setCreateTitle] = useState("");
   const [createCapacity, setCreateCapacity] = useState("24");
   const [createFieldCost, setCreateFieldCost] = useState("");
+  const [createMyEarnings, setCreateMyEarnings] = useState("0");
   const [createHours, setCreateHours] = useState("1.5");
   const [createExpectedPlayers, setCreateExpectedPlayers] = useState("24");
   const [createLocationText, setCreateLocationText] = useState("");
@@ -397,11 +424,15 @@ export default function AdminPickupOpsScreen() {
       const cap = Number(run.capacity ?? 18);
       setEditCapacity(String(cap));
       const cents = Number(run.fee_cents ?? 0);
-      const feeDollars = Number.isFinite(cents) ? cents / 100 : 0;
+      const adminCentsRaw = Number((run as { admin_fee_cents?: unknown }).admin_fee_cents ?? 0);
+      const adminCents = Number.isFinite(adminCentsRaw) && adminCentsRaw >= 0 ? Math.round(adminCentsRaw) : 0;
       setEditExpectedPlayers(String(cap));
+      const totalFromPlayersCents = Number.isFinite(cents) && cap > 0 ? Math.round(cents * cap) : NaN;
+      const fieldTotalCents = Number.isFinite(totalFromPlayersCents) ? Math.max(0, totalFromPlayersCents - adminCents) : NaN;
       setEditFieldCost(
-        Number.isFinite(cents) && cap > 0 && Number.isFinite(feeDollars) ? String(feeDollars * cap) : "",
+        Number.isFinite(fieldTotalCents) ? String(fieldTotalCents / 100) : "",
       );
+      setEditMyEarnings(String(adminCents / 100));
       setEditHours("1.5");
       const loc = s(run.location_private);
       setEditLocationPrivate(loc);
@@ -485,12 +516,12 @@ export default function AdminPickupOpsScreen() {
   const auto = detail?.auto_status;
 
   const createFeePreview = useMemo(
-    () => feePerPlayerDollars(Number(createFieldCost), Number(createExpectedPlayers)),
-    [createFieldCost, createExpectedPlayers],
+    () => pickupFeePreview(Number(createFieldCost), Number(createMyEarnings), Number(createExpectedPlayers)),
+    [createFieldCost, createMyEarnings, createExpectedPlayers],
   );
   const editFeePreview = useMemo(
-    () => feePerPlayerDollars(Number(editFieldCost), Number(editExpectedPlayers)),
-    [editFieldCost, editExpectedPlayers],
+    () => pickupFeePreview(Number(editFieldCost), Number(editMyEarnings), Number(editExpectedPlayers)),
+    [editFieldCost, editMyEarnings, editExpectedPlayers],
   );
 
   async function requireToken(): Promise<string | null> {
@@ -532,22 +563,29 @@ export default function AdminPickupOpsScreen() {
     if (!t || !selectedRunId) return;
     setBusy("save");
     const fc = Number(editFieldCost);
+    const me = Number(editMyEarnings);
     const ep = Number(editExpectedPlayers);
     if (!Number.isFinite(fc) || fc < 0) {
       setBusy(null);
       return Alert.alert("Invalid field cost", "Enter a valid number for field cost ($).");
     }
+    if (!Number.isFinite(me) || me < 0) {
+      setBusy(null);
+      return Alert.alert("Invalid earnings", "Enter a valid number for my earnings ($), zero or more.");
+    }
     if (!Number.isFinite(ep) || ep <= 0 || !Number.isInteger(ep)) {
       setBusy(null);
       return Alert.alert("Invalid expected players", "Enter a positive whole number of players splitting the cost.");
     }
-    const fee_cents = feeCentsFromCalculator(fc, ep);
+    const fee_cents = feeCentsFromCalculator(fc, me, ep);
+    const admin_fee_cents = Math.round(me * 100);
     const r = await postAdminPickupSwitch(t, {
       action: "edit_run",
       run_id: selectedRunId,
       title: editTitle.trim(),
       capacity: Number(editCapacity || 18),
       fee_cents,
+      admin_fee_cents,
       currency: "usd",
       location_private: editLocationPrivate.trim() || null,
       show_location_to_confirmed_only: editLocConfirmedOnly,
@@ -722,14 +760,19 @@ export default function AdminPickupOpsScreen() {
       return;
     }
     const fc = Number(createFieldCost);
+    const me = Number(createMyEarnings);
     const ep = Number(createExpectedPlayers);
     if (!Number.isFinite(fc) || fc < 0) {
       return Alert.alert("Invalid field cost", "Enter a valid number for field cost ($).");
     }
+    if (!Number.isFinite(me) || me < 0) {
+      return Alert.alert("Invalid earnings", "Enter a valid number for my earnings ($), zero or more.");
+    }
     if (!Number.isFinite(ep) || ep <= 0 || !Number.isInteger(ep)) {
       return Alert.alert("Invalid expected players", "Enter a positive whole number of players splitting the cost.");
     }
-    const fee_cents = feeCentsFromCalculator(fc, ep);
+    const fee_cents = feeCentsFromCalculator(fc, me, ep);
+    const admin_fee_cents = Math.round(me * 100);
     setBusy("create");
     try {
       const r = await postAdminCreateRun(t, {
@@ -738,6 +781,7 @@ export default function AdminPickupOpsScreen() {
         service_region: createRegion,
         capacity: Number(createCapacity || 24),
         fee_cents,
+        admin_fee_cents,
         location_private: createLocationText.trim() || undefined,
         run_type: createRunType,
       });
@@ -746,6 +790,7 @@ export default function AdminPickupOpsScreen() {
       setCreateStartAt("");
       setCreateTitle("");
       setCreateFieldCost("");
+      setCreateMyEarnings("0");
       setCreateHours("1.5");
       setCreateExpectedPlayers(createCapacity.trim() || "24");
       setCreateLocationText("");
@@ -1135,6 +1180,16 @@ export default function AdminPickupOpsScreen() {
         placeholder="0"
         placeholderTextColor="rgba(255,255,255,0.35)"
       />
+      <Text style={styles.label}>My earnings ($)</Text>
+      <TextInput
+        style={styles.input}
+        value={createMyEarnings}
+        onChangeText={setCreateMyEarnings}
+        keyboardType="decimal-pad"
+        placeholder="0"
+        placeholderTextColor="rgba(255,255,255,0.35)"
+      />
+      <Text style={styles.fieldHint}>Added to field cost and split among players</Text>
       <Text style={styles.label}>Hours</Text>
       <TextInput
         style={styles.input}
@@ -1154,10 +1209,17 @@ export default function AdminPickupOpsScreen() {
         placeholderTextColor="rgba(255,255,255,0.35)"
       />
       <Text style={styles.feePerPlayerLine}>
-        Fee per player:{" "}
+        Each player pays:{" "}
         <Text style={createFeePreview != null ? styles.feePerPlayerValue : styles.feePerPlayerPlaceholder}>
-          {createFeePreview != null ? `$${createFeePreview.toFixed(2)}` : "—"}
+          {createFeePreview != null ? `$${createFeePreview.perPlayer.toFixed(2)}` : "—"}
         </Text>
+      </Text>
+      <Text style={styles.feeBreakdownLine}>
+        {createFeePreview != null
+          ? `Field: $${createFeePreview.fieldTotal.toFixed(2)} · Your cut: $${createFeePreview.cutTotal.toFixed(
+              2,
+            )} · Per player: $${createFeePreview.perPlayer.toFixed(2)}`
+          : "Field: — · Your cut: — · Per player: —"}
       </Text>
       <Text style={styles.label}>Location (staff)</Text>
       <TextInput
@@ -1860,6 +1922,16 @@ export default function AdminPickupOpsScreen() {
                     keyboardType="decimal-pad"
                     placeholderTextColor="rgba(255,255,255,0.35)"
                   />
+                  <Text style={styles.label}>My earnings ($)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editMyEarnings}
+                    onChangeText={setEditMyEarnings}
+                    keyboardType="decimal-pad"
+                    placeholder="0"
+                    placeholderTextColor="rgba(255,255,255,0.35)"
+                  />
+                  <Text style={styles.fieldHint}>Added to field cost and split among players</Text>
                   <Text style={styles.label}>Hours</Text>
                   <TextInput
                     style={styles.input}
@@ -1878,10 +1950,17 @@ export default function AdminPickupOpsScreen() {
                     placeholderTextColor="rgba(255,255,255,0.35)"
                   />
                   <Text style={styles.feePerPlayerLine}>
-                    Fee per player:{" "}
+                    Each player pays:{" "}
                     <Text style={editFeePreview != null ? styles.feePerPlayerValue : styles.feePerPlayerPlaceholder}>
-                      {editFeePreview != null ? `$${editFeePreview.toFixed(2)}` : "—"}
+                      {editFeePreview != null ? `$${editFeePreview.perPlayer.toFixed(2)}` : "—"}
                     </Text>
+                  </Text>
+                  <Text style={styles.feeBreakdownLine}>
+                    {editFeePreview != null
+                      ? `Field: $${editFeePreview.fieldTotal.toFixed(2)} · Your cut: $${editFeePreview.cutTotal.toFixed(
+                          2,
+                        )} · Per player: $${editFeePreview.perPlayer.toFixed(2)}`
+                      : "Field: — · Your cut: — · Per player: —"}
                   </Text>
                         </>
                       ) : null}
@@ -2504,6 +2583,7 @@ const styles = StyleSheet.create({
   statePillText: { color: "#fff", fontWeight: "900", fontSize: 15 },
   twoCol: { flexDirection: "row", gap: 12 },
   feePerPlayerLine: { marginTop: 12, fontSize: 15, fontWeight: "700", color: "rgba(255,255,255,0.7)" },
+  feeBreakdownLine: { marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 16 },
   feePerPlayerValue: { color: LIME, fontWeight: "900" },
   feePerPlayerPlaceholder: { color: "rgba(255,255,255,0.35)", fontWeight: "700" },
   primary: {

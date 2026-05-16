@@ -192,9 +192,10 @@ export function postAdminCreateRun(
     title?: string;
     run_type?: "select" | "public";
     start_at: string;
-    capacity?: number;
-    fee_cents?: number;
-    service_region?: string | null;
+        capacity?: number;
+        fee_cents?: number;
+        admin_fee_cents?: number;
+        service_region?: string | null;
     location_private?: string | null;
     location_text?: string | null;
     cancellation_deadline?: string | null;

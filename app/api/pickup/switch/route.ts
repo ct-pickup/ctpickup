@@ -837,6 +837,13 @@ export async function POST(req: Request) {
     if (body.title != null) patch.title = String(body.title);
     if (body.capacity != null) patch.capacity = Number(body.capacity);
     if (body.fee_cents != null) patch.fee_cents = Number(body.fee_cents);
+    if (body.admin_fee_cents != null) {
+      const afc = Math.round(Number(body.admin_fee_cents));
+      if (!Number.isFinite(afc) || afc < 0) {
+        return NextResponse.json({ error: "Invalid admin_fee_cents" }, { status: 400 });
+      }
+      patch.admin_fee_cents = afc;
+    }
     if (body.currency != null) patch.currency = String(body.currency);
     if ("location_private" in body) {
       patch.location_private =
