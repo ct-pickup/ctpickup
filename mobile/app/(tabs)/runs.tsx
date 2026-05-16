@@ -1,1752 +1,377 @@
-import { PickupScorePill } from "@/components/PickupScorePill";
-import { RegionsPickerPanel } from "@/components/RegionsPickerPanel";
 import { useAuth } from "@/context/AuthContext";
-import { useRunsPickerBridge } from "@/context/RunsPickerBridge";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { usePickupJoin } from "@/hooks/usePickupJoin";
 import { usePickupPublic } from "@/hooks/usePickupPublic";
-import { usePickupStandingScore } from "@/hooks/usePickupStandingScore";
+import { useTeamChatAccess } from "@/hooks/useTeamChat";
+import { hapticGoal, hapticTap } from "@/lib/haptics";
+import { fmtPickupDateEt, fmtPickupTimeEt } from "@/lib/pickupPublic";
 import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickupRunType";
-import { fetchPickupFindPlayers, type PickupFindPlayerResult } from "@/lib/siteApi";
-import { siteOrigin } from "@/lib/env";
-import { hapticGoal, hapticKick, hapticTap } from "@/lib/haptics";
-import { fmtPickupDt } from "@/lib/pickupPublic";
-import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
-import { NO_NEARBY_VENUE_HUB_MSG } from "@/lib/playerLocationHints";
-import { getNearestVenuesFromApi } from "@/lib/venueDistance";
-import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
-import { formatCacheAge } from "@/lib/offlineCache";
+import { useUserChatRooms } from "@/lib/teamChat";
+import { serviceRegionName } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import { useNavigation } from "@react-navigation/native";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useRouter } from "expo-router";
+import { useCallback, useMemo } from "react";
 import {
-  ActivityIndicator,
   Alert,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+const BG = "#0a0a0a";
 const LIME = "#a3e635";
 
-const MS_DAY = 24 * 60 * 60 * 1000;
-const MS_HOUR = 60 * 60 * 1000;
-const MS_MINUTE = 60 * 1000;
-
-/** Live copy for confirmed players before `in_progress`; `nowMs` should be `Date.now()`. */
-function formatPreRunCountdownLabel(startMs: number, nowMs: number): string {
-  const totalMs = startMs - nowMs;
-  if (totalMs <= 0) return "Starting soon...";
-  if (totalMs > MS_DAY) {
-    const d = Math.floor(totalMs / MS_DAY);
-    const h = Math.floor((totalMs % MS_DAY) / MS_HOUR);
-    return `Run starts in ${d}d ${h}h`;
-  }
-  if (totalMs > MS_HOUR) {
-    const h = Math.floor(totalMs / MS_HOUR);
-    const m = Math.floor((totalMs % MS_HOUR) / MS_MINUTE);
-    return `Run starts in ${h}h ${m}m`;
-  }
-  const m = Math.max(1, Math.floor(totalMs / MS_MINUTE));
-  return `Run starts in ${m}m`;
+function SkeletonCard() {
+  return (
+    <View style={styles.skeletonCard}>
+      <View style={[styles.skelLine, { width: "35%", height: 12 }]} />
+      <View style={[styles.skelLine, { width: "90%", height: 28, marginTop: 14 }]} />
+      <View style={[styles.skelLine, { width: "70%", marginTop: 12 }]} />
+      <View style={[styles.skelLine, { width: "50%", marginTop: 12 }]} />
+      <View style={[styles.skelBtn, { marginTop: 20 }]} />
+    </View>
+  );
 }
 
-const FRIEND_FIND_NO_PLAYERS_MSG = "No players found. Try a different name or username.";
-
-function isFriendFindNotFoundError(message: string | null | undefined): boolean {
-  if (message == null || message === "") return false;
-  if (message === "not_found") return true;
-  return message.startsWith("not_found —");
+function statusLabelFor(st: string | null | undefined, myStatus: string | null): string {
+  if (myStatus === "confirmed") return "You're in";
+  if (myStatus === "standby") return "Standby";
+  if (myStatus === "waitlist") return "Waitlist";
+  if (myStatus === "pending_payment") return "Payment pending";
+  if (!st) return "Upcoming";
+  if (st === "planning") return "Planning";
+  if (st === "likely_on") return "Likely on";
+  if (st === "active") return "Open";
+  if (st === "in_progress") return "Live now";
+  if (st === "completed") return "Completed";
+  if (st === "canceled") return "Canceled";
+  return st.replace(/_/g, " ");
 }
-
-/** Strip legacy internal grouping tokens from admin-authored run text so players only see neutral copy. */
-function stripLegacyGroupingTokensFromRunText(s: string): string {
-  return s
-    .replace(/\b[Tt]ier\s*\d+[A-Za-z]?\b/g, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-}
-
-/**
- * Fixed availability ranges shown during the planning poll. The `slot_label`
- * value is what gets sent to (and matched against) `/api/pickup/commit` —
- * the server creates a `pickup_run_time_slots` row with that label on first
- * use and reuses it for subsequent commits.
- */
-const FIXED_AVAILABILITY_RANGES = [
-  { display: "10am – 12pm", slot_label: "10am-12pm" },
-  { display: "3pm – 5pm", slot_label: "3pm-5pm" },
-  { display: "7pm – 10pm", slot_label: "7pm-10pm" },
-] as const;
 
 export default function RunsScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ run_id?: string }>();
-  const pickupFocusRunId = typeof params.run_id === "string" && params.run_id.trim() ? params.run_id.trim() : undefined;
-  const navigation = useNavigation();
-  const { height: windowHeight } = useWindowDimensions();
-  const { session, supabase } = useAuth();
-  const { setRegion, region } = useSelectedRegion();
-  const { registerReset } = useRunsPickerBridge();
+  const { session } = useAuth();
   const token = session?.access_token ?? null;
-  const {
-    loading,
-    error,
-    data,
-    run,
-    noFeaturedRun,
-    load,
-    myStatus,
-    counts,
-    visibility,
-    invitedNow,
-    netOffline,
-    offlineNoCache,
-    displaySource,
-    lastLiveSuccessAt,
-    dataAsOfMs,
-  } = usePickupPublic(token, { focusRunId: pickupFocusRunId });
-  const {
-    joinBusy,
-    joinPickup,
-    payBusy,
-    payPickup,
-    declineBusy,
-    declinePickup,
-    availabilityBusy,
-    commitAvailability,
-    commitAvailabilitySlots,
-    pendingSlotKey,
-  } = usePickupJoin();
-  const { loading: scoreLoading, scorePct, trackedPickups, attendedPickups } = usePickupStandingScore();
+  const { region } = useSelectedRegion();
+  const { allowed: chatAllowed } = useTeamChatAccess();
 
-  const [showStatePicker, setShowStatePicker] = useState(true);
-  const [selectedSlotLabels, setSelectedSlotLabels] = useState<string[]>([]);
-  const [availabilitySubmittedBanner, setAvailabilitySubmittedBanner] = useState(false);
-  const [skipPreselectAfterChange, setSkipPreselectAfterChange] = useState(false);
-  const [profileZipDigits, setProfileZipDigits] = useState<string | null>(null);
-  const [profileNearestVenue, setProfileNearestVenue] = useState<string | null>(null);
-  const [runVenueDriveMinutes, setRunVenueDriveMinutes] = useState<number | null>(null);
+  const { loading, error, run, counts, myStatus, invitedNow, noFeaturedRun, load } = usePickupPublic(token);
+  const { joinBusy, joinPickup, payBusy, payPickup } = usePickupJoin();
 
-  const [friendModalOpen, setFriendModalOpen] = useState(false);
-  const [friendQuery, setFriendQuery] = useState("");
-  const [friendFound, setFriendFound] = useState<PickupFindPlayerResult | null>(null);
-  const [friendSuggestions, setFriendSuggestions] = useState<PickupFindPlayerResult[]>([]);
-  const [friendAutocompleteLoading, setFriendAutocompleteLoading] = useState(false);
-  const [friendAutocompleteEmpty, setFriendAutocompleteEmpty] = useState(false);
-  const [friendAutocompleteError, setFriendAutocompleteError] = useState<string | null>(null);
-  const [myTeamLetter, setMyTeamLetter] = useState<"A" | "B" | "C" | null>(null);
-  const [myWaitlistPosition, setMyWaitlistPosition] = useState<number | null>(null);
-  const [preRunCountdownLabel, setPreRunCountdownLabel] = useState<string | null>(null);
-  const [listRefreshing, setListRefreshing] = useState(false);
-  const [, setUpdatedLabelTick] = useState(0);
+  const chatEnabled = !!session?.user?.id && chatAllowed === true;
+  const { rooms } = useUserChatRooms(chatEnabled);
 
-  const onRunsRefresh = useCallback(async () => {
-    setListRefreshing(true);
-    try {
-      await load({ background: true });
-    } finally {
-      setListRefreshing(false);
-    }
+  const runId = typeof run?.id === "string" ? run.id : null;
+  const runStatus = typeof run?.status === "string" ? run.status : null;
+  const runLocked = runStatus === "in_progress";
+
+  const banterRoomId = useMemo(() => {
+    if (!runId) return null;
+    const room = rooms.find((r) => r.room_type === "run_banter" && r.run_id === runId);
+    return room?.id ?? null;
+  }, [rooms, runId]);
+
+  const capacity = Number(run?.capacity ?? 0) || 0;
+  const confirmed = Number(counts?.confirmed ?? 0) || 0;
+  const spotsLeft = capacity > 0 ? Math.max(0, capacity - confirmed) : null;
+
+  const feeCents = typeof run?.fee_cents === "number" ? run.fee_cents : 0;
+  const isFree = feeCents <= 0;
+
+  const typeBadge = run
+    ? isPublicPickupRunType(run.run_type)
+      ? "PUBLIC"
+      : "SELECT"
+    : "";
+
+  const title =
+    typeof run?.title === "string" && run.title.trim()
+      ? run.title.trim()
+      : typeof run?.location_text === "string" && run.location_text.trim()
+        ? run.location_text.split(/\r?\n/)[0]?.trim() ?? "Pickup run"
+        : "Pickup run";
+
+  const venue =
+    typeof run?.location_text === "string" && run.location_text.trim()
+      ? run.location_text.split(/\r?\n/)[0]?.trim()
+      : title;
+
+  const showJoin =
+    !!token &&
+    !!runId &&
+    !runLocked &&
+    invitedNow &&
+    (myStatus == null || myStatus === "declined") &&
+    (isPublicPickupRunType(run?.run_type) ||
+      (isSelectPickupRunType(run?.run_type) && run?.final_slot_id != null));
+
+  const hasRsvp =
+    myStatus === "confirmed" ||
+    myStatus === "standby" ||
+    myStatus === "waitlist" ||
+    myStatus === "pending_payment";
+
+  const onRefresh = useCallback(() => {
+    void load();
   }, [load]);
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      setUpdatedLabelTick((n) => n + 1);
-    }, 30_000);
-    return () => {
-      clearInterval(id);
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    registerReset(() => setShowStatePicker(true));
-    return () => registerReset(null);
-  }, [registerReset]);
-
-  useEffect(() => {
-    if (!supabase || !session?.user?.id) {
-      setProfileZipDigits(null);
-      setProfileNearestVenue(null);
+  const onImIn = useCallback(() => {
+    if (!token || !runId) {
+      Alert.alert("Sign in required", "Sign in to join this run.");
       return;
     }
-    let cancelled = false;
-    void (async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("zip_code,nearest_venue")
-        .eq("id", session.user.id)
-        .maybeSingle();
-      if (cancelled) return;
-      if (error || !data) {
-        setProfileZipDigits(null);
-        setProfileNearestVenue(null);
-        return;
-      }
-      const z = typeof data.zip_code === "string" ? data.zip_code.replace(/\D/g, "").slice(0, 5) : "";
-      setProfileZipDigits(z.length === 5 ? z : null);
-      const nvRaw = (data as { nearest_venue?: unknown }).nearest_venue;
-      setProfileNearestVenue(typeof nvRaw === "string" && nvRaw.trim() ? nvRaw.trim() : null);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [supabase, session?.user?.id]);
-
-  useEffect(() => {
-    const origin = siteOrigin();
-    const srRaw = run?.service_region;
-    const sr =
-      typeof srRaw === "string" && srRaw.trim().length > 0 ? srRaw.trim().toUpperCase() : "";
-    const startRaw = run?.start_at;
-    const startAt = typeof startRaw === "string" && startRaw.length > 0 ? startRaw : null;
-
-    if (!profileZipDigits || !origin || !sr || !startAt || run == null) {
-      setRunVenueDriveMinutes(null);
-      return;
-    }
-
-    const ms = new Date(startAt).getTime();
-    if (!Number.isFinite(ms)) {
-      setRunVenueDriveMinutes(null);
-      return;
-    }
-    const departureSecs = Math.floor(ms / 1000);
-
-    let cancelled = false;
-    void (async () => {
-      const rows = await getNearestVenuesFromApi(profileZipDigits, origin, token, departureSecs);
-      if (cancelled) return;
-      const forRegion = rows.filter((r) => serviceRegionForVenueName(r.venue) === sr);
-      if (forRegion.length === 0) {
-        setRunVenueDriveMinutes(null);
-        return;
-      }
-      forRegion.sort((a, b) => a.estimatedMinutes - b.estimatedMinutes);
-      setRunVenueDriveMinutes(forRegion[0]!.estimatedMinutes);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [profileZipDigits, token, run?.service_region, run?.start_at]);
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: showStatePicker ? "Pickup by state" : "Runs",
-      tabBarLabel: "Pickup",
-    });
-  }, [navigation, showStatePicker]);
-
-  const runId = typeof run?.id === "string" ? run.id : undefined;
-  const runIsInProgress = typeof run?.status === "string" && run.status === "in_progress";
-  const joinDisabled = joinBusy || !runId;
-  const payDisabled = payBusy || !runId;
-
-  const resetFriendPayModal = useCallback(() => {
-    setFriendQuery("");
-    setFriendFound(null);
-    setFriendSuggestions([]);
-    setFriendAutocompleteLoading(false);
-    setFriendAutocompleteEmpty(false);
-    setFriendAutocompleteError(null);
-  }, []);
-
-  const openFriendPayModal = useCallback(() => {
     void hapticTap();
-    resetFriendPayModal();
-    setFriendModalOpen(true);
-  }, [resetFriendPayModal]);
-
-  const closeFriendPayModal = useCallback(() => {
-    setFriendModalOpen(false);
-    resetFriendPayModal();
-  }, [resetFriendPayModal]);
-
-  useEffect(() => {
-    if (!runId || !supabase || !session?.user?.id || myStatus !== "confirmed" || !runIsInProgress) {
-      setMyTeamLetter(null);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      const { data } = await supabase
-        .from("pickup_run_team_assignments")
-        .select("team")
-        .eq("run_id", runId)
-        .eq("user_id", session.user.id)
-        .maybeSingle();
-      if (cancelled) return;
-      const raw = data && typeof data === "object" ? (data as { team?: unknown }).team : null;
-      const t = typeof raw === "string" ? raw : null;
-      setMyTeamLetter(t === "A" || t === "B" || t === "C" ? t : null);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [runId, supabase, session?.user?.id, myStatus, runIsInProgress]);
-
-  useEffect(() => {
-    if (!runId || !supabase || !session?.user?.id || myStatus !== "waitlist") {
-      setMyWaitlistPosition(null);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      const { data: rows, error } = await supabase
-        .from("pickup_run_rsvps")
-        .select("user_id, created_at")
-        .eq("run_id", runId)
-        .eq("status", "waitlist")
-        .order("created_at", { ascending: true });
-      if (cancelled) return;
-      if (error || !Array.isArray(rows)) {
-        setMyWaitlistPosition(null);
-        return;
-      }
-      const uid = session.user.id;
-      const idx = rows.findIndex((r) => {
-        if (!r || typeof r !== "object") return false;
-        return (r as { user_id?: unknown }).user_id === uid;
-      });
-      setMyWaitlistPosition(idx >= 0 ? idx + 1 : null);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [runId, supabase, session?.user?.id, myStatus, data]);
-
-  useEffect(() => {
-    if (myStatus !== "confirmed") {
-      setPreRunCountdownLabel(null);
-      return;
-    }
-    const rawStart = typeof run?.start_at === "string" ? run.start_at.trim() : "";
-    if (!rawStart) {
-      setPreRunCountdownLabel(null);
-      return;
-    }
-    const st = typeof run?.status === "string" ? run.status : "";
-    if (st === "in_progress") {
-      setPreRunCountdownLabel(null);
-      return;
-    }
-
-    const tick = () => {
-      const startMs = new Date(rawStart).getTime();
-      if (!Number.isFinite(startMs)) {
-        setPreRunCountdownLabel(null);
-        return;
-      }
-      setPreRunCountdownLabel(formatPreRunCountdownLabel(startMs, Date.now()));
-    };
-
-    tick();
-    const id = setInterval(tick, 30_000);
-    return () => {
-      clearInterval(id);
-    };
-  }, [myStatus, run?.start_at, run?.status]);
-
-  useEffect(() => {
-    if (!friendModalOpen || !token) return;
-
-    let cancelled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    const q = friendQuery.trim();
-
-    if (q.length < 2) {
-      setFriendSuggestions([]);
-      setFriendAutocompleteLoading(false);
-      setFriendAutocompleteEmpty(false);
-      setFriendAutocompleteError(null);
-      return;
-    }
-
-    if (!runId) {
-      setFriendSuggestions([]);
-      setFriendAutocompleteLoading(false);
-      setFriendAutocompleteEmpty(false);
-      setFriendAutocompleteError("No run is loaded — cannot search players for pay-for-friend.");
-      return;
-    }
-
-    setFriendAutocompleteEmpty(false);
-    setFriendAutocompleteError(null);
-
-    timeoutId = setTimeout(() => {
-      void (async () => {
-        if (cancelled) return;
-        setFriendAutocompleteLoading(true);
-        setFriendSuggestions([]);
-        try {
-          const r = await fetchPickupFindPlayers(token, q, { runId, limit: 5 });
-          if (cancelled) return;
-          if (r.ok) {
-            setFriendSuggestions(r.players);
-            setFriendAutocompleteEmpty(r.players.length === 0);
-            setFriendAutocompleteError(null);
-            } else {
-              setFriendSuggestions([]);
-              if (isFriendFindNotFoundError(r.error)) {
-                setFriendAutocompleteEmpty(true);
-                setFriendAutocompleteError(null);
-              } else {
-                setFriendAutocompleteEmpty(false);
-                setFriendAutocompleteError(r.error ?? "Search failed. Try again.");
-              }
-            }
-        } catch (e) {
-          if (!cancelled) {
-            setFriendSuggestions([]);
-            setFriendAutocompleteEmpty(false);
-            setFriendAutocompleteError(e instanceof Error ? e.message : "Network error. Try again.");
-          }
-        } finally {
-          if (!cancelled) setFriendAutocompleteLoading(false);
-        }
-      })();
-    }, 300);
-
-    return () => {
-      cancelled = true;
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [friendModalOpen, token, friendQuery, runId]);
-
-  const onSelectFriendSuggestion = useCallback((p: PickupFindPlayerResult) => {
-    void hapticTap();
-    const display =
-      p.full_name.trim().length > 0 ? p.full_name.trim() : (p.username && p.username.trim()) || "Player";
-    setFriendFound(p);
-    setFriendQuery(display);
-    setFriendSuggestions([]);
-    setFriendAutocompleteEmpty(false);
-    setFriendAutocompleteError(null);
-    Keyboard.dismiss();
-  }, []);
-
-  const onConfirmPayForFriend = useCallback(async () => {
-    if (!friendFound || !runId || !token) return;
-    if (friendFound.user_id === session?.user?.id) {
-      Alert.alert("That’s you", "Use “Request a spot” to join for yourself.");
-      return;
-    }
-    void hapticGoal();
-    setFriendModalOpen(false);
-    await joinPickup(token, runId, load, {
-      friendUserId: friendFound.user_id,
-      friendDisplayName: friendFound.full_name,
+    void joinPickup(token, runId, async () => {
+      await load();
+      void hapticGoal();
     });
-    resetFriendPayModal();
-  }, [friendFound, runId, token, session?.user?.id, joinPickup, load, resetFriendPayModal]);
+  }, [token, runId, joinPickup, load]);
 
-  const statusLabel = useMemo(() => {
-    const st = run?.status;
-    if (!st || typeof st !== "string") return "NO RUN ANNOUNCED";
-    if (st === "planning") return "PLANNING";
-    if (st === "likely_on") return "LIKELY ON";
-    if (st === "active") return "CONFIRMED / ACTIVE";
-    return st.toUpperCase();
-  }, [run]);
+  const onCompletePayment = useCallback(() => {
+    if (!token || !runId) return;
+    void hapticTap();
+    void payPickup(token, runId, load);
+  }, [token, runId, payPickup, load]);
 
-  const runTypeLabel = useMemo(() => {
-    if (!run) return "";
-    return isSelectPickupRunType(run.run_type) ? "SELECT PICKUP" : "PUBLIC PICKUP";
-  }, [run]);
-
-  // Surfaces from the raw payload that the typed wrapper doesn't expose yet
-  // (planning poll, attendees, location, updates). All optional and defensively typed.
-  const dataObj = useMemo(
-    () => (data && typeof data === "object" ? (data as Record<string, unknown>) : {}),
-    [data],
-  );
-
-  const updateMessages = useMemo(() => {
-    const out: { key: string; text: string }[] = [];
-    const pick = (raw: unknown): string | null => {
-      if (!raw || typeof raw !== "object") return null;
-      const m = (raw as { message?: unknown }).message;
-      return typeof m === "string" && m.trim().length > 0 ? m : null;
-    };
-    const g = pick(dataObj.globalUpdate);
-    if (g) {
-      const t = stripLegacyGroupingTokensFromRunText(g);
-      if (t.length > 0) out.push({ key: "global", text: t });
-    }
-    const r = pick(dataObj.runUpdate);
-    if (r) {
-      const t = stripLegacyGroupingTokensFromRunText(r);
-      if (t.length > 0) out.push({ key: "run", text: t });
-    }
-    return out;
-  }, [dataObj]);
-
-  type Attendee = { full_name: string; instagram: string | null };
-  const attendees = useMemo<Attendee[]>(() => {
-    const raw = dataObj.attendees;
-    if (!Array.isArray(raw)) return [];
-    return raw
-      .map((entry) => {
-        if (!entry || typeof entry !== "object") return null;
-        const a = entry as Record<string, unknown>;
-        const name = typeof a.full_name === "string" && a.full_name.trim().length > 0 ? a.full_name : "Player";
-        const instagram = typeof a.instagram === "string" && a.instagram.length > 0 ? a.instagram : null;
-        return { full_name: name, instagram } satisfies Attendee;
-      })
-      .filter((a): a is Attendee => a !== null);
-  }, [dataObj]);
-
-  const locationText = useMemo(() => {
-    const v = dataObj.location;
-    if (typeof v !== "string" || v.trim().length === 0) return null;
-    const cleaned = stripLegacyGroupingTokensFromRunText(v);
-    return cleaned.length > 0 ? cleaned : null;
-  }, [dataObj]);
-
-  const cancellationDeadline = useMemo(() => {
-    const v = run?.cancellation_deadline;
-    return typeof v === "string" && v.length > 0 ? v : null;
-  }, [run]);
-
-  /** FIX 2: live banner from `start_at` only — more than 24h before kickoff vs inside the window. */
-  const confirmedRefundBannerKind = useMemo<"eligible" | "not_eligible" | null>(() => {
-    const raw = typeof run?.start_at === "string" ? run.start_at.trim() : "";
-    if (!raw) return null;
-    const startMs = new Date(raw).getTime();
-    if (!Number.isFinite(startMs)) return null;
-    const msUntilStart = startMs - Date.now();
-    if (msUntilStart <= 0) return null;
-    return msUntilStart > 24 * 60 * 60 * 1000 ? "eligible" : "not_eligible";
-  }, [run?.start_at]);
-
-  /** From `/api/pickup/public` `me` — account allowed to RSVP when true. */
-  const meApproved = useMemo(() => {
-    const me = dataObj.me;
-    if (!me || typeof me !== "object") return false;
-    return (me as { approved?: unknown }).approved === true;
-  }, [dataObj]);
-
-  /** Poll / join enabled when the server says the user can interact with this run (public region match or select invite). */
-  const availabilityPollInvited = invitedNow;
-
-  /** Run is "live" once an admin has tapped "Begin Pickup Now" — joining and changes are locked. */
-  const runLocked = useMemo(() => {
-    if (!run) return false;
-    const st = typeof run.status === "string" ? run.status.trim().toLowerCase() : "";
-    if (st === "in_progress") return true;
-    const lockedAt = (run as { locked_at?: unknown }).locked_at;
-    return typeof lockedAt === "string" && lockedAt.trim().length > 0;
-  }, [run]);
-
-  const showAvailabilityPoll = useMemo(() => {
-    if (runLocked) return false;
-    // Availability poll is for select runs only.
-    if (isPublicPickupRunType(run?.run_type)) return false;
-    const st = run?.status;
-    if (st !== "planning" && st !== "likely_on") return false;
-    if (run?.final_slot_id != null) return false;
-    if (isSelectPickupRunType(run?.run_type) && !availabilityPollInvited) return false;
-    return true;
-  }, [run, availabilityPollInvited, runLocked]);
-
-  /**
-   * "Request a spot" / pay-for-friend: approved signed-in users only.
-   * - Public: any run status (planning, likely_on, active, etc.).
-   * - Select: only after admin finalizes a time slot (`final_slot_id`); until then the availability poll is shown instead.
-   */
-  const showRequestSpotActions = useMemo(() => {
-    if (!token || !meApproved || !run) return false;
-    if (runLocked) return false;
-    if (isPublicPickupRunType(run.run_type)) return true;
-    if (isSelectPickupRunType(run.run_type)) return run.final_slot_id != null;
-    return false;
-  }, [token, meApproved, run, runLocked]);
-
-  const allowedSlotLabelSet = useMemo(
-    () => new Set<string>(FIXED_AVAILABILITY_RANGES.map((r) => r.slot_label)),
-    [],
-  );
-
-  /** Server `planning.my_availability` may be an array (multi-slot) or a legacy single object. */
-  const preselectedSlotLabels = useMemo(() => {
-    const raw = dataObj.planning;
-    if (!raw || typeof raw !== "object") return [] as string[];
-    const p = raw as Record<string, unknown>;
-    const ma = p.my_availability;
-    const out: string[] = [];
-    const pushIfAllowed = (slotLabel: unknown, state: unknown) => {
-      if (state !== "available") return;
-      if (typeof slotLabel !== "string" || !allowedSlotLabelSet.has(slotLabel)) return;
-      if (!out.includes(slotLabel)) out.push(slotLabel);
-    };
-    if (Array.isArray(ma)) {
-      for (const entry of ma) {
-        if (!entry || typeof entry !== "object") continue;
-        const o = entry as Record<string, unknown>;
-        pushIfAllowed(o.slot_label, o.state);
-      }
-    } else if (ma && typeof ma === "object") {
-      const o = ma as Record<string, unknown>;
-      pushIfAllowed(o.slot_label, o.state);
-    }
-    return out;
-  }, [dataObj, allowedSlotLabelSet]);
-
-  const preselectSig = useMemo(() => [...preselectedSlotLabels].sort().join("|"), [preselectedSlotLabels]);
-
-  useEffect(() => {
-    setAvailabilitySubmittedBanner(false);
-    setSkipPreselectAfterChange(false);
-  }, [runId]);
-
-  useEffect(() => {
-    if (!runId || !showAvailabilityPoll) return;
-    if (availabilitySubmittedBanner) return;
-    if (skipPreselectAfterChange) return;
-    setSelectedSlotLabels([...preselectedSlotLabels]);
-  }, [
-    runId,
-    showAvailabilityPoll,
-    preselectSig,
-    preselectedSlotLabels,
-    availabilitySubmittedBanner,
-    skipPreselectAfterChange,
-  ]);
-
-  const onToggleSlotChip = useCallback(
-    (slotLabel: string) => {
+  const onOpenChat = useCallback(() => {
+    if (banterRoomId) {
       void hapticTap();
-      if (!availabilityPollInvited || availabilityBusy) return;
-      setSelectedSlotLabels((prev) =>
-        prev.includes(slotLabel) ? prev.filter((l) => l !== slotLabel) : [...prev, slotLabel],
-      );
-    },
-    [availabilityPollInvited, availabilityBusy],
-  );
-
-  const onSubmitAvailability = useCallback(async () => {
-    if (!runId || !token || selectedSlotLabels.length === 0) return;
-    const labels = [...selectedSlotLabels].sort();
-    void hapticKick();
-    const ok = await commitAvailabilitySlots(token, runId, labels, load);
-    if (ok) setAvailabilitySubmittedBanner(true);
-  }, [runId, token, selectedSlotLabels, commitAvailabilitySlots, load]);
-
-  const onChangeAvailability = useCallback(() => {
-    setAvailabilitySubmittedBanner(false);
-    setSkipPreselectAfterChange(true);
-    setSelectedSlotLabels([]);
-  }, []);
-
-  const attendanceVisible = visibility?.attendanceVisible === true;
-
-  /** Invite / exclusive-run hints only use neutral copy (no internal grouping names). */
-  const waveMessage = useMemo<{ text: string; color: string } | null>(() => {
-    if (invitedNow) {
-      return { text: "You're invited — request your spot now", color: "#a3e635" };
+      router.push({ pathname: "/(tabs)/messages/thread", params: { id: banterRoomId } });
+      return;
     }
-    if (isSelectPickupRunType(run?.run_type)) {
-      return {
-        text: "Select runs are invite-only. If you’re invited, you’ll get a notification.",
-        color: "rgba(255,255,255,0.72)",
-      };
-    }
-    return null;
-  }, [invitedNow, run?.run_type]);
-
-  const runTitleDisplay = useMemo(() => {
-    const raw = typeof run?.title === "string" && run.title ? run.title : "Pickup run";
-    const cleaned = stripLegacyGroupingTokensFromRunText(raw);
-    return cleaned.length > 0 ? cleaned : "Pickup run";
-  }, [run]);
-
-  const countChips = useMemo(() => {
-    const c = counts ?? {};
-    const items: { key: string; label: string }[] = [];
-    if (typeof c.confirmed === "number") items.push({ key: "confirmed", label: `${c.confirmed} confirmed` });
-    if (typeof c.standby === "number") items.push({ key: "standby", label: `${c.standby} standby` });
-    if (typeof c.waitlist === "number") items.push({ key: "waitlist", label: `${c.waitlist} waitlist` });
-    if (typeof c.pending_payment === "number") items.push({ key: "pending", label: `${c.pending_payment} pending` });
-    return items;
-  }, [counts]);
-
-  const showEmpty = !loading && !error && noFeaturedRun && !offlineNoCache;
-  const showOfflineBanner = netOffline && run != null && dataAsOfMs != null;
-  const emptyBlockMinHeight = Math.max(260, Math.round(windowHeight * 0.42));
-  const showNoNearbyVenueRunsMessage =
-    showEmpty && Boolean(session?.user?.id) && !String(profileNearestVenue ?? "").trim();
-
-  const onPickState = useCallback(
-    (code: ServiceRegionCode) => {
-      void setRegion(code);
-      setShowStatePicker(false);
-    },
-    [setRegion],
-  );
-
-  if (showStatePicker) {
-    return (
-      <SafeAreaView style={styles.pickerSafe} edges={["bottom"]}>
-        <View style={styles.pickerScoreRow}>
-          <PickupScorePill
-            loading={scoreLoading}
-            scorePct={scorePct}
-            trackedPickups={trackedPickups}
-            attendedPickups={attendedPickups}
-            onPress={() => router.push("/(tabs)/account")}
-          />
-        </View>
-        <RegionsPickerPanel onSelectState={onPickState} />
-      </SafeAreaView>
+    Alert.alert(
+      "Chat not ready yet",
+      "Run chat opens once you're confirmed and the room is set up. Check Messages in a moment.",
     );
-  }
+  }, [banterRoomId, router]);
 
   return (
-    <>
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={[styles.content, showEmpty && styles.contentEmpty]}
-      refreshControl={
-        <RefreshControl
-          refreshing={listRefreshing}
-          onRefresh={() => void onRunsRefresh()}
-          tintColor="#fff"
-        />
-      }
-    >
-      {showOfflineBanner ? (
-        <View style={styles.offlineBanner} accessibilityRole="text">
-          <MaterialCommunityIcons name="wifi-off" size={18} color="#fff" style={styles.offlineBannerIcon} />
-          <Text style={styles.offlineBannerText}>
-            Offline — last updated {formatCacheAge(Date.now() - dataAsOfMs!)}
-          </Text>
-        </View>
-      ) : null}
-      <View style={styles.titleRow}>
-        <Text style={styles.title} numberOfLines={1}>
-          Runs
-        </Text>
-        <View style={styles.titleActions}>
-          <PickupScorePill
-            loading={scoreLoading}
-            scorePct={scorePct}
-            trackedPickups={trackedPickups}
-            attendedPickups={attendedPickups}
-            onPress={() => router.push("/(tabs)/account")}
-          />
-          <Pressable
-            onPress={() => setShowStatePicker(true)}
-            style={({ pressed }) => [styles.statesChip, pressed && { opacity: 0.85 }]}
-          >
-            <FontAwesome name="map-marker" size={14} color="#a3e635" />
-            <Text style={styles.statesChipText}> States</Text>
-          </Pressable>
-        </View>
-      </View>
-      <Text style={styles.sub}>
-        Featured pickup for {serviceRegionName(region)} ({region}) same account everywhere.
-      </Text>
-      <View style={styles.linkRow}>
-        <Pressable
-          onPress={() => (router.push as (href: string) => void)("/how-pickup-works")}
-          style={({ pressed }) => [styles.howItWorksRow, pressed && { opacity: 0.7 }]}
-          accessibilityRole="link"
-          accessibilityLabel="How it works"
-        >
-          <FontAwesome name="info-circle" size={14} color="#a3e635" />
-          <Text style={styles.howItWorksText}>How it works</Text>
-          <FontAwesome name="angle-right" size={16} color="rgba(163,230,53,0.7)" />
-        </Pressable>
-      </View>
-
-      {loading ? (
-        <ActivityIndicator size="large" color="#fff" style={{ marginTop: 24 }} />
-      ) : offlineNoCache ? (
-        <Text style={styles.offlineNoCacheText}>
-          No internet connection. Pull down to retry.
-        </Text>
-      ) : error ? (
-        <Text style={styles.err}>{error}</Text>
-      ) : noFeaturedRun ? (
-        <View style={[styles.emptyCenter, { minHeight: emptyBlockMinHeight }]}>
-          <View style={styles.emptyCard}>
-            {showNoNearbyVenueRunsMessage ? (
-              <Text style={styles.emptyNoVenue}>{NO_NEARBY_VENUE_HUB_MSG}</Text>
-            ) : (
-              <>
-                <Text style={styles.emptyTitle}>No runs posted yet.</Text>
-                <Text style={styles.emptyBody}>
-                  Check back soon. You&apos;ll see upcoming pickup runs here once published by admin.
-                </Text>
-              </>
-            )}
-          </View>
-        </View>
-      ) : (
-        <>
-          {updateMessages.length > 0 ? (
-            <View style={styles.updatesCard}>
-              {updateMessages.map((u) => (
-                <View key={u.key} style={styles.updateBlock}>
-                  <Text style={styles.cardEyebrow}>UPDATE</Text>
-                  <Text style={styles.updateText}>{u.text}</Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
-
-          <View style={styles.card}>
-            <View style={styles.cardEyebrowRow}>
-              <Text style={styles.cardEyebrow}>{runTypeLabel || "PICKUP"}</Text>
-            </View>
-            <Text style={styles.cardTitle}>{runTitleDisplay}</Text>
-            <View style={styles.pill}>
-              <Text style={styles.pillText}>{statusLabel}</Text>
-            </View>
-            {countChips.length > 0 ? (
-              <View style={styles.countChipsRow}>
-                {countChips.map((chip) => (
-                  <View key={chip.key} style={styles.countChip}>
-                    <Text style={styles.countChipText}>{chip.label}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-            <Text style={styles.row}>Start: {fmtPickupDt(typeof run?.start_at === "string" ? run.start_at : null)}</Text>
-            {(() => {
-              const fc = run?.fee_cents;
-              if (typeof fc !== "number" || !Number.isFinite(fc) || fc <= 0) return null;
-              const dollars = (fc / 100).toFixed(2);
-              return (
-                <View style={styles.feeBlock}>
-                  <Text style={styles.feeLine}>
-                    Field fee: <Text style={styles.feeAmount}>${dollars}</Text> per person
-                  </Text>
-                  <Text style={styles.feeNote}>
-                    Final fee is based on confirmed attendance up to the session cap. If fewer players confirm, the fee may
-                    be higher. Refunds are available if you cancel more than 24 hours before the run start. Full refund if
-                    the organizer cancels the run.
-                  </Text>
-                </View>
-              );
-            })()}
-            {(() => {
-              const raw = typeof run?.location_text === "string" ? run.location_text.trim() : "";
-              if (!raw) return null;
-              const loc = stripLegacyGroupingTokensFromRunText(raw);
-              if (!loc) return null;
-              return <Text style={styles.row}>Location: {loc}</Text>;
-            })()}
-            {runVenueDriveMinutes != null ? (
-              <Text style={styles.driveEstimate}>🚗 ~{runVenueDriveMinutes} min drive</Text>
-            ) : null}
-            {waveMessage && !runLocked ? (
-              <Text style={[styles.hint, { color: waveMessage.color }]}>{waveMessage.text}</Text>
-            ) : null}
-
-            {runLocked ? (
-              <View style={styles.liveBanner}>
-                <Text style={styles.liveBannerText}>Run is live 🟢 — joining is closed</Text>
-              </View>
-            ) : null}
-
-            {showAvailabilityPoll ? (
-              <View style={styles.pollSection}>
-                <Text style={styles.pollHeading}>Availability poll</Text>
-                <View style={styles.pollChipRow}>
-                  {FIXED_AVAILABILITY_RANGES.map((range) => {
-                    const selected = selectedSlotLabels.includes(range.slot_label);
-                    const chipDisabled = !availabilityPollInvited || availabilityBusy;
-                    return (
-                      <Pressable
-                        key={range.slot_label}
-                        disabled={chipDisabled}
-                        onPress={() => onToggleSlotChip(range.slot_label)}
-                        style={({ pressed }) => [
-                          styles.availChip,
-                          selected && styles.availChipSelected,
-                          chipDisabled && styles.availChipDisabled,
-                          pressed && !chipDisabled && { opacity: 0.88 },
-                        ]}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected, disabled: chipDisabled }}
-                        accessibilityLabel={`${range.display}${selected ? ", selected" : ""}`}
-                      >
-                        <Text
-                          style={[styles.availChipText, selected && styles.availChipTextSelected]}
-                          numberOfLines={1}
-                        >
-                          {range.display}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                <Pressable
-                  disabled={
-                    !availabilityPollInvited ||
-                    availabilityBusy ||
-                    !runId ||
-                    selectedSlotLabels.length === 0
-                  }
-                  onPress={() => void onSubmitAvailability()}
-                  style={({ pressed }) => [
-                    styles.submitAvailabilityBtn,
-                    (!availabilityPollInvited ||
-                      availabilityBusy ||
-                      !runId ||
-                      selectedSlotLabels.length === 0) &&
-                      styles.submitAvailabilityBtnDisabled,
-                    pressed &&
-                      availabilityPollInvited &&
-                      !availabilityBusy &&
-                      selectedSlotLabels.length > 0 && {
-                      opacity: 0.9,
-                    },
-                  ]}
-                >
-                  {availabilityBusy && pendingSlotKey === "multi" ? (
-                    <ActivityIndicator color="#111" size="small" />
-                  ) : (
-                    <Text style={styles.submitAvailabilityBtnText}>Submit availability</Text>
-                  )}
-                </Pressable>
-                {availabilitySubmittedBanner ? (
-                  <View style={styles.submittedAvailBanner}>
-                    <FontAwesome name="check-circle" size={18} color="#bbf7d0" />
-                    <Text style={styles.submittedAvailBannerText} numberOfLines={2}>
-                      Availability submitted
-                    </Text>
-                    <Pressable
-                      onPress={onChangeAvailability}
-                      style={({ pressed }) => [styles.changeAvailabilityBtn, pressed && { opacity: 0.85 }]}
-                      accessibilityRole="button"
-                      accessibilityLabel="Change availability selection"
-                    >
-                      <Text style={styles.changeAvailabilityBtnText}>Change</Text>
-                    </Pressable>
-                  </View>
-                ) : null}
-                <Pressable
-                  disabled={!availabilityPollInvited || availabilityBusy || !runId}
-                  onPress={() => void commitAvailability(token, runId, "declined", null, load)}
-                  style={({ pressed }) => [
-                    styles.declineSlotButton,
-                    (!availabilityPollInvited || availabilityBusy || !runId) &&
-                      styles.declineSlotButtonDisabled,
-                    pressed && availabilityPollInvited && !availabilityBusy && { opacity: 0.85 },
-                  ]}
-                >
-                  <Text style={styles.declineSlotText}>Decline</Text>
-                </Pressable>
-              </View>
-            ) : null}
-
-            {myStatus === "confirmed" ? (
-              <>
-                {preRunCountdownLabel != null ? (
-                  <Text style={styles.preRunCountdown}>{preRunCountdownLabel}</Text>
-                ) : null}
-                <View style={styles.confirmedBanner}>
-                  <FontAwesome name="check-circle" size={18} color="#bbf7d0" />
-                  <Text style={styles.confirmedBannerText}>You&apos;re in. See you on the field.</Text>
-                </View>
-                {runIsInProgress && myTeamLetter ? (
-                  <Text
-                    style={[
-                      styles.myPickupTeamLine,
-                      myTeamLetter === "A" ? styles.myPickupTeamLineA : styles.myPickupTeamLineBw,
-                    ]}
-                  >
-                    You are on Team {myTeamLetter}
-                    {myTeamLetter === "A" ? " 🟢" : " ⚪"}
-                  </Text>
-                ) : null}
-                {runLocked ? null : (
-                  <>
-                    {confirmedRefundBannerKind === "eligible" ? (
-                      <Text style={styles.refundEligibleBanner}>
-                        ✓ Eligible for full refund if canceled now
-                      </Text>
-                    ) : confirmedRefundBannerKind === "not_eligible" ? (
-                      <Text style={styles.refundNotEligibleBanner}>
-                        ⚠ No refund — within 24-hour cancellation window
-                      </Text>
-                    ) : null}
-                  <Pressable
-                    disabled={declineBusy || !runId}
-                    onPress={() =>
-                      void declinePickup(
-                        token,
-                        runId,
-                        run
-                          ? {
-                              start_at: typeof run.start_at === "string" ? run.start_at : null,
-                              cancellation_deadline: cancellationDeadline,
-                            }
-                          : null,
-                        load,
-                      )
-                    }
-                    style={({ pressed }) => [
-                      styles.cancelSpotButton,
-                      (declineBusy || !runId) && styles.cancelSpotButtonDisabled,
-                      pressed && !declineBusy && runId && { opacity: 0.85 },
-                    ]}
-                  >
-                    {declineBusy ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <Text style={styles.cancelSpotText}>Cancel spot</Text>
-                    )}
-                  </Pressable>
-                  </>
-                )}
-              </>
-            ) : myStatus === "standby" ? (
-              <View style={styles.standbyBanner}>
-                <FontAwesome name="hourglass-half" size={16} color="#fcd34d" />
-                <Text style={styles.standbyBannerText}>
-                  You&apos;re on standby we&apos;ll notify you if a spot opens.
-                </Text>
-              </View>
-            ) : myStatus === "waitlist" ? (
-              <View style={[styles.standbyBanner, styles.waitlistBanner]}>
-                <View style={styles.waitlistBadgeRow}>
-                  <FontAwesome name="list-ol" size={16} color="#fcd34d" />
-                  <Text style={styles.standbyBannerText}>Waitlist</Text>
-                </View>
-                {myWaitlistPosition != null ? (
-                  <Text style={styles.waitlistPositionSub}>
-                    You are #{myWaitlistPosition} on the waitlist
-                  </Text>
-                ) : null}
-              </View>
-            ) : myStatus === "pending_payment" ? (
-              runLocked ? null : (
-                <Pressable
-                  style={[styles.primaryPay, payDisabled && styles.primaryJoinDisabled]}
-                  disabled={payDisabled}
-                  onPress={() => {
-                    void hapticGoal();
-                    void payPickup(token, runId, load);
-                  }}
-                >
-                  {payBusy ? (
-                    <ActivityIndicator color="#111" />
-                  ) : (
-                    <>
-                      <FontAwesome name="credit-card" size={16} color="#111" />
-                      <Text style={styles.primaryJoinText}> Complete payment</Text>
-                    </>
-                  )}
-                </Pressable>
-              )
-            ) : showRequestSpotActions ? (
-              <View style={styles.joinActions}>
-                <Pressable
-                  style={[styles.primaryJoin, joinDisabled && styles.primaryJoinDisabled]}
-                  disabled={joinDisabled}
-                  onPress={() => {
-                    void hapticGoal();
-                    void joinPickup(token, runId, load);
-                  }}
-                >
-                  {joinBusy ? (
-                    <ActivityIndicator color="#111" />
-                  ) : (
-                    <>
-                      <FontAwesome name="bolt" size={16} color="#111" />
-                      <Text style={styles.primaryJoinText}> Request a spot</Text>
-                    </>
-                  )}
-                </Pressable>
-                <Pressable
-                  style={[styles.payFriendBtn, (!token || joinBusy || !runId) && styles.payFriendBtnDisabled]}
-                  disabled={!token || joinBusy || !runId}
-                  onPress={openFriendPayModal}
-                >
-                  <FontAwesome name="user-plus" size={15} color="#a3e635" />
-                  <Text style={styles.payFriendBtnText}> Pay for a friend</Text>
-                </Pressable>
-              </View>
-            ) : null}
-
-            {cancellationDeadline ? (
-              <Text style={styles.deadlineText}>
-                Cancel by {fmtPickupDt(cancellationDeadline)} for a refund (24 hours before start)
-              </Text>
-            ) : null}
-            {displaySource === "live" && lastLiveSuccessAt != null ? (
-              <Text style={styles.updatedFooter}>
-                Updated {formatCacheAge(Date.now() - lastLiveSuccessAt)}
-              </Text>
-            ) : null}
-          </View>
-
-          {attendanceVisible ? (
-            <View style={styles.subCard}>
-              <Text style={styles.subCardHeading}>Attendance</Text>
-              {attendees.length === 0 ? (
-                <Text style={styles.subCardBody}>No confirmed players shown yet.</Text>
-              ) : (
-                <View style={styles.attendeeList}>
-                  {attendees.map((a, idx) => (
-                    <Text key={`${a.full_name}-${idx}`} style={styles.attendeeRow}>
-                      {a.full_name}
-                      {a.instagram ? (
-                        <Text style={styles.attendeeHandle}> (@{a.instagram})</Text>
-                      ) : null}
-                    </Text>
-                  ))}
-                </View>
-              )}
-            </View>
-          ) : null}
-
-          {locationText ? (
-            <View style={styles.subCard}>
-              <Text style={styles.subCardHeading}>Location</Text>
-              <Text style={styles.subCardBody}>{locationText}</Text>
-            </View>
-          ) : null}
-        </>
-      )}
-    </ScrollView>
-
-    <Modal
-      visible={friendModalOpen}
-      animationType="fade"
-      transparent
-      onRequestClose={closeFriendPayModal}
-    >
-      <KeyboardAvoidingView
-        style={styles.modalBackdrop}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+    <SafeAreaView style={styles.screen} edges={["top"]}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor={LIME} />}
       >
-        <Pressable style={styles.modalBackdropPress} onPress={closeFriendPayModal} accessibilityRole="button" accessibilityLabel="Dismiss" />
-        <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Pay for a friend</Text>
-            <Text style={styles.modalHint}>Type a username or name — pick them from the list.</Text>
-            <View style={styles.modalAutocompleteWrap}>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="Username or name"
-                placeholderTextColor="rgba(255,255,255,0.4)"
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="default"
-                value={friendQuery}
-                onChangeText={(t) => {
-                  setFriendQuery(t);
-                  setFriendFound(null);
-                }}
-                editable={!joinBusy}
-              />
-              {friendAutocompleteLoading ? (
-                <View style={styles.modalAutocompleteLoadingRow}>
-                  <ActivityIndicator color={LIME} size="small" />
-                  <Text style={styles.modalAutocompleteLoadingText}>Searching…</Text>
-                </View>
-              ) : null}
-              {friendSuggestions.length > 0 ? (
-                <View style={styles.modalSuggestions} accessibilityRole="list">
-                  {friendSuggestions.map((s, i) => (
-                    <Pressable
-                      key={s.user_id}
-                      onPress={() => onSelectFriendSuggestion(s)}
-                      style={({ pressed }) => [
-                        styles.modalSuggestionRow,
-                        i === friendSuggestions.length - 1 && styles.modalSuggestionRowLast,
-                        pressed && { opacity: 0.88 },
-                      ]}
-                      accessibilityRole="button"
-                      accessibilityLabel={
-                        s.username
-                          ? `${s.full_name}, @${s.username}`
-                          : s.full_name
-                      }
-                    >
-                      <Text style={styles.modalSuggestionName} numberOfLines={1}>
-                        {s.full_name}
-                      </Text>
-                      {s.username ? (
-                        <Text style={styles.modalSuggestionUsername} numberOfLines={1}>
-                          @{s.username}
-                        </Text>
-                      ) : null}
-                    </Pressable>
-                  ))}
-                </View>
+        <View style={styles.header}>
+          <Text style={styles.h1}>Runs</Text>
+          <View style={styles.regionPill}>
+            <Text style={styles.regionPillText}>{region}</Text>
+          </View>
+        </View>
+        <Text style={styles.regionSub}>{serviceRegionName(region)}</Text>
+
+        {loading && !run ? (
+          <SkeletonCard />
+        ) : error ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>Could not load runs</Text>
+            <Text style={styles.emptyBody}>{error}</Text>
+            <Pressable onPress={onRefresh} style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.9 }]}>
+              <Text style={styles.retryBtnText}>Try again</Text>
+            </Pressable>
+          </View>
+        ) : noFeaturedRun || !run ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>No runs yet. Check back soon!</Text>
+            <Text style={styles.emptyBody}>
+              When admin posts a pickup in {serviceRegionName(region)}, it will show up here.
+            </Text>
+          </View>
+        ) : !invitedNow && isSelectPickupRunType(run.run_type) ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>Invite only</Text>
+            <Text style={styles.emptyBody}>
+              This is a select run. You will see it here once you are invited.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle} numberOfLines={2}>
+                {title}
+              </Text>
+              <View style={styles.typeBadge}>
+                <Text style={styles.typeBadgeText}>{typeBadge}</Text>
+              </View>
+            </View>
+
+            <Text style={styles.dateEt}>{fmtPickupDateEt(typeof run.start_at === "string" ? run.start_at : null)}</Text>
+            <Text style={styles.timeEt}>{fmtPickupTimeEt(typeof run.start_at === "string" ? run.start_at : null)} ET</Text>
+
+            <Text style={styles.venue} numberOfLines={2}>
+              {venue}
+            </Text>
+
+            <View style={styles.metaRow}>
+              <Text style={styles.fee}>
+                {isFree ? "Free" : `$${(feeCents / 100).toFixed(2)} per player`}
+              </Text>
+              {spotsLeft != null ? (
+                <Text style={styles.spots}>
+                  {spotsLeft === 0 ? "Full" : `${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left`}
+                </Text>
               ) : null}
             </View>
-            {friendQuery.trim().length >= 2 &&
-            !friendAutocompleteLoading &&
-            friendAutocompleteEmpty &&
-            !friendAutocompleteError ? (
-              <Text style={styles.modalSearchEmptyHint}>{FRIEND_FIND_NO_PLAYERS_MSG}</Text>
-            ) : null}
-            {friendAutocompleteError ? (
-              <Text style={styles.modalAutocompleteError}>{friendAutocompleteError}</Text>
-            ) : null}
-            {friendFound ? (
-              friendFound.user_id === session?.user?.id ? (
-                <Text style={styles.modalNotFound}>That’s you — use “Request a spot” for yourself.</Text>
-              ) : (
-                <Text style={styles.modalFound}>
-                  Selected: <Text style={styles.modalFoundName}>{friendFound.full_name}</Text>
+
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusBadgeText}>{statusLabelFor(runStatus, myStatus)}</Text>
+            </View>
+
+            {hasRsvp ? (
+              <View style={styles.rsvpBlock}>
+                <Text style={styles.rsvpStatus}>
+                  {myStatus === "confirmed"
+                    ? "You're confirmed for this run."
+                    : myStatus === "pending_payment"
+                      ? "Finish payment to secure your spot."
+                      : myStatus === "standby"
+                        ? "You're on standby — we'll notify you if a spot opens."
+                        : myStatus === "waitlist"
+                          ? "You're on the waitlist."
+                          : "RSVP updated."}
                 </Text>
-              )
-            ) : null}
-            {friendFound && friendFound.user_id !== session?.user?.id ? (
-              <Pressable
-                style={[styles.modalConfirmPay, joinBusy && styles.modalConfirmPayDisabled]}
-                disabled={joinBusy}
-                onPress={() => void onConfirmPayForFriend()}
-              >
-                {joinBusy ? (
-                  <ActivityIndicator color="#111" size="small" />
-                ) : (
-                  <Text style={styles.modalConfirmPayText}>Pay for {friendFound.full_name}</Text>
+                {myStatus === "pending_payment" && !runLocked ? (
+                  <Pressable
+                    disabled={payBusy}
+                    onPress={onCompletePayment}
+                    style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.9 }, payBusy && styles.btnDisabled]}
+                  >
+                    <Text style={styles.primaryBtnText}>{payBusy ? "Opening checkout…" : "Complete payment"}</Text>
+                  </Pressable>
+                ) : null}
+                {(myStatus === "confirmed" || myStatus === "standby") && (
+                  <Pressable
+                    onPress={onOpenChat}
+                    style={({ pressed }) => [styles.chatBtn, pressed && { opacity: 0.9 }]}
+                  >
+                    <FontAwesome name="comments" size={16} color={LIME} />
+                    <Text style={styles.chatBtnText}> Open run chat</Text>
+                  </Pressable>
                 )}
+              </View>
+            ) : showJoin ? (
+              <Pressable
+                disabled={joinBusy}
+                onPress={onImIn}
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  pressed && !joinBusy && { opacity: 0.9 },
+                  joinBusy && styles.btnDisabled,
+                ]}
+              >
+                <Text style={styles.primaryBtnText}>{joinBusy ? "Joining…" : "I'm In"}</Text>
               </Pressable>
+            ) : isSelectPickupRunType(run.run_type) && !run.final_slot_id ? (
+              <Text style={styles.hint}>Time not finalized yet — check back when admin confirms the slot.</Text>
+            ) : runLocked ? (
+              <Text style={styles.hint}>This run is live — joining is closed.</Text>
             ) : null}
-            <Pressable onPress={closeFriendPayModal} style={styles.modalCloseBtn}>
-              <Text style={styles.modalCloseBtnText}>Close</Text>
-            </Pressable>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-    </>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  pickerSafe: { flex: 1, backgroundColor: "#0a0a0a" },
-  pickerScoreRow: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 10,
-  },
-  scroll: { flex: 1, backgroundColor: "#0a0a0a" },
-  offlineBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    marginBottom: 4,
-    backgroundColor: "#f59e0b",
-  },
-  offlineBannerIcon: { flexShrink: 0 },
-  offlineBannerText: {
-    flex: 1,
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "700",
-    lineHeight: 20,
-  },
-  offlineNoCacheText: {
-    marginTop: 20,
-    color: "rgba(255,255,255,0.72)",
-    fontSize: 16,
-    lineHeight: 22,
-    textAlign: "center",
-  },
-  updatedFooter: {
-    marginTop: 12,
-    fontSize: 11,
-    color: "rgba(255,255,255,0.38)",
-    fontWeight: "500",
-  },
-  content: { padding: 20, paddingBottom: 40 },
-  contentEmpty: { flexGrow: 1 },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  title: { fontSize: 28, fontWeight: "700", color: "#fff", letterSpacing: 0.5, flex: 1, minWidth: 0 },
-  titleActions: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0 },
-  statesChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
+  screen: { flex: 1, backgroundColor: BG },
+  content: { padding: 16, paddingBottom: 32 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  h1: { fontSize: 28, fontWeight: "800", color: "#fff" },
+  regionPill: {
     paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.08)",
-  },
-  statesChipText: { fontSize: 13, fontWeight: "800", color: "#a3e635" },
-  sub: { marginTop: 10, color: "rgba(255,255,255,0.72)", fontSize: 15, lineHeight: 22 },
-  linkRow: {
-    marginTop: 12,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: 10,
-  },
-  howItWorksRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.08)",
-  },
-  howItWorksText: { color: "#a3e635", fontSize: 13, fontWeight: "800" },
-  card: {
-    marginTop: 20,
-    padding: 18,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
-  },
-  emptyCenter: {
-    marginTop: 12,
-    width: "100%",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  emptyCard: {
-    width: "100%",
-    maxWidth: 400,
-    alignSelf: "center",
-    paddingVertical: 28,
-    paddingHorizontal: 22,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
-    alignItems: "center",
-  },
-  emptyTitle: { fontSize: 18, fontWeight: "700", color: "#fff", textAlign: "center" },
-  emptyBody: {
-    marginTop: 12,
-    color: "rgba(255,255,255,0.65)",
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: "center",
-  },
-  emptyNoVenue: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: "center",
-  },
-  cardEyebrowRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  cardEyebrow: { fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.55)", letterSpacing: 1 },
-  updatesCard: {
-    marginTop: 20,
-    padding: 18,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(0,0,0,0.4)",
-    gap: 14,
-  },
-  updateBlock: { gap: 6 },
-  updateText: { color: "#fff", fontSize: 14, lineHeight: 21 },
-  subCard: {
-    marginTop: 16,
-    padding: 18,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.04)",
-  },
-  subCardHeading: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1,
-    color: "rgba(255,255,255,0.7)",
-    textTransform: "uppercase",
-  },
-  subCardBody: {
-    marginTop: 8,
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  attendeeList: { marginTop: 10, gap: 6 },
-  attendeeRow: { color: "rgba(255,255,255,0.85)", fontSize: 14, lineHeight: 20 },
-  attendeeHandle: { color: "rgba(255,255,255,0.55)" },
-  pollSection: { marginTop: 18, gap: 12 },
-  pollHeading: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1,
-    color: "rgba(255,255,255,0.8)",
-    textTransform: "uppercase",
-  },
-  pollChipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  availChip: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(20,20,20,0.95)",
-  },
-  availChipSelected: {
-    borderColor: LIME,
-    backgroundColor: LIME,
-  },
-  availChipDisabled: { opacity: 0.45 },
-  availChipText: { color: "rgba(255,255,255,0.92)", fontSize: 13, fontWeight: "700" },
-  availChipTextSelected: { color: "#111" },
-  submitAvailabilityBtn: {
-    alignSelf: "stretch",
-    marginTop: 4,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: LIME,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 48,
-  },
-  submitAvailabilityBtnDisabled: { opacity: 0.42 },
-  submitAvailabilityBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
-  submittedAvailBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    alignSelf: "stretch",
-    marginTop: 4,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(16,185,129,0.45)",
-    backgroundColor: "rgba(16,185,129,0.2)",
-  },
-  submittedAvailBannerText: {
-    flex: 1,
-    color: "#bbf7d0",
-    fontWeight: "700",
-    fontSize: 14,
-    minWidth: 0,
-  },
-  changeAvailabilityBtn: {
     paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(187,247,208,0.45)",
-    backgroundColor: "rgba(0,0,0,0.25)",
-  },
-  changeAvailabilityBtnText: { color: "#ecfccb", fontSize: 13, fontWeight: "800" },
-  declineSlotButton: {
-    alignSelf: "flex-start",
-    marginTop: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
-  declineSlotButtonDisabled: { opacity: 0.45 },
-  declineSlotText: { color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: "700" },
-  refundEligibleBanner: {
-    marginTop: 12,
-    fontSize: 13,
-    fontWeight: "700",
-    color: LIME,
-    lineHeight: 18,
-  },
-  refundNotEligibleBanner: {
-    marginTop: 12,
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#f59e0b",
-    lineHeight: 18,
-  },
-  cancelSpotButton: {
-    alignSelf: "flex-start",
-    marginTop: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
-  cancelSpotButtonDisabled: { opacity: 0.45 },
-  cancelSpotText: { color: "#fff", fontSize: 13, fontWeight: "700" },
-  deadlineText: {
-    marginTop: 14,
-    color: "rgba(255,255,255,0.65)",
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  cardTitle: { marginTop: 8, fontSize: 20, fontWeight: "600", color: "#fff" },
-  pill: {
-    alignSelf: "flex-start",
-    marginTop: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: "rgba(16,185,129,0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(16,185,129,0.35)",
-  },
-  pillText: { color: "#6ee7b7", fontWeight: "600", fontSize: 13 },
-  countChipsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 8,
-  },
-  countChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: "rgba(163,230,53,0.4)",
+    backgroundColor: "rgba(163,230,53,0.1)",
   },
-  countChipText: { color: "rgba(255,255,255,0.78)", fontSize: 12, fontWeight: "600" },
-  row: { marginTop: 10, color: "rgba(255,255,255,0.85)", fontSize: 15 },
-  driveEstimate: {
-    marginTop: 4,
-    fontSize: 12,
-    color: "rgba(255,255,255,0.55)",
-    lineHeight: 16,
-  },
-  feeBlock: { marginTop: 10 },
-  feeLine: { color: "rgba(255,255,255,0.85)", fontSize: 15, lineHeight: 22 },
-  feeAmount: { color: LIME, fontWeight: "700" },
-  feeNote: {
-    marginTop: 6,
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  hint: { marginTop: 14, color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
-  joinActions: { marginTop: 18, gap: 10, alignSelf: "stretch" },
-  primaryJoin: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: "#a3e635",
-  },
-  payFriendBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+  regionPillText: { color: LIME, fontWeight: "800", fontSize: 13 },
+  regionSub: { color: "rgba(255,255,255,0.45)", marginTop: 4, marginBottom: 20, fontSize: 14 },
+  empty: {
+    padding: 24,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.45)",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.03)",
   },
-  payFriendBtnDisabled: { opacity: 0.45 },
-  payFriendBtnText: { color: "#a3e635", fontWeight: "800", fontSize: 15 },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.65)",
-    justifyContent: "center",
-    paddingHorizontal: 20,
+  emptyTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
+  emptyBody: { color: "rgba(255,255,255,0.55)", marginTop: 8, lineHeight: 22 },
+  retryBtn: {
+    marginTop: 16,
+    alignSelf: "flex-start",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.4)",
   },
-  modalBackdropPress: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-  },
-  modalCard: {
+  retryBtnText: { color: LIME, fontWeight: "700" },
+  card: {
+    padding: 18,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "#141414",
-    padding: 20,
-    gap: 12,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.03)",
   },
-  modalTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
-  modalHint: { fontSize: 14, color: "rgba(255,255,255,0.65)", lineHeight: 20 },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: "#fff",
-    fontSize: 16,
-  },
-  modalAutocompleteWrap: { alignSelf: "stretch", gap: 0 },
-  modalAutocompleteLoadingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-  },
-  modalAutocompleteLoadingText: { color: "rgba(255,255,255,0.65)", fontSize: 14 },
-  modalSuggestions: {
-    marginTop: 4,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(0,0,0,0.45)",
-    overflow: "hidden",
-    alignSelf: "stretch",
-  },
-  modalSuggestionRow: {
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255,255,255,0.1)",
-  },
-  modalSuggestionRowLast: { borderBottomWidth: 0 },
-  modalSuggestionName: { color: "#fff", fontSize: 15, fontWeight: "700" },
-  modalSuggestionUsername: { marginTop: 4, color: "rgba(255,255,255,0.55)", fontSize: 13 },
-  modalFound: { fontSize: 15, color: "rgba(255,255,255,0.85)" },
-  modalFoundName: { fontWeight: "800", color: LIME },
-  modalSearchEmptyHint: {
-    fontSize: 15,
-    color: "rgba(255,255,255,0.55)",
-    fontWeight: "600",
-    lineHeight: 21,
-  },
-  modalAutocompleteError: { fontSize: 15, color: "#fca5a5", fontWeight: "600" },
-  modalNotFound: { fontSize: 15, color: "#fca5a5", fontWeight: "600" },
-  modalConfirmPay: {
-    alignSelf: "stretch",
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: LIME,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 48,
-  },
-  modalConfirmPayDisabled: { opacity: 0.5 },
-  modalConfirmPayText: { color: "#111", fontWeight: "800", fontSize: 15 },
-  modalCloseBtn: { alignSelf: "center", paddingVertical: 8, paddingHorizontal: 12 },
-  modalCloseBtnText: { color: "rgba(255,255,255,0.7)", fontSize: 15, fontWeight: "700" },
-  primaryPay: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "stretch",
-    width: "100%",
-    marginTop: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: "#a3e635",
-  },
-  primaryJoinDisabled: { opacity: 0.45 },
-  primaryJoinText: { color: "#111", fontWeight: "800", fontSize: 15 },
-  preRunCountdown: {
-    color: LIME,
-    fontSize: 15,
-    fontWeight: "700",
-    marginBottom: 10,
-  },
-  confirmedBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    alignSelf: "stretch",
-    marginTop: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(16,185,129,0.45)",
-    backgroundColor: "rgba(16,185,129,0.18)",
-  },
-  confirmedBannerText: { color: "#bbf7d0", fontWeight: "700", fontSize: 15, flexShrink: 1 },
-  myPickupTeamLine: {
-    marginTop: 12,
-    fontSize: 16,
-    fontWeight: "900",
-    letterSpacing: 0.2,
-  },
-  myPickupTeamLineA: { color: LIME },
-  myPickupTeamLineBw: { color: "#fff" },
-  liveBanner: {
-    alignSelf: "stretch",
-    marginTop: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.55)",
+  cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  cardTitle: { flex: 1, color: "#fff", fontSize: 18, fontWeight: "800" },
+  typeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
     backgroundColor: "rgba(163,230,53,0.12)",
+  },
+  typeBadgeText: { color: LIME, fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
+  dateEt: { color: "rgba(255,255,255,0.55)", fontSize: 14, marginTop: 14, fontWeight: "600" },
+  timeEt: { color: LIME, fontSize: 28, fontWeight: "800", marginTop: 4 },
+  venue: { color: "rgba(255,255,255,0.75)", fontSize: 15, marginTop: 12, lineHeight: 22 },
+  metaRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 14, gap: 12 },
+  fee: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  spots: { color: "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: "600" },
+  statusBadge: {
+    alignSelf: "flex-start",
+    marginTop: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+  },
+  statusBadgeText: { color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: "700" },
+  rsvpBlock: { marginTop: 16, gap: 10 },
+  rsvpStatus: { color: "rgba(255,255,255,0.75)", lineHeight: 20, fontSize: 14 },
+  primaryBtn: {
+    marginTop: 16,
+    backgroundColor: LIME,
+    borderRadius: 12,
+    paddingVertical: 16,
     alignItems: "center",
   },
-  liveBannerText: { color: LIME, fontWeight: "800", fontSize: 15, textAlign: "center" },
-  standbyBanner: {
+  primaryBtnText: { color: "#111", fontWeight: "800", fontSize: 17 },
+  btnDisabled: { opacity: 0.65 },
+  chatBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    alignSelf: "stretch",
-    marginTop: 18,
+    justifyContent: "center",
     paddingVertical: 14,
-    paddingHorizontal: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(245,158,11,0.45)",
-    backgroundColor: "rgba(245,158,11,0.18)",
+    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: "rgba(163,230,53,0.06)",
   },
-  waitlistBanner: {
-    flexDirection: "column",
-    alignItems: "stretch",
-    gap: 6,
+  chatBtnText: { color: LIME, fontWeight: "700", fontSize: 15 },
+  hint: { color: "rgba(255,255,255,0.45)", marginTop: 16, lineHeight: 20, fontSize: 14 },
+  skeletonCard: {
+    padding: 18,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.03)",
   },
-  waitlistBadgeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  waitlistPositionSub: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: "rgba(255,255,255,0.45)",
-    marginLeft: 26,
-  },
-  standbyBannerText: { color: "#fcd34d", fontWeight: "600", fontSize: 14, flexShrink: 1, lineHeight: 20 },
-  err: { marginTop: 16, color: "#fca5a5" },
+  skelLine: { height: 14, borderRadius: 6, backgroundColor: "rgba(255,255,255,0.08)" },
+  skelBtn: { height: 48, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.06)" },
 });
