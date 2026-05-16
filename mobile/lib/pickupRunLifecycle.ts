@@ -117,18 +117,26 @@ export function showPromoteToHubButton(row: {
   return row.is_current !== true;
 }
 
-export function showLaunchOutreachButton(row: {
+export function showInvitePlayersButton(row: {
+  status?: string | null;
+  run_type?: unknown;
+  is_completed?: boolean | null;
+}): boolean {
+  if (row.is_completed === true) return false;
+  if (isPublicPickupRunType(row.run_type)) return false;
+  const st = String(row.status || "").trim();
+  if (st === "canceled" || st === "completed" || st === "in_progress") return false;
+  return st === "planning" || st === "likely_on" || st === "active";
+}
+
+/** Legacy hub action; mobile uses {@link showInvitePlayersButton} instead. */
+export function showLaunchOutreachButton(_row: {
   status?: string | null;
   run_type?: unknown;
   outreach_started_at?: string | null;
   is_completed?: boolean | null;
 }): boolean {
-  if (row.is_completed === true) return false;
-  if (isPublicPickupRunType(row.run_type)) return false;
-  if (row.outreach_started_at) return false;
-  const st = String(row.status || "").trim();
-  if (st === "canceled" || st === "active" || st === "in_progress" || st === "completed") return false;
-  return st === "planning" || st === "likely_on";
+  return false;
 }
 
 export function showEditSettingsButton(row: { status?: string | null; is_completed?: boolean | null }): boolean {

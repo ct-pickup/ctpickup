@@ -31,8 +31,7 @@ function bearer(req: Request) {
   return auth.startsWith("Bearer ") ? auth.slice(7) : null;
 }
 
-// tier_rank mapping (locked):
-// 1A=1, 1B=2, 2=3, 3=4, 4=5, PUBLIC=6
+/** Tier 1a / 1b — used only for attendance analytics (`tier1Confirmed`), not run access. */
 function isTier1(rank: number | null | undefined) {
   return rank === 1 || rank === 2;
 }
@@ -164,29 +163,13 @@ export async function GET(req: Request) {
       tier1Confirmed = confirmedRows.filter((r) => isTier1(rankById.get(String(r.user_id)))).length;
     }
 
-    // invitedNow (canonical rules):
-    // - user must be approved
-    // - run.open_tier_rank must be non-null (starts null; do NOT use 0)
-    // - tier_rank <= open_tier_rank
-    // - nearest_venue region matches run.service_region when both are set (missing nearest_venue still eligible)
-    // - invite row exists in pickup_run_invites for (run_id,user_id)
+    // invitedNow — may participate in planning poll / join flow:
+    // - approved + hub region match on profile
+    // - public runs: no invite
+    // - select runs: row in pickup_run_invites
     let invitedNow = false;
 
-    const runOpenTierRank =
-      run.open_tier_rank === null || run.open_tier_rank === undefined
-        ? null
-        : Number(run.open_tier_rank);
-
-    const effectiveTierRank =
-      tierRank === null || tierRank === undefined ? 6 : tierRank;
-
-    if (
-      userId &&
-      approved &&
-      runOpenTierRank !== null &&
-      effectiveTierRank <= runOpenTierRank &&
-      profileMatchesRunServiceRegion(nearestVenue, run.service_region)
-    ) {
+    if (userId && approved && profileMatchesRunServiceRegion(nearestVenue, run.service_region)) {
       if (isPublicPickupRunType(run.run_type)) {
         invitedNow = true;
       } else {
@@ -205,19 +188,8 @@ export async function GET(req: Request) {
       }
     }
 
-    // Attendance visibility:
-    // - within 4 hours of wave1_started_at: only Tier 1A/1B can see
-    // - after that: invitedNow can see
     let attendanceVisible = false;
-    if (invitedNow) {
-      const waveStartedAt = run.wave1_started_at ? new Date(run.wave1_started_at).getTime() : null;
-      if (!waveStartedAt) {
-        attendanceVisible = true;
-      } else {
-        const within4h = Date.now() - waveStartedAt < 4 * 60 * 60 * 1000;
-        attendanceVisible = within4h ? isTier1(effectiveTierRank) : true;
-      }
-    }
+    if (invitedNow) attendanceVisible = true;
 
     // My status: latest row for this user
     let myStatus: string | null = null;
@@ -337,9 +309,6 @@ export async function GET(req: Request) {
         // Keep this key name so your current frontend keeps working:
         location_text: locationText,
 
-        // Canonical fields (safe to include):
-        open_tier_rank: run.open_tier_rank,
-        wave1_started_at: run.wave1_started_at,
         likely_on_at: run.likely_on_at,
         likely_on_slot_id: run.likely_on_slot_id,
         final_slot_id: run.final_slot_id,

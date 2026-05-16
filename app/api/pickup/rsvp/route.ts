@@ -94,17 +94,28 @@ export async function POST(req: Request) {
 
     let eligible = publicRun;
     if (!publicRun) {
-      const myAvail = await admin
-        .from("pickup_run_availability")
-        .select("id")
+      const inviteRow = await admin
+        .from("pickup_run_invites")
+        .select("user_id")
         .eq("run_id", run.id)
         .eq("user_id", user.id)
-        .eq("state", "available")
-        .eq("slot_id", run.final_slot_id)
-        .limit(1)
         .maybeSingle();
 
-      eligible = !!myAvail.data?.id;
+      if (!inviteRow.data) {
+        eligible = false;
+      } else {
+        const myAvail = await admin
+          .from("pickup_run_availability")
+          .select("id")
+          .eq("run_id", run.id)
+          .eq("user_id", user.id)
+          .eq("state", "available")
+          .eq("slot_id", run.final_slot_id)
+          .limit(1)
+          .maybeSingle();
+
+        eligible = !!myAvail.data?.id;
+      }
     }
 
     if (!eligible) {
@@ -327,17 +338,28 @@ export async function POST(req: Request) {
 
   let eligible = publicRun;
   if (!publicRun) {
-    const myAvail = await admin
-      .from("pickup_run_availability")
-      .select("id")
+    const inviteRow = await admin
+      .from("pickup_run_invites")
+      .select("user_id")
       .eq("run_id", run.id)
       .eq("user_id", targetUserId)
-      .eq("state", "available")
-      .eq("slot_id", run.final_slot_id)
-      .limit(1)
       .maybeSingle();
 
-    eligible = !!myAvail.data?.id;
+    if (!inviteRow.data) {
+      eligible = false;
+    } else {
+      const myAvail = await admin
+        .from("pickup_run_availability")
+        .select("id")
+        .eq("run_id", run.id)
+        .eq("user_id", targetUserId)
+        .eq("state", "available")
+        .eq("slot_id", run.final_slot_id)
+        .limit(1)
+        .maybeSingle();
+
+      eligible = !!myAvail.data?.id;
+    }
   }
 
   if (!eligible) {

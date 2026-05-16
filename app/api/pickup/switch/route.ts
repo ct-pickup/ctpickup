@@ -7,9 +7,7 @@ import {
   describePickupAutoStatus,
   processAutoPickupRun,
 } from "@/lib/pickup/autoRunCheckpoints";
-import { insertInvitesForTierRanks, sendPickupInviteSms } from "@/lib/pickup/pickupInvites";
 import { isPublicPickupRunType, normalizePickupRunTypeForDb } from "@/lib/pickup/pickupRunType";
-import { addWaveIntervalIso } from "@/lib/pickup/pickupWaveSchedule";
 import { cancelAllPickupRsvpsAndRefundPaidConfirmed } from "@/lib/pickup/refundAllPickupPlayersOnRunCancel";
 import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
@@ -78,7 +76,7 @@ export async function GET(req: Request) {
   let runsQuery = admin
     .from("pickup_runs")
     .select(
-      "id,title,status,start_at,created_at,run_type,capacity,fee_cents,currency,open_tier_rank,wave1_started_at,likely_on_slot_id,final_slot_id,is_current,outreach_started_at,auto_managed,service_region,location_private,show_location_to_confirmed_only,cancellation_deadline,next_wave_at,current_wave,is_completed",
+      "id,title,status,start_at,created_at,run_type,capacity,fee_cents,currency,likely_on_slot_id,final_slot_id,is_current,outreach_started_at,auto_managed,service_region,location_private,show_location_to_confirmed_only,cancellation_deadline,is_completed",
     )
     .order("created_at", { ascending: false });
 
@@ -528,182 +526,29 @@ export async function POST(req: Request) {
 
     const slotsForGate = await admin.from("pickup_run_time_slots").select("start_at").eq("run_id", run_id);
     const slotRowsGate = (slotsForGate.data || []) as { start_at: string }[];
-    const anchorMs = anchorStartAtMs({ start_at: (run.start_at as string | null) ?? null }, slotRowsGate);
-    if (anchorMs === null) {
+    const anchorMsGate = anchorStartAtMs({ start_at: (run.start_at as string | null) ?? null }, slotRowsGate);
+    if (anchorMsGate === null) {
       return NextResponse.json({ error: "Add at least one kickoff slot before launching outreach." }, { status: 400 });
     }
-    const hoursUntilStart = (anchorMs - Date.parse(now)) / 3600000;
+    const hoursUntilStart = (anchorMsGate - Date.parse(now)) / 3600000;
     if (!Number.isFinite(hoursUntilStart) || hoursUntilStart < 36) {
       return NextResponse.json(
         { error: "Kickoff must be at least 36 hours away to launch outreach." },
         { status: 400 },
       );
     }
+
     const runTypeRaw = run.run_type;
     const publicRun = isPublicPickupRunType(runTypeRaw);
-
-    console.log("[pickup/switch launch_outreach] start", {
-      action,
-      run_id,
-      run_type_raw: runTypeRaw,
-      public_run: publicRun,
-      service_region: run.service_region ?? null,
-    });
-
-    if (!publicRun) {
-      /** Initial select outreach: tier_rank 1 and 2 only (never 5 or 6). */
-      const SELECT_LAUNCH_INVITE_TIER_RANKS = [1, 2] as const;
-
-      console.log("[pickup/switch launch_outreach] tier invite path (non-public run_type)", {
-        run_id,
-        tier_ranks: [...SELECT_LAUNCH_INVITE_TIER_RANKS],
-      });
-
-      const inv = await insertInvitesForTierRanks(
-        admin,
-        run_id,
-        [...SELECT_LAUNCH_INVITE_TIER_RANKS],
-        1,
-        now,
-        run.service_region ?? null,
-        runTypeRaw,
-      );
-      if (!inv.ok) {
-        console.error("[pickup/switch launch_outreach] insertInvitesForTierRanks failed", { run_id, error: inv.error });
-        return NextResponse.json({ error: inv.error }, { status: 500 });
-      }
-
-      console.log("[pickup/switch launch_outreach] insertInvitesForTierRanks result", {
-        run_id,
-        newly_invited: inv.newlyInvited.length,
-        user_ids: inv.newlyInvited.map((p) => p.user_id),
-      });
-
-      const runDateOrTbd = body.date_or_tbd ? String(body.date_or_tbd) : "TBD";
-      const runLink = body.run_link ? String(body.run_link) : "/pickup";
-      const dm_template = `Hey — we’re looking to put together a CT Pickup run for ${runDateOrTbd}.\n\nPlease check the website for all details, updates, and to submit your availability:\n${runLink}\n\nThis invite was sent to Tier 1a + 1b players first and is an automated message.`;
-
-      const userId = guard.userId;
-
-      // Create or find a group chat room for this run
-      const roomSlug = `pickup-run-${run_id}`;
-      const runTitle = run.title || "Pickup Run";
-      const existingRoom = await admin.from("chat_rooms").select("id").eq("slug", roomSlug).maybeSingle();
-      let roomId: string | null = existingRoom.data?.id || null;
-      if (!roomId) {
-        const newRoom = await admin
-          .from("chat_rooms")
-          .insert({
-            slug: roomSlug,
-            title: runTitle,
-            room_type: "group",
-            announcements_only: false,
-            is_active: true,
-            created_by: userId,
-          })
-          .select("id")
-          .single();
-        roomId = newRoom.data?.id || null;
-        if (newRoom.error) {
-          console.error("[pickup/switch launch_outreach] chat_rooms insert/select error", {
-            run_id,
-            message: newRoom.error.message,
-          });
-        }
-      }
-
-      console.log("[pickup/switch launch_outreach] chat room", { run_id, room_id: roomId, existing: !!existingRoom.data?.id });
-
-      if (roomId && inv.newlyInvited.length > 0) {
-        const memberRows = inv.newlyInvited.map((p) => ({ room_id: roomId, user_id: p.user_id }));
-        await admin.from("chat_room_members").upsert(memberRows, { onConflict: "room_id,user_id" });
-
-        // Send invite message in the room
-        await admin.from("chat_messages").insert({
-          room_id: roomId,
-          user_id: userId,
-          body: `You've been invited to ${runTitle} on ${runDateOrTbd}. Check the Pickup tab for details and to submit your availability.`,
-        });
-
-        // Send push notifications
-        const invitedUserIds = inv.newlyInvited.map((p) => p.user_id);
-        console.log("[pickup/switch launch_outreach] sending push", { run_id, count: invitedUserIds.length });
-        await sendPushToUsers(admin, invitedUserIds, {
-          title: "You've been invited to a Select Pickup",
-          body: "You've been selected for an exclusive pickup run. Open the app for full details and to submit your availability.",
-          data: { kind: "pickup_invite", run_id },
-        });
-      } else {
-        console.log("[pickup/switch launch_outreach] skip chat/push", {
-          run_id,
-          room_id: roomId,
-          newly_invited: inv.newlyInvited.length,
-        });
-      }
-
-      const slotsForWave = await admin.from("pickup_run_time_slots").select("start_at").eq("run_id", run_id);
-      const slotRows = (slotsForWave.data || []) as { start_at: string }[];
-      const anchorMs = anchorStartAtMs(
-        { start_at: (run.start_at as string | null) ?? null },
-        slotRows,
-      );
-      const hoursUntil =
-        anchorMs === null ? 168 : Math.max(0.25, (anchorMs - Date.parse(now)) / 3600000);
-      const next_wave_at = addWaveIntervalIso(Date.parse(now), hoursUntil);
-
-      const up = await admin
-        .from("pickup_runs")
-        .update({
-          outreach_started_at: now,
-          auto_managed: true,
-          open_tier_rank: 2,
-          wave1_started_at: now,
-          current_wave: 1,
-          next_wave_at,
-          updated_at: now,
-        })
-        .eq("id", run_id);
-
-      console.log("[pickup/switch launch_outreach] pickup_runs update (select path)", {
-        run_id,
-        error: up.error?.message ?? null,
-        status: up.status,
-      });
-
-      if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
-
-      const handles = inv.newlyInvited.map((p) => p.instagram).filter(Boolean);
-
-      return NextResponse.json({
-        ok: true,
-        invited: inv.newlyInvited.length,
-        handles,
-        dm_template,
-        sms_sent: 0,
-        sms_failed: 0,
-        run_type_raw: runTypeRaw,
-        invite_path: "tier_ranks_1_2",
-      });
-    }
-
-    console.log("[pickup/switch launch_outreach] public run path — no tier invites or push", { run_id, run_type_raw: runTypeRaw });
 
     const up = await admin
       .from("pickup_runs")
       .update({
         outreach_started_at: now,
         auto_managed: true,
-        open_tier_rank: 6,
-        wave1_started_at: now,
         updated_at: now,
       })
       .eq("id", run_id);
-
-    console.log("[pickup/switch launch_outreach] pickup_runs update (public path)", {
-      run_id,
-      error: up.error?.message ?? null,
-      status: up.status,
-    });
 
     if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
 
@@ -711,11 +556,13 @@ export async function POST(req: Request) {
       ok: true,
       invited: 0,
       handles: [] as string[],
-      dm_template: "",
+      dm_template: publicRun
+        ? ""
+        : "Select runs are invite-only. Use the mobile admin Invite players screen to choose who receives a push notification.",
       sms_sent: 0,
       sms_failed: 0,
       run_type_raw: runTypeRaw,
-      invite_path: "public_no_tier_invites",
+      invite_path: publicRun ? "public_outreach_phase" : "select_manual_invites",
     });
   }
 

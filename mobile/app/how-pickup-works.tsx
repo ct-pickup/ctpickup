@@ -14,12 +14,12 @@ const STEPS: Step[] = [
   {
     number: "01",
     title: "Request Access",
-    body: "Join a run by submitting your info. Access depends on level, fit, and availability. Some exclusive runs invite selected players first before opening more broadly.",
+    body: "Create your profile and get approved. Public runs are open to approved players in your region. Select runs are invite-only—you’ll get a notification when staff invites you.",
   },
   {
     number: "02",
-    title: "Selection",
-    body: "Players are selected based on level, consistency, and overall run balance. Staff may prioritize invited players for certain sessions.",
+    title: "Join or respond",
+    body: "For public runs, request a spot first come first served. For select runs, tap the notification to confirm or decline when you’re invited.",
   },
   {
     number: "03",

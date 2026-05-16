@@ -539,7 +539,7 @@ export default function RunsScreen() {
     return (me as { approved?: unknown }).approved === true;
   }, [dataObj]);
 
-  /** Poll chip / submit enabled when the server says the user is in the current invite wave. */
+  /** Poll / join enabled when the server says the user can interact with this run (public region match or select invite). */
   const availabilityPollInvited = invitedNow;
 
   /** Run is "live" once an admin has tapped "Begin Pickup Now" — joining and changes are locked. */
@@ -660,7 +660,7 @@ export default function RunsScreen() {
     }
     if (isSelectPickupRunType(run?.run_type)) {
       return {
-        text: "Exclusive pickup: selected players are invited first. Check back if you're waiting on an invite.",
+        text: "Select runs are invite-only. If you’re invited, you’ll get a notification.",
         color: "rgba(255,255,255,0.72)",
       };
     }

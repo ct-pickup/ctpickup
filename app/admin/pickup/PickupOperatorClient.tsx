@@ -107,7 +107,7 @@ function pickupNextSteps(
   const publicRun = isPublicPickupRunType(selectedRun.run_type);
   if (!publicRun && !selectedRun.outreach_started_at) {
     if (launchBlockedReason) out.push(launchBlockedReason);
-    else if (slots) out.push("Launch outreach (36h+ before kickoff) for select runs.");
+    else if (slots) out.push("Begin outreach phase (36h+ before kickoff), then invite Select players from the mobile admin app.");
   }
   if (!selectedRun.final_slot_id && String(selectedRun.status) !== "active") {
     out.push("Finalize a slot for RSVP.");
@@ -310,7 +310,7 @@ export default function PickupOperatorClient() {
       else if (action === "edit_run") success = "Run settings saved.";
       else if (action === "finalize_slot") success = "Time finalized — run is active for RSVP.";
       else if (action === "add_slot") success = "Kickoff slot saved.";
-      else if (action === "launch_outreach") success = "Outreach launched.";
+      else if (action === "launch_outreach") success = "Outreach phase marked. For Select runs, invite players from the mobile admin Invite players screen.";
       else if (action === "cancel_run") success = "Run canceled.";
       else if (action === "start_run_now") success = "Pickup started.";
       setMsg(success);
@@ -789,7 +789,7 @@ export default function PickupOperatorClient() {
                               }}
                               className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-40"
                             >
-                              Launch outreach
+                              Launch outreach phase
                             </button>
                           ) : null}
                           {showFinalizeTimeButton({
@@ -1056,7 +1056,7 @@ export default function PickupOperatorClient() {
                 }}
                 className="rounded-md bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-50"
               >
-                Launch outreach
+                Launch outreach phase
               </button>
               <button
                 disabled={busy}

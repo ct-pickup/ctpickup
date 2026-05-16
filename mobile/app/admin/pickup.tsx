@@ -19,7 +19,6 @@ import {
   postAdminPromote,
   postAdminSetHubPickup,
 } from "@/lib/adminApi";
-import { siteOrigin } from "@/lib/env";
 import { fmtPickupDateEt, fmtPickupDt, fmtPickupTimeEt } from "@/lib/pickupPublic";
 import { isPublicPickupRunType } from "@/lib/pickupRunType";
 import {
@@ -29,7 +28,7 @@ import {
   showEditSettingsButton,
   showEndRunButton,
   showFinalizeTimeButton,
-  showLaunchOutreachButton,
+  showInvitePlayersButton,
   showPostResultsForPast,
   showPromoteToHubButton,
   showStartRunNowButton,
@@ -226,16 +225,6 @@ function listCountsFromRow(row: Record<string, unknown>): {
   };
 }
 
-function launchBlockedForListRow(row: Record<string, unknown>): string | null {
-  if (s(row.outreach_started_at)) return "Outreach already launched.";
-  const start = s(row.start_at);
-  if (!start) return "Add a kickoff slot first.";
-  const ms = Date.parse(start);
-  if (!Number.isFinite(ms)) return "Add a kickoff slot first.";
-  const hours = (ms - Date.now()) / 3600000;
-  if (hours < 36) return "Kickoff must be at least 36 hours away.";
-  return null;
-}
 function detectPreset(locationPrivate: string): LocationPresetKey {
   const t = locationPrivate.trim();
   if (!t) return "";
@@ -371,6 +360,8 @@ export default function AdminPickupOpsScreen() {
   }, [region]);
 
   const loadRuns = useCallback(async () => {
+    console.log("[loadRuns] region:", region);
+    console.log("[loadRuns] token exists:", Boolean(token));
     if (!token) {
       setListError("Not signed in.");
       setRuns([]);
@@ -379,6 +370,10 @@ export default function AdminPickupOpsScreen() {
     setListLoading(true);
     setListError(null);
     const r = await fetchAdminPickupSwitchList(token, { region });
+    console.log("[loadRuns] r.ok:", r.ok);
+    console.log("[loadRuns] runs count:", r.data?.runs?.length);
+    console.log("[loadRuns] error:", r.error);
+    console.log("[loadRuns] runs:", JSON.stringify(r.data?.runs?.slice(0, 2)));
     setListLoading(false);
     if (!r.ok) {
       setListError(r.error);
@@ -673,56 +668,6 @@ export default function AdminPickupOpsScreen() {
     ]);
   }
 
-  async function onLaunchOutreach(opts?: { runId: string; row?: Record<string, unknown> }) {
-    const t = await requireToken();
-    const runId = opts?.runId ?? selectedRunId;
-    if (!t || !runId) return;
-    const block = opts?.row ? launchBlockedForListRow(opts.row) : launchBlocked;
-    if (block) {
-      return Alert.alert("Cannot launch", block);
-    }
-    const origin = siteOrigin();
-    const runLink = origin ? `${origin.replace(/\/$/, "")}/pickup` : "/pickup";
-    const runForDate = opts?.row ?? selectedRun;
-    const dateOrTbd =
-      runForDate && s(runForDate.start_at)
-        ? fmtPickupDt(s(runForDate.start_at))
-        : auto && s((auto as Record<string, unknown>).anchor_start_at)
-          ? fmtPickupDt(s((auto as Record<string, unknown>).anchor_start_at))
-          : "TBD";
-
-    Alert.alert("Launch outreach?", "Sends invites to Tier 1a + 1b players for select runs. Public runs skip invites.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Launch",
-        onPress: () => {
-          void (async () => {
-            try {
-              setBusy("outreach");
-              const r = await postAdminPickupSwitch(t, {
-                action: "launch_outreach",
-                run_id: runId,
-                run_link: runLink,
-                date_or_tbd: dateOrTbd,
-              });
-              if (!r.ok) return Alert.alert("Launch failed", r.error);
-              Alert.alert("Launched", "Outreach started for this run.");
-              void loadDetail();
-              void loadRuns();
-            } catch (e) {
-              console.warn("[admin pickup] action failed", e);
-              Sentry.captureException(e);
-              Alert.alert("Something went wrong", "Please try again.");
-            } finally {
-              setBusy(null);
-            }
-          })();
-        },
-      },
-    ]);
-  }
-
-  async function onPromoteHub(opts?: { runId: string }) {
     const t = await requireToken();
     const runId = opts?.runId ?? selectedRunId;
     if (!t || !runId) return;
@@ -790,7 +735,28 @@ export default function AdminPickupOpsScreen() {
         run_type: createRunType,
       });
       if (!r.ok) return Alert.alert("Create failed", r.error);
-      Alert.alert("Created", "Run created.");
+      const created = r.data.run as { id?: string } | undefined;
+      const newId = typeof created?.id === "string" ? created.id : "";
+      const buttons =
+        createRunType === "select" && newId
+          ? [
+              {
+                text: "Invite players",
+                onPress: () =>
+                  (router.push as (href: string) => void)(
+                    `/admin/invite-players?run_id=${encodeURIComponent(newId)}`,
+                  ),
+              },
+              { text: "OK", style: "cancel" as const },
+            ]
+          : [{ text: "OK", style: "cancel" as const }];
+      Alert.alert(
+        "Created",
+        createRunType === "select"
+          ? "Select runs are invite-only. Invite players so they can see the run and respond."
+          : "Run created.",
+        buttons,
+      );
       setCreateStartAt("");
       setCreateTitle("");
       setCreateFieldCost("");
@@ -1104,18 +1070,6 @@ export default function AdminPickupOpsScreen() {
     ]);
   }
 
-  const launchBlocked = useMemo(() => {
-    if (!selectedRun) return "Select a run.";
-    if (s(selectedRun.outreach_started_at)) return "Outreach already launched.";
-    const start = s(selectedRun.start_at);
-    if (!start) return "Add a kickoff slot first.";
-    const ms = Date.parse(start);
-    if (!Number.isFinite(ms)) return "Add a kickoff slot first.";
-    const hours = (ms - Date.now()) / 3600000;
-    if (hours < 36) return "Kickoff must be at least 36 hours away.";
-    return null;
-  }, [selectedRun]);
-
   const workflowTab = workflowTabOverride ?? defaultAdminPickupTab(workflowTabCounts);
 
   const filteredRuns = useMemo(() => {
@@ -1265,6 +1219,9 @@ export default function AdminPickupOpsScreen() {
         placeholderTextColor="rgba(255,255,255,0.35)"
       />
       <Text style={styles.label}>Run type</Text>
+      <Text style={styles.fieldHint}>
+        Public: first come first served for approved players in this region. Select: invite-only — use Invite players after you create the run.
+      </Text>
       <View style={{ flexDirection: "row", gap: 10, marginBottom: 12 }}>
         <Pressable
           onPress={() => setCreateRunType("select")}
@@ -1308,7 +1265,7 @@ export default function AdminPickupOpsScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.lead}>Runs in {serviceRegionName(region)} — open a card for roster, slots, and outreach.</Text>
+        <Text style={styles.lead}>Runs in {serviceRegionName(region)} — open a card for roster, slots, and invites.</Text>
 
         <ScrollView
           horizontal
@@ -1483,7 +1440,6 @@ export default function AdminPickupOpsScreen() {
             );
           }
 
-          const listLaunchBlock = launchBlockedForListRow(row);
           const lcStage = derivePickupLifecycleStage({
             status: s(row.status),
             is_current: row.is_current === true,
@@ -1556,26 +1512,22 @@ export default function AdminPickupOpsScreen() {
                     <Text style={styles.cardBtnSecondaryText}>Promote to Hub</Text>
                   </Pressable>
                 ) : null}
-                {showLaunchOutreachButton({
+                {showInvitePlayersButton({
                   status: s(row.status),
                   run_type: row.run_type,
-                  outreach_started_at: s(row.outreach_started_at) || null,
                   is_completed: row.is_completed === true,
                 }) ? (
                   <Pressable
                     onPress={(e) => {
                       e.stopPropagation();
-                      void onLaunchOutreach({ runId: id, row });
+                      (router.push as (href: string) => void)(
+                        `/admin/invite-players?run_id=${encodeURIComponent(id)}`,
+                      );
                     }}
-                    disabled={busy === "outreach" || !!listLaunchBlock}
-                    style={({ pressed }) => [
-                      styles.cardBtnSecondary,
-                      pressed && { opacity: 0.9 },
-                      (busy === "outreach" || !!listLaunchBlock) && styles.disabled,
-                    ]}
+                    style={({ pressed }) => [styles.cardBtnSecondary, pressed && { opacity: 0.9 }]}
                   >
-                    <FontAwesome name="paper-plane" size={12} color={LIME} />
-                    <Text style={styles.cardBtnSecondaryText}>{busy === "outreach" ? "…" : "Launch outreach"}</Text>
+                    <FontAwesome name="user-plus" size={12} color={LIME} />
+                    <Text style={styles.cardBtnSecondaryText}>Invite players</Text>
                   </Pressable>
                 ) : null}
                 {showFinalizeTimeButton({
@@ -1805,7 +1757,7 @@ export default function AdminPickupOpsScreen() {
                     ) : null}
 
                     <View style={styles.modalSection}>
-                      <Text style={styles.sectionTitle}>Hub & outreach</Text>
+                      <Text style={styles.sectionTitle}>Hub & invites</Text>
                       <View style={styles.actionRow}>
                         {selectedRun &&
                         typeof selectedRun === "object" &&
@@ -1825,27 +1777,25 @@ export default function AdminPickupOpsScreen() {
                         ) : null}
                         {selectedRun &&
                         typeof selectedRun === "object" &&
-                        showLaunchOutreachButton({
+                        selectedRunId &&
+                        showInvitePlayersButton({
                           status: s((selectedRun as Record<string, unknown>).status),
                           run_type: (selectedRun as Record<string, unknown>).run_type,
-                          outreach_started_at: s((selectedRun as Record<string, unknown>).outreach_started_at) || null,
                           is_completed: (selectedRun as Record<string, unknown>).is_completed === true,
                         }) ? (
                           <Pressable
-                            onPress={() => void onLaunchOutreach()}
-                            disabled={busy === "outreach" || !!launchBlocked}
-                            style={({ pressed }) => [
-                              styles.secondaryLime,
-                              pressed && { opacity: 0.9 },
-                              (busy === "outreach" || !!launchBlocked) && styles.disabled,
-                            ]}
+                            onPress={() =>
+                              (router.push as (href: string) => void)(
+                                `/admin/invite-players?run_id=${encodeURIComponent(selectedRunId)}`,
+                              )
+                            }
+                            style={({ pressed }) => [styles.secondaryLime, pressed && { opacity: 0.9 }]}
                           >
-                            <FontAwesome name="paper-plane" size={14} color={LIME} />
-                            <Text style={styles.secondaryLimeText}>{busy === "outreach" ? "…" : "Launch outreach"}</Text>
+                            <FontAwesome name="user-plus" size={14} color={LIME} />
+                            <Text style={styles.secondaryLimeText}>Invite players</Text>
                           </Pressable>
                         ) : null}
                       </View>
-                      {launchBlocked ? <Text style={styles.blockHint}>{launchBlocked}</Text> : null}
                     </View>
 
                     <View style={styles.modalSection}>

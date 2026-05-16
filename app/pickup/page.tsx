@@ -336,9 +336,9 @@ export default function PickupPage() {
 
               {!data.visibility?.invitedNow && (data.run.status === "planning" || data.run.status === "likely_on") ? (
                 <div className="text-sm text-white/60">
-                  {data.run.open_tier_rank == null
-                    ? "Invites have not opened yet."
-                    : "You’re not invited yet for this planning poll."}
+                  {data.run.run_type === "public"
+                    ? "Sign in with an approved account in this hub region to join."
+                    : "Select runs are invite-only. You’ll get a notification when you’re invited."}
                 </div>
               ) : null}
 
@@ -371,7 +371,7 @@ export default function PickupPage() {
                                 {fmt(s.start_at)}
                               </div>
                               <div className="text-xs text-white/55">
-                                Tier-1: {s.tier1_count} · Total: {s.total_available}
+                                Available: {s.total_available}
                               </div>
                             </div>
                             {s.label ? <div className="text-xs text-white/55 mt-1">{s.label}</div> : null}

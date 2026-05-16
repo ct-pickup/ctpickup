@@ -74,36 +74,25 @@ async function resolveSlotIdFromLabel(
 async function invitedUserIdsForPickupPush(
   admin: SupabaseClient,
   run_id: string,
-  run: { run_type: string; open_tier_rank: number | null; service_region?: string | null },
+  run: { run_type: string; service_region?: string | null },
 ): Promise<string[]> {
-  const openTier = run.open_tier_rank;
-  if (openTier === null || openTier === undefined) return [];
-
-  const profRes = await admin
-    .from("profiles")
-    .select("id,nearest_venue")
-    .eq("approved", true)
-    .lte("tier_rank", openTier);
+  const profRes = await admin.from("profiles").select("id,nearest_venue").eq("approved", true);
 
   if (profRes.error || !(profRes.data?.length ?? 0)) return [];
 
-  const eligibleIds = new Set(
-    (profRes.data ?? [])
-      .filter((p: { id: string; nearest_venue: string | null }) =>
-        profileMatchesRunServiceRegion(p.nearest_venue, run.service_region),
-      )
-      .map((p: { id: string }) => p.id),
+  const inRegion = (profRes.data ?? []).filter((p: { id: string; nearest_venue: string | null }) =>
+    profileMatchesRunServiceRegion(p.nearest_venue, run.service_region),
   );
 
   if (!isSelectPickupRunType(run.run_type)) {
-    return Array.from(eligibleIds);
+    return inRegion.map((p: { id: string }) => p.id);
   }
 
   const invRes = await admin.from("pickup_run_invites").select("user_id").eq("run_id", run_id);
   if (invRes.error || !(invRes.data?.length ?? 0)) return [];
 
   const invited = new Set((invRes.data ?? []).map((r: { user_id: string }) => r.user_id));
-  return Array.from(eligibleIds).filter((id) => invited.has(id));
+  return inRegion.map((p: { id: string }) => p.id).filter((id) => invited.has(id));
 }
 
 export async function POST(req: Request) {
@@ -176,15 +165,6 @@ export async function POST(req: Request) {
 
   if (!profileMatchesRunServiceRegion(prof.data.nearest_venue, run.data.service_region)) {
     return NextResponse.json({ error: "This run is not available for your region." }, { status: 403 });
-  }
-
-  // Must be invited (Wave 1 only)
-  if (run.data.open_tier_rank === null) {
-    return NextResponse.json({ error: "Invites are not open yet." }, { status: 403 });
-  }
-  const tier_rank = prof.data.tier_rank ?? 6;
-  if (tier_rank > run.data.open_tier_rank) {
-    return NextResponse.json({ error: "Not invited yet." }, { status: 403 });
   }
 
   if (isSelectPickupRunType(run.data.run_type)) {

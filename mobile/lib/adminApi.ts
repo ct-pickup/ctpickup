@@ -212,6 +212,44 @@ export function postAdminCreateRun(
   );
 }
 
+export type InvitePlayersFormPlayer = {
+  id: string;
+  display_name: string;
+  username: string | null;
+  tier_rank: number | null;
+};
+
+export function fetchAdminPickupInvitePlayersForm(accessToken: string, runId: string) {
+  const origin = originOrThrow();
+  if (typeof origin !== "string") {
+    return Promise.resolve(
+      missingSiteUrlAdminResult<{ run: Record<string, unknown>; players: InvitePlayersFormPlayer[] }>(),
+    );
+  }
+  const u = new URL("/api/admin/pickup/invite-players", origin);
+  u.searchParams.set("run_id", runId);
+  return adminFetch<{ run: Record<string, unknown>; players: InvitePlayersFormPlayer[] }>(
+    u.pathname + u.search,
+    accessToken,
+    { method: "GET" },
+  );
+}
+
+export function postAdminPickupInvitePlayers(
+  accessToken: string,
+  body: { run_id: string; user_ids: string[] },
+) {
+  return adminFetch<{ ok: boolean; invited?: number; already_invited?: number; error?: string }>(
+    "/api/admin/pickup/invite-players",
+    accessToken,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
 export function postAdminCancelRun(accessToken: string, body: { run_id: string; reason?: string | null }) {
   return adminFetch<{ ok: boolean; refunded?: string[]; failed?: unknown; error?: string }>(
     "/api/admin/pickup/cancel",
