@@ -329,6 +329,11 @@ export default function AdminPickupOpsScreen() {
     setWorkflowOverride("planning");
     console.log("[admin] workflow tab set to planning");
     await loadRuns();
+    const newRunId = r.data?.run?.id ? String(r.data.run.id) : null;
+    if (newRunId) {
+      setDetailRunId(newRunId);
+      setDetailOpen(true);
+    }
     setCreateBusy(false);
     void hapticGoal();
     setCreateOpen(false);

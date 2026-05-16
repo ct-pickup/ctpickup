@@ -112,7 +112,7 @@ export async function GET(req: Request) {
       if (invitedRun) run = invitedRun;
     }
 
-    if (!run && !runIdParam && !hubRegion) {
+    if (!run && !runIdParam) {
       const fb = await fetchFirstPublicUpcomingPickupRun(admin);
       if (fb) run = fb;
     }
