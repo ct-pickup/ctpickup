@@ -23,7 +23,7 @@ import {
   showEndRunButton,
   showInvitePlayersButton,
 } from "@/lib/pickupRunLifecycle";
-import { SERVICE_REGIONS, serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
+import type { ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -127,7 +127,6 @@ export default function AdminPickupOpsScreen() {
   const { session } = useAuth();
   const token = session?.access_token ?? null;
 
-  const [region, setRegion] = useState<ServiceRegionCode>("CT");
   const [workflowOverride, setWorkflowOverride] = useState<WorkflowTab | null>(null);
   const [runs, setRuns] = useState<Record<string, unknown>[]>([]);
   const [listLoading, setListLoading] = useState(true);
@@ -151,8 +150,8 @@ export default function AdminPickupOpsScreen() {
   const [actionBusy, setActionBusy] = useState(false);
 
   const createRegion = useMemo(
-    () => serviceRegionForAdminVenueName(createVenue) ?? region,
-    [createVenue, region],
+    (): ServiceRegionCode => serviceRegionForAdminVenueName(createVenue) ?? "CT",
+    [createVenue],
   );
 
   const feePreview = useMemo(() => {
@@ -185,11 +184,15 @@ export default function AdminPickupOpsScreen() {
       if (workflowTab === "active") return st === "likely_on" || st === "active" || st === "in_progress";
       return false;
     });
-    if (workflowTab !== "past") return base;
-    return [...base].sort((a, b) => Date.parse(s(b.start_at)) - Date.parse(s(a.start_at)));
+    return [...base].sort((a, b) => {
+      const ta = Date.parse(s(a.start_at)) || 0;
+      const tb = Date.parse(s(b.start_at)) || 0;
+      return ta - tb;
+    });
   }, [runs, workflowTab]);
 
   const loadRuns = useCallback(async () => {
+    console.log("[admin] loadRuns called, fetching...");
     if (!token) {
       setListError("Sign in again to manage pickup runs.");
       setRuns([]);
@@ -198,15 +201,16 @@ export default function AdminPickupOpsScreen() {
     }
     setListLoading(true);
     setListError(null);
-    const r = await fetchAdminPickupSwitchList(token, { region });
+    const r = await fetchAdminPickupSwitchList(token);
     setListLoading(false);
     if (!r.ok) {
       setListError(r.error);
       setRuns([]);
       return;
     }
+    console.log("[admin] loadRuns got:", r.data?.runs?.length, "runs");
     setRuns(r.data.runs ?? []);
-  }, [token, region]);
+  }, [token]);
 
   const loadTierBadge = useCallback(async () => {
     if (!token) {
@@ -224,7 +228,7 @@ export default function AdminPickupOpsScreen() {
     }
     setDetailLoading(true);
     setDetailError(null);
-    const r = await fetchAdminPickupSwitchDetail(token, detailRunId, { region });
+    const r = await fetchAdminPickupSwitchDetail(token, detailRunId);
     setDetailLoading(false);
     if (!r.ok) {
       setDetailError(r.error);
@@ -232,7 +236,7 @@ export default function AdminPickupOpsScreen() {
       return;
     }
     setDetail(r.data);
-  }, [token, detailRunId, region]);
+  }, [token, detailRunId]);
 
   useEffect(() => {
     void loadRuns();
@@ -317,13 +321,17 @@ export default function AdminPickupOpsScreen() {
       location_private,
       run_type: createRunType,
     });
-    setCreateBusy(false);
-
     if (!r.ok) {
+      setCreateBusy(false);
       Alert.alert("Could not create run", r.error);
       return;
     }
 
+    console.log("[admin] create success, switching tab");
+    setWorkflowOverride("planning");
+    console.log("[admin] workflow tab set to planning");
+    await loadRuns();
+    setCreateBusy(false);
     void hapticGoal();
     setCreateOpen(false);
     setCreateStartAt("");
@@ -331,9 +339,6 @@ export default function AdminPickupOpsScreen() {
     setCreateFieldCost("");
     setCreateEarnings("0");
     setCreateCapacity("24");
-    setRegion(createRegion);
-    setWorkflowOverride("planning");
-    void loadRuns();
   }
 
   async function onCancelRun() {
@@ -442,26 +447,6 @@ export default function AdminPickupOpsScreen() {
           </Pressable>
         </ScrollView>
 
-        <View style={styles.chipRow}>
-          {SERVICE_REGIONS.map(({ code }) => {
-            const active = region === code;
-            return (
-              <Pressable
-                key={code}
-                onPress={() => {
-                  void hapticTap();
-                  setRegion(code);
-                  setWorkflowOverride(null);
-                  if (detailOpen) closeDetail();
-                }}
-                style={({ pressed }) => [styles.chip, active && styles.chipActive, pressed && { opacity: 0.9 }]}
-              >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>{code}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
         <View style={styles.tabRow}>
           {(
             [
@@ -502,9 +487,7 @@ export default function AdminPickupOpsScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>No runs here</Text>
             <Text style={styles.emptyBody}>
-              {runs.length === 0
-                ? `Nothing in ${serviceRegionName(region)} yet. Tap + to schedule one.`
-                : "Try another workflow tab."}
+              {runs.length === 0 ? "No runs yet. Tap + to schedule one." : "Try another workflow tab."}
             </Text>
           </View>
         ) : null}

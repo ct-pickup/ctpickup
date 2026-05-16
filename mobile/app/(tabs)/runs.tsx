@@ -1,3 +1,5 @@
+import { AvailabilityPoll, type PickupPlanningAvailability } from "@/components/pickup/AvailabilityPoll";
+import { PayForFriendButton } from "@/components/pickup/PayForFriendButton";
 import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { usePickupJoin } from "@/hooks/usePickupJoin";
@@ -59,7 +61,7 @@ export default function RunsScreen() {
   const { region } = useSelectedRegion();
   const { allowed: chatAllowed } = useTeamChatAccess();
 
-  const { loading, error, run, counts, myStatus, invitedNow, noFeaturedRun, load } = usePickupPublic(token);
+  const { loading, error, data, run, counts, myStatus, invitedNow, noFeaturedRun, load } = usePickupPublic(token);
   const { joinBusy, joinPickup, payBusy, payPickup } = usePickupJoin();
 
   const chatEnabled = !!session?.user?.id && chatAllowed === true;
@@ -99,6 +101,28 @@ export default function RunsScreen() {
     typeof run?.location_text === "string" && run.location_text.trim()
       ? run.location_text.split(/\r?\n/)[0]?.trim()
       : title;
+
+  const planning = useMemo((): PickupPlanningAvailability | null => {
+    if (!data || typeof data !== "object") return null;
+    const p = (data as Record<string, unknown>).planning;
+    if (!p || typeof p !== "object") return null;
+    return p as PickupPlanningAvailability;
+  }, [data]);
+
+  const showAvailabilityPoll =
+    !!run &&
+    invitedNow &&
+    !runLocked &&
+    (runStatus === "planning" || runStatus === "likely_on") &&
+    run.final_slot_id == null;
+
+  const showPayForFriend =
+    !!run &&
+    !!token &&
+    !runLocked &&
+    myStatus === "confirmed" &&
+    spotsLeft != null &&
+    spotsLeft > 0;
 
   const showJoin =
     !!token &&
@@ -220,6 +244,19 @@ export default function RunsScreen() {
               <Text style={styles.statusBadgeText}>{statusLabelFor(runStatus, myStatus)}</Text>
             </View>
 
+            {showAvailabilityPoll ? (
+              <AvailabilityPoll
+                run={run}
+                planning={planning}
+                onSubmit={() => {
+                  void load();
+                }}
+                onDecline={() => {
+                  void load();
+                }}
+              />
+            ) : null}
+
             {hasRsvp ? (
               <View style={styles.rsvpBlock}>
                 <Text style={styles.rsvpStatus}>
@@ -251,6 +288,14 @@ export default function RunsScreen() {
                     <Text style={styles.chatBtnText}> Open run chat</Text>
                   </Pressable>
                 )}
+                {showPayForFriend ? (
+                  <PayForFriendButton
+                    run={run}
+                    onSuccess={() => {
+                      void load();
+                    }}
+                  />
+                ) : null}
               </View>
             ) : showJoin ? (
               <Pressable
