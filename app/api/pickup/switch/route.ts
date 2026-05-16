@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
@@ -66,6 +67,7 @@ export async function GET(req: Request) {
   const guard = await requireAdminBearer(req);
   if (!guard.ok) return guard.response;
 
+  try {
   const admin = getSupabaseAdmin();
 
   const url = new URL(req.url);
@@ -364,6 +366,11 @@ export async function GET(req: Request) {
     counts,
     auto_status,
   });
+  } catch (err: unknown) {
+    Sentry.captureException(err);
+    console.error("[pickup/switch GET]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 type Action =
@@ -381,6 +388,7 @@ export async function POST(req: Request) {
   const guard = await requireAdminBearer(req);
   if (!guard.ok) return guard.response;
 
+  try {
   const admin = getSupabaseAdmin();
 
   const body = await req.json().catch(() => ({}));
@@ -911,4 +919,9 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+  } catch (err: unknown) {
+    Sentry.captureException(err);
+    console.error("[pickup/switch POST]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

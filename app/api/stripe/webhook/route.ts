@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -63,6 +64,16 @@ async function fulfillPickup(
   },
 ) {
   const { sessionId, paymentIntentId, runId, userId } = opts;
+
+  if (sessionId) {
+    const existing = await admin
+      .from("pickup_run_rsvps")
+      .select("id, status")
+      .eq("checkout_session_id", sessionId)
+      .maybeSingle();
+    if (String(existing.data?.status || "").trim() === "confirmed") return;
+  }
+
   if (runId && userId) {
     const prevRes = await admin
       .from("pickup_run_rsvps")
@@ -70,7 +81,7 @@ async function fulfillPickup(
       .eq("run_id", runId)
       .eq("user_id", userId)
       .maybeSingle();
-    const wasConfirmed = String(prevRes.data?.status || "").trim() === "confirmed";
+    if (String(prevRes.data?.status || "").trim() === "confirmed") return;
     await admin
       .from("pickup_run_rsvps")
       .update({
@@ -84,13 +95,12 @@ async function fulfillPickup(
     await deletePendingWaitlistExpiringReminders(admin, userId, runId);
     await ensurePickupRunInviteLink(admin, runId, userId);
     await addUserToRunBanterRoom(admin, runId, userId);
-    if (!wasConfirmed) {
-      try {
-        await notifyFollowersWhenFollowedPlayerConfirmsRun(admin, { runId: String(runId), playerId: String(userId) });
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        console.error("stripe_fulfill_pickup_follower_join_notify_error:", msg);
-      }
+    try {
+      await notifyFollowersWhenFollowedPlayerConfirmsRun(admin, { runId: String(runId), playerId: String(userId) });
+    } catch (e: unknown) {
+      Sentry.captureException(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("stripe_fulfill_pickup_follower_join_notify_error:", msg);
     }
     return;
   }
@@ -101,7 +111,6 @@ async function fulfillPickup(
     .eq("checkout_session_id", sessionId)
     .maybeSingle();
   if (!rsvp) return;
-  const wasConfirmed = String((rsvp as { status?: unknown }).status || "").trim() === "confirmed";
   await admin
     .from("pickup_run_rsvps")
     .update({
@@ -115,16 +124,15 @@ async function fulfillPickup(
   await deletePendingWaitlistExpiringReminders(admin, String(rsvp.user_id), String(rsvp.run_id));
   await ensurePickupRunInviteLink(admin, rsvp.run_id, rsvp.user_id);
   await addUserToRunBanterRoom(admin, String(rsvp.run_id), String(rsvp.user_id));
-  if (!wasConfirmed) {
-    try {
-      await notifyFollowersWhenFollowedPlayerConfirmsRun(admin, {
-        runId: String(rsvp.run_id),
-        playerId: String(rsvp.user_id),
-      });
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.error("stripe_fulfill_pickup_follower_join_notify_error:", msg);
-    }
+  try {
+    await notifyFollowersWhenFollowedPlayerConfirmsRun(admin, {
+      runId: String(rsvp.run_id),
+      playerId: String(rsvp.user_id),
+    });
+  } catch (e: unknown) {
+    Sentry.captureException(e);
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("stripe_fulfill_pickup_follower_join_notify_error:", msg);
   }
 }
 
@@ -137,6 +145,7 @@ async function fulfillTournament(
   },
 ) {
   const { sessionId, paymentIntentId, captainId } = opts;
+
   let pay: { id: string; status: string; captain_id: string } | null = null;
 
   if (sessionId) {
@@ -145,6 +154,7 @@ async function fulfillTournament(
       .select("id,status,captain_id")
       .eq("stripe_session_id", sessionId)
       .maybeSingle();
+    if (String(data?.status || "").trim() === "captured") return;
     pay = data;
   }
   if (!pay && captainId) {
@@ -263,6 +273,7 @@ async function downgradePickupPendingPaymentAfterFailure(
     try {
       await recomputePickupStandingForUser(admin, userId);
     } catch (e: unknown) {
+      Sentry.captureException(e);
       const msg = e instanceof Error ? e.message : String(e);
       console.error("pickup_standing_recompute_after_payment_failed_rsvp:", msg);
     }
@@ -346,6 +357,7 @@ async function handlePaidCheckoutSession(
         try {
           await recomputePickupStandingForUser(admin, String(md.user_id));
         } catch (e: unknown) {
+          Sentry.captureException(e);
           const msg = e instanceof Error ? e.message : String(e);
           console.error("pickup_standing_recompute_after_checkout:", msg);
         }
@@ -434,6 +446,7 @@ async function handlePaidCheckoutSession(
     });
     return NextResponse.json({ received: true });
   } catch (e: unknown) {
+    Sentry.captureException(e);
     const msg = e instanceof Error ? e.message : String(e);
     await patchPlatformPaymentBySessionId(admin, sessionId, {
       lifecycle_status: "payment_received",
@@ -502,12 +515,14 @@ async function handlePaymentIntentSucceeded(admin: SupabaseClient, event: Stripe
         try {
           await recomputePickupStandingForUser(admin, String(md.user_id));
         } catch (e: unknown) {
+          Sentry.captureException(e);
           const msg = e instanceof Error ? e.message : String(e);
           console.error("pickup_standing_recompute_after_pi:", msg);
         }
       }
       return NextResponse.json({ received: true });
     } catch (e: unknown) {
+      Sentry.captureException(e);
       const msg = e instanceof Error ? e.message : String(e);
       await patchPlatformPaymentByPaymentIntentId(admin, paymentIntentId, {
         lifecycle_status: "payment_received",
@@ -563,6 +578,7 @@ async function handlePaymentIntentSucceeded(admin: SupabaseClient, event: Stripe
       });
       return NextResponse.json({ received: true });
     } catch (e: unknown) {
+      Sentry.captureException(e);
       const msg = e instanceof Error ? e.message : String(e);
       await patchPlatformPaymentByPaymentIntentId(admin, paymentIntentId, {
         lifecycle_status: "payment_received",
@@ -618,6 +634,7 @@ async function handlePaymentIntentSucceeded(admin: SupabaseClient, event: Stripe
       });
       return NextResponse.json({ received: true });
     } catch (e: unknown) {
+      Sentry.captureException(e);
       const msg = e instanceof Error ? e.message : String(e);
       await patchPlatformPaymentByPaymentIntentId(admin, paymentIntentId, {
         lifecycle_status: "payment_received",
@@ -655,6 +672,7 @@ export async function POST(req: Request) {
   try {
     stripe = getStripeTournament();
   } catch (e: unknown) {
+    Sentry.captureException(e);
     const msg = e instanceof Error ? e.message : String(e);
     console.error("stripe_webhook_config:", msg);
     return NextResponse.json({ error: "server_misconfigured" }, { status: 500 });
@@ -672,6 +690,7 @@ export async function POST(req: Request) {
   try {
     webhookSecret = getStripeWebhookSecret();
   } catch (e: unknown) {
+    Sentry.captureException(e);
     const msg = e instanceof Error ? e.message : String(e);
     console.error("stripe_webhook_config:", msg);
     return NextResponse.json({ error: "server_misconfigured" }, { status: 500 });
@@ -681,6 +700,7 @@ export async function POST(req: Request) {
   try {
     event = stripe.webhooks.constructEvent(raw, sig, webhookSecret);
   } catch (e: unknown) {
+    Sentry.captureException(e);
     const msg = e instanceof Error ? e.message : String(e);
     console.error("stripe_webhook_signature_failed:", msg);
     return NextResponse.json({ error: "bad_signature" }, { status: 400 });
@@ -722,6 +742,7 @@ export async function POST(req: Request) {
         try {
           await recomputePickupStandingForUser(admin, payRow.user_id);
         } catch (e: unknown) {
+          Sentry.captureException(e);
           const msg = e instanceof Error ? e.message : String(e);
           console.error("pickup_standing_recompute_after_expired:", msg);
         }
@@ -764,6 +785,7 @@ export async function POST(req: Request) {
         try {
           await recomputePickupStandingForUser(admin, payRow.user_id);
         } catch (e: unknown) {
+          Sentry.captureException(e);
           const msg = e instanceof Error ? e.message : String(e);
           console.error("pickup_standing_recompute_after_payment_failed:", msg);
         }
@@ -814,6 +836,7 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ received: true });
   } catch (e: unknown) {
+    Sentry.captureException(e);
     const msg = e instanceof Error ? e.message : String(e);
     console.error("stripe_webhook_handler_error:", msg);
     return NextResponse.json({ error: "handler_failed" }, { status: 500 });

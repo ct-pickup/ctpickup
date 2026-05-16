@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
@@ -30,6 +31,7 @@ function getGroupConfig(teamCount: number): { groupCount: number; teamsPerGroup:
 }
 
 export async function GET(req: Request) {
+  try {
   const admin = getSupabaseAdmin();
   const token = bearer(req);
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -69,9 +71,15 @@ export async function GET(req: Request) {
     matches: matchesRes.data ?? [],
     standings: standingsRes.data ?? [],
   });
+  } catch (err: unknown) {
+    Sentry.captureException(err);
+    console.error("[tournaments/bracket GET]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
+  try {
   const admin = getSupabaseAdmin();
   const token = bearer(req);
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -380,4 +388,9 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+  } catch (err: unknown) {
+    Sentry.captureException(err);
+    console.error("[tournaments/bracket POST]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

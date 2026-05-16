@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -21,6 +21,10 @@ import { hapticError, hapticGoal, hapticTap } from "@/lib/haptics";
 import { siteOrigin } from "@/lib/env";
 
 const LIME = "#a3e635";
+
+const PENDING_BADGE_BG = "rgba(245, 158, 11, 0.22)";
+const PENDING_BADGE_BORDER = "rgba(245, 158, 11, 0.55)";
+const PENDING_BADGE_TEXT = "#fbbf24";
 
 function utcMonthKey(d = new Date()): string {
   const y = d.getUTCFullYear();
@@ -196,13 +200,31 @@ export default function AdminMembersScreen() {
     setBusy(null);
   }
 
-  async function toggleApproved(userId: string, current: boolean) {
+  async function approvePlayer(userId: string) {
     void hapticGoal();
     setBusy("approve:" + userId);
-    const ok = await patchMember(userId, { approved: !current });
-    if (ok) setMembers((p) => p.map((m) => m.id === userId ? { ...m, approved: !current } : m));
+    const ok = await patchMember(userId, { approved: true });
+    if (ok) setMembers((p) => p.map((m) => (m.id === userId ? { ...m, approved: true } : m)));
     setBusy(null);
   }
+
+  async function rejectApproval(userId: string) {
+    void hapticTap();
+    setBusy("reject:" + userId);
+    const ok = await patchMember(userId, { approved: false });
+    if (ok) setMembers((p) => p.map((m) => (m.id === userId ? { ...m, approved: false } : m)));
+    setBusy(null);
+  }
+
+  const sortedMembers = useMemo(() => {
+    return [...members].sort((a, b) => {
+      if (!a.approved && b.approved) return -1;
+      if (a.approved && !b.approved) return 1;
+      const ta = Date.parse(a.created_at) || 0;
+      const tb = Date.parse(b.created_at) || 0;
+      return tb - ta;
+    });
+  }, [members]);
 
   async function saveStats(userId: string) {
     void hapticGoal();
@@ -441,18 +463,63 @@ export default function AdminMembersScreen() {
       { key: "midfielder_of_day_override", label: "Mid Day" },
       { key: "attacker_of_day_override", label: "Att Day" },
     ];
+    const pending = !item.approved && !item.is_banned;
+
     return (
       <View style={[styles.card, item.is_banned ? styles.cardBanned : null]}>
         <Pressable onPress={() => setExpanded(isExpanded ? null : item.id)}>
           <View style={styles.cardHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{name + (item.is_banned ? " X" : "")}</Text>
+              <View style={styles.nameRow}>
+                <Text style={styles.name} numberOfLines={2}>
+                  {name + (item.is_banned ? " X" : "")}
+                </Text>
+                {pending ? (
+                  <View style={styles.pendingBadge}>
+                    <Text style={styles.pendingBadgeText}>Pending</Text>
+                  </View>
+                ) : null}
+              </View>
               {subLine1.length > 0 ? <Text style={styles.sub}>{subLine1}</Text> : null}
               <Text style={styles.sub}>{subLine2}</Text>
             </View>
             <Text style={styles.chevron}>{isExpanded ? "^" : "v"}</Text>
           </View>
         </Pressable>
+        {!item.is_banned ? (
+          <View style={styles.membershipApprovalRow}>
+            <Pressable
+              onPress={() => void approvePlayer(item.id)}
+              disabled={isBusy || item.approved}
+              style={[
+                styles.approveMembershipBtn,
+                item.approved ? styles.approveMembershipBtnLocked : null,
+                isBusy ? { opacity: 0.85 } : null,
+              ]}
+            >
+              <Text style={[styles.approveMembershipBtnText, item.approved ? styles.approveMembershipBtnTextMuted : null]}>
+                {busy === "approve:" + item.id ? "…" : item.approved ? "Approved ✓" : "Approve"}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => void rejectApproval(item.id)}
+              disabled={isBusy || !item.approved}
+              style={[
+                styles.rejectMembershipBtn,
+                !item.approved ? styles.rejectMembershipBtnDisabled : null,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.rejectMembershipBtnText,
+                  !item.approved ? styles.rejectMembershipBtnTextDisabled : null,
+                ]}
+              >
+                {busy === "reject:" + item.id ? "…" : "Reject"}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
         {isExpanded ? (
           <View style={{ marginTop: 12 }}>
             <View style={styles.tierRow}>
@@ -464,25 +531,17 @@ export default function AdminMembersScreen() {
                 </Pressable>
               ))}
             </View>
-            <View style={styles.actionRow}>
-              <Pressable onPress={() => void toggleApproved(item.id, item.approved)} disabled={isBusy}
-                style={[styles.actionBtn, item.approved ? styles.actionBtnActive : null]}>
-                <Text style={[styles.actionBtnText, item.approved ? styles.actionBtnTextActive : null]}>
-                  {item.approved ? "Approved" : "Approve"}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  void hapticTap();
-                  setDmTarget(item);
-                  setDmText("");
-                }}
-                disabled={isBusy}
-                style={[styles.actionBtn, styles.actionBtnLimeOutline]}
-              >
-                <Text style={styles.actionBtnTextLime}>Message</Text>
-              </Pressable>
-            </View>
+            <Pressable
+              onPress={() => {
+                void hapticTap();
+                setDmTarget(item);
+                setDmText("");
+              }}
+              disabled={isBusy}
+              style={[styles.actionBtn, styles.actionBtnLimeOutline, styles.messageOnlyBtn]}
+            >
+              <Text style={styles.actionBtnTextLime}>Message player</Text>
+            </Pressable>
             <Text style={[styles.label, { marginTop: 14 }]}>Stats overrides</Text>
             <View style={styles.statsGrid}>
               {statsFields.map((f) => {
@@ -620,7 +679,7 @@ export default function AdminMembersScreen() {
           {loading ? <ActivityIndicator color={LIME} style={{ marginTop: 32 }} /> : null}
           {error ? <Text style={styles.err}>{error}</Text> : null}
           <FlatList
-            data={members}
+            data={sortedMembers}
             keyExtractor={(m) => m.id}
             renderItem={renderItem}
             contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
@@ -661,7 +720,50 @@ const styles = StyleSheet.create({
   card: { backgroundColor: "#111", borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
   cardBanned: { borderColor: "rgba(239,68,68,0.4)", backgroundColor: "#1a0a0a" },
   cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
-  name: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  nameRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
+  name: { color: "#fff", fontSize: 15, fontWeight: "700", flexShrink: 1 },
+  pendingBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: PENDING_BADGE_BG,
+    borderWidth: 1,
+    borderColor: PENDING_BADGE_BORDER,
+  },
+  pendingBadgeText: { color: PENDING_BADGE_TEXT, fontSize: 11, fontWeight: "800" },
+  membershipApprovalRow: { flexDirection: "row", gap: 10, marginTop: 12 },
+  approveMembershipBtn: {
+    flex: 2,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 10,
+    backgroundColor: LIME,
+    borderWidth: 2,
+    borderColor: "#bbf451",
+    paddingHorizontal: 12,
+  },
+  approveMembershipBtnLocked: {
+    backgroundColor: "rgba(163,230,53,0.18)",
+    borderColor: "rgba(163,230,53,0.45)",
+  },
+  approveMembershipBtnText: { color: "#171717", fontSize: 14, fontWeight: "900" },
+  approveMembershipBtnTextMuted: { color: LIME },
+  rejectMembershipBtn: {
+    flex: 1,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(251,146,146,0.55)",
+    backgroundColor: "rgba(239,68,68,0.12)",
+    paddingHorizontal: 10,
+  },
+  rejectMembershipBtnDisabled: { opacity: 0.35 },
+  rejectMembershipBtnText: { color: "#fca5a5", fontSize: 13, fontWeight: "800" },
+  rejectMembershipBtnTextDisabled: { color: "rgba(255,255,255,0.25)" },
+  messageOnlyBtn: { alignSelf: "stretch", marginTop: 8, flex: 0 },
   sub: { color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 2 },
   chevron: { color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 2 },
   label: { color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: "700", textTransform: "uppercase", marginBottom: 6 },

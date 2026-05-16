@@ -278,23 +278,26 @@ async function loadCompletedRunIdsHalfOpen(
   return ids;
 }
 
-/** Approved profiles: counts by `nearest_venue` (non-empty) and top zip codes (5-digit US). */
-async function aggregateApprovedPlayerLocations(svc: ReturnType<typeof supabaseService>): Promise<{
+/** All profiles with a `nearest_venue` or ZIP: counts by venue (non-empty) and top zip codes (5-digit US). */
+async function aggregatePlayerLocations(svc: ReturnType<typeof supabaseService>): Promise<{
   players_by_venue: { venue: string; count: number }[];
   players_by_zip: { zip_code: string; count: number }[];
 }> {
   const venueMap = new Map<string, number>();
   const zipMap = new Map<string, number>();
   let from = 0;
+  let profilePages = 0;
+  let profilesScanned = 0;
   for (;;) {
     const { data, error } = await svc
       .from("profiles")
       .select("nearest_venue,zip_code")
-      .eq("approved", true)
       .order("id", { ascending: true })
       .range(from, from + ROW_PAGE - 1);
     if (error) throw new Error(error.message);
     const rows = (data || []) as { nearest_venue: string | null; zip_code: string | null }[];
+    profilePages += 1;
+    profilesScanned += rows.length;
     for (const row of rows) {
       const nv = row.nearest_venue != null ? String(row.nearest_venue).trim() : "";
       if (nv) venueMap.set(nv, (venueMap.get(nv) || 0) + 1);
@@ -315,6 +318,15 @@ async function aggregateApprovedPlayerLocations(svc: ReturnType<typeof supabaseS
     .map(([zip_code, count]) => ({ zip_code, count }))
     .sort((a, b) => b.count - a.count || a.zip_code.localeCompare(b.zip_code))
     .slice(0, 10);
+
+  console.log("[admin/analytics] players_by_venue / players_by_zip aggregation", {
+    profilePages,
+    profilesScanned,
+    venueBuckets: players_by_venue.length,
+    zipBuckets: players_by_zip.length,
+    players_by_venue_preview: players_by_venue.slice(0, 5),
+    players_by_zip_preview: players_by_zip.slice(0, 5),
+  });
 
   return { players_by_venue, players_by_zip };
 }
@@ -365,7 +377,7 @@ export async function GET(req: Request) {
     const [current_month_cents, prev_month_cents, locationAgg] = await Promise.all([
       sumPaymentsCents(svc, monthStart, monthEnd),
       sumPaymentsCents(svc, prevStart, prevEnd),
-      aggregateApprovedPlayerLocations(svc),
+      aggregatePlayerLocations(svc),
     ]);
 
     let monthRuns: { id: string; service_region: string | null; start_at: string }[];

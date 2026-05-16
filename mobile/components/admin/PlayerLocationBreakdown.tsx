@@ -49,7 +49,7 @@ export function PlayerLocationBreakdown({
     <>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Players by Location</Text>
-        <Text style={styles.cardHint}>Approved players with a nearest venue set.</Text>
+        <Text style={styles.cardHint}>Players with a nearest venue set (all accounts).</Text>
         {playersByVenue.length === 0 ? (
           <Text style={styles.muted}>No venue data yet.</Text>
         ) : (
@@ -61,7 +61,7 @@ export function PlayerLocationBreakdown({
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Zip codes</Text>
-        <Text style={styles.cardHint}>Top 10 by approved player count (5-digit ZIP).</Text>
+        <Text style={styles.cardHint}>Top 10 by player count (5-digit ZIP, all accounts).</Text>
         {playersByZip.length === 0 ? (
           <Text style={styles.muted}>No ZIP data yet.</Text>
         ) : (

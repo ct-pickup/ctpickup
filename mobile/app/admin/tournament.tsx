@@ -8,6 +8,7 @@ import {
   type TourneySubmissionRow,
 } from "@/lib/adminApi";
 import { useAuth } from "@/context/AuthContext";
+import { getMobileSupabaseClient } from "@/lib/supabase";
 import { SERVICE_REGIONS, serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { router } from "expo-router";
@@ -107,6 +108,24 @@ export default function AdminTournamentScreen() {
   const [drafts, setDrafts] = useState<
     Record<string, { decision: Decision; notes: string; reviewed: boolean }>
   >({});
+
+  useEffect(() => {
+    const supabase = getMobileSupabaseClient();
+    if (!supabase) return;
+    const channel = supabase
+      .channel("admin-tournaments")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tournaments" },
+        () => {
+          void reload();
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [region, reload]);
 
   useEffect(() => {
     const next: Record<string, { decision: Decision; notes: string; reviewed: boolean }> = {};
@@ -263,7 +282,9 @@ export default function AdminTournamentScreen() {
       setCreateFormat("Group stage → knockout");
       setCreateEntryFee("250");
       setCreateMinRoster("5");
-      reload();
+      setRegion(createRegion);
+      setListTab("all");
+      setTimeout(() => void reload(), 300);
       Alert.alert("Created", "Tournament draft saved. Make it live from the list when ready.");
     } catch (e) {
       console.warn("[onCreateTournament] failed", e);

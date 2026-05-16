@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type ExpoPushPayload = {
@@ -21,7 +22,30 @@ const BATCH_SIZE = 100;
 const MAX_TOKEN_QUERY = 4000;
 const USER_ID_IN_CHUNK = 200;
 
+type ExpoPushTicket = {
+  status?: string;
+  details?: { error?: string };
+};
+
+async function deleteDeviceNotRegisteredTokens(
+  admin: SupabaseClient,
+  chunk: string[],
+  tickets: ExpoPushTicket[],
+) {
+  for (let idx = 0; idx < tickets.length; idx++) {
+    const ticket = tickets[idx];
+    if (
+      ticket?.status === "error" &&
+      ticket.details?.error === "DeviceNotRegistered" &&
+      typeof chunk[idx] === "string"
+    ) {
+      await admin.from("user_push_devices").delete().eq("expo_push_token", chunk[idx]);
+    }
+  }
+}
+
 async function sendTokensToExpo(
+  admin: SupabaseClient,
   tokens: string[],
   payload: ExpoPushPayload,
 ): Promise<SendPushResult> {
@@ -57,9 +81,14 @@ async function sendTokensToExpo(
         const j = await r.json().catch(() => null);
         batches.push({ ok: false, status: r.status, error: j ? JSON.stringify(j) : "push_failed" });
       } else {
+        const parsed = (await r.json().catch(() => null)) as { data?: ExpoPushTicket[] } | null;
         batches.push({ ok: true, status: r.status });
+        if (parsed?.data?.length) {
+          await deleteDeviceNotRegisteredTokens(admin, chunk, parsed.data);
+        }
       }
     } catch (e: unknown) {
+      Sentry.captureException(e);
       batches.push({ ok: false, error: e instanceof Error ? e.message : String(e) });
     }
   }
@@ -99,7 +128,7 @@ export async function sendPushToUsers(
     }
   }
 
-  return sendTokensToExpo(tokens, payload);
+  return sendTokensToExpo(admin, tokens, payload);
 }
 
 /**
@@ -121,5 +150,5 @@ export async function sendPushToAll(
   const tokens = (res.data ?? [])
     .map((r) => (r as { expo_push_token?: unknown }).expo_push_token)
     .filter((t): t is string => typeof t === "string" && t.length > 10);
-  return sendTokensToExpo(tokens, payload);
+  return sendTokensToExpo(admin, tokens, payload);
 }

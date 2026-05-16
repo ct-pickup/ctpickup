@@ -36,6 +36,7 @@ import {
   showViewResultsForPast,
 } from "@/lib/pickupRunLifecycle";
 import { SERVICE_REGIONS, serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
+import { getMobileSupabaseClient } from "@/lib/supabase";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -317,6 +318,11 @@ export default function AdminPickupOpsScreen() {
   const [teamAssignPickUserId, setTeamAssignPickUserId] = useState<string | null>(null);
 
   const venueFeePresetsForRegion = useMemo(() => VENUE_FEE_PRESETS.filter((p) => p.region === region), [region]);
+  const [createRegion, setCreateRegion] = useState<ServiceRegionCode>("CT");
+  const venueFeePresetsForCreate = useMemo(
+    () => VENUE_FEE_PRESETS.filter((p) => p.region === createRegion),
+    [createRegion],
+  );
 
   const workflowTabCounts = useMemo(() => {
     const c: Record<AdminPickupWorkflowTab, number> = { planning: 0, active: 0, past: 0 };
@@ -407,6 +413,24 @@ export default function AdminPickupOpsScreen() {
   useEffect(() => {
     void loadRuns();
   }, [loadRuns]);
+
+  useEffect(() => {
+    const supabase = getMobileSupabaseClient();
+    if (!supabase) return;
+    const channel = supabase
+      .channel("admin-pickup-runs")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "pickup_runs" },
+        () => {
+          void loadRuns();
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [region, loadRuns]);
 
   useEffect(() => {
     void loadTierBadge();
@@ -711,7 +735,7 @@ export default function AdminPickupOpsScreen() {
       const r = await postAdminCreateRun(t, {
         start_at,
         title: createTitle.trim() || undefined,
-        service_region: region,
+        service_region: createRegion,
         capacity: Number(createCapacity || 24),
         fee_cents,
         location_private: createLocationText.trim() || undefined,
@@ -727,7 +751,9 @@ export default function AdminPickupOpsScreen() {
       setCreateLocationText("");
       setCreateSelectedVenueFeePresetId(null);
       setCreateModalOpen(false);
-      void loadRuns();
+      setRegion(createRegion);
+      setWorkflowTabOverride("planning");
+      setTimeout(() => void loadRuns(), 300);
     } catch (e) {
       console.warn("[onCreateRun] request failed", e);
       Sentry.captureException(e);
@@ -1064,27 +1090,32 @@ export default function AdminPickupOpsScreen() {
     <>
       <Text style={styles.fieldHint}>New run uses API defaults; refine in the detail sheet after creation.</Text>
       <DateTimePicker label="Start at" value={createStartAt} onChange={setCreateStartAt} />
-      <View style={styles.twoCol}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.label}>State</Text>
-          <View style={[styles.input, styles.statePill]}>
-            <Text style={styles.statePillText}>{region}</Text>
-          </View>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.label}>Capacity</Text>
-          <TextInput
-            style={styles.input}
-            value={createCapacity}
-            onChangeText={setCreateCapacity}
-            keyboardType="number-pad"
-            placeholder="24"
-            placeholderTextColor="rgba(255,255,255,0.35)"
-          />
-        </View>
+      <Text style={styles.label}>Service region</Text>
+      <View style={styles.presetRow}>
+        {SERVICE_REGIONS.map(({ code }) => {
+          const active = createRegion === code;
+          return (
+            <Pressable
+              key={code}
+              onPress={() => setCreateRegion(code)}
+              style={({ pressed }) => [styles.presetChip, active && styles.presetChipActive, pressed && { opacity: 0.9 }]}
+            >
+              <Text style={[styles.presetChipText, active && styles.presetChipTextActive]}>{code}</Text>
+            </Pressable>
+          );
+        })}
       </View>
+      <Text style={styles.label}>Capacity</Text>
+      <TextInput
+        style={styles.input}
+        value={createCapacity}
+        onChangeText={setCreateCapacity}
+        keyboardType="number-pad"
+        placeholder="24"
+        placeholderTextColor="rgba(255,255,255,0.35)"
+      />
       <VenueFeePresetRow
-        presets={venueFeePresetsForRegion}
+        presets={venueFeePresetsForCreate}
         selectedId={createSelectedVenueFeePresetId}
         onSelect={(p) => {
           setCreateSelectedVenueFeePresetId(p.id);
@@ -1538,7 +1569,10 @@ export default function AdminPickupOpsScreen() {
       </ScrollView>
 
       <Pressable
-        onPress={() => setCreateModalOpen(true)}
+        onPress={() => {
+          setCreateRegion(region);
+          setCreateModalOpen(true);
+        }}
         style={({ pressed }) => [styles.fab, { bottom: 20 + insets.bottom }, pressed && { opacity: 0.92 }]}
         accessibilityLabel="Create run"
       >
