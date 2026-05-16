@@ -1,17 +1,8 @@
+import { AnimatedPressScale } from "@/components/AnimatedPressScale";
+import { CardLoadingShimmer } from "@/components/CardLoadingShimmer";
 import type { FieldTournamentPayload } from "@/hooks/useFieldTournament";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
-
-const LIME = "#a3e635";
-
+import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 type Props = {
   loading: boolean;
   error: string | null;
@@ -24,21 +15,7 @@ type Props = {
 
 export function FieldTournamentCard({ loading, error, payload, onPress, style, emptyAlternateMessage }: Props) {
   if (loading) {
-    return (
-      <View style={style}>
-        <View style={styles.card}>
-          <View style={styles.row}>
-            <View style={styles.iconWrap}>
-              <FontAwesome name="trophy" size={20} color="rgba(255,255,255,0.55)" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.statusKicker}>Checking…</Text>
-              <ActivityIndicator size="small" color={LIME} style={{ marginTop: 14, alignSelf: "flex-start" }} />
-            </View>
-          </View>
-        </View>
-      </View>
-    );
+    return <CardLoadingShimmer style={style} />;
   }
   if (error) {
     return (
@@ -89,14 +66,8 @@ export function FieldTournamentCard({ loading, error, payload, onPress, style, e
   const { confirmedTeams, claimedTeams, official, full } = payload!;
   const maxTeams = t.maxTeams;
 
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={!onPress}
-      style={({ pressed }) => [style, styles.card, styles.cardInteractive, pressed && onPress && { opacity: 0.92 }]}
-      accessibilityRole={onPress ? "button" : undefined}
-      accessibilityLabel={`In-person tournament ${t.title}`}
-    >
+  const inner = (
+    <>
       <View style={styles.row}>
         <View style={styles.iconWrap}>
           <FontAwesome name="trophy" size={20} color="rgba(255,255,255,0.55)" />
@@ -127,7 +98,27 @@ export function FieldTournamentCard({ loading, error, payload, onPress, style, e
           </View>
         ) : null}
       </View>
-    </Pressable>
+    </>
+  );
+
+  if (!onPress) {
+    return (
+      <View style={[style, styles.card]}>
+        {inner}
+      </View>
+    );
+  }
+
+  return (
+    <AnimatedPressScale
+      onPress={onPress}
+      style={[style, styles.card, styles.cardInteractive]}
+      accessibilityRole="button"
+      accessibilityLabel={`In-person tournament ${t.title}`}
+      hapticOnPress
+    >
+      {inner}
+    </AnimatedPressScale>
   );
 }
 

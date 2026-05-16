@@ -1,5 +1,7 @@
+import { AnimatedPressScale } from "@/components/AnimatedPressScale";
 import { FieldTournamentCard } from "@/components/FieldTournamentCard";
 import { RegionsPickerPanel } from "@/components/RegionsPickerPanel";
+import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { useFieldTournament } from "@/hooks/useFieldTournament";
@@ -10,7 +12,8 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function TournamentsScreen() {
@@ -27,6 +30,8 @@ export default function TournamentsScreen() {
     dataAsOfMs,
   } = useFieldTournament();
   const navigation = useNavigation();
+  const reduceMotion = useReduceMotion();
+  const listEnter = reduceMotion ? undefined : FadeInDown.duration(340).springify().damping(16);
   const [showStatePicker, setShowStatePicker] = useState(true);
   const [profileNearestVenue, setProfileNearestVenue] = useState<string | null>(null);
   const [listRefreshing, setListRefreshing] = useState(false);
@@ -120,17 +125,20 @@ export default function TournamentsScreen() {
         />
       }
     >
+      <Animated.View entering={listEnter}>
       <View style={styles.titleRow}>
         <Text style={styles.title} numberOfLines={1}>
           Tournaments
         </Text>
-        <Pressable
+        <AnimatedPressScale
+          pressedScale={0.96}
+          hapticOnPress
           onPress={() => setShowStatePicker(true)}
-          style={({ pressed }) => [styles.statesChip, pressed && { opacity: 0.85 }]}
+          style={styles.statesChip}
         >
           <FontAwesome name="map-marker" size={14} color="#a3e635" />
           <Text style={styles.statesChipText}> States</Text>
-        </Pressable>
+        </AnimatedPressScale>
       </View>
       <Text style={styles.sub}>
         Outdoor / in-person bracket for {serviceRegionName(region)} ({region}).
@@ -158,8 +166,9 @@ export default function TournamentsScreen() {
         />
       )}
       {fieldPayload?.tournament?.id ? (
-        <Pressable
-          style={({ pressed }) => [styles.bracketBtn, pressed && { opacity: 0.9 }]}
+        <AnimatedPressScale
+          style={styles.bracketBtn}
+          hapticOnPress
           onPress={() =>
             (router.push as (href: string) => void)(
               `/tournament-bracket-view?tournament_id=${encodeURIComponent(fieldPayload.tournament!.id)}`,
@@ -170,8 +179,9 @@ export default function TournamentsScreen() {
         >
           <FontAwesome name="sitemap" size={16} color="#111" style={{ marginRight: 8 }} />
           <Text style={styles.bracketBtnText}>Standings · bracket · scorers</Text>
-        </Pressable>
+        </AnimatedPressScale>
       ) : null}
+      </Animated.View>
     </ScrollView>
   );
 }

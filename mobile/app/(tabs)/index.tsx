@@ -1,9 +1,12 @@
+import { AnimatedPressScale } from "@/components/AnimatedPressScale";
 import { FieldTournamentCard } from "@/components/FieldTournamentCard";
+import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { useAuth } from "@/context/AuthContext";
 import { useFieldTournament } from "@/hooks/useFieldTournament";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const LIME = "#a3e635";
@@ -30,47 +33,53 @@ export default function HomeScreen() {
   } = useFieldTournament();
 
   const welcome = welcomeFromEmail(email);
+  const reduceMotion = useReduceMotion();
+  const homeEnter = reduceMotion ? undefined : FadeInDown.duration(380).springify().damping(16);
 
   return (
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 12) + 8 }]}
     >
+      <Animated.View entering={homeEnter}>
       <View style={styles.topRow}>
         <View style={styles.topLeft}>
-          <Pressable
+          <AnimatedPressScale
             accessibilityRole="button"
             accessibilityLabel="Help"
+            pressedScale={0.94}
             onPress={() => (router.push as (href: string) => void)("/help")}
-            style={({ pressed }) => [styles.profileBtn, pressed && { opacity: 0.92 }]}
+            style={styles.profileBtn}
           >
             <FontAwesome name="question" size={16} color={LIME} />
-          </Pressable>
-          <Pressable
+          </AnimatedPressScale>
+          <AnimatedPressScale
             accessibilityRole="button"
             accessibilityLabel="Search players"
+            pressedScale={0.94}
             onPress={() => (router.push as (href: string) => void)("/players")}
-            style={({ pressed }) => [styles.profileBtn, pressed && { opacity: 0.92 }]}
+            style={styles.profileBtn}
           >
             <FontAwesome name="search" size={16} color={LIME} />
-          </Pressable>
+          </AnimatedPressScale>
         </View>
         <View style={styles.topMiddle}>
           <Text style={styles.welcomeLine} numberOfLines={1}>
             Welcome back, <Text style={styles.welcomeName}>{welcome}</Text>
           </Text>
         </View>
-        <Pressable
+        <AnimatedPressScale
           accessibilityRole="button"
           accessibilityLabel="Open profile"
+          pressedScale={0.94}
           onPress={() => {
             if (myUserId) router.push(`/player/${myUserId}`);
             else router.push("/(tabs)/account");
           }}
-          style={({ pressed }) => [styles.profileBtn, pressed && { opacity: 0.92 }]}
+          style={styles.profileBtn}
         >
           <FontAwesome name="user" size={16} color={LIME} />
-        </Pressable>
+        </AnimatedPressScale>
       </View>
 
       <Text style={styles.headline}>
@@ -78,11 +87,12 @@ export default function HomeScreen() {
       </Text>
       <Text style={styles.tagline}>Tonight / this week stay locked in.</Text>
 
-      <Pressable
+      <AnimatedPressScale
         accessibilityRole="button"
         accessibilityLabel="Open leaderboards"
+        hapticOnPress
         onPress={() => (router.push as (href: string) => void)("/leaderboards")}
-        style={({ pressed }) => [styles.leaderboardsCard, pressed && { opacity: 0.92 }]}
+        style={styles.leaderboardsCard}
       >
         <View style={styles.leaderboardsIconWrap}>
           <Text style={styles.leaderboardsEmoji}>🏆</Text>
@@ -92,13 +102,14 @@ export default function HomeScreen() {
           <Text style={styles.leaderboardsSub}>All-time stats · wins · sessions · POTD & more</Text>
         </View>
         <FontAwesome name="chevron-right" size={16} color="rgba(255,255,255,0.5)" />
-      </Pressable>
+      </AnimatedPressScale>
 
-      <Pressable
+      <AnimatedPressScale
         accessibilityRole="button"
         accessibilityLabel="Pickup by state, choose NY CT NJ or MD"
+        hapticOnPress
         onPress={() => router.navigate("/(tabs)/runs")}
-        style={({ pressed }) => [styles.regionHub, pressed && { opacity: 0.92 }]}
+        style={styles.regionHub}
       >
         <View style={styles.regionHubIconWrap}>
           <FontAwesome name="map-marker" size={22} color="#0a0a0a" />
@@ -108,7 +119,7 @@ export default function HomeScreen() {
           <Text style={styles.regionHubSub}>NY · CT · NJ · MD</Text>
         </View>
         <FontAwesome name="chevron-right" size={16} color="rgba(255,255,255,0.5)" />
-      </Pressable>
+      </AnimatedPressScale>
 
       <Text style={[styles.sectionLabel, styles.sectionLabelTournament]}>IN-PERSON TOURNAMENT</Text>
       <FieldTournamentCard
@@ -117,6 +128,7 @@ export default function HomeScreen() {
         payload={fieldTournamentPayload}
         onPress={() => router.push("/field-tournament")}
       />
+      </Animated.View>
     </ScrollView>
   );
 }

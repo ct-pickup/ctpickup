@@ -1,7 +1,10 @@
 import StateShape from "@/components/StateShape";
+import { AnimatedPressScale } from "@/components/AnimatedPressScale";
+import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { SERVICE_REGIONS, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 
 const LIME = "#a3e635";
 const BG = "#0a0a0a";
@@ -12,6 +15,8 @@ type Props = {
 };
 
 export function RegionsPickerPanel({ onSelectState }: Props) {
+  const reduceMotion = useReduceMotion();
+
   return (
     <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
       <Text style={styles.kicker}>SERVICE AREA</Text>
@@ -23,31 +28,35 @@ export function RegionsPickerPanel({ onSelectState }: Props) {
       </Text>
 
       <View style={styles.grid}>
-        {SERVICE_REGIONS.map((r, i) => (
-          <Pressable
-            key={r.code}
-            accessibilityRole="button"
-            accessibilityLabel={`${r.name} pickups`}
-            onPress={() => onSelectState(r.code)}
-            style={({ pressed }) => [
-              styles.card,
-              pressed && { opacity: 0.88, transform: [{ scale: 0.985 }] },
-              i > 0 && styles.cardGap,
-            ]}
-          >
-            <View style={styles.cardAccent} />
-            <View style={styles.cardInner}>
-              <View style={styles.codeBadge}>
-                <StateShape state={r.code as "CT" | "NY" | "NJ" | "MD"} size={40} active />
-              </View>
-              <View style={styles.cardBody}>
-                <Text style={styles.stateName}>{r.name}</Text>
-                <Text style={styles.stateHint}>Runs & RSVPs</Text>
-              </View>
-              <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
-            </View>
-          </Pressable>
-        ))}
+        {SERVICE_REGIONS.map((r, i) => {
+          const enter = reduceMotion
+            ? undefined
+            : FadeInDown.delay(Math.min(i * 55, 220)).springify().damping(17);
+          return (
+            <Animated.View key={r.code} entering={enter} style={i > 0 ? styles.cardGap : undefined}>
+              <AnimatedPressScale
+                accessibilityRole="button"
+                accessibilityLabel={`${r.name} pickups`}
+                hapticOnPress
+                pressedScale={0.985}
+                onPress={() => onSelectState(r.code)}
+                style={styles.card}
+              >
+                <View style={styles.cardAccent} />
+                <View style={styles.cardInner}>
+                  <View style={styles.codeBadge}>
+                    <StateShape state={r.code as "CT" | "NY" | "NJ" | "MD"} size={40} active />
+                  </View>
+                  <View style={styles.cardBody}>
+                    <Text style={styles.stateName}>{r.name}</Text>
+                    <Text style={styles.stateHint}>Runs & RSVPs</Text>
+                  </View>
+                  <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+                </View>
+              </AnimatedPressScale>
+            </Animated.View>
+          );
+        })}
       </View>
 
       <Text style={styles.footerNote}>Featured runs and your RSVP status live on the Runs tab signed in with your account.</Text>
