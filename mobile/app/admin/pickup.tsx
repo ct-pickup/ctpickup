@@ -1,5 +1,6 @@
 import AdminVenuePicker from "@/components/AdminVenuePicker";
 import DateTimePicker, { isScheduleWallMidnightEt } from "@/components/DateTimePicker";
+import AdminRunDetailLifecycle from "@/components/pickup/AdminRunDetailLifecycle";
 import { useAuth } from "@/context/AuthContext";
 import {
   adminVenueLocationPreset,
@@ -9,9 +10,7 @@ import {
   fetchAdminPickupSwitchDetail,
   fetchAdminPickupSwitchList,
   fetchAdminTierSuggestions,
-  postAdminCancelRun,
   postAdminCreateRun,
-  postAdminEndRun,
   type PickupSwitchDetailResponse,
 } from "@/lib/adminApi";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
@@ -20,7 +19,6 @@ import { isPublicPickupRunType } from "@/lib/pickupRunType";
 import {
   derivePickupLifecycleStage,
   pickupLifecycleStageLabel,
-  showEndRunButton,
   showInvitePlayersButton,
 } from "@/lib/pickupRunLifecycle";
 import type { ServiceRegionCode } from "@/lib/serviceRegions";
@@ -341,64 +339,31 @@ export default function AdminPickupOpsScreen() {
     setCreateCapacity("24");
   }
 
-  async function onCancelRun() {
-    if (!token || !detailRunId) return;
-    Alert.alert("Cancel this run?", "Players will be notified and refunds are attempted when applicable.", [
-      { text: "Keep run", style: "cancel" },
-      {
-        text: "Cancel run",
-        style: "destructive",
-        onPress: () => {
-          void (async () => {
-            setActionBusy(true);
-            const r = await postAdminCancelRun(token, {
-              run_id: detailRunId,
-              reason: "Canceled from mobile admin",
-            });
-            setActionBusy(false);
-            if (!r.ok) {
-              Alert.alert("Could not cancel", r.error);
-              return;
-            }
-            void hapticTap();
-            closeDetail();
-            void loadRuns();
-          })();
-        },
-      },
-    ]);
-  }
-
-  async function onMarkComplete() {
-    if (!token || !detailRunId) return;
-    Alert.alert("Mark run complete?", "This ends the run and moves it to Past.", [
-      { text: "Not yet", style: "cancel" },
-      {
-        text: "Mark complete",
-        onPress: () => {
-          void (async () => {
-            setActionBusy(true);
-            const r = await postAdminEndRun(token, { run_id: detailRunId });
-            setActionBusy(false);
-            if (!r.ok) {
-              Alert.alert("Could not complete", r.error);
-              return;
-            }
-            void hapticGoal();
-            setWorkflowOverride("past");
-            closeDetail();
-            void loadRuns();
-          })();
-        },
-      },
-    ]);
-  }
-
-  const detailRun = detail?.run && typeof detail.run === "object" ? detail.run : null;
+  const detailRun = detail?.run && typeof detail.run === "object" ? (detail.run as Record<string, unknown>) : null;
   const confirmedRoster = Array.isArray(detail?.confirmed) ? detail!.confirmed : [];
-  const canEndRun = detailRun
-    ? showEndRunButton({ status: s(detailRun.status), is_completed: detailRun.is_completed === true })
-    : false;
+  const pendingInvites = useMemo(() => {
+    if (!detail) return [];
+    const invites = Array.isArray(detail.invites) ? detail.invites : [];
+    const availability = Array.isArray(detail.availability) ? detail.availability : [];
+    const nameByUser = new Map<string, string>();
+    for (const row of availability) {
+      const uid = s((row as Record<string, unknown>).user_id);
+      const name = s((row as Record<string, unknown>).full_name).trim();
+      if (uid && name) nameByUser.set(uid, name);
+    }
+    return invites.map((inv) => {
+      const uid = s((inv as Record<string, unknown>).user_id);
+      return {
+        id: uid || s((inv as Record<string, unknown>).id),
+        name: nameByUser.get(uid) || "Invited player",
+      };
+    });
+  }, [detail]);
+
+  async function refreshDetailAndList() {
+    await loadRuns();
+    if (detailOpen && detailRunId) await loadDetail();
+  }
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -699,42 +664,29 @@ export default function AdminPickupOpsScreen() {
                   ))
                 )}
 
-                {showInvitePlayersButton({
-                  status: s(detailRun.status),
-                  run_type: detailRun.run_type,
-                  is_completed: detailRun.is_completed === true,
-                }) ? (
-                  <Pressable
-                    onPress={() => {
-                      void hapticTap();
-                      router.push(`/admin/invite-players?run_id=${encodeURIComponent(s(detailRun.id))}`);
-                    }}
-                    style={({ pressed }) => [styles.inviteBtn, pressed && { opacity: 0.9 }]}
-                  >
-                    <Text style={styles.inviteBtnText}>Invite Players</Text>
-                  </Pressable>
+                {!isPublicPickupRunType(detailRun.run_type) && pendingInvites.length > 0 ? (
+                  <>
+                    <Text style={styles.rosterHeading}>Pending invites ({pendingInvites.length})</Text>
+                    {pendingInvites.map((p) => (
+                      <Text key={p.id} style={styles.rosterRowMuted}>
+                        {p.name}
+                      </Text>
+                    ))}
+                  </>
                 ) : null}
 
-                <View style={styles.detailActions}>
-                  {canEndRun ? (
-                    <Pressable
-                      disabled={actionBusy}
-                      onPress={() => void onMarkComplete()}
-                      style={({ pressed }) => [styles.completeBtn, pressed && { opacity: 0.9 }]}
-                    >
-                      <Text style={styles.completeBtnText}>Mark Complete</Text>
-                    </Pressable>
-                  ) : null}
-                  {!isPastRun(detailRun) && s(detailRun.status) !== "canceled" ? (
-                    <Pressable
-                      disabled={actionBusy}
-                      onPress={() => void onCancelRun()}
-                      style={({ pressed }) => [styles.destructiveBtn, pressed && { opacity: 0.9 }]}
-                    >
-                      <Text style={styles.destructiveBtnText}>Cancel run</Text>
-                    </Pressable>
-                  ) : null}
-                </View>
+                {detail ? (
+                  <AdminRunDetailLifecycle
+                    token={token}
+                    run={detailRun}
+                    detail={detail}
+                    router={router}
+                    actionBusy={actionBusy}
+                    setActionBusy={setActionBusy}
+                    onRefresh={refreshDetailAndList}
+                    onCloseDetail={closeDetail}
+                  />
+                ) : null}
               </ScrollView>
             ) : null}
           </View>
@@ -941,20 +893,5 @@ const styles = StyleSheet.create({
   rosterHeading: { color: "#fff", fontWeight: "800", marginTop: 20, marginBottom: 8 },
   rosterEmpty: { color: "rgba(255,255,255,0.45)", fontStyle: "italic" },
   rosterRow: { color: "rgba(255,255,255,0.8)", paddingVertical: 6, fontSize: 15 },
-  detailActions: { marginTop: 24, gap: 10 },
-  completeBtn: {
-    backgroundColor: LIME,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  completeBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
-  destructiveBtn: {
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(248,113,113,0.5)",
-  },
-  destructiveBtnText: { color: "#fca5a5", fontWeight: "700", fontSize: 15 },
+  rosterRowMuted: { color: "rgba(255,255,255,0.5)", paddingVertical: 6, fontSize: 14 },
 });

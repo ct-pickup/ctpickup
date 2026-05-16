@@ -117,6 +117,39 @@ export function showPromoteToHubButton(row: {
   return row.is_current !== true;
 }
 
+/** Promote while planning or after availability threshold (likely_on). */
+export function showPromoteToHubDuringPlanning(row: {
+  status?: string | null;
+  is_current?: boolean | null;
+  is_completed?: boolean | null;
+}): boolean {
+  if (row.is_completed === true) return false;
+  if (row.is_current === true) return false;
+  const st = String(row.status || "").trim();
+  if (st === "canceled") return false;
+  return st === "planning" || st === "likely_on";
+}
+
+/** Post results while the run is live (before completed / result saved). */
+export function showPostResultsDuringRun(row: {
+  status?: string | null;
+  is_completed?: boolean | null;
+  has_result?: boolean | null;
+}): boolean {
+  if (row.is_completed === true) return false;
+  if (row.has_result === true) return false;
+  return String(row.status || "").trim() === "in_progress";
+}
+
+/** Begin pickup when RSVP phase is active (staff may start before kickoff window). */
+export function showBeginPickupButton(row: {
+  status?: string | null;
+  is_completed?: boolean | null;
+}): boolean {
+  if (row.is_completed === true) return false;
+  return String(row.status || "").trim() === "active";
+}
+
 export function showInvitePlayersButton(row: {
   status?: string | null;
   run_type?: unknown;

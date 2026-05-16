@@ -33,6 +33,7 @@ export default function AdminLayout() {
         contentStyle: { backgroundColor: "#0a0a0a" },
       }}
     >
+      <Stack.Screen name="pickup" options={{ title: "Pickup ops", headerShown: false }} />
       <Stack.Screen name="invite-players" options={{ title: "Invite players" }} />
       <Stack.Screen name="run-result" options={{ title: "Run result" }} />
       <Stack.Screen name="analytics" options={{ title: "Analytics" }} />

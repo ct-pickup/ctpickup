@@ -703,6 +703,16 @@ export async function POST(req: Request) {
     if (body.run_type != null) {
       patch.run_type = normalizePickupRunTypeForDb(body.run_type);
     }
+    if (body.start_at != null) {
+      const rawKickoff = String(body.start_at).trim();
+      if (rawKickoff) {
+        const parsedMs = Date.parse(rawKickoff);
+        if (!Number.isFinite(parsedMs)) {
+          return NextResponse.json({ error: "Invalid start_at datetime" }, { status: 400 });
+        }
+        patch.start_at = new Date(parsedMs).toISOString();
+      }
+    }
 
     console.log("[pickup/switch edit_run] patch", JSON.stringify({ run_id, ...patch }));
 
