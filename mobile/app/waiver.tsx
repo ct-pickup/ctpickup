@@ -273,11 +273,7 @@ export default function WaiverScreen() {
               pickups, refunds are available if you cancel more than 24 hours before the run&apos;s scheduled start time.
               Full refund if the organizer cancels the run.
             </Text>{" "}
-            Online esports entry fees and refunds are in the{" "}
-            <Text style={styles.link} onPress={() => openUrl("/legal/esports/official-rules#refund-policy")}>
-              Official Tournament Rules
-            </Text>
-            . Pickup fee details appear on{" "}
+            Pickup fee details appear on{" "}
             <Text style={styles.link} onPress={() => openUrl("/pickup/how-it-works")}>
               How pickup works
             </Text>{" "}

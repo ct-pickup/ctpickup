@@ -20,17 +20,12 @@ function labelEt(raw: unknown): string {
 export default function EsportsDetailScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = typeof rawId === "string" ? rawId : Array.isArray(rawId) ? rawId[0] : "";
-  const { supabase, session, isReady } = useAuth();
+  const { supabase, isReady } = useAuth();
   const navigation = useNavigation();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [row, setRow] = useState<Row | null>(null);
-
-  function goToRegister() {
-    if (!id) return;
-    router.push(`/esports/register/${id}`);
-  }
 
   useLayoutEffect(() => {
     const title = row?.title ? s(row.title) : "Esports";
@@ -190,22 +185,6 @@ export default function EsportsDetailScreen() {
           <Text style={styles.playBtnText}> View bracket</Text>
         </Pressable>
       ) : null}
-
-      {(status === "upcoming" || status === "active") ? (
-        session ? (
-          <Pressable
-            style={[styles.registerBtn, status === "active" ? styles.registerBtnBelowPlay : null]}
-            onPress={goToRegister}
-            accessibilityRole="button"
-            accessibilityLabel="Register for this tournament"
-          >
-            <FontAwesome name="credit-card" size={16} color="#111" />
-            <Text style={styles.registerBtnText}> Register</Text>
-          </Pressable>
-        ) : (
-          <Text style={styles.signInHint}>Sign in to register</Text>
-        )
-      ) : null}
     </ScrollView>
   );
 }
@@ -276,25 +255,4 @@ const styles = StyleSheet.create({
     backgroundColor: "#a3e635",
   },
   playBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
-  registerBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "stretch",
-    width: "100%",
-    marginTop: 28,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: "#a3e635",
-  },
-  registerBtnBelowPlay: { marginTop: 12 },
-  registerBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
-  signInHint: {
-    marginTop: 28,
-    fontSize: 14,
-    lineHeight: 20,
-    color: "rgba(255,255,255,0.55)",
-    textAlign: "center",
-  },
 });

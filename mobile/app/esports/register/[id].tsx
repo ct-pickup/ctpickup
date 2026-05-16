@@ -2,7 +2,6 @@ import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -337,44 +336,7 @@ export default function EsportsRegisterScreen() {
   }
 
   async function payEntryFee() {
-    if (payBusy) return;
-    if (!token) {
-      Alert.alert("Sign in to register");
-      return;
-    }
-    const base = siteOrigin();
-    if (!base) {
-      Alert.alert("Can’t pay", "Set EXPO_PUBLIC_SITE_URL in mobile/.env to your deployed API host.");
-      return;
-    }
-    setPayBusy(true);
-    try {
-      const res = await fetch(`${base}/api/esports/tournament-registration/checkout`, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ tournament_id: id }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        checkout_url?: string;
-        error?: string;
-      };
-      if (res.ok && data.ok && typeof data.checkout_url === "string" && data.checkout_url) {
-        await WebBrowser.openBrowserAsync(data.checkout_url);
-        await loadAll();
-        return;
-      }
-      const msg = typeof data.error === "string" ? data.error : `Could not start checkout (${res.status}).`;
-      Alert.alert("Can’t pay", msg);
-    } catch (e) {
-      Alert.alert("Can’t pay", e instanceof Error ? e.message : "Network error.");
-    } finally {
-      setPayBusy(false);
-    }
+    Alert.alert("Not Available", "Esports registration is not available in the app.");
   }
 
   if (loading) {

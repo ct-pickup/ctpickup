@@ -37,6 +37,20 @@ const TIERS = [
   { rank: 6, label: "5" },
 ];
 
+type AdminTab = "members" | "reports";
+
+type PlayerReport = {
+  id: string;
+  reason: string;
+  created_at: string;
+  reporter_name: string;
+  reported_name: string;
+  reported_user_id: string;
+  message_id: string | null;
+  room_id: string | null;
+  type: "profile" | "message";
+};
+
 type Member = {
   id: string;
   first_name: string | null;
@@ -74,6 +88,46 @@ export default function AdminMembersScreen() {
   const [dmSending, setDmSending] = useState(false);
   const [playersByVenue, setPlayersByVenue] = useState<{ venue: string; count: number }[]>([]);
   const [playersByZip, setPlayersByZip] = useState<{ zip_code: string; count: number }[]>([]);
+  const [adminTab, setAdminTab] = useState<AdminTab>("members");
+  const [reports, setReports] = useState<PlayerReport[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportsError, setReportsError] = useState<string | null>(null);
+  const [reportBusy, setReportBusy] = useState<string | null>(null);
+
+  const loadReports = useCallback(async () => {
+    const token = session?.access_token;
+    if (!token) return;
+    setReportsLoading(true);
+    setReportsError(null);
+    try {
+      const origin = siteOrigin();
+      if (!origin) {
+        setReportsError("Missing site URL.");
+        setReports([]);
+        return;
+      }
+      const res = await fetch(`${origin}/api/admin/reports`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const j = (await res.json()) as { error?: string; reports?: PlayerReport[] };
+      if (!res.ok) {
+        setReportsError(j.error || "Failed to load reports");
+        setReports([]);
+        return;
+      }
+      setReports(j.reports || []);
+    } catch (e) {
+      setReportsError(e instanceof Error ? e.message : "Request failed");
+      setReports([]);
+    } finally {
+      setReportsLoading(false);
+    }
+  }, [session?.access_token]);
+
+  useEffect(() => {
+    if (adminTab !== "reports") return;
+    void loadReports();
+  }, [adminTab, loadReports]);
 
   const load = useCallback(async () => {
     const token = session?.access_token;
@@ -252,6 +306,126 @@ export default function AdminMembersScreen() {
     ]);
   }
 
+  function formatReportReason(reason: string): string {
+    const r = reason.trim();
+    if (!r) return reason;
+    return r.charAt(0).toUpperCase() + r.slice(1).toLowerCase();
+  }
+
+  async function dismissReport(reportId: string) {
+    void hapticTap();
+    Alert.alert("Dismiss report?", "This removes the report from the queue.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Dismiss",
+        onPress: async () => {
+          const token = session?.access_token;
+          if (!token) return;
+          setReportBusy("dismiss:" + reportId);
+          try {
+            const res = await fetch(`${siteOrigin()}/api/admin/reports`, {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ id: reportId }),
+            });
+            const j = (await res.json()) as { error?: string };
+            if (!res.ok) {
+              void hapticError();
+              Alert.alert("Error", j.error || "Failed");
+            } else {
+              void hapticGoal();
+              setReports((p) => p.filter((r) => r.id !== reportId));
+            }
+          } catch (e) {
+            void hapticError();
+            Alert.alert("Error", e instanceof Error ? e.message : "Request failed");
+          } finally {
+            setReportBusy(null);
+          }
+        },
+      },
+    ]);
+  }
+
+  function banFromReport(reportedUserId: string, reportReason: string, reportType: "profile" | "message") {
+    void hapticTap();
+    Alert.alert("Ban player?", "They will receive a push notification.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Ban",
+        style: "destructive",
+        onPress: async () => {
+          const banReasonText = `${reportType === "message" ? "Message" : "Profile"} report: ${reportReason}`;
+          setReportBusy("ban:" + reportedUserId);
+          const ok = await patchMember(reportedUserId, {
+            is_banned: true,
+            ban_reason: banReasonText,
+            approved: false,
+          });
+          if (ok) {
+            void hapticGoal();
+            setMembers((p) =>
+              p.map((m) =>
+                m.id === reportedUserId
+                  ? { ...m, is_banned: true, ban_reason: banReasonText, approved: false }
+                  : m,
+              ),
+            );
+          }
+          setReportBusy(null);
+        },
+      },
+    ]);
+  }
+
+  const renderReport = ({ item }: { item: PlayerReport }) => {
+    const busyDismiss = reportBusy === "dismiss:" + item.id;
+    const busyBan = reportBusy === "ban:" + item.reported_user_id;
+    const anyBusy = reportBusy !== null;
+    const when = new Date(item.created_at).toLocaleString();
+    const typeLabel = item.type === "message" ? "Message Report" : "Profile Report";
+    return (
+      <View style={styles.card}>
+        <Text style={styles.reportNameLine}>
+          <Text style={styles.reportNameStrong}>{item.reporter_name}</Text>
+          <Text style={styles.reportArrow}> → Reported → </Text>
+          <Text style={styles.reportNameStrong}>{item.reported_name}</Text>
+        </Text>
+        <View style={styles.reasonPill}>
+          <Text style={styles.reasonPillText}>{formatReportReason(item.reason)}</Text>
+        </View>
+        <Text style={styles.reportTypeLine}>{typeLabel}</Text>
+        <Text style={styles.reportDate}>{when}</Text>
+        <View style={styles.reportActionsRow}>
+          <Pressable
+            onPress={() => {
+              void hapticTap();
+              router.push({ pathname: "/player/[id]", params: { id: item.reported_user_id } });
+            }}
+            disabled={anyBusy}
+            style={[styles.reportActionBtn, styles.reportActionBtnLime]}
+          >
+            <Text style={styles.reportActionBtnLimeText}>View Profile</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => banFromReport(item.reported_user_id, item.reason, item.type)}
+            disabled={anyBusy}
+            style={[styles.reportActionBtn, styles.reportActionBtnDanger]}
+          >
+            <Text style={styles.reportActionBtnDangerText}>{busyBan ? "…" : "Ban Player"}</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => void dismissReport(item.id)}
+            disabled={anyBusy}
+            style={styles.reportActionBtn}
+          >
+            <Text style={styles.reportActionBtnText}>{busyDismiss ? "…" : "Dismiss"}</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  };
+
   const renderItem = ({ item }: { item: Member }) => {
     const name = [item.first_name, item.last_name].filter(Boolean).join(" ") || item.username || item.id;
     const joined = new Date(item.created_at).toLocaleDateString();
@@ -417,20 +591,66 @@ export default function AdminMembersScreen() {
         </Pressable>
       </Modal>
       <Text style={styles.title}>Members</Text>
-      {loading ? <ActivityIndicator color={LIME} style={{ marginTop: 32 }} /> : null}
-      {error ? <Text style={styles.err}>{error}</Text> : null}
-      <FlatList
-        data={members}
-        keyExtractor={(m) => m.id}
-        renderItem={renderItem}
-        contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
-        ListHeaderComponent={
-          <PlayerLocationBreakdown playersByVenue={playersByVenue} playersByZip={playersByZip} />
-        }
-        ListEmptyComponent={!loading ? <Text style={styles.muted}>No members found.</Text> : null}
-        onRefresh={load}
-        refreshing={loading}
-      />
+      <View style={styles.tabRow}>
+        <Pressable
+          onPress={() => {
+            void hapticTap();
+            setAdminTab("members");
+          }}
+          style={[styles.tabBtn, adminTab === "members" ? styles.tabBtnActive : null]}
+        >
+          <Text style={[styles.tabBtnText, adminTab === "members" ? styles.tabBtnTextActive : null]}>
+            Members
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            void hapticTap();
+            setAdminTab("reports");
+          }}
+          style={[styles.tabBtn, adminTab === "reports" ? styles.tabBtnActive : null]}
+        >
+          <Text style={[styles.tabBtnText, adminTab === "reports" ? styles.tabBtnTextActive : null]}>
+            Reports
+          </Text>
+        </Pressable>
+      </View>
+      {adminTab === "members" ? (
+        <>
+          {loading ? <ActivityIndicator color={LIME} style={{ marginTop: 32 }} /> : null}
+          {error ? <Text style={styles.err}>{error}</Text> : null}
+          <FlatList
+            data={members}
+            keyExtractor={(m) => m.id}
+            renderItem={renderItem}
+            contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
+            ListHeaderComponent={
+              <PlayerLocationBreakdown playersByVenue={playersByVenue} playersByZip={playersByZip} />
+            }
+            ListEmptyComponent={!loading ? <Text style={styles.muted}>No members found.</Text> : null}
+            onRefresh={load}
+            refreshing={loading}
+          />
+        </>
+      ) : (
+        <>
+          {reportsLoading && reports.length === 0 ? (
+            <ActivityIndicator color={LIME} style={{ marginTop: 32 }} />
+          ) : null}
+          {reportsError ? <Text style={styles.err}>{reportsError}</Text> : null}
+          <FlatList
+            data={reports}
+            keyExtractor={(r) => r.id}
+            renderItem={renderReport}
+            contentContainerStyle={{ padding: 16, paddingBottom: 60, flexGrow: 1 }}
+            ListEmptyComponent={
+              !reportsLoading ? <Text style={styles.muted}>No reports yet</Text> : null
+            }
+            onRefresh={loadReports}
+            refreshing={reportsLoading}
+          />
+        </>
+      )}
     </View>
   );
 }
@@ -509,4 +729,59 @@ const styles = StyleSheet.create({
   banInput: { backgroundColor: "#1a1a1a", borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", color: "#fff", padding: 8, fontSize: 13, marginBottom: 8 },
   err: { color: "#f87171", padding: 16 },
   muted: { color: "rgba(255,255,255,0.35)", fontSize: 13 },
+  tabRow: {
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+  },
+  tabBtnActive: { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.12)" },
+  tabBtnText: { color: "rgba(255,255,255,0.45)", fontSize: 14, fontWeight: "700" },
+  tabBtnTextActive: { color: LIME },
+  reportNameLine: { color: "#fff", fontSize: 14, lineHeight: 20 },
+  reportNameStrong: { color: "#fff", fontWeight: "700" },
+  reportArrow: { color: "rgba(255,255,255,0.4)", fontWeight: "600" },
+  reasonPill: {
+    alignSelf: "flex-start",
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(163, 230, 53, 0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(163, 230, 53, 0.45)",
+  },
+  reasonPillText: { color: LIME, fontSize: 12, fontWeight: "800" },
+  reportTypeLine: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 10,
+  },
+  reportDate: { color: "rgba(255,255,255,0.35)", fontSize: 12, marginTop: 4 },
+  reportActionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 },
+  reportActionBtn: {
+    flexGrow: 1,
+    minWidth: "30%",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reportActionBtnLime: { borderColor: "rgba(163,230,53,0.45)", backgroundColor: "rgba(163,230,53,0.08)" },
+  reportActionBtnLimeText: { color: LIME, fontSize: 11, fontWeight: "800" },
+  reportActionBtnDanger: { borderColor: "rgba(239,68,68,0.45)", backgroundColor: "rgba(239,68,68,0.1)" },
+  reportActionBtnDangerText: { color: "#f87171", fontSize: 11, fontWeight: "800" },
+  reportActionBtnText: { color: "rgba(255,255,255,0.65)", fontSize: 11, fontWeight: "700" },
 });

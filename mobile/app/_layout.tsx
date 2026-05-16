@@ -277,6 +277,16 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
+                            name="player-card/[id]"
+                            options={{
+                              headerShown: true,
+                              title: "Player card",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
                             name="leaderboards"
                             options={{
                               headerShown: true,
@@ -332,6 +342,16 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Tier Suggestions",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="admin/bulk-message"
+                            options={{
+                              headerShown: true,
+                              title: "Broadcast Message",
                               headerStyle: { backgroundColor: "#0a0a0a" },
                               headerTintColor: "#fff",
                               headerShadowVisible: false,

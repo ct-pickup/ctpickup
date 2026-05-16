@@ -34,6 +34,7 @@ export default function AdminLayout() {
       }}
     >
       <Stack.Screen name="pickup" options={{ title: "Pickup ops" }} />
+      <Stack.Screen name="run-result" options={{ title: "Run result" }} />
       <Stack.Screen name="analytics" options={{ title: "Analytics" }} />
       <Stack.Screen name="bulk-message" options={{ title: "Broadcast Message" }} />
       <Stack.Screen name="tier-suggestions" options={{ title: "Tier Suggestions" }} />
@@ -44,6 +45,7 @@ export default function AdminLayout() {
       <Stack.Screen name="tournament-bracket" options={{ title: "Tournament Bracket" }} />
       <Stack.Screen name="tournament-join" options={{ title: "Find a team" }} />
       <Stack.Screen name="tournament-bracket-view" options={{ title: "Live bracket" }} />
+      <Stack.Screen name="esports" options={{ title: "Esports" }} />
       <Stack.Screen name="members" options={{ title: "Members" }} />
     </Stack>
   );

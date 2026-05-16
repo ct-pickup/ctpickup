@@ -36,7 +36,7 @@ export async function postChatMessageViaApi(
   return { ok: true };
 }
 
-export type ChatReportReason = "harassment" | "spam" | "inappropriate" | "other";
+export type ChatReportReason = "harassment" | "spam" | "inappropriate" | "other" | "impersonation";
 
 export async function postChatReportViaApi(
   accessToken: string,
@@ -55,6 +55,46 @@ export async function postChatReportViaApi(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ message_id: messageId, reason }),
+      cache: "no-store",
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: msg || "Network error" };
+  }
+  const j = (await r.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!r.ok) {
+    const msg =
+      j && typeof j.error === "string" && j.error.trim()
+        ? j.error.trim()
+        : `HTTP ${r.status}`;
+    return { ok: false, error: msg };
+  }
+  return { ok: true };
+}
+
+/** Profile report (no chat message); `reason` is the label shown in the report UI. */
+export async function postPlayerProfileReportViaApi(
+  accessToken: string,
+  reportedUserId: string,
+  reason: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const origin = siteOrigin();
+  if (!origin) return { ok: false, error: "Missing EXPO_PUBLIC_SITE_URL" };
+  let r: Response;
+  try {
+    r = await fetch(`${origin}/api/chat/report`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        reported_user_id: reportedUserId,
+        reason,
+        message_id: null,
+        room_id: null,
+      }),
       cache: "no-store",
     });
   } catch (e) {

@@ -133,7 +133,7 @@ export default function TournamentsScreen() {
         </Pressable>
       </View>
       <Text style={styles.sub}>
-        Outdoor / in-person bracket for {serviceRegionName(region)} ({region}). Online esports lives in its own tab.
+        Outdoor / in-person bracket for {serviceRegionName(region)} ({region}).
       </Text>
       {showFieldOfflineBanner ? (
         <View style={styles.offlineBanner} accessibilityRole="text">

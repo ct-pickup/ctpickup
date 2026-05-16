@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { postPlayerProfileReportViaApi } from "@/lib/chatApi";
 import { fetchPlayerFollowStats, fetchPublicPlayerProfile, togglePlayerFollow, type PublicPlayerProfile } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation, useRouter, type Href } from "expo-router";
@@ -6,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { useEffect, useLayoutEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Linking,
   Pressable,
@@ -17,6 +19,13 @@ import {
 
 const LIME = "#a3e635";
 const BG = "#0a0a0a";
+
+const PROFILE_REPORT_REASONS = [
+  "Inappropriate profile",
+  "Harassment or abuse",
+  "Fake or impersonation",
+  "Spam",
+] as const;
 
 type Team = "A" | "B" | "C";
 
@@ -542,6 +551,15 @@ export default function PlayerProfileScreen() {
   const ig = profile.instagram?.replace(/^@/, "").trim();
   const region = regionFromVenue(nearestVenue);
 
+  function submitProfileReport(reason: string) {
+    if (!token) return;
+    void (async () => {
+      const r = await postPlayerProfileReportViaApi(token, userId, reason);
+      if (r.ok) Alert.alert("", "Report submitted. We'll review it shortly.");
+      else Alert.alert("Couldn't send report", r.error);
+    })();
+  }
+
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       <View style={styles.hero}>
@@ -805,6 +823,25 @@ export default function PlayerProfileScreen() {
       ) : null}
 
       <Text style={styles.note}>Public info only. Contact details stay private.</Text>
+      {!isOwnProfile && token ? (
+        <Pressable
+          onPress={() => {
+            Alert.alert("Report player", "Why are you reporting this profile?", [
+              ...PROFILE_REPORT_REASONS.map((label) => ({
+                text: label,
+                onPress: () => submitProfileReport(label),
+              })),
+              { text: "Cancel", style: "cancel" },
+            ]);
+          }}
+          hitSlop={10}
+          style={({ pressed }) => ({ marginTop: 20, opacity: pressed ? 0.7 : 1, alignSelf: "center" })}
+          accessibilityRole="button"
+          accessibilityLabel="Report this player"
+        >
+          <Text style={styles.reportLink}>⚑ Report this player</Text>
+        </Pressable>
+      ) : null}
     </ScrollView>
   );
 }
@@ -916,5 +953,11 @@ const styles = StyleSheet.create({
   h2hTheyWon: { color: "rgba(255,255,255,0.55)" },
   h2hNeverFaced: { color: "rgba(255,255,255,0.55)", marginTop: 8 },
   note: { marginTop: 8, fontSize: 13, color: "rgba(255,255,255,0.35)", lineHeight: 18 },
+  reportLink: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.38)",
+    fontWeight: "500",
+    textAlign: "center",
+  },
 });
 

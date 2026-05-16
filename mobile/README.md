@@ -1,6 +1,6 @@
 # CT Pickup — iOS / native (Expo)
 
-Companion app for **pickup** and **esports tournaments**. It shares your Supabase email OTP login with the website and registers **Apple push** tokens via the Next.js API (Expo → APNs). There is **no Twilio/SMS** in this client.
+Companion app for **pickup**. It shares your Supabase email OTP login with the website and registers **Apple push** tokens via the Next.js API (Expo → APNs). There is **no Twilio/SMS** in this client.
 
 ## Setup
 
@@ -113,4 +113,3 @@ Ensure **App Store Connect** has an app whose **bundle ID** matches `ios.bundleI
 ## Scope notes
 
 - **Pickup:** reads `/api/pickup/public` — RSVP, waiver, and Stripe flows remain on the web until you port them here.
-- **Tournaments:** lists public `esports_tournaments` rows (same as the site hub).
