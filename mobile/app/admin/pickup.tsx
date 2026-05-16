@@ -1,6 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 import * as Sentry from "@sentry/react-native";
-import DateTimePicker from "@/components/DateTimePicker";
+import DateTimePicker, { formatDateTimePickerEtLabel } from "@/components/DateTimePicker";
 import {
   fetchAdminTierSuggestions,
   postAdminRunTierSuggestionAlgorithm,
@@ -151,13 +151,6 @@ const VENUE_FEE_PRESETS: VenueFeePreset[] = [
 function s(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
-
-const defaultStartAt = (): string => {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  d.setHours(20, 0, 0, 0);
-  return d.toISOString();
-};
 
 type AdminPickupWorkflowTab = "planning" | "active" | "past";
 
@@ -328,7 +321,7 @@ export default function AdminPickupOpsScreen() {
   const slotLabelRef = useRef(slotLabel);
   slotLabelRef.current = slotLabel;
 
-  const [createStartAt, setCreateStartAt] = useState(defaultStartAt());
+  const [createStartAt, setCreateStartAt] = useState("");
   const [createTitle, setCreateTitle] = useState("");
   const [createCapacity, setCreateCapacity] = useState("24");
   const [createFieldCost, setCreateFieldCost] = useState("");
@@ -763,11 +756,11 @@ export default function AdminPickupOpsScreen() {
     if (!t) return;
     const start_at = createStartAt.trim();
     if (!start_at) {
-      Alert.alert("Missing start time", "Enter an ISO string like 2026-05-03T20:00:00Z");
+      Alert.alert("Select a date", "Please select a start date and time.");
       return;
     }
-    if (new Date(start_at) < new Date()) {
-      Alert.alert("Invalid time", "Start time must be in the future.");
+    if (new Date(start_at) <= new Date()) {
+      Alert.alert("Invalid date", "Start time must be in the future.");
       return;
     }
     const fc = Number(createFieldCost);
@@ -798,7 +791,7 @@ export default function AdminPickupOpsScreen() {
       });
       if (!r.ok) return Alert.alert("Create failed", r.error);
       Alert.alert("Created", "Run created.");
-      setCreateStartAt(defaultStartAt());
+      setCreateStartAt("");
       setCreateTitle("");
       setCreateFieldCost("");
       setCreateMyEarnings("0");
@@ -1142,10 +1135,29 @@ export default function AdminPickupOpsScreen() {
     });
   }, [runs, workflowTab]);
 
+  const createRunHasStart = createStartAt.trim().length > 0;
+  const createRunBusy = busy === "create";
+  const createRunDisabled = !createRunHasStart || createRunBusy;
+
   const createForm = (
     <>
+      <View style={styles.createRunScheduleBlock}>
+        <Text style={styles.createRunScheduleTitle}>Run start (required)</Text>
+        <Text style={styles.createRunScheduleHint}>Pick date & time in Eastern Time. Must be in the future.</Text>
+        <DateTimePicker
+          label="Schedule"
+          value={createStartAt}
+          onChange={setCreateStartAt}
+          enforceFuture
+          prominent
+        />
+        {createRunHasStart ? (
+          <Text style={styles.createRunVerified}>Selected: {formatDateTimePickerEtLabel(createStartAt.trim())}</Text>
+        ) : (
+          <Text style={styles.createRunScheduleWarn}>Choose a start time before creating the run.</Text>
+        )}
+      </View>
       <Text style={styles.fieldHint}>New run uses API defaults; refine in the detail sheet after creation.</Text>
-      <DateTimePicker label="Start at" value={createStartAt} onChange={setCreateStartAt} />
       <Text style={styles.label}>Service region</Text>
       <View style={styles.presetRow}>
         {SERVICE_REGIONS.map(({ code }) => {
@@ -1269,10 +1281,16 @@ export default function AdminPickupOpsScreen() {
       </View>
       <Pressable
         onPress={() => void onCreateRun()}
-        disabled={busy === "create"}
-        style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }, busy === "create" && styles.disabled]}
+        disabled={createRunDisabled}
+        style={({ pressed }) => [
+          styles.primary,
+          pressed && !createRunDisabled && { opacity: 0.9 },
+          createRunDisabled && styles.disabled,
+        ]}
       >
-        <Text style={styles.primaryText}>{busy === "create" ? "Creating…" : "Create run"}</Text>
+        <Text style={styles.primaryText}>
+          {createRunBusy ? "Creating…" : !createRunHasStart ? "Select a date first" : "Create run"}
+        </Text>
       </Pressable>
     </>
   );
@@ -2597,6 +2615,30 @@ const styles = StyleSheet.create({
   feeBreakdownLine: { marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 16 },
   feePerPlayerValue: { color: LIME, fontWeight: "900" },
   feePerPlayerPlaceholder: { color: "rgba(255,255,255,0.35)", fontWeight: "700" },
+  createRunScheduleBlock: {
+    marginBottom: 16,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: "rgba(163,230,53,0.06)",
+  },
+  createRunScheduleTitle: { color: "#fff", fontSize: 17, fontWeight: "900", marginBottom: 6 },
+  createRunScheduleHint: { color: "rgba(255,255,255,0.55)", fontSize: 13, lineHeight: 18, marginBottom: 10 },
+  createRunVerified: {
+    marginTop: 4,
+    color: LIME,
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 20,
+  },
+  createRunScheduleWarn: {
+    marginTop: 4,
+    color: "rgba(255,255,255,0.45)",
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+  },
   primary: {
     marginTop: 14,
     backgroundColor: LIME,
