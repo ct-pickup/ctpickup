@@ -1,7 +1,6 @@
 import { AnimatedPressScale } from "@/components/AnimatedPressScale";
 import { FieldTournamentCard } from "@/components/FieldTournamentCard";
 import { RegionsPickerPanel } from "@/components/RegionsPickerPanel";
-import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { useFieldTournament } from "@/hooks/useFieldTournament";
@@ -13,7 +12,6 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function TournamentsScreen() {
@@ -30,8 +28,6 @@ export default function TournamentsScreen() {
     dataAsOfMs,
   } = useFieldTournament();
   const navigation = useNavigation();
-  const reduceMotion = useReduceMotion();
-  const listEnter = reduceMotion ? undefined : FadeInDown.duration(600).springify().damping(28).stiffness(80);
   const [showStatePicker, setShowStatePicker] = useState(true);
   const [profileNearestVenue, setProfileNearestVenue] = useState<string | null>(null);
   const [listRefreshing, setListRefreshing] = useState(false);
@@ -125,7 +121,7 @@ export default function TournamentsScreen() {
         />
       }
     >
-      <Animated.View entering={listEnter}>
+      <View>
       <View style={styles.titleRow}>
         <Text style={styles.title} numberOfLines={1}>
           Tournaments
@@ -181,7 +177,7 @@ export default function TournamentsScreen() {
           <Text style={styles.bracketBtnText}>Standings · bracket · scorers</Text>
         </AnimatedPressScale>
       ) : null}
-      </Animated.View>
+      </View>
     </ScrollView>
   );
 }

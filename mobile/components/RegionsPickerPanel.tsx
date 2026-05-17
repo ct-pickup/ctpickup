@@ -1,10 +1,8 @@
 import StateShape from "@/components/StateShape";
 import { AnimatedPressScale } from "@/components/AnimatedPressScale";
-import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { SERVICE_REGIONS, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
 
 const LIME = "#a3e635";
 const BG = "#0a0a0a";
@@ -15,8 +13,6 @@ type Props = {
 };
 
 export function RegionsPickerPanel({ onSelectState }: Props) {
-  const reduceMotion = useReduceMotion();
-
   return (
     <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
       <Text style={styles.kicker}>SERVICE AREA</Text>
@@ -29,11 +25,8 @@ export function RegionsPickerPanel({ onSelectState }: Props) {
 
       <View style={styles.grid}>
         {SERVICE_REGIONS.map((r, i) => {
-          const enter = reduceMotion
-            ? undefined
-            : FadeInDown.delay(Math.min(i * 55, 220)).springify().damping(17);
           return (
-            <Animated.View key={r.code} entering={enter} style={i > 0 ? styles.cardGap : undefined}>
+            <View key={r.code} style={i > 0 ? styles.cardGap : undefined}>
               <AnimatedPressScale
                 accessibilityRole="button"
                 accessibilityLabel={`${r.name} pickups`}
@@ -54,7 +47,7 @@ export function RegionsPickerPanel({ onSelectState }: Props) {
                   <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
                 </View>
               </AnimatedPressScale>
-            </Animated.View>
+            </View>
           );
         })}
       </View>

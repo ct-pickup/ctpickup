@@ -1,5 +1,7 @@
+import { AnimatedPressScale } from "@/components/AnimatedPressScale";
 import { AvailabilityPoll, type PickupPlanningAvailability } from "@/components/pickup/AvailabilityPoll";
 import { PayForFriendButton } from "@/components/pickup/PayForFriendButton";
+import { RegionsPickerPanel } from "@/components/RegionsPickerPanel";
 import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { usePickupJoin } from "@/hooks/usePickupJoin";
@@ -9,10 +11,10 @@ import { hapticGoal, hapticTap } from "@/lib/haptics";
 import { fmtPickupDateEt, fmtPickupTimeEt } from "@/lib/pickupPublic";
 import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickupRunType";
 import { useUserChatRooms } from "@/lib/teamChat";
-import { serviceRegionName } from "@/lib/serviceRegions";
+import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import { fetchPickupStanding } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -23,6 +25,7 @@ import {
   Text,
   View,
 } from "react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const BG = "#0a0a0a";
@@ -66,10 +69,34 @@ function CardDivider() {
 
 export default function RunsScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { session } = useAuth();
   const token = session?.access_token ?? null;
-  const { region } = useSelectedRegion();
+  const { region, setRegion } = useSelectedRegion();
+  const [showStatePicker, setShowStatePicker] = useState(true);
   const [reliabilityScore, setReliabilityScore] = useState<number | null>(null);
+
+  useEffect(() => {
+    navigation.setOptions?.({
+      title: showStatePicker ? "Pickup by state" : "Pickup",
+      headerTitleAlign: "center",
+      headerStyle: {
+        backgroundColor: BG,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: "rgba(255,255,255,0.08)",
+      },
+      headerTintColor: "#fff",
+      headerShadowVisible: false,
+    });
+  }, [navigation, showStatePicker]);
+
+  const onPickState = useCallback(
+    (code: ServiceRegionCode) => {
+      void setRegion(code);
+      setShowStatePicker(false);
+    },
+    [setRegion],
+  );
 
   useEffect(() => {
     if (!token) return;
@@ -218,6 +245,14 @@ export default function RunsScreen() {
     );
   }, [banterRoomId, router]);
 
+  if (showStatePicker) {
+    return (
+      <SafeAreaView style={styles.pickerSafe} edges={["bottom"]}>
+        <RegionsPickerPanel onSelectState={onPickState} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <ScrollView
@@ -225,14 +260,27 @@ export default function RunsScreen() {
         refreshControl={<RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor={LIME} />}
       >
         <View style={styles.header}>
-          <Text style={styles.h1}>Runs</Text>
-          <View style={styles.regionPill}>
-            <Text style={styles.regionPillText}>
-              {reliabilityScore != null ? reliabilityScore : "New"}
-            </Text>
+          <Text style={styles.h1} numberOfLines={1}>
+            Runs
+          </Text>
+          <View style={styles.headerRight}>
+            <Animated.View entering={FadeIn.duration(500).delay(200)} style={styles.regionPill}>
+              <Text style={styles.regionPillText}>
+                {reliabilityScore != null ? reliabilityScore : "New"}
+              </Text>
+            </Animated.View>
+            <AnimatedPressScale
+              pressedScale={0.96}
+              hapticOnPress
+              onPress={() => setShowStatePicker(true)}
+              style={styles.statesChip}
+            >
+              <FontAwesome name="map-marker" size={14} color={LIME} />
+              <Text style={styles.statesChipText}> States</Text>
+            </AnimatedPressScale>
           </View>
         </View>
-        <Text style={styles.regionSub}>{serviceRegionName(region)}</Text>
+        <Text style={styles.regionSub}>Featured pickup for {serviceRegionName(region)} ({region}).</Text>
 
         {loading && !run ? (
           <SkeletonCard />
@@ -430,10 +478,12 @@ export default function RunsScreen() {
 }
 
 const styles = StyleSheet.create({
+  pickerSafe: { flex: 1, backgroundColor: BG },
   screen: { flex: 1, backgroundColor: BG },
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  h1: { fontSize: 28, fontWeight: "900", color: "#ffffff" },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0 },
+  h1: { fontSize: 28, fontWeight: "900", color: "#ffffff", flex: 1, minWidth: 0 },
   regionPill: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -443,6 +493,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(163,230,53,0.1)",
   },
   regionPillText: { color: LIME, fontWeight: "800", fontSize: 13 },
+  statesChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: "rgba(163,230,53,0.08)",
+  },
+  statesChipText: { fontSize: 13, fontWeight: "800", color: LIME },
   regionSub: { color: "rgba(255,255,255,0.45)", marginTop: 4, marginBottom: 20, fontSize: 14 },
   empty: {
     padding: 24,
