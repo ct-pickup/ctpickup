@@ -238,7 +238,7 @@ export default function DateTimePicker({ value, onChange, label, enforceFuture, 
   const dim = daysInMonth(year, month);
   const days = useMemo(() => Array.from({ length: dim }, (_, i) => i + 1), [dim]);
   const hours12 = Array.from({ length: 12 }, (_, i) => i + 1);
-  const minutes = useMemo(() => Array.from({ length: 60 }, (_, i) => i), []);
+  const minutes = [0, 15, 30, 45];
   const years = useMemo(() => {
     const y = getEtCalendarParts(new Date()).year;
     return Array.from({ length: 4 }, (_, i) => y + i);
@@ -307,7 +307,6 @@ export default function DateTimePicker({ value, onChange, label, enforceFuture, 
         <View style={styles.overlay}>
           <View style={styles.sheet}>
             <Text style={styles.title}>Select date & time (ET)</Text>
-            <Text style={styles.sectionSubtitle}>Date</Text>
             <View style={styles.pickerRow}>
               <View style={styles.colWide}>
                 <Text style={styles.colLabel}>Month</Text>
@@ -345,7 +344,8 @@ export default function DateTimePicker({ value, onChange, label, enforceFuture, 
               </View>
             </View>
 
-            <Text style={styles.sectionSubtitle}>Time</Text>
+            <View style={styles.rowDivider} />
+
             <View style={styles.pickerRow}>
               <View style={styles.colMedium}>
                 <Text style={styles.colLabel}>Hour</Text>
@@ -379,7 +379,6 @@ export default function DateTimePicker({ value, onChange, label, enforceFuture, 
               </View>
             </View>
 
-            <Text style={styles.previewLabel}>Confirmed together</Text>
             <Text style={styles.preview}>{previewEtLabel}</Text>
 
             <Pressable onPress={confirm} style={styles.confirmBtn}>
@@ -422,42 +421,27 @@ const styles = StyleSheet.create({
   placeholder: { color: "rgba(255,255,255,0.35)", fontWeight: "600" },
   icon: { fontSize: 16 },
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#111", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 },
+  sheet: { backgroundColor: "#111", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 60 },
   title: { color: "#fff", fontSize: 17, fontWeight: "700", marginBottom: 12, textAlign: "center" },
-  sectionSubtitle: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    marginBottom: 8,
-    marginTop: 4,
-  },
-  pickerRow: { flexDirection: "row", gap: 8, height: 200 },
+  rowDivider: { height: 1, backgroundColor: "rgba(163,230,53,0.15)", marginVertical: 12 },
+  pickerRow: { flexDirection: "row", gap: 8, height: 220 },
   colWide: { flex: 1.35 },
   colMedium: { flex: 1 },
   colNarrow: { flex: 0.85 },
-  colLabel: { color: "rgba(255,255,255,0.45)", fontSize: 10, textAlign: "center", marginBottom: 4 },
+  colLabel: { color: "rgba(255,255,255,0.3)", fontSize: 9, textAlign: "center", marginBottom: 4 },
   scroll: { flex: 1 },
-  previewLabel: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 11,
-    fontWeight: "700",
-    textAlign: "center",
-    marginTop: 12,
-  },
   preview: {
     color: "#a3e635",
-    fontSize: 16,
-    fontWeight: "800",
+    fontSize: 18,
+    fontWeight: "900",
     textAlign: "center",
-    marginTop: 6,
-    marginBottom: 4,
+    marginTop: 16,
+    marginBottom: 8,
   },
   item: { paddingVertical: 8, alignItems: "center", borderRadius: 6 },
-  itemActive: { backgroundColor: "rgba(163,230,53,0.15)" },
+  itemActive: { backgroundColor: "rgba(163,230,53,0.2)", borderRadius: 8 },
   itemText: { color: "rgba(255,255,255,0.55)", fontSize: 13 },
-  itemTextActive: { color: "#a3e635", fontWeight: "700" },
+  itemTextActive: { color: "#a3e635", fontWeight: "700", fontSize: 15 },
   confirmBtn: { backgroundColor: "#a3e635", borderRadius: 10, padding: 14, alignItems: "center", marginTop: 16 },
   confirmText: { color: "#111", fontWeight: "800", fontSize: 15 },
   cancelBtn: { alignItems: "center", marginTop: 10 },

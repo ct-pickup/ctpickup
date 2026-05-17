@@ -10,6 +10,7 @@ import { fmtPickupDateEt, fmtPickupTimeEt } from "@/lib/pickupPublic";
 import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickupRunType";
 import { useUserChatRooms } from "@/lib/teamChat";
 import { serviceRegionName } from "@/lib/serviceRegions";
+import { fetchPickupStanding } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -65,38 +66,21 @@ function CardDivider() {
 
 export default function RunsScreen() {
   const router = useRouter();
-  const { session, supabase } = useAuth();
+  const { session } = useAuth();
   const token = session?.access_token ?? null;
-  const userId = session?.user?.id ?? null;
   const { region } = useSelectedRegion();
-  const [profileZip, setProfileZip] = useState<string | null>(null);
+  const [reliabilityScore, setReliabilityScore] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!supabase || !userId) {
-      setProfileZip(null);
-      return;
-    }
-    let cancelled = false;
+    if (!token) return;
     void (async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("zip_code")
-        .eq("id", userId)
-        .maybeSingle();
-      if (cancelled) return;
-      if (error) {
-        setProfileZip(null);
-        return;
+      const r = await fetchPickupStanding(token);
+      if (r.ok && r.data?.ok && r.data.reliability) {
+        const pct = r.data.reliability.score_pct;
+        setReliabilityScore(pct == null ? null : Math.round(Number(pct)));
       }
-      const z = data?.zip_code;
-      setProfileZip(typeof z === "string" && z.trim().length > 0 ? z.trim() : null);
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [supabase, userId]);
-
-  const pillLabel = profileZip ?? region;
+  }, [token]);
   const { allowed: chatAllowed } = useTeamChatAccess();
 
   const { loading, error, data, run, counts, myStatus, invitedNow, noFeaturedRun, load } = usePickupPublic(token);
@@ -243,7 +227,9 @@ export default function RunsScreen() {
         <View style={styles.header}>
           <Text style={styles.h1}>Runs</Text>
           <View style={styles.regionPill}>
-            <Text style={styles.regionPillText}>{pillLabel}</Text>
+            <Text style={styles.regionPillText}>
+              {reliabilityScore != null ? reliabilityScore : "New"}
+            </Text>
           </View>
         </View>
         <Text style={styles.regionSub}>{serviceRegionName(region)}</Text>
