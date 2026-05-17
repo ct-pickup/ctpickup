@@ -155,6 +155,7 @@ export default function RunsScreen() {
     !!run &&
     invitedNow &&
     !runLocked &&
+    isPublicPickupRunType(run.run_type) &&
     (runStatus === "planning" || runStatus === "likely_on") &&
     run.final_slot_id == null;
 
@@ -444,9 +445,9 @@ export default function RunsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG },
-  content: { padding: 16, paddingBottom: 32 },
+  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  h1: { fontSize: 28, fontWeight: "800", color: "#fff" },
+  h1: { fontSize: 28, fontWeight: "900", color: "#ffffff" },
   regionPill: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -493,7 +494,7 @@ const styles = StyleSheet.create({
   },
   titleBlock: { flex: 1, minWidth: 0 },
   titleRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", gap: 8 },
-  cardTitle: { color: "#fff", fontSize: 22, fontWeight: "800", lineHeight: 28 },
+  cardTitle: { color: "#ffffff", fontSize: 22, fontWeight: "900", lineHeight: 28 },
   typeLabel: {
     color: "rgba(255,255,255,0.35)",
     fontSize: 11,
@@ -512,9 +513,9 @@ const styles = StyleSheet.create({
   },
   statusPillText: { color: "rgba(255,255,255,0.65)", fontSize: 11, fontWeight: "700", letterSpacing: 0.2 },
   dateTimeRow: { gap: 6 },
-  dateEt: { color: "#fff", fontSize: 18, fontWeight: "700", letterSpacing: -0.2 },
-  datePlanning: { color: "#fff", fontSize: 18, fontWeight: "400", letterSpacing: -0.2 },
-  planningTimeHint: { color: "rgba(255,255,255,0.45)", fontSize: 14, fontWeight: "500", lineHeight: 20 },
+  dateEt: { color: "#ffffff", fontSize: 18, fontWeight: "700", letterSpacing: -0.2 },
+  datePlanning: { color: "#ffffff", fontSize: 18, fontWeight: "700", letterSpacing: -0.2 },
+  planningTimeHint: { color: LIME, fontSize: 14, fontWeight: "500", lineHeight: 20 },
   timeEt: { color: LIME, fontSize: 16, fontWeight: "700" },
   locationRow: {
     flexDirection: "row",
@@ -530,7 +531,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 16,
   },
-  fee: { color: "#fff", fontWeight: "700", fontSize: 15, flexShrink: 0 },
+  fee: { color: LIME, fontWeight: "800", fontSize: 15, flexShrink: 0 },
   spotsBlock: { flex: 1, maxWidth: 160, gap: 6, alignItems: "flex-end" },
   progressTrack: {
     width: "100%",
@@ -546,7 +547,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   spotsLabel: {
-    color: "rgba(255,255,255,0.45)",
+    color: LIME,
     fontSize: 12,
     fontWeight: "600",
   },
