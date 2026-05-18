@@ -159,7 +159,7 @@ export default function TournamentsScreen() {
         </AnimatedPressScale>
       </View>
       <Text style={styles.sub}>
-        Outdoor / in-person bracket for {serviceRegionName(region)} ({region}).
+        {serviceRegionName(region)} · Outdoor
       </Text>
       {showFieldOfflineBanner ? (
         <View style={styles.offlineBanner} accessibilityRole="text">
@@ -195,8 +195,8 @@ export default function TournamentsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Live standings, bracket, and top scorers for this tournament"
         >
-          <FontAwesome name="sitemap" size={16} color="#111" style={{ marginRight: 8 }} />
-          <Text style={styles.bracketBtnText}>Standings · bracket · scorers</Text>
+          <FontAwesome name="trophy" size={16} color="#111" style={{ marginRight: 8 }} />
+          <Text style={styles.bracketBtnText}>View bracket & standings</Text>
         </AnimatedPressScale>
       ) : null}
       </View>
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(163,230,53,0.08)",
   },
   statesChipText: { fontSize: 13, fontWeight: "800", color: "#a3e635" },
-  sub: { marginTop: 10, marginBottom: 4, color: "rgba(255,255,255,0.6)", fontSize: 15, lineHeight: 22 },
+  sub: { marginTop: 8, marginBottom: 4, color: "rgba(255,255,255,0.5)", fontSize: 13, lineHeight: 18 },
   bracketBtn: {
     marginTop: 4,
     flexDirection: "row",
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: "#a3e635",
   },
   bracketBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
