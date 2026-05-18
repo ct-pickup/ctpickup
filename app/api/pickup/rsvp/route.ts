@@ -13,6 +13,7 @@ import { notifyFollowersWhenFollowedPlayerConfirmsRun } from "@/lib/pickup/notif
 import { deletePendingWaitlistExpiringReminders, promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
 import { pickupPlayerRefundEligibleNow } from "@/lib/pickup/runScheduling";
+import { tryApplyReferralCreditToPickupJoin } from "@/lib/referral/pickupReferralCredit";
 
 export const runtime = "nodejs";
 
@@ -448,6 +449,27 @@ export async function POST(req: Request) {
   }
 
   const feeCents = Number(run.fee_cents || 0);
+
+  if (feeCents > 0 && !payForFriend) {
+    const referralCredit = await tryApplyReferralCreditToPickupJoin(admin, {
+      payerUserId: user.id,
+      targetUserId,
+      runId: String(run.id),
+      tierAtTime: targetProf.data?.tier || null,
+      feeCents,
+      previousRsvpStatus: existing.data?.status ?? null,
+      hadPendingConfirm: existing.data?.status === "pending_confirm",
+    });
+    if (referralCredit.applied) {
+      return NextResponse.json({
+        ok: true,
+        status: "confirmed",
+        referral_credit_applied: true,
+        message: referralCredit.message,
+      });
+    }
+  }
+
   if (feeCents <= 0) {
     const prevRsvpStatus = existing.data?.status ?? null;
     await admin.from("pickup_run_rsvps").upsert(

@@ -296,6 +296,28 @@ export function usePickupJoin() {
         for (const label of slotLabels) {
           const r = await postPickupCommit(accessToken, id, "available", null, label, slotLabels);
           const j = r.json as Record<string, unknown>;
+          // #region agent log
+          fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "ffd01e" },
+            body: JSON.stringify({
+              sessionId: "ffd01e",
+              runId: "pre-fix",
+              hypothesisId: "A",
+              location: "usePickupJoin.ts:commitAvailabilitySlots",
+              message: "postPickupCommit response",
+              data: {
+                label,
+                slotLabelsCount: slotLabels.length,
+                ok: r.ok,
+                status: r.status,
+                error: typeof j.error === "string" ? j.error : null,
+                detail: typeof j.detail === "string" ? j.detail : null,
+              },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+          // #endregion
           if (!r.ok) {
             void hapticError();
             Alert.alert("Could not submit", commitErrorMessage(r.status, j));

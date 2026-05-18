@@ -128,6 +128,28 @@ export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
   );
 
   const onPressSubmit = useCallback(async () => {
+    // #region agent log
+    fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "ffd01e" },
+      body: JSON.stringify({
+        sessionId: "ffd01e",
+        runId: "pre-fix",
+        hypothesisId: "E",
+        location: "AvailabilityPoll.tsx:onPressSubmit",
+        message: "submit tapped",
+        data: {
+          hasToken: !!token,
+          runId,
+          selectedKeys,
+          chipKeys: chips.map((c) => c.key),
+          chipSlotIds: chips.map((c) => c.slotId),
+          submittedLabels,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     if (!token || !runId || selectedKeys.length === 0) return;
     const labels = chips
       .filter((c) => selectedKeys.includes(c.key))
@@ -137,10 +159,25 @@ export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
     const ok = await commitAvailabilitySlots(token, runId, labels, async () => {
       onSubmit();
     });
+    // #region agent log
+    fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "ffd01e" },
+      body: JSON.stringify({
+        sessionId: "ffd01e",
+        runId: "pre-fix",
+        hypothesisId: "A",
+        location: "AvailabilityPoll.tsx:onPressSubmit",
+        message: "commitAvailabilitySlots finished",
+        data: { ok, labels },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     if (ok) {
       setEditing(false);
     }
-  }, [token, runId, selectedKeys, chips, commitAvailabilitySlots, onSubmit]);
+  }, [token, runId, selectedKeys, chips, commitAvailabilitySlots, onSubmit, submittedLabels]);
 
   const onPressChange = useCallback(() => {
     setEditing(true);

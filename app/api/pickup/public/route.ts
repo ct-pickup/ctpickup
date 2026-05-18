@@ -297,6 +297,28 @@ export async function GET(req: Request) {
       }
 
       planning = { my_availability };
+      // #region agent log
+      fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "ffd01e" },
+        body: JSON.stringify({
+          sessionId: "ffd01e",
+          runId: "pre-fix",
+          hypothesisId: "C",
+          location: "public/route.ts:planning",
+          message: "planning payload built",
+          data: {
+            runId: run.id,
+            runStatus: run.status,
+            final_slot_id: run.final_slot_id,
+            userId,
+            myAvailabilityCount: my_availability.length,
+            my_availability,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
     }
 
     return NextResponse.json({

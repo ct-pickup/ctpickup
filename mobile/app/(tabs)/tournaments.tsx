@@ -9,10 +9,14 @@ import { formatCacheAge } from "@/lib/offlineCache";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { appAsyncStorage } from "@/lib/appAsyncStorage";
+import { useFocusEffect } from "@react-navigation/native";
 import { useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+const TOURNAMENTS_PICKER_SEEN_KEY = "ctpickup:tournaments_hub_picker_seen";
 
 export default function TournamentsScreen() {
   const router = useRouter();
@@ -30,6 +34,22 @@ export default function TournamentsScreen() {
   const navigation = useNavigation();
   const [showStatePicker, setShowStatePicker] = useState(true);
   const [profileNearestVenue, setProfileNearestVenue] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void appAsyncStorage.getItem(TOURNAMENTS_PICKER_SEEN_KEY).then((v) => {
+      if (!cancelled && v === "1") setShowStatePicker(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void reload({ background: true });
+    }, [reload]),
+  );
   const [listRefreshing, setListRefreshing] = useState(false);
 
   const onTournamentRefresh = useCallback(async () => {
@@ -83,6 +103,7 @@ export default function TournamentsScreen() {
   const onPickState = useCallback(
     (code: ServiceRegionCode) => {
       void setRegion(code);
+      void appAsyncStorage.setItem(TOURNAMENTS_PICKER_SEEN_KEY, "1");
       setShowStatePicker(false);
     },
     [setRegion],

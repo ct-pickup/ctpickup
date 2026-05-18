@@ -160,6 +160,30 @@ export async function postPickupCommit(
     body: JSON.stringify(payload),
   });
   const json = await r.json().catch(() => ({}));
+  // #region agent log
+  fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "ffd01e" },
+    body: JSON.stringify({
+      sessionId: "ffd01e",
+      runId: "pre-fix",
+      hypothesisId: "F",
+      location: "siteApi.ts:postPickupCommit",
+      message: "commit HTTP result",
+      data: {
+        origin,
+        runId,
+        state,
+        slotLabel,
+        slotLabelsSelectionCount: slotLabelsSelection?.length ?? 0,
+        ok: r.ok,
+        status: r.status,
+        error: typeof (json as { error?: string })?.error === "string" ? (json as { error: string }).error : null,
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
   return { ok: r.ok, status: r.status, json };
 }
 

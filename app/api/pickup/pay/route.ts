@@ -6,6 +6,7 @@ import { PICKUP_FIELD_FEE_STRIPE_DESCRIPTION } from "@/lib/fees/refundPolicyCopy
 import { paymentIntentIdFromCheckoutSession } from "@/lib/payments/stripeSessionIds";
 import { recordPlatformCheckoutStarted } from "@/lib/payments/recordCheckoutStarted";
 import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { tryApplyReferralCreditToPickupJoin } from "@/lib/referral/pickupReferralCredit";
 
 export const runtime = "nodejs";
 
@@ -58,6 +59,30 @@ export async function POST(req: Request) {
 
   const feeCents = Number(run.fee_cents || 0);
   if (feeCents <= 0) return NextResponse.json({ error: "This run is free." }, { status: 409 });
+
+  const profRes = await admin
+    .from("profiles")
+    .select("tier")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const referralCredit = await tryApplyReferralCreditToPickupJoin(admin, {
+    payerUserId: user.id,
+    targetUserId: user.id,
+    runId: String(run.id),
+    tierAtTime: profRes.data?.tier || null,
+    feeCents,
+    previousRsvpStatus: rsvp.data?.status ?? null,
+    hadPendingConfirm: false,
+  });
+  if (referralCredit.applied) {
+    return NextResponse.json({
+      ok: true,
+      status: "confirmed",
+      referral_credit_applied: true,
+      message: referralCredit.message,
+    });
+  }
 
   let stripe;
   try {
