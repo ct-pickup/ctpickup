@@ -195,11 +195,15 @@ async function sendTokensToExpo(
 }
 
 function productionPushDeviceQuery(admin: SupabaseClient) {
+  // Include legacy NULL rows (registered before installation_context was persisted).
+  // New registrations must set standalone/bare; storeClient is never stored.
   return admin
     .from("user_push_devices")
-    .select("expo_push_token")
+    .select("expo_push_token, installation_context")
     .eq("push_notifications_enabled", true)
-    .in("installation_context", [...PRODUCTION_PUSH_INSTALLATION_CONTEXTS]);
+    .or(
+      `installation_context.in.(${PRODUCTION_PUSH_INSTALLATION_CONTEXTS.join(",")}),installation_context.is.null`,
+    );
 }
 
 /**
@@ -217,6 +221,8 @@ export async function sendPushToUsers(
   }
 
   const tokens: string[] = [];
+  let legacyNullContextRows = 0;
+  let productionContextRows = 0;
 
   for (let i = 0; i < unique.length; i += USER_ID_IN_CHUNK) {
     const slice = unique.slice(i, i + USER_ID_IN_CHUNK);
@@ -229,14 +235,20 @@ export async function sendPushToUsers(
       return { tokens: 0, batches: [], lookupError: res.error.message };
     }
     for (const row of res.data || []) {
+      const ctx = (row as { installation_context?: unknown }).installation_context;
+      if (ctx === null || ctx === undefined) legacyNullContextRows += 1;
+      else productionContextRows += 1;
       const t = (row as { expo_push_token?: unknown }).expo_push_token;
       if (typeof t === "string" && t.length > 10) tokens.push(t);
     }
   }
 
-  logExpoPush("info", "push token lookup", {
+  const lookupLevel = tokens.length === 0 ? "error" : legacyNullContextRows > 0 ? "warn" : "info";
+  logExpoPush(lookupLevel, "push token lookup", {
     userIdsRequested: unique.length,
     tokensResolved: tokens.length,
+    productionContextRows,
+    legacyNullContextRows,
     installationContexts: PRODUCTION_PUSH_INSTALLATION_CONTEXTS,
   });
 

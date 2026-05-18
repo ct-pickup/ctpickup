@@ -102,5 +102,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "persist_failed" }, { status: 500 });
   }
 
+  console.log(
+    JSON.stringify({
+      tag: "expo-push",
+      message: "push token registered",
+      userId,
+      platform,
+      installationContext,
+    }),
+  );
+
   return NextResponse.json({ ok: true });
 }
