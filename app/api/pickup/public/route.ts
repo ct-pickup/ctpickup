@@ -269,10 +269,13 @@ export async function GET(req: Request) {
       }
 
       const rows = minePlan.data || [];
+      const declinedRow = rows.find((r) => r.state === "declined");
       const availRows = rows.filter((r) => r.state === "available" && r.slot_id);
       let my_availability: { slot_id: string | null; slot_label: string | null; state: string }[] = [];
 
-      if (availRows.length) {
+      if (declinedRow) {
+        my_availability = [{ slot_id: null, slot_label: null, state: "declined" }];
+      } else if (availRows.length) {
         const slotIds = Array.from(new Set(availRows.map((r) => String(r.slot_id))));
         const labelsRes = await admin
           .from("pickup_run_time_slots")

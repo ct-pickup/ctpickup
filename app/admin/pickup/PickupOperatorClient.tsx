@@ -1003,9 +1003,9 @@ export default function PickupOperatorClient() {
               {(
                 [
                   { key: "invites" as const, label: "Invites" },
-                  { key: "available" as const, label: "Open spots" },
+                  { key: "available" as const, label: "Available" },
+                  { key: "declined" as const, label: "Declined" },
                   { key: "confirmed" as const, label: "Confirmed" },
-                  { key: "waitlist" as const, label: "Waitlist" },
                 ] as const
               ).map(({ key: k, label }) => (
                 <div key={k} className="rounded-lg border border-white/10 bg-black/40 py-2">

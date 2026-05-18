@@ -97,7 +97,7 @@ export default function RunsScreen() {
   const { allowed: chatAllowed } = useTeamChatAccess();
 
   const { loading, error, data, run, counts, myStatus, invitedNow, noFeaturedRun, load } = usePickupPublic(token);
-  const { joinBusy, joinPickup, payBusy, payPickup, availabilityBusy, commitAvailability } = usePickupJoin();
+  const { joinBusy, joinPickup, payBusy, payPickup, availabilityBusy, recordCantMakeIt } = usePickupJoin();
 
   const chatEnabled = !!session?.user?.id && chatAllowed === true;
   const { rooms } = useUserChatRooms(chatEnabled);
@@ -148,13 +148,20 @@ export default function RunsScreen() {
     return p as PickupPlanningAvailability;
   }, [data]);
 
+  const hasDeclinedAvailability = useMemo(() => {
+    const ma = planning?.my_availability;
+    if (!Array.isArray(ma)) return false;
+    return ma.some((entry) => entry?.state === "declined");
+  }, [planning]);
+
   const showAvailabilityPoll =
     !!run &&
     invitedNow &&
     !runLocked &&
     isPublicPickupRunType(run.run_type) &&
     (runStatus === "planning" || runStatus === "likely_on") &&
-    run.final_slot_id == null;
+    run.final_slot_id == null &&
+    !hasDeclinedAvailability;
 
   const showPayForFriend =
     !!run &&
@@ -175,7 +182,11 @@ export default function RunsScreen() {
 
   const timeFinalized = runStatus === "active" || runStatus === "likely_on";
   const showImIn = eligibleToJoin && timeFinalized;
-  const showCantMakeIt = eligibleToJoin && (timeFinalized || runStatus === "planning");
+  const showCantMakeIt =
+    eligibleToJoin &&
+    (timeFinalized || runStatus === "planning") &&
+    myStatus !== "declined" &&
+    !hasDeclinedAvailability;
   const isPlanning = runStatus === "planning";
 
   const hasRsvp =
@@ -208,10 +219,10 @@ export default function RunsScreen() {
       return;
     }
     void hapticTap();
-    void commitAvailability(token, runId, "declined", null, async () => {
+    void recordCantMakeIt(token, runId, runStatus, run?.final_slot_id, async () => {
       await load();
     });
-  }, [token, runId, commitAvailability, load]);
+  }, [token, runId, runStatus, run?.final_slot_id, recordCantMakeIt, load]);
 
   const onCompletePayment = useCallback(() => {
     if (!token || !runId) return;

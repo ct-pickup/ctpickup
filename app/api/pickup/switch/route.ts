@@ -10,6 +10,10 @@ import {
 import { isPublicPickupRunType, normalizePickupRunTypeForDb } from "@/lib/pickup/pickupRunType";
 import { cancelAllPickupRsvpsAndRefundPaidConfirmed } from "@/lib/pickup/refundAllPickupPlayersOnRunCancel";
 import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
+import {
+  pickupFinalizeSlotPushRecipientIds,
+  sendPickupFinalizedPush,
+} from "@/lib/pickup/pickupPushNotifications";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { ensureRunBanterRoomAndMembers } from "@/lib/chat/runBanterRoom";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
@@ -83,28 +87,6 @@ export async function GET(req: Request) {
   }
 
   const runsRes = await runsQuery;
-
-  // #region agent log
-  fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "1be722" },
-    body: JSON.stringify({
-      sessionId: "1be722",
-      runId: "post-fix",
-      hypothesisId: "H1",
-      location: "app/api/pickup/switch/route.ts:GET:listQuery",
-      message: "pickup_runs list query result",
-      data: {
-        region,
-        run_id: run_id ?? null,
-        error: runsRes.error?.message ?? null,
-        errorCode: (runsRes.error as { code?: string } | null)?.code ?? null,
-        rowCount: runsRes.data?.length ?? 0,
-      },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
 
   if (runsRes.error) {
     console.error("[pickup/switch GET] pickup_runs list failed", runsRes.error);
@@ -610,20 +592,17 @@ export async function POST(req: Request) {
 
     if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
 
-    const rsvpRes = await admin
-      .from("pickup_run_rsvps")
-      .select("user_id")
-      .eq("run_id", run_id)
-      .eq("status", "confirmed");
-
-    if (!rsvpRes.error && (rsvpRes.data?.length ?? 0) > 0) {
-      const confirmedIds = (rsvpRes.data ?? []).map((r) => r.user_id as string);
-      await sendPushToUsers(admin, confirmedIds, {
-        title: "Pickup confirmed",
-        body: "Your pickup is confirmed. Check the app for location and time.",
-        data: { kind: "pickup_finalized", run_id },
-      });
-    }
+    const runMetaRes = await admin
+      .from("pickup_runs")
+      .select("title,run_type,service_region")
+      .eq("id", run_id)
+      .maybeSingle();
+    const runMeta = runMetaRes.data ?? { run_type: "select", service_region: null };
+    const notifyIds = await pickupFinalizeSlotPushRecipientIds(admin, run_id, {
+      run_type: String(runMeta.run_type || "select"),
+      service_region: (runMeta.service_region as string | null | undefined) ?? null,
+    });
+    await sendPickupFinalizedPush(admin, { userIds: notifyIds, runId: run_id });
 
     await ensureRunBanterRoomAndMembers(admin, run_id, String(slot.start_at));
 

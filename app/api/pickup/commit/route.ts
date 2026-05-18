@@ -155,12 +155,26 @@ export async function POST(req: Request) {
   const run = await admin.from("pickup_runs").select("*").eq("id", run_id).maybeSingle();
   if (!run.data) return NextResponse.json({ error: "Run not found." }, { status: 404 });
 
-  // Availability only allowed while run is planning/likely_on and not finalized
-  if (!["planning", "likely_on"].includes(run.data.status)) {
-    return NextResponse.json({ error: "Availability is closed for this run." }, { status: 403 });
-  }
-  if (run.data.final_slot_id) {
-    return NextResponse.json({ error: "Run already finalized." }, { status: 403 });
+  const runStatus = String(run.data.status || "").trim().toLowerCase();
+  const runClosed =
+    runStatus === "canceled" ||
+    runStatus === "cancelled" ||
+    runStatus === "completed" ||
+    runStatus === "in_progress" ||
+    (run.data as { is_completed?: boolean | null }).is_completed === true;
+
+  if (state === "declined") {
+    if (runClosed) {
+      return NextResponse.json({ error: "This run is no longer accepting responses." }, { status: 403 });
+    }
+  } else {
+    // Availability picks only while planning/likely_on and not finalized
+    if (!["planning", "likely_on"].includes(runStatus)) {
+      return NextResponse.json({ error: "Availability is closed for this run." }, { status: 403 });
+    }
+    if (run.data.final_slot_id) {
+      return NextResponse.json({ error: "Run already finalized." }, { status: 403 });
+    }
   }
 
   if (!profileMatchesRunServiceRegion(prof.data.nearest_venue, run.data.service_region)) {

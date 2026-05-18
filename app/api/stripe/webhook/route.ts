@@ -14,6 +14,7 @@ import {
 } from "@/lib/payments/webhookPersistence";
 import { recomputePickupStandingForUser } from "@/lib/pickup/standing/recomputePickupStanding";
 import { notifyFollowersWhenFollowedPlayerConfirmsRun } from "@/lib/pickup/notifyFollowersOnPickupConfirm";
+import { sendPickupRsvpConfirmedPush } from "@/lib/pickup/pickupPushNotifications";
 import { deletePendingWaitlistExpiringReminders, promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
 import {
   verifyEsportsRegistrationPaid,
@@ -54,6 +55,30 @@ function paymentIntentIdFromSession(session: Stripe.Checkout.Session): string | 
   return pi?.id || null;
 }
 
+async function notifyPickupPlayerConfirmed(
+  admin: SupabaseClient,
+  runId: string,
+  userId: string,
+  wasAlreadyConfirmed: boolean,
+): Promise<void> {
+  if (wasAlreadyConfirmed) return;
+
+  const runRes = await admin.from("pickup_runs").select("title").eq("id", runId).maybeSingle();
+  await sendPickupRsvpConfirmedPush(admin, {
+    userId,
+    runId,
+    runTitle: String(runRes.data?.title || ""),
+  });
+
+  try {
+    await notifyFollowersWhenFollowedPlayerConfirmsRun(admin, { runId, playerId: userId });
+  } catch (e: unknown) {
+    Sentry.captureException(e);
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("stripe_fulfill_pickup_follower_join_notify_error:", msg);
+  }
+}
+
 async function fulfillPickup(
   admin: SupabaseClient,
   opts: {
@@ -62,7 +87,7 @@ async function fulfillPickup(
     runId: string | undefined;
     userId: string | undefined;
   },
-) {
+): Promise<void> {
   const { sessionId, paymentIntentId, runId, userId } = opts;
 
   if (sessionId) {
@@ -81,7 +106,8 @@ async function fulfillPickup(
       .eq("run_id", runId)
       .eq("user_id", userId)
       .maybeSingle();
-    if (String(prevRes.data?.status || "").trim() === "confirmed") return;
+    const wasAlreadyConfirmed = String(prevRes.data?.status || "").trim() === "confirmed";
+    if (wasAlreadyConfirmed) return;
     await admin
       .from("pickup_run_rsvps")
       .update({
@@ -95,13 +121,7 @@ async function fulfillPickup(
     await deletePendingWaitlistExpiringReminders(admin, userId, runId);
     await ensurePickupRunInviteLink(admin, runId, userId);
     await addUserToRunBanterRoom(admin, runId, userId);
-    try {
-      await notifyFollowersWhenFollowedPlayerConfirmsRun(admin, { runId: String(runId), playerId: String(userId) });
-    } catch (e: unknown) {
-      Sentry.captureException(e);
-      const msg = e instanceof Error ? e.message : String(e);
-      console.error("stripe_fulfill_pickup_follower_join_notify_error:", msg);
-    }
+    await notifyPickupPlayerConfirmed(admin, runId, userId, false);
     return;
   }
   if (!sessionId) return;
@@ -111,6 +131,8 @@ async function fulfillPickup(
     .eq("checkout_session_id", sessionId)
     .maybeSingle();
   if (!rsvp) return;
+  const wasAlreadyConfirmed = String(rsvp.status || "").trim() === "confirmed";
+  if (wasAlreadyConfirmed) return;
   await admin
     .from("pickup_run_rsvps")
     .update({
@@ -124,16 +146,7 @@ async function fulfillPickup(
   await deletePendingWaitlistExpiringReminders(admin, String(rsvp.user_id), String(rsvp.run_id));
   await ensurePickupRunInviteLink(admin, rsvp.run_id, rsvp.user_id);
   await addUserToRunBanterRoom(admin, String(rsvp.run_id), String(rsvp.user_id));
-  try {
-    await notifyFollowersWhenFollowedPlayerConfirmsRun(admin, {
-      runId: String(rsvp.run_id),
-      playerId: String(rsvp.user_id),
-    });
-  } catch (e: unknown) {
-    Sentry.captureException(e);
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error("stripe_fulfill_pickup_follower_join_notify_error:", msg);
-  }
+  await notifyPickupPlayerConfirmed(admin, String(rsvp.run_id), String(rsvp.user_id), false);
 }
 
 async function fulfillTournament(

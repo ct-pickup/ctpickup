@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
+import { sendPickupAdminConfirmedPush } from "@/lib/pickup/pickupPushNotifications";
 import { deletePendingWaitlistExpiringReminders } from "@/lib/pickup/waitlist";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing run_id or user_id" }, { status: 400 });
   }
 
-  const runRes = await admin.from("pickup_runs").select("id,capacity").eq("id", run_id).maybeSingle();
+  const runRes = await admin.from("pickup_runs").select("id,capacity,title").eq("id", run_id).maybeSingle();
   if (runRes.error) {
     return NextResponse.json({ error: runRes.error.message }, { status: 500 });
   }
@@ -61,6 +62,12 @@ export async function POST(req: Request) {
   if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
 
   await deletePendingWaitlistExpiringReminders(admin, user_id, run_id);
+
+  await sendPickupAdminConfirmedPush(admin, {
+    userId: user_id,
+    runId: run_id,
+    runTitle: String(run.title || ""),
+  });
 
   revalidatePath("/pickup");
   revalidatePath("/status/pickup");

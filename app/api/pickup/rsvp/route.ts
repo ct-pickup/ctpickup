@@ -10,6 +10,7 @@ import { recordPlatformCheckoutStarted } from "@/lib/payments/recordCheckoutStar
 import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { addUserToRunBanterRoom, removeUserFromRunBanterRoom } from "@/lib/chat/runBanterRoom";
 import { notifyFollowersWhenFollowedPlayerConfirmsRun } from "@/lib/pickup/notifyFollowersOnPickupConfirm";
+import { sendPickupRsvpConfirmedPush } from "@/lib/pickup/pickupPushNotifications";
 import { deletePendingWaitlistExpiringReminders, promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
 import { pickupPlayerRefundEligibleNow } from "@/lib/pickup/runScheduling";
@@ -455,6 +456,14 @@ export async function POST(req: Request) {
       hadPendingConfirm: existing.data?.status === "pending_confirm",
     });
     if (referralCredit.applied) {
+      const prevRsvpStatus = existing.data?.status ?? null;
+      if (prevRsvpStatus !== "confirmed") {
+        await sendPickupRsvpConfirmedPush(admin, {
+          userId: targetUserId,
+          runId: String(run.id),
+          runTitle: String(run.title || ""),
+        });
+      }
       return NextResponse.json({
         ok: true,
         status: "confirmed",
@@ -485,6 +494,11 @@ export async function POST(req: Request) {
     await ensurePickupRunInviteLink(admin, run.id, targetUserId);
     await addUserToRunBanterRoom(admin, String(run.id), targetUserId);
     if (prevRsvpStatus !== "confirmed") {
+      await sendPickupRsvpConfirmedPush(admin, {
+        userId: targetUserId,
+        runId: String(run.id),
+        runTitle: String(run.title || ""),
+      });
       try {
         await notifyFollowersWhenFollowedPlayerConfirmsRun(admin, {
           runId: String(run.id),

@@ -29,6 +29,21 @@ function payErrorMessage(status: number, j: Record<string, unknown>): string {
   return `Could not start checkout (${status}).`;
 }
 
+/** Maps `/api/pickup/rsvp` decline errors to a user-readable message. */
+function rsvpDeclineErrorMessage(status: number, j: Record<string, unknown>): string {
+  const error = typeof j.error === "string" ? j.error : "";
+  const detail = typeof j.detail === "string" ? j.detail : "";
+  if (error === "waiver_required") {
+    return "Please accept the waiver on the CT Pickup site, then try again.";
+  }
+  if (error === "standing_not_eligible") {
+    return detail || "Pickup participation is not available for your account right now.";
+  }
+  if (detail) return detail;
+  if (error) return error;
+  return `Could not record your response (${status}).`;
+}
+
 /** Maps `/api/pickup/commit` errors to a user-readable message; falls back to a generic line. */
 function commitErrorMessage(status: number, j: Record<string, unknown>): string {
   const error = typeof j.error === "string" ? j.error : "";
@@ -235,6 +250,62 @@ export function usePickupJoin() {
     [],
   );
 
+  /** "Can't make it?" — planning poll uses availability; open RSVP uses pickup_run_rsvps. */
+  const recordCantMakeIt = useCallback(
+    async (
+      accessToken: string | null,
+      runId: unknown,
+      runStatus: string | null,
+      finalSlotId: unknown,
+      reload: () => void | Promise<void>,
+    ) => {
+      const id = typeof runId === "string" ? runId : null;
+      if (!accessToken) {
+        void hapticError();
+        Alert.alert("Session required", "Sign in on this device, then try again.");
+        return;
+      }
+      if (!id) return;
+
+      const st = (runStatus || "").trim().toLowerCase();
+      const useAvailabilityCommit =
+        (st === "planning" || st === "likely_on") && (finalSlotId == null || finalSlotId === "");
+
+      setAvailabilityBusy(true);
+      try {
+        if (useAvailabilityCommit) {
+          const r = await postPickupCommit(accessToken, id, "declined", null, null, null);
+          const j = r.json as Record<string, unknown>;
+          if (r.ok) {
+            await reload();
+            return;
+          }
+          void hapticError();
+          Alert.alert("Could not save", commitErrorMessage(r.status, j));
+          return;
+        }
+
+        const r = await postPickupRsvp(accessToken, id, "decline");
+        const j = r.json as Record<string, unknown>;
+        if (r.ok) {
+          await reload();
+          return;
+        }
+        void hapticError();
+        Alert.alert("Could not save", rsvpDeclineErrorMessage(r.status, j));
+      } catch (e) {
+        void hapticError();
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn("[pickup join] recordCantMakeIt failed", e);
+        Sentry.captureException(e);
+        Alert.alert("Something went wrong", msg || "Please try again.");
+      } finally {
+        setAvailabilityBusy(false);
+      }
+    },
+    [],
+  );
+
   const commitAvailability = useCallback(
     async (
       accessToken: string | null,
@@ -342,6 +413,7 @@ export function usePickupJoin() {
     declineBusy,
     declinePickup,
     availabilityBusy,
+    recordCantMakeIt,
     commitAvailability,
     commitAvailabilitySlots,
     pendingSlotKey,

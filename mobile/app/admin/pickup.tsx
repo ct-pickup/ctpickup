@@ -373,12 +373,39 @@ export default function AdminPickupOpsScreen() {
 
   const detailRun = detail?.run && typeof detail.run === "object" ? (detail.run as Record<string, unknown>) : null;
   const confirmedRoster = Array.isArray(detail?.confirmed) ? detail!.confirmed : [];
+  const availabilityRows = useMemo(
+    () => (Array.isArray(detail?.availability) ? detail!.availability : []),
+    [detail],
+  );
+
+  const declinedPlayers = useMemo(() => {
+    const byUser = new Map<string, string>();
+    for (const row of availabilityRows) {
+      const r = row as Record<string, unknown>;
+      if (s(r.state).trim() !== "declined") continue;
+      const uid = s(r.user_id);
+      if (!uid || byUser.has(uid)) continue;
+      byUser.set(uid, s(r.full_name).trim() || "Player");
+    }
+    const rsvps = Array.isArray(detail?.rsvps) ? detail!.rsvps : [];
+    for (const row of rsvps) {
+      const r = row as Record<string, unknown>;
+      if (s(r.status).trim() !== "declined") continue;
+      const uid = s(r.user_id);
+      if (!uid || byUser.has(uid)) continue;
+      const fromAvail = availabilityRows.find(
+        (a) => s((a as Record<string, unknown>).user_id) === uid,
+      ) as Record<string, unknown> | undefined;
+      byUser.set(uid, s(fromAvail?.full_name).trim() || "Player");
+    }
+    return Array.from(byUser.entries()).map(([id, name]) => ({ id, name }));
+  }, [availabilityRows, detail]);
+
   const pendingInvites = useMemo(() => {
     if (!detail) return [];
     const invites = Array.isArray(detail.invites) ? detail.invites : [];
-    const availability = Array.isArray(detail.availability) ? detail.availability : [];
     const nameByUser = new Map<string, string>();
-    for (const row of availability) {
+    for (const row of availabilityRows) {
       const uid = s((row as Record<string, unknown>).user_id);
       const name = s((row as Record<string, unknown>).full_name).trim();
       if (uid && name) nameByUser.set(uid, name);
@@ -390,7 +417,7 @@ export default function AdminPickupOpsScreen() {
         name: nameByUser.get(uid) || "Invited player",
       };
     });
-  }, [detail]);
+  }, [detail, availabilityRows]);
 
   async function refreshDetailAndList() {
     await loadRuns();
@@ -721,6 +748,11 @@ export default function AdminPickupOpsScreen() {
                   {s(detailRun.capacity)} · Fee ${((Number(detailRun.fee_cents ?? 0) || 0) / 100).toFixed(2)}/player
                 </Text>
                 <Text style={styles.detailMeta}>Status: {s(detailRun.status)}</Text>
+                {detail?.counts && Number(detail.counts.declined ?? 0) > 0 ? (
+                  <Text style={styles.detailMeta}>
+                    Declined: {Number(detail.counts.declined)}
+                  </Text>
+                ) : null}
 
                 <Text style={styles.rosterHeading}>Roster ({confirmedRoster.length} confirmed)</Text>
                 {confirmedRoster.length === 0 ? (
@@ -738,6 +770,17 @@ export default function AdminPickupOpsScreen() {
                   <>
                     <Text style={styles.rosterHeading}>Pending invites ({pendingInvites.length})</Text>
                     {pendingInvites.map((p) => (
+                      <Text key={p.id} style={styles.rosterRowMuted}>
+                        {p.name}
+                      </Text>
+                    ))}
+                  </>
+                ) : null}
+
+                {declinedPlayers.length > 0 ? (
+                  <>
+                    <Text style={styles.rosterHeading}>Declined ({declinedPlayers.length})</Text>
+                    {declinedPlayers.map((p) => (
                       <Text key={p.id} style={styles.rosterRowMuted}>
                         {p.name}
                       </Text>

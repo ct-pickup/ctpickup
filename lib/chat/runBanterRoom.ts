@@ -27,6 +27,23 @@ export async function findRunBanterRoomId(admin: SupabaseClient, runId: string):
   return String(data.id);
 }
 
+export async function findRunBanterRoom(
+  admin: SupabaseClient,
+  runId: string,
+): Promise<{ id: string; created_by: string | null } | null> {
+  const { data, error } = await admin
+    .from("chat_rooms")
+    .select("id,created_by")
+    .eq("run_id", runId)
+    .eq("room_type", RUN_BANTER)
+    .maybeSingle();
+  if (error || !data?.id) return null;
+  return {
+    id: String(data.id),
+    created_by: (data as { created_by?: string | null }).created_by ?? null,
+  };
+}
+
 export async function addUserToRunBanterRoom(admin: SupabaseClient, runId: string, userId: string): Promise<void> {
   const roomId = await findRunBanterRoomId(admin, runId);
   if (!roomId) return;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { findRunBanterRoom } from "@/lib/chat/runBanterRoom";
 import {
   countDistinctCommittedPlayers,
 } from "@/lib/pickup/autoRunCheckpoints";
@@ -16,6 +17,44 @@ import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 
 export const runtime = "nodejs";
 
+type NewlyInvitedPlayer = { user_id: string };
+
+async function postWaveInviteChatAndPush(
+  admin: SupabaseClient,
+  opts: {
+    run_id: string;
+    runTitle: string;
+    anchorMs: number | null;
+    newlyInvited: NewlyInvitedPlayer[];
+    chatBody: string;
+    pushTitle: string;
+    pushBody: string;
+  },
+): Promise<void> {
+  if (!opts.newlyInvited.length) return;
+
+  const room = await findRunBanterRoom(admin, opts.run_id);
+  if (room?.id) {
+    const memberRows = opts.newlyInvited.map((p) => ({ room_id: room.id, user_id: p.user_id }));
+    await admin.from("chat_room_members").upsert(memberRows, { onConflict: "room_id,user_id" });
+
+    if (room.created_by) {
+      await admin.from("chat_messages").insert({
+        room_id: room.id,
+        user_id: room.created_by,
+        body: opts.chatBody,
+      });
+    }
+  }
+
+  const invitedUserIds = opts.newlyInvited.map((p) => p.user_id);
+  await sendPushToUsers(admin, invitedUserIds, {
+    title: opts.pushTitle,
+    body: opts.pushBody,
+    data: { kind: "pickup_invite", run_id: opts.run_id },
+  });
+}
+
 async function flagSelectRunNeedsPlayersNoEligibleTiers(
   admin: SupabaseClient,
   run_id: string,
@@ -30,18 +69,11 @@ async function flagSelectRunNeedsPlayersNoEligibleTiers(
   if (upIns.error) {
     console.warn("[pickup-waves] pickup_run_updates insert failed", upIns.error.message);
   }
-  const roomSlug = `pickup-run-${run_id}`;
-  const roomRes = await admin
-    .from("chat_rooms")
-    .select("id,created_by")
-    .eq("slug", roomSlug)
-    .maybeSingle();
-  const room = roomRes.data as { id: string; created_by: string | null } | null;
-  const posterId = room?.created_by;
-  if (room?.id && posterId) {
+  const room = await findRunBanterRoom(admin, run_id);
+  if (room?.id && room.created_by) {
     await admin.from("chat_messages").insert({
       room_id: room.id,
-      user_id: posterId,
+      user_id: room.created_by,
       body: message,
     });
   }
@@ -162,43 +194,20 @@ export async function GET(req: Request) {
         continue;
       }
 
-      const roomSlug = `pickup-run-${run_id}`;
-      const roomRes = await admin
-        .from("chat_rooms")
-        .select("id,created_by,slug,title,room_type")
-        .eq("slug", roomSlug)
-        .maybeSingle();
+      const startLabel =
+        anchorMs !== null
+          ? new Date(anchorMs).toLocaleString("en-US", { timeZone: "America/New_York" })
+          : "TBD";
 
-      const room = roomRes.data as
-        | { id: string; created_by: string | null; slug: string; title: string; room_type: string | null }
-        | null;
-
-      if (room?.id && inv.newlyInvited.length > 0) {
-        const memberRows = inv.newlyInvited.map((p) => ({ room_id: room.id, user_id: p.user_id }));
-        await admin.from("chat_room_members").upsert(memberRows, { onConflict: "room_id,user_id" });
-
-        const posterId = room.created_by;
-        if (posterId) {
-          const startLabel =
-            anchorMs !== null
-              ? new Date(anchorMs).toLocaleString("en-US", { timeZone: "America/New_York" })
-              : "TBD";
-          await admin.from("chat_messages").insert({
-            room_id: room.id,
-            user_id: posterId,
-            body: `Last call: more players invited to ${runTitle} (${startLabel}). Open the Pickup tab now — run starts in under 2 hours.`,
-          });
-        }
-      }
-
-      if (inv.newlyInvited.length > 0) {
-        const invitedUserIds = inv.newlyInvited.map((p) => p.user_id);
-        await sendPushToUsers(admin, invitedUserIds, {
-          title: "Last call — pickup tonight",
-          body: "A spot just opened for tonight's run.\n\nConfirm now — run starts in under 2 hours.",
-          data: { kind: "pickup_invite", run_id },
-        });
-      }
+      await postWaveInviteChatAndPush(admin, {
+        run_id,
+        runTitle,
+        anchorMs,
+        newlyInvited: inv.newlyInvited,
+        chatBody: `Last call: more players invited to ${runTitle} (${startLabel}). Open the Pickup tab now — run starts in under 2 hours.`,
+        pushTitle: "Last call — pickup tonight",
+        pushBody: "A spot just opened for tonight's run.\n\nConfirm now — run starts in under 2 hours.",
+      });
 
       const upEm = await admin
         .from("pickup_runs")
@@ -282,39 +291,18 @@ export async function GET(req: Request) {
       continue;
     }
 
-    const roomSlug = `pickup-run-${run_id}`;
-    const roomRes = await admin
-      .from("chat_rooms")
-      .select("id,created_by,slug,title,room_type")
-      .eq("slug", roomSlug)
-      .maybeSingle();
+    const startLabel =
+      anchorMs !== null ? new Date(anchorMs).toLocaleString("en-US", { timeZone: "America/New_York" }) : "TBD";
 
-    const room = roomRes.data as
-      | { id: string; created_by: string | null; slug: string; title: string; room_type: string | null }
-      | null;
-
-    if (room?.id && inv.newlyInvited.length > 0) {
-      const memberRows = inv.newlyInvited.map((p) => ({ room_id: room.id, user_id: p.user_id }));
-      await admin.from("chat_room_members").upsert(memberRows, { onConflict: "room_id,user_id" });
-
-      const posterId = room.created_by;
-      if (posterId) {
-        const startLabel =
-          anchorMs !== null ? new Date(anchorMs).toLocaleString("en-US", { timeZone: "America/New_York" }) : "TBD";
-        await admin.from("chat_messages").insert({
-          room_id: room.id,
-          user_id: posterId,
-          body: `More players have been invited to ${runTitle} (${startLabel}). Open the Pickup tab for details and to submit availability if you have not yet.`,
-        });
-      }
-
-      const invitedUserIds = inv.newlyInvited.map((p) => p.user_id);
-      await sendPushToUsers(admin, invitedUserIds, {
-        title: "Pickup invite update",
-        body: `You've been invited to ${runTitle}. Open the app to see details and submit your availability.`,
-        data: { kind: "pickup_invite", run_id },
-      });
-    }
+    await postWaveInviteChatAndPush(admin, {
+      run_id,
+      runTitle,
+      anchorMs,
+      newlyInvited: inv.newlyInvited,
+      chatBody: `More players have been invited to ${runTitle} (${startLabel}). Open the Pickup tab for details and to submit availability if you have not yet.`,
+      pushTitle: "Pickup invite update",
+      pushBody: `You've been invited to ${runTitle}. Open the app to see details and submit your availability.`,
+    });
 
     const gateMs = anchorMs !== null ? anchorMs - SELECT_PICKUP_EMERGENCY_LAST_CALL_MS : null;
     const next_wave_at =
