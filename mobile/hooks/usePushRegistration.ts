@@ -1,9 +1,8 @@
 import { hapticError, hapticGoal, hapticKick, hapticTap, hapticWhistle } from "@/lib/haptics";
+import { getInstallationContext, resolveExpoPushTokenForApp, shouldRegisterPushToken } from "@/lib/pushToken";
 import { postMobilePushToken } from "@/lib/siteApi";
 import * as Sentry from "@sentry/react-native";
-import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
-import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef } from "react";
 import { InteractionManager, Platform } from "react-native";
@@ -311,7 +310,7 @@ export function usePushRegistration(accessToken: string | null) {
     let cancelled = false;
 
     void (async () => {
-      if (!Device.isDevice) return;
+      if (!shouldRegisterPushToken()) return;
 
       const { status: existing } = await Notifications.getPermissionsAsync();
       let finalStatus = existing;
@@ -321,16 +320,12 @@ export function usePushRegistration(accessToken: string | null) {
       }
       if (finalStatus !== "granted" || cancelled) return;
 
-      let expoPushToken: string;
+      const installationContext = getInstallationContext();
+      if (installationContext === "storeClient") return;
+
+      let expoPushToken: string | null;
       try {
-        const projectId =
-          Constants.expoConfig?.extra?.eas?.projectId ??
-          Constants.easConfig?.projectId ??
-          process.env.EXPO_PUBLIC_EAS_PROJECT_ID?.trim();
-        const tokenRes = await Notifications.getExpoPushTokenAsync(
-          projectId ? { projectId: String(projectId) } : undefined,
-        );
-        expoPushToken = tokenRes.data;
+        expoPushToken = await resolveExpoPushTokenForApp();
       } catch (e) {
         console.warn("[push] getExpoPushTokenAsync failed:", e);
         Sentry.captureException(e);
@@ -343,7 +338,7 @@ export function usePushRegistration(accessToken: string | null) {
       const platform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : null;
       if (!platform) return;
 
-      const res = await postMobilePushToken(accessToken, expoPushToken, platform);
+      const res = await postMobilePushToken(accessToken, expoPushToken, platform, installationContext);
       if (res.ok) lastSent.current = expoPushToken;
     })();
 

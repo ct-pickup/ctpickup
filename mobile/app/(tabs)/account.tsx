@@ -19,6 +19,7 @@ import {
 } from "@/lib/profileIdentityFields";
 import { ACCOUNT_ZIP_NO_NEAREST_VENUE_MSG } from "@/lib/playerLocationHints";
 import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
+import { getInstallationContext, resolveExpoPushTokenForApp, shouldRegisterPushToken } from "@/lib/pushToken";
 import { fetchPickupStanding, postMobilePushPreference, postMobilePushToken } from "@/lib/siteApi";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Notifications from "expo-notifications";
@@ -605,6 +606,8 @@ export default function AccountScreen() {
         }
       } else if (Device.isDevice) {
         try {
+          if (!shouldRegisterPushToken()) return;
+
           const { status: existing } = await Notifications.getPermissionsAsync();
           let finalStatus = existing;
           if (existing !== "granted") {
@@ -612,16 +615,13 @@ export default function AccountScreen() {
             finalStatus = req.status;
           }
           if (finalStatus === "granted") {
-            const projectId =
-              Constants.expoConfig?.extra?.eas?.projectId ??
-              Constants.easConfig?.projectId ??
-              process.env.EXPO_PUBLIC_EAS_PROJECT_ID?.trim();
-            const tokenRes = await Notifications.getExpoPushTokenAsync(
-              projectId ? { projectId: String(projectId) } : undefined,
-            );
+            const installationContext = getInstallationContext();
+            if (installationContext === "storeClient") return;
+
+            const expoPushToken = await resolveExpoPushTokenForApp();
             const platform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : null;
-            if (tokenRes?.data && platform) {
-              const reg = await postMobilePushToken(accessToken, tokenRes.data, platform);
+            if (expoPushToken && platform) {
+              const reg = await postMobilePushToken(accessToken, expoPushToken, platform, installationContext);
               if (!reg.ok) {
                 console.log("[push-pref] postMobilePushToken failed:", reg.error);
               }

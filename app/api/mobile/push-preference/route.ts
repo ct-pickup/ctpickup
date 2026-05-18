@@ -1,4 +1,9 @@
 import { NextResponse } from "next/server";
+import {
+  canPersistPushToken,
+  parseInstallationContext,
+  registerUserPushDevice,
+} from "@/lib/push/registerUserPushDevice";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -62,6 +67,9 @@ export async function POST(req: Request) {
   const platformRaw = (body as { platform?: unknown }).platform;
   const platformVal = typeof platformRaw === "string" ? platformRaw.trim().toLowerCase() : "";
   const platform = platformVal === "ios" || platformVal === "android" ? platformVal : null;
+  const installationContext = parseInstallationContext(
+    (body as { installation_context?: unknown }).installation_context,
+  );
 
   const profUpdate = await admin
     .from("profiles")
@@ -84,19 +92,23 @@ export async function POST(req: Request) {
   }
 
   if (expoPushToken.length >= 16 && platform) {
-    const { error } = await admin.from("user_push_devices").upsert(
-      {
-        user_id: userId,
-        expo_push_token: expoPushToken,
+    if (!canPersistPushToken(installationContext)) {
+      console.warn(
+        `[api/${ROUTE}] skipped expo_go token on re-enable`,
+        JSON.stringify({ userId, installationContext }),
+      );
+    } else {
+      const reg = await registerUserPushDevice(admin, {
+        userId,
+        expoPushToken,
         platform,
-        push_notifications_enabled: true,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,expo_push_token" },
-    );
-    if (error) {
-      console.error(`[api/${ROUTE}] device upsert:`, error.message);
-      return NextResponse.json({ ok: false, error: "persist_failed" }, { status: 500 });
+        pushEnabled: true,
+        installationContext,
+      });
+      if (!reg.ok) {
+        console.error(`[api/${ROUTE}] device upsert:`, reg.error);
+        return NextResponse.json({ ok: false, error: "persist_failed" }, { status: 500 });
+      }
     }
   }
 

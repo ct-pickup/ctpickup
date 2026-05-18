@@ -425,7 +425,12 @@ export async function fetchPickupPublic(
   return { ok: r.ok, status: r.status, json };
 }
 
-export async function postMobilePushToken(accessToken: string, expoPushToken: string, platform: "ios" | "android") {
+export async function postMobilePushToken(
+  accessToken: string,
+  expoPushToken: string,
+  platform: "ios" | "android",
+  installationContext: "standalone" | "bare",
+) {
   const origin = siteOrigin();
   if (!origin) return { ok: false as const, error: "missing_site_url" };
   const r = await fetch(`${origin}/api/mobile/push-token`, {
@@ -434,7 +439,7 @@ export async function postMobilePushToken(accessToken: string, expoPushToken: st
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ expo_push_token: expoPushToken, platform }),
+    body: JSON.stringify({ expo_push_token: expoPushToken, platform, installation_context: installationContext }),
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) return { ok: false as const, error: typeof j?.error === "string" ? j.error : "request_failed" };
@@ -452,14 +457,19 @@ export async function postMobilePushToken(accessToken: string, expoPushToken: st
 export async function postMobilePushPreference(
   accessToken: string,
   enabled: boolean,
-  opts?: { expoPushToken?: string; platform?: "ios" | "android" },
+  opts?: {
+    expoPushToken?: string;
+    platform?: "ios" | "android";
+    installationContext?: "standalone" | "bare";
+  },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const origin = siteOrigin();
   if (!origin) return { ok: false, error: "missing_site_url" };
   const body: Record<string, unknown> = { enabled };
-  if (enabled && opts?.expoPushToken && opts.platform) {
+  if (enabled && opts?.expoPushToken && opts.platform && opts.installationContext) {
     body.expo_push_token = opts.expoPushToken;
     body.platform = opts.platform;
+    body.installation_context = opts.installationContext;
   }
   const r = await fetch(`${origin}/api/mobile/push-preference`, {
     method: "POST",

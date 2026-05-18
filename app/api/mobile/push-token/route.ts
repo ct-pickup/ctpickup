@@ -1,4 +1,9 @@
 import { NextResponse } from "next/server";
+import {
+  canPersistPushToken,
+  parseInstallationContext,
+  registerUserPushDevice,
+} from "@/lib/push/registerUserPushDevice";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -49,6 +54,9 @@ export async function POST(req: Request) {
   const platformRaw = typeof (body as { platform?: unknown }).platform === "string"
     ? (body as { platform: string }).platform.trim().toLowerCase()
     : "";
+  const installationContext = parseInstallationContext(
+    (body as { installation_context?: unknown }).installation_context,
+  );
 
   if (expoPushToken.length < 16) {
     return NextResponse.json({ ok: false, error: "invalid_token" }, { status: 400 });
@@ -59,11 +67,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "invalid_platform" }, { status: 400 });
   }
 
-  const now = new Date().toISOString();
+  if (!canPersistPushToken(installationContext)) {
+    console.warn(
+      `[api/${ROUTE}] rejected expo_go token registration`,
+      JSON.stringify({ userId, installationContext }),
+    );
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "expo_go_not_supported",
+        detail: "Push tokens from Expo Go cannot receive production notifications. Use a TestFlight or App Store build.",
+      },
+      { status: 400 },
+    );
+  }
 
-  // Mirror profiles.push_notifications_enabled onto the device row so push
-  // queries can filter cheaply (.eq("push_notifications_enabled", true)). If
-  // the profile is missing the column for any reason, default to true.
   const profRes = await admin
     .from("profiles")
     .select("push_notifications_enabled")
@@ -71,19 +89,16 @@ export async function POST(req: Request) {
     .maybeSingle();
   const pushEnabled = profRes.data?.push_notifications_enabled !== false;
 
-  const { error } = await admin.from("user_push_devices").upsert(
-    {
-      user_id: userId,
-      expo_push_token: expoPushToken,
-      platform,
-      push_notifications_enabled: pushEnabled,
-      updated_at: now,
-    },
-    { onConflict: "user_id,expo_push_token" },
-  );
+  const reg = await registerUserPushDevice(admin, {
+    userId,
+    expoPushToken,
+    platform,
+    pushEnabled,
+    installationContext,
+  });
 
-  if (error) {
-    console.error(`[api/${ROUTE}] upsert:`, error.message);
+  if (!reg.ok) {
+    console.error(`[api/${ROUTE}] upsert:`, reg.error);
     return NextResponse.json({ ok: false, error: "persist_failed" }, { status: 500 });
   }
 
