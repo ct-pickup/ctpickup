@@ -12,7 +12,6 @@ import { fmtPickupDateEt, fmtPickupTimeEt } from "@/lib/pickupPublic";
 import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickupRunType";
 import { useUserChatRooms } from "@/lib/teamChat";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
-import { fetchPickupStanding } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -25,7 +24,6 @@ import {
   Text,
   View,
 } from "react-native";
-import Animated, { FadeIn } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const BG = "#0a0a0a";
@@ -74,8 +72,6 @@ export default function RunsScreen() {
   const token = session?.access_token ?? null;
   const { region, setRegion } = useSelectedRegion();
   const [showStatePicker, setShowStatePicker] = useState(true);
-  const [reliabilityScore, setReliabilityScore] = useState<number | null>(null);
-
   useEffect(() => {
     navigation.setOptions?.({
       title: showStatePicker ? "Pickup by state" : "Pickup",
@@ -98,16 +94,6 @@ export default function RunsScreen() {
     [setRegion],
   );
 
-  useEffect(() => {
-    if (!token) return;
-    void (async () => {
-      const r = await fetchPickupStanding(token);
-      if (r.ok && r.data?.ok && r.data.reliability) {
-        const pct = r.data.reliability.score_pct;
-        setReliabilityScore(pct == null ? null : Math.round(Number(pct)));
-      }
-    })();
-  }, [token]);
   const { allowed: chatAllowed } = useTeamChatAccess();
 
   const { loading, error, data, run, counts, myStatus, invitedNow, noFeaturedRun, load } = usePickupPublic(token);
@@ -264,11 +250,6 @@ export default function RunsScreen() {
             Runs
           </Text>
           <View style={styles.headerRight}>
-            <Animated.View entering={FadeIn.duration(500).delay(200)} style={styles.regionPill}>
-              <Text style={styles.regionPillText}>
-                {reliabilityScore != null ? reliabilityScore : "New"}
-              </Text>
-            </Animated.View>
             <AnimatedPressScale
               pressedScale={0.96}
               hapticOnPress
@@ -484,15 +465,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0 },
   h1: { fontSize: 28, fontWeight: "900", color: "#ffffff", flex: 1, minWidth: 0 },
-  regionPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.4)",
-    backgroundColor: "rgba(163,230,53,0.1)",
-  },
-  regionPillText: { color: LIME, fontWeight: "800", fontSize: 13 },
   statesChip: {
     flexDirection: "row",
     alignItems: "center",

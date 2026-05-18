@@ -656,18 +656,6 @@ export default function PlayerProfileScreen() {
         )}
       </View>
 
-      <View style={styles.block}>
-        <Text style={styles.label}>Tier</Text>
-        {profile.tier ? (
-          <Text style={styles.value}>
-            {profile.tier}
-            {profile.tier_rank != null ? ` · #${profile.tier_rank}` : ""}
-          </Text>
-        ) : (
-          <Text style={styles.valueMuted}>—</Text>
-        )}
-      </View>
-
       {profile.plays_goalie === true ? (
         <View style={styles.block}>
           <Text style={styles.label}>Goalie</Text>
