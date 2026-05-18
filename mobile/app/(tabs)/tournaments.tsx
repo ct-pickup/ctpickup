@@ -17,6 +17,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const TOURNAMENTS_PICKER_SEEN_KEY = "ctpickup:tournaments_hub_picker_seen";
+const LIME = "#a3e635";
 
 export default function TournamentsScreen() {
   const router = useRouter();
@@ -138,7 +139,7 @@ export default function TournamentsScreen() {
         <RefreshControl
           refreshing={listRefreshing}
           onRefresh={() => void onTournamentRefresh()}
-          tintColor="#fff"
+          tintColor={LIME}
         />
       }
     >

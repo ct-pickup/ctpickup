@@ -34,6 +34,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Switch,
@@ -199,6 +200,7 @@ export default function AccountScreen() {
   const [pushEnabled, setPushEnabled] = useState(true);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushMsg, setPushMsg] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     void refreshBiometricAvailability();
@@ -267,82 +269,91 @@ export default function AccountScreen() {
     setPushEnabled(profile.push_notifications_enabled !== false);
   }, [profile, editBusy]);
 
-  useEffect(() => {
+  const loadWaiverStatus = useCallback(async (opts?: { silent?: boolean }) => {
     if (!isReady) return;
     const origin = siteOrigin();
     if (!origin || !accessToken) {
-      setWaiverLoading(false);
+      if (!opts?.silent) {
+        setWaiverLoading(false);
+        setWaiverAccepted(null);
+        setWaiverVersion(null);
+      }
+      return;
+    }
+    if (!opts?.silent) setWaiverLoading(true);
+    try {
+      const r = await fetch(`${origin}/api/waiver/status`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        cache: "no-store",
+      });
+      const j = (await r.json().catch(() => null)) as
+        | { accepted?: boolean; currentVersion?: string }
+        | null;
+      if (!r.ok || !j) {
+        setWaiverAccepted(null);
+        setWaiverVersion(null);
+      } else {
+        setWaiverAccepted(Boolean(j.accepted));
+        setWaiverVersion(typeof j.currentVersion === "string" ? j.currentVersion : null);
+      }
+    } catch {
       setWaiverAccepted(null);
       setWaiverVersion(null);
-      return;
+    } finally {
+      if (!opts?.silent) setWaiverLoading(false);
     }
-    let cancelled = false;
-    setWaiverLoading(true);
-    void (async () => {
-      try {
-        const r = await fetch(`${origin}/api/waiver/status`, {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          cache: "no-store",
-        });
-        const j = (await r.json().catch(() => null)) as
-          | { accepted?: boolean; currentVersion?: string }
-          | null;
-        if (cancelled) return;
-        if (!r.ok || !j) {
-          setWaiverAccepted(null);
-          setWaiverVersion(null);
-        } else {
-          setWaiverAccepted(Boolean(j.accepted));
-          setWaiverVersion(typeof j.currentVersion === "string" ? j.currentVersion : null);
-        }
-      } catch {
-        if (!cancelled) {
-          setWaiverAccepted(null);
-          setWaiverVersion(null);
-        }
-      } finally {
-        if (!cancelled) setWaiverLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
   }, [isReady, accessToken]);
 
-  useEffect(() => {
+  const loadReliability = useCallback(async (opts?: { silent?: boolean }) => {
     if (!isReady) return;
     if (!accessToken) {
-      setReliabilityLoading(false);
-      setReliabilityLabel(null);
-      setReliabilityScorePct(null);
-      setReliabilitySubtext(null);
-      return;
-    }
-    let cancelled = false;
-    setReliabilityLoading(true);
-    void (async () => {
-      const r = await fetchPickupStanding(accessToken);
-      if (cancelled) return;
-      if (r.ok && r.data?.ok && r.data.reliability) {
-        const rel = r.data.reliability;
-        setReliabilityLabel(rel.user_label ?? null);
-        setReliabilityScorePct(rel.score_pct == null ? null : Math.round(Number(rel.score_pct)));
-        setReliabilitySubtext(rel.user_subtext ?? null);
-      } else {
+      if (!opts?.silent) {
+        setReliabilityLoading(false);
         setReliabilityLabel(null);
         setReliabilityScorePct(null);
         setReliabilitySubtext(null);
       }
-      setReliabilityLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
+      return;
+    }
+    if (!opts?.silent) setReliabilityLoading(true);
+    const r = await fetchPickupStanding(accessToken);
+    if (r.ok && r.data?.ok && r.data.reliability) {
+      const rel = r.data.reliability;
+      setReliabilityLabel(rel.user_label ?? null);
+      setReliabilityScorePct(rel.score_pct == null ? null : Math.round(Number(rel.score_pct)));
+      setReliabilitySubtext(rel.user_subtext ?? null);
+    } else {
+      setReliabilityLabel(null);
+      setReliabilityScorePct(null);
+      setReliabilitySubtext(null);
+    }
+    if (!opts?.silent) setReliabilityLoading(false);
   }, [isReady, accessToken]);
+
+  useEffect(() => {
+    void loadWaiverStatus();
+  }, [loadWaiverStatus]);
+
+  useEffect(() => {
+    void loadReliability();
+  }, [loadReliability]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        loadProfile(),
+        loadWaiverStatus({ silent: true }),
+        loadReliability({ silent: true }),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadProfile, loadWaiverStatus, loadReliability]);
 
   async function onSaveProfile() {
     setEditMsg(null);
@@ -676,6 +687,13 @@ export default function AccountScreen() {
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: 200 }]}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => void onRefresh()}
+              tintColor={LIME}
+            />
+          }
         >
           <Text style={styles.title}>Account</Text>
           <Text style={styles.sub}>

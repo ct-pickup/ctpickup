@@ -5,7 +5,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useFieldTournament } from "@/hooks/useFieldTournament";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -30,7 +31,18 @@ export default function HomeScreen() {
     loading: fieldTournamentLoading,
     error: fieldTournamentError,
     payload: fieldTournamentPayload,
+    reload: reloadFieldTournament,
   } = useFieldTournament();
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await reloadFieldTournament({ background: true });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [reloadFieldTournament]);
 
   const welcome = welcomeFromEmail(email);
   const reduceMotion = useReduceMotion();
@@ -40,6 +52,9 @@ export default function HomeScreen() {
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 12) + 8 }]}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={LIME} />
+      }
     >
       <Animated.View entering={homeEnter}>
       <View style={styles.topRow}>

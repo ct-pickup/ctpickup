@@ -10,10 +10,11 @@ import {
 } from "@/lib/teamChat";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -39,8 +40,18 @@ export default function MessagesIndex() {
   const signedIn = !!session?.user?.id;
   const { allowed, isAdmin } = useTeamChatAccess();
   const enabled = signedIn && allowed === true;
-  const { rooms, loading, error } = useUserChatRooms(enabled);
+  const { rooms, loading, error, reload } = useUserChatRooms(enabled);
   const adminDmPeerLabels = useAdminDmPeerLabels(enabled, isAdmin === true, rooms, session?.user?.id ?? null);
+
+  const [listRefreshing, setListRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setListRefreshing(true);
+    try {
+      await reload();
+    } finally {
+      setListRefreshing(false);
+    }
+  }, [reload]);
 
   const bySlug = useMemo(() => new Map(rooms.map((r) => [r.slug, r] as const)), [rooms]);
   const announcementsTitle = bySlug.get(ANNOUNCEMENTS_CHAT_SLUG)?.title ?? "Announcements";
@@ -90,9 +101,21 @@ export default function MessagesIndex() {
   }
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={listRefreshing}
+          onRefresh={() => void onRefresh()}
+          tintColor={LIME}
+        />
+      }
+    >
       <Text style={styles.heading}>Messages</Text>
-      {loading ? <ActivityIndicator color={LIME} style={{ marginVertical: 24 }} /> : null}
+      {loading && !listRefreshing ? (
+        <ActivityIndicator color={LIME} style={{ marginVertical: 24 }} />
+      ) : null}
       {error ? <Text style={styles.err}>Couldn’t load rooms: {error}</Text> : null}
 
       <Text style={styles.section}>Channels</Text>

@@ -1,5 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /** Matches `chat_rooms.slug` seeded in migration `20260502160000_team_chat.sql`. */
 export const TEAM_CHAT_SLUG = "team" as const;
@@ -48,34 +48,31 @@ export function useUserChatRooms(enabled: boolean) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const reload = useCallback(async () => {
     if (!enabled || !supabase || !session?.user?.id) {
       setRooms([]);
       setLoading(false);
       setError(null);
       return;
     }
-    let cancelled = false;
     setLoading(true);
     setError(null);
-    void (async () => {
-      const { data, error: qErr } = await supabase
-        .from("chat_rooms")
-        .select("id,slug,title,room_type,announcements_only,is_active,auto_close_at,run_id")
-        .order("created_at", { ascending: true });
-      if (cancelled) return;
-      if (qErr) {
-        setError(qErr.message);
-        setRooms([]);
-      } else {
-        setRooms((data ?? []) as ChatRoomSummary[]);
-      }
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
+    const { data, error: qErr } = await supabase
+      .from("chat_rooms")
+      .select("id,slug,title,room_type,announcements_only,is_active,auto_close_at,run_id")
+      .order("created_at", { ascending: true });
+    if (qErr) {
+      setError(qErr.message);
+      setRooms([]);
+    } else {
+      setRooms((data ?? []) as ChatRoomSummary[]);
+    }
+    setLoading(false);
   }, [enabled, supabase, session?.user?.id]);
 
-  return { rooms, loading, error };
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  return { rooms, loading, error, reload };
 }
