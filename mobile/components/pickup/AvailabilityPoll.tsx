@@ -10,9 +10,9 @@ const LIME = "#a3e635";
 
 /** Fallback when the run has no `pickup_run_time_slots` rows yet (commit creates them by label). */
 const DEFAULT_TIME_SLOTS = [
-  { label: "10am-12pm", display: "10am – 12pm" },
-  { label: "3pm-5pm", display: "3pm – 5pm" },
-  { label: "7pm-10pm", display: "7pm – 10pm" },
+  { label: "10am – 12pm", display: "10am – 12pm" },
+  { label: "3pm – 5pm", display: "3pm – 5pm" },
+  { label: "7pm – 10pm", display: "7pm – 10pm" },
 ] as const;
 
 export type PickupTimeSlotChip = {

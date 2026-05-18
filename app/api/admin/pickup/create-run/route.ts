@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { normalizePickupRunTypeForDb } from "@/lib/pickup/pickupRunType";
+import { buildPublicPickupTimeSlotsForNextDay } from "@/lib/pickup/publicRunTimeSlots";
+import { isPublicPickupRunType, normalizePickupRunTypeForDb } from "@/lib/pickup/pickupRunType";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 const HUB_REGIONS = new Set(["NY", "CT", "NJ", "MD"]);
@@ -20,20 +21,29 @@ export async function POST(req: Request) {
 
   const b = await req.json().catch(() => ({}));
 
-  const startAtRaw = String(b.start_at || "").trim();
-  if (!startAtRaw) return NextResponse.json({ error: "start_at required" }, { status: 400 });
-  const parsedMs = Date.parse(startAtRaw);
-  if (!Number.isFinite(parsedMs)) {
-    return NextResponse.json({ error: "Invalid start_at datetime" }, { status: 400 });
-  }
-  const start_at = new Date(parsedMs).toISOString();
-
   const regionRaw = b.service_region != null ? String(b.service_region).trim().toUpperCase() : "";
   const service_region = regionRaw && HUB_REGIONS.has(regionRaw) ? regionRaw : null;
 
   const titleRaw = b.title != null ? String(b.title).trim() : "";
   const title = titleRaw || "CT Pickup Run";
   const run_type = normalizePickupRunTypeForDb(b.run_type);
+  const publicRun = isPublicPickupRunType(run_type);
+
+  let start_at: string;
+  let publicSlots: { label: string; start_at: string }[] | null = null;
+
+  if (publicRun) {
+    publicSlots = buildPublicPickupTimeSlotsForNextDay();
+    start_at = publicSlots[0]!.start_at;
+  } else {
+    const startAtRaw = String(b.start_at || "").trim();
+    if (!startAtRaw) return NextResponse.json({ error: "start_at required" }, { status: 400 });
+    const parsedMs = Date.parse(startAtRaw);
+    if (!Number.isFinite(parsedMs)) {
+      return NextResponse.json({ error: "Invalid start_at datetime" }, { status: 400 });
+    }
+    start_at = new Date(parsedMs).toISOString();
+  }
   const capacity = Number(b.capacity ?? 24);
   const fee_cents = Number(b.fee_cents ?? 0);
   const admin_fee_cents = Math.round(Number(b.admin_fee_cents ?? 0));
@@ -98,14 +108,29 @@ export async function POST(req: Request) {
   }
 
   const runRow = insert.data as { id: string };
-  const slotIns = await supabaseAdmin.from("pickup_run_time_slots").insert({
-    run_id: runRow.id,
-    start_at,
-    label: null,
-  });
-  if (slotIns.error) {
-    console.error("[admin/pickup/create-run] slot insert failed", slotIns.error);
-    return NextResponse.json({ error: slotIns.error.message }, { status: 500 });
+
+  if (publicRun && publicSlots) {
+    const slotIns = await supabaseAdmin.from("pickup_run_time_slots").insert(
+      publicSlots.map((slot) => ({
+        run_id: runRow.id,
+        start_at: slot.start_at,
+        label: slot.label,
+      })),
+    );
+    if (slotIns.error) {
+      console.error("[admin/pickup/create-run] public slots insert failed", slotIns.error);
+      return NextResponse.json({ error: slotIns.error.message }, { status: 500 });
+    }
+  } else {
+    const slotIns = await supabaseAdmin.from("pickup_run_time_slots").insert({
+      run_id: runRow.id,
+      start_at,
+      label: null,
+    });
+    if (slotIns.error) {
+      console.error("[admin/pickup/create-run] slot insert failed", slotIns.error);
+      return NextResponse.json({ error: slotIns.error.message }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ ok: true, run: insert.data });

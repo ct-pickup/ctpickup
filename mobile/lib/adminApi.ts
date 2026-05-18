@@ -191,7 +191,8 @@ export function postAdminCreateRun(
   body: {
     title?: string;
     run_type?: "select" | "public";
-    start_at: string;
+    /** Required for select runs; omitted for public (server assigns next-day poll slots). */
+    start_at?: string;
         capacity?: number;
         fee_cents?: number;
         admin_fee_cents?: number;

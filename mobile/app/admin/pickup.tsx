@@ -300,18 +300,23 @@ export default function AdminPickupOpsScreen() {
       Alert.alert("Not signed in", "Sign in again, then try creating a run.");
       return;
     }
-    const start_at = createStartAt.trim();
-    if (!start_at) {
-      Alert.alert("Pick a date & time", "Choose when this run starts (Eastern Time).");
-      return;
-    }
-    if (isScheduleWallMidnightEt(start_at)) {
-      Alert.alert("Pick a time", "Runs need a real start time, not midnight.");
-      return;
-    }
-    if (new Date(start_at) <= new Date()) {
-      Alert.alert("Future only", "Start time must be in the future.");
-      return;
+    const isPublic = createRunType === "public";
+    let start_at: string | undefined;
+    if (!isPublic) {
+      const picked = createStartAt.trim();
+      if (!picked) {
+        Alert.alert("Pick a date & time", "Choose when this run starts (Eastern Time).");
+        return;
+      }
+      if (isScheduleWallMidnightEt(picked)) {
+        Alert.alert("Pick a time", "Runs need a real start time, not midnight.");
+        return;
+      }
+      if (new Date(picked) <= new Date()) {
+        Alert.alert("Future only", "Start time must be in the future.");
+        return;
+      }
+      start_at = picked;
     }
     if (!createVenue.trim()) {
       Alert.alert("Pick a venue", "Select a venue from the list.");
@@ -332,7 +337,7 @@ export default function AdminPickupOpsScreen() {
     const location_private = adminVenueLocationPreset(createVenue) ?? createVenue;
     setCreateBusy(true);
     const r = await postAdminCreateRun(token, {
-      start_at,
+      ...(start_at ? { start_at } : {}),
       title: createVenue,
       service_region: createRegion,
       capacity: ep,
@@ -620,13 +625,21 @@ export default function AdminPickupOpsScreen() {
               </View>
 
               <AdminVenuePicker label="Venue" value={createVenue} onChange={onVenueChange} />
-              <DateTimePicker
-                label="Date & time (ET)"
-                value={createStartAt}
-                onChange={setCreateStartAt}
-                enforceFuture
-                prominent
-              />
+              {createRunType === "public" ? (
+                <View style={styles.publicTimeNote}>
+                  <Text style={styles.publicTimeNoteText}>
+                    Players will vote on time — slots added automatically
+                  </Text>
+                </View>
+              ) : (
+                <DateTimePicker
+                  label="Date & time (ET)"
+                  value={createStartAt}
+                  onChange={setCreateStartAt}
+                  enforceFuture
+                  prominent
+                />
+              )}
 
               <Text style={styles.label}>Capacity</Text>
               <TextInput
@@ -934,6 +947,15 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
   },
+  publicTimeNote: {
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  publicTimeNoteText: { color: "rgba(255,255,255,0.65)", fontSize: 14, lineHeight: 20 },
   previewBox: {
     marginTop: 16,
     padding: 14,
