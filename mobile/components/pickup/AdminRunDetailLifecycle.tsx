@@ -80,23 +80,37 @@ export default function AdminRunDetailLifecycle({
     );
   }
 
-  async function onFinalizeSlot() {
+  function onFinalizeSlot() {
     if (!token || !runId || !selectedSlotId) return;
-    setActionBusy(true);
-    const r = await postAdminPickupSwitch(token, {
-      action: "finalize_slot",
-      run_id: runId,
-      slot_id: selectedSlotId,
-    });
-    setActionBusy(false);
-    if (!r.ok) {
-      Alert.alert("Could not finalize", r.error);
-      return;
-    }
-    void hapticGoal();
-    setFinalizeOpen(false);
-    setSelectedSlotId("");
-    await onRefresh();
+    Alert.alert(
+      "Finalize this time slot?",
+      "This will close the availability poll and open RSVPs. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm",
+          onPress: () => {
+            void (async () => {
+              setActionBusy(true);
+              const r = await postAdminPickupSwitch(token, {
+                action: "finalize_slot",
+                run_id: runId,
+                slot_id: selectedSlotId,
+              });
+              setActionBusy(false);
+              if (!r.ok) {
+                Alert.alert("Could not finalize", r.error);
+                return;
+              }
+              void hapticGoal();
+              setFinalizeOpen(false);
+              setSelectedSlotId("");
+              await onRefresh();
+            })();
+          },
+        },
+      ],
+    );
   }
 
   async function onLockTeams(

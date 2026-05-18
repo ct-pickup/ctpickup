@@ -50,18 +50,7 @@ export default function FinalizeSlotSheet({
       Alert.alert("Pick a slot", "Choose which kickoff time to finalize.");
       return;
     }
-    const slot = slots.find((row) => s((row as Record<string, unknown>).id) === selectedSlotId) as
-      | Record<string, unknown>
-      | undefined;
-    const label = slot ? fmtPickupDtEt(s(slot.start_at)) : "this time";
-    Alert.alert(
-      "Finalize time slot?",
-      `Players will RSVP for ${label}. The run becomes active for sign-ups.`,
-      [
-        { text: "Not now", style: "cancel" },
-        { text: "Finalize", onPress: onConfirm },
-      ],
-    );
+    onConfirm();
   }
 
   return (
