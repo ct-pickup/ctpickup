@@ -367,12 +367,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not eligible for this final RSVP." }, { status: 403 });
   }
 
-  const now = Date.now();
-  const deadline = run.cancellation_deadline ? new Date(run.cancellation_deadline).getTime() : null;
-  if (deadline && now > deadline) {
-    return NextResponse.json({ error: "Deadline passed." }, { status: 403 });
-  }
-
   const existing = await admin
     .from("pickup_run_rsvps")
     .select("*")
