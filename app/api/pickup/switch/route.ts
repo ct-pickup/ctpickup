@@ -73,18 +73,43 @@ export async function GET(req: Request) {
   const regionRaw = String(url.searchParams.get("region") || "").trim().toUpperCase();
   const region = regionRaw && HUB_REGIONS.has(regionRaw) ? regionRaw : null;
 
-  let runsQuery = admin
-    .from("pickup_runs")
-    .select(
-      "id,title,status,start_at,created_at,run_type,capacity,fee_cents,currency,likely_on_slot_id,final_slot_id,is_current,outreach_started_at,auto_managed,service_region,location_private,show_location_to_confirmed_only,cancellation_deadline,is_completed",
-    )
-    .order("created_at", { ascending: false });
+  const runsListColumns =
+    "id,title,status,start_at,created_at,run_type,capacity,fee_cents,currency,likely_on_slot_id,final_slot_id,is_current,outreach_started_at,auto_managed,service_region,location_private,show_location_to_confirmed_only,cancellation_deadline";
+
+  let runsQuery = admin.from("pickup_runs").select(runsListColumns).order("created_at", { ascending: false });
 
   if (region) {
     runsQuery = runsQuery.eq("service_region", region);
   }
 
   const runsRes = await runsQuery;
+
+  // #region agent log
+  fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "1be722" },
+    body: JSON.stringify({
+      sessionId: "1be722",
+      runId: "post-fix",
+      hypothesisId: "H1",
+      location: "app/api/pickup/switch/route.ts:GET:listQuery",
+      message: "pickup_runs list query result",
+      data: {
+        region,
+        run_id: run_id ?? null,
+        error: runsRes.error?.message ?? null,
+        errorCode: (runsRes.error as { code?: string } | null)?.code ?? null,
+        rowCount: runsRes.data?.length ?? 0,
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+
+  if (runsRes.error) {
+    console.error("[pickup/switch GET] pickup_runs list failed", runsRes.error);
+    return NextResponse.json({ error: runsRes.error.message }, { status: 500 });
+  }
 
   let runs = runsRes.data || [];
 
@@ -143,11 +168,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ runs: withResults });
   }
 
-  const peek = await admin
-    .from("pickup_runs")
-    .select("id,status,start_at,is_completed")
-    .eq("id", run_id)
-    .maybeSingle();
+  const peek = await admin.from("pickup_runs").select("id,status,start_at").eq("id", run_id).maybeSingle();
   if (peek.data) {
     await advanceActiveRunsToInProgress(admin, [peek.data as { id: string; status: string | null; start_at: string | null; is_completed?: boolean | null }]);
   }
@@ -616,10 +637,12 @@ export async function POST(req: Request) {
     const run_id = String(body.run_id || "");
     if (!run_id) return NextResponse.json({ error: "Missing run_id" }, { status: 400 });
 
-    const runRes = await admin.from("pickup_runs").select("id,status,start_at,is_completed").eq("id", run_id).maybeSingle();
+    const runRes = await admin.from("pickup_runs").select("id,status,start_at").eq("id", run_id).maybeSingle();
     const row = runRes.data;
     if (!row) return NextResponse.json({ error: "Run not found" }, { status: 404 });
-    if (row.is_completed) return NextResponse.json({ error: "Run is already completed." }, { status: 400 });
+    if (String(row.status || "") === "completed") {
+      return NextResponse.json({ error: "Run is already completed." }, { status: 400 });
+    }
 
     const st = String(row.status || "");
     if (st === "in_progress") return NextResponse.json({ ok: true });
