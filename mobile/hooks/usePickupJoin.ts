@@ -11,7 +11,28 @@ import { Alert } from "react-native";
  * Field fees use Stripe Checkout (hosted). That is not the CT Pickup marketing site.
  * Free RSVPs stay entirely inside the app.
  */
-async function openStripeCheckout(url: string, onReturn?: () => void | Promise<void>) {
+function confirmPhysicalPaymentCheckout(venueLabel: string): Promise<boolean> {
+  const venue = venueLabel.trim() || "the scheduled venue";
+  return new Promise((resolve) => {
+    Alert.alert(
+      "Physical session payment",
+      `Payment is for a physical soccer session at ${venue}. This is not a digital purchase.`,
+      [
+        { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+        { text: "Continue to payment", onPress: () => resolve(true) },
+      ],
+    );
+  });
+}
+
+async function openStripeCheckout(
+  url: string,
+  venueLabel: string,
+  onReturn?: () => void | Promise<void>,
+) {
+  const confirmed = await confirmPhysicalPaymentCheckout(venueLabel);
+  if (!confirmed) return;
+
   const sub = Linking.addEventListener("url", (event) => {
     const u = event.url || "";
     if (u.startsWith("ctpickup://pickup")) {
@@ -87,7 +108,7 @@ export function usePickupJoin() {
       accessToken: string | null,
       runId: unknown,
       reload: () => void | Promise<void>,
-      options?: { friendUserId?: string; friendDisplayName?: string },
+      options?: { friendUserId?: string; friendDisplayName?: string; venueName?: string },
     ) => {
       const id = typeof runId === "string" ? runId : null;
       if (!accessToken) {
@@ -114,7 +135,11 @@ export function usePickupJoin() {
         });
         const j = r.json as Record<string, unknown>;
         if (r.ok && typeof j.checkout_url === "string" && j.checkout_url.startsWith("https://")) {
-          await openStripeCheckout(j.checkout_url, reload);
+          const venueName =
+            typeof options?.venueName === "string" && options.venueName.trim()
+              ? options.venueName.trim()
+              : "the scheduled venue";
+          await openStripeCheckout(j.checkout_url, venueName, reload);
           await reload();
           return;
         }
@@ -177,7 +202,12 @@ export function usePickupJoin() {
   );
 
   const payPickup = useCallback(
-    async (accessToken: string | null, runId: unknown, reload: () => void | Promise<void>) => {
+    async (
+      accessToken: string | null,
+      runId: unknown,
+      reload: () => void | Promise<void>,
+      options?: { venueName?: string },
+    ) => {
       const id = typeof runId === "string" ? runId : null;
       if (!accessToken) {
         void hapticError();
@@ -194,7 +224,11 @@ export function usePickupJoin() {
         const r = await postPickupPay(accessToken, id, { checkout_return: "mobile" });
         const j = r.json as Record<string, unknown>;
         if (r.ok && typeof j.url === "string" && j.url.startsWith("https://")) {
-          await openStripeCheckout(j.url, reload);
+          const venueName =
+            typeof options?.venueName === "string" && options.venueName.trim()
+              ? options.venueName.trim()
+              : "the scheduled venue";
+          await openStripeCheckout(j.url, venueName, reload);
           await reload();
           return;
         }

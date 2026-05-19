@@ -136,7 +136,7 @@ export async function POST(req: Request) {
   };
 
   const pushTitle = truncatePushBody(row.sender_display_name || adminTitle, 80);
-  const pushBody = truncatePushBody(row.body);
+  const pushBody = "You have a new message from CT Pickup";
   await sendPushToUsers(admin, [target_user_id], {
     title: pushTitle,
     body: pushBody,

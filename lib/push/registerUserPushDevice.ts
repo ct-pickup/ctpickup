@@ -36,12 +36,20 @@ export async function registerUserPushDevice(
     return { ok: false, error: clearOtherUsers.error.message };
   }
 
+  const profRes = await admin
+    .from("profiles")
+    .select("marketing_push_enabled")
+    .eq("id", args.userId)
+    .maybeSingle();
+  const marketingEnabled = profRes.data?.marketing_push_enabled === true;
+
   const { error } = await admin.from("user_push_devices").upsert(
     {
       user_id: args.userId,
       expo_push_token: args.expoPushToken,
       platform: args.platform,
       push_notifications_enabled: args.pushEnabled,
+      marketing_push_enabled: marketingEnabled,
       installation_context: args.installationContext,
       updated_at: now,
     },

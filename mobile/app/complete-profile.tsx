@@ -11,6 +11,7 @@ import {
 import { allocateUniqueProfileUsername } from "@/lib/profileUsernameAllocate";
 import { COMPLETE_PROFILE_ZIP_NO_VENUE_MSG } from "@/lib/playerLocationHints";
 import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Redirect, useRouter, type Href } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -183,6 +184,8 @@ export default function CompleteProfileScreen() {
   const [genderPickerOpen, setGenderPickerOpen] = useState(false);
   const [positionPickerOpen, setPositionPickerOpen] = useState(false);
 
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [ageError, setAgeError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [postSaveVenues, setPostSaveVenues] = useState<VenueDistanceRow[] | null>(null);
@@ -302,6 +305,14 @@ export default function CompleteProfileScreen() {
 
   const onContinue = useCallback(async () => {
     setSubmitError(null);
+    setAgeError(null);
+    if (!ageConfirmed) {
+      const m = "You must be 13 or older to use CT Pickup";
+      setAgeError(m);
+      setSubmitError(m);
+      Alert.alert("Age requirement", m);
+      return;
+    }
     if (!canContinue) {
       const m = firstLiveErrorMessage ?? "Please check the form and try again.";
       setSubmitError(m);
@@ -432,6 +443,7 @@ export default function CompleteProfileScreen() {
     username,
     signedEmail,
     liveErrors,
+    ageConfirmed,
     session?.user?.id,
     session?.access_token,
     supabase,
@@ -697,6 +709,22 @@ export default function CompleteProfileScreen() {
             onClose={() => setPositionPickerOpen(false)}
           />
 
+          <Pressable
+            onPress={() => {
+              setAgeConfirmed((v) => !v);
+              if (ageError) setAgeError(null);
+            }}
+            style={styles.checkboxRow}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: ageConfirmed }}
+          >
+            <View style={[styles.checkbox, ageConfirmed && styles.checkboxChecked]}>
+              {ageConfirmed ? <FontAwesome name="check" size={12} color="#0a0a0a" /> : null}
+            </View>
+            <Text style={styles.checkboxText}>I confirm I am 13 years of age or older</Text>
+          </Pressable>
+          {ageError ? <Text style={styles.errText}>{ageError}</Text> : null}
+
           {submitError ? <Text style={styles.submitErr}>{submitError}</Text> : null}
 
           <Pressable
@@ -839,6 +867,32 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 12,
     color: "rgba(255,255,255,0.45)",
+  },
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 22,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+  },
+  checkboxChecked: {
+    backgroundColor: LIME,
+    borderColor: LIME,
+  },
+  checkboxText: {
+    flex: 1,
+    fontSize: 14,
+    color: "rgba(255,255,255,0.85)",
+    lineHeight: 20,
   },
   submitErr: {
     marginTop: 16,

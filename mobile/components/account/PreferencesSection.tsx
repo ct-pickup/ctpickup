@@ -8,6 +8,11 @@ type Props = {
   pushMsg: string | null;
   onTogglePush: (next: boolean) => void;
   pushDisabled: boolean;
+  marketingPushEnabled: boolean;
+  marketingPushBusy: boolean;
+  marketingPushMsg: string | null;
+  onToggleMarketingPush: (next: boolean) => void;
+  marketingPushDisabled: boolean;
   maxDriveMinutes: number;
   maxDriveBusy: boolean;
   maxDriveMsg: string | null;
@@ -26,6 +31,11 @@ export function PreferencesSection({
   pushMsg,
   onTogglePush,
   pushDisabled,
+  marketingPushEnabled,
+  marketingPushBusy,
+  marketingPushMsg,
+  onToggleMarketingPush,
+  marketingPushDisabled,
   maxDriveMinutes,
   maxDriveBusy,
   maxDriveMsg,
@@ -43,8 +53,8 @@ export function PreferencesSection({
       <View style={styles.card}>
         <View style={styles.rowBetween}>
           <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text style={styles.fieldLabelStrong}>Push Notifications</Text>
-            <Text style={styles.bioHint}>Receive updates about runs, chat, and announcements</Text>
+            <Text style={styles.fieldLabelStrong}>Push notifications</Text>
+            <Text style={styles.bioHint}>Run invites, RSVP confirmations, and account-related alerts</Text>
           </View>
           <Switch
             value={pushEnabled}
@@ -55,6 +65,24 @@ export function PreferencesSection({
           />
         </View>
         {pushMsg ? <Text style={styles.msg}>{pushMsg}</Text> : null}
+
+        <View style={[styles.rowBetween, styles.marketingPushRow]}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text style={styles.fieldLabelStrong}>Marketing updates</Text>
+            <Text style={styles.bioHint}>Promotional updates and staff broadcast announcements</Text>
+          </View>
+          <Switch
+            value={marketingPushEnabled}
+            onValueChange={onToggleMarketingPush}
+            disabled={marketingPushBusy || marketingPushDisabled || !pushEnabled}
+            trackColor={{ false: "rgba(255,255,255,0.18)", true: LIME }}
+            thumbColor="#f4f4f5"
+          />
+        </View>
+        {marketingPushMsg ? <Text style={styles.msg}>{marketingPushMsg}</Text> : null}
+        {!pushEnabled ? (
+          <Text style={styles.bioHint}>Turn on push notifications above to enable marketing updates.</Text>
+        ) : null}
 
         <View style={styles.maxDriveBlock}>
           <View style={styles.maxDriveHeader}>

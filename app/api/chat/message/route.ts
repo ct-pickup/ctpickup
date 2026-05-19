@@ -127,7 +127,7 @@ export async function POST(req: Request) {
   };
 
   const title = truncatePushBody(row.sender_display_name || displayNameFromProfile(profile), 80);
-  const pushBody = truncatePushBody(row.body);
+  const pushBody = "New message in your run chat";
 
   let pushTargetIds: string[] = [];
 

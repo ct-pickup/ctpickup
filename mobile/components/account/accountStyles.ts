@@ -71,6 +71,7 @@ export const accountStyles = StyleSheet.create({
   msgOk: { color: LIME },
   saveFailedText: { marginTop: 12, color: "#ef4444", fontSize: 14, lineHeight: 20 },
   rowBetween: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  marketingPushRow: { marginTop: 16 },
   maxDriveBlock: { marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)" },
   maxDriveHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   maxDriveValue: { fontSize: 14, fontWeight: "700", color: LIME },

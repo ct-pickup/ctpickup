@@ -272,11 +272,16 @@ export default function RunsScreen() {
       return;
     }
     void hapticTap();
-    void joinPickup(token, runId, async () => {
-      await load();
-      void hapticGoal();
-    });
-  }, [token, runId, joinPickup, load]);
+    void joinPickup(
+      token,
+      runId,
+      async () => {
+        await load();
+        void hapticGoal();
+      },
+      { venueName: venue },
+    );
+  }, [token, runId, joinPickup, load, venue]);
 
   const onCantMakeIt = useCallback(() => {
     if (!token || !runId) {
@@ -292,8 +297,8 @@ export default function RunsScreen() {
   const onCompletePayment = useCallback(() => {
     if (!token || !runId) return;
     void hapticTap();
-    void payPickup(token, runId, load);
-  }, [token, runId, payPickup, load]);
+    void payPickup(token, runId, load, { venueName: venue });
+  }, [token, runId, payPickup, load, venue]);
 
   const onConfirmSpot = useCallback(() => {
     if (!token || !runId) {
@@ -302,14 +307,19 @@ export default function RunsScreen() {
     }
     void hapticTap();
     if (myStatus === "pending_confirm" && feeCents > 0) {
-      void payPickup(token, runId, load);
+      void payPickup(token, runId, load, { venueName: venue });
       return;
     }
-    void joinPickup(token, runId, async () => {
-      await load();
-      void hapticGoal();
-    });
-  }, [token, runId, myStatus, feeCents, payPickup, joinPickup, load]);
+    void joinPickup(
+      token,
+      runId,
+      async () => {
+        await load();
+        void hapticGoal();
+      },
+      { venueName: venue },
+    );
+  }, [token, runId, myStatus, feeCents, payPickup, joinPickup, load, venue]);
 
   const onOpenChat = useCallback(() => {
     if (banterRoomId) {

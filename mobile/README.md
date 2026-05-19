@@ -112,4 +112,4 @@ Ensure **App Store Connect** has an app whose **bundle ID** matches `ios.bundleI
 
 ## Scope notes
 
-- **Pickup:** reads `/api/pickup/public` — RSVP, waiver, and Stripe flows remain on the web until you port them here.
+- **Pickup:** reads `/api/pickup/public` for run data; RSVP and waiver are in-app. Paid field fees open **Stripe Checkout** in an in-app browser via `expo-web-browser` (same hosted checkout as the website, with a physical-service disclosure before payment).

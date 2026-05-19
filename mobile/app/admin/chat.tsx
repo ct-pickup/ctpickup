@@ -379,7 +379,7 @@ export default function AdminChatScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Post announcement</Text>
         <Text style={styles.bodyMuted}>
-          Sends to the announcements-only room and triggers a push notification for everyone with notifications enabled.
+          Sends to the announcements-only room and triggers a push notification for users with marketing updates enabled.
         </Text>
         <TextInput
           style={[styles.input, styles.inputMulti]}

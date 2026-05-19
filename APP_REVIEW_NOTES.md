@@ -65,6 +65,10 @@ Review Mode does not change server data; use the pre-approved demo account for f
 
 Pickup fees pay for **physical, real-world soccer sessions** (App Store guideline **3.1.3(e)** — goods and services used outside the app).
 
+All Stripe payments are for physical real-world soccer sessions and tournament field slots consumed outside the app per App Store guideline 3.1.3(e). No digital content or features are unlocked by payment.
+
+Before checkout, the app shows: *Payment is for a physical soccer session at [venue]. This is not a digital purchase.*
+
 **Test card (Stripe test mode):**
 
 - Number: `4242 4242 4242 4242`
@@ -75,12 +79,16 @@ Pickup fees pay for **physical, real-world soccer sessions** (App Store guidelin
 ## Push notifications during review
 
 1. On the demo device, sign in as `appreview@ctpickup.net`.
-2. On **Profile**, enable **Push notifications** and allow iOS permission when asked.
+2. On **Profile**, enable **Push notifications** and **Marketing updates**, and allow iOS permission when asked.
 3. A **staff admin** (separate account) opens the app → **Admin** tab → **Broadcast Message** (or uses the web admin at `https://ctpickup.net`).
-4. Send a test broadcast to **All approved** or filter by **CT** / **tier 1A** so the demo user receives it.
+4. Send a test broadcast to **All approved** or filter by **CT** / **tier 1A** so the demo user receives it (broadcasts only reach users with **Marketing updates** enabled).
 5. Background the app briefly; the notification should appear on the device.
 
 Push requires a **TestFlight / App Store build** (not Expo Go).
+
+## Sign in with Apple
+
+Currently uses **email OTP only**. Sign in with Apple will be added before any third-party social login is introduced.
 
 ## Contact
 

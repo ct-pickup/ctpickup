@@ -37,6 +37,12 @@ export function PayForFriendButton({ run, onSuccess }: Props) {
   const { session } = useAuth();
   const token = session?.access_token ?? null;
   const runId = typeof run.id === "string" ? run.id : null;
+  const venueName =
+    typeof run.location_text === "string" && run.location_text.trim()
+      ? run.location_text.split(/\r?\n/)[0]?.trim() ?? ""
+      : typeof run.title === "string"
+        ? run.title.trim()
+        : "";
   const { joinBusy, joinPickup } = usePickupJoin();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -152,14 +158,20 @@ export function PayForFriendButton({ run, onSuccess }: Props) {
     }
     void hapticGoal();
     setModalOpen(false);
-    await joinPickup(token, runId, async () => {
-      onSuccess();
-    }, {
-      friendUserId: selected.user_id,
-      friendDisplayName: selected.full_name,
-    });
+    await joinPickup(
+      token,
+      runId,
+      async () => {
+        onSuccess();
+      },
+      {
+        friendUserId: selected.user_id,
+        friendDisplayName: selected.full_name,
+        venueName: venueName || undefined,
+      },
+    );
     resetModal();
-  }, [selected, runId, token, session?.user?.id, joinPickup, onSuccess, resetModal]);
+  }, [selected, runId, token, session?.user?.id, joinPickup, onSuccess, resetModal, venueName]);
 
   return (
     <>

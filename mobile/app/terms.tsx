@@ -49,9 +49,21 @@ const TERMS_SECTIONS: TermSection[] = [
     ],
   },
   {
+    title: "Content Moderation",
+    paragraphs: [
+      `We review reported content within 24-48 hours. To report urgent issues contact ${SUPPORT_EMAIL}. Users who violate our community guidelines may be suspended or removed.`,
+    ],
+  },
+  {
     title: "6. Payments and Refunds",
     paragraphs: [
       "All pickup run and tournament fees are processed securely through Stripe. Refund eligibility is determined by the cancellation policy displayed at the time of payment. CT Pickup reserves the right to modify pricing at any time.",
+    ],
+  },
+  {
+    title: "Referral Credits",
+    paragraphs: [
+      "Referral credits are promotional discounts with no cash value, non-transferable, and can only be applied toward physical pickup run fees. Credits cannot be sold, transferred, or redeemed for cash.",
     ],
   },
   {

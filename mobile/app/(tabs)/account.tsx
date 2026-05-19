@@ -27,6 +27,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   RefreshControl,
@@ -49,6 +50,9 @@ import {
   POSITION_OPTIONS,
   type PositionValue,
 } from "@/components/account/accountStyles";
+
+const SUPPORT_EMAIL = "pickupct@gmail.com";
+const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}`;
 
 const MIN_MAX_DRIVE_MINUTES = 35;
 const MAX_MAX_DRIVE_MINUTES = 90;
@@ -74,11 +78,12 @@ type ProfileRow = {
   playing_position: string | null;
   username: string | null;
   push_notifications_enabled: boolean | null;
+  marketing_push_enabled: boolean | null;
   max_drive_minutes: number | null;
 };
 
 const PROFILE_SELECT_WITH_PUSH =
-  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled,max_drive_minutes";
+  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled,marketing_push_enabled,max_drive_minutes";
 
 const PROFILE_SELECT_WITHOUT_PUSH =
   "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,max_drive_minutes";
@@ -162,6 +167,9 @@ export default function AccountScreen() {
   const [pushEnabled, setPushEnabled] = useState(true);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushMsg, setPushMsg] = useState<string | null>(null);
+  const [marketingPushEnabled, setMarketingPushEnabled] = useState(false);
+  const [marketingPushBusy, setMarketingPushBusy] = useState(false);
+  const [marketingPushMsg, setMarketingPushMsg] = useState<string | null>(null);
   const [maxDriveMinutes, setMaxDriveMinutes] = useState(DEFAULT_MAX_DRIVE_MINUTES);
   const [maxDriveBusy, setMaxDriveBusy] = useState(false);
   const [maxDriveMsg, setMaxDriveMsg] = useState<string | null>(null);
@@ -233,6 +241,7 @@ export default function AccountScreen() {
         console.error("[account loadProfile] Supabase error", JSON.stringify(res.error));
         if (
           supabaseLooksLikeMissingColumn(res.error, "push_notifications_enabled") ||
+          supabaseLooksLikeMissingColumn(res.error, "marketing_push_enabled") ||
           supabaseLooksLikeMissingColumn(res.error, "max_drive_minutes")
         ) {
           res = await supabase.from("profiles").select(PROFILE_SELECT_WITHOUT_PUSH).eq("id", uid).maybeSingle();
@@ -247,6 +256,7 @@ export default function AccountScreen() {
               ? {
                   ...row,
                   push_notifications_enabled: true,
+                  marketing_push_enabled: false,
                   max_drive_minutes:
                     row.max_drive_minutes == null
                       ? DEFAULT_MAX_DRIVE_MINUTES
@@ -301,6 +311,7 @@ export default function AccountScreen() {
     setEditZipCode(String(profile.zip_code ?? "").replace(/\D/g, "").slice(0, 5));
     setEditUsername(String(profile.username ?? ""));
     setPushEnabled(profile.push_notifications_enabled !== false);
+    setMarketingPushEnabled(profile.marketing_push_enabled === true);
     const storedMax =
       profile.max_drive_minutes == null ? DEFAULT_MAX_DRIVE_MINUTES : Number(profile.max_drive_minutes);
     setMaxDriveMinutes(clampMaxDriveMinutes(storedMax));
@@ -670,9 +681,20 @@ export default function AccountScreen() {
         return;
       }
 
-      setProfile((p) => (p ? { ...p, push_notifications_enabled: next } : p));
+      setProfile((p) =>
+        p ? { ...p, push_notifications_enabled: next, marketing_push_enabled: next ? p.marketing_push_enabled : false } : p,
+      );
 
       if (!next) {
+        setMarketingPushEnabled(false);
+        try {
+          await supabase
+            .from("profiles")
+            .update({ marketing_push_enabled: false, updated_at: new Date().toISOString() })
+            .eq("id", uid);
+        } catch (e) {
+          console.log("[push-pref] marketing_push_enabled off exception:", e);
+        }
         try {
           const { error: delErr } = await supabase.from("user_push_devices").delete().eq("user_id", uid);
           if (delErr) {
@@ -719,6 +741,73 @@ export default function AccountScreen() {
       }
     } finally {
       setPushBusy(false);
+    }
+  }
+
+  async function onToggleMarketingPush(next: boolean) {
+    if (marketingPushBusy) return;
+    setMarketingPushMsg(null);
+    if (!pushEnabled && next) {
+      setMarketingPushMsg("Turn on push notifications first.");
+      return;
+    }
+    if (!supabase) {
+      setMarketingPushMsg("Supabase client is not available. Check app configuration.");
+      return;
+    }
+    if (!accessToken) {
+      setMarketingPushMsg("Sign in again to change this.");
+      return;
+    }
+    const uid = session?.user?.id;
+    if (!uid) {
+      setMarketingPushMsg("Sign in again to change this.");
+      return;
+    }
+
+    const prev = marketingPushEnabled;
+    setMarketingPushEnabled(next);
+    setMarketingPushBusy(true);
+    try {
+      const res = await supabase
+        .from("profiles")
+        .update({
+          marketing_push_enabled: next,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", uid)
+        .select("id");
+      const { error } = res;
+      if (error) {
+        setMarketingPushEnabled(prev);
+        if (supabaseLooksLikeMissingColumn(error, "marketing_push_enabled")) {
+          setMarketingPushMsg("Marketing push preference is not available yet. Apply the latest database migration.");
+        } else {
+          setMarketingPushMsg(formatProfileSaveError(error));
+        }
+        return;
+      }
+      if (!res.data?.length) {
+        setMarketingPushEnabled(prev);
+        setMarketingPushMsg("Save did not update any profile row.");
+        return;
+      }
+
+      try {
+        await supabase
+          .from("user_push_devices")
+          .update({ marketing_push_enabled: next, updated_at: new Date().toISOString() })
+          .eq("user_id", uid);
+      } catch (e) {
+        console.log("[marketing-push] user_push_devices sync exception:", e);
+      }
+
+      setProfile((p) => (p ? { ...p, marketing_push_enabled: next } : p));
+    } catch (e) {
+      setMarketingPushEnabled(prev);
+      setMarketingPushMsg(formatProfileSaveError(e));
+    } finally {
+      setMarketingPushBusy(false);
     }
   }
 
@@ -897,6 +986,11 @@ export default function AccountScreen() {
           pushMsg={pushMsg}
           onTogglePush={(v) => void onTogglePushNotifications(v)}
           pushDisabled={!accessToken}
+          marketingPushEnabled={marketingPushEnabled}
+          marketingPushBusy={marketingPushBusy}
+          marketingPushMsg={marketingPushMsg}
+          onToggleMarketingPush={(v) => void onToggleMarketingPush(v)}
+          marketingPushDisabled={!accessToken}
           maxDriveMinutes={maxDriveMinutes}
           maxDriveBusy={maxDriveBusy}
           maxDriveMsg={maxDriveMsg}
@@ -989,6 +1083,18 @@ export default function AccountScreen() {
               <FontAwesome name="question-circle" size={18} color="rgba(255,255,255,0.75)" />
             </View>
             <Text style={styles.aboutText}>Help</Text>
+          </View>
+          <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+        </Pressable>
+        <Pressable
+          style={styles.aboutRow}
+          onPress={() => void Linking.openURL(SUPPORT_MAILTO)}
+        >
+          <View style={styles.aboutLeft}>
+            <View style={styles.aboutIconWrap}>
+              <FontAwesome name="envelope" size={18} color="rgba(255,255,255,0.75)" />
+            </View>
+            <Text style={styles.aboutText}>Contact Support</Text>
           </View>
           <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
         </Pressable>

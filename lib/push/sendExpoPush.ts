@@ -194,16 +194,52 @@ async function sendTokensToExpo(
   return { tokens: deduped.length, batches };
 }
 
-function productionPushDeviceQuery(admin: SupabaseClient) {
+type PushDeviceQueryOpts = {
+  /** When true, only devices whose user opted into marketing/announcement pushes. */
+  marketingOnly?: boolean;
+};
+
+function productionPushDeviceQuery(admin: SupabaseClient, opts?: PushDeviceQueryOpts) {
   // Include legacy NULL rows (registered before installation_context was persisted).
   // New registrations must set standalone/bare; storeClient is never stored.
-  return admin
+  let q = admin
     .from("user_push_devices")
     .select("expo_push_token, installation_context")
     .eq("push_notifications_enabled", true)
     .or(
       `installation_context.in.(${PRODUCTION_PUSH_INSTALLATION_CONTEXTS.join(",")}),installation_context.is.null`,
     );
+  if (opts?.marketingOnly) {
+    q = q.eq("marketing_push_enabled", true);
+  }
+  return q;
+}
+
+/** Keeps only user ids with profiles.marketing_push_enabled = true (for marketing sends). */
+export async function filterMarketingOptInUserIds(
+  admin: SupabaseClient,
+  userIds: string[],
+): Promise<{ userIds: string[]; lookupError?: string }> {
+  const unique = Array.from(new Set(userIds.filter((id): id is string => typeof id === "string" && id.length > 0)));
+  if (!unique.length) return { userIds: [] };
+
+  const out: string[] = [];
+  for (let i = 0; i < unique.length; i += USER_ID_IN_CHUNK) {
+    const slice = unique.slice(i, i + USER_ID_IN_CHUNK);
+    const res = await admin
+      .from("profiles")
+      .select("id")
+      .in("id", slice)
+      .eq("marketing_push_enabled", true);
+    if (res.error) {
+      return { userIds: [], lookupError: res.error.message };
+    }
+    for (const row of res.data ?? []) {
+      const id = (row as { id?: string }).id;
+      if (typeof id === "string" && id) out.push(id);
+    }
+  }
+  return { userIds: out };
 }
 
 /**
@@ -256,6 +292,21 @@ export async function sendPushToUsers(
 }
 
 /**
+ * Marketing/announcement pushes: requires operational push on AND marketing opt-in.
+ */
+export async function sendMarketingPushToUsers(
+  admin: SupabaseClient,
+  userIds: string[],
+  payload: ExpoPushPayload,
+): Promise<SendPushResult> {
+  const filtered = await filterMarketingOptInUserIds(admin, userIds);
+  if (filtered.lookupError) {
+    return { tokens: 0, batches: [], lookupError: filtered.lookupError };
+  }
+  return sendPushToUsers(admin, filtered.userIds, payload);
+}
+
+/**
  * Sends to every stored push token (capped at MAX_TOKEN_QUERY rows).
  */
 export async function sendPushToAll(
@@ -265,6 +316,26 @@ export async function sendPushToAll(
   const res = await productionPushDeviceQuery(admin).limit(MAX_TOKEN_QUERY);
   if (res.error) {
     logExpoPush("error", "push token lookup failed (sendPushToAll)", { lookupError: res.error.message });
+    return { tokens: 0, batches: [], lookupError: res.error.message };
+  }
+  const tokens = (res.data ?? [])
+    .map((r) => (r as { expo_push_token?: unknown }).expo_push_token)
+    .filter((t): t is string => typeof t === "string" && t.length > 10);
+  return sendTokensToExpo(admin, tokens, payload);
+}
+
+/**
+ * Broadcast marketing/announcement push to opted-in devices only.
+ */
+export async function sendMarketingPushToAll(
+  admin: SupabaseClient,
+  payload: ExpoPushPayload,
+): Promise<SendPushResult> {
+  const res = await productionPushDeviceQuery(admin, { marketingOnly: true }).limit(MAX_TOKEN_QUERY);
+  if (res.error) {
+    logExpoPush("error", "push token lookup failed (sendMarketingPushToAll)", {
+      lookupError: res.error.message,
+    });
     return { tokens: 0, batches: [], lookupError: res.error.message };
   }
   const tokens = (res.data ?? [])

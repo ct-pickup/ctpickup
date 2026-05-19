@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { truncatePushBody } from "@/lib/push/truncatePushBody";
-import { sendPushToUsers } from "@/lib/push/sendExpoPush";
+import { sendMarketingPushToUsers } from "@/lib/push/sendExpoPush";
 import { venueNamesForServiceRegion } from "@/lib/pickup/venueServiceRegion";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
@@ -44,7 +44,13 @@ async function listRecipientIds(
   filterValue: string | null,
 ): Promise<string[]> {
   const base = () =>
-    admin.from("profiles").select("id").eq("approved", true).eq("is_banned", false).order("id", { ascending: true });
+    admin
+      .from("profiles")
+      .select("id")
+      .eq("approved", true)
+      .eq("is_banned", false)
+      .eq("marketing_push_enabled", true)
+      .order("id", { ascending: true });
 
   if (filter === "all") {
     const out: string[] = [];
@@ -136,7 +142,8 @@ async function recipientCount(admin: SupabaseClient, filter: BulkFilter, filterV
       .from("profiles")
       .select("id", { count: "exact", head: true })
       .eq("approved", true)
-      .eq("is_banned", false);
+      .eq("is_banned", false)
+      .eq("marketing_push_enabled", true);
     if (res.error) throw new Error(res.error.message);
     return typeof res.count === "number" ? res.count : 0;
   }
@@ -150,6 +157,7 @@ async function recipientCount(admin: SupabaseClient, filter: BulkFilter, filterV
       .select("id", { count: "exact", head: true })
       .eq("approved", true)
       .eq("is_banned", false)
+      .eq("marketing_push_enabled", true)
       .in("nearest_venue", venues);
     if (res.error) throw new Error(res.error.message);
     return typeof res.count === "number" ? res.count : 0;
@@ -162,6 +170,7 @@ async function recipientCount(admin: SupabaseClient, filter: BulkFilter, filterV
       .select("id", { count: "exact", head: true })
       .eq("approved", true)
       .eq("is_banned", false)
+      .eq("marketing_push_enabled", true)
       .eq("tier_rank", rank);
     if (res.error) throw new Error(res.error.message);
     return typeof res.count === "number" ? res.count : 0;
@@ -186,7 +195,8 @@ async function recipientCount(admin: SupabaseClient, filter: BulkFilter, filterV
         .select("id", { count: "exact", head: true })
         .in("id", slice)
         .eq("approved", true)
-        .eq("is_banned", false);
+        .eq("is_banned", false)
+        .eq("marketing_push_enabled", true);
       if (res.error) throw new Error(res.error.message);
       total += typeof res.count === "number" ? res.count : 0;
     }
@@ -281,7 +291,7 @@ export async function POST(req: Request) {
     if (ins.error) return NextResponse.json({ error: ins.error.message }, { status: 500 });
 
     const pushBody = truncatePushBody(message);
-    const push = await sendPushToUsers(admin, unique, {
+    const push = await sendMarketingPushToUsers(admin, unique, {
       title: "CT Pickup",
       body: pushBody,
       data: {

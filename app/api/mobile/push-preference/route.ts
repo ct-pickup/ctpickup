@@ -83,6 +83,15 @@ export async function POST(req: Request) {
   }
 
   if (!enabled) {
+    const marketingOff = await admin
+      .from("profiles")
+      .update({ marketing_push_enabled: false, updated_at: new Date().toISOString() })
+      .eq("id", userId);
+    if (marketingOff.error) {
+      console.error(`[api/${ROUTE}] marketing opt-out:`, marketingOff.error.message);
+      return NextResponse.json({ ok: false, error: "persist_failed" }, { status: 500 });
+    }
+
     const del = await admin.from("user_push_devices").delete().eq("user_id", userId);
     if (del.error) {
       console.error(`[api/${ROUTE}] device delete:`, del.error.message);
