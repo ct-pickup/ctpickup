@@ -7,13 +7,24 @@ import {
   describePickupAutoStatus,
   processAutoPickupRun,
 } from "@/lib/pickup/autoRunCheckpoints";
-import { isPublicPickupRunType, normalizePickupRunTypeForDb } from "@/lib/pickup/pickupRunType";
+import {
+  isPublicPickupRunType,
+  isSelectPickupRunType,
+  normalizePickupRunTypeForDb,
+} from "@/lib/pickup/pickupRunType";
 import { cancelAllPickupRsvpsAndRefundPaidConfirmed } from "@/lib/pickup/refundAllPickupPlayersOnRunCancel";
 import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
 import {
   pickupFinalizeSlotPushRecipientIds,
   sendPickupFinalizedPush,
+  sendPickupNewRunPush,
 } from "@/lib/pickup/pickupPushNotifications";
+import {
+  pickupWaveCronRunColumns,
+  processDueWaveForRun,
+  startSelectWaveOutreachOnHubPromote,
+  type PickupRunWaveRow,
+} from "@/lib/pickup/waveInviteSystem";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { ensureRunBanterRoomAndMembers } from "@/lib/chat/runBanterRoom";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
@@ -379,11 +390,14 @@ type Action =
   | "add_slot"
   | "open_wave1"
   | "launch_outreach"
+  | "skip_wave"
   | "finalize_slot"
   | "start_run_now"
   | "edit_run"
   | "post_update"
-  | "cancel_run";
+  | "cancel_run"
+  | "set_hub_pickup"
+  | "promote_to_hub";
 
 export async function POST(req: Request) {
   const guard = await requireAdminBearer(req);
@@ -562,6 +576,54 @@ export async function POST(req: Request) {
     });
   }
 
+  if (action === "skip_wave") {
+    const run_id = String(body.run_id || "");
+    if (!run_id) return NextResponse.json({ error: "Missing run_id" }, { status: 400 });
+
+    const runRes = await admin
+      .from("pickup_runs")
+      .select(pickupWaveCronRunColumns())
+      .eq("id", run_id)
+      .maybeSingle();
+    const row = runRes.data as PickupRunWaveRow | null;
+    if (!row) return NextResponse.json({ error: "Run not found" }, { status: 404 });
+
+    if (!isSelectPickupRunType(row.run_type)) {
+      return NextResponse.json({ error: "Wave skip is only for select runs." }, { status: 400 });
+    }
+    if (!row.outreach_started_at) {
+      return NextResponse.json({ error: "Outreach has not started for this run." }, { status: 400 });
+    }
+    if (!row.wave_state) {
+      return NextResponse.json({ error: "This run has no wave schedule." }, { status: 400 });
+    }
+
+    const result = await processDueWaveForRun(admin, row, Date.now(), { force: true });
+    if (!result) {
+      return NextResponse.json({ error: "No next wave to open." }, { status: 400 });
+    }
+    if (!result.action.startsWith("opened_wave_")) {
+      const errByAction: Record<string, string> = {
+        stopped_full: "Run is already at capacity.",
+        stopped_wave4_no_anchor: "Set a kickoff time before opening the last wave.",
+        invite_failed: result.detail || "Could not open wave.",
+        update_failed: result.detail || "Wave opened but run update failed.",
+      };
+      const msg =
+        errByAction[result.action] ||
+        (result.action.startsWith("rescheduled_")
+          ? result.detail || "Could not open the next wave yet."
+          : "Could not open the next wave.");
+      const status = result.action === "invite_failed" || result.action === "update_failed" ? 500 : 400;
+      return NextResponse.json({ error: msg }, { status });
+    }
+
+    revalidatePath("/pickup");
+    revalidatePath("/status/pickup");
+
+    return NextResponse.json({ ok: true, wave: result });
+  }
+
   if (action === "finalize_slot") {
     const run_id = String(body.run_id || "");
     const slot_id = String(body.slot_id || "");
@@ -732,6 +794,101 @@ export async function POST(req: Request) {
     revalidatePath("/pickup");
     revalidatePath("/status/pickup");
     return NextResponse.json({ ok: true });
+  }
+
+  if (action === "set_hub_pickup" || action === "promote_to_hub") {
+    const run_id = body.run_id === null || body.run_id === "" ? null : String(body.run_id);
+    const now = new Date().toISOString();
+
+    let promotedRun: { id: string; title: string; run_type: string; service_region: string | null } | null =
+      null;
+
+    let waveOutreach: { wave1_invited: number; next_wave_at: string | null } | null = null;
+    let promotedRunRow: PickupRunWaveRow | null = null;
+
+    if (run_id) {
+      const runRes = await admin
+        .from("pickup_runs")
+        .select(
+          "id,title,status,run_type,service_region,start_at,capacity,outreach_started_at,next_wave_at,wave_state",
+        )
+        .eq("id", run_id)
+        .maybeSingle();
+      if (!runRes.data) {
+        return NextResponse.json({ error: "Run not found." }, { status: 404 });
+      }
+      if (runRes.data.status === "canceled") {
+        return NextResponse.json({ error: "Cannot promote a canceled run." }, { status: 400 });
+      }
+      promotedRunRow = runRes.data as PickupRunWaveRow;
+      promotedRun = {
+        id: String(runRes.data.id),
+        title: String(runRes.data.title || ""),
+        run_type: String(runRes.data.run_type || "select"),
+        service_region:
+          runRes.data.service_region === null || runRes.data.service_region === undefined
+            ? null
+            : String(runRes.data.service_region),
+      };
+    }
+
+    const promotedRegion = promotedRun?.service_region ?? null;
+
+    let clear: { error: { message: string } | null };
+    if (run_id) {
+      if (promotedRegion !== null) {
+        clear = await admin
+          .from("pickup_runs")
+          .update({ is_current: false, updated_at: now })
+          .eq("is_current", true)
+          .eq("service_region", promotedRegion);
+      } else {
+        clear = await admin
+          .from("pickup_runs")
+          .update({ is_current: false, updated_at: now })
+          .eq("is_current", true)
+          .is("service_region", null);
+      }
+    } else {
+      clear = await admin.from("pickup_runs").update({ is_current: false, updated_at: now }).eq("is_current", true);
+    }
+    if (clear.error) {
+      return NextResponse.json({ error: clear.error.message }, { status: 500 });
+    }
+
+    if (run_id) {
+      const up = await admin.from("pickup_runs").update({ is_current: true, updated_at: now }).eq("id", run_id);
+      if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
+    }
+
+    if (promotedRunRow) {
+      const waveRes = await startSelectWaveOutreachOnHubPromote(admin, promotedRunRow);
+      if (!waveRes.ok) {
+        return NextResponse.json({ error: waveRes.error }, { status: 500 });
+      }
+      if (!waveRes.skipped) {
+        waveOutreach = {
+          wave1_invited: waveRes.wave1_invited,
+          next_wave_at: waveRes.next_wave_at,
+        };
+      }
+    }
+
+    if (promotedRun && isPublicPickupRunType(promotedRun.run_type)) {
+      await sendPickupNewRunPush(admin, {
+        runId: promotedRun.id,
+        runTitle: promotedRun.title,
+        service_region: promotedRun.service_region,
+      });
+    }
+
+    revalidatePath("/pickup");
+    revalidatePath("/status/pickup");
+
+    return NextResponse.json({
+      ok: true,
+      wave_outreach: waveOutreach,
+    });
   }
 
   if (action === "cancel_run") {

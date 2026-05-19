@@ -76,3 +76,77 @@ export async function sendPickupFinalizedPush(
     data: { kind: "pickup_finalized", run_id: opts.runId },
   });
 }
+
+/** Notify approved in-region players when a public run is promoted to the pickup hub. */
+export async function sendPickupNewRunPush(
+  admin: SupabaseClient,
+  opts: { runId: string; runTitle: string; service_region?: string | null },
+): Promise<void> {
+  const userIds = await approvedUserIdsInRunServiceRegion(admin, opts.service_region);
+  if (!userIds.length) return;
+  const title = pickupRunTitleForPush(opts.runTitle);
+  await sendPushToUsers(admin, userIds, {
+    title: "New pickup run posted 🟢",
+    body: `Vote on your availability for the upcoming ${title} run.`,
+    data: { kind: "pickup_new_run", run_id: opts.runId },
+  });
+}
+
+/** Push to players newly invited on a select run wave (wave 1 on hub promote or cron). */
+export async function sendPickupInvitePush(
+  admin: SupabaseClient,
+  opts: {
+    userIds: string[];
+    runId: string;
+    runTitle: string;
+    wave?: number;
+    emergency?: boolean;
+  },
+): Promise<void> {
+  if (!opts.userIds.length) return;
+  const title = pickupRunTitleForPush(opts.runTitle);
+
+  if (opts.emergency) {
+    await sendPushToUsers(admin, opts.userIds, {
+      title: "Last call — pickup tonight",
+      body: "A spot just opened for tonight's run.\n\nConfirm now — run starts in under 2 hours.",
+      data: { kind: "pickup_invite", run_id: opts.runId },
+    });
+    return;
+  }
+
+  if (opts.wave === 1) {
+    await sendPushToUsers(admin, opts.userIds, {
+      title: "You've been invited to a Select Pickup",
+      body: "You've been selected for an exclusive pickup run. Open the app for full details and to submit your availability.",
+      data: { kind: "pickup_invite", run_id: opts.runId },
+    });
+    return;
+  }
+
+  await sendPushToUsers(admin, opts.userIds, {
+    title: "Pickup invite update",
+    body: `You've been invited to ${title}. Open the app to see details and submit your availability.`,
+    data: { kind: "pickup_invite", run_id: opts.runId },
+  });
+}
+
+/** Remind prior-wave invitees without an RSVP before the next tier wave opens. */
+export async function sendPickupPriorWaveReinvitePush(
+  admin: SupabaseClient,
+  opts: {
+    userIds: string[];
+    runId: string;
+    runTitle: string;
+    priorWave: number;
+  },
+): Promise<void> {
+  if (!opts.userIds.length) return;
+  const title = pickupRunTitleForPush(opts.runTitle);
+  const tierLabel = opts.priorWave === 1 ? "Tier 1" : `Tier ${opts.priorWave}`;
+  await sendPushToUsers(admin, opts.userIds, {
+    title: "Still spots available 👋",
+    body: `${tierLabel} players — your spot for ${title} is still open. Tap to join.`,
+    data: { kind: "pickup_invite", run_id: opts.runId },
+  });
+}

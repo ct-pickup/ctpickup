@@ -12,11 +12,13 @@ import {
   fetchAdminTierSuggestions,
   postAdminCreateRun,
   postAdminDeleteRun,
+  postAdminPickupSwitch,
   type PickupSwitchDetailResponse,
 } from "@/lib/adminApi";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
 import { fmtPickupDtEt } from "@/lib/pickupPublic";
 import { isPublicPickupRunType } from "@/lib/pickupRunType";
+import { skipWaveUiForRun } from "@/lib/pickupWaveOutreach";
 import {
   derivePickupLifecycleStage,
   pickupLifecycleStageLabel,
@@ -372,6 +374,10 @@ export default function AdminPickupOpsScreen() {
   }
 
   const detailRun = detail?.run && typeof detail.run === "object" ? (detail.run as Record<string, unknown>) : null;
+  const skipWaveUi = useMemo(
+    () => (detailRun ? skipWaveUiForRun(detailRun) : null),
+    [detailRun],
+  );
   const confirmedRoster = Array.isArray(detail?.confirmed) ? detail!.confirmed : [];
   const availabilityRows = useMemo(
     () => (Array.isArray(detail?.availability) ? detail!.availability : []),
@@ -422,6 +428,36 @@ export default function AdminPickupOpsScreen() {
   async function refreshDetailAndList() {
     await loadRuns();
     if (detailOpen && detailRunId) await loadDetail();
+  }
+
+  function onSkipToNextWave() {
+    if (!token || !detailRun || !skipWaveUi) return;
+    const runId = s(detailRun.id);
+    if (!runId) return;
+    const { tierLabel } = skipWaveUi;
+    Alert.alert(
+      "Skip to next wave?",
+      `This will immediately invite ${tierLabel} players.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm",
+          onPress: () => {
+            void (async () => {
+              setActionBusy(true);
+              const r = await postAdminPickupSwitch(token, { action: "skip_wave", run_id: runId });
+              setActionBusy(false);
+              if (!r.ok) {
+                Alert.alert("Could not open wave", r.error);
+                return;
+              }
+              void hapticGoal();
+              await refreshDetailAndList();
+            })();
+          },
+        },
+      ],
+    );
   }
 
   function onDeleteRun() {
@@ -788,6 +824,20 @@ export default function AdminPickupOpsScreen() {
                   </>
                 ) : null}
 
+                {skipWaveUi ? (
+                  <Pressable
+                    disabled={actionBusy}
+                    onPress={onSkipToNextWave}
+                    style={({ pressed }) => [
+                      styles.skipWaveBtn,
+                      pressed && { opacity: 0.9 },
+                      actionBusy && { opacity: 0.55 },
+                    ]}
+                  >
+                    <Text style={styles.skipWaveBtnText}>Open next wave early →</Text>
+                  </Pressable>
+                ) : null}
+
                 {detail ? (
                   <AdminRunDetailLifecycle
                     token={token}
@@ -1028,6 +1078,16 @@ const styles = StyleSheet.create({
   rosterEmpty: { color: "rgba(255,255,255,0.45)", fontStyle: "italic" },
   rosterRow: { color: "rgba(255,255,255,0.8)", paddingVertical: 6, fontSize: 15 },
   rosterRowMuted: { color: "rgba(255,255,255,0.5)", paddingVertical: 6, fontSize: 14 },
+  skipWaveBtn: {
+    marginTop: 20,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.45)",
+    backgroundColor: "rgba(163,230,53,0.08)",
+  },
+  skipWaveBtnText: { color: LIME, fontWeight: "800", fontSize: 15 },
   deleteRunBtn: {
     marginTop: 16,
     borderRadius: 12,

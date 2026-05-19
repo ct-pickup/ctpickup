@@ -19,6 +19,12 @@ import { enqueueRevalidateAndRun } from "@/lib/admin/sync/enqueueRevalidate";
 import { isPublishLayerAvailable } from "@/lib/admin/publishLayer";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { processAutoPickupRun } from "@/lib/pickup/autoRunCheckpoints";
+import { sendPickupNewRunPush } from "@/lib/pickup/pickupPushNotifications";
+import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
+import {
+  startSelectWaveOutreachOnHubPromote,
+  type PickupRunWaveRow,
+} from "@/lib/pickup/waveInviteSystem";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -47,18 +53,33 @@ export async function POST(req: Request) {
     const now = new Date().toISOString();
 
     let promotedRegion: string | null = null;
+    let promotedRun: { id: string; title: string; run_type: string; service_region: string | null } | null = null;
+    let promotedRunRow: PickupRunWaveRow | null = null;
     if (run_id) {
-      const runRes = await admin.from("pickup_runs").select("id,status,service_region").eq("id", run_id).maybeSingle();
+      const runRes = await admin
+        .from("pickup_runs")
+        .select(
+          "id,title,status,run_type,service_region,start_at,capacity,outreach_started_at,next_wave_at,wave_state",
+        )
+        .eq("id", run_id)
+        .maybeSingle();
       if (!runRes.data) {
         return NextResponse.json({ error: "Run not found." }, { status: 404 });
       }
       if (runRes.data.status === "canceled") {
         return NextResponse.json({ error: "Cannot promote a canceled run." }, { status: 400 });
       }
+      promotedRunRow = runRes.data as PickupRunWaveRow;
       promotedRegion =
         runRes.data.service_region === null || runRes.data.service_region === undefined
           ? null
           : String(runRes.data.service_region);
+      promotedRun = {
+        id: String(runRes.data.id),
+        title: String(runRes.data.title || ""),
+        run_type: String(runRes.data.run_type || "select"),
+        service_region: promotedRegion,
+      };
     }
 
     let clear: { error: { message: string } | null };
@@ -86,6 +107,21 @@ export async function POST(req: Request) {
     if (run_id) {
       const up = await admin.from("pickup_runs").update({ is_current: true, updated_at: now }).eq("id", run_id);
       if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
+
+      if (promotedRunRow) {
+        const waveRes = await startSelectWaveOutreachOnHubPromote(admin, promotedRunRow);
+        if (!waveRes.ok) {
+          return NextResponse.json({ error: waveRes.error }, { status: 500 });
+        }
+      }
+    }
+
+    if (promotedRun && isPublicPickupRunType(promotedRun.run_type)) {
+      await sendPickupNewRunPush(admin, {
+        runId: promotedRun.id,
+        runTitle: promotedRun.title,
+        service_region: promotedRun.service_region,
+      });
     }
 
     revalidatePath("/pickup");
