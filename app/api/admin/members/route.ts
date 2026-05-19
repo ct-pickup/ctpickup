@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import {
+  ACCOUNT_DELETE_SUPPORT_ERROR,
+  deleteUserAccount,
+} from "@/lib/account/deleteUserAccount";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -79,8 +83,16 @@ export async function DELETE(req: Request) {
   const { user_id } = body;
   if (!user_id) return NextResponse.json({ error: "Missing user_id" }, { status: 400 });
 
-  const { error } = await admin.auth.admin.deleteUser(user_id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const target = await admin.auth.admin.getUserById(user_id);
+  if (target.error || !target.data.user) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
 
-  return NextResponse.json({ ok: true });
+  try {
+    await deleteUserAccount(admin, user_id, target.data.user.email);
+    return NextResponse.json({ ok: true });
+  } catch (e: unknown) {
+    console.error("[admin/members delete]", e);
+    return NextResponse.json({ error: ACCOUNT_DELETE_SUPPORT_ERROR }, { status: 500 });
+  }
 }

@@ -3,6 +3,7 @@ import { FieldTournamentCard } from "@/components/FieldTournamentCard";
 import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { useFieldTournament } from "@/hooks/useFieldTournament";
+import { useProfileApproval } from "@/hooks/useProfileApproval";
 import { siteOrigin } from "@/lib/env";
 import { serviceRegionName } from "@/lib/serviceRegions";
 import {
@@ -128,7 +129,7 @@ export default function FieldTournamentDetailScreen() {
   const [inviteSearchBusy, setInviteSearchBusy] = useState(false);
   const [inviteSendBusy, setInviteSendBusy] = useState(false);
   const [rosterBusyId, setRosterBusyId] = useState<string | null>(null);
-  const [profileApproved, setProfileApproved] = useState<boolean | null>(null);
+  const { profileApproved, reviewMode } = useProfileApproval();
 
   async function handleCaptainPay() {
     const token = session?.access_token;
@@ -194,26 +195,6 @@ export default function FieldTournamentDetailScreen() {
 
   const tournamentId = t?.id ?? null;
   const userId = session?.user?.id ?? null;
-
-  useEffect(() => {
-    if (!supabase || !userId) {
-      setProfileApproved(null);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      const { data, error } = await supabase.from("profiles").select("approved").eq("id", userId).maybeSingle();
-      if (cancelled) return;
-      if (error || !data) {
-        setProfileApproved(null);
-        return;
-      }
-      setProfileApproved(!!(data as { approved?: boolean }).approved);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [supabase, userId]);
 
   useEffect(() => {
     if (!supabase || !tournamentId || !userId) {
@@ -299,7 +280,7 @@ export default function FieldTournamentDetailScreen() {
   /** Avoid flashing "Claim" before the Supabase captain row loads for signed-in users. */
   const sessionClaimReady = !userId || !captainClaimLoading;
 
-  const claimAllowedForAccount = profileApproved !== false;
+  const claimAllowedForAccount = reviewMode || profileApproved !== false;
   const showClaimButton =
     claimAllowedForAccount &&
     !claimDisabled &&
@@ -750,7 +731,7 @@ export default function FieldTournamentDetailScreen() {
             <Text style={styles.claimSubText}>Captain slots are full.</Text>
           ) : claimsClosed ? (
             <Text style={styles.claimSubText}>Claims closed — free-for-all roster</Text>
-          ) : profileApproved === false ? (
+          ) : profileApproved === false && !reviewMode ? (
             <Text style={styles.claimSubText}>Your account must be approved before you can claim a team.</Text>
           ) : !session ? (
             <Text style={styles.claimSubText}>Sign in to submit a captain claim.</Text>

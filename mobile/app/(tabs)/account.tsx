@@ -19,6 +19,8 @@ import * as LocalAuthentication from "expo-local-authentication";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
+import { useReviewMode } from "@/context/ReviewModeContext";
+import { REVIEW_MODE_SECRET, REVIEW_MODE_TAP_TARGET } from "@/lib/reviewMode";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -30,7 +32,9 @@ import {
   RefreshControl,
   ScrollView,
   Switch,
+  Modal,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -107,6 +111,7 @@ export default function AccountScreen() {
   const replayOpeningThemeCtx = useReplayOpeningTheme();
   const { session, supabase, isReady, signOut } = useAuth();
   const { enabled: adminModeEnabled, isReady: adminModeReady, setEnabled: setAdminModeEnabled } = useAdminMode();
+  const { enabled: reviewModeEnabled, setEnabled: setReviewModeEnabled } = useReviewMode();
   const { isAdmin, isReady: profileAdminReady } = useProfileAdmin();
   const {
     hasPin,
@@ -161,6 +166,50 @@ export default function AccountScreen() {
   const [maxDriveBusy, setMaxDriveBusy] = useState(false);
   const [maxDriveMsg, setMaxDriveMsg] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [aboutTapCount, setAboutTapCount] = useState(0);
+  const [reviewCodeModalOpen, setReviewCodeModalOpen] = useState(false);
+  const [reviewCodeInput, setReviewCodeInput] = useState("");
+
+  const appVersion =
+    Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? "1.0.0";
+
+  function submitReviewCode() {
+    if (reviewCodeInput.trim() === REVIEW_MODE_SECRET) {
+      void setReviewModeEnabled(true);
+      setReviewCodeModalOpen(false);
+      setReviewCodeInput("");
+      Alert.alert("Review Mode", "App Review Mode is now active.");
+    } else {
+      Alert.alert("Review Mode", "Incorrect code.");
+    }
+  }
+
+  function openReviewCodeEntry() {
+    setReviewCodeInput("");
+    if (Platform.OS === "ios" && typeof Alert.prompt === "function") {
+      Alert.prompt(
+        "Review Mode",
+        "Enter the review secret code.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Activate",
+            onPress: (value) => {
+              if (String(value ?? "").trim() === REVIEW_MODE_SECRET) {
+                void setReviewModeEnabled(true);
+                Alert.alert("Review Mode", "App Review Mode is now active.");
+              } else {
+                Alert.alert("Review Mode", "Incorrect code.");
+              }
+            },
+          },
+        ],
+        "secure-text",
+      );
+      return;
+    }
+    setReviewCodeModalOpen(true);
+  }
 
   useEffect(() => {
     void refreshBiometricAvailability();
@@ -709,6 +758,37 @@ export default function AccountScreen() {
 
   return (
     <View style={styles.screen}>
+      <Modal
+        visible={reviewCodeModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setReviewCodeModalOpen(false)}
+      >
+        <View style={styles.reviewModalBackdrop}>
+          <View style={styles.reviewModalCard}>
+            <Text style={styles.reviewModalTitle}>Review Mode</Text>
+            <Text style={styles.reviewModalSub}>Enter the review secret code.</Text>
+            <TextInput
+              value={reviewCodeInput}
+              onChangeText={setReviewCodeInput}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              secureTextEntry
+              placeholder="Secret code"
+              placeholderTextColor="rgba(255,255,255,0.35)"
+              style={styles.reviewModalInput}
+            />
+            <View style={styles.reviewModalActions}>
+              <Pressable style={styles.reviewModalBtnGhost} onPress={() => setReviewCodeModalOpen(false)}>
+                <Text style={styles.reviewModalBtnGhostText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.reviewModalBtnPrimary} onPress={() => submitReviewCode()}>
+                <Text style={styles.reviewModalBtnPrimaryText}>Activate</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <KeyboardAvoidingView style={styles.scroll} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: 200 }]}
@@ -949,20 +1029,38 @@ export default function AccountScreen() {
         <Pressable
           style={styles.aboutRow}
           onPress={() => {
-            Alert.alert(
-              "CT Pickup",
-              "Version 1.0.0 — Competitive pickup soccer platform for CT, NY, NJ and MD. Built by CT Pickup LLC.",
-            );
+            const next = aboutTapCount + 1;
+            setAboutTapCount(next);
+            if (next < REVIEW_MODE_TAP_TARGET) return;
+            setAboutTapCount(0);
+            openReviewCodeEntry();
           }}
         >
           <View style={styles.aboutLeft}>
             <View style={styles.aboutIconWrap}>
               <FontAwesome name="info-circle" size={18} color="rgba(255,255,255,0.75)" />
             </View>
-            <Text style={styles.aboutText}>About this app</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.aboutText}>About this app</Text>
+              <Text style={styles.aboutVersionSub}>Version {appVersion}</Text>
+            </View>
           </View>
           <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
         </Pressable>
+
+        {reviewModeEnabled ? (
+          <Pressable
+            style={[styles.aboutRow, styles.reviewModeOffRow]}
+            onPress={() => {
+              Alert.alert("Turn off Review Mode?", "Client approval bypass will be disabled.", [
+                { text: "Cancel", style: "cancel" },
+                { text: "Turn off", onPress: () => void setReviewModeEnabled(false) },
+              ]);
+            }}
+          >
+            <Text style={styles.reviewModeOffText}>Turn off App Review Mode</Text>
+          </Pressable>
+        ) : null}
 
         <Text style={[styles.sectionTitle, styles.dangerSectionTitle]}>Danger zone</Text>
         <Text style={styles.sectionSub}>

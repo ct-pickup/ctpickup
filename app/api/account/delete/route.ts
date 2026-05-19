@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import {
+  ACCOUNT_DELETE_SUPPORT_ERROR,
+  deleteUserAccount,
+} from "@/lib/account/deleteUserAccount";
 import { supabaseService } from "@/lib/supabase/service";
 
 export const runtime = "nodejs";
@@ -22,19 +26,11 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  const userId = user.id;
-
-  const { error: profileErr } = await svc.from("profiles").delete().eq("id", userId);
-  if (profileErr) {
-    console.error("[account/delete] profiles delete:", profileErr);
-    return NextResponse.json({ ok: false, error: "Failed to delete profile" }, { status: 500 });
+  try {
+    await deleteUserAccount(svc, user.id, user.email);
+    return NextResponse.json({ ok: true });
+  } catch (e: unknown) {
+    console.error("[account/delete]", e);
+    return NextResponse.json({ ok: false, error: ACCOUNT_DELETE_SUPPORT_ERROR }, { status: 500 });
   }
-
-  const { error: deleteUserErr } = await svc.auth.admin.deleteUser(userId);
-  if (deleteUserErr) {
-    console.error("[account/delete] auth.admin.deleteUser:", deleteUserErr);
-    return NextResponse.json({ ok: false, error: "Failed to delete account" }, { status: 500 });
-  }
-
-  return NextResponse.json({ ok: true });
 }

@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { useProfileApproval } from "@/hooks/useProfileApproval";
 import { type ChatReactionGroup, postChatMessageViaApi } from "@/lib/chatApi";
 import { CHAT_PROFANITY_USER_MESSAGE, messageContainsProfanity } from "@/lib/chatProfanity";
 import { isAdminDmGroupSlug, type ChatMessageRow, type ChatRoomSummary } from "@/lib/teamChat";
@@ -217,31 +218,19 @@ export function useChatBlockedUserIds(enabled: boolean) {
 }
 
 export function useTeamChatAccess() {
-  const { supabase, session } = useAuth();
-  const [allowed, setAllowed] = useState<boolean | null>(null);
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const { session } = useAuth();
+  const { approved, isAdmin, isReady } = useProfileApproval();
+  const userId = session?.user?.id ?? null;
 
-  useEffect(() => {
-    if (!supabase || !session?.user?.id) {
-      setAllowed(null);
-      setIsAdmin(null);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      const { data } = await supabase.from("profiles").select("approved,is_admin").eq("id", session.user.id).maybeSingle();
-      if (cancelled) return;
-      const admin = !!(data && data.is_admin === true);
-      const ok = !!(data && (data.approved === true || admin));
-      setIsAdmin(admin);
-      setAllowed(ok);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [supabase, session?.user?.id]);
+  if (!userId) {
+    return { allowed: null as boolean | null, isAdmin: null as boolean | null };
+  }
 
-  return { allowed, isAdmin };
+  if (!isReady) {
+    return { allowed: null, isAdmin: null };
+  }
+
+  return { allowed: approved, isAdmin };
 }
 
 function aggregateReactionRowsForMessages(

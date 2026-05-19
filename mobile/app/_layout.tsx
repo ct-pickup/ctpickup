@@ -12,12 +12,14 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native
 import { AppOpeningTheme, clearAppOpeningThemeFlag } from "@/components/AppOpeningTheme";
 import { AppLockOverlay } from "@/components/AppLockOverlay";
 import { PushRegistrar } from "@/components/PushRegistrar";
+import { ReviewModeBanner } from "@/components/ReviewModeBanner";
 import { AppLockProvider } from "@/context/AppLockContext";
 import { AccountIntroReplayProvider } from "@/context/AccountIntroReplayContext";
 import { AdminModeProvider } from "@/context/AdminModeContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { ProfileCompletionProvider } from "@/context/ProfileCompletionContext";
 import { ProfileAdminProvider } from "@/context/ProfileAdminContext";
+import { ReviewModeProvider } from "@/context/ReviewModeContext";
 import { WaiverProvider } from "@/context/WaiverContext";
 import { SelectedRegionProvider } from "@/context/SelectedRegionContext";
 import { ReplayOpeningThemeContext } from "@/context/ReplayOpeningThemeContext";
@@ -92,11 +94,13 @@ function RootLayoutNav() {
         <WaiverProvider>
           <ProfileCompletionProvider>
             <ProfileAdminProvider>
+              <ReviewModeProvider>
               <AdminModeProvider>
                 <SelectedRegionProvider>
                   <AppLockProvider>
                     <AccountIntroReplayProvider>
                       <View style={{ flex: 1 }}>
+                        <ReviewModeBanner />
                         <PushRegistrar />
                         <ThemeProvider
                           value={
@@ -352,6 +356,7 @@ function RootLayoutNav() {
                   </AppLockProvider>
                 </SelectedRegionProvider>
               </AdminModeProvider>
+              </ReviewModeProvider>
             </ProfileAdminProvider>
           </ProfileCompletionProvider>
         </WaiverProvider>
