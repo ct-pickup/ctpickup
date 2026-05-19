@@ -1,7 +1,11 @@
-import { ACCOUNT_ZIP_NO_NEAREST_VENUE_MSG } from "@/lib/playerLocationHints";
+import {
+  ACCOUNT_NO_HUB_NEAR_ZIP_MSG,
+  ACCOUNT_ZIP_NO_NEAREST_VENUE_MSG,
+} from "@/lib/playerLocationHints";
 import { PROFILE_USERNAME_MAX_LEN } from "@/lib/profileIdentityFields";
+import { serviceRegionName } from "@/lib/serviceRegions";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
-import { accountStyles as styles, POSITION_OPTIONS, type PositionValue } from "./accountStyles";
+import { accountStyles as styles, LIME, POSITION_OPTIONS, type PositionValue } from "./accountStyles";
 import { SelectModal } from "./SelectModal";
 
 function labelFor<T extends { value: string; label: string }>(options: readonly T[], value: string | null): string {
@@ -26,6 +30,10 @@ type Props = {
   setEditUsername: (v: string) => void;
   editBusy: boolean;
   profileNearestVenue: string | null;
+  profileRegionCode: string | null;
+  profileZipCode: string | null;
+  hubRegionResolving: boolean;
+  hubVenueResolveDone: boolean;
   usernameAutoFromName: boolean;
   positionPickerOpen: boolean;
   setPositionPickerOpen: (v: boolean) => void;
@@ -52,6 +60,10 @@ export function ProfileSection({
   setEditUsername,
   editBusy,
   profileNearestVenue,
+  profileRegionCode,
+  profileZipCode,
+  hubRegionResolving,
+  hubVenueResolveDone,
   usernameAutoFromName,
   positionPickerOpen,
   setPositionPickerOpen,
@@ -134,6 +146,23 @@ export function ProfileSection({
         {editZipCode.replace(/\D/g, "").length === 5 && !String(profileNearestVenue ?? "").trim() ? (
           <Text style={styles.zipNearestHint}>{ACCOUNT_ZIP_NO_NEAREST_VENUE_MSG}</Text>
         ) : null}
+        <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Region</Text>
+        {profileRegionCode ? (
+          <Text style={styles.regionValue}>
+            {serviceRegionName(profileRegionCode)} ({profileRegionCode})
+          </Text>
+        ) : hubRegionResolving ? (
+          <View style={styles.regionResolvingRow}>
+            <ActivityIndicator color={LIME} size="small" />
+            <Text style={styles.regionResolvingText}>Finding your hub…</Text>
+          </View>
+        ) : String(profileZipCode ?? "")
+            .replace(/\D/g, "")
+            .slice(0, 5).length === 5 && hubVenueResolveDone ? (
+          <Text style={styles.zipNearestHint}>{ACCOUNT_NO_HUB_NEAR_ZIP_MSG}</Text>
+        ) : (
+          <Text style={styles.regionMuted}>No CT Pickup hub on file for this profile.</Text>
+        )}
         <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Username</Text>
         {editUsername.trim() ? <Text style={styles.usernameAtPreview}>@{editUsername.trim()}</Text> : null}
         <TextInput

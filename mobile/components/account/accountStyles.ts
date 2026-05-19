@@ -125,6 +125,10 @@ export const accountStyles = StyleSheet.create({
   statusPillTextGreen: { color: LIME },
   statusPillTextAmber: { color: "#fcd34d" },
   referralCode: { marginTop: 8, fontSize: 22, fontWeight: "900", color: LIME, letterSpacing: 2 },
+  regionValue: { marginTop: 8, fontSize: 16, fontWeight: "700", color: "#fff" },
+  regionMuted: { marginTop: 8, fontSize: 15, color: "rgba(255,255,255,0.45)", lineHeight: 20 },
+  regionResolvingRow: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 10 },
+  regionResolvingText: { fontSize: 14, color: "rgba(255,255,255,0.55)" },
   creditActive: { marginTop: 10, fontSize: 15, fontWeight: "700", color: LIME },
   creditUsed: {
     marginTop: 10,

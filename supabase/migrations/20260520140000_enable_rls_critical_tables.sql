@@ -78,12 +78,6 @@ create policy pickup_run_rsvps_select_own_or_run
   to authenticated
   using (
     user_id = auth.uid()
-    or exists (
-      select 1
-      from public.pickup_run_rsvps mine
-      where mine.run_id = pickup_run_rsvps.run_id
-        and mine.user_id = auth.uid()
-    )
     or public.is_admin_uid(auth.uid())
   );
 

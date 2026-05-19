@@ -88,6 +88,9 @@ export function ReferralSection({ accessToken }: Props) {
       } else {
         setPickupCredits([]);
       }
+    } catch {
+      setStatus(null);
+      setPickupCredits([]);
     } finally {
       setLoading(false);
     }
