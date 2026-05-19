@@ -6,10 +6,10 @@ Use this document for **App Store Connect → App Review Information → Notes**
 
 | Field | Value |
 | --- | --- |
-| **Email** | `appreview@ctpickup.net` |
+| **Email** | `pickupct@gmail.com` |
 | **Password** | `CtPickup_AppReview2026!` |
 
-**Sign-in on the iOS app:** Open the app → enter the email above → tap to send an **8-digit code** → enter the code from the inbox for `appreview@ctpickup.net` (codes are monitored for review). The password is for Supabase Dashboard / backup access; the mobile app uses email OTP, not a password field.
+**Sign-in on the iOS app:** Open the app → enter the email above → tap to send an **8-digit code** → enter the code from the inbox for `pickupct@gmail.com` (codes are monitored for review). The password is for Supabase Dashboard / backup access; the mobile app uses email OTP, not a password field.
 
 This account is **pre-approved** in production with **player** (non-admin) permissions, **tier 1A** (`tier_rank = 1`), and **nearest venue** `New Haven SoccerRoof` (Connecticut hub).
 
@@ -31,7 +31,7 @@ Review Mode does not change server data; use the pre-approved demo account for f
 ### 1. Sign in
 
 1. Launch **CT Pickup**.
-2. Enter `appreview@ctpickup.net`.
+2. Enter `pickupct@gmail.com`.
 3. Request the sign-in code and enter the **8-digit code** from email.
 4. Complete the **liability waiver** if prompted (one-time).
 5. Complete **profile** fields if prompted (name, ZIP, position).
@@ -78,7 +78,7 @@ Before checkout, the app shows: *Payment is for a physical soccer session at [ve
 
 ## Push notifications during review
 
-1. On the demo device, sign in as `appreview@ctpickup.net`.
+1. On the demo device, sign in as `pickupct@gmail.com`.
 2. On **Profile**, enable **Push notifications** and **Marketing updates**, and allow iOS permission when asked.
 3. A **staff admin** (separate account) opens the app → **Admin** tab → **Broadcast Message** (or uses the web admin at `https://ctpickup.net`).
 4. Send a test broadcast to **All approved** or filter by **CT** / **tier 1A** so the demo user receives it (broadcasts only reach users with **Marketing updates** enabled).
