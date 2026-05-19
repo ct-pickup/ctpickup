@@ -16,13 +16,37 @@ type ReferralStatus = {
   credits: number;
 };
 
+type PickupCreditItem = {
+  id: string;
+  reason: string;
+  amount_cents: number | null;
+  discount_pct: number | null;
+  awarded_at: string;
+  expires_at: string;
+  used_at: string | null;
+  is_expired: boolean;
+  is_used: boolean;
+};
+
 type Props = {
   accessToken: string | null;
 };
 
+function creditLabel(c: PickupCreditItem): string {
+  if (c.discount_pct != null && c.discount_pct > 0) return `${c.discount_pct}% off`;
+  return "Free run";
+}
+
+function formatCreditMonth(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("en-US", { month: "short", year: "numeric", timeZone: "America/New_York" });
+}
+
 export function ReferralSection({ accessToken }: Props) {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<ReferralStatus | null>(null);
+  const [pickupCredits, setPickupCredits] = useState<PickupCreditItem[]>([]);
   const [applyCode, setApplyCode] = useState("");
   const [applyBusy, setApplyBusy] = useState(false);
   const [applyMsg, setApplyMsg] = useState<string | null>(null);
@@ -31,17 +55,24 @@ export function ReferralSection({ accessToken }: Props) {
     const origin = siteOrigin();
     if (!origin || !accessToken) {
       setStatus(null);
+      setPickupCredits([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const r = await fetch(`${origin}/api/referral/status`, {
-        headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
-        cache: "no-store",
-      });
-      const j = (await r.json().catch(() => null)) as ReferralStatus & { error?: string };
-      if (r.ok && j?.referral_code) {
+      const [statusRes, creditsRes] = await Promise.all([
+        fetch(`${origin}/api/referral/status`, {
+          headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+          cache: "no-store",
+        }),
+        fetch(`${origin}/api/pickup/credits`, {
+          headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+          cache: "no-store",
+        }),
+      ]);
+      const j = (await statusRes.json().catch(() => null)) as ReferralStatus & { error?: string };
+      if (statusRes.ok && j?.referral_code) {
         setStatus({
           referral_code: j.referral_code,
           referrals_count: Number(j.referrals_count ?? 0),
@@ -49,6 +80,13 @@ export function ReferralSection({ accessToken }: Props) {
         });
       } else {
         setStatus(null);
+      }
+
+      const cj = (await creditsRes.json().catch(() => null)) as { credits?: PickupCreditItem[] };
+      if (creditsRes.ok && Array.isArray(cj?.credits)) {
+        setPickupCredits(cj.credits);
+      } else {
+        setPickupCredits([]);
       }
     } finally {
       setLoading(false);
@@ -89,6 +127,9 @@ export function ReferralSection({ accessToken }: Props) {
       setApplyBusy(false);
     }
   }
+
+  const activeCredits = pickupCredits.filter((c) => !c.is_used && !c.is_expired);
+  const inactiveCredits = pickupCredits.filter((c) => c.is_used || c.is_expired);
 
   return (
     <>
@@ -142,6 +183,42 @@ export function ReferralSection({ accessToken }: Props) {
           </>
         ) : (
           <Text style={styles.cardMuted}>Referral info isn’t available right now.</Text>
+        )}
+      </View>
+
+      <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Your credits</Text>
+      <View style={styles.card}>
+        {loading ? (
+          <View style={styles.cardLoadingRow}>
+            <ActivityIndicator color="#fff" />
+          </View>
+        ) : activeCredits.length === 0 && inactiveCredits.length === 0 ? (
+          <Text style={styles.cardMuted}>
+            No credits yet — earn one by referring friends or winning Player of the Month!
+          </Text>
+        ) : (
+          <>
+            {activeCredits.map((c) => (
+              <Text key={c.id} style={styles.creditActive}>
+                {creditLabel(c)} · expires {formatCreditMonth(c.expires_at)}
+              </Text>
+            ))}
+            {inactiveCredits.map((c) => {
+              const label = creditLabel(c);
+              if (c.is_used) {
+                return (
+                  <Text key={c.id} style={styles.creditUsed}>
+                    {label} · used {formatCreditMonth(c.used_at || c.awarded_at)}
+                  </Text>
+                );
+              }
+              return (
+                <Text key={c.id} style={styles.creditExpired}>
+                  {label} · expired {formatCreditMonth(c.expires_at)}
+                </Text>
+              );
+            })}
+          </>
         )}
       </View>
     </>

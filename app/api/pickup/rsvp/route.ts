@@ -666,7 +666,7 @@ export async function POST(req: Request) {
     userId: user.id,
     stripeCheckoutSessionId: session.id,
     stripePaymentIntentId: paymentIntentIdFromCheckoutSession(session),
-    amountCents: feeCents,
+    amountCents: unitAmount,
     currency: String(run.currency || "usd"),
     title: `Pickup field fee — ${String(run.title || "Run").trim() || "Run"}`,
     summary: null,

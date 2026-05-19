@@ -842,3 +842,24 @@ export function postAdminDeleteRun(accessToken: string, runId: string) {
   );
 }
 
+export type MonthlyLeadersLeaderRow = { user_id: string; count: number; name: string };
+
+export type MonthlyLeadersResponse = {
+  month_key: string;
+  previous_month_key: string;
+  pod_top: MonthlyLeadersLeaderRow[];
+  attendance_top: MonthlyLeadersLeaderRow[];
+  last_month_winners: {
+    user_id: string;
+    reason: string;
+    name: string;
+    discount_pct: number | null;
+  }[];
+};
+
+export function fetchAdminMonthlyLeaders(accessToken: string) {
+  return adminFetch<MonthlyLeadersResponse>("/api/admin/pickup/monthly-leaders", accessToken, {
+    method: "GET",
+  });
+}
+
