@@ -1,9 +1,19 @@
 import { useAuth } from "@/context/AuthContext";
+import {
+  biometricSignInLabel,
+  disableBiometricSignIn,
+  enableBiometricSignIn,
+  getBiometricSignInEmail,
+  isBiometricSignInAvailable,
+  isBiometricSignInEnabled,
+  unlockBiometricSignInCredentials,
+} from "@/lib/biometricSignIn";
 import { hasSupabaseEnv, siteOrigin } from "@/lib/env";
 import { checkEmailExistsResult } from "@/lib/siteApi";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 import {
   ActivityIndicator,
   Alert,
@@ -18,10 +28,12 @@ import {
 } from "react-native";
 
 const OTP_RESEND_COOLDOWN_SEC = 30;
-
-type OtpFlow = "login" | "signup";
+const PASSWORD_MIN_LEN = 8;
 
 const PANEL_ANIM_MS = 420;
+
+type AuthMode = "login" | "signup";
+type SignupStage = "email" | "code" | "password";
 
 type Props = {
   /** Hide the “Sign in” section label (e.g. login screen has its own headline). */
@@ -34,14 +46,17 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
   const router = useRouter();
   const { supabase, refreshSession } = useAuth();
 
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
+  const [signupStage, setSignupStage] = useState<SignupStage>("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [stage, setStage] = useState<"email" | "code">("email");
-  const [signupFlowChoice, setSignupFlowChoice] = useState<"returning" | "new">("returning");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [showSendRetry, setShowSendRetry] = useState(false);
   const [resendCooldownSec, setResendCooldownSec] = useState(0);
+  const [bioLabel, setBioLabel] = useState("Face ID");
+  const [bioSignInReady, setBioSignInReady] = useState(false);
 
   useEffect(() => {
     if (Platform.OS !== "android") return;
@@ -49,6 +64,18 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
       UIManager.setLayoutAnimationEnabledExperimental(true);
     }
   }, []);
+
+  useEffect(() => {
+    void (async () => {
+      const [label, enabled, available] = await Promise.all([
+        biometricSignInLabel(),
+        isBiometricSignInEnabled(),
+        isBiometricSignInAvailable(),
+      ]);
+      setBioLabel(label);
+      setBioSignInReady(enabled && available);
+    })();
+  }, [authMode]);
 
   function animatePanel() {
     LayoutAnimation.configureNext(
@@ -70,27 +97,28 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
     return () => clearInterval(id);
   }, [resendCooldownSec]);
 
-  useEffect(() => {
-    if (signupFlowChoice !== "new") return;
-    animatePanel();
-    setStage("email");
-    setCode("");
-    setResendCooldownSec(0);
-    setMsg(null);
-    setShowSendRetry(false);
-  }, [signupFlowChoice]);
-
   function clearAuthHints() {
     setShowSendRetry(false);
   }
 
-  function goWrongEmailStep() {
+  function resetSignupFlow() {
     animatePanel();
-    setStage("email");
+    setSignupStage("email");
     setCode("");
+    setPassword("");
     setResendCooldownSec(0);
     setMsg(null);
     clearAuthHints();
+  }
+
+  function switchAuthMode(next: AuthMode) {
+    if (next === authMode) return;
+    animatePanel();
+    setAuthMode(next);
+    resetSignupFlow();
+    if (next === "login") {
+      setPassword("");
+    }
   }
 
   const emailLooksValid = useMemo(() => {
@@ -102,17 +130,53 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
     return true;
   }, [emailClean]);
 
-  async function postSignInOtp(skipExistsGate: boolean, _flow: OtpFlow): Promise<boolean> {
+  const passwordLooksValid = password.length >= PASSWORD_MIN_LEN;
+
+  async function finishAuth() {
+    if (!supabase) return;
+    const { data: sessionPayload, error: sessionErr } = await supabase.auth.getSession();
+    if (sessionErr || !sessionPayload.session) {
+      const userMsg = "Signed in, but couldn’t load your session. Please try again.";
+      setMsg(userMsg);
+      Alert.alert("Session error", userMsg);
+      return;
+    }
+    await refreshSession();
+    await Promise.resolve();
+    router.replace("/(tabs)");
+  }
+
+  async function maybeOfferBiometricSignIn(loginPassword: string) {
+    const [available, enabled] = await Promise.all([isBiometricSignInAvailable(), isBiometricSignInEnabled()]);
+    if (!available || enabled) return;
+
+    const label = await biometricSignInLabel();
+    Alert.alert(
+      `Enable ${label} for faster sign-in?`,
+      `Use ${label} next time instead of typing your password.`,
+      [
+        { text: "Not now", style: "cancel" },
+        {
+          text: "Enable",
+          onPress: () => {
+            void enableBiometricSignIn(emailClean, loginPassword).then(() => {
+              setBioSignInReady(true);
+            });
+          },
+        },
+      ],
+    );
+  }
+
+  async function postSignInOtp(skipStageAdvance: boolean): Promise<boolean> {
     if (!supabase) {
       setMsg("Sign-in isn't ready yet on this build.");
-      console.error("[auth] signInWithOtp: missing supabase client", { email: emailClean });
       return false;
     }
     try {
       const { data, error } = await supabase.auth.signInWithOtp({
         email: emailClean,
         options: {
-          // Some Supabase email templates include a confirmation link; this helps ensure the link is valid.
           emailRedirectTo: siteOrigin() ? `${siteOrigin()}/login` : undefined,
         },
       });
@@ -124,19 +188,9 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
             : "We couldn’t send the code right now. Please try again.";
         setMsg(userMsg);
         Alert.alert("Couldn’t send code", userMsg);
-        console.error("[auth] signInWithOtp error", {
-          error,
-          email: emailClean,
-          hasData: !!data,
-        });
+        console.error("[auth] signInWithOtp error", { error, email: emailClean, hasData: !!data });
         return false;
       }
-
-      // Supabase can't guarantee delivery here; but reaching this point means the request was accepted.
-      console.log("[auth] signInWithOtp accepted", {
-        email: emailClean,
-        hasData: !!data,
-      });
     } catch (e) {
       const userMsg = "We couldn’t send the code right now. Please try again.";
       setMsg(userMsg);
@@ -144,9 +198,9 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
       console.error("[auth] signInWithOtp threw", { error: e, email: emailClean });
       return false;
     }
-    if (!skipExistsGate) {
+    if (!skipStageAdvance) {
       animatePanel();
-      setStage("code");
+      setSignupStage("code");
     }
     setResendCooldownSec(OTP_RESEND_COOLDOWN_SEC);
     setMsg(null);
@@ -154,7 +208,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
     return true;
   }
 
-  async function submitSendCode() {
+  async function submitSignupSendCode() {
     if (!emailLooksValid || busy || !supabase) {
       if (!emailLooksValid) setMsg("Enter a valid email address.");
       return;
@@ -185,42 +239,30 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
       } else {
         setMsg("Could not verify that email right now. Try again in a moment.");
       }
-      console.error("[auth] checkEmailExistsResult failed", { email: emailClean, reason });
+      return;
+    }
+    if (existsResult.exists) {
+      setBusy(false);
+      setMsg('This email already has an account. Tap "Already have an account?" above to sign in.');
       return;
     }
 
-    const isReturning = signupFlowChoice === "returning";
-    if (isReturning && !existsResult.exists) {
-      setBusy(false);
-      setMsg('No account for this email yet. Tap "New here?" above to create one with an email code all in this app.');
-      return;
-    }
-    if (!isReturning && existsResult.exists) {
-      setBusy(false);
-      setMsg('This email already has an account. Tap "Returning" above and sign in.');
-      return;
-    }
-
-    const flow: OtpFlow = isReturning ? "login" : "signup";
-    const ok = await postSignInOtp(false, flow);
+    const ok = await postSignInOtp(false);
     setBusy(false);
     if (!ok) return;
   }
 
-  async function resendCode() {
+  async function resendSignupCode() {
     if (busy || resendCooldownSec > 0 || !supabase) return;
     setBusy(true);
     setMsg(null);
     clearAuthHints();
-    const flow: OtpFlow = signupFlowChoice === "new" ? "signup" : "login";
-    const ok = await postSignInOtp(true, flow);
+    const ok = await postSignInOtp(true);
     setBusy(false);
-    if (ok) {
-      setMsg("We sent a new code.");
-    }
+    if (ok) setMsg("We sent a new code.");
   }
 
-  async function verifyCode() {
+  async function verifySignupCode() {
     if (!code.trim() || busy || !supabase) return;
     setBusy(true);
     setMsg(null);
@@ -237,95 +279,188 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
         type: "email",
       });
       if (error) {
-        const userMsg =
-          /expired/i.test(error.message ?? "") ? "That code expired. Tap “Resend code” and try again." : "Invalid code. Please try again.";
+        const userMsg = /expired/i.test(error.message ?? "")
+          ? "That code expired. Tap “Resend code” and try again."
+          : "Invalid code. Please try again.";
         setBusy(false);
         setMsg(userMsg);
         Alert.alert("Couldn’t verify code", userMsg);
-        console.error("[auth] verifyOtp error", { error, email: emailClean });
         return;
       }
-
-      const { data: sessionPayload, error: sessionErr } = await supabase.auth.getSession();
-      if (sessionErr) {
-        setBusy(false);
-        const userMsg = "Signed in, but couldn’t load your session. Please try again.";
-        setMsg(userMsg);
-        Alert.alert("Session error", userMsg);
-        console.error("[auth] getSession error after verifyOtp", { error: sessionErr, email: emailClean });
-        return;
-      }
-      if (!sessionPayload.session) {
-        setBusy(false);
-        const userMsg = "Signed in, but couldn’t load your session. Please try again.";
-        setMsg(userMsg);
-        Alert.alert("Session error", userMsg);
-        console.error("[auth] missing session after verifyOtp", { email: emailClean });
-        return;
-      }
-
-      await refreshSession();
-      // One yield so React commits session before (tabs) mounts; avoids Redirect → /login when session is still stale.
-      await Promise.resolve();
-      router.replace("/(tabs)");
+      animatePanel();
+      setSignupStage("password");
+      setPassword("");
+      setMsg(null);
       setBusy(false);
+    } catch (e) {
+      setBusy(false);
+      const userMsg = "Something went wrong while verifying your code. Please try again.";
+      setMsg(userMsg);
+      Alert.alert("Verification error", userMsg);
+      console.error("[auth] verify signup code threw", { error: e, email: emailClean });
+    }
+  }
+
+  async function submitSignupPassword() {
+    if (!supabase || busy) return;
+    if (!passwordLooksValid) {
+      setMsg(`Password must be at least ${PASSWORD_MIN_LEN} characters.`);
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) {
+        setBusy(false);
+        const userMsg = "Could not set your password. Please try again.";
+        setMsg(userMsg);
+        Alert.alert("Password error", userMsg);
+        console.error("[auth] updateUser password after signup failed", { error, email: emailClean });
+        return;
+      }
+      await finishAuth();
+    } catch (e) {
+      setBusy(false);
+      const userMsg = "Something went wrong. Please try again.";
+      setMsg(userMsg);
+      Alert.alert("Sign-up error", userMsg);
+      console.error("[auth] signup password threw", { error: e, email: emailClean });
+      return;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitPasswordLogin() {
+    if (!supabase || busy) return;
+    if (!emailLooksValid) {
+      setMsg("Enter a valid email address.");
+      return;
+    }
+    if (!passwordLooksValid) {
+      setMsg(`Enter your password (at least ${PASSWORD_MIN_LEN} characters).`);
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: emailClean,
+        password,
+      });
+      if (error) {
+        setBusy(false);
+        const userMsg = /invalid login credentials/i.test(error.message ?? "")
+          ? "Incorrect email or password."
+          : "Could not sign in. Please try again.";
+        setMsg(userMsg);
+        console.error("[auth] signInWithPassword failed", { error, email: emailClean });
+        return;
+      }
+      const storedEmail = await getBiometricSignInEmail();
+      if (storedEmail && storedEmail !== emailClean) {
+        await disableBiometricSignIn();
+        setBioSignInReady(false);
+      }
+      await finishAuth();
+      void maybeOfferBiometricSignIn(password);
     } catch (e) {
       setBusy(false);
       const userMsg = "Something went wrong while signing in. Please try again.";
       setMsg(userMsg);
       Alert.alert("Sign-in error", userMsg);
-      console.error("[auth] verify flow threw", { error: e, email: emailClean });
+      console.error("[auth] password login threw", { error: e, email: emailClean });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitBiometricLogin() {
+    if (!supabase || busy) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const unlock = await unlockBiometricSignInCredentials();
+      if (!unlock.ok) {
+        setBusy(false);
+        if (unlock.error === "user_cancel" || unlock.error === "system_cancel") return;
+        if (unlock.error === "disabled" || unlock.error === "missing_credentials") {
+          setBioSignInReady(false);
+          setMsg("Biometric sign-in is not set up. Sign in with your password.");
+          return;
+        }
+        setMsg("Biometric sign-in failed. Try your password instead.");
+        return;
+      }
+      const { email: storedEmail, password: storedPassword } = unlock.credentials;
+      setEmail(storedEmail);
+      const { error } = await supabase.auth.signInWithPassword({
+        email: storedEmail,
+        password: storedPassword,
+      });
+      if (error) {
+        await disableBiometricSignIn();
+        setBioSignInReady(false);
+        setBusy(false);
+        setMsg("Stored sign-in expired. Enter your password and sign in again.");
+        console.error("[auth] biometric signInWithPassword failed", { error, email: storedEmail });
+        return;
+      }
+      await finishAuth();
+    } catch (e) {
+      setBusy(false);
+      setMsg("Biometric sign-in failed. Try your password instead.");
+      console.error("[auth] biometric login threw", { error: e });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitForgotPassword() {
+    if (!supabase || busy) return;
+    if (!emailLooksValid) {
+      setMsg("Enter your email address first.");
       return;
     }
-
-    setTimeout(() => {
-      void (async () => {
-        try {
-          const { data } = await supabase.auth.getSession();
-          if (data.session) {
-            router.replace("/(tabs)");
-          }
-        } catch {
-          // best-effort fallback; ignore
-        }
-      })();
-    }, 500);
-  }
-
-  function selectReturning(fromSegment = false) {
-    if (signupFlowChoice !== "returning" || fromSegment) animatePanel();
-    setSignupFlowChoice("returning");
-    if (stage === "code" || fromSegment) {
-      goWrongEmailStep();
-    } else {
-      setMsg(null);
-      clearAuthHints();
+    setBusy(true);
+    setMsg(null);
+    try {
+      const redirectTo = Linking.createURL("reset-password");
+      const { error } = await supabase.auth.resetPasswordForEmail(emailClean, { redirectTo });
+      if (error) {
+        setMsg("Could not send reset email. Please try again.");
+        console.error("[auth] resetPasswordForEmail failed", { error, email: emailClean });
+        return;
+      }
+      setMsg("Check your email for a password reset link.");
+    } finally {
+      setBusy(false);
     }
   }
+
+  const showModeToggle = variant === "segmented" || variant === "premium";
 
   return (
     <>
       {!hideHeading ? <Text style={[styles.sectionTitle, styles.sectionAboveAuth]}>Sign in</Text> : null}
-      {variant === "segmented" || variant === "premium" ? (
+      {showModeToggle ? (
         <View style={[styles.segmentRow, variant === "premium" && styles.segmentRowPremium]}>
           <Pressable
             accessibilityRole="button"
-            style={[styles.segmentChip, signupFlowChoice === "returning" && styles.segmentChipActive]}
-            onPress={() => selectReturning(true)}
+            style={[styles.segmentChip, authMode === "signup" && styles.segmentChipActive]}
+            onPress={() => switchAuthMode("signup")}
           >
-            <Text style={[styles.segmentChipText, signupFlowChoice === "returning" && styles.segmentChipTextActive]}>Returning</Text>
+            <Text style={[styles.segmentChipText, authMode === "signup" && styles.segmentChipTextActive]}>New here?</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            style={[styles.segmentChip, signupFlowChoice === "new" && styles.segmentChipActive]}
-            onPress={() => {
-              animatePanel();
-              setSignupFlowChoice("new");
-              setMsg(null);
-              clearAuthHints();
-            }}
+            style={[styles.segmentChip, authMode === "login" && styles.segmentChipActive]}
+            onPress={() => switchAuthMode("login")}
           >
-            <Text style={[styles.segmentChipText, signupFlowChoice === "new" && styles.segmentChipTextActive]}>New here?</Text>
+            <Text style={[styles.segmentChipText, authMode === "login" && styles.segmentChipTextActive]}>
+              Already have an account?
+            </Text>
           </Pressable>
         </View>
       ) : null}
@@ -341,11 +476,11 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
         ) : null}
         {!siteOk ? (
           <View style={[styles.configBox, styles.configBoxYellow]}>
-            <Text style={styles.configBody}>Add EXPO_PUBLIC_SITE_URL (your deployed site URL) so we can send login codes.</Text>
+            <Text style={styles.configBody}>Add EXPO_PUBLIC_SITE_URL (your deployed site URL) for account checks.</Text>
           </View>
         ) : null}
 
-        {stage === "email" ? (
+        {authMode === "login" ? (
           <>
             {variant === "premium" ? (
               <View style={[styles.premiumFieldLabelRow, styles.premiumFieldLabelRowCenter]}>
@@ -355,9 +490,89 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
             ) : (
               <Text style={styles.fieldLabel}>Email</Text>
             )}
-            {variant !== "premium" ? (
-              <Text style={styles.trustLine}>Enter your email to get a sign-in code</Text>
+            {variant !== "premium" ? <Text style={styles.trustLine}>Sign in with your password</Text> : null}
+            <TextInput
+              style={[styles.input, variant === "premium" && styles.inputPremium]}
+              placeholder="you@example.com"
+              placeholderTextColor={variant === "premium" ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.35)"}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={email}
+              onBlur={() =>
+                setEmail((v) => {
+                  const t = v.trim().toLowerCase();
+                  return t === v ? v : t;
+                })
+              }
+              onChangeText={setEmail}
+            />
+
+            <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>Password</Text>
+            <TextInput
+              style={[styles.input, variant === "premium" && styles.inputPremium]}
+              placeholder="Your password"
+              placeholderTextColor={variant === "premium" ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.35)"}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={password}
+              onChangeText={setPassword}
+              onSubmitEditing={() => void submitPasswordLogin()}
+            />
+
+            <Pressable
+              style={[styles.primaryBtn, (!emailLooksValid || !passwordLooksValid || busy || !canSignIn) && styles.disabled]}
+              disabled={!emailLooksValid || !passwordLooksValid || busy || !canSignIn}
+              onPress={() => void submitPasswordLogin()}
+            >
+              {busy ? (
+                <ActivityIndicator color="#0a0a0a" />
+              ) : (
+                <View style={styles.primaryBtnRow}>
+                  <Text style={styles.primaryBtnText}>Sign in with password</Text>
+                  {variant === "premium" ? <FontAwesome name="chevron-right" size={14} color="#0a0a0a" /> : null}
+                </View>
+              )}
+            </Pressable>
+
+            {bioSignInReady ? (
+              <Pressable
+                style={[styles.bioBtn, busy && styles.disabled]}
+                disabled={busy || !canSignIn}
+                onPress={() => void submitBiometricLogin()}
+              >
+                <FontAwesome
+                  name={bioLabel === "Touch ID" ? "hand-o-up" : "user-circle-o"}
+                  size={18}
+                  color="#e5e5e5"
+                />
+                <Text style={styles.bioBtnText}>Sign in with {bioLabel}</Text>
+              </Pressable>
             ) : null}
+
+            <Pressable style={styles.textBtn} disabled={busy || !canSignIn} onPress={() => void submitForgotPassword()}>
+              <Text style={styles.textBtnLabelStrong}>Forgot password?</Text>
+            </Pressable>
+
+            {variant === "simple" ? (
+              <Pressable style={styles.createAccountRow} onPress={() => switchAuthMode("signup")}>
+                <Text style={styles.createAccountText}>
+                  New to CT Pickup? <Text style={styles.createAccountStrong}>Create an account</Text>
+                </Text>
+              </Pressable>
+            ) : null}
+          </>
+        ) : signupStage === "email" ? (
+          <>
+            {variant === "premium" ? (
+              <View style={[styles.premiumFieldLabelRow, styles.premiumFieldLabelRowCenter]}>
+                <FontAwesome name="envelope-o" size={14} color="rgba(255,255,255,0.55)" />
+                <Text style={styles.premiumFieldLabel}>Email</Text>
+              </View>
+            ) : (
+              <Text style={styles.fieldLabel}>Email</Text>
+            )}
+            {variant !== "premium" ? <Text style={styles.trustLine}>We&apos;ll send an 8-digit code to verify your email</Text> : null}
             <TextInput
               style={[styles.input, variant === "premium" && styles.inputPremium]}
               placeholder="you@example.com"
@@ -376,7 +591,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
             <Pressable
               style={[styles.primaryBtn, (!emailLooksValid || busy || !canSignIn) && styles.disabled]}
               disabled={!emailLooksValid || busy || !canSignIn}
-              onPress={() => void submitSendCode()}
+              onPress={() => void submitSignupSendCode()}
             >
               {busy ? (
                 <ActivityIndicator color="#0a0a0a" />
@@ -387,28 +602,13 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
                 </View>
               )}
             </Pressable>
-            {variant === "simple" ? (
-              <Pressable
-                style={styles.createAccountRow}
-                onPress={() => {
-                  animatePanel();
-                  setSignupFlowChoice("new");
-                  setMsg(null);
-                  clearAuthHints();
-                }}
-              >
-                <Text style={styles.createAccountText}>
-                  New to CT Pickup? <Text style={styles.createAccountStrong}>Create an account</Text>
-                </Text>
-              </Pressable>
-            ) : null}
             {showSendRetry ? (
-              <Pressable style={styles.secondaryBtn} onPress={() => void submitSendCode()}>
+              <Pressable style={styles.secondaryBtn} onPress={() => void submitSignupSendCode()}>
                 <Text style={styles.secondaryBtnText}>Try again</Text>
               </Pressable>
             ) : null}
           </>
-        ) : (
+        ) : signupStage === "code" ? (
           <>
             <Text style={styles.fieldLabel}>8-digit code</Text>
             <Text style={styles.trustLine}>Sent to {emailClean}</Text>
@@ -419,7 +619,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
               keyboardType="number-pad"
               maxLength={12}
               value={code}
-              onChangeText={(t) => setCode(t)}
+              onChangeText={setCode}
               autoCorrect={false}
               autoCapitalize="none"
               spellCheck={false}
@@ -427,23 +627,47 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
               autoComplete={Platform.OS === "android" ? "sms-otp" : "one-time-code"}
               blurOnSubmit={false}
             />
-            <Pressable style={[styles.primaryBtn, busy && styles.disabled]} disabled={busy || !canSignIn} onPress={() => void verifyCode()}>
+            <Pressable style={[styles.primaryBtn, busy && styles.disabled]} disabled={busy || !canSignIn} onPress={() => void verifySignupCode()}>
               {busy ? <ActivityIndicator color="#111" /> : <Text style={styles.primaryBtnText}>Verify</Text>}
             </Pressable>
             <Pressable
               style={[styles.secondaryBtn, (busy || resendCooldownSec > 0 || !canSignIn) && styles.disabled]}
               disabled={busy || resendCooldownSec > 0 || !canSignIn}
-              onPress={() => void resendCode()}
+              onPress={() => void resendSignupCode()}
             >
               <Text style={styles.secondaryBtnText}>
                 {resendCooldownSec > 0 ? `Resend code (${resendCooldownSec}s)` : "Resend code"}
               </Text>
             </Pressable>
-            <Pressable style={styles.textBtn} onPress={() => goWrongEmailStep()}>
+            <Pressable style={styles.textBtn} onPress={() => resetSignupFlow()}>
               <Text style={styles.textBtnLabelStrong}>Wrong email? Start over</Text>
             </Pressable>
           </>
+        ) : (
+          <>
+            <Text style={styles.fieldLabel}>Set a password</Text>
+            <Text style={styles.trustLine}>Set a password for faster sign-in next time</Text>
+            <TextInput
+              style={[styles.input, variant === "premium" && styles.inputPremium]}
+              placeholder={`At least ${PASSWORD_MIN_LEN} characters`}
+              placeholderTextColor={variant === "premium" ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.35)"}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={password}
+              onChangeText={setPassword}
+              onSubmitEditing={() => void submitSignupPassword()}
+            />
+            <Pressable
+              style={[styles.primaryBtn, (!passwordLooksValid || busy || !canSignIn) && styles.disabled]}
+              disabled={!passwordLooksValid || busy || !canSignIn}
+              onPress={() => void submitSignupPassword()}
+            >
+              {busy ? <ActivityIndicator color="#0a0a0a" /> : <Text style={styles.primaryBtnText}>Continue</Text>}
+            </Pressable>
+          </>
         )}
+
         {msg ? <Text style={[styles.msg, styles.msgMuted]}>{msg}</Text> : null}
       </View>
     </>
@@ -477,7 +701,7 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   segmentChipActive: { borderColor: "rgba(163,230,53,0.35)", backgroundColor: "rgba(163,230,53,0.14)" },
-  segmentChipText: { color: "rgba(255,255,255,0.62)", fontSize: 14.5, fontWeight: "700" },
+  segmentChipText: { color: "rgba(255,255,255,0.62)", fontSize: 13, fontWeight: "700", textAlign: "center" },
   segmentChipTextActive: { color: "#fff" },
   trustLine: { marginTop: 6, fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 18 },
   configBox: {
@@ -525,6 +749,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.035)",
   },
   fieldLabel: { fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.55)" },
+  fieldLabelSpaced: { marginTop: 14 },
   premiumFieldLabelRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   premiumFieldLabelRowCenter: { justifyContent: "center" },
   premiumFieldLabel: { fontSize: 15, fontWeight: "800", color: "rgba(255,255,255,0.9)" },
@@ -554,6 +779,19 @@ const styles = StyleSheet.create({
   },
   primaryBtnRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
   primaryBtnText: { color: "#0a0a0a", fontWeight: "900", fontSize: 16 },
+  bioBtn: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  bioBtnText: { color: "#e5e5e5", fontWeight: "700", fontSize: 15 },
   disabled: { opacity: 0.5 },
   createAccountRow: { marginTop: 14, alignItems: "center" },
   createAccountText: { color: "rgba(255,255,255,0.75)", fontSize: 15, fontWeight: "500" },

@@ -59,7 +59,7 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.formWrap}>
-            <Text style={styles.lead}>Enter your email to get a sign-in code</Text>
+            <Text style={styles.lead}>Sign in with your password, or create an account with your email.</Text>
             <SignInPanel hideHeading variant="premium" />
           </View>
         </ScrollView>

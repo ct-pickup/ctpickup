@@ -1,5 +1,6 @@
 import { authRouteRef } from "@/lib/authRouteRef";
 import { clearStoredPin } from "@/lib/appLock";
+import { clearBiometricSignIn } from "@/lib/biometricSignIn";
 import { getMobileSupabaseClient } from "@/lib/supabase";
 import * as Sentry from "@sentry/react-native";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
@@ -91,6 +92,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await clearStoredPin();
     } catch (e) {
       console.warn("[auth] clearStoredPin failed during signOut:", e);
+      Sentry.captureException(e);
+    }
+    try {
+      await clearBiometricSignIn();
+    } catch (e) {
+      console.warn("[auth] clearBiometricSignIn failed during signOut:", e);
       Sentry.captureException(e);
     }
     await supabase.auth.signOut();
