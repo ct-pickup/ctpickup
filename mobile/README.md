@@ -110,6 +110,24 @@ Ensure **App Store Connect** has an app whose **bundle ID** matches `ios.bundleI
 - Change **`ios.bundleIdentifier`** in `app.json` before shipping if needed (must match App Store Connect).
 - Server-side: send notifications with **[Expo Push API](https://docs.expo.dev/push-notifications/sending-notifications/)** using tokens stored in `user_push_devices` (implement your pickup/tournament triggers in Next cron or Supabase jobs).
 
+## API & payments (via `EXPO_PUBLIC_SITE_URL`)
+
+The app calls your deployed **Next.js** origin (no trailing slash). Common routes:
+
+| Route | Purpose |
+|-------|---------|
+| `/api/pickup/public` | Featured run, roster, fees |
+| `/api/pickup/rsvp`, `/api/pickup/commit`, `/api/pickup/pay` | RSVP and paid spots |
+| `/api/stripe/create-checkout-session` | Hosted **Stripe Checkout** (field fees / tournaments) |
+| `/api/mobile/push-token`, `/api/mobile/push-preference` | Apple push registration and opt-in |
+| `/api/mobile/help` | In-app Help (AI) |
+| `/api/auth/email-exists` | Sign-in email check |
+| `/api/waiver/status` | Waiver gate |
+
+**Stripe:** Paid pickup and tournament slots open the same hosted Checkout session as the website (`expo-web-browser`), after an on-screen disclosure that the charge is for a **physical** session (App Store 3.1.3(e)). No in-app purchase of digital goods.
+
 ## Scope notes
 
-- **Pickup:** reads `/api/pickup/public` for run data; RSVP and waiver are in-app. Paid field fees open **Stripe Checkout** in an in-app browser via `expo-web-browser` (same hosted checkout as the website, with a physical-service disclosure before payment).
+- **Pickup:** reads `/api/pickup/public` for run data; RSVP and waiver are in-app. Paid field fees use **Stripe Checkout** as above.
+- **Tournaments:** field tournaments only (in-person); bracket/roster via `/api/tournament/*`.
+- **Esports / video-game tournaments:** web-only — not in the mobile app.

@@ -93,3 +93,7 @@ Currently uses **email OTP only**. Sign in with Apple will be added before any t
 ## Contact
 
 Questions during review: **pickupct@gmail.com**
+
+## Payments explanation for App Review
+
+CT Pickup charges fees exclusively for physical real-world soccer sessions and in-person tournaments. All payments are processed via Stripe and fall under App Store guideline 3.1.3(e) - goods and services consumed outside the app. No digital content, features, or unlockables are purchased through the app.

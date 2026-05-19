@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { truncatePushBody } from "@/lib/push/truncatePushBody";
 import {
   sendMarketingPushToAll,
-  sendMarketingPushToUsers,
+  sendPushToUsers,
   type SendPushResult,
 } from "@/lib/push/sendExpoPush";
 
@@ -51,7 +51,7 @@ export async function staffInsertChatMessageAndPush(
   };
 
   const push = isGroup
-    ? await sendMarketingPushToUsers(admin, userIds, pushPayload)
+    ? await sendPushToUsers(admin, userIds, pushPayload)
     : await sendMarketingPushToAll(admin, pushPayload);
   return { insertError: null, push };
 }

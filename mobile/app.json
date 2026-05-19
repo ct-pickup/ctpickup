@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "CT Pickup",
+    "description": "Soccer pickup & tournaments",
     "slug": "ctpickup-mobile",
     "version": "1.0.0",
     "orientation": "portrait",

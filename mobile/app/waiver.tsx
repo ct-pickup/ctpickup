@@ -288,8 +288,8 @@ export default function WaiverScreen() {
         <View style={[styles.section, { marginBottom: 8 }]}>
           <Text style={styles.h2}>15. No Affiliation</Text>
           <Text style={styles.p}>
-            This platform is not affiliated with or endorsed by EA SPORTS or other third parties referenced only in
-            connection with user-run activities.
+            This platform is not affiliated with or endorsed by any video game publisher, league, or brand. User-run
+            activities may reference third-party names only for identification; those parties do not sponsor CT Pickup.
           </Text>
         </View>
       </ScrollView>

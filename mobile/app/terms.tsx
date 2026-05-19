@@ -58,6 +58,7 @@ const TERMS_SECTIONS: TermSection[] = [
     title: "6. Payments and Refunds",
     paragraphs: [
       "All pickup run and tournament fees are processed securely through Stripe. Refund eligibility is determined by the cancellation policy displayed at the time of payment. CT Pickup reserves the right to modify pricing at any time.",
+      "Referral credits have no cash value and are non-transferable.",
     ],
   },
   {
