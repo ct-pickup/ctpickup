@@ -289,7 +289,7 @@ export default function AdminDatabaseScreen() {
               </Text>
             ) : (
               filteredRecords.map((row, idx) => {
-                const { title, subtitle, status } = formatAdminDbRecordSummary(selected.key, row);
+                const { title, subtitle, status, playerName } = formatAdminDbRecordSummary(selected.key, row);
                 const key =
                   typeof row.id === "string"
                     ? row.id
@@ -311,6 +311,11 @@ export default function AdminDatabaseScreen() {
                       </Text>
                       <StatusBadge status={status} />
                     </View>
+                    {playerName ? (
+                      <Text style={styles.recordPlayerName} numberOfLines={1}>
+                        {playerName}
+                      </Text>
+                    ) : null}
                     {subtitle ? (
                       <Text style={styles.recordSubtitle} numberOfLines={2}>
                         {subtitle}
@@ -473,7 +478,8 @@ const styles = StyleSheet.create({
   },
   recordTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 },
   recordTitle: { flex: 1, color: "#fff", fontSize: 15, fontWeight: "800", lineHeight: 20 },
-  recordSubtitle: { color: "rgba(255,255,255,0.55)", fontSize: 13, marginTop: 6, lineHeight: 18 },
+  recordPlayerName: { color: "rgba(255,255,255,0.75)", fontSize: 14, marginTop: 6, fontWeight: "500" },
+  recordSubtitle: { color: "rgba(255,255,255,0.55)", fontSize: 13, marginTop: 4, lineHeight: 18 },
   recordHint: { color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 8 },
   badge: {
     borderWidth: 1,

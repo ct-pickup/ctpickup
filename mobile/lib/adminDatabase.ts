@@ -212,6 +212,11 @@ function fmtDt(iso: unknown): string {
   return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
+function formatProfilePlayerName(first: unknown, last: unknown): string {
+  const name = [str(first), str(last)].filter(Boolean).join(" ");
+  return name || "Unknown";
+}
+
 /** Primary status field per table for badge display. */
 export function recordStatusField(table: AdminDbTableKey, row: Record<string, unknown>): string | null {
   if (table === "attendance") {
@@ -232,7 +237,7 @@ export function recordStatusField(table: AdminDbTableKey, row: Record<string, un
 export function formatAdminDbRecordSummary(
   table: AdminDbTableKey,
   row: Record<string, unknown>,
-): { title: string; subtitle: string; status: string | null } {
+): { title: string; subtitle: string; status: string | null; playerName?: string } {
   switch (table) {
     case "runs":
       return {
@@ -361,6 +366,7 @@ export function formatAdminDbRecordSummary(
     case "platform_payments":
       return {
         title: str(row.title) || str(row.product_type) || "Payment",
+        playerName: formatProfilePlayerName(row.first_name, row.last_name),
         subtitle: `${fmtMoneyCents(row.amount_cents)} · ${str(row.product_type)} · ${fmtDt(row.created_at)}`,
         status: recordStatusField(table, row) || str(row.fulfillment_status),
       };
@@ -372,7 +378,7 @@ export function formatAdminDbRecordSummary(
 export function recordMatchesSearch(table: AdminDbTableKey, row: Record<string, unknown>, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  const { title, subtitle, status } = formatAdminDbRecordSummary(table, row);
-  const blob = [title, subtitle, status, JSON.stringify(row)].join(" ").toLowerCase();
+  const { title, subtitle, status, playerName } = formatAdminDbRecordSummary(table, row);
+  const blob = [title, subtitle, status, playerName, JSON.stringify(row)].join(" ").toLowerCase();
   return blob.includes(q);
 }

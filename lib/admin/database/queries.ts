@@ -123,7 +123,7 @@ export const ADMIN_DATABASE_TABLE_CONFIG: Record<AdminDatabaseTableKey, TableQue
   platform_payments: {
     supabaseTable: "platform_payments",
     select:
-      "id,product_type,product_entity_id,user_id,title,amount_cents,currency,lifecycle_status,fulfillment_status,created_at,updated_at",
+      "id,product_type,product_entity_id,user_id,title,amount_cents,currency,lifecycle_status,fulfillment_status,created_at,updated_at,profiles(first_name,last_name)",
     orderBy: "created_at",
   },
 };
@@ -160,6 +160,59 @@ function latestTimestampFromRows(rows: Record<string, unknown>[], config: TableQ
     if (t > best) best = t;
   }
   return best > 0 ? new Date(best).toISOString() : null;
+}
+
+const PLATFORM_PAYMENTS_BASE_SELECT =
+  "id,product_type,product_entity_id,user_id,title,amount_cents,currency,lifecycle_status,fulfillment_status,created_at,updated_at";
+
+function flattenPlatformPaymentProfileJoin(
+  records: Record<string, unknown>[],
+): Record<string, unknown>[] {
+  return records.map((row) => {
+    const prof = row.profiles;
+    const { profiles: _profiles, ...rest } = row;
+    if (prof && typeof prof === "object" && !Array.isArray(prof)) {
+      const p = prof as Record<string, unknown>;
+      return {
+        ...rest,
+        first_name: p.first_name ?? null,
+        last_name: p.last_name ?? null,
+      };
+    }
+    return { ...rest, first_name: null, last_name: null };
+  });
+}
+
+async function attachProfileNamesToPlatformPayments(
+  admin: SupabaseClient,
+  records: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+  if (!records.length) return records;
+  const userIds = [
+    ...new Set(
+      records
+        .map((r) => r.user_id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0),
+    ),
+  ];
+  if (!userIds.length) {
+    return records.map((r) => ({ ...r, first_name: null, last_name: null }));
+  }
+  const { data, error } = await admin
+    .from("profiles")
+    .select("id,first_name,last_name")
+    .in("id", userIds);
+  if (error) throw new Error(error.message);
+  const byId = new Map((data ?? []).map((p) => [String(p.id), p]));
+  return records.map((r) => {
+    const uid = typeof r.user_id === "string" ? r.user_id : "";
+    const p = uid ? byId.get(uid) : undefined;
+    return {
+      ...r,
+      first_name: p?.first_name ?? null,
+      last_name: p?.last_name ?? null,
+    };
+  });
 }
 
 async function fetchTableSummary(
@@ -223,12 +276,25 @@ export async function fetchAdminDatabaseTable(
   if (config.applyFilter) dataQ = config.applyFilter(dataQ) as typeof dataQ;
   dataQ = dataQ.order(config.orderBy, { ascending: config.ascending ?? false }).limit(limit);
 
-  const dataRes = await dataQ;
+  let dataRes = await dataQ;
+  if (dataRes.error && key === "platform_payments") {
+    let fallbackQ = admin.from(config.supabaseTable).select(PLATFORM_PAYMENTS_BASE_SELECT);
+    if (config.applyFilter) fallbackQ = config.applyFilter(fallbackQ) as typeof fallbackQ;
+    fallbackQ = fallbackQ.order(config.orderBy, { ascending: config.ascending ?? false }).limit(limit);
+    dataRes = await fallbackQ;
+  }
   if (dataRes.error) {
     throw new Error(dataRes.error.message);
   }
 
-  const records = (dataRes.data ?? []) as unknown as Record<string, unknown>[];
+  let records = (dataRes.data ?? []) as unknown as Record<string, unknown>[];
+  if (key === "platform_payments") {
+    if (records.some((r) => Object.prototype.hasOwnProperty.call(r, "profiles"))) {
+      records = flattenPlatformPaymentProfileJoin(records);
+    } else {
+      records = await attachProfileNamesToPlatformPayments(admin, records);
+    }
+  }
   const summary = await fetchTableSummary(admin, key);
   const rowLatest = latestTimestampFromRows(records, config);
   if (rowLatest && (!summary.last_updated || Date.parse(rowLatest) > Date.parse(summary.last_updated))) {
