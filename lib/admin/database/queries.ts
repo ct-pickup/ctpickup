@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PostgrestSingleResponse, SupabaseClient } from "@supabase/supabase-js";
 import type { AdminDatabaseSectionSummary, AdminDatabaseTableKey } from "@/lib/admin/database/types";
 
 const DEFAULT_LIMIT = 50;
@@ -276,12 +276,12 @@ export async function fetchAdminDatabaseTable(
   if (config.applyFilter) dataQ = config.applyFilter(dataQ) as typeof dataQ;
   dataQ = dataQ.order(config.orderBy, { ascending: config.ascending ?? false }).limit(limit);
 
-  let dataRes = await dataQ;
+  let dataRes: PostgrestSingleResponse<unknown[]> = await dataQ;
   if (dataRes.error && key === "platform_payments") {
     let fallbackQ = admin.from(config.supabaseTable).select(PLATFORM_PAYMENTS_BASE_SELECT);
     if (config.applyFilter) fallbackQ = config.applyFilter(fallbackQ) as typeof fallbackQ;
     fallbackQ = fallbackQ.order(config.orderBy, { ascending: config.ascending ?? false }).limit(limit);
-    dataRes = await fallbackQ;
+    dataRes = await fallbackQ as unknown as PostgrestSingleResponse<unknown[]>;
   }
   if (dataRes.error) {
     throw new Error(dataRes.error.message);
