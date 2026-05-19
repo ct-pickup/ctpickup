@@ -1,34 +1,58 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
+import {
+  createDriveMinutesCache,
+  filterProfilesByMaxDriveTime,
+  type DriveMinutesCache,
+  type RunLocationForProximity,
+} from "@/lib/pickup/profileMaxDriveFilter";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
-import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion";
 
 export function pickupRunTitleForPush(title: unknown): string {
   return typeof title === "string" && title.trim() ? title.trim() : "this run";
 }
 
-/** Approved profiles whose nearest venue matches the run service region. */
+export type RunProximityOpts = RunLocationForProximity & {
+  service_region?: string | null;
+};
+
+/** Approved profiles within each player's max drive time (or nearest-venue region fallback). */
 export async function approvedUserIdsInRunServiceRegion(
   admin: SupabaseClient,
   service_region: string | null | undefined,
+  runLocation?: RunProximityOpts | null,
+  driveCache?: DriveMinutesCache,
 ): Promise<string[]> {
-  const profRes = await admin.from("profiles").select("id,nearest_venue").eq("approved", true);
+  const profRes = await admin
+    .from("profiles")
+    .select("id,nearest_venue,zip_code,max_drive_minutes")
+    .eq("approved", true);
   if (profRes.error || !(profRes.data?.length ?? 0)) return [];
-  return (profRes.data ?? [])
-    .filter((p: { id: string; nearest_venue: string | null }) =>
-      profileMatchesRunServiceRegion(p.nearest_venue, service_region),
-    )
-    .map((p: { id: string }) => p.id);
+
+  const cache = driveCache ?? createDriveMinutesCache();
+  const withinDrive = await filterProfilesByMaxDriveTime(
+    profRes.data ?? [],
+    {
+      locationPrivate: runLocation?.locationPrivate ?? null,
+      serviceRegion: runLocation?.serviceRegion ?? service_region ?? null,
+      venue: runLocation?.venue ?? null,
+    },
+    cache,
+  );
+  return withinDrive.map((p) => p.id);
 }
 
 /** Recipients when a slot is finalized: all invitees (select) or in-region approved users (public). */
 export async function pickupFinalizeSlotPushRecipientIds(
   admin: SupabaseClient,
   run_id: string,
-  run: { run_type: string; service_region?: string | null },
+  run: { run_type: string; service_region?: string | null; location_private?: string | null },
 ): Promise<string[]> {
   if (isPublicPickupRunType(run.run_type)) {
-    return approvedUserIdsInRunServiceRegion(admin, run.service_region);
+    return approvedUserIdsInRunServiceRegion(admin, run.service_region, {
+      service_region: run.service_region,
+      locationPrivate: run.location_private,
+    });
   }
   const invRes = await admin.from("pickup_run_invites").select("user_id").eq("run_id", run_id);
   if (invRes.error) return [];
@@ -80,9 +104,23 @@ export async function sendPickupFinalizedPush(
 /** Notify approved in-region players when a public run is promoted to the pickup hub. */
 export async function sendPickupNewRunPush(
   admin: SupabaseClient,
-  opts: { runId: string; runTitle: string; service_region?: string | null },
+  opts: {
+    runId: string;
+    runTitle: string;
+    service_region?: string | null;
+    location_private?: string | null;
+  },
 ): Promise<void> {
-  const userIds = await approvedUserIdsInRunServiceRegion(admin, opts.service_region);
+  const driveCache = createDriveMinutesCache();
+  const userIds = await approvedUserIdsInRunServiceRegion(
+    admin,
+    opts.service_region,
+    {
+      service_region: opts.service_region,
+      locationPrivate: opts.location_private,
+    },
+    driveCache,
+  );
   if (!userIds.length) return;
   const title = pickupRunTitleForPush(opts.runTitle);
   await sendPushToUsers(admin, userIds, {

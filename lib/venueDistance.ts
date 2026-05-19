@@ -154,48 +154,89 @@ export async function driveMinutesFromZipToDestination(
 
 const MATRIX_ORIGIN_BATCH = 25;
 
-/** Batch many ZIPs → one destination via Distance Matrix (chunks of 25). */
-export async function driveMinutesFromZipsToDestination(
+export type DriveMinutesCache = Map<string, number>;
+
+/** In-memory cache for ZIP → destination drive minutes within one server request. */
+export function createDriveMinutesCache(): DriveMinutesCache {
+  return new Map();
+}
+
+export function driveMinutesCacheKey(zip5: string, dest: VenueDestination): string {
+  return `${zip5}|${dest.venue}|${dest.lat ?? ""}|${dest.lng ?? ""}|${dest.address}`;
+}
+
+/** Google Distance Matrix only (chunks of 25 origins). No haversine fallback. */
+export async function googleDriveMinutesFromZipsToDestination(
   zips: string[],
   dest: VenueDestination,
+  cache?: DriveMinutesCache,
 ): Promise<Map<string, number>> {
   const out = new Map<string, number>();
   const unique = Array.from(new Set(zips.map(normalizeZip).filter((z): z is string => !!z)));
   if (!unique.length) return out;
 
-  const key = process.env.GOOGLE_MAPS_API_KEY?.trim();
-  if (key) {
-    for (let i = 0; i < unique.length; i += MATRIX_ORIGIN_BATCH) {
-      const batch = unique.slice(i, i + MATRIX_ORIGIN_BATCH);
-      const origins = batch.map((z) => `${z}, USA`).join("|");
-      const url = new URL("https://maps.googleapis.com/maps/api/distancematrix/json");
-      url.searchParams.set("origins", origins);
-      url.searchParams.set("destinations", destinationQuery(dest));
-      url.searchParams.set("mode", "driving");
-      url.searchParams.set("departure_time", "now");
-      url.searchParams.set("traffic_model", "best_guess");
-      url.searchParams.set("units", "imperial");
-      url.searchParams.set("key", key);
+  const uncached: string[] = [];
+  for (const zip5 of unique) {
+    const hit = cache?.get(driveMinutesCacheKey(zip5, dest));
+    if (hit != null) out.set(zip5, hit);
+    else uncached.push(zip5);
+  }
 
-      try {
-        const r = await fetch(url.toString(), { cache: "no-store" });
-        const dm = (await r.json()) as {
-          status?: string;
-          rows?: { elements?: { status?: string; duration_in_traffic?: { value?: number }; duration?: { value?: number } }[] }[];
-        };
-        if (dm.status !== "OK" || !Array.isArray(dm.rows)) continue;
-        for (let j = 0; j < batch.length; j++) {
-          const zip5 = batch[j]!;
-          const el = dm.rows[j]?.elements?.[0];
-          if (!el || el.status !== "OK") continue;
-          const sec = el.duration_in_traffic?.value ?? el.duration?.value;
-          if (typeof sec !== "number" || !Number.isFinite(sec)) continue;
-          out.set(zip5, Math.max(1, Math.round(sec / 60)));
-        }
-      } catch {
-        /* fall through to per-zip haversine for this batch */
+  if (!uncached.length) return out;
+
+  const key = process.env.GOOGLE_MAPS_API_KEY?.trim();
+  if (!key) return out;
+
+  for (let i = 0; i < uncached.length; i += MATRIX_ORIGIN_BATCH) {
+    const batch = uncached.slice(i, i + MATRIX_ORIGIN_BATCH);
+    const origins = batch.map((z) => `${z}, USA`).join("|");
+    const url = new URL("https://maps.googleapis.com/maps/api/distancematrix/json");
+    url.searchParams.set("origins", origins);
+    url.searchParams.set("destinations", destinationQuery(dest));
+    url.searchParams.set("mode", "driving");
+    url.searchParams.set("departure_time", "now");
+    url.searchParams.set("traffic_model", "best_guess");
+    url.searchParams.set("units", "imperial");
+    url.searchParams.set("key", key);
+
+    try {
+      const r = await fetch(url.toString(), { cache: "no-store" });
+      const dm = (await r.json()) as {
+        status?: string;
+        rows?: { elements?: { status?: string; duration_in_traffic?: { value?: number }; duration?: { value?: number } }[] }[];
+      };
+      if (dm.status !== "OK" || !Array.isArray(dm.rows)) continue;
+      for (let j = 0; j < batch.length; j++) {
+        const zip5 = batch[j]!;
+        const el = dm.rows[j]?.elements?.[0];
+        if (!el || el.status !== "OK") continue;
+        const sec = el.duration_in_traffic?.value ?? el.duration?.value;
+        if (typeof sec !== "number" || !Number.isFinite(sec)) continue;
+        const minutes = Math.max(1, Math.round(sec / 60));
+        out.set(zip5, minutes);
+        cache?.set(driveMinutesCacheKey(zip5, dest), minutes);
       }
+    } catch {
+      /* skip batch */
     }
+  }
+
+  return out;
+}
+
+/** Batch many ZIPs → one destination via Distance Matrix (chunks of 25). */
+export async function driveMinutesFromZipsToDestination(
+  zips: string[],
+  dest: VenueDestination,
+  cache?: DriveMinutesCache,
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  const unique = Array.from(new Set(zips.map(normalizeZip).filter((z): z is string => !!z)));
+  if (!unique.length) return out;
+
+  const google = await googleDriveMinutesFromZipsToDestination(unique, dest, cache);
+  for (const [zip5, minutes] of google) {
+    out.set(zip5, minutes);
   }
 
   for (const zip5 of unique) {
@@ -242,10 +283,11 @@ function displayName(p: {
 export async function buildProximityInvitePlayerList(
   profiles: ProfileWithZip[],
   dest: VenueDestination,
+  cache?: DriveMinutesCache,
 ): Promise<ProximityPlayerRow[]> {
   const zip5ByProfile = profiles.map((p) => ({ p, zip5: normalizeZip(p.zip_code) }));
   const zips = zip5ByProfile.map((r) => r.zip5).filter((z): z is string => !!z);
-  const minutesByZip = await driveMinutesFromZipsToDestination(zips, dest);
+  const minutesByZip = await driveMinutesFromZipsToDestination(zips, dest, cache);
 
   const rows: ProximityPlayerRow[] = [];
   for (const { p, zip5 } of zip5ByProfile) {

@@ -1,9 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  createDriveMinutesCache,
+  filterProfilesByMaxDriveTime,
+  type DriveMinutesCache,
+  type RunLocationForProximity,
+} from "@/lib/pickup/profileMaxDriveFilter";
+import {
   isSelectPickupRunType,
   SELECT_PICKUP_MAX_INVITE_TIER_RANK,
 } from "@/lib/pickup/pickupRunType";
-import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion";
 import { sendSms } from "@/lib/twilio/sendSms";
 
 export type InvitePlayer = {
@@ -27,6 +32,8 @@ export async function insertInvitesForTierRanks(
   service_region?: string | null,
   pickupRunType?: unknown,
   options?: InsertInvitesForTierRanksOptions,
+  runLocation?: RunLocationForProximity | null,
+  driveCache?: DriveMinutesCache,
 ): Promise<{ ok: false; error: string } | { ok: true; newlyInvited: InvitePlayer[] }> {
   const uniqTiers = Array.from(new Set(tierRanks)).filter((n) => Number.isFinite(n));
   if (!uniqTiers.length) return { ok: true, newlyInvited: [] };
@@ -45,43 +52,32 @@ export async function insertInvitesForTierRanks(
 
   const ppl = await admin
     .from("profiles")
-    .select("id,tier_rank,approved,instagram,phone,nearest_venue")
+    .select("id,tier_rank,approved,instagram,phone,nearest_venue,zip_code,max_drive_minutes")
     .in("tier_rank", uniqTiers)
     .eq("approved", true);
 
   if (ppl.error) return { ok: false, error: ppl.error.message };
 
   const rawRows = ppl.data || [];
-  let excludedByRegion = 0;
-  const regionSamples: { user_id: string; nearest_venue: string | null; matches: boolean }[] = [];
-  const candidates: InvitePlayer[] = rawRows
-    .filter((p) => {
-      const matches = profileMatchesRunServiceRegion(p.nearest_venue, service_region);
-      if (!matches) {
-        excludedByRegion += 1;
-        if (regionSamples.length < 5) {
-          regionSamples.push({
-            user_id: p.id,
-            nearest_venue: p.nearest_venue ?? null,
-            matches,
-          });
-        }
-      }
-      return matches;
-    })
-    .map((p) => ({
-      user_id: p.id,
-      tier_rank: p.tier_rank ?? 6,
-      instagram: p.instagram || null,
-      phone: p.phone || null,
-    }));
+  const proximityLocation: RunLocationForProximity = {
+    locationPrivate: runLocation?.locationPrivate ?? null,
+    serviceRegion: runLocation?.serviceRegion ?? service_region ?? null,
+    venue: runLocation?.venue ?? null,
+  };
+  const cache = driveCache ?? createDriveMinutesCache();
+  const withinDrive = await filterProfilesByMaxDriveTime(rawRows, proximityLocation, cache);
+  const candidates: InvitePlayer[] = withinDrive.map((p) => ({
+    user_id: p.id,
+    tier_rank: p.tier_rank ?? 6,
+    instagram: p.instagram || null,
+    phone: p.phone || null,
+  }));
 
-  console.log("[insertInvitesForTierRanks] after profile query + service_region filter", {
+  console.log("[insertInvitesForTierRanks] after profile query + max drive filter", {
     run_id,
     approved_tier_rows: rawRows.length,
-    after_region_filter: candidates.length,
-    excluded_by_region: excludedByRegion,
-    region_mismatch_samples: regionSamples,
+    after_proximity_filter: candidates.length,
+    excluded_by_proximity: rawRows.length - candidates.length,
   });
 
   const rows = candidates.map((p) => ({

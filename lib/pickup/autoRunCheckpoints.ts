@@ -270,6 +270,10 @@ export async function processAutoPickupRun(
           (run.service_region as string | null | undefined) ?? null,
           run.run_type,
           { selectEmergencyLastCall: true },
+          {
+            locationPrivate: (run.location_private as string | null | undefined) ?? null,
+            serviceRegion: (run.service_region as string | null | undefined) ?? null,
+          },
         );
         if (!inv.ok) {
           messages.push(`24h checkpoint: invite insert failed: ${inv.error}`);
@@ -302,6 +306,11 @@ export async function processAutoPickupRun(
           isoNow,
           (run.service_region as string | null | undefined) ?? null,
           run.run_type,
+          undefined,
+          {
+            locationPrivate: (run.location_private as string | null | undefined) ?? null,
+            serviceRegion: (run.service_region as string | null | undefined) ?? null,
+          },
         );
         if (!inv.ok) {
           messages.push(`24h checkpoint: invite insert failed: ${inv.error}`);
@@ -352,6 +361,10 @@ export async function processAutoPickupRun(
           (run.service_region as string | null | undefined) ?? null,
           run.run_type,
           { selectEmergencyLastCall: true },
+          {
+            locationPrivate: (run.location_private as string | null | undefined) ?? null,
+            serviceRegion: (run.service_region as string | null | undefined) ?? null,
+          },
         );
         if (!inv.ok) {
           messages.push(`12h checkpoint: invite insert failed: ${inv.error}`);
@@ -389,6 +402,11 @@ export async function processAutoPickupRun(
           isoNow,
           (run.service_region as string | null | undefined) ?? null,
           run.run_type,
+          undefined,
+          {
+            locationPrivate: (run.location_private as string | null | undefined) ?? null,
+            serviceRegion: (run.service_region as string | null | undefined) ?? null,
+          },
         );
         if (!inv.ok) {
           messages.push(`12h checkpoint: invite insert failed: ${inv.error}`);

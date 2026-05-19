@@ -53,13 +53,19 @@ export async function POST(req: Request) {
     const now = new Date().toISOString();
 
     let promotedRegion: string | null = null;
-    let promotedRun: { id: string; title: string; run_type: string; service_region: string | null } | null = null;
+    let promotedRun: {
+      id: string;
+      title: string;
+      run_type: string;
+      service_region: string | null;
+      location_private: string | null;
+    } | null = null;
     let promotedRunRow: PickupRunWaveRow | null = null;
     if (run_id) {
       const runRes = await admin
         .from("pickup_runs")
         .select(
-          "id,title,status,run_type,service_region,start_at,capacity,outreach_started_at,next_wave_at,wave_state",
+          "id,title,status,run_type,service_region,location_private,start_at,capacity,outreach_started_at,next_wave_at,wave_state",
         )
         .eq("id", run_id)
         .maybeSingle();
@@ -79,6 +85,10 @@ export async function POST(req: Request) {
         title: String(runRes.data.title || ""),
         run_type: String(runRes.data.run_type || "select"),
         service_region: promotedRegion,
+        location_private:
+          runRes.data.location_private === null || runRes.data.location_private === undefined
+            ? null
+            : String(runRes.data.location_private),
       };
     }
 
@@ -121,6 +131,7 @@ export async function POST(req: Request) {
         runId: promotedRun.id,
         runTitle: promotedRun.title,
         service_region: promotedRun.service_region,
+        location_private: promotedRun.location_private,
       });
     }
 

@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { enqueueRevalidateAndRun } from "@/lib/admin/sync/enqueueRevalidate";
-import { fetchApprovedUserIds } from "@/lib/push/approvedUserIds";
+import { approvedUserIdsWithinTournamentDrive } from "@/lib/tournament/tournamentDriveProximity";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { recordTournamentActivationChange } from "@/lib/admin/surfaceHealth";
 import { setOutdoorTournamentHub } from "@/lib/tournament/setOutdoorTournamentHub";
@@ -233,13 +233,24 @@ export async function POST(req: Request) {
     }
 
     if (tournament_id) {
-      const idsRes = await fetchApprovedUserIds(admin);
-      if ("error" in idsRes) return NextResponse.json({ error: idsRes.error }, { status: 500 });
-      await sendPushToUsers(admin, idsRes.ids, {
-        title: "Tournament is live",
-        body: "A new captain tournament is open. Claim your team spot now.",
-        data: { kind: "tournament_live", tournament_id },
+      const tourRes = await admin
+        .from("tournaments")
+        .select("venue,service_region")
+        .eq("id", tournament_id)
+        .maybeSingle();
+      if (tourRes.error) return NextResponse.json({ error: tourRes.error.message }, { status: 500 });
+
+      const userIds = await approvedUserIdsWithinTournamentDrive(admin, {
+        venue: tourRes.data?.venue ?? null,
+        serviceRegion: tourRes.data?.service_region ?? null,
       });
+      if (userIds.length) {
+        await sendPushToUsers(admin, userIds, {
+          title: "Tournament is live",
+          body: "A new captain tournament is open. Claim your team spot now.",
+          data: { kind: "tournament_live", tournament_id },
+        });
+      }
     }
 
     await recordTournamentActivationChange(admin, guard.userId);

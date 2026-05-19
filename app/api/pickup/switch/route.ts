@@ -656,13 +656,14 @@ export async function POST(req: Request) {
 
     const runMetaRes = await admin
       .from("pickup_runs")
-      .select("title,run_type,service_region")
+      .select("title,run_type,service_region,location_private")
       .eq("id", run_id)
       .maybeSingle();
-    const runMeta = runMetaRes.data ?? { run_type: "select", service_region: null };
+    const runMeta = runMetaRes.data ?? { run_type: "select", service_region: null, location_private: null };
     const notifyIds = await pickupFinalizeSlotPushRecipientIds(admin, run_id, {
       run_type: String(runMeta.run_type || "select"),
       service_region: (runMeta.service_region as string | null | undefined) ?? null,
+      location_private: (runMeta.location_private as string | null | undefined) ?? null,
     });
     await sendPickupFinalizedPush(admin, { userIds: notifyIds, runId: run_id });
 
@@ -800,8 +801,13 @@ export async function POST(req: Request) {
     const run_id = body.run_id === null || body.run_id === "" ? null : String(body.run_id);
     const now = new Date().toISOString();
 
-    let promotedRun: { id: string; title: string; run_type: string; service_region: string | null } | null =
-      null;
+    let promotedRun: {
+      id: string;
+      title: string;
+      run_type: string;
+      service_region: string | null;
+      location_private: string | null;
+    } | null = null;
 
     let waveOutreach: { wave1_invited: number; next_wave_at: string | null } | null = null;
     let promotedRunRow: PickupRunWaveRow | null = null;
@@ -810,7 +816,7 @@ export async function POST(req: Request) {
       const runRes = await admin
         .from("pickup_runs")
         .select(
-          "id,title,status,run_type,service_region,start_at,capacity,outreach_started_at,next_wave_at,wave_state",
+          "id,title,status,run_type,service_region,location_private,start_at,capacity,outreach_started_at,next_wave_at,wave_state",
         )
         .eq("id", run_id)
         .maybeSingle();
@@ -829,6 +835,10 @@ export async function POST(req: Request) {
           runRes.data.service_region === null || runRes.data.service_region === undefined
             ? null
             : String(runRes.data.service_region),
+        location_private:
+          runRes.data.location_private === null || runRes.data.location_private === undefined
+            ? null
+            : String(runRes.data.location_private),
       };
     }
 
@@ -879,6 +889,7 @@ export async function POST(req: Request) {
         runId: promotedRun.id,
         runTitle: promotedRun.title,
         service_region: promotedRun.service_region,
+        location_private: promotedRun.location_private,
       });
     }
 

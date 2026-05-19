@@ -43,6 +43,21 @@ import {
   View,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import Slider from "@react-native-community/slider";
+
+const MIN_MAX_DRIVE_MINUTES = 35;
+const MAX_MAX_DRIVE_MINUTES = 90;
+const DEFAULT_MAX_DRIVE_MINUTES = 50;
+const MAX_DRIVE_STEP = 5;
+
+function clampMaxDriveMinutes(value: number): number {
+  const stepped = Math.round(value / MAX_DRIVE_STEP) * MAX_DRIVE_STEP;
+  return Math.min(MAX_MAX_DRIVE_MINUTES, Math.max(MIN_MAX_DRIVE_MINUTES, stepped));
+}
+
+function maxDriveLabel(minutes: number): string {
+  return `Up to ${minutes} min drive`;
+}
 
 const POSITION_OPTIONS = [
   { value: "Goalkeeper" as const, label: "Goalkeeper" },
@@ -115,13 +130,14 @@ type ProfileRow = {
   playing_position: string | null;
   username: string | null;
   push_notifications_enabled: boolean | null;
+  max_drive_minutes: number | null;
 };
 
 const PROFILE_SELECT_WITH_PUSH =
-  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled";
+  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled,max_drive_minutes";
 
 const PROFILE_SELECT_WITHOUT_PUSH =
-  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username";
+  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,max_drive_minutes";
 
 function supabaseLooksLikeMissingColumn(err: { message?: string } | null | undefined, col: string): boolean {
   const msg = err?.message ?? "";
@@ -200,6 +216,9 @@ export default function AccountScreen() {
   const [pushEnabled, setPushEnabled] = useState(true);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushMsg, setPushMsg] = useState<string | null>(null);
+  const [maxDriveMinutes, setMaxDriveMinutes] = useState(DEFAULT_MAX_DRIVE_MINUTES);
+  const [maxDriveBusy, setMaxDriveBusy] = useState(false);
+  const [maxDriveMsg, setMaxDriveMsg] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -222,7 +241,10 @@ export default function AccountScreen() {
       let res = await supabase.from("profiles").select(PROFILE_SELECT_WITH_PUSH).eq("id", uid).maybeSingle();
       if (res.error) {
         console.error("[account loadProfile] Supabase error", JSON.stringify(res.error));
-        if (supabaseLooksLikeMissingColumn(res.error, "push_notifications_enabled")) {
+        if (
+          supabaseLooksLikeMissingColumn(res.error, "push_notifications_enabled") ||
+          supabaseLooksLikeMissingColumn(res.error, "max_drive_minutes")
+        ) {
           res = await supabase.from("profiles").select(PROFILE_SELECT_WITHOUT_PUSH).eq("id", uid).maybeSingle();
           if (res.error) {
             console.error("[account loadProfile] fallback select error", JSON.stringify(res.error));
@@ -230,13 +252,35 @@ export default function AccountScreen() {
             return;
           }
           const row = res.data as Omit<ProfileRow, "push_notifications_enabled"> | null;
-          setProfile(row ? { ...row, push_notifications_enabled: true } : null);
+          setProfile(
+            row
+              ? {
+                  ...row,
+                  push_notifications_enabled: true,
+                  max_drive_minutes:
+                    row.max_drive_minutes == null
+                      ? DEFAULT_MAX_DRIVE_MINUTES
+                      : clampMaxDriveMinutes(Number(row.max_drive_minutes)),
+                }
+              : null,
+          );
           return;
         }
         setProfile(null);
         return;
       }
-      setProfile((res.data as ProfileRow | null) ?? null);
+      const row = res.data as ProfileRow | null;
+      setProfile(
+        row
+          ? {
+              ...row,
+              max_drive_minutes:
+                row.max_drive_minutes == null
+                  ? DEFAULT_MAX_DRIVE_MINUTES
+                  : clampMaxDriveMinutes(Number(row.max_drive_minutes)),
+            }
+          : null,
+      );
     } catch (e) {
       console.error("[account loadProfile] exception", e);
       setProfile(null);
@@ -267,6 +311,9 @@ export default function AccountScreen() {
     setEditZipCode(String(profile.zip_code ?? "").replace(/\D/g, "").slice(0, 5));
     setEditUsername(String(profile.username ?? ""));
     setPushEnabled(profile.push_notifications_enabled !== false);
+    const storedMax =
+      profile.max_drive_minutes == null ? DEFAULT_MAX_DRIVE_MINUTES : Number(profile.max_drive_minutes);
+    setMaxDriveMinutes(clampMaxDriveMinutes(storedMax));
   }, [profile, editBusy]);
 
   const loadWaiverStatus = useCallback(async (opts?: { silent?: boolean }) => {
@@ -537,6 +584,52 @@ export default function AccountScreen() {
       setProfileSaveError(`Save failed: ${formatProfileSaveError(e)}`);
     } finally {
       setEditBusy(false);
+    }
+  }
+
+  async function onSaveMaxDriveMinutes(nextRaw: number) {
+    const next = clampMaxDriveMinutes(nextRaw);
+    if (maxDriveBusy) return;
+    setMaxDriveMsg(null);
+    if (!supabase) {
+      setMaxDriveMsg("Supabase client is not available. Check app configuration.");
+      return;
+    }
+    const uid = session?.user?.id;
+    if (!uid) {
+      setMaxDriveMsg("Sign in again to change this.");
+      return;
+    }
+
+    const prev = maxDriveMinutes;
+    setMaxDriveMinutes(next);
+    setMaxDriveBusy(true);
+    try {
+      const res = await supabase
+        .from("profiles")
+        .update({
+          max_drive_minutes: next,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", uid)
+        .select("id");
+      const { error } = res;
+      if (error) {
+        setMaxDriveMinutes(prev);
+        setMaxDriveMsg(formatProfileSaveError(error));
+        return;
+      }
+      if (!res.data?.length) {
+        setMaxDriveMinutes(prev);
+        setMaxDriveMsg("Save did not update any profile row.");
+        return;
+      }
+      setProfile((p) => (p ? { ...p, max_drive_minutes: next } : p));
+    } catch (e) {
+      setMaxDriveMinutes(prev);
+      setMaxDriveMsg(formatProfileSaveError(e));
+    } finally {
+      setMaxDriveBusy(false);
     }
   }
 
@@ -928,6 +1021,40 @@ export default function AccountScreen() {
             />
           </View>
           {pushMsg ? <Text style={styles.msg}>{pushMsg}</Text> : null}
+
+          <View style={styles.maxDriveBlock}>
+            <View style={styles.maxDriveHeader}>
+              <Text style={styles.fieldLabelStrong}>Max drive time</Text>
+              <Text style={styles.maxDriveValue}>{maxDriveLabel(maxDriveMinutes)}</Text>
+            </View>
+            <Text style={styles.bioHint}>
+              Pickup invites and nearby run alerts use your zip and this limit.
+            </Text>
+            <Slider
+              style={styles.maxDriveSlider}
+              minimumValue={MIN_MAX_DRIVE_MINUTES}
+              maximumValue={MAX_MAX_DRIVE_MINUTES}
+              step={MAX_DRIVE_STEP}
+              value={maxDriveMinutes}
+              onValueChange={(v) => setMaxDriveMinutes(clampMaxDriveMinutes(v))}
+              onSlidingComplete={(v) => void onSaveMaxDriveMinutes(v)}
+              disabled={maxDriveBusy || !accessToken}
+              minimumTrackTintColor={LIME}
+              maximumTrackTintColor="rgba(255,255,255,0.18)"
+              thumbTintColor="#f4f4f5"
+            />
+            <View style={styles.maxDriveTicks}>
+              <Text style={styles.maxDriveTick}>{MIN_MAX_DRIVE_MINUTES} min</Text>
+              <Text style={styles.maxDriveTick}>{MAX_MAX_DRIVE_MINUTES} min</Text>
+            </View>
+            {maxDriveBusy ? (
+              <View style={styles.maxDriveSaving}>
+                <ActivityIndicator color={LIME} size="small" />
+                <Text style={styles.bioHint}>Saving…</Text>
+              </View>
+            ) : null}
+            {maxDriveMsg ? <Text style={styles.msg}>{maxDriveMsg}</Text> : null}
+          </View>
         </View>
 
         {isAdmin ? (
@@ -1367,6 +1494,13 @@ const styles = StyleSheet.create({
   },
   outlineSignupBtnText: { color: "#93c5fd", fontWeight: "600", fontSize: 15 },
   rowBetween: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  maxDriveBlock: { marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)" },
+  maxDriveHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  maxDriveValue: { fontSize: 14, fontWeight: "700", color: LIME },
+  maxDriveSlider: { width: "100%", height: 40, marginTop: 8 },
+  maxDriveTicks: { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
+  maxDriveTick: { fontSize: 12, color: "rgba(255,255,255,0.45)" },
+  maxDriveSaving: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
   bioHint: { marginTop: 4, fontSize: 13, color: "rgba(255,255,255,0.5)" },
   usernameAtPreview: {
     marginTop: 6,

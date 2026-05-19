@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
+import { createDriveMinutesCache, filterProfilesByMaxDriveTime } from "@/lib/pickup/profileMaxDriveFilter";
 import { buildProximityInvitePlayerList, resolveRunVenueDestination } from "@/lib/venueDistance";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
@@ -43,7 +44,7 @@ export async function GET(req: Request) {
 
     const profRes = await admin
       .from("profiles")
-      .select("id,first_name,last_name,username,instagram,tier_rank,zip_code")
+      .select("id,first_name,last_name,username,instagram,tier_rank,zip_code,nearest_venue,max_drive_minutes")
       .eq("approved", true)
       .order("first_name", { ascending: true });
 
@@ -51,7 +52,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: profRes.error.message }, { status: 500 });
     }
 
-    const players = await buildProximityInvitePlayerList(profRes.data || [], dest);
+    const driveCache = createDriveMinutesCache();
+    const eligible = await filterProfilesByMaxDriveTime(profRes.data || [], {
+      locationPrivate: run.location_private,
+      serviceRegion: run.service_region,
+    }, driveCache);
+    const players = await buildProximityInvitePlayerList(eligible, dest, driveCache);
 
     return NextResponse.json({
       run: {

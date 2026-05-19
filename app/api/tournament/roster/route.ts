@@ -4,6 +4,7 @@ import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin, getSupabaseAnon } from "@/lib/server/runtimeClients";
 import { captainMayManageRosterStatus, PAID_OR_READY_CAPTAIN_STATUSES } from "@/lib/tournament/outdoorTournamentConstants";
 import { addUserToTournamentTeamRoom } from "@/lib/chat/tournamentTeamRoom";
+import { profileWithinTournamentDriveTime } from "@/lib/tournament/tournamentDriveProximity";
 import { syncCaptainPlayersPaid } from "@/lib/tournament/syncCaptainPlayersPaid";
 
 export const runtime = "nodejs";
@@ -251,6 +252,33 @@ export async function POST(req: Request) {
     const player = await lookupPickupPlayerByUsernameOrEmail(admin, identifier);
     if (!player) return NextResponse.json({ error: "player_not_found" }, { status: 404 });
     if (player.user_id === userId) return NextResponse.json({ error: "cannot_invite_self" }, { status: 400 });
+
+    const { data: tour, error: tourErr } = await admin
+      .from("tournaments")
+      .select("venue,service_region")
+      .eq("id", tournament_id)
+      .maybeSingle();
+    if (tourErr) return NextResponse.json({ error: tourErr.message }, { status: 500 });
+    if (!tour) return NextResponse.json({ error: "tournament_not_found" }, { status: 404 });
+
+    const { data: inviteeProf, error: profErr } = await admin
+      .from("profiles")
+      .select("id,zip_code,nearest_venue,max_drive_minutes")
+      .eq("id", player.user_id)
+      .maybeSingle();
+    if (profErr) return NextResponse.json({ error: profErr.message }, { status: 500 });
+    if (!inviteeProf) return NextResponse.json({ error: "player_not_found" }, { status: 404 });
+
+    const withinDrive = await profileWithinTournamentDriveTime(inviteeProf, {
+      venue: tour.venue ?? null,
+      serviceRegion: tour.service_region ?? null,
+    });
+    if (!withinDrive) {
+      return NextResponse.json(
+        { error: "player_outside_tournament_drive_range" },
+        { status: 400 },
+      );
+    }
 
     const { data: rosterList } = await admin.from("tournament_roster").select("status").eq("captain_id", captain_id);
     const used = rosterSlotsUsed((rosterList || []) as { status: string }[]);

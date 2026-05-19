@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { findRunBanterRoom } from "@/lib/chat/runBanterRoom";
+import { createDriveMinutesCache } from "@/lib/pickup/profileMaxDriveFilter";
 import { insertInvitesForTierRanks, type InvitePlayer } from "@/lib/pickup/pickupInvites";
 import {
   sendPickupInvitePush,
@@ -32,6 +33,7 @@ export type PickupRunWaveRow = {
   capacity?: number | null;
   run_type?: string | null;
   service_region?: string | null;
+  location_private?: string | null;
   outreach_started_at?: string | null;
   next_wave_at?: string | null;
   open_tier_rank?: number | null;
@@ -392,6 +394,7 @@ export async function firePickupWave(
     runTitle: string;
     run_type: unknown;
     service_region: string | null | undefined;
+    location_private?: string | null;
     capacity: number;
     anchorMs: number | null;
     wave: PickupWaveNumber;
@@ -413,6 +416,7 @@ export async function firePickupWave(
     });
   }
 
+  const driveCache = createDriveMinutesCache();
   const inv = await insertInvitesForTierRanks(
     admin,
     opts.run_id,
@@ -422,6 +426,11 @@ export async function firePickupWave(
     opts.service_region,
     opts.run_type,
     opts.wave === 4 ? { selectEmergencyLastCall: true } : undefined,
+    {
+      locationPrivate: opts.location_private ?? null,
+      serviceRegion: opts.service_region ?? null,
+    },
+    driveCache,
   );
 
   if (!inv.ok) return { ok: false, error: inv.error };
@@ -528,6 +537,7 @@ export async function startSelectWaveOutreachOnHubPromote(
     runTitle: (run.title as string) || "Pickup Run",
     run_type: run.run_type,
     service_region: (run.service_region as string | null | undefined) ?? null,
+    location_private: (run.location_private as string | null | undefined) ?? null,
     capacity,
     anchorMs,
     wave: 1,
@@ -676,6 +686,7 @@ export async function processDueWaveForRun(
     runTitle: (row.title as string) || "Pickup Run",
     run_type: row.run_type,
     service_region: (row.service_region as string | null | undefined) ?? null,
+    location_private: (row.location_private as string | null | undefined) ?? null,
     capacity: cap,
     anchorMs,
     wave: nextWave,
@@ -734,5 +745,5 @@ export async function flagSelectRunNeedsKickoffForWaves(
 
 /** Runs eligible for cron wave processing. */
 export function pickupWaveCronRunColumns(): string {
-  return "id,title,status,start_at,capacity,open_tier_rank,current_wave,next_wave_at,outreach_started_at,run_type,service_region,wave_state";
+  return "id,title,status,start_at,capacity,open_tier_rank,current_wave,next_wave_at,outreach_started_at,run_type,service_region,location_private,wave_state";
 }

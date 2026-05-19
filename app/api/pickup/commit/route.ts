@@ -3,6 +3,7 @@ import { assertPickupStandingAllowsParticipation } from "@/lib/pickup/standing/p
 import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
+import { pickupFinalizeSlotPushRecipientIds } from "@/lib/pickup/pickupPushNotifications";
 import { isSelectPickupRunType } from "@/lib/pickup/pickupRunType";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -69,30 +70,6 @@ async function resolveSlotIdFromLabel(
   }
 
   throw new Error(inserted.error?.message || "Could not create slot for label.");
-}
-
-async function invitedUserIdsForPickupPush(
-  admin: SupabaseClient,
-  run_id: string,
-  run: { run_type: string; service_region?: string | null },
-): Promise<string[]> {
-  const profRes = await admin.from("profiles").select("id,nearest_venue").eq("approved", true);
-
-  if (profRes.error || !(profRes.data?.length ?? 0)) return [];
-
-  const inRegion = (profRes.data ?? []).filter((p: { id: string; nearest_venue: string | null }) =>
-    profileMatchesRunServiceRegion(p.nearest_venue, run.service_region),
-  );
-
-  if (!isSelectPickupRunType(run.run_type)) {
-    return inRegion.map((p: { id: string }) => p.id);
-  }
-
-  const invRes = await admin.from("pickup_run_invites").select("user_id").eq("run_id", run_id);
-  if (invRes.error || !(invRes.data?.length ?? 0)) return [];
-
-  const invited = new Set((invRes.data ?? []).map((r: { user_id: string }) => r.user_id));
-  return inRegion.map((p: { id: string }) => p.id).filter((id) => invited.has(id));
 }
 
 export async function POST(req: Request) {
@@ -406,7 +383,11 @@ export async function POST(req: Request) {
       })
       .eq("id", run_id);
 
-    const invitedIds = await invitedUserIdsForPickupPush(admin, run_id, run.data);
+    const invitedIds = await pickupFinalizeSlotPushRecipientIds(admin, run_id, {
+      run_type: String(run.data.run_type || ""),
+      service_region: run.data.service_region,
+      location_private: run.data.location_private,
+    });
     if (invitedIds.length) {
       await sendPushToUsers(admin, invitedIds, {
         title: "Pickup likely on",
