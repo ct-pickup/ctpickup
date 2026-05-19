@@ -72,7 +72,7 @@ export async function sendPickupFinalizedPush(
   if (!opts.userIds.length) return;
   await sendPushToUsers(admin, opts.userIds, {
     title: "Pickup time finalized",
-    body: "The kickoff time is set. Open the app to confirm your spot.",
+    body: "Pickup time is set. Open the app to confirm your spot.",
     data: { kind: "pickup_finalized", run_id: opts.runId },
   });
 }
