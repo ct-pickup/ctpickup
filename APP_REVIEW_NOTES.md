@@ -9,7 +9,7 @@ Use this document for **App Store Connect → App Review Information → Notes**
 | **Email** | `pickupct@gmail.com` |
 | **Password** | `CtPickup_AppReview2026!` |
 
-**Sign-in on the iOS app:** Open the app → enter the email above → tap to send an **8-digit code** → enter the code from the inbox for `pickupct@gmail.com` (codes are monitored for review). The password is for Supabase Dashboard / backup access; the mobile app uses email OTP, not a password field.
+**Sign-in on the iOS app:** Open the app → enter the email above → tap "Already have an account?" → enter the password below.
 
 This account is **pre-approved** in production with **player** (non-admin) permissions, **tier 1A** (`tier_rank = 1`), and **nearest venue** `New Haven SoccerRoof` (Connecticut hub).
 
