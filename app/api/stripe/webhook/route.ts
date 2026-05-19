@@ -92,9 +92,10 @@ async function fulfillPickup(
     paymentIntentId: string | null;
     runId: string | undefined;
     userId: string | undefined;
+    creditId?: string | undefined;
   },
 ): Promise<void> {
-  const { sessionId, paymentIntentId, runId, userId } = opts;
+  const { sessionId, paymentIntentId, runId, userId, creditId } = opts;
 
   let resolvedRunId = runId;
   let resolvedUserId = userId;
@@ -150,6 +151,20 @@ async function fulfillPickup(
     })
     .eq("run_id", resolvedRunId)
     .eq("user_id", resolvedUserId);
+
+  const resolvedCreditId =
+    typeof creditId === "string" && creditId.trim().length > 0 ? creditId.trim() : null;
+  if (resolvedCreditId) {
+    await admin
+      .from("pickup_credits")
+      .update({
+        used_at: new Date().toISOString(),
+        run_id: resolvedRunId,
+      })
+      .eq("id", resolvedCreditId)
+      .is("used_at", null);
+  }
+
   await deletePendingWaitlistExpiringReminders(admin, resolvedUserId, resolvedRunId);
   await ensurePickupRunInviteLink(admin, resolvedRunId, resolvedUserId);
   await addUserToRunBanterRoom(admin, resolvedRunId, resolvedUserId);
@@ -346,6 +361,7 @@ async function handlePaidCheckoutSession(
         paymentIntentId,
         runId: md.run_id,
         userId: md.user_id,
+        creditId: md.credit_id,
       });
       const v = await verifyPickupPaidAndConfirmed(admin, {
         runId: md.run_id,
@@ -504,6 +520,7 @@ async function handlePaymentIntentSucceeded(admin: SupabaseClient, event: Stripe
         paymentIntentId,
         runId: md.run_id,
         userId: md.user_id,
+        creditId: md.credit_id,
       });
       const v = await verifyPickupPaidAndConfirmed(admin, {
         runId: md.run_id,

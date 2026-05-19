@@ -455,8 +455,11 @@ export async function POST(req: Request) {
 
   const feeCents = Number(run.fee_cents || 0);
 
+  let pickupCreditResult: Awaited<ReturnType<typeof tryApplyReferralCreditToPickupJoin>> = {
+    applied: false,
+  };
   if (feeCents > 0 && !payForFriend) {
-    const referralCredit = await tryApplyReferralCreditToPickupJoin(admin, {
+    pickupCreditResult = await tryApplyReferralCreditToPickupJoin(admin, {
       payerUserId: user.id,
       targetUserId,
       runId: String(run.id),
@@ -465,7 +468,7 @@ export async function POST(req: Request) {
       previousRsvpStatus: existing.data?.status ?? null,
       hadPendingConfirm: existing.data?.status === "pending_confirm",
     });
-    if (referralCredit.applied) {
+    if (pickupCreditResult.applied && pickupCreditResult.kind === "free") {
       const prevRsvpStatus = existing.data?.status ?? null;
       if (prevRsvpStatus !== "confirmed") {
         await sendPickupRsvpConfirmedPush(admin, {
@@ -477,8 +480,8 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         status: "confirmed",
-        referral_credit_applied: true,
-        message: referralCredit.message,
+        pickup_credit_applied: true,
+        message: pickupCreditResult.message,
       });
     }
   }
@@ -542,10 +545,15 @@ export async function POST(req: Request) {
     pickupMeta.paid_by_user_id = String(user.id);
   }
 
+  let unitAmount = Number.isFinite(feeCents) ? Math.round(feeCents) : feeCents;
+  if (pickupCreditResult.applied && pickupCreditResult.kind === "discount") {
+    unitAmount = pickupCreditResult.discountedFeeCents;
+    pickupMeta.credit_id = pickupCreditResult.creditId;
+  }
+
   let session;
   try {
     const currency = String(run.currency || "usd").trim().toLowerCase() || "usd";
-    const unitAmount = Number.isFinite(feeCents) ? Math.round(feeCents) : feeCents;
     const successUrl = pickupCheckoutSuccessUrl(baseUrl, mobileReturn);
     const cancelUrl = pickupCheckoutCancelUrl(baseUrl, mobileReturn);
 

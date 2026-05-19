@@ -382,6 +382,11 @@ export default function AccountScreen() {
     if (!opts?.silent) setReliabilityLoading(false);
   }, [isReady, accessToken]);
 
+  useEffect(() => {
+    void loadWaiverStatus();
+    void loadReliability();
+  }, [isReady, accessToken, loadWaiverStatus, loadReliability]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
