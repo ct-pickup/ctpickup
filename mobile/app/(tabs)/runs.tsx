@@ -13,6 +13,7 @@ import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickupRunTyp
 import { useUserChatRooms } from "@/lib/teamChat";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useFocusEffect } from "@react-navigation/native";
 import { useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -72,6 +73,13 @@ export default function RunsScreen() {
   const token = session?.access_token ?? null;
   const { region, setRegion } = useSelectedRegion();
   const [showStatePicker, setShowStatePicker] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      setShowStatePicker(true);
+    }, []),
+  );
+
   useEffect(() => {
     navigation.setOptions?.({
       title: showStatePicker ? "Pickup by state" : "Pickup",
