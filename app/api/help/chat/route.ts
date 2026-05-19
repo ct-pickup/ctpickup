@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { resolveHelpChatUser } from "@/lib/helpChatUser";
+import { enforcePersistentRateLimit } from "@/lib/server/persistentRateLimit";
 import { buildHelpAssistantContext } from "@/lib/helpAssistantContext";
 import {
   appendCrisisResourcesIfMissing,
@@ -32,8 +34,45 @@ function extractAssistantText(resp: unknown): string | null {
   return t && String(t).trim() ? String(t).trim() : null;
 }
 
+async function requireAuthedHelpUser(req: Request): Promise<
+  | { ok: true }
+  | { ok: false; response: NextResponse }
+> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const auth = req.headers.get("authorization");
+  if (!url || !anon || !auth?.startsWith("Bearer ")) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
+  }
+
+  const supabase = createClient(url, anon, {
+    global: { headers: { Authorization: auth } },
+  });
+  const { data: userRes, error } = await supabase.auth.getUser();
+  if (error || !userRes.user) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
+  }
+  return { ok: true };
+}
+
 export async function POST(req: Request) {
   try {
+    const rateLimited = await enforcePersistentRateLimit(req, {
+      route: "help/chat",
+      limit: 10,
+      windowSeconds: 60,
+    });
+    if (rateLimited) return rateLimited;
+
+    const authGate = await requireAuthedHelpUser(req);
+    if (!authGate.ok) return authGate.response;
+
     const body = await req.json().catch(() => ({}));
     const question = String(body?.question || "").trim();
 

@@ -8,10 +8,10 @@ import { setOutdoorTournamentHub } from "@/lib/tournament/setOutdoorTournamentHu
 import { refundPaidCaptainsOnTournamentCancel } from "@/lib/tournament/refundPaidCaptainsOnTournamentCancel";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 
 export const runtime = "nodejs";
 
-const HUB_REGIONS = new Set(["NY", "CT", "NJ", "MD"]);
 const DECISIONS = new Set(["pending", "confirmed", "standby", "rejected"]);
 
 function slugifyTitle(title: string): string {

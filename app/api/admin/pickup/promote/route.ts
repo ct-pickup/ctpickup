@@ -47,7 +47,7 @@ export async function POST(req: Request) {
   if ((up.data?.length ?? 0) > 0) {
     await sendPushToUsers(supabaseAdmin, [promote_user_id], {
       title: "You got in",
-      body: "You have been promoted from standby to confirmed for the upcoming pickup.",
+      body: "You have been promoted from the waitlist to confirmed for the upcoming pickup.",
       data: { kind: "pickup_promoted", run_id },
     });
   }

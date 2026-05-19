@@ -27,9 +27,9 @@ export default function InfoPage() {
           <p className="whitespace-pre-line">
             {`C2 Pickup runs use a tiered invite system. This is a competitive environment, not casual.
 
-If a run reaches capacity, you will be confirmed or placed on standby.
+If a run reaches capacity, you will be confirmed or placed on the waitlist.
 
-Standby players may be moved into Confirmed if spots open up.`}
+Waitlisted players may be moved into Confirmed if spots open up.`}
           </p>
         ),
       },
@@ -60,7 +60,7 @@ Signing in uses an 8-digit code sent to your email (no password).
 
 It unlocks invite-only details (like exact location when confirmed).
 
-It lets you see Confirmed vs Standby.
+It lets you see Confirmed vs Waitlist.
 
 It lets you update your profile without DM’ing.`}
           </p>

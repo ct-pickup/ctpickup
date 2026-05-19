@@ -25,6 +25,8 @@ export type PickupPublicPayload = {
   my_status?: string | null;
   /** Waitlist position when `my_status === "waitlist"` (1-indexed). */
   my_waitlist_position?: number | null;
+  /** ISO timestamp when a `pending_confirm` offer expires. */
+  my_waitlist_expires_at?: string | null;
   run?: Record<string, unknown> | null;
   counts?: PickupPublicCounts;
   visibility?: PickupPublicVisibility;

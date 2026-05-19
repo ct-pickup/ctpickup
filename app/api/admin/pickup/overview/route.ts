@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
+import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 
-const HUB_REGIONS = new Set(["NY", "CT", "NJ", "MD"]);
 
 export async function GET(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();

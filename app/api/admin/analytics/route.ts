@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { supabaseService } from "@/lib/supabase/service";
+import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 
 export const runtime = "nodejs";
 
@@ -62,7 +63,6 @@ function chunk<T>(arr: T[], size: number): T[][] {
 
 const ROW_PAGE = 800;
 
-const HUB_REGIONS = new Set(["CT", "NY", "NJ", "MD"]);
 
 /** `null` = all regions; otherwise a hub region code. */
 function parseScheduleRegionParam(raw: string | null): string | null {

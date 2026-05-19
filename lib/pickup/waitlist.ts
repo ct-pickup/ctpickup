@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getStripePickup } from "@/lib/server/runtimeClients";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 
 export const WAITLIST_OFFER_MINUTES = 30;
@@ -22,20 +23,95 @@ export async function deletePendingWaitlistExpiringReminders(
     .is("sent_at", null);
 }
 
-/** Only fully confirmed (paid) RSVPs occupy capacity; waitlist promotion uses this count. */
-const RESERVED_STATUSES = ["confirmed"] as const;
+/** Statuses that reserve a spot while checkout is open or after payment. */
+export const PICKUP_CAPACITY_STATUSES = ["confirmed", "pending_payment"] as const;
 
 export function isReservedRsvpStatus(st: unknown): boolean {
-  return typeof st === "string" && (RESERVED_STATUSES as readonly string[]).includes(st);
+  return typeof st === "string" && (PICKUP_CAPACITY_STATUSES as readonly string[]).includes(st);
 }
 
-export async function reservedCountForRun(admin: SupabaseClient, run_id: string): Promise<number> {
+/** Canonical capacity count: confirmed + pending_payment RSVPs for a run. */
+export async function countAcceptedPickupRsvps(
+  admin: SupabaseClient,
+  run_id: string,
+): Promise<number> {
   const res = await admin
     .from("pickup_run_rsvps")
     .select("id", { count: "exact", head: true })
     .eq("run_id", run_id)
-    .in("status", Array.from(RESERVED_STATUSES));
-  return res.count || 0;
+    .in("status", Array.from(PICKUP_CAPACITY_STATUSES));
+  if (res.error) return 0;
+  return res.count ?? 0;
+}
+
+export async function reservedCountForRun(admin: SupabaseClient, run_id: string): Promise<number> {
+  return countAcceptedPickupRsvps(admin, run_id);
+}
+
+/** Refund a paid RSVP and move the player to the waitlist when capacity was exceeded at fulfillment. */
+export async function rejectPickupFulfillmentOverCapacity(
+  admin: SupabaseClient,
+  opts: {
+    run_id: string;
+    user_id: string;
+    payment_intent_id: string | null;
+  },
+): Promise<void> {
+  const { run_id, user_id, payment_intent_id } = opts;
+
+  const maxPosRes = await admin
+    .from("pickup_run_rsvps")
+    .select("waitlist_position")
+    .eq("run_id", run_id)
+    .eq("status", "waitlist")
+    .order("waitlist_position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const maxPos =
+    maxPosRes.data?.waitlist_position === null || maxPosRes.data?.waitlist_position === undefined
+      ? 0
+      : Number(maxPosRes.data.waitlist_position);
+  const nextPos = (Number.isFinite(maxPos) ? maxPos : 0) + 1;
+  const nowIso = new Date().toISOString();
+
+  let refund_id: string | null = null;
+  const pi =
+    payment_intent_id != null && String(payment_intent_id).trim().length > 0
+      ? String(payment_intent_id).trim()
+      : null;
+
+  if (pi) {
+    try {
+      const stripe = getStripePickup();
+      const refund = await stripe.refunds.create({ payment_intent: pi });
+      refund_id = refund.id;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("pickup_fulfill_over_capacity_refund_error:", msg, { run_id, user_id });
+    }
+  }
+
+  await admin
+    .from("pickup_run_rsvps")
+    .update({
+      status: "waitlist",
+      waitlist_position: nextPos,
+      waitlist_offered_at: null,
+      waitlist_expires_at: null,
+      checkout_session_id: null,
+      payment_intent_id: null,
+      refund_id,
+      updated_at: nowIso,
+    })
+    .eq("run_id", run_id)
+    .eq("user_id", user_id);
+
+  await sendPushToUsers(admin, [user_id], {
+    title: "Run is full",
+    body: "Your payment was refunded. You've been added to the waitlist.",
+    data: { kind: "pickup_over_capacity_refund", run_id },
+  });
 }
 
 export async function promoteNextWaitlistPlayer(
@@ -121,16 +197,17 @@ export async function promoteNextWaitlistPlayer(
 
   // Best-effort: attach a small audit note for admins in logs.
   if (opts?.requestedBy || opts?.reason) {
-    console.log(
-      JSON.stringify({
-        event: "pickup_waitlist_promoted",
+    console.log({
+      tag: "pickup-waitlist",
+      message: "promoted",
+      data: {
         run_id,
         promoted_user_id: String(next.user_id),
         waitlist_position: next.waitlist_position ?? null,
         requested_by: opts.requestedBy ?? null,
         reason: opts.reason ?? null,
-      }),
-    );
+      },
+    });
   }
 
   return { ok: true, promoted_user_id: String(next.user_id) };

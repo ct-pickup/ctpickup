@@ -13,19 +13,12 @@ import {
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
 import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion";
+import { parseHubRegion } from "@/lib/pickup/hubRegions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const ROUTE = "pickup/public";
-
-const HUB_REGION_CODES = new Set(["NY", "CT", "NJ", "MD"]);
-
-function parseHubRegion(param: string | null): string | null {
-  if (!param) return null;
-  const u = param.trim().toUpperCase();
-  return HUB_REGION_CODES.has(u) ? u : null;
-}
 
 function bearer(req: Request) {
   const auth = req.headers.get("authorization") || "";
@@ -200,10 +193,11 @@ export async function GET(req: Request) {
     // My status: latest row for this user
     let myStatus: string | null = null;
     let myWaitlistPosition: number | null = null;
+    let myWaitlistExpiresAt: string | null = null;
     if (userId) {
       const mine = await admin
         .from("pickup_run_rsvps")
-        .select("status,waitlist_position,updated_at,created_at")
+        .select("status,waitlist_position,waitlist_expires_at,updated_at,created_at")
         .eq("run_id", run.id)
         .eq("user_id", userId)
         .order("updated_at", { ascending: false })
@@ -219,6 +213,8 @@ export async function GET(req: Request) {
         mine.data?.[0]?.waitlist_position === null || mine.data?.[0]?.waitlist_position === undefined
           ? null
           : Number(mine.data?.[0]?.waitlist_position);
+      const rawExpires = mine.data?.[0]?.waitlist_expires_at;
+      myWaitlistExpiresAt = typeof rawExpires === "string" && rawExpires.trim() ? rawExpires.trim() : null;
     }
 
     // Attendees list (confirmed only) if visible
@@ -300,28 +296,6 @@ export async function GET(req: Request) {
       }
 
       planning = { my_availability };
-      // #region agent log
-      fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "ffd01e" },
-        body: JSON.stringify({
-          sessionId: "ffd01e",
-          runId: "pre-fix",
-          hypothesisId: "C",
-          location: "public/route.ts:planning",
-          message: "planning payload built",
-          data: {
-            runId: run.id,
-            runStatus: run.status,
-            final_slot_id: run.final_slot_id,
-            userId,
-            myAvailabilityCount: my_availability.length,
-            my_availability,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
     }
 
     return NextResponse.json({
@@ -356,6 +330,7 @@ export async function GET(req: Request) {
       },
       my_status: myStatus,
       my_waitlist_position: myWaitlistPosition,
+      my_waitlist_expires_at: myWaitlistExpiresAt,
       attendees,
       me: { approved, is_admin: isAdmin, tier, tier_rank: tierRank },
       ...(planning ? { planning } : {}),

@@ -15,7 +15,13 @@ import {
 import { recomputePickupStandingForUser } from "@/lib/pickup/standing/recomputePickupStanding";
 import { notifyFollowersWhenFollowedPlayerConfirmsRun } from "@/lib/pickup/notifyFollowersOnPickupConfirm";
 import { sendPickupRsvpConfirmedPush } from "@/lib/pickup/pickupPushNotifications";
-import { deletePendingWaitlistExpiringReminders, promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
+import { shouldSkipPickupFulfillmentForConfirmedStatus } from "@/lib/pickup/stripeWebhookPickup";
+import {
+  countAcceptedPickupRsvps,
+  deletePendingWaitlistExpiringReminders,
+  promoteNextWaitlistPlayer,
+  rejectPickupFulfillmentOverCapacity,
+} from "@/lib/pickup/waitlist";
 import {
   verifyEsportsRegistrationPaid,
   verifyPickupPaidAndConfirmed,
@@ -90,49 +96,50 @@ async function fulfillPickup(
 ): Promise<void> {
   const { sessionId, paymentIntentId, runId, userId } = opts;
 
+  let resolvedRunId = runId;
+  let resolvedUserId = userId;
+
   if (sessionId) {
     const existing = await admin
       .from("pickup_run_rsvps")
-      .select("id, status")
+      .select("run_id,user_id,status")
       .eq("checkout_session_id", sessionId)
       .maybeSingle();
-    if (String(existing.data?.status || "").trim() === "confirmed") return;
+    if (shouldSkipPickupFulfillmentForConfirmedStatus(existing.data?.status)) return;
+    if (existing.data?.run_id && existing.data?.user_id) {
+      resolvedRunId = String(existing.data.run_id);
+      resolvedUserId = String(existing.data.user_id);
+    }
   }
 
-  if (runId && userId) {
-    const prevRes = await admin
-      .from("pickup_run_rsvps")
-      .select("status")
-      .eq("run_id", runId)
-      .eq("user_id", userId)
-      .maybeSingle();
-    const wasAlreadyConfirmed = String(prevRes.data?.status || "").trim() === "confirmed";
-    if (wasAlreadyConfirmed) return;
-    await admin
-      .from("pickup_run_rsvps")
-      .update({
-        status: "confirmed",
-        paid_at: new Date().toISOString(),
-        payment_intent_id: paymentIntentId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("run_id", runId)
-      .eq("user_id", userId);
-    await deletePendingWaitlistExpiringReminders(admin, userId, runId);
-    await ensurePickupRunInviteLink(admin, runId, userId);
-    await addUserToRunBanterRoom(admin, runId, userId);
-    await notifyPickupPlayerConfirmed(admin, runId, userId, false);
-    return;
-  }
-  if (!sessionId) return;
-  const { data: rsvp } = await admin
+  if (!resolvedRunId || !resolvedUserId) return;
+
+  const prevRes = await admin
     .from("pickup_run_rsvps")
-    .select("run_id,user_id,status")
-    .eq("checkout_session_id", sessionId)
+    .select("status")
+    .eq("run_id", resolvedRunId)
+    .eq("user_id", resolvedUserId)
     .maybeSingle();
-  if (!rsvp) return;
-  const wasAlreadyConfirmed = String(rsvp.status || "").trim() === "confirmed";
-  if (wasAlreadyConfirmed) return;
+  if (String(prevRes.data?.status || "").trim() === "confirmed") return;
+
+  const runRes = await admin
+    .from("pickup_runs")
+    .select("capacity")
+    .eq("id", resolvedRunId)
+    .maybeSingle();
+  const capacity = Number(runRes.data?.capacity || 0);
+  if (capacity > 0) {
+    const occupied = await countAcceptedPickupRsvps(admin, resolvedRunId);
+    if (occupied > capacity) {
+      await rejectPickupFulfillmentOverCapacity(admin, {
+        run_id: resolvedRunId,
+        user_id: resolvedUserId,
+        payment_intent_id: paymentIntentId,
+      });
+      return;
+    }
+  }
+
   await admin
     .from("pickup_run_rsvps")
     .update({
@@ -141,12 +148,12 @@ async function fulfillPickup(
       payment_intent_id: paymentIntentId,
       updated_at: new Date().toISOString(),
     })
-    .eq("run_id", rsvp.run_id)
-    .eq("user_id", rsvp.user_id);
-  await deletePendingWaitlistExpiringReminders(admin, String(rsvp.user_id), String(rsvp.run_id));
-  await ensurePickupRunInviteLink(admin, rsvp.run_id, rsvp.user_id);
-  await addUserToRunBanterRoom(admin, String(rsvp.run_id), String(rsvp.user_id));
-  await notifyPickupPlayerConfirmed(admin, String(rsvp.run_id), String(rsvp.user_id), false);
+    .eq("run_id", resolvedRunId)
+    .eq("user_id", resolvedUserId);
+  await deletePendingWaitlistExpiringReminders(admin, resolvedUserId, resolvedRunId);
+  await ensurePickupRunInviteLink(admin, resolvedRunId, resolvedUserId);
+  await addUserToRunBanterRoom(admin, resolvedRunId, resolvedUserId);
+  await notifyPickupPlayerConfirmed(admin, resolvedRunId, resolvedUserId, false);
 }
 
 async function fulfillTournament(

@@ -67,28 +67,6 @@ export async function GET(req: Request) {
       resolvedRegion,
     );
 
-    // #region agent log
-    fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "9da9ee" },
-      body: JSON.stringify({
-        sessionId: "9da9ee",
-        hypothesisId: "H1",
-        location: "app/api/tournament/public/route.ts:GET:select",
-        message: "active outdoor tournament query",
-        data: {
-          regionRaw: regionRaw || null,
-          resolvedRegion,
-          userIdPresent: Boolean(userId),
-          matchStep: matchStep ?? null,
-          queryError: tErr?.message ?? null,
-          tournamentId: t && typeof t.id === "string" ? t.id : null,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-
     if (tErr) {
       return jsonSupabaseErrorResponse(ROUTE, "tournaments_active", tErr);
     }

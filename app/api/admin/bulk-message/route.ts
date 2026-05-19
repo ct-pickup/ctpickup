@@ -5,10 +5,10 @@ import { truncatePushBody } from "@/lib/push/truncatePushBody";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { venueNamesForServiceRegion } from "@/lib/pickup/venueServiceRegion";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 
 export const runtime = "nodejs";
 
-const HUB_REGIONS = new Set(["CT", "NY", "NJ", "MD"]);
 
 /** Matches `app/api/pickup/public` tier_rank mapping: 1A=1, 1B=2, 2=3, 3=4, 4=5, PUBLIC=6 */
 const TIER_CHIP_TO_RANK: Record<string, number> = {

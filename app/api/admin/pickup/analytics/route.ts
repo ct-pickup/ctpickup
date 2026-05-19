@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { supabaseService } from "@/lib/supabase/service";
 import { computePickupReliability } from "@/lib/pickup/standing/reliabilityScore";
+import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 
 export const runtime = "nodejs";
 
 const LOOKBACK_DAYS = 30;
-const HUB_REGIONS = new Set(["NY", "CT", "NJ", "MD"]);
 
 function sinceIso(days: number): string {
   return new Date(Date.now() - days * 864e5).toISOString();

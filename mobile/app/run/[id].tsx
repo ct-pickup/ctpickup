@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { profileDisplayName } from "@/lib/profileFields";
 import { usePickupJoin } from "@/hooks/usePickupJoin";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
@@ -186,10 +187,21 @@ export default function RunDetailScreen() {
 
     const nameById = new Map<string, string>();
     if (uniqueIds.length > 0) {
-      const profs = await supabase.from("profiles").select("id,full_name,username").in("id", uniqueIds);
+      const profs = await supabase
+        .from("profiles")
+        .select("id,first_name,last_name,username")
+        .in("id", uniqueIds);
       if (profs.data) {
-        for (const p of profs.data as Array<{ id: string; full_name: string | null; username: string | null }>) {
-          const nm = (p.full_name ?? "").trim() || (p.username ? `@${(p.username ?? "").trim()}` : "") || p.id;
+        for (const p of profs.data as Array<{
+          id: string;
+          first_name: string | null;
+          last_name: string | null;
+          username: string | null;
+        }>) {
+          const nm =
+            profileDisplayName(p) ||
+            (p.username ? `@${(p.username ?? "").trim()}` : "") ||
+            p.id;
           nameById.set(p.id, nm);
         }
       }

@@ -236,6 +236,11 @@ export function usePickupPublic(accessToken: string | null, opts?: { focusRunId?
         ? parsed.my_status
         : null;
 
+  const myWaitlistExpiresAt: string | null =
+    typeof parsed.my_waitlist_expires_at === "string" && parsed.my_waitlist_expires_at.trim()
+      ? parsed.my_waitlist_expires_at.trim()
+      : null;
+
   return {
     loading,
     error,
@@ -245,6 +250,7 @@ export function usePickupPublic(accessToken: string | null, opts?: { focusRunId?
     visibility,
     invitedNow,
     myStatus,
+    myWaitlistExpiresAt,
     noFeaturedRun,
     load,
     originOk,

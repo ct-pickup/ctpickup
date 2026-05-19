@@ -11,10 +11,19 @@ import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { addUserToRunBanterRoom, removeUserFromRunBanterRoom } from "@/lib/chat/runBanterRoom";
 import { notifyFollowersWhenFollowedPlayerConfirmsRun } from "@/lib/pickup/notifyFollowersOnPickupConfirm";
 import { sendPickupRsvpConfirmedPush } from "@/lib/pickup/pickupPushNotifications";
-import { deletePendingWaitlistExpiringReminders, promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
+import {
+  countAcceptedPickupRsvps,
+  deletePendingWaitlistExpiringReminders,
+  promoteNextWaitlistPlayer,
+} from "@/lib/pickup/waitlist";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
 import { pickupPlayerRefundEligibleNow } from "@/lib/pickup/runScheduling";
 import { tryApplyReferralCreditToPickupJoin } from "@/lib/referral/pickupReferralCredit";
+import {
+  isMobileCheckoutReturn,
+  pickupCheckoutCancelUrl,
+  pickupCheckoutSuccessUrl,
+} from "@/lib/pickup/stripeCheckoutUrls";
 
 export const runtime = "nodejs";
 
@@ -31,6 +40,7 @@ type Body = {
   run_id: string;
   friend_user_id?: string;
   friend_identifier?: string;
+  checkout_return?: "mobile" | "app";
 };
 
 export async function POST(req: Request) {
@@ -43,10 +53,16 @@ export async function POST(req: Request) {
   const user = u.data.user;
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const banRes = await admin.from("profiles").select("is_banned").eq("id", user.id).maybeSingle();
+  if (banRes.data?.is_banned === true) {
+    return NextResponse.json({ error: "Account suspended" }, { status: 403 });
+  }
+
   const body = (await req.json()) as Body;
   if (!body?.action || !body?.run_id) {
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
   }
+  const mobileReturn = isMobileCheckoutReturn(body);
 
   if (body.action === "decline") {
     const waiverOk = await userHasAcceptedCurrentWaiver(user.id);
@@ -375,13 +391,7 @@ export async function POST(req: Request) {
     .eq("user_id", targetUserId)
     .maybeSingle();
 
-  const reservedCountRes = await admin
-    .from("pickup_run_rsvps")
-    .select("id", { count: "exact", head: true })
-    .eq("run_id", run.id)
-    .eq("status", "confirmed");
-
-  const reservedCount = reservedCountRes.count || 0;
+  const reservedCount = await countAcceptedPickupRsvps(admin, String(run.id));
   const capacity = Number(run.capacity || 0);
   const hasSlot = reservedCount < capacity;
 
@@ -536,8 +546,8 @@ export async function POST(req: Request) {
   try {
     const currency = String(run.currency || "usd").trim().toLowerCase() || "usd";
     const unitAmount = Number.isFinite(feeCents) ? Math.round(feeCents) : feeCents;
-    const successUrl = `${baseUrl}/pickup?paid=1`;
-    const cancelUrl = `${baseUrl}/pickup?canceled=1`;
+    const successUrl = pickupCheckoutSuccessUrl(baseUrl, mobileReturn);
+    const cancelUrl = pickupCheckoutCancelUrl(baseUrl, mobileReturn);
 
     const snapshot = {
       event: "stripe_checkout_create_attempt" as const,
@@ -545,6 +555,7 @@ export async function POST(req: Request) {
       baseUrl,
       success_url: successUrl,
       cancel_url: cancelUrl,
+      mobile_return: mobileReturn,
       mode: "payment" as const,
       currency,
       unit_amount: unitAmount,
@@ -552,7 +563,7 @@ export async function POST(req: Request) {
       metadata_keys: Object.keys(pickupMeta),
     };
 
-    console.log(JSON.stringify(snapshot));
+    console.log({ tag: "pickup-rsvp", message: "stripe_checkout_create_attempt", data: snapshot });
 
     session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -616,14 +627,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Checkout could not be created." }, { status: 500 });
   }
 
-  console.log(
-    JSON.stringify({
-      stripe_checkout: true,
-      flow: "pickup_rsvp",
-      checkout_session_id: session.id,
-      run_id: run.id,
-    }),
-  );
+  console.log({
+    tag: "pickup-rsvp",
+    message: "stripe_checkout_created",
+    data: { flow: "pickup_rsvp", checkout_session_id: session.id, run_id: run.id },
+  });
 
   await admin.from("pickup_run_rsvps").upsert(
     {

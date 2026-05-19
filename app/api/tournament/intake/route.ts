@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { splitFullNameToFirstLast } from "@/lib/tournament/tourneySubmissionNames";
+import { enforcePersistentRateLimit } from "@/lib/server/persistentRateLimit";
 import { getOpenAI, getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { SUPPORT_EMAIL_ADDRESS } from "@/lib/supportEmail";
 
@@ -109,6 +110,13 @@ function extractAssistantText(resp: any): string | null {
 
 export async function POST(req: Request) {
   try {
+    const rateLimited = await enforcePersistentRateLimit(req, {
+      route: "tournament/intake",
+      limit: 3,
+      windowSeconds: 3600,
+    });
+    if (rateLimited) return rateLimited;
+
     const body = await req.json();
     const user_message: string = (body?.user_message || "").toString().trim();
     const last_question: string = (body?.last_question || "").toString();

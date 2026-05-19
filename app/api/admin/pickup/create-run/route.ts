@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { buildPublicPickupTimeSlotsForNextDay } from "@/lib/pickup/publicRunTimeSlots";
 import { isPublicPickupRunType, normalizePickupRunTypeForDb } from "@/lib/pickup/pickupRunType";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 
-const HUB_REGIONS = new Set(["NY", "CT", "NJ", "MD"]);
 
 export async function POST(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();

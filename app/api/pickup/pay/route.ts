@@ -7,6 +7,11 @@ import { paymentIntentIdFromCheckoutSession } from "@/lib/payments/stripeSession
 import { recordPlatformCheckoutStarted } from "@/lib/payments/recordCheckoutStarted";
 import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { tryApplyReferralCreditToPickupJoin } from "@/lib/referral/pickupReferralCredit";
+import {
+  isMobileCheckoutReturn,
+  pickupCheckoutCancelUrl,
+  pickupCheckoutSuccessUrl,
+} from "@/lib/pickup/stripeCheckoutUrls";
 
 export const runtime = "nodejs";
 
@@ -25,6 +30,11 @@ export async function POST(req: Request) {
   const user = u.data.user;
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const banRes = await admin.from("profiles").select("is_banned").eq("id", user.id).maybeSingle();
+  if (banRes.data?.is_banned === true) {
+    return NextResponse.json({ error: "Account suspended" }, { status: 403 });
+  }
+
   const waiverOk = await userHasAcceptedCurrentWaiver(user.id);
   if (!waiverOk) {
     return NextResponse.json({ error: "waiver_required" }, { status: 403 });
@@ -39,6 +49,7 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => ({}));
+  const mobileReturn = isMobileCheckoutReturn(body);
   const run_id = String(body.run_id || "");
   if (!run_id) return NextResponse.json({ error: "Missing run_id" }, { status: 400 });
 
@@ -53,7 +64,8 @@ export async function POST(req: Request) {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!rsvp.data || rsvp.data.status !== "pending_payment") {
+  const payStatus = rsvp.data?.status;
+  if (!rsvp.data || (payStatus !== "pending_payment" && payStatus !== "pending_confirm")) {
     return NextResponse.json({ error: "No pending payment for this run." }, { status: 409 });
   }
 
@@ -73,7 +85,7 @@ export async function POST(req: Request) {
     tierAtTime: profRes.data?.tier || null,
     feeCents,
     previousRsvpStatus: rsvp.data?.status ?? null,
-    hadPendingConfirm: false,
+    hadPendingConfirm: payStatus === "pending_confirm",
   });
   if (referralCredit.applied) {
     return NextResponse.json({
@@ -108,23 +120,25 @@ export async function POST(req: Request) {
   try {
     const currency = String(run.currency || "usd").trim().toLowerCase() || "usd";
     const unitAmount = Number.isFinite(feeCents) ? Math.round(feeCents) : feeCents;
-    const successUrl = `${baseUrl}/pickup?paid=1`;
-    const cancelUrl = `${baseUrl}/pickup?canceled=1`;
+    const successUrl = pickupCheckoutSuccessUrl(baseUrl, mobileReturn);
+    const cancelUrl = pickupCheckoutCancelUrl(baseUrl, mobileReturn);
 
-    console.log(
-      JSON.stringify({
-        stripe_checkout_create_attempt: true,
+    console.log({
+      tag: "pickup-pay",
+      message: "stripe_checkout_create_attempt",
+      data: {
         flow: "pickup_pay",
         baseUrl,
         success_url: successUrl,
         cancel_url: cancelUrl,
+        mobile_return: mobileReturn,
         mode: "payment",
         currency,
         unit_amount: unitAmount,
         customer_email_present: !!(user.email && String(user.email).trim()),
         metadata_keys: Object.keys(pickupMeta),
-      }),
-    );
+      },
+    });
 
     session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -171,14 +185,11 @@ export async function POST(req: Request) {
     );
   }
 
-  console.log(
-    JSON.stringify({
-      stripe_checkout: true,
-      flow: "pickup_pay",
-      checkout_session_id: session.id,
-      run_id: run.id,
-    }),
-  );
+  console.log({
+    tag: "pickup-pay",
+    message: "stripe_checkout_created",
+    data: { flow: "pickup_pay", checkout_session_id: session.id, run_id: run.id },
+  });
 
   await admin
     .from("pickup_run_rsvps")

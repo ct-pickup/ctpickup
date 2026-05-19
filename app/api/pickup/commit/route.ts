@@ -82,6 +82,11 @@ export async function POST(req: Request) {
   const userId = u.data.user?.id || null;
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const banRes = await admin.from("profiles").select("is_banned").eq("id", userId).maybeSingle();
+  if (banRes.data?.is_banned === true) {
+    return NextResponse.json({ error: "Account suspended" }, { status: 403 });
+  }
+
   const waiverOk = await userHasAcceptedCurrentWaiver(userId);
   if (!waiverOk) {
     return NextResponse.json({ error: "waiver_required" }, { status: 403 });
@@ -288,51 +293,9 @@ export async function POST(req: Request) {
       updated_at: updatedAt,
     }));
 
-    // #region agent log
-    fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "ffd01e" },
-      body: JSON.stringify({
-        sessionId: "ffd01e",
-        runId: "pre-fix",
-        hypothesisId: "B",
-        location: "commit/route.ts:beforeUpsert",
-        message: "availability upsert payload",
-        data: {
-          run_id,
-          userId,
-          slotIdsToUpsert,
-          upsertRowCount: upsertRows.length,
-          slot_label_in,
-          slot_labels_selection,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-
     const ins = await admin
       .from("pickup_run_availability")
       .upsert(upsertRows, { onConflict: "run_id,user_id,slot_id" });
-  // #region agent log
-  fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "ffd01e" },
-    body: JSON.stringify({
-      sessionId: "ffd01e",
-      runId: "pre-fix",
-      hypothesisId: "B",
-      location: "commit/route.ts:afterUpsert",
-      message: "availability upsert result",
-      data: {
-        ok: !ins.error,
-        error: ins.error?.message ?? null,
-        code: ins.error?.code ?? null,
-      },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
     if (ins.error) {
       return NextResponse.json({ error: ins.error.message || "Could not save availability." }, { status: 500 });
     }

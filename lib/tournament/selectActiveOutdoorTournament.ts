@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 
-const HUB_REGIONS = new Set(["NY", "CT", "NJ", "MD"]);
 
 export type OutdoorTournamentRow = Record<string, unknown> & { id: string };
 

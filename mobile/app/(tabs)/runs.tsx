@@ -15,6 +15,7 @@ import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions"
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect } from "@react-navigation/native";
 import { useNavigation, useRouter } from "expo-router";
+import * as Linking from "expo-linking";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -54,11 +55,16 @@ function runStatusPillLabel(st: string | null | undefined): string {
   return st.replace(/_/g, " ");
 }
 
-function rsvpStatusMessage(myStatus: string | null): string | null {
+function rsvpStatusMessage(myStatus: string | null, waitlistMinutesLeft: number | null): string | null {
   if (myStatus === "confirmed") return "You're confirmed for this run.";
   if (myStatus === "pending_payment") return "Finish payment to secure your spot.";
-  if (myStatus === "standby") return "You're on standby — we'll notify you if a spot opens.";
-  if (myStatus === "waitlist") return "You're on the waitlist.";
+  if (myStatus === "pending_confirm") {
+    if (waitlistMinutesLeft != null && waitlistMinutesLeft > 0) {
+      return `You have ${waitlistMinutesLeft} minute${waitlistMinutesLeft === 1 ? "" : "s"} to confirm your spot.`;
+    }
+    return "A spot opened — confirm now before your offer expires.";
+  }
+  if (myStatus === "standby" || myStatus === "waitlist") return "You're on the waitlist — we'll notify you if a spot opens.";
   return null;
 }
 
@@ -104,7 +110,9 @@ export default function RunsScreen() {
 
   const { allowed: chatAllowed } = useTeamChatAccess();
 
-  const { loading, error, data, run, counts, myStatus, invitedNow, noFeaturedRun, load } = usePickupPublic(token);
+  const { loading, error, data, run, counts, myStatus, myWaitlistExpiresAt, invitedNow, noFeaturedRun, load } =
+    usePickupPublic(token);
+  const [countdownTick, setCountdownTick] = useState(0);
   const { joinBusy, joinPickup, payBusy, payPickup, availabilityBusy, recordCantMakeIt } = usePickupJoin();
 
   const chatEnabled = !!session?.user?.id && chatAllowed === true;
@@ -201,9 +209,36 @@ export default function RunsScreen() {
     myStatus === "confirmed" ||
     myStatus === "standby" ||
     myStatus === "waitlist" ||
-    myStatus === "pending_payment";
+    myStatus === "pending_payment" ||
+    myStatus === "pending_confirm";
 
-  const rsvpMessage = rsvpStatusMessage(myStatus);
+  const waitlistMinutesLeft = useMemo(() => {
+    void countdownTick;
+    if (myStatus !== "pending_confirm" || !myWaitlistExpiresAt) return null;
+    const expiresMs = Date.parse(myWaitlistExpiresAt);
+    if (!Number.isFinite(expiresMs)) return null;
+    const diffMs = expiresMs - Date.now();
+    if (diffMs <= 0) return 0;
+    return Math.max(1, Math.ceil(diffMs / 60_000));
+  }, [myStatus, myWaitlistExpiresAt, countdownTick]);
+
+  useEffect(() => {
+    if (myStatus !== "pending_confirm") return;
+    const id = setInterval(() => setCountdownTick((t) => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, [myStatus]);
+
+  useEffect(() => {
+    const sub = Linking.addEventListener("url", (event) => {
+      const u = event.url || "";
+      if (u.startsWith("ctpickup://pickup")) {
+        void load();
+      }
+    });
+    return () => sub.remove();
+  }, [load]);
+
+  const rsvpMessage = rsvpStatusMessage(myStatus, waitlistMinutesLeft);
 
   const onRefresh = useCallback(() => {
     void load();
@@ -237,6 +272,22 @@ export default function RunsScreen() {
     void hapticTap();
     void payPickup(token, runId, load);
   }, [token, runId, payPickup, load]);
+
+  const onConfirmSpot = useCallback(() => {
+    if (!token || !runId) {
+      Alert.alert("Sign in required", "Sign in to confirm your spot.");
+      return;
+    }
+    void hapticTap();
+    if (myStatus === "pending_confirm" && feeCents > 0) {
+      void payPickup(token, runId, load);
+      return;
+    }
+    void joinPickup(token, runId, async () => {
+      await load();
+      void hapticGoal();
+    });
+  }, [token, runId, myStatus, feeCents, payPickup, joinPickup, load]);
 
   const onOpenChat = useCallback(() => {
     if (banterRoomId) {
@@ -391,6 +442,29 @@ export default function RunsScreen() {
                 <CardDivider />
                 <View style={styles.rsvpBlock}>
                   <Text style={styles.rsvpStatus}>{rsvpMessage}</Text>
+                  {myStatus === "pending_confirm" && !runLocked ? (
+                    <>
+                      {waitlistMinutesLeft != null && waitlistMinutesLeft > 0 ? (
+                        <Text style={styles.countdown}>
+                          You have {waitlistMinutesLeft} minute{waitlistMinutesLeft === 1 ? "" : "s"} to confirm your
+                          spot
+                        </Text>
+                      ) : null}
+                      <Pressable
+                        disabled={joinBusy || payBusy}
+                        onPress={onConfirmSpot}
+                        style={({ pressed }) => [
+                          styles.primaryBtn,
+                          pressed && { opacity: 0.9 },
+                          (joinBusy || payBusy) && styles.btnDisabled,
+                        ]}
+                      >
+                        <Text style={styles.primaryBtnText}>
+                          {joinBusy || payBusy ? "Opening checkout…" : "Confirm spot now"}
+                        </Text>
+                      </Pressable>
+                    </>
+                  ) : null}
                   {myStatus === "pending_payment" && !runLocked ? (
                     <Pressable
                       disabled={payBusy}
@@ -406,7 +480,13 @@ export default function RunsScreen() {
                       </Text>
                     </Pressable>
                   ) : null}
-                  {(myStatus === "confirmed" || myStatus === "standby") && (
+                  <Pressable
+                    onPress={onRefresh}
+                    style={({ pressed }) => [styles.refreshStatusBtn, pressed && { opacity: 0.9 }]}
+                  >
+                    <Text style={styles.refreshStatusBtnText}>Refresh my status</Text>
+                  </Pressable>
+                  {(myStatus === "confirmed" || myStatus === "standby" || myStatus === "waitlist") && (
                     <Pressable
                       onPress={onOpenChat}
                       style={({ pressed }) => [styles.chatBtn, pressed && { opacity: 0.9 }]}
@@ -591,6 +671,15 @@ const styles = StyleSheet.create({
   },
   rsvpBlock: { gap: 12 },
   rsvpStatus: { color: "rgba(255,255,255,0.75)", lineHeight: 20, fontSize: 14 },
+  countdown: { color: LIME, fontWeight: "800", fontSize: 15, lineHeight: 22 },
+  refreshStatusBtn: {
+    paddingVertical: 12,
+    alignItems: "center",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+  },
+  refreshStatusBtnText: { color: "rgba(255,255,255,0.65)", fontWeight: "600", fontSize: 14 },
   ctaBlock: { gap: 10, alignItems: "center" },
   primaryBtn: {
     width: "100%",

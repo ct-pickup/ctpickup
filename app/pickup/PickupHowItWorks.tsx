@@ -64,7 +64,7 @@ const upcomingCards = [
     body: "The exact location is not visible to everyone.",
     bullets: [
       "Only confirmed players receive the exact location.",
-      "Standby players do not.",
+      "Waitlisted players do not.",
     ],
   },
 ];
@@ -108,8 +108,8 @@ const joinCards = [
   {
     step: "04",
     eyebrow: "If the Run Is Full",
-    title: "Standby keeps the final group controlled",
-    body: "If capacity has already been reached, players who try to join will be placed on standby.",
+    title: "Waitlist keeps the final group controlled",
+    body: "If capacity has already been reached, players who try to join will be placed on the waitlist.",
     bullets: [
       "The player is not fully confirmed.",
       "The player does not receive the exact location.",
@@ -150,7 +150,7 @@ const pageItems = [
   "Availability poll",
   "RSVP options",
   "Attendance visibility, if available",
-  "Confirmation, standby, or pending payment status",
+  "Confirmation, waitlist, or pending payment status",
   "Exact location, if confirmed",
   "Multiple live runs shown as separate run sections, if applicable",
 ];

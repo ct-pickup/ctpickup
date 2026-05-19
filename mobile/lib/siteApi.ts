@@ -5,7 +5,7 @@ export async function postPickupRsvp(
   accessToken: string,
   runId: string,
   action: "join" | "decline",
-  opts?: { friend_user_id?: string },
+  opts?: { friend_user_id?: string; checkout_return?: "mobile" | "app" },
 ): Promise<{ ok: boolean; status: number; json: unknown }> {
   const origin = siteOrigin();
   if (!origin) {
@@ -13,6 +13,7 @@ export async function postPickupRsvp(
   }
   const body: Record<string, unknown> = { run_id: runId, action };
   if (opts?.friend_user_id) body.friend_user_id = opts.friend_user_id;
+  if (opts?.checkout_return) body.checkout_return = opts.checkout_return;
   const r = await fetch(`${origin}/api/pickup/rsvp`, {
     method: "POST",
     headers: {
@@ -160,30 +161,6 @@ export async function postPickupCommit(
     body: JSON.stringify(payload),
   });
   const json = await r.json().catch(() => ({}));
-  // #region agent log
-  fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "ffd01e" },
-    body: JSON.stringify({
-      sessionId: "ffd01e",
-      runId: "pre-fix",
-      hypothesisId: "F",
-      location: "siteApi.ts:postPickupCommit",
-      message: "commit HTTP result",
-      data: {
-        origin,
-        runId,
-        state,
-        slotLabel,
-        slotLabelsSelectionCount: slotLabelsSelection?.length ?? 0,
-        ok: r.ok,
-        status: r.status,
-        error: typeof (json as { error?: string })?.error === "string" ? (json as { error: string }).error : null,
-      },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
   return { ok: r.ok, status: r.status, json };
 }
 
@@ -191,18 +168,21 @@ export async function postPickupCommit(
 export async function postPickupPay(
   accessToken: string,
   runId: string,
+  opts?: { checkout_return?: "mobile" | "app" },
 ): Promise<{ ok: boolean; status: number; json: unknown }> {
   const origin = siteOrigin();
   if (!origin) {
     return { ok: false, status: 0, json: { error: "missing_site_url" } };
   }
+  const body: Record<string, unknown> = { run_id: runId };
+  if (opts?.checkout_return) body.checkout_return = opts.checkout_return;
   const r = await fetch(`${origin}/api/pickup/pay`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ run_id: runId }),
+    body: JSON.stringify(body),
   });
   const json = await r.json().catch(() => ({}));
   return { ok: r.ok, status: r.status, json };

@@ -420,7 +420,7 @@ export default function PickupPage() {
                       <div className="mt-2 text-2xl font-semibold text-white/90">{data.final?.counts?.confirmed ?? 0}</div>
                     </div>
                     <div className="rounded-xl border border-white/10 bg-black/30 p-5">
-                      <div className="text-xs uppercase tracking-widest text-white/55">Standby</div>
+                      <div className="text-xs uppercase tracking-widest text-white/55">Waitlist</div>
                       <div className="mt-2 text-2xl font-semibold text-white/90">{data.final?.counts?.standby ?? 0}</div>
                     </div>
                     <div className="rounded-xl border border-white/10 bg-black/30 p-5">
@@ -451,7 +451,7 @@ export default function PickupPage() {
                         </>
                       ) : data.final?.my_status === "standby" ? (
                         <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white/85">
-                          Standby (admin promotes manually)
+                          Waitlist
                         </div>
                       ) : data.final?.my_status === "pending_payment" ? (
                         <div className="flex flex-wrap gap-3 items-center">
@@ -498,7 +498,7 @@ export default function PickupPage() {
 
                   <div className="text-sm text-white/75">
                     <span className="font-semibold text-white/85">Important:</span>{" "}
-                    Standby never receives the exact location. Only confirmed players do.
+                    Waitlisted players never receive the exact location. Only confirmed players do.
                   </div>
 
                   {data.visibility?.attendanceVisible ? (

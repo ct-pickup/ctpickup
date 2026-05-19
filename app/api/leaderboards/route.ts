@@ -3,12 +3,12 @@ import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
 import { jsonConfigErrorResponse, logPublicApiRouteError } from "@/lib/server/publicApiRouteErrors";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const ROUTE = "leaderboards";
-const HUB_REGIONS = new Set(["CT", "NY", "NJ", "MD"]);
 const PAGE = 1000;
 
 type LeaderboardPlayerRow = {

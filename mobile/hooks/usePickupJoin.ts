@@ -2,6 +2,7 @@ import { hapticError } from "@/lib/haptics";
 import * as Sentry from "@sentry/react-native";
 import { pickupPlayerRefundEligibleClient, type PickupRunRefundTiming } from "@/lib/pickupRefundEligibility";
 import { postPickupCommit, postPickupPay, postPickupRsvp } from "@/lib/siteApi";
+import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useState } from "react";
 import { Alert } from "react-native";
@@ -10,8 +11,18 @@ import { Alert } from "react-native";
  * Field fees use Stripe Checkout (hosted). That is not the CT Pickup marketing site.
  * Free RSVPs stay entirely inside the app.
  */
-async function openStripeCheckout(url: string) {
-  await WebBrowser.openBrowserAsync(url);
+async function openStripeCheckout(url: string, onReturn?: () => void | Promise<void>) {
+  const sub = Linking.addEventListener("url", (event) => {
+    const u = event.url || "";
+    if (u.startsWith("ctpickup://pickup")) {
+      void onReturn?.();
+    }
+  });
+  try {
+    await WebBrowser.openBrowserAsync(url);
+  } finally {
+    sub.remove();
+  }
 }
 
 /** Server-side `/api/pickup/pay` returns `waiver_required` / `standing_not_eligible` (with `detail`); fall back to a generic message otherwise. */
@@ -97,10 +108,13 @@ export function usePickupJoin() {
       const payForFriend = friendId.length > 0;
       setJoinBusy(true);
       try {
-        const r = await postPickupRsvp(accessToken, id, "join", payForFriend ? { friend_user_id: friendId } : undefined);
+        const r = await postPickupRsvp(accessToken, id, "join", {
+          ...(payForFriend ? { friend_user_id: friendId } : {}),
+          checkout_return: "mobile",
+        });
         const j = r.json as Record<string, unknown>;
         if (r.ok && typeof j.checkout_url === "string" && j.checkout_url.startsWith("https://")) {
-          await openStripeCheckout(j.checkout_url);
+          await openStripeCheckout(j.checkout_url, reload);
           await reload();
           return;
         }
@@ -112,14 +126,14 @@ export function usePickupJoin() {
               ? payForFriend && friendName
                 ? `${friendName} is confirmed for this run.`
                 : "You’re confirmed for this run."
-              : st === "standby"
+              : st === "standby" || st === "waitlist"
                 ? payForFriend && friendName
-                  ? `${friendName} is on standby we’ll notify them if a spot opens.`
-                  : "You’re on standby we’ll notify you if a spot opens."
-                : st === "waitlist"
+                  ? `${friendName} was added to the waitlist.`
+                  : "You were added to the waitlist."
+                : st === "pending_confirm"
                   ? payForFriend && friendName
-                    ? `${friendName} was added to the waitlist.`
-                    : "You were added to the waitlist."
+                    ? `${friendName} has a spot to confirm — finish checkout to secure it.`
+                    : "A spot opened — confirm now before your offer expires."
                   : st === "pending_payment"
                     ? payForFriend && friendName
                       ? `Checkout started for ${friendName}. They’ll show as confirmed after payment completes.`
@@ -177,10 +191,10 @@ export function usePickupJoin() {
       }
       setPayBusy(true);
       try {
-        const r = await postPickupPay(accessToken, id);
+        const r = await postPickupPay(accessToken, id, { checkout_return: "mobile" });
         const j = r.json as Record<string, unknown>;
         if (r.ok && typeof j.url === "string" && j.url.startsWith("https://")) {
-          await openStripeCheckout(j.url);
+          await openStripeCheckout(j.url, reload);
           await reload();
           return;
         }
@@ -367,28 +381,6 @@ export function usePickupJoin() {
         for (const label of slotLabels) {
           const r = await postPickupCommit(accessToken, id, "available", null, label, slotLabels);
           const j = r.json as Record<string, unknown>;
-          // #region agent log
-          fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "ffd01e" },
-            body: JSON.stringify({
-              sessionId: "ffd01e",
-              runId: "pre-fix",
-              hypothesisId: "A",
-              location: "usePickupJoin.ts:commitAvailabilitySlots",
-              message: "postPickupCommit response",
-              data: {
-                label,
-                slotLabelsCount: slotLabels.length,
-                ok: r.ok,
-                status: r.status,
-                error: typeof j.error === "string" ? j.error : null,
-                detail: typeof j.detail === "string" ? j.detail : null,
-              },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-          // #endregion
           if (!r.ok) {
             void hapticError();
             Alert.alert("Could not submit", commitErrorMessage(r.status, j));

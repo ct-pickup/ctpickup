@@ -210,26 +210,6 @@ export default function AdminPickupOpsScreen() {
       return;
     }
     const runRows = r.data.runs ?? [];
-    // #region agent log
-    fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "1be722" },
-      body: JSON.stringify({
-        sessionId: "1be722",
-        runId: "post-fix",
-        hypothesisId: "H4",
-        location: "mobile/app/admin/pickup.tsx:loadRuns",
-        message: "switch list client received",
-        data: {
-          ok: r.ok,
-          status: r.status,
-          runsLength: runRows.length,
-          statuses: runRows.slice(0, 5).map((row) => s(row.status)),
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     console.log("[admin] loadRuns got:", runRows.length, "runs");
     setRuns(runRows);
   }, [token]);

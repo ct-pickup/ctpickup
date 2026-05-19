@@ -48,7 +48,11 @@ export async function insertInvitesForTierRanks(
     }
   }
 
-  console.log("[insertInvitesForTierRanks] start", { run_id, tier_ranks: uniqTiers, wave, service_region: service_region ?? null });
+  console.log({
+    tag: "pickup-invites",
+    message: "insert_start",
+    data: { run_id, tier_ranks: uniqTiers, wave, service_region: service_region ?? null },
+  });
 
   const ppl = await admin
     .from("profiles")
@@ -73,11 +77,15 @@ export async function insertInvitesForTierRanks(
     phone: p.phone || null,
   }));
 
-  console.log("[insertInvitesForTierRanks] after profile query + max drive filter", {
-    run_id,
-    approved_tier_rows: rawRows.length,
-    after_proximity_filter: candidates.length,
-    excluded_by_proximity: rawRows.length - candidates.length,
+  console.log({
+    tag: "pickup-invites",
+    message: "after_profile_filter",
+    data: {
+      run_id,
+      approved_tier_rows: rawRows.length,
+      after_proximity_filter: candidates.length,
+      excluded_by_proximity: rawRows.length - candidates.length,
+    },
   });
 
   const rows = candidates.map((p) => ({
@@ -89,7 +97,7 @@ export async function insertInvitesForTierRanks(
   }));
 
   if (!rows.length) {
-    console.log("[insertInvitesForTierRanks] no candidate rows after filters", { run_id });
+    console.log({ tag: "pickup-invites", message: "no_candidates", data: { run_id } });
     return { ok: true, newlyInvited: [] };
   }
 
@@ -100,22 +108,26 @@ export async function insertInvitesForTierRanks(
   const newRows = rows.filter((r) => !existingUserIds.has(r.user_id));
   const newlyInvited = candidates.filter((p) => !existingUserIds.has(p.user_id));
 
-  console.log("[insertInvitesForTierRanks] vs existing invites on run", {
-    run_id,
-    existing_invite_count: existingUserIds.size,
-    candidate_count: rows.length,
-    new_row_count: newRows.length,
+  console.log({
+    tag: "pickup-invites",
+    message: "vs_existing_invites",
+    data: {
+      run_id,
+      existing_invite_count: existingUserIds.size,
+      candidate_count: rows.length,
+      new_row_count: newRows.length,
+    },
   });
 
   if (!newRows.length) {
-    console.log("[insertInvitesForTierRanks] all candidates already invited — skipping insert", { run_id });
+    console.log({ tag: "pickup-invites", message: "all_already_invited", data: { run_id } });
     return { ok: true, newlyInvited: [] };
   }
 
   const inviteInsert = await admin.from("pickup_run_invites").insert(newRows);
   if (inviteInsert.error) return { ok: false, error: inviteInsert.error.message };
 
-  console.log("[insertInvitesForTierRanks] insert ok", { run_id, inserted: newRows.length });
+  console.log({ tag: "pickup-invites", message: "insert_ok", data: { run_id, inserted: newRows.length } });
 
   return { ok: true, newlyInvited };
 }

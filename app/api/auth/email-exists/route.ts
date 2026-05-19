@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { enforcePersistentRateLimit } from "@/lib/server/persistentRateLimit";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 /**
@@ -9,39 +10,28 @@ const LIST_USERS_PAGE_SIZE = 1000;
 /** Safety cap so a pathological case cannot loop unbounded. */
 const LIST_USERS_MAX_PAGES = 500;
 
-const RATE_WINDOW_MS = 60_000;
-const RATE_MAX_PER_WINDOW = 5;
-const rateLimitHits = new Map<string, number[]>();
+const RATE_LIMIT_PER_MINUTE = 3;
 
-function clientIp(req: Request): string {
-  const xff = req.headers.get("x-forwarded-for");
-  if (xff) {
-    const first = xff.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  return "unknown";
+function randomDelayMs(): number {
+  return 200 + Math.floor(Math.random() * 601);
 }
 
-function isEmailExistsRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const prev = rateLimitHits.get(ip) ?? [];
-  const pruned = prev.filter((t) => now - t < RATE_WINDOW_MS);
-  if (pruned.length >= RATE_MAX_PER_WINDOW) {
-    rateLimitHits.set(ip, pruned);
-    return true;
-  }
-  pruned.push(now);
-  rateLimitHits.set(ip, pruned);
-  return false;
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function POST(req: Request) {
-  try {
-    const ip = clientIp(req);
-    if (isEmailExistsRateLimited(ip)) {
-      return NextResponse.json({ error: "Too many requests. Try again later." }, { status: 429 });
-    }
+  const rateLimited = await enforcePersistentRateLimit(req, {
+    route: "auth/email-exists",
+    limit: RATE_LIMIT_PER_MINUTE,
+    windowSeconds: 60,
+  });
+  if (rateLimited) return rateLimited;
 
+  const delayMs = randomDelayMs();
+  const startedAt = Date.now();
+
+  try {
     const admin = getSupabaseAdmin({
       auth: { autoRefreshToken: false, persistSession: false },
     });
@@ -50,6 +40,7 @@ export async function POST(req: Request) {
     const email = String(body?.email || "").trim().toLowerCase();
 
     if (!email || !email.includes("@")) {
+      await sleep(Math.max(0, delayMs - (Date.now() - startedAt)));
       return NextResponse.json({ exists: false, error: "invalid_email" }, { status: 400 });
     }
 
@@ -62,10 +53,12 @@ export async function POST(req: Request) {
 
     if (profileErr) {
       console.error("[email-exists] profiles:", profileErr.message);
+      await sleep(Math.max(0, delayMs - (Date.now() - startedAt)));
       return NextResponse.json({ exists: false, error: profileErr.message }, { status: 500 });
     }
 
     if (profile) {
+      await sleep(Math.max(0, delayMs - (Date.now() - startedAt)));
       return NextResponse.json({ exists: true });
     }
 
@@ -78,11 +71,13 @@ export async function POST(req: Request) {
         perPage: LIST_USERS_PAGE_SIZE,
       });
       if (error) {
+        await sleep(Math.max(0, delayMs - (Date.now() - startedAt)));
         return NextResponse.json({ exists: false, error: error.message }, { status: 500 });
       }
 
       const users = data?.users ?? [];
       if (users.some((u) => (u.email || "").toLowerCase() === email)) {
+        await sleep(Math.max(0, delayMs - (Date.now() - startedAt)));
         return NextResponse.json({ exists: true });
       }
 
@@ -90,8 +85,10 @@ export async function POST(req: Request) {
       page += 1;
     }
 
+    await sleep(Math.max(0, delayMs - (Date.now() - startedAt)));
     return NextResponse.json({ exists: false });
   } catch {
+    await sleep(Math.max(0, delayMs - (Date.now() - startedAt)));
     return NextResponse.json({ exists: false, error: "bad_request" }, { status: 400 });
   }
 }

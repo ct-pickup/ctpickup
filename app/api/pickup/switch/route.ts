@@ -29,10 +29,10 @@ import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { ensureRunBanterRoomAndMembers } from "@/lib/chat/runBanterRoom";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 
 export const runtime = "nodejs";
 
-const HUB_REGIONS = new Set(["NY", "CT", "NJ", "MD"]);
 
 type ListCounts = {
   confirmed: number;
@@ -413,7 +413,7 @@ export async function POST(req: Request) {
 
   // 1) Create run in Planning — staff promotes to hub separately (`set_hub_pickup` / Promote button).
   if (action === "create_run") {
-    console.log("[pickup/switch create_run] raw body", JSON.stringify(body));
+
 
     const title = String(body.title || "CT Pickup Run").trim() || "CT Pickup Run";
     const run_type = normalizePickupRunTypeForDb(body.run_type);
@@ -465,7 +465,7 @@ export async function POST(req: Request) {
       .select("id")
       .maybeSingle();
 
-    console.log("[pickup/switch create_run] Supabase insert response", {
+    console.log({ tag: "pickup-switch", message: "create_run_insert", data: {
       error: ins.error ? { message: ins.error.message, code: (ins.error as { code?: string }).code } : null,
       data: ins.data,
       status: ins.status,
@@ -509,7 +509,7 @@ export async function POST(req: Request) {
     }
     const start_at = new Date(parsedMs).toISOString();
 
-    console.log("[pickup/switch add_slot] saving slot", JSON.stringify({ run_id, start_at_raw: rawStart.trim(), start_at_utc: start_at, label }));
+
 
     const ins = await admin.from("pickup_run_time_slots").upsert({
       run_id,
@@ -517,7 +517,7 @@ export async function POST(req: Request) {
       label,
     }, { onConflict: "run_id,start_at" }).select("id").maybeSingle();
 
-    console.log("[pickup/switch add_slot] Supabase insert response", {
+    console.log({ tag: "pickup-switch", message: "add_slot_insert", data: {
       error: ins.error ? { message: ins.error.message, code: (ins.error as { code?: string }).code } : null,
       data: ins.data,
       status: ins.status,
@@ -763,10 +763,10 @@ export async function POST(req: Request) {
       }
     }
 
-    console.log("[pickup/switch edit_run] patch", JSON.stringify({ run_id, ...patch }));
+
 
     const up = await admin.from("pickup_runs").update(patch).eq("id", run_id);
-    console.log("[pickup/switch edit_run] Supabase update response", {
+    console.log({ tag: "pickup-switch", message: "edit_run_update", data: {
       run_id,
       error: up.error ? { message: up.error.message, code: (up.error as { code?: string }).code } : null,
       status: up.status,

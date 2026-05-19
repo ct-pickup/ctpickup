@@ -138,20 +138,6 @@ export function useFieldTournament() {
         return;
       }
       if (!regionReady) {
-        // #region agent log
-        fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "9da9ee" },
-          body: JSON.stringify({
-            sessionId: "9da9ee",
-            hypothesisId: "H4",
-            location: "mobile/hooks/useFieldTournament.ts:reload:regionNotReady",
-            message: "skipped fetch until region ready",
-            data: { region, regionReady, background },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
         if (!background) setLoading(false);
         return;
       }
@@ -196,30 +182,6 @@ export function useFieldTournament() {
       try {
         const r = await fetchTournamentPublic({ region, accessToken: session?.access_token ?? null });
         const parsed = r.ok ? parseFieldPayload(r.json) : null;
-        // #region agent log
-        fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "9da9ee" },
-          body: JSON.stringify({
-            sessionId: "9da9ee",
-            hypothesisId: "H2",
-            location: "mobile/hooks/useFieldTournament.ts:reload:fetchResult",
-            message: "tournament public fetch result",
-            data: {
-              region,
-              ok: r.ok,
-              status: r.status,
-              hasTournamentInJson:
-                r.json != null &&
-                typeof r.json === "object" &&
-                (r.json as { tournament?: unknown }).tournament != null,
-              parsedTournamentId: parsed?.tournament?.id ?? null,
-              parseFailed: r.ok && parsed === null,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
         if (r.ok) {
           if (shouldCacheTournamentHubPayload(parsed)) {
             await cacheData("tournament_hub", r.json);

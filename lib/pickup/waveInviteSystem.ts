@@ -8,6 +8,9 @@ import {
 } from "@/lib/pickup/pickupPushNotifications";
 import { isSelectPickupRunType } from "@/lib/pickup/pickupRunType";
 import { anchorStartAtMs } from "@/lib/pickup/runScheduling";
+import { countAcceptedPickupRsvps } from "@/lib/pickup/waitlist";
+
+export { countAcceptedPickupRsvps } from "@/lib/pickup/waitlist";
 
 /** Hours before kickoff when wave 4 (emergency tiers) opens. */
 export const WAVE_4_HOURS_BEFORE_KICKOFF = 2;
@@ -223,19 +226,6 @@ export function initialInterWaveCheckpointIso(
   }
   const checkpointMs = sentMs + acceptanceCheckMinHours(baseHours) * MS_PER_HOUR;
   return new Date(Math.max(nowMs, checkpointMs)).toISOString();
-}
-
-export async function countAcceptedPickupRsvps(
-  admin: SupabaseClient,
-  run_id: string,
-): Promise<number> {
-  const res = await admin
-    .from("pickup_run_rsvps")
-    .select("user_id", { count: "exact", head: true })
-    .eq("run_id", run_id)
-    .in("status", ["confirmed", "pending_payment"]);
-  if (res.error) return 0;
-  return res.count ?? 0;
 }
 
 function isoAfterMs(fromMs: number, hours: number): string {
