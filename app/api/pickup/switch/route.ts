@@ -465,11 +465,15 @@ export async function POST(req: Request) {
       .select("id")
       .maybeSingle();
 
-    console.log({ tag: "pickup-switch", message: "create_run_insert", data: {
-      error: ins.error ? { message: ins.error.message, code: (ins.error as { code?: string }).code } : null,
-      data: ins.data,
-      status: ins.status,
-      run_type_normalized: run_type,
+    console.log({
+      tag: "pickup-switch",
+      message: "create_run_insert",
+      data: {
+        error: ins.error ? { message: ins.error.message, code: (ins.error as { code?: string }).code } : null,
+        data: ins.data,
+        status: ins.status,
+        run_type_normalized: run_type,
+      },
     });
 
     if (ins.error) return NextResponse.json({ error: ins.error.message }, { status: 500 });
@@ -517,10 +521,14 @@ export async function POST(req: Request) {
       label,
     }, { onConflict: "run_id,start_at" }).select("id").maybeSingle();
 
-    console.log({ tag: "pickup-switch", message: "add_slot_insert", data: {
-      error: ins.error ? { message: ins.error.message, code: (ins.error as { code?: string }).code } : null,
-      data: ins.data,
-      status: ins.status,
+    console.log({
+      tag: "pickup-switch",
+      message: "add_slot_insert",
+      data: {
+        error: ins.error ? { message: ins.error.message, code: (ins.error as { code?: string }).code } : null,
+        data: ins.data,
+        status: ins.status,
+      },
     });
 
     if (ins.error) return NextResponse.json({ error: ins.error.message }, { status: 500 });
@@ -766,10 +774,14 @@ export async function POST(req: Request) {
 
 
     const up = await admin.from("pickup_runs").update(patch).eq("id", run_id);
-    console.log({ tag: "pickup-switch", message: "edit_run_update", data: {
-      run_id,
-      error: up.error ? { message: up.error.message, code: (up.error as { code?: string }).code } : null,
-      status: up.status,
+    console.log({
+      tag: "pickup-switch",
+      message: "edit_run_update",
+      data: {
+        run_id,
+        error: up.error ? { message: up.error.message, code: (up.error as { code?: string }).code } : null,
+        status: up.status,
+      },
     });
     if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
 
