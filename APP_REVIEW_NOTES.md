@@ -1,99 +1,168 @@
 # CT Pickup — App Store Review Notes
 
-Use this document for **App Store Connect → App Review Information → Notes** and for internal QA before submission.
-
-## Demo account
+## Demo Account
 
 | Field | Value |
-| --- | --- |
-| **Email** | `pickupct@gmail.com` |
-| **Password** | `CtPickup_AppReview2026!` |
+|---|---|
+| Email | pickupct@gmail.com |
+| Password | CtPickup_AppReview2026! |
 
-**Sign-in on the iOS app:** Open the app → enter the email above → tap "Already have an account?" → enter the password below.
+**How to sign in:**
+1. Launch CT Pickup
+2. Enter pickupct@gmail.com
+3. Tap "Already have an account?"
+4. Enter the password above
+5. Tap Sign In
 
-This account is **pre-approved** in production with **player** (non-admin) permissions, **tier 1A** (`tier_rank = 1`), and **nearest venue** `New Haven SoccerRoof` (Connecticut hub).
+This account is fully pre-approved with tier 1A status and nearest venue set to New Haven SoccerRoof (Connecticut). No waiting for staff approval.
 
-## Manual approval gate
+---
 
-New users require **staff approval** before messaging, select-run invites, and some actions. The demo account above is **already approved** and does not need to wait.
+## Manual Approval Gate
 
-**Optional — Review Mode (client bypass):** If you sign in with any account that is still pending approval, you can enable a hidden bypass for UI testing:
+CT Pickup is an invite-based soccer community. New user accounts require staff approval before accessing select runs, messaging, and certain features. This is intentional — it ensures community quality and safety.
 
-1. Go to **Profile** (Account tab).
-2. Tap **About this app** **5 times**.
-3. Enter secret code: `CTPICKUP-REVIEW`
-4. A lime banner **“App Review Mode Active”** appears; client-side approval checks are bypassed. Tap the banner to turn off.
+The demo account (pickupct@gmail.com) is pre-approved and has full access to all player-facing features immediately upon login.
 
-Review Mode does not change server data; use the pre-approved demo account for full end-to-end flows (RSVP, payments, chat).
+**If you want to test the signup flow with a fresh account:**
+1. Create a new account with any email
+2. Go to Profile tab → scroll to bottom → tap "About this app" 7 times
+3. Enter code: CTPICKUP-REVIEW
+4. A lime "App Review Mode Active" banner appears
+5. Client-side approval checks are bypassed for UI testing
+6. Tap the banner to disable Review Mode
 
-## Step-by-step walkthrough
+Note: Review Mode only bypasses client-side UI gates. For full end-to-end flows including payments and chat, use the pre-approved demo account.
 
-### 1. Sign in
+---
 
-1. Launch **CT Pickup**.
-2. Enter `pickupct@gmail.com`.
-3. Request the sign-in code and enter the **8-digit code** from email.
-4. Complete the **liability waiver** if prompted (one-time).
-5. Complete **profile** fields if prompted (name, ZIP, position).
+## Full Walkthrough
 
-### 2. View a pickup run
+### Step 1 — Sign In
+1. Launch CT Pickup
+2. Enter pickupct@gmail.com → tap "Already have an account?" → enter password
+3. If prompted, complete the liability waiver (one-time, scroll and accept)
+4. If prompted, complete profile (name, ZIP code, playing position — Instagram is optional)
 
-1. Open the **Pickup** tab.
-2. Choose **Connecticut (CT)** if asked for a state.
-3. The featured run card shows venue, time, and status (Public or Select).
-4. Optional: open **Run history** from Profile for past runs.
+### Step 2 — Pickup Runs
+1. Tap the Pickup tab (soccer ball icon)
+2. Select Connecticut (CT) from the state picker
+3. The featured run card appears showing venue, date, fee, and spots remaining
+4. During Planning status: vote on available time slots by tapping them
+5. During Active status: tap "I'm In" to RSVP
+6. If a fee applies, Stripe checkout opens — use test card below
+7. Pull down to refresh and see confirmed status
 
-### 3. RSVP
+### Step 3 — Payments
+All fees are for physical real-world soccer sessions at actual venues. This falls under App Store guideline 3.1.3(e) — goods and services consumed outside the app. No digital content or in-app features are unlocked by payment.
 
-1. On the featured run, when the run is open, tap **I'm in** (or confirm a waitlist spot if offered).
-2. If a fee applies, complete checkout with the **Stripe test card** below.
-3. Pull to refresh to see **confirmed** status.
+Before checkout opens, the app displays: "Payment is for a physical soccer session at [venue name]. This is not a digital purchase."
 
-### 4. Chat
+**Stripe test card:**
+- Card number: 4242 4242 4242 4242
+- Expiry: 12/34
+- CVC: 123
+- ZIP: 06511
 
-1. Open the **Messages** tab.
-2. Open **Announcements** or **Team chat** under Channels.
-3. After RSVP, **run banter** may appear for that pickup (under run-related rooms when configured).
+### Step 4 — Messages / Chat
+1. Tap the Messages tab
+2. Open Announcements for staff broadcasts
+3. Open Team chat for community discussion
+4. After confirming an RSVP, a run-specific banter room may appear
 
-### 5. Tournaments
+### Step 5 — Tournaments
+1. Tap the Tournaments tab
+2. Select a state (CT, NY, NJ, or MD)
+3. View the active tournament card showing teams, bracket status, and registration
+4. Tap View bracket & standings for full tournament details
 
-1. Open the **Tournaments** tab → select **CT** if needed.
-2. Tap the tournament card → **Field tournament** detail (signup, captain claim, bracket).
-3. From Home, the tournament promo card also links to the same flow.
+### Step 6 — Profile & Account
+1. Tap Profile tab
+2. View reliability score, referral code, credits, preferences
+3. Push notifications toggle: operational alerts (run invites, RSVP confirmations)
+4. Marketing updates toggle: staff broadcasts and announcements (separate opt-in)
+5. Max drive time slider: controls proximity for run invites (35–90 min)
+6. Account deletion available at bottom of Profile → Danger Zone → Delete Account
 
-## Stripe payments
+---
 
-Pickup fees pay for **physical, real-world soccer sessions** (App Store guideline **3.1.3(e)** — goods and services used outside the app).
+## Push Notifications
 
-All Stripe payments are for physical real-world soccer sessions and tournament field slots consumed outside the app per App Store guideline 3.1.3(e). No digital content or features are unlocked by payment.
+Push notifications are used exclusively for operational alerts:
+- Run invites (wave-based, tier-matched)
+- RSVP confirmations
+- Time slot finalized for a run
+- Waitlist spot offered
+- Monthly award notifications
 
-Before checkout, the app shows: *Payment is for a physical soccer session at [venue]. This is not a digital purchase.*
+Marketing/promotional notifications (broadcasts, announcements) require a separate explicit opt-in toggle ("Marketing updates") in Profile settings. Users can opt out of either type independently.
 
-**Test card (Stripe test mode):**
+Push is not required for the app to function — all core features work without enabling notifications.
 
-- Number: `4242 4242 4242 4242`
-- Expiry: any future date (e.g. `12/34`)
-- CVC: any 3 digits (e.g. `123`)
-- ZIP: any valid US ZIP
+**To test push during review:**
+1. Sign in as pickupct@gmail.com on a physical device
+2. Enable both "Push notifications" and "Marketing updates" in Profile
+3. Allow iOS permission when prompted
+4. A staff admin can send a test broadcast via Admin tab → Broadcast Message → All approved
 
-## Push notifications during review
+Push requires a TestFlight or App Store build (not Expo Go).
 
-1. On the demo device, sign in as `pickupct@gmail.com`.
-2. On **Profile**, enable **Push notifications** and **Marketing updates**, and allow iOS permission when asked.
-3. A **staff admin** (separate account) opens the app → **Admin** tab → **Broadcast Message** (or uses the web admin at `https://ctpickup.net`).
-4. Send a test broadcast to **All approved** or filter by **CT** / **tier 1A** so the demo user receives it (broadcasts only reach users with **Marketing updates** enabled).
-5. Background the app briefly; the notification should appear on the device.
+---
 
-Push requires a **TestFlight / App Store build** (not Expo Go).
+## Payments — Detailed Explanation for App Review
 
-## Sign in with Apple
+CT Pickup charges fees for two types of real-world physical services:
 
-Currently uses **email OTP only**. Sign in with Apple will be added before any third-party social login is introduced.
+1. **Pickup run fees ($6–$10):** Players pay to reserve a spot at an organized outdoor soccer session at a physical venue (e.g. New Haven SoccerRoof, Sofive Brooklyn). The session takes place in person, outside the app. Payment is collected via Stripe before the event. This is squarely covered by App Store guideline 3.1.3(e) — "goods and services that will be consumed outside the app."
+
+2. **Field tournament entry fees:** Team captains pay to enter their team in an in-person outdoor soccer tournament. Teams show up on the day, play on a real field, and compete for a physical trophy/prize. Again, entirely consumed outside the app.
+
+**Nothing digital is purchased.** No in-app content, no feature unlocks, no premium tiers, no subscriptions. The app is free to download and free to use. Fees only apply when a player chooses to join a specific real-world event.
+
+**Referral credits and monthly reward credits** are promotional discounts applied to pickup fees. They have no cash value, cannot be transferred, and only reduce the cost of attending a physical soccer session. They are not sold, not purchased, and not redeemable for anything digital.
+
+---
+
+## User-Generated Content & Safety
+
+CT Pickup includes chat rooms for run participants and team members. We have implemented all required UGC safeguards:
+
+- **Content filter:** Server-side profanity filter on all chat messages before storage
+- **Report mechanism:** Every message and profile has a Report button; reports go to admin queue
+- **Block:** Users can block other users from Profile → block, removing them from shared chat views
+- **Moderation SLA:** Staff reviews reported content within 24–48 hours
+- **Contact:** pickupct@gmail.com for urgent moderation issues
+
+---
+
+## Age Rating
+
+CT Pickup is rated 13+. During signup, users must check a box confirming "I confirm I am 13 years of age or older" before completing profile creation. The app does not target children and is not in the Kids Category.
+
+---
+
+## Login & Authentication
+
+- **Sign up:** Email → 8-digit OTP code to verify email → set password → complete profile
+- **Log in:** Email + password, or Face ID/Touch ID after first login
+- **No third-party social login** (no Facebook, Google, etc.) — email/password only, so Sign in with Apple is not required per guideline 4.8
+- Sign in with Apple will be added before any third-party social login is introduced
+
+---
+
+## Privacy
+
+- Privacy policy is accessible in-app at Profile → Privacy Policy and at https://ctpickup.net/privacy
+- All third-party processors are disclosed: Stripe, Supabase, Sentry, OpenAI (Help assistant), Expo (push), Google Maps (server-side drive time)
+- The Help assistant uses OpenAI — this is disclosed in-app with an "AI-Powered" badge and disclaimer
+- No GPS or device location is accessed — proximity matching uses ZIP code entered by the user
+- No App Tracking Transparency required — no cross-app tracking or advertising IDs used
+- Account deletion is available in-app at Profile → scroll to bottom → Delete Account
+
+---
 
 ## Contact
 
-Questions during review: **pickupct@gmail.com**
-
-## Payments explanation for App Review
-
-CT Pickup charges fees exclusively for physical real-world soccer sessions and in-person tournaments. All payments are processed via Stripe and fall under App Store guideline 3.1.3(e) - goods and services consumed outside the app. No digital content, features, or unlockables are purchased through the app.
+Questions during review: pickupct@gmail.com
+Website: https://ctpickup.net
+Support URL: https://ctpickup.net/help
