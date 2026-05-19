@@ -260,27 +260,25 @@ export default function CompleteProfileScreen() {
       !firstName.trim() ||
       !lastName.trim() ||
       !playingPosition ||
-      !cleanInstagram(instagram) ||
       !zipOk ||
       !username.trim()
     )
       return false;
     return true;
-  }, [firstName, lastName, playingPosition, instagram, zipOk, username]);
+  }, [firstName, lastName, playingPosition, zipOk, username]);
 
   const liveErrors = useMemo((): Partial<Record<FieldKey, string>> => {
     const e: Partial<Record<FieldKey, string>> = {};
     if (!firstName.trim()) e.first_name = "Required";
     if (!lastName.trim()) e.last_name = "Required";
     if (!playingPosition) e.playing_position = "Required";
-    if (!cleanInstagram(instagram)) e.instagram = "Required";
     if (!zipDigits) e.zip_code = "Required";
     else if (!zipOk) e.zip_code = "Enter a 5-digit zip";
     if (!username.trim()) e.username = "Required";
     else if (!normalizeProfileUsername(username))
       e.username = "3–30 characters, lowercase letters and numbers only";
     return e;
-  }, [firstName, lastName, playingPosition, instagram, zipDigits, zipOk, username]);
+  }, [firstName, lastName, playingPosition, zipDigits, zipOk, username]);
 
   const postSaveVenueSections = useMemo(
     () => (postSaveVenues && postSaveVenues.length > 0 ? nearestVenueSections(postSaveVenues) : []),
@@ -622,7 +620,7 @@ export default function CompleteProfileScreen() {
           <View style={styles.fieldBlock}>
             <Text style={styles.label}>Instagram</Text>
             <TextInput
-              style={[styles.input, liveErrors.instagram ? styles.inputErr : null]}
+              style={styles.input}
               placeholder="@handle"
               placeholderTextColor="rgba(255,255,255,0.35)"
               value={instagram}
@@ -630,7 +628,6 @@ export default function CompleteProfileScreen() {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            {liveErrors.instagram ? <Text style={styles.errText}>{liveErrors.instagram}</Text> : null}
           </View>
 
           <View style={styles.fieldBlock}>
