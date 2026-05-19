@@ -195,36 +195,6 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
-                            name="esports/[id]"
-                            options={{
-                              headerShown: true,
-                              title: "Esports",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
-                              headerShadowVisible: false,
-                            }}
-                          />
-                          <Stack.Screen
-                            name="esports/play/[id]"
-                            options={{
-                              headerShown: true,
-                              title: "Play",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
-                              headerShadowVisible: false,
-                            }}
-                          />
-                          <Stack.Screen
-                            name="esports/register/[id]"
-                            options={{
-                              headerShown: true,
-                              title: "Register",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
-                              headerShadowVisible: false,
-                            }}
-                          />
-                          <Stack.Screen
                             name="how-pickup-works"
                             options={{
                               headerShown: true,
@@ -368,7 +338,6 @@ function RootLayoutNav() {
                           <Stack.Screen name="admin/database" options={{ headerShown: false }} />
                           <Stack.Screen name="admin/tier-suggestions" options={{ headerShown: false }} />
                           <Stack.Screen name="admin/bulk-message" options={{ headerShown: false }} />
-                          <Stack.Screen name="admin/esports" options={{ headerShown: false }} />
                           <Stack.Screen name="admin/tournament-join" options={{ headerShown: false }} />
                           <Stack.Screen name="admin/tournament-bracket-view" options={{ headerShown: false }} />
                           <Stack.Screen name="admin/chat" options={{ headerShown: false }} />
