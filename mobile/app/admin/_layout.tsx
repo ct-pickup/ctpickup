@@ -39,6 +39,8 @@ export default function AdminLayout() {
       <Stack.Screen name="analytics" options={{ title: "Analytics" }} />
       <Stack.Screen name="database" options={{ title: "Database", headerShown: false }} />
       <Stack.Screen name="bulk-message" options={{ title: "Broadcast Message" }} />
+      <Stack.Screen name="tools" options={{ title: "Admin Tools", headerShown: false }} />
+      <Stack.Screen name="proximity-search" options={{ title: "Proximity Search", headerShown: false }} />
       <Stack.Screen name="tier-suggestions" options={{ title: "Tier Suggestions" }} />
       <Stack.Screen name="standing" options={{ title: "Standing" }} />
       <Stack.Screen name="chat" options={{ title: "Chat moderation" }} />

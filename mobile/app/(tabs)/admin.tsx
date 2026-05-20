@@ -30,6 +30,11 @@ export default function AdminScreen() {
         <Text style={styles.title}>Admin</Text>
         <Text style={styles.sub}>Admin Mode is enabled on this device.</Text>
 
+        <Pressable style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]} onPress={() => router.push("/admin/tools" as Href)}>
+          <Text style={styles.cardTitle}>Tools</Text>
+          <Text style={styles.cardBody}>Proximity search, monthly leaders, database browser, analytics, and tier suggestions.</Text>
+        </Pressable>
+
         <Pressable style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]} onPress={() => router.push("/admin/pickup")}>
           <Text style={styles.cardTitle}>Pickup ops</Text>
           <Text style={styles.cardBody}>Create runs, view roster, promote waitlist, mark attendance, record late cancels.</Text>

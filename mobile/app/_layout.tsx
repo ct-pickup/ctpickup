@@ -340,6 +340,8 @@ function RootLayoutNav() {
                           <Stack.Screen name="admin/members" options={{ headerShown: false }} />
                           <Stack.Screen name="admin/analytics" options={{ headerShown: false }} />
                           <Stack.Screen name="admin/database" options={{ headerShown: false }} />
+                          <Stack.Screen name="admin/tools" options={{ headerShown: false }} />
+                          <Stack.Screen name="admin/proximity-search" options={{ headerShown: false }} />
                           <Stack.Screen name="admin/tier-suggestions" options={{ headerShown: false }} />
                           <Stack.Screen name="admin/bulk-message" options={{ headerShown: false }} />
                           <Stack.Screen name="admin/tournament-join" options={{ headerShown: false }} />

@@ -863,3 +863,31 @@ export function fetchAdminMonthlyLeaders(accessToken: string) {
   });
 }
 
+export type ProximitySearchPlayer = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  instagram: string | null;
+  tier: string | null;
+  tier_rank: number | null;
+  zip_code: string;
+  drive_minutes: number;
+};
+
+export type ProximitySearchResponse = {
+  venue: string;
+  max_minutes: number;
+  count: number;
+  players: ProximitySearchPlayer[];
+};
+
+export function fetchAdminPlayersProximity(accessToken: string, venue: string, maxMinutes: number) {
+  const q = new URLSearchParams({
+    venue: venue.trim(),
+    max_minutes: String(maxMinutes),
+  });
+  return adminFetch<ProximitySearchResponse>(`/api/admin/players/proximity?${q.toString()}`, accessToken, {
+    method: "GET",
+  });
+}
+
