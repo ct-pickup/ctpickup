@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { CT_PICKUP_LIME } from "@/constants/Colors";
 import {
   biometricSignInLabel,
   disableBiometricSignIn,
@@ -12,24 +13,30 @@ import { hasSupabaseEnv, siteOrigin } from "@/lib/env";
 import { checkEmailExistsResult } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
+  Image,
   LayoutAnimation,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
+  TextInputProps,
   UIManager,
   View,
 } from "react-native";
 
+const LIME = CT_PICKUP_LIME;
 const OTP_RESEND_COOLDOWN_SEC = 30;
 const PASSWORD_MIN_LEN = 8;
 
 const PANEL_ANIM_MS = 420;
+const SEGMENT_ANIM_MS = 280;
 
 type AuthMode = "login" | "signup";
 type SignupStage = "email" | "code" | "password";
@@ -40,6 +47,57 @@ type Props = {
   /** A simpler login panel (no Returning/New segmented control). */
   variant?: "segmented" | "simple" | "premium";
 };
+
+function AuthTextInput({
+  label,
+  labelSpaced,
+  ...inputProps
+}: TextInputProps & { label: string; labelSpaced?: boolean }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <>
+      <Text style={[styles.fieldLabel, labelSpaced && styles.fieldLabelSpaced]}>{label}</Text>
+      <TextInput
+        {...inputProps}
+        style={[styles.input, focused && styles.inputFocused]}
+        placeholderTextColor={inputProps.placeholderTextColor ?? "rgba(255,255,255,0.32)"}
+        onFocus={(e) => {
+          setFocused(true);
+          inputProps.onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFocused(false);
+          inputProps.onBlur?.(e);
+        }}
+      />
+    </>
+  );
+}
+
+function PrimaryButton({
+  label,
+  busy,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  busy: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={[styles.primaryBtn, disabled && styles.disabled]} disabled={disabled} onPress={onPress}>
+      {busy ? (
+        <ActivityIndicator color="#0a0a0a" />
+      ) : (
+        <View style={styles.primaryBtnRow}>
+          <Text style={styles.primaryBtnText}>{label}</Text>
+          <FontAwesome name="long-arrow-right" size={18} color="#0a0a0a" />
+        </View>
+      )}
+    </Pressable>
+  );
+}
 
 export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
   const router = useRouter();
@@ -56,6 +114,9 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
   const [resendCooldownSec, setResendCooldownSec] = useState(0);
   const [bioLabel, setBioLabel] = useState("Face ID");
   const [bioSignInReady, setBioSignInReady] = useState(false);
+  const [segmentWidth, setSegmentWidth] = useState(0);
+
+  const segmentSlide = useRef(new Animated.Value(authMode === "login" ? 1 : 0)).current;
 
   useEffect(() => {
     if (Platform.OS !== "android") return;
@@ -63,6 +124,15 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
       UIManager.setLayoutAnimationEnabledExperimental(true);
     }
   }, []);
+
+  useEffect(() => {
+    Animated.timing(segmentSlide, {
+      toValue: authMode === "login" ? 1 : 0,
+      duration: SEGMENT_ANIM_MS,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [authMode, segmentSlide]);
 
   useEffect(() => {
     void (async () => {
@@ -89,6 +159,12 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
   const emailClean = useMemo(() => email.trim().toLowerCase(), [email]);
   const canSignIn = hasSupabaseEnv() && !!supabase;
   const siteOk = !!siteOrigin();
+
+  const segmentTabWidth = segmentWidth > 0 ? (segmentWidth - 8) / 2 : 0;
+  const segmentIndicatorX = segmentSlide.interpolate({
+    inputRange: [0, 1],
+    outputRange: [4, 4 + segmentTabWidth],
+  });
 
   useEffect(() => {
     if (resendCooldownSec <= 0) return;
@@ -442,32 +518,59 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
   }
 
   const showModeToggle = variant === "segmented" || variant === "premium";
+  const isPremium = variant === "premium";
 
   return (
-    <>
+    <View style={styles.panelRoot}>
+      {isPremium ? (
+        <View style={styles.brandHeader}>
+          <View style={styles.brandIconWrap}>
+            <Image source={require("@/assets/images/icon.png")} style={styles.brandIcon} accessibilityLabel="CT Pickup" />
+          </View>
+          <Text style={styles.brandTitle}>CT Pickup</Text>
+          <Text style={styles.brandTagline}>Organized soccer. Your city.</Text>
+        </View>
+      ) : null}
+
       {!hideHeading ? <Text style={[styles.sectionTitle, styles.sectionAboveAuth]}>Sign in</Text> : null}
+
       {showModeToggle ? (
-        <View style={[styles.segmentRow, variant === "premium" && styles.segmentRowPremium]}>
+        <View
+          style={[styles.segmentRow, isPremium && styles.segmentRowPremium]}
+          onLayout={(e) => setSegmentWidth(e.nativeEvent.layout.width)}
+        >
+          {segmentTabWidth > 0 ? (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.segmentIndicator,
+                {
+                  width: segmentTabWidth,
+                  transform: [{ translateX: segmentIndicatorX }],
+                },
+              ]}
+            />
+          ) : null}
           <Pressable
             accessibilityRole="button"
-            style={[styles.segmentChip, authMode === "signup" && styles.segmentChipActive]}
+            style={styles.segmentTab}
             onPress={() => switchAuthMode("signup")}
           >
-            <Text style={[styles.segmentChipText, authMode === "signup" && styles.segmentChipTextActive]}>New here?</Text>
+            <Text style={[styles.segmentTabText, authMode === "signup" && styles.segmentTabTextActive]}>New here?</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            style={[styles.segmentChip, authMode === "login" && styles.segmentChipActive]}
+            style={styles.segmentTab}
             onPress={() => switchAuthMode("login")}
           >
-            <Text style={[styles.segmentChipText, authMode === "login" && styles.segmentChipTextActive]}>
+            <Text style={[styles.segmentTabText, authMode === "login" && styles.segmentTabTextActive]}>
               Already have an account?
             </Text>
           </Pressable>
         </View>
       ) : null}
 
-      <View style={[styles.card, variant === "premium" && styles.cardPremium]}>
+      <View style={[styles.card, isPremium && styles.cardPremium]}>
         {!canSignIn ? (
           <View style={styles.configBox}>
             <Text style={styles.configBoxTitle}>Sign-in isn&apos;t wired on this build yet</Text>
@@ -484,19 +587,10 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
 
         {authMode === "login" ? (
           <>
-            {variant === "premium" ? (
-              <View style={[styles.premiumFieldLabelRow, styles.premiumFieldLabelRowCenter]}>
-                <FontAwesome name="envelope-o" size={14} color="rgba(255,255,255,0.55)" />
-                <Text style={styles.premiumFieldLabel}>Email</Text>
-              </View>
-            ) : (
-              <Text style={styles.fieldLabel}>Email</Text>
-            )}
-            {variant !== "premium" ? <Text style={styles.trustLine}>Sign in with your password</Text> : null}
-            <TextInput
-              style={[styles.input, variant === "premium" && styles.inputPremium]}
+            {!isPremium ? <Text style={styles.trustLine}>Sign in with your password</Text> : null}
+            <AuthTextInput
+              label="Email"
               placeholder="you@example.com"
-              placeholderTextColor={variant === "premium" ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.35)"}
               autoCapitalize="none"
               keyboardType="email-address"
               value={email}
@@ -509,11 +603,10 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
               onChangeText={setEmail}
             />
 
-            <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>Password</Text>
-            <TextInput
-              style={[styles.input, variant === "premium" && styles.inputPremium]}
+            <AuthTextInput
+              label="Password"
+              labelSpaced
               placeholder="Your password"
-              placeholderTextColor={variant === "premium" ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.35)"}
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
@@ -522,20 +615,12 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
               onSubmitEditing={() => void submitPasswordLogin()}
             />
 
-            <Pressable
-              style={[styles.primaryBtn, (!emailLooksValid || !passwordLooksValid || busy || !canSignIn) && styles.disabled]}
+            <PrimaryButton
+              label="Sign in with password"
+              busy={busy}
               disabled={!emailLooksValid || !passwordLooksValid || busy || !canSignIn}
               onPress={() => void submitPasswordLogin()}
-            >
-              {busy ? (
-                <ActivityIndicator color="#0a0a0a" />
-              ) : (
-                <View style={styles.primaryBtnRow}>
-                  <Text style={styles.primaryBtnText}>Sign in with password</Text>
-                  {variant === "premium" ? <FontAwesome name="chevron-right" size={14} color="#0a0a0a" /> : null}
-                </View>
-              )}
-            </Pressable>
+            />
 
             {bioSignInReady ? (
               <Pressable
@@ -566,19 +651,10 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
           </>
         ) : signupStage === "email" ? (
           <>
-            {variant === "premium" ? (
-              <View style={[styles.premiumFieldLabelRow, styles.premiumFieldLabelRowCenter]}>
-                <FontAwesome name="envelope-o" size={14} color="rgba(255,255,255,0.55)" />
-                <Text style={styles.premiumFieldLabel}>Email</Text>
-              </View>
-            ) : (
-              <Text style={styles.fieldLabel}>Email</Text>
-            )}
-            {variant !== "premium" ? <Text style={styles.trustLine}>We&apos;ll send an 8-digit code to verify your email</Text> : null}
-            <TextInput
-              style={[styles.input, variant === "premium" && styles.inputPremium]}
+            {!isPremium ? <Text style={styles.trustLine}>We&apos;ll send an 8-digit code to verify your email</Text> : null}
+            <AuthTextInput
+              label="Email"
               placeholder="you@example.com"
-              placeholderTextColor={variant === "premium" ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.35)"}
               autoCapitalize="none"
               keyboardType="email-address"
               value={email}
@@ -590,20 +666,12 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
               }
               onChangeText={setEmail}
             />
-            <Pressable
-              style={[styles.primaryBtn, (!emailLooksValid || busy || !canSignIn) && styles.disabled]}
+            <PrimaryButton
+              label="Send code"
+              busy={busy}
               disabled={!emailLooksValid || busy || !canSignIn}
               onPress={() => void submitSignupSendCode()}
-            >
-              {busy ? (
-                <ActivityIndicator color="#0a0a0a" />
-              ) : (
-                <View style={styles.primaryBtnRow}>
-                  <Text style={styles.primaryBtnText}>Send code</Text>
-                  {variant === "premium" ? <FontAwesome name="chevron-right" size={14} color="#0a0a0a" /> : null}
-                </View>
-              )}
-            </Pressable>
+            />
             {showSendRetry ? (
               <Pressable style={styles.secondaryBtn} onPress={() => void submitSignupSendCode()}>
                 <Text style={styles.secondaryBtnText}>Try again</Text>
@@ -612,12 +680,10 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
           </>
         ) : signupStage === "code" ? (
           <>
-            <Text style={styles.fieldLabel}>8-digit code</Text>
             <Text style={styles.trustLine}>Sent to {emailClean}</Text>
-            <TextInput
-              style={[styles.input, variant === "premium" && styles.inputPremium]}
+            <AuthTextInput
+              label="8-digit code"
               placeholder="00000000"
-              placeholderTextColor={variant === "premium" ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.35)"}
               keyboardType="number-pad"
               maxLength={12}
               value={code}
@@ -629,9 +695,12 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
               autoComplete={Platform.OS === "android" ? "sms-otp" : "one-time-code"}
               blurOnSubmit={false}
             />
-            <Pressable style={[styles.primaryBtn, busy && styles.disabled]} disabled={busy || !canSignIn} onPress={() => void verifySignupCode()}>
-              {busy ? <ActivityIndicator color="#111" /> : <Text style={styles.primaryBtnText}>Verify</Text>}
-            </Pressable>
+            <PrimaryButton
+              label="Verify"
+              busy={busy}
+              disabled={busy || !canSignIn}
+              onPress={() => void verifySignupCode()}
+            />
             <Pressable
               style={[styles.secondaryBtn, (busy || resendCooldownSec > 0 || !canSignIn) && styles.disabled]}
               disabled={busy || resendCooldownSec > 0 || !canSignIn}
@@ -642,17 +711,15 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
               </Text>
             </Pressable>
             <Pressable style={styles.textBtn} onPress={() => resetSignupFlow()}>
-              <Text style={styles.textBtnLabelStrong}>Wrong email? Start over</Text>
+              <Text style={styles.textBtnLabelMuted}>Wrong email? Start over</Text>
             </Pressable>
           </>
         ) : (
           <>
-            <Text style={styles.fieldLabel}>Set a password</Text>
             <Text style={styles.trustLine}>Set a password for faster sign-in next time</Text>
-            <TextInput
-              style={[styles.input, variant === "premium" && styles.inputPremium]}
+            <AuthTextInput
+              label="Set a password"
               placeholder={`At least ${PASSWORD_MIN_LEN} characters`}
-              placeholderTextColor={variant === "premium" ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.35)"}
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
@@ -660,52 +727,107 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
               onChangeText={setPassword}
               onSubmitEditing={() => void submitSignupPassword()}
             />
-            <Pressable
-              style={[styles.primaryBtn, (!passwordLooksValid || busy || !canSignIn) && styles.disabled]}
+            <PrimaryButton
+              label="Continue"
+              busy={busy}
               disabled={!passwordLooksValid || busy || !canSignIn}
               onPress={() => void submitSignupPassword()}
-            >
-              {busy ? <ActivityIndicator color="#0a0a0a" /> : <Text style={styles.primaryBtnText}>Continue</Text>}
-            </Pressable>
+            />
           </>
         )}
 
         {msg ? <Text style={[styles.msg, styles.msgMuted]}>{msg}</Text> : null}
       </View>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  panelRoot: { width: "100%" },
+  brandHeader: {
+    alignItems: "center",
+    marginBottom: 28,
+  },
+  brandIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    backgroundColor: "rgba(163,230,53,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.28)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    overflow: "hidden",
+  },
+  brandIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+  },
+  brandTitle: {
+    fontSize: 32,
+    fontWeight: "900",
+    color: "#fff",
+    letterSpacing: -0.5,
+  },
+  brandTagline: {
+    marginTop: 8,
+    fontSize: 15,
+    color: "rgba(255,255,255,0.45)",
+    textAlign: "center",
+  },
   sectionTitle: { marginTop: 28, fontSize: 18, fontWeight: "700", color: "#fff" },
   sectionAboveAuth: { marginTop: 20 },
   segmentRow: {
     flexDirection: "row",
-    marginTop: 14,
-    gap: 10,
+    marginTop: 20,
+    marginBottom: 4,
     padding: 4,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
     backgroundColor: "rgba(255,255,255,0.04)",
+    position: "relative",
+    overflow: "hidden",
   },
   segmentRowPremium: {
     alignSelf: "center",
     width: "100%",
   },
-  segmentChip: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "transparent",
-    backgroundColor: "transparent",
+  segmentIndicator: {
+    position: "absolute",
+    top: 4,
+    bottom: 4,
+    left: 0,
+    borderRadius: 12,
+    backgroundColor: LIME,
   },
-  segmentChipActive: { borderColor: "rgba(163,230,53,0.35)", backgroundColor: "rgba(163,230,53,0.14)" },
-  segmentChipText: { color: "rgba(255,255,255,0.62)", fontSize: 13, fontWeight: "700", textAlign: "center" },
-  segmentChipTextActive: { color: "#fff" },
-  trustLine: { marginTop: 6, fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 18 },
+  segmentTab: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1,
+  },
+  segmentTabText: {
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  segmentTabTextActive: {
+    color: "#0a0a0a",
+    fontWeight: "900",
+  },
+  trustLine: {
+    marginTop: 4,
+    marginBottom: 12,
+    fontSize: 13,
+    color: "rgba(255,255,255,0.45)",
+    lineHeight: 18,
+  },
   configBox: {
     marginBottom: 16,
     padding: 14,
@@ -727,7 +849,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   secondaryBtn: {
-    marginTop: 12,
+    marginTop: 14,
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 12,
@@ -737,52 +859,64 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: { color: "#e5e5e5", fontWeight: "600", fontSize: 15 },
   card: {
-    marginTop: 14,
-    padding: 18,
-    borderRadius: 18,
+    marginTop: 20,
+    padding: 22,
+    paddingLeft: 26,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
+    borderLeftWidth: 4,
+    borderLeftColor: LIME,
     backgroundColor: "rgba(255,255,255,0.04)",
   },
   cardPremium: {
-    padding: 22,
+    padding: 24,
+    paddingLeft: 28,
     borderRadius: 22,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: "rgba(255,255,255,0.1)",
     backgroundColor: "rgba(255,255,255,0.035)",
   },
-  fieldLabel: { fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.55)" },
-  fieldLabelSpaced: { marginTop: 14 },
-  premiumFieldLabelRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  premiumFieldLabelRowCenter: { justifyContent: "center" },
-  premiumFieldLabel: { fontSize: 15, fontWeight: "800", color: "rgba(255,255,255,0.9)" },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: LIME,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
   input: {
-    marginTop: 8,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: "rgba(255,255,255,0.12)",
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 16,
     fontSize: 16,
     color: "#fff",
-    backgroundColor: "rgba(0,0,0,0.28)",
+    backgroundColor: "#1a1a1a",
+    marginBottom: 18,
   },
-  inputPremium: {
-    marginTop: 12,
-    borderColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "rgba(0,0,0,0.22)",
-    textAlign: "center",
+  fieldLabelSpaced: { marginTop: 4 },
+  inputFocused: {
+    borderColor: LIME,
+    borderWidth: 1.5,
   },
   primaryBtn: {
-    marginTop: 16,
-    backgroundColor: "#a3e635",
-    paddingVertical: 15,
+    marginTop: 4,
+    backgroundColor: LIME,
+    paddingVertical: 16,
     borderRadius: 14,
     alignItems: "center",
   },
-  primaryBtnRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
+  primaryBtnRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    paddingHorizontal: 8,
+  },
   primaryBtnText: { color: "#0a0a0a", fontWeight: "900", fontSize: 16 },
   bioBtn: {
-    marginTop: 12,
+    marginTop: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -795,11 +929,12 @@ const styles = StyleSheet.create({
   },
   bioBtnText: { color: "#e5e5e5", fontWeight: "700", fontSize: 15 },
   disabled: { opacity: 0.5 },
-  createAccountRow: { marginTop: 14, alignItems: "center" },
+  createAccountRow: { marginTop: 18, alignItems: "center" },
   createAccountText: { color: "rgba(255,255,255,0.75)", fontSize: 15, fontWeight: "500" },
   createAccountStrong: { color: "#fff", fontSize: 15, fontWeight: "700" },
-  textBtn: { marginTop: 12, alignItems: "center" },
-  textBtnLabelStrong: { color: "rgba(255,255,255,0.65)", fontSize: 14.5, fontWeight: "700" },
-  msg: { marginTop: 14, color: "#fca5a5", fontSize: 14, textAlign: "center" },
+  textBtn: { marginTop: 16, alignItems: "center" },
+  textBtnLabelStrong: { color: LIME, fontSize: 14.5, fontWeight: "700" },
+  textBtnLabelMuted: { color: "rgba(255,255,255,0.55)", fontSize: 14.5, fontWeight: "700" },
+  msg: { marginTop: 16, color: "#fca5a5", fontSize: 14, textAlign: "center" },
   msgMuted: { color: "rgba(252,211,212,0.92)" },
 });
