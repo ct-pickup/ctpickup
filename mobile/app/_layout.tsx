@@ -164,7 +164,7 @@ function RootLayoutNav() {
                             name="reset-password"
                             options={{
                               headerShown: true,
-                              title: "Reset password",
+                              title: "Set new password",
                               headerStyle: { backgroundColor: "#0a0a0a" },
                               headerTintColor: "#fff",
                             }}

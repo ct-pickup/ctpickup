@@ -1,9 +1,9 @@
 import { useAuth } from "@/context/AuthContext";
-import * as Linking from "expo-linking";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "expo-router";
+import { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,164 +15,54 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-type RecoveryParams = {
-  type?: string;
-  access_token?: string;
-  refresh_token?: string;
-  error?: string;
-  error_description?: string;
-};
-
-function parseRecoveryParams(url: string): RecoveryParams {
-  // Supabase commonly returns tokens in the URL hash fragment, not the querystring.
-  const out: RecoveryParams = {};
-  const [beforeHash, hashPartRaw] = url.split("#");
-  const queryPart = beforeHash.split("?")[1] ?? "";
-  const hashPart = hashPartRaw ?? "";
-
-  function fillFrom(part: string) {
-    if (!part) return;
-    const s = part.startsWith("?") ? part.slice(1) : part;
-    const params = new URLSearchParams(s);
-    for (const [k, v] of params.entries()) {
-      (out as any)[k] = v;
-    }
-  }
-
-  fillFrom(queryPart);
-  fillFrom(hashPart);
-  return out;
-}
+const PASSWORD_MIN_LEN = 8;
 
 export default function ResetPasswordScreen() {
   const { supabase } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { email: emailFromQuery } = useLocalSearchParams<{ email?: string }>();
 
-  const [mode, setMode] = useState<"request" | "set">("request");
-  const [email, setEmail] = useState(typeof emailFromQuery === "string" ? emailFromQuery : "");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-
-  const [password, setPassword] = useState("");
-  const [password2, setPassword2] = useState("");
-  const [recoveryReady, setRecoveryReady] = useState(false);
-
-  const emailClean = useMemo(() => email.trim().toLowerCase(), [email]);
-  const emailLooksValid = useMemo(() => {
-    if (emailClean.length < 6) return false;
-    if (!emailClean.includes("@")) return false;
-    const [a, b] = emailClean.split("@");
-    if (!a || !b) return false;
-    if (!b.includes(".")) return false;
-    return true;
-  }, [emailClean]);
-
-  useEffect(() => {
-    let sub: { remove: () => void } | null = null;
-
-    async function handleUrl(url: string) {
-      const p = parseRecoveryParams(url);
-      if (p.error_description) {
-        console.warn("[reset-password] recovery URL error_description", p.error_description);
-        setMsg("Something went wrong. Please try again.");
-      }
-      if (p.type !== "recovery") return;
-      if (!p.access_token || !p.refresh_token) return;
-      if (!supabase) {
-        setMsg("Auth isn’t configured on this build yet.");
-        return;
-      }
-
-      setBusy(true);
-      setMsg(null);
-      try {
-        const { error } = await supabase.auth.setSession({
-          access_token: p.access_token,
-          refresh_token: p.refresh_token,
-        });
-        if (error) {
-          console.warn("[reset-password] setSession failed", error.message ?? error);
-          setMsg("Something went wrong. Please try again.");
-          return;
-        }
-        setMode("set");
-        setRecoveryReady(true);
-      } finally {
-        setBusy(false);
-      }
-    }
-
-    void (async () => {
-      const initial = await Linking.getInitialURL();
-      if (initial) await handleUrl(initial);
-    })();
-
-    sub = Linking.addEventListener("url", (ev) => {
-      void handleUrl(ev.url);
-    });
-
-    return () => {
-      sub?.remove();
-    };
-  }, [supabase]);
-
-  async function sendResetEmail() {
-    if (!supabase) {
-      setMsg("Auth isn’t configured on this build yet.");
-      return;
-    }
-    if (!emailLooksValid || busy) {
-      if (!emailLooksValid) setMsg("Enter a valid email address.");
-      return;
-    }
-    setBusy(true);
-    setMsg(null);
-    try {
-      const redirectTo = Linking.createURL("reset-password");
-      const { error } = await supabase.auth.resetPasswordForEmail(emailClean, { redirectTo });
-      if (error) {
-        console.warn("[reset-password] resetPasswordForEmail failed", error.message ?? error);
-        setMsg("Something went wrong. Please try again.");
-        return;
-      }
-      setMsg("Check your email for the reset link.");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function submitNewPassword() {
-    if (!supabase) return;
-    if (busy) return;
-    if (!recoveryReady) {
-      setMsg("Open the password reset link from your email on this device.");
+    if (!supabase || busy) return;
+
+    if (newPassword.length < PASSWORD_MIN_LEN) {
+      Alert.alert("Password", `Password must be at least ${PASSWORD_MIN_LEN} characters.`);
       return;
     }
-    if (password.length < 8) {
-      setMsg("Password must be at least 8 characters.");
-      return;
-    }
-    if (password !== password2) {
-      setMsg("Passwords do not match.");
+    if (newPassword !== confirmPassword) {
+      Alert.alert("Password", "Passwords do not match.");
       return;
     }
 
     setBusy(true);
-    setMsg(null);
     try {
-      const { error } = await supabase.auth.updateUser({ password });
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) {
+        Alert.alert("Password update failed", error.message);
         console.warn("[reset-password] updateUser password failed", error.message ?? error);
-        setMsg("Something went wrong. Please try again.");
         return;
       }
-      setMsg("Password updated. You can return to sign in.");
+      Alert.alert("Password updated!", "Your password has been saved.", [
+        { text: "OK", onPress: () => router.replace("/(tabs)") },
+      ]);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Something went wrong. Please try again.";
+      Alert.alert("Password update failed", message);
+      console.warn("[reset-password] updateUser threw", e);
     } finally {
       setBusy(false);
     }
   }
+
+  const canSubmit =
+    newPassword.length >= PASSWORD_MIN_LEN &&
+    confirmPassword.length >= PASSWORD_MIN_LEN &&
+    !busy &&
+    !!supabase;
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : "height"}>
@@ -186,72 +76,42 @@ export default function ResetPasswordScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>{mode === "set" ? "Set a new password" : "Reset password"}</Text>
-        <Text style={styles.lead}>
-          {mode === "set"
-            ? "Choose a new password for your account."
-            : "We’ll email you a link. Open it on this device to set a new password."}
-        </Text>
+        <Text style={styles.title}>Set new password</Text>
+        <Text style={styles.lead}>Choose a new password for your account.</Text>
 
         <View style={styles.card}>
-          {mode === "request" ? (
-            <>
-              <Text style={styles.fieldLabel}>Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="you@example.com"
-                placeholderTextColor="rgba(255,255,255,0.35)"
-                autoCapitalize="none"
-                keyboardType="email-address"
-                value={email}
-                onChangeText={setEmail}
-              />
+          <Text style={styles.fieldLabel}>New password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder={`At least ${PASSWORD_MIN_LEN} characters`}
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={newPassword}
+            onChangeText={setNewPassword}
+          />
 
-              <Pressable
-                style={[styles.primaryBtn, (!emailLooksValid || busy) && styles.disabled]}
-                disabled={!emailLooksValid || busy}
-                onPress={() => void sendResetEmail()}
-              >
-                {busy ? <ActivityIndicator color="#0a0a0a" /> : <Text style={styles.primaryBtnText}>Send reset link</Text>}
-              </Pressable>
+          <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>Confirm password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Re-enter password"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            onSubmitEditing={() => void submitNewPassword()}
+          />
 
-              <Pressable style={styles.textBtn} onPress={() => router.back()}>
-                <Text style={styles.textBtnLabel}>Back to sign in</Text>
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <Text style={styles.fieldLabel}>New password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="At least 8 characters"
-                placeholderTextColor="rgba(255,255,255,0.35)"
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
-
-              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Confirm password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Re-enter password"
-                placeholderTextColor="rgba(255,255,255,0.35)"
-                secureTextEntry
-                value={password2}
-                onChangeText={setPassword2}
-              />
-
-              <Pressable style={[styles.primaryBtn, busy && styles.disabled]} disabled={busy} onPress={() => void submitNewPassword()}>
-                {busy ? <ActivityIndicator color="#0a0a0a" /> : <Text style={styles.primaryBtnText}>Update password</Text>}
-              </Pressable>
-
-              <Pressable style={styles.textBtn} onPress={() => router.replace("/login")}>
-                <Text style={styles.textBtnLabel}>Go to sign in</Text>
-              </Pressable>
-            </>
-          )}
-
-          {msg ? <Text style={styles.msg}>{msg}</Text> : null}
+          <Pressable
+            style={[styles.primaryBtn, !canSubmit && styles.disabled]}
+            disabled={!canSubmit}
+            onPress={() => void submitNewPassword()}
+          >
+            {busy ? <ActivityIndicator color="#0a0a0a" /> : <Text style={styles.primaryBtnText}>Save password</Text>}
+          </Pressable>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -272,6 +132,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.04)",
   },
   fieldLabel: { fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.55)" },
+  fieldLabelSpaced: { marginTop: 14 },
   input: {
     marginTop: 8,
     borderWidth: 1,
@@ -292,8 +153,4 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: { color: "#0a0a0a", fontWeight: "900", fontSize: 16 },
   disabled: { opacity: 0.5 },
-  textBtn: { marginTop: 14, alignItems: "center" },
-  textBtnLabel: { color: "rgba(255,255,255,0.65)", fontSize: 14.5, fontWeight: "700" },
-  msg: { marginTop: 14, color: "rgba(252,211,212,0.92)", fontSize: 14, lineHeight: 20 },
 });
-

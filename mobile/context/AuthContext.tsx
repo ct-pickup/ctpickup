@@ -1,9 +1,11 @@
 import { authRouteRef } from "@/lib/authRouteRef";
 import { clearStoredPin } from "@/lib/appLock";
+import { isResetPasswordDeepLink, parseRecoveryLinkParams } from "@/lib/authDeepLink";
 import { clearBiometricSignIn } from "@/lib/biometricSignIn";
 import { getMobileSupabaseClient } from "@/lib/supabase";
 import * as Sentry from "@sentry/react-native";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
+import * as Linking from "expo-linking";
 import { router, useNavigationContainerRef } from "expo-router";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
@@ -73,6 +75,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
   }, [navigationRef]);
+
+  useEffect(() => {
+    if (!supabase) return;
+
+    async function handleAuthDeepLink(url: string) {
+      if (!isResetPasswordDeepLink(url)) return;
+
+      const params = parseRecoveryLinkParams(url);
+      if (params.type === "recovery" && params.access_token && params.refresh_token) {
+        try {
+          const { error } = await supabase.auth.setSession({
+            access_token: params.access_token,
+            refresh_token: params.refresh_token,
+          });
+          if (error) {
+            console.warn("[auth] recovery setSession failed", error.message ?? error);
+            Sentry.captureException(error);
+          }
+        } catch (e) {
+          console.warn("[auth] recovery setSession threw", e);
+          Sentry.captureException(e);
+        }
+      }
+
+      const path = authRouteRef.current;
+      if (path === "/reset-password" || path.endsWith("/reset-password")) return;
+      router.push("/reset-password");
+    }
+
+    void Linking.getInitialURL().then((initial) => {
+      if (initial) void handleAuthDeepLink(initial);
+    });
+
+    const sub = Linking.addEventListener("url", (event) => {
+      void handleAuthDeepLink(event.url);
+    });
+
+    return () => sub.remove();
+  }, [supabase]);
 
   const refreshSession = useCallback(async () => {
     if (!supabase) return;

@@ -11,7 +11,6 @@ import {
 import { hasSupabaseEnv, siteOrigin } from "@/lib/env";
 import { checkEmailExistsResult } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -426,14 +425,17 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
     setBusy(true);
     setMsg(null);
     try {
-      const redirectTo = Linking.createURL("reset-password");
-      const { error } = await supabase.auth.resetPasswordForEmail(emailClean, { redirectTo });
+      const { error } = await supabase.auth.resetPasswordForEmail(emailClean, {
+        redirectTo: "ctpickup://reset-password",
+      });
       if (error) {
-        setMsg("Could not send reset email. Please try again.");
+        const userMsg = "Could not send reset email. Please try again.";
+        setMsg(userMsg);
+        Alert.alert("Reset email", userMsg);
         console.error("[auth] resetPasswordForEmail failed", { error, email: emailClean });
         return;
       }
-      setMsg("Check your email for a password reset link.");
+      Alert.alert("Reset email", `Password reset email sent to ${emailClean}`);
     } finally {
       setBusy(false);
     }

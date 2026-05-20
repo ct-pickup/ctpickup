@@ -1,4 +1,4 @@
-import { ADMIN_CT_PICKUP_VENUES } from "@/lib/adminCtPickupVenues";
+import { ADMIN_CT_PICKUP_VENUES, CUSTOM_VENUE_OPTION } from "@/lib/adminCtPickupVenues";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 const LIME = "#a3e635";
@@ -48,6 +48,22 @@ export default function AdminVenuePicker({ label = "Venue", value, onChange, hin
             </Pressable>
           );
         })}
+        <Pressable
+          key={CUSTOM_VENUE_OPTION}
+          onPress={() => onChange(CUSTOM_VENUE_OPTION)}
+          style={({ pressed }) => [
+            styles.chip,
+            selected === CUSTOM_VENUE_OPTION && styles.chipActive,
+            pressed && { opacity: 0.9 },
+          ]}
+        >
+          <Text
+            style={[styles.chipText, selected === CUSTOM_VENUE_OPTION && styles.chipTextActive]}
+            numberOfLines={2}
+          >
+            {CUSTOM_VENUE_OPTION}
+          </Text>
+        </Pressable>
       </ScrollView>
     </View>
   );

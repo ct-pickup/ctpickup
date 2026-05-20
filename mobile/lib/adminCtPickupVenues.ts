@@ -1,6 +1,16 @@
 /** Keep in sync with `lib/venues/adminCtPickupVenues.ts` (repo root). */
 
-import type { ServiceRegionCode } from "@/lib/serviceRegions";
+import { isServiceRegionCode, type ServiceRegionCode } from "@/lib/serviceRegions";
+
+/** Sentinel value when admin picks a venue not in the preset list. */
+export const CUSTOM_VENUE_OPTION = "Custom venue";
+
+const STATE_NAME_TO_REGION: Record<string, ServiceRegionCode> = {
+  connecticut: "CT",
+  "new york": "NY",
+  "new jersey": "NJ",
+  maryland: "MD",
+};
 
 export type CtPickupVenueEntry = {
   name: string;
@@ -83,4 +93,34 @@ export function adminVenueLocationPreset(name: string | null | undefined): strin
   if (!key) return null;
   const hit = ADMIN_CT_PICKUP_VENUES.find((v) => v.name === key);
   return hit?.locationPreset ?? null;
+}
+
+/** Infer NY / CT / NJ / MD from a free-form US address string. */
+export function serviceRegionFromAddress(address: string | null | undefined): ServiceRegionCode | null {
+  const raw = address != null ? String(address).trim() : "";
+  if (!raw) return null;
+
+  const uspsEnd = raw.match(/,\s*(CT|NY|NJ|MD)(?:\s+\d{5}(?:-\d{4})?)?\s*$/i);
+  if (uspsEnd) {
+    const code = uspsEnd[1].toUpperCase();
+    return isServiceRegionCode(code) ? code : null;
+  }
+
+  const tail = raw.slice(Math.max(0, raw.length - 48));
+  const tailMatch = tail.match(/,\s*(CT|NY|NJ|MD)\b/i) ?? tail.match(/\b(CT|NY|NJ|MD)\b/i);
+  if (tailMatch) {
+    const code = tailMatch[1].toUpperCase();
+    return isServiceRegionCode(code) ? code : null;
+  }
+
+  const lower = raw.toLowerCase();
+  for (const [name, code] of Object.entries(STATE_NAME_TO_REGION)) {
+    if (lower.includes(name)) return code;
+  }
+
+  return null;
+}
+
+export function formatCustomVenueLocationPrivate(name: string, address: string): string {
+  return `${name.trim()}\n${address.trim()}`;
 }

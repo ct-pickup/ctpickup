@@ -4,7 +4,10 @@ import AdminRunDetailLifecycle from "@/components/pickup/AdminRunDetailLifecycle
 import { useAuth } from "@/context/AuthContext";
 import {
   adminVenueLocationPreset,
+  CUSTOM_VENUE_OPTION,
+  formatCustomVenueLocationPrivate,
   serviceRegionForAdminVenueName,
+  serviceRegionFromAddress,
 } from "@/lib/adminCtPickupVenues";
 import {
   fetchAdminMonthlyLeaders,
@@ -26,7 +29,7 @@ import {
   pickupLifecycleStageLabel,
   showInvitePlayersButton,
 } from "@/lib/pickupRunLifecycle";
-import type { ServiceRegionCode } from "@/lib/serviceRegions";
+import { SERVICE_REGIONS, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -141,6 +144,9 @@ export default function AdminPickupOpsScreen() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createRunType, setCreateRunType] = useState<"public" | "select">("public");
   const [createVenue, setCreateVenue] = useState("");
+  const [createCustomVenueName, setCreateCustomVenueName] = useState("");
+  const [createCustomVenueAddress, setCreateCustomVenueAddress] = useState("");
+  const [createRegionOverride, setCreateRegionOverride] = useState<ServiceRegionCode | null>(null);
   const [createStartAt, setCreateStartAt] = useState("");
   const [createCapacity, setCreateCapacity] = useState("24");
   const [createFieldCost, setCreateFieldCost] = useState("");
@@ -154,10 +160,21 @@ export default function AdminPickupOpsScreen() {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
 
-  const createRegion = useMemo(
-    (): ServiceRegionCode => serviceRegionForAdminVenueName(createVenue) ?? "CT",
-    [createVenue],
+  const isCreateCustomVenue = createVenue === CUSTOM_VENUE_OPTION;
+
+  const createRegionFromAddress = useMemo(
+    () => (isCreateCustomVenue ? serviceRegionFromAddress(createCustomVenueAddress) : null),
+    [isCreateCustomVenue, createCustomVenueAddress],
   );
+
+  const showCreateRegionPicker = isCreateCustomVenue && !createRegionFromAddress;
+
+  const createRegion = useMemo((): ServiceRegionCode => {
+    if (isCreateCustomVenue) {
+      return createRegionFromAddress ?? createRegionOverride ?? "CT";
+    }
+    return serviceRegionForAdminVenueName(createVenue) ?? "CT";
+  }, [isCreateCustomVenue, createVenue, createRegionFromAddress, createRegionOverride]);
 
   const feePreview = useMemo(() => {
     const players = Number(createCapacity) || 24;
@@ -286,12 +303,28 @@ export default function AdminPickupOpsScreen() {
     setDetailError(null);
   }
 
+  function resetCreateForm() {
+    setCreateStartAt("");
+    setCreateVenue("");
+    setCreateCustomVenueName("");
+    setCreateCustomVenueAddress("");
+    setCreateRegionOverride(null);
+    setCreateFieldCost("");
+    setCreateEarnings("0");
+    setCreateCapacity("24");
+  }
+
   function onVenueChange(name: string) {
     setCreateVenue(name);
-    const preset = adminVenueLocationPreset(name);
-    if (preset) {
-      /* location is sent on create via location_private */
+    if (name === CUSTOM_VENUE_OPTION) {
+      setCreateCustomVenueName("");
+      setCreateCustomVenueAddress("");
+      setCreateRegionOverride(null);
+      return;
     }
+    setCreateCustomVenueName("");
+    setCreateCustomVenueAddress("");
+    setCreateRegionOverride(null);
     const cost = VENUE_FIELD_COST[name];
     if (typeof cost === "number" && cost > 0) setCreateFieldCost(String(cost));
   }
@@ -323,6 +356,31 @@ export default function AdminPickupOpsScreen() {
       Alert.alert("Pick a venue", "Select a venue from the list.");
       return;
     }
+    let runTitle = createVenue.trim();
+    let location_private: string;
+    if (isCreateCustomVenue) {
+      const customName = createCustomVenueName.trim();
+      const customAddress = createCustomVenueAddress.trim();
+      if (!customName) {
+        Alert.alert("Venue name", "Enter a name for the custom venue.");
+        return;
+      }
+      if (!customAddress) {
+        Alert.alert("Venue address", "Enter the full address for the custom venue.");
+        return;
+      }
+      if (!createRegionFromAddress && !createRegionOverride) {
+        Alert.alert(
+          "Pick a region",
+          "Could not detect NY, CT, NJ, or MD from the address. Select a service region.",
+        );
+        return;
+      }
+      runTitle = customName;
+      location_private = formatCustomVenueLocationPrivate(customName, customAddress);
+    } else {
+      location_private = adminVenueLocationPreset(createVenue) ?? createVenue;
+    }
     const fc = Number(createFieldCost);
     const me = Number(createEarnings);
     const ep = Number(createCapacity) || 24;
@@ -335,11 +393,10 @@ export default function AdminPickupOpsScreen() {
       return;
     }
 
-    const location_private = adminVenueLocationPreset(createVenue) ?? createVenue;
     setCreateBusy(true);
     const r = await postAdminCreateRun(token, {
       ...(start_at ? { start_at } : {}),
-      title: createVenue,
+      title: runTitle,
       service_region: createRegion,
       capacity: ep,
       fee_cents: feeCentsFromCalculator(fc, me, ep),
@@ -365,11 +422,7 @@ export default function AdminPickupOpsScreen() {
     setCreateBusy(false);
     void hapticGoal();
     setCreateOpen(false);
-    setCreateStartAt("");
-    setCreateVenue("");
-    setCreateFieldCost("");
-    setCreateEarnings("0");
-    setCreateCapacity("24");
+    resetCreateForm();
   }
 
   const detailRun = detail?.run && typeof detail.run === "object" ? (detail.run as Record<string, unknown>) : null;
@@ -743,6 +796,60 @@ export default function AdminPickupOpsScreen() {
               </View>
 
               <AdminVenuePicker label="Venue" value={createVenue} onChange={onVenueChange} />
+              {isCreateCustomVenue ? (
+                <>
+                  <Text style={styles.label}>Venue name</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={createCustomVenueName}
+                    onChangeText={setCreateCustomVenueName}
+                    placeholder="Venue name e.g. Chelsea Piers"
+                    placeholderTextColor="rgba(255,255,255,0.35)"
+                  />
+                  <Text style={styles.label}>Venue address</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={createCustomVenueAddress}
+                    onChangeText={(text) => {
+                      setCreateCustomVenueAddress(text);
+                      if (serviceRegionFromAddress(text)) setCreateRegionOverride(null);
+                    }}
+                    placeholder="Full address e.g. 62 Chelsea Piers, New York, NY"
+                    placeholderTextColor="rgba(255,255,255,0.35)"
+                    multiline
+                  />
+                  {showCreateRegionPicker ? (
+                    <>
+                      <Text style={styles.label}>Service region</Text>
+                      <View style={styles.chipRow}>
+                        {SERVICE_REGIONS.map(({ code }) => {
+                          const active = createRegionOverride === code;
+                          return (
+                            <Pressable
+                              key={code}
+                              onPress={() => {
+                                void hapticTap();
+                                setCreateRegionOverride(code);
+                              }}
+                              style={({ pressed }) => [
+                                styles.chip,
+                                active && styles.chipActive,
+                                pressed && { opacity: 0.9 },
+                              ]}
+                            >
+                              <Text style={[styles.chipText, active && styles.chipTextActive]}>{code}</Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </>
+                  ) : createRegionFromAddress ? (
+                    <Text style={styles.regionDetectedHint}>
+                      Region: {createRegionFromAddress} (from address)
+                    </Text>
+                  ) : null}
+                </>
+              ) : null}
               {createRunType === "public" ? (
                 <View style={styles.publicTimeNote}>
                   <Text style={styles.publicTimeNoteText}>
@@ -1116,6 +1223,12 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.04)",
   },
   publicTimeNoteText: { color: "rgba(255,255,255,0.65)", fontSize: 14, lineHeight: 20 },
+  regionDetectedHint: {
+    marginTop: 8,
+    fontSize: 13,
+    color: "rgba(163,230,53,0.75)",
+    fontWeight: "600",
+  },
   previewBox: {
     marginTop: 16,
     padding: 14,
