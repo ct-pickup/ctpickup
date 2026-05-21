@@ -29,35 +29,6 @@ const PROFILE_REPORT_REASONS = [
 
 type Team = "A" | "B" | "C";
 
-const VENUE_TO_REGION: Record<string, "CT" | "NY" | "NJ" | "MD"> = {
-  // NJ
-  "Sofive Meadowlands": "NJ",
-  "Sofive Cherry Hill": "NJ",
-  // NY
-  "Sofive Brooklyn": "NY",
-  "Hudson Sports Complex": "NY",
-  "New Rochelle SoccerRoof": "NY",
-  // MD
-  "Sofive Rockville": "MD",
-  "SoccerDome Jessup": "MD",
-  "SoccerDome Harmans": "MD",
-  // CT
-  "New Haven SoccerRoof": "CT",
-};
-
-function regionFromVenue(venue: string | null): string | null {
-  const v = (venue ?? "").trim();
-  if (!v) return null;
-  return VENUE_TO_REGION[v] ?? null;
-}
-
-const VENUE_REGION_TO_STATE: Record<string, string> = {
-  CT: "Connecticut",
-  NY: "New York",
-  NJ: "New Jersey",
-  MD: "Maryland",
-};
-
 function zipToState(zip: string): string | null {
   const prefix = zip.trim().slice(0, 2);
   if (prefix === "06") return "Connecticut";
@@ -65,12 +36,6 @@ function zipToState(zip: string): string | null {
   if (prefix === "10" || prefix === "11" || prefix === "12" || prefix === "13" || prefix === "14") return "New York";
   if (prefix === "20" || prefix === "21") return "Maryland";
   return null;
-}
-
-function venueRegionToState(venue: string | null): string | null {
-  const abbr = regionFromVenue(venue);
-  if (!abbr) return null;
-  return VENUE_REGION_TO_STATE[abbr] ?? null;
 }
 
 function initials(displayName: string) {
@@ -126,7 +91,6 @@ export default function PlayerProfileScreen() {
   const [nameForTitle, setNameForTitle] = useState("Profile");
   const [profile, setProfile] = useState<PublicPlayerProfile | null>(null);
 
-  const [nearestVenue, setNearestVenue] = useState<string | null>(null);
   const [zipCode, setZipCode] = useState<string | null>(null);
 
   const [statsLoading, setStatsLoading] = useState(false);
@@ -214,7 +178,7 @@ export default function PlayerProfileScreen() {
           await Promise.all([
             supabase
               .from("profiles")
-              .select("nearest_venue, zip_code, pickup_wins_count, pickup_losses_count, current_streak, longest_streak")
+              .select("zip_code, pickup_wins_count, pickup_losses_count, current_streak, longest_streak")
               .eq("id", userId)
               .maybeSingle(),
             supabase.from("pickup_run_team_assignments").select("team,run_id").eq("user_id", userId).limit(2000),
@@ -223,7 +187,6 @@ export default function PlayerProfileScreen() {
         if (cancelled) return;
 
         if (profileErr || !profileData) {
-          setNearestVenue(null);
           setZipCode(null);
           setGames(null);
           setWins(null);
@@ -233,15 +196,12 @@ export default function PlayerProfileScreen() {
           setLongestStreak(null);
         } else {
           const row = profileData as {
-            nearest_venue?: unknown;
             zip_code?: unknown;
             pickup_wins_count?: unknown;
             pickup_losses_count?: unknown;
             current_streak?: unknown;
             longest_streak?: unknown;
           };
-          const v = row.nearest_venue;
-          setNearestVenue(typeof v === "string" ? v : null);
           const z = row.zip_code;
           setZipCode(typeof z === "string" ? z : null);
           const w = Math.max(0, Math.trunc(Number(row.pickup_wins_count ?? 0)));
@@ -577,7 +537,7 @@ export default function PlayerProfileScreen() {
 
   const ig = profile.instagram?.replace(/^@/, "").trim();
   const stateFromZip = zipCode ? zipToState(zipCode) : null;
-  const region = stateFromZip ?? venueRegionToState(nearestVenue);
+  const region = stateFromZip;
 
   function submitProfileReport(reason: string) {
     if (!token) return;
