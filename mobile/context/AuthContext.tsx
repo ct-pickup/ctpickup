@@ -1,6 +1,6 @@
 import { authRouteRef } from "@/lib/authRouteRef";
 import { clearStoredPin } from "@/lib/appLock";
-import { isResetPasswordDeepLink, parseRecoveryLinkParams } from "@/lib/authDeepLink";
+import { establishRecoverySession, isResetPasswordDeepLink } from "@/lib/authDeepLink";
 import { clearBiometricSignIn } from "@/lib/biometricSignIn";
 import { getMobileSupabaseClient } from "@/lib/supabase";
 import * as Sentry from "@sentry/react-native";
@@ -82,21 +82,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function handleAuthDeepLink(url: string) {
       if (!isResetPasswordDeepLink(url)) return;
 
-      const params = parseRecoveryLinkParams(url);
-      if (params.type === "recovery" && params.access_token && params.refresh_token) {
-        try {
-          const { error } = await supabase.auth.setSession({
-            access_token: params.access_token,
-            refresh_token: params.refresh_token,
-          });
-          if (error) {
-            console.warn("[auth] recovery setSession failed", error.message ?? error);
-            Sentry.captureException(error);
-          }
-        } catch (e) {
-          console.warn("[auth] recovery setSession threw", e);
-          Sentry.captureException(e);
-        }
+      try {
+        await establishRecoverySession(supabase, url);
+      } catch (e) {
+        console.warn("[auth] establishRecoverySession threw", e);
+        Sentry.captureException(e);
       }
 
       const path = authRouteRef.current;

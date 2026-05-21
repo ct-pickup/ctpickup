@@ -528,7 +528,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
             <Image source={require("@/assets/images/icon.png")} style={styles.brandIcon} accessibilityLabel="CT Pickup" />
           </View>
           <Text style={styles.brandTitle}>CT Pickup</Text>
-          <Text style={styles.brandTagline}>Organized soccer. Your city.</Text>
+          <Text style={styles.brandTagline}>Community. Culture. Competitive.</Text>
         </View>
       ) : null}
 
