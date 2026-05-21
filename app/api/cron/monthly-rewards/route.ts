@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import {
+  compareByCountThenLifetimeAttendance,
   currentCalendarMonthStartIsoEt,
   expiresThreeMonthsFromNowIso,
+  fetchLifetimeConfirmedAttendance,
   previousCalendarMonthRangeEt,
 } from "@/lib/pickup/monthlyRewardsEt";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
 
-type PodCount = { user_id: string; count: number; first_award_at: string };
+type PodCount = { user_id: string; count: number };
 
 /**
  * Vercel Cron: GET /api/cron/monthly-rewards
@@ -61,20 +63,18 @@ export async function GET(req: Request) {
   for (const row of podRows || []) {
     const uid = String((row as { player_of_day: string }).player_of_day || "").trim();
     if (!uid) continue;
-    const createdAt = String((row as { created_at: string }).created_at || "");
     const cur = podCounts.get(uid);
     if (!cur) {
-      podCounts.set(uid, { user_id: uid, count: 1, first_award_at: createdAt });
+      podCounts.set(uid, { user_id: uid, count: 1 });
     } else {
       cur.count += 1;
-      if (createdAt && createdAt < cur.first_award_at) cur.first_award_at = createdAt;
     }
   }
 
-  const podSorted = [...podCounts.values()].sort((a, b) => {
-    if (b.count !== a.count) return b.count - a.count;
-    return a.first_award_at.localeCompare(b.first_award_at);
-  });
+  const podLifetime = await fetchLifetimeConfirmedAttendance(admin, [...podCounts.keys()]);
+  const podSorted = [...podCounts.values()].sort((a, b) =>
+    compareByCountThenLifetimeAttendance(a, b, podLifetime),
+  );
 
   if (podSorted.length > 0 && podSorted[0].count > 0) {
     const winnerId = podSorted[0].user_id;
@@ -139,9 +139,14 @@ export async function GET(req: Request) {
     attendCounts.set(uid, (attendCounts.get(uid) ?? 0) + 1);
   }
 
-  const attendSorted = [...attendCounts.entries()]
-    .map(([user_id, count]) => ({ user_id, count }))
-    .sort((a, b) => b.count - a.count);
+  const attendRows = [...attendCounts.entries()].map(([user_id, count]) => ({ user_id, count }));
+  const attendLifetime = await fetchLifetimeConfirmedAttendance(
+    admin,
+    attendRows.map((r) => r.user_id),
+  );
+  const attendSorted = attendRows.sort((a, b) =>
+    compareByCountThenLifetimeAttendance(a, b, attendLifetime),
+  );
 
   const topAttend = attendSorted[0];
   const MIN_ATTENDANCE = 4;
