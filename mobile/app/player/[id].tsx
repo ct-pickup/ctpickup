@@ -51,6 +51,28 @@ function regionFromVenue(venue: string | null): string | null {
   return VENUE_TO_REGION[v] ?? null;
 }
 
+const VENUE_REGION_TO_STATE: Record<string, string> = {
+  CT: "Connecticut",
+  NY: "New York",
+  NJ: "New Jersey",
+  MD: "Maryland",
+};
+
+function zipToState(zip: string): string | null {
+  const prefix = zip.trim().slice(0, 2);
+  if (prefix === "06") return "Connecticut";
+  if (prefix === "07" || prefix === "08") return "New Jersey";
+  if (prefix === "10" || prefix === "11" || prefix === "12" || prefix === "13" || prefix === "14") return "New York";
+  if (prefix === "20" || prefix === "21") return "Maryland";
+  return null;
+}
+
+function venueRegionToState(venue: string | null): string | null {
+  const abbr = regionFromVenue(venue);
+  if (!abbr) return null;
+  return VENUE_REGION_TO_STATE[abbr] ?? null;
+}
+
 function initials(displayName: string) {
   const parts = displayName.trim().split(/\s+/).filter(Boolean);
   if (parts.length >= 2) return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase().slice(0, 2);
@@ -105,6 +127,7 @@ export default function PlayerProfileScreen() {
   const [profile, setProfile] = useState<PublicPlayerProfile | null>(null);
 
   const [nearestVenue, setNearestVenue] = useState<string | null>(null);
+  const [zipCode, setZipCode] = useState<string | null>(null);
 
   const [statsLoading, setStatsLoading] = useState(false);
   const [games, setGames] = useState<number | null>(null);
@@ -191,7 +214,7 @@ export default function PlayerProfileScreen() {
           await Promise.all([
             supabase
               .from("profiles")
-              .select("nearest_venue, pickup_wins_count, pickup_losses_count, current_streak, longest_streak")
+              .select("nearest_venue, zip_code, pickup_wins_count, pickup_losses_count, current_streak, longest_streak")
               .eq("id", userId)
               .maybeSingle(),
             supabase.from("pickup_run_team_assignments").select("team,run_id").eq("user_id", userId).limit(2000),
@@ -201,6 +224,7 @@ export default function PlayerProfileScreen() {
 
         if (profileErr || !profileData) {
           setNearestVenue(null);
+          setZipCode(null);
           setGames(null);
           setWins(null);
           setLosses(null);
@@ -210,6 +234,7 @@ export default function PlayerProfileScreen() {
         } else {
           const row = profileData as {
             nearest_venue?: unknown;
+            zip_code?: unknown;
             pickup_wins_count?: unknown;
             pickup_losses_count?: unknown;
             current_streak?: unknown;
@@ -217,6 +242,8 @@ export default function PlayerProfileScreen() {
           };
           const v = row.nearest_venue;
           setNearestVenue(typeof v === "string" ? v : null);
+          const z = row.zip_code;
+          setZipCode(typeof z === "string" ? z : null);
           const w = Math.max(0, Math.trunc(Number(row.pickup_wins_count ?? 0)));
           const l = Math.max(0, Math.trunc(Number(row.pickup_losses_count ?? 0)));
           setWins(w);
@@ -549,7 +576,8 @@ export default function PlayerProfileScreen() {
   }
 
   const ig = profile.instagram?.replace(/^@/, "").trim();
-  const region = regionFromVenue(nearestVenue);
+  const stateFromZip = zipCode ? zipToState(zipCode) : null;
+  const region = stateFromZip ?? venueRegionToState(nearestVenue);
 
   function submitProfileReport(reason: string) {
     if (!token) return;
@@ -668,10 +696,10 @@ export default function PlayerProfileScreen() {
           <Text style={styles.label}>Region</Text>
           <Text style={styles.value}>{region}</Text>
         </View>
-      ) : !statsLoading && nearestVenue == null ? (
+      ) : !statsLoading && !region ? (
         <View style={styles.block}>
           <Text style={styles.label}>Region</Text>
-          <Text style={styles.valueMuted}>No CT Pickup hub on file for this profile.</Text>
+          <Text style={styles.valueMuted}>No region on file.</Text>
         </View>
       ) : null}
 
