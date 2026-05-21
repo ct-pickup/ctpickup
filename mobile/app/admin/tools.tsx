@@ -28,7 +28,7 @@ const TOOLS: ToolDef[] = [
     title: "Monthly Leaders",
     description: "View this month's top players by attendance and awards",
     icon: "trophy",
-    href: "/admin/pickup",
+    href: "/admin/monthly-leaders" as Href,
   },
   {
     id: "database",

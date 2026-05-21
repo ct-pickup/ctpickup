@@ -66,3 +66,22 @@ export function profileMatchesRunServiceRegion(
 
   return mapped === region;
 }
+
+export const VENUE_ADDRESSES: Record<string, string> = {
+  "New Haven SoccerRoof": "1018 Sherman Ave, Hamden, CT 06514",
+  "Sofive Brooklyn": "2015 Pitkin Ave, Brooklyn, NY 11207",
+  "Sofive Meadowlands": "2 Palmer Terrace, Carlstadt, NJ 07072",
+  "Sofive Meadowlands 5v5": "2 Palmer Terrace, Carlstadt, NJ 07072",
+  "Sofive Meadowlands 7v7": "2 Palmer Terrace, Carlstadt, NJ 07072",
+  "Sofive Cherry Hill": "650 Kresson Rd, Cherry Hill, NJ 08034",
+  "Sofive Cherry Hill 5v5": "650 Kresson Rd, Cherry Hill, NJ 08034",
+  "Sofive Cherry Hill 7v7": "650 Kresson Rd, Cherry Hill, NJ 08034",
+  "Hudson Sports Complex": "122 State School Road, Warwick, NY 10990",
+  "Hudson Sports": "122 State School Road, Warwick, NY 10990",
+  "New Rochelle SoccerRoof": "29 Lecount Pl, New Rochelle, NY 10801",
+  "Sofive Rockville": "1008 Westmore Ave, Rockville, MD 20850",
+};
+
+export function venueAddress(venueName: string): string | null {
+  return VENUE_ADDRESSES[venueName] ?? null;
+}

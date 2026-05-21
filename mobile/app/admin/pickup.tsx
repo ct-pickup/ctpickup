@@ -10,14 +10,12 @@ import {
   serviceRegionFromAddress,
 } from "@/lib/adminCtPickupVenues";
 import {
-  fetchAdminMonthlyLeaders,
   fetchAdminPickupSwitchDetail,
   fetchAdminPickupSwitchList,
   fetchAdminTierSuggestions,
   postAdminCreateRun,
   postAdminDeleteRun,
   postAdminPickupSwitch,
-  type MonthlyLeadersResponse,
   type PickupSwitchDetailResponse,
 } from "@/lib/adminApi";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
@@ -138,8 +136,6 @@ export default function AdminPickupOpsScreen() {
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const [tierBadge, setTierBadge] = useState(0);
-  const [monthlyLeaders, setMonthlyLeaders] = useState<MonthlyLeadersResponse | null>(null);
-  const [monthlyLeadersLoading, setMonthlyLeadersLoading] = useState(false);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createRunType, setCreateRunType] = useState<"public" | "select">("public");
@@ -244,17 +240,6 @@ export default function AdminPickupOpsScreen() {
     setTierBadge(r.ok ? Number(r.data.pending_count ?? 0) : 0);
   }, [token]);
 
-  const loadMonthlyLeaders = useCallback(async () => {
-    if (!token) {
-      setMonthlyLeaders(null);
-      return;
-    }
-    setMonthlyLeadersLoading(true);
-    const r = await fetchAdminMonthlyLeaders(token);
-    setMonthlyLeadersLoading(false);
-    if (r.ok) setMonthlyLeaders(r.data);
-  }, [token]);
-
   const loadDetail = useCallback(async () => {
     if (!token || !detailRunId) {
       setDetail(null);
@@ -279,10 +264,6 @@ export default function AdminPickupOpsScreen() {
   useEffect(() => {
     void loadTierBadge();
   }, [loadTierBadge]);
-
-  useEffect(() => {
-    void loadMonthlyLeaders();
-  }, [loadMonthlyLeaders]);
 
   useEffect(() => {
     if (detailOpen && detailRunId) void loadDetail();
@@ -551,7 +532,6 @@ export default function AdminPickupOpsScreen() {
             refreshing={listLoading}
             onRefresh={() => {
               void loadRuns();
-              void loadMonthlyLeaders();
             }}
             tintColor={LIME}
           />
@@ -597,53 +577,6 @@ export default function AdminPickupOpsScreen() {
             ) : null}
           </Pressable>
         </ScrollView>
-
-        <View style={styles.monthlyLeadersCard}>
-          <Text style={styles.monthlyLeadersTitle}>Monthly Leaders</Text>
-          {monthlyLeadersLoading && !monthlyLeaders ? (
-            <Text style={styles.monthlyLeadersMuted}>Loading…</Text>
-          ) : monthlyLeaders ? (
-            <>
-              <Text style={styles.monthlyLeadersSub}>POD this month</Text>
-              {monthlyLeaders.pod_top.length === 0 ? (
-                <Text style={styles.monthlyLeadersMuted}>No POD awards yet.</Text>
-              ) : (
-                monthlyLeaders.pod_top.map((row, i) => (
-                  <Text key={row.user_id} style={styles.monthlyLeadersRow}>
-                    {i + 1}. {row.name} · {row.count}
-                  </Text>
-                ))
-              )}
-              <Text style={[styles.monthlyLeadersSub, { marginTop: 12 }]}>Attendance this month</Text>
-              {monthlyLeaders.attendance_top.length === 0 ? (
-                <Text style={styles.monthlyLeadersMuted}>No confirmed RSVPs yet.</Text>
-              ) : (
-                monthlyLeaders.attendance_top.map((row, i) => (
-                  <Text key={`att-${row.user_id}`} style={styles.monthlyLeadersRow}>
-                    {i + 1}. {row.name} · {row.count} runs
-                  </Text>
-                ))
-              )}
-              <Text style={[styles.monthlyLeadersSub, { marginTop: 12 }]}>Last month&apos;s winners</Text>
-              {monthlyLeaders.last_month_winners.length === 0 ? (
-                <Text style={styles.monthlyLeadersMuted}>Winners announced on the 1st.</Text>
-              ) : (
-                monthlyLeaders.last_month_winners.map((w) => (
-                  <Text key={`${w.reason}-${w.user_id}`} style={styles.monthlyLeadersRow}>
-                    {w.name} ·{" "}
-                    {w.reason === "monthly_pod"
-                      ? "Free run (POD)"
-                      : w.discount_pct
-                        ? `${w.discount_pct}% off`
-                        : "Attendance award"}
-                  </Text>
-                ))
-              )}
-            </>
-          ) : (
-            <Text style={styles.monthlyLeadersMuted}>Could not load leaders.</Text>
-          )}
-        </View>
 
         <View style={styles.tabRow}>
           {(
@@ -1038,18 +971,6 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingTop: 8 },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   h1: { fontSize: 26, fontWeight: "800", color: "#fff" },
-  monthlyLeadersCard: {
-    marginBottom: 16,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.25)",
-    backgroundColor: "rgba(163,230,53,0.06)",
-  },
-  monthlyLeadersTitle: { color: LIME, fontSize: 16, fontWeight: "800", marginBottom: 8 },
-  monthlyLeadersSub: { color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: "700", textTransform: "uppercase" },
-  monthlyLeadersRow: { color: "#fff", fontSize: 14, marginTop: 6 },
-  monthlyLeadersMuted: { color: "rgba(255,255,255,0.45)", fontSize: 13, marginTop: 6, fontStyle: "italic" },
   refreshBtn: {
     flexDirection: "row",
     alignItems: "center",
