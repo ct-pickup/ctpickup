@@ -570,6 +570,8 @@ export type PublicPlayerProfile = {
   tier_rank: number | null;
   playing_position: string | null;
   plays_goalie: boolean | null;
+  /** Hub region display name (e.g. Connecticut), derived server-side from ZIP / nearest venue. */
+  region: string | null;
 };
 
 /** In-app public card (team chat, etc.); requires approved viewer. */

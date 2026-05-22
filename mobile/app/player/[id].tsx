@@ -1,5 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 import { postPlayerProfileReportViaApi } from "@/lib/chatApi";
+import { displayRegionNameFromZip } from "@/lib/zipRegion";
 import { fetchPlayerFollowStats, fetchPublicPlayerProfile, togglePlayerFollow, type PublicPlayerProfile } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation, useRouter, type Href } from "expo-router";
@@ -28,15 +29,6 @@ const PROFILE_REPORT_REASONS = [
 ] as const;
 
 type Team = "A" | "B" | "C";
-
-function zipToState(zip: string): string | null {
-  const prefix = zip.trim().slice(0, 2);
-  if (prefix === "06") return "Connecticut";
-  if (prefix === "07" || prefix === "08") return "New Jersey";
-  if (prefix === "10" || prefix === "11" || prefix === "12" || prefix === "13" || prefix === "14") return "New York";
-  if (prefix === "20" || prefix === "21") return "Maryland";
-  return null;
-}
 
 function initials(displayName: string) {
   const parts = displayName.trim().split(/\s+/).filter(Boolean);
@@ -203,7 +195,16 @@ export default function PlayerProfileScreen() {
             longest_streak?: unknown;
           };
           const z = row.zip_code;
-          setZipCode(typeof z === "string" ? z : null);
+          const zipRaw = typeof z === "string" ? z : z != null ? String(z) : null;
+          setZipCode(zipRaw);
+          if (__DEV__) {
+            console.log("[player profile] profiles.zip_code", {
+              userId,
+              zipRaw,
+              regionFromZip: zipRaw ? displayRegionNameFromZip(zipRaw) : null,
+              profileErr: profileErr?.message ?? null,
+            });
+          }
           const w = Math.max(0, Math.trunc(Number(row.pickup_wins_count ?? 0)));
           const l = Math.max(0, Math.trunc(Number(row.pickup_losses_count ?? 0)));
           setWins(w);
@@ -536,8 +537,9 @@ export default function PlayerProfileScreen() {
   }
 
   const ig = profile.instagram?.replace(/^@/, "").trim();
-  const stateFromZip = zipCode ? zipToState(zipCode) : null;
-  const region = stateFromZip;
+  const regionFromApi = profile.region?.trim() || null;
+  const regionFromZip = zipCode ? displayRegionNameFromZip(zipCode) : null;
+  const region = regionFromApi ?? regionFromZip;
 
   function submitProfileReport(reason: string) {
     if (!token) return;

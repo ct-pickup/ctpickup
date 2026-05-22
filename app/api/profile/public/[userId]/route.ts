@@ -1,4 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { displayRegionNameFromZip } from "@/lib/zipRegion";
+import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
+import { serviceRegionName } from "@/lib/serviceRegions";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -68,7 +71,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ userId: string 
   const target = await admin
     .from("profiles")
     .select(
-      "id,first_name,last_name,username,avatar_url,instagram,tier,tier_rank,playing_position,plays_goalie,approved,is_admin",
+      "id,first_name,last_name,username,avatar_url,instagram,tier,tier_rank,playing_position,plays_goalie,approved,is_admin,zip_code,nearest_venue",
     )
     .eq("id", targetId)
     .maybeSingle();
@@ -88,6 +91,14 @@ export async function GET(req: Request, ctx: { params: Promise<{ userId: string 
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
+  const fromZip = displayRegionNameFromZip(
+    typeof p.zip_code === "string" ? p.zip_code : p.zip_code != null ? String(p.zip_code) : null,
+  );
+  const venueRegion = serviceRegionForVenueName(
+    typeof p.nearest_venue === "string" ? p.nearest_venue : null,
+  );
+  const region = fromZip ?? (venueRegion ? serviceRegionName(venueRegion) : null);
+
   return NextResponse.json({
     id: p.id,
     display_name: fullName(p.first_name, p.last_name),
@@ -98,5 +109,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ userId: string 
     tier_rank: p.tier_rank === null || p.tier_rank === undefined ? null : Number(p.tier_rank),
     playing_position: p.playing_position?.trim() || null,
     plays_goalie: typeof p.plays_goalie === "boolean" ? p.plays_goalie : null,
+    region,
   });
 }

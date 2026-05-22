@@ -1,9 +1,13 @@
+import { venueAddress } from "@/lib/pickup/venueServiceRegion";
 import { stateFromUsZipFive } from "@/lib/usZipState";
+import { normalizeUsZipDigits } from "@/lib/zipRegion";
 import {
   defaultAdminVenueForServiceRegion,
   matchAdminVenueFromLocationText,
+  serviceRegionForAdminVenueName,
 } from "@/lib/venues/adminCtPickupVenues";
 import { CT_PICKUP_VENUES } from "@/lib/venues/ctPickupVenues";
+import zipcodes from "zipcodes";
 
 export const PROXIMITY_INVITE_MAX_MINUTES = 60;
 
@@ -33,9 +37,7 @@ function driveMinutesFromStraightLineMiles(mi: number): number {
 }
 
 function normalizeZip(zip: string | null | undefined): string | null {
-  if (zip == null) return null;
-  const digits = String(zip).replace(/\D/g, "").slice(0, 5);
-  return digits.length === 5 ? digits : null;
+  return normalizeUsZipDigits(zip);
 }
 
 function findCtPickupVenueByName(name: string): { venue: string; address: string; lat?: number; lng?: number } | null {
@@ -53,22 +55,22 @@ export function resolveRunVenueDestination(args: {
 }): VenueDestination | null {
   const fromVenueCol = args.venueName != null ? matchAdminVenueFromLocationText(String(args.venueName)) : null;
   if (fromVenueCol) {
-    return {
+    return enrichVenueDestination({
       venue: fromVenueCol.name,
       address: fromVenueCol.address,
       lat: fromVenueCol.lat,
       lng: fromVenueCol.lng,
-    };
+    });
   }
 
   const fromLoc = matchAdminVenueFromLocationText(args.locationPrivate);
   if (fromLoc) {
-    return {
+    return enrichVenueDestination({
       venue: fromLoc.name,
       address: fromLoc.address,
       lat: fromLoc.lat,
       lng: fromLoc.lng,
-    };
+    });
   }
 
   const locText = args.locationPrivate != null ? String(args.locationPrivate).trim() : "";
@@ -78,26 +80,48 @@ export function resolveRunVenueDestination(args: {
     if (ct) {
       const admin = matchAdminVenueFromLocationText(ct.venue);
       if (admin) {
-        return { venue: admin.name, address: admin.address, lat: admin.lat, lng: admin.lng };
+        return enrichVenueDestination({
+          venue: admin.name,
+          address: admin.address,
+          lat: admin.lat,
+          lng: admin.lng,
+        });
       }
     }
   }
 
   const fallback = defaultAdminVenueForServiceRegion(args.serviceRegion);
   if (fallback) {
-    return {
+    return enrichVenueDestination({
       venue: fallback.name,
       address: fallback.address,
       lat: fallback.lat,
       lng: fallback.lng,
-    };
+    });
   }
 
   return null;
 }
 
-function haversineMinutesFromZipToDestination(_zip5: string, _dest: VenueDestination): number | null {
-  return null;
+function haversineMinutesFromZipToDestination(zip5: string, dest: VenueDestination): number | null {
+  const lat2 = dest.lat;
+  const lng2 = dest.lng;
+  if (!Number.isFinite(lat2) || !Number.isFinite(lng2)) return null;
+
+  const loc = zipcodes.lookup(zip5) as { latitude?: number; longitude?: number } | undefined;
+  const lat1 = loc?.latitude;
+  const lng1 = loc?.longitude;
+  if (!Number.isFinite(lat1) || !Number.isFinite(lng1)) return null;
+
+  const mi = haversineMiles(lat1!, lng1!, lat2, lng2);
+  return driveMinutesFromStraightLineMiles(mi);
+}
+
+/** Prefer canonical street address from `venueServiceRegion` when available. */
+export function enrichVenueDestination(dest: VenueDestination): VenueDestination {
+  const better = venueAddress(dest.venue);
+  if (!better) return dest;
+  return { ...dest, address: better };
 }
 
 function destinationQuery(dest: VenueDestination): string {
@@ -310,7 +334,17 @@ export async function buildProximityInvitePlayerList(
   return rows;
 }
 
-/** @internal exported for tests — state from ZIP without zipcodes package. */
+/** @internal exported for tests — hub region code (CT, NY, …) from a 5-digit ZIP. */
 export function zipStateForProximity(zip5: string): string | null {
-  return stateFromUsZipFive(zip5);
+  const code = stateFromUsZipFive(zip5);
+  if (code === "CT" || code === "NY" || code === "NJ" || code === "MD") return code;
+  return null;
+}
+
+/** Whether a player's ZIP falls in the same hub region as the venue (when drive time is unknown). */
+export function zipMatchesVenueHubRegion(zip5: string, venueName: string): boolean {
+  const zipRegion = zipStateForProximity(zip5);
+  const venueRegion = serviceRegionForAdminVenueName(venueName);
+  if (!zipRegion || !venueRegion) return false;
+  return zipRegion === venueRegion;
 }
