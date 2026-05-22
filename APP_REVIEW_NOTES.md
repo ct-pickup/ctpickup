@@ -165,4 +165,4 @@ CT Pickup is rated 13+. During signup, users must check a box confirming "I conf
 
 Questions during review: pickupct@gmail.com
 Website: https://ctpickup.net
-Support URL: https://ctpickup.net/help
+Support URL: https://ctpickup.net
