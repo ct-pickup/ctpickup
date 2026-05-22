@@ -13,7 +13,6 @@ export default function AdminScreen() {
 
   useEffect(() => {
     if (session?.access_token) {
-      console.log("[DEBUG TOKEN]", session.access_token);
     }
   }, [session?.access_token]);
 
