@@ -26,7 +26,7 @@ The demo account (pickupct@gmail.com) is pre-approved and has full access to all
 
 **If you want to test the signup flow with a fresh account:**
 1. Create a new account with any email
-2. Go to Profile tab → scroll to bottom → tap "About this app" 7 times
+2. Go to Profile tab → scroll to bottom → tap "About this app" 5 times
 3. Enter code: CTPICKUP-REVIEW
 4. A lime "App Review Mode Active" banner appears
 5. Client-side approval checks are bypassed for UI testing
