@@ -7,13 +7,15 @@ import {
   getBiometricSignInEmail,
   isBiometricSignInAvailable,
   isBiometricSignInEnabled,
+  trySilentSignInWithStoredPassword,
   unlockBiometricSignInCredentials,
 } from "@/lib/biometricSignIn";
 import { hasSupabaseEnv, siteOrigin } from "@/lib/env";
 import { checkEmailExistsResult } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 import {
   ActivityIndicator,
   Alert,
@@ -34,6 +36,8 @@ import {
 const LIME = CT_PICKUP_LIME;
 const OTP_RESEND_COOLDOWN_SEC = 30;
 const PASSWORD_MIN_LEN = 8;
+/** Accounts older than this after OTP verify are treated as already registered (not brand-new). */
+const EXISTING_ACCOUNT_CREATED_AT_MS = 5 * 60 * 1000;
 
 const PANEL_ANIM_MS = 420;
 const SEGMENT_ANIM_MS = 280;
@@ -115,8 +119,12 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
   const [bioLabel, setBioLabel] = useState("Face ID");
   const [bioSignInReady, setBioSignInReady] = useState(false);
   const [segmentWidth, setSegmentWidth] = useState(0);
+  /** True only while completing OTP from the "New here?" path (not login / Face ID). */
+  const [newHereOtpFlow, setNewHereOtpFlow] = useState(false);
 
   const segmentSlide = useRef(new Animated.Value(authMode === "login" ? 1 : 0)).current;
+  /** Set when "Send code" confirmed the email was not on file; cleared on flow reset. */
+  const signupStartedAsNewEmailRef = useRef(false);
 
   useEffect(() => {
     if (Platform.OS !== "android") return;
@@ -182,6 +190,8 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
     setCode("");
     setPassword("");
     setResendCooldownSec(0);
+    setNewHereOtpFlow(false);
+    signupStartedAsNewEmailRef.current = false;
     setMsg(null);
     clearAuthHints();
   }
@@ -206,6 +216,35 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
   }, [emailClean]);
 
   const passwordLooksValid = password.length >= PASSWORD_MIN_LEN;
+
+  const accountLikelyHasPassword = useCallback((user: User | null | undefined): boolean => {
+    if (!user?.created_at) return false;
+    const createdMs = new Date(user.created_at).getTime();
+    if (!Number.isFinite(createdMs)) return false;
+    return Date.now() - createdMs > EXISTING_ACCOUNT_CREATED_AT_MS;
+  }, []);
+
+  /** After OTP on "New here?", skip set-password if the account already existed or device has stored password. */
+  const shouldPromptNewUserPassword = useCallback(
+    async (): Promise<boolean> => {
+      if (authMode !== "signup" || !newHereOtpFlow || !signupStartedAsNewEmailRef.current || !supabase) {
+        return false;
+      }
+
+      if (await trySilentSignInWithStoredPassword(supabase, emailClean)) {
+        return false;
+      }
+
+      await refreshSession();
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr) {
+        console.warn("[auth] getUser after signup OTP failed", { error: userErr, email: emailClean });
+        return true;
+      }
+      return !accountLikelyHasPassword(userData.user);
+    },
+    [authMode, newHereOtpFlow, supabase, emailClean, refreshSession, accountLikelyHasPassword],
+  );
 
   async function finishAuth() {
     if (!supabase) return;
@@ -276,6 +315,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
     if (!skipStageAdvance) {
       animatePanel();
       setSignupStage("code");
+      setNewHereOtpFlow(true);
     }
     setResendCooldownSec(OTP_RESEND_COOLDOWN_SEC);
     setMsg(null);
@@ -325,6 +365,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
     const ok = await postSignInOtp(false);
     setBusy(false);
     if (!ok) return;
+    signupStartedAsNewEmailRef.current = true;
   }
 
   async function resendSignupCode() {
@@ -362,10 +403,21 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
         Alert.alert("Couldn’t verify code", userMsg);
         return;
       }
-      animatePanel();
-      setSignupStage("password");
-      setPassword("");
+
+      const promptPassword = await shouldPromptNewUserPassword();
+      if (promptPassword) {
+        animatePanel();
+        setSignupStage("password");
+        setPassword("");
+        setMsg(null);
+        setBusy(false);
+        return;
+      }
+
+      setNewHereOtpFlow(false);
+      signupStartedAsNewEmailRef.current = false;
       setMsg(null);
+      await finishAuth();
       setBusy(false);
     } catch (e) {
       setBusy(false);
@@ -394,6 +446,8 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
         console.error("[auth] updateUser password after signup failed", { error, email: emailClean });
         return;
       }
+      setNewHereOtpFlow(false);
+      signupStartedAsNewEmailRef.current = false;
       await finishAuth();
     } catch (e) {
       setBusy(false);
@@ -714,7 +768,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
               <Text style={styles.textBtnLabelMuted}>Wrong email? Start over</Text>
             </Pressable>
           </>
-        ) : (
+        ) : signupStage === "password" && newHereOtpFlow ? (
           <>
             <Text style={styles.trustLine}>Set a password for faster sign-in next time</Text>
             <AuthTextInput
@@ -734,7 +788,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
               onPress={() => void submitSignupPassword()}
             />
           </>
-        )}
+        ) : null}
 
         {msg ? <Text style={[styles.msg, styles.msgMuted]}>{msg}</Text> : null}
       </View>

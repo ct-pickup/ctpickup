@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
 
@@ -24,7 +25,26 @@ export async function isBiometricSignInEnabled(): Promise<boolean> {
 
 export async function getBiometricSignInEmail(): Promise<string | null> {
   const email = await SecureStore.getItemAsync(K_EMAIL);
-  return email?.trim() || null;
+  return email?.trim().toLowerCase() || null;
+}
+
+/**
+ * If this device has stored sign-in credentials for `email`, try `signInWithPassword`
+ * without a biometric prompt. Used after OTP to detect accounts that already have a password.
+ */
+export async function trySilentSignInWithStoredPassword(
+  supabase: SupabaseClient,
+  email: string,
+): Promise<boolean> {
+  const enabled = await isBiometricSignInEnabled();
+  if (!enabled) return false;
+  const storedEmail = await getBiometricSignInEmail();
+  const emailClean = email.trim().toLowerCase();
+  if (!storedEmail || storedEmail !== emailClean) return false;
+  const password = await SecureStore.getItemAsync(K_PASSWORD);
+  if (!password) return false;
+  const { error } = await supabase.auth.signInWithPassword({ email: emailClean, password });
+  return !error;
 }
 
 export async function enableBiometricSignIn(email: string, password: string): Promise<void> {
