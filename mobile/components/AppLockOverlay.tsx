@@ -7,8 +7,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  AppState,
-  type AppStateStatus,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -22,9 +20,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   clearStoredPin,
-  isPinEnrollmentEligibleForUser,
   isValidPinFormat,
-  markPinEnrollmentEligibleForUser,
   normalizePasscode,
   PASSCODE_MAX_LEN,
   PASSCODE_REQUIREMENTS,
@@ -39,8 +35,18 @@ async function biometricLabel(): Promise<string> {
 
 export function AppLockOverlay() {
   const { session, signOut } = useAuth();
-  const { hasPin, isLocked, biometricsEnabled, biometricsAvailable, unlockWithPin, tryBiometricUnlock, savePin } =
-    useAppLock();
+  const {
+    hasPin,
+    lockEnabled,
+    isLocked,
+    enrollmentRequested,
+    cancelEnrollment,
+    biometricsEnabled,
+    biometricsAvailable,
+    unlockWithPin,
+    tryBiometricUnlock,
+    savePin,
+  } = useAppLock();
 
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -53,51 +59,34 @@ export function AppLockOverlay() {
   const [enrollErr, setEnrollErr] = useState<string | null>(null);
   const [enrollBusy, setEnrollBusy] = useState(false);
 
-  /** Don’t block first launch after sign-in; allow enrollment only after a real session (see effects below). */
-  const [pinEnrollmentEligible, setPinEnrollmentEligible] = useState(false);
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
-
-  const userId = session?.user?.id ?? null;
+  const needsEnrollment = Boolean(session?.user) && enrollmentRequested && !hasPin;
+  const visible = hasPin && lockEnabled && isLocked;
 
   useEffect(() => {
-    if (!userId) {
-      setPinEnrollmentEligible(false);
-      return;
-    }
-    let cancelled = false;
-    void isPinEnrollmentEligibleForUser(userId).then((ok) => {
-      if (!cancelled) setPinEnrollmentEligible(ok);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
-
-  /** First background while signed in without a PIN counts as having completed an initial session. */
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (next) => {
-      const prev = appStateRef.current;
-      appStateRef.current = next;
-      if (!userId || hasPin) return;
-      if (prev?.match(/inactive|active/) && next === "background") {
-        void markPinEnrollmentEligibleForUser(userId).then(() => setPinEnrollmentEligible(true));
-      }
-    });
-    return () => sub.remove();
-  }, [userId, hasPin]);
-
-  /** Fallback: long foreground session without leaving the app still qualifies for enrollment. */
-  useEffect(() => {
-    if (!userId || hasPin || pinEnrollmentEligible) return;
-    const SESSION_MS = 120_000;
-    const t = setTimeout(() => {
-      void markPinEnrollmentEligibleForUser(userId).then(() => setPinEnrollmentEligible(true));
-    }, SESSION_MS);
-    return () => clearTimeout(t);
-  }, [userId, hasPin, pinEnrollmentEligible]);
-
-  const needsEnrollment = Boolean(session?.user) && !hasPin && pinEnrollmentEligible;
-  const visible = hasPin && isLocked;
+    // #region agent log
+    fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fe3e9d" },
+      body: JSON.stringify({
+        sessionId: "fe3e9d",
+        runId: "pre-fix",
+        hypothesisId: "A",
+        location: "AppLockOverlay.tsx:overlayState",
+        message: "overlay visibility state",
+        data: {
+          hasSession: Boolean(session?.user),
+          hasPin,
+          lockEnabled,
+          isLocked,
+          enrollmentRequested,
+          needsEnrollment,
+          visible,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [session?.user, hasPin, lockEnabled, isLocked, enrollmentRequested, needsEnrollment, visible]);
 
   useEffect(() => {
     if (!visible) {
@@ -177,7 +166,6 @@ export function AppLockOverlay() {
     const r = await tryBiometricUnlock();
     setBusy(false);
     if (!r.ok) {
-      // Don't show scary errors for normal cancels.
       if (r.error === "user_cancel" || r.error === "system_cancel") return;
       setError(bioLabel === "Face ID" ? "Face ID didn’t unlock. Try again." : "Biometric unlock failed. Try again.");
     }
@@ -265,8 +253,14 @@ export function AppLockOverlay() {
                 )}
               </Pressable>
 
-              <Pressable style={styles.secondary} disabled={enrollBusy} onPress={() => void signOut()}>
-                <Text style={styles.secondaryText}>Sign out instead</Text>
+              <Pressable
+                style={styles.secondary}
+                disabled={enrollBusy}
+                onPress={() => {
+                  cancelEnrollment();
+                }}
+              >
+                <Text style={styles.secondaryText}>Cancel</Text>
               </Pressable>
             </View>
           </SafeAreaView>
@@ -459,7 +453,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(163,230,53,0.06)",
   },
   secondaryBtnText: { color: "#a3e635", fontWeight: "900", fontSize: 16 },
-  // Back-compat for enrollment screen buttons
   secondary: { marginTop: 14, paddingVertical: 12, alignItems: "center" },
   secondaryText: { color: "#93c5fd", fontWeight: "600", fontSize: 16 },
   forgotLink: { marginTop: 18, paddingVertical: 8, alignItems: "center" },

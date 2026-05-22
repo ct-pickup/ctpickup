@@ -2,7 +2,7 @@ import { SignInPanel } from "@/components/SignInPanel";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigationContainerRef, useRouter } from "expo-router";
 import { useEffect } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
@@ -59,7 +59,6 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.formWrap}>
-            <Text style={styles.lead}>Sign in with your password, or create an account with your email.</Text>
             <SignInPanel hideHeading variant="premium" />
           </View>
         </ScrollView>
@@ -99,11 +98,5 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     alignSelf: "center",
     alignItems: "stretch",
-  },
-  lead: {
-    color: "rgba(255,255,255,0.62)",
-    fontSize: 15.5,
-    lineHeight: 22,
-    textAlign: "center",
   },
 });

@@ -4,18 +4,22 @@ import * as SecureStore from "expo-secure-store";
 const K_SALT = "ctpickup_app_lock_salt_v1";
 const K_HASH = "ctpickup_app_lock_hash_v1";
 const K_BIO = "ctpickup_app_lock_biometrics_v1";
+const K_LOCK_ENABLED = "ctpickup_app_lock_enabled_v1";
 
-/** Per-user: set after first background while signed in without a PIN — defer enrollment until then. */
-function enrollmentEligibleKey(userId: string): string {
-  return `ctpickup_app_lock_enroll_eligible_v1_${userId}`;
+/** Whether app lock is on. Legacy installs with a PIN but no pref are treated as enabled. */
+export async function isLockEnabled(): Promise<boolean> {
+  const configured = await pinConfigured();
+  if (!configured) return false;
+  const pref = await SecureStore.getItemAsync(K_LOCK_ENABLED);
+  if (pref === "1") return true;
+  if (pref === "0") return false;
+  await setLockEnabled(true);
+  return true;
 }
 
-export async function isPinEnrollmentEligibleForUser(userId: string): Promise<boolean> {
-  return (await SecureStore.getItemAsync(enrollmentEligibleKey(userId))) === "1";
-}
-
-export async function markPinEnrollmentEligibleForUser(userId: string): Promise<void> {
-  await SecureStore.setItemAsync(enrollmentEligibleKey(userId), "1");
+export async function setLockEnabled(enabled: boolean): Promise<void> {
+  if (enabled) await SecureStore.setItemAsync(K_LOCK_ENABLED, "1");
+  else await SecureStore.deleteItemAsync(K_LOCK_ENABLED);
 }
 
 /** Minimum length after trim. */
@@ -62,6 +66,7 @@ export async function saveNewPin(pin: string): Promise<void> {
   const hash = await hashPin(p, salt);
   await SecureStore.setItemAsync(K_SALT, salt);
   await SecureStore.setItemAsync(K_HASH, hash);
+  await setLockEnabled(true);
 }
 
 export async function verifyStoredPin(pin: string): Promise<boolean> {
@@ -77,6 +82,7 @@ export async function clearStoredPin(): Promise<void> {
   await SecureStore.deleteItemAsync(K_SALT);
   await SecureStore.deleteItemAsync(K_HASH);
   await SecureStore.deleteItemAsync(K_BIO);
+  await SecureStore.deleteItemAsync(K_LOCK_ENABLED);
 }
 
 export async function getBiometricsPref(): Promise<boolean> {

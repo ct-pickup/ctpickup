@@ -9,6 +9,8 @@ import { accountStyles as styles, LIME } from "./accountStyles";
 
 type Props = {
   hasPin: boolean;
+  lockEnabled: boolean;
+  onEnableAppLock: () => void;
   lockUi: "idle" | "change" | "remove";
   setLockUi: (v: "idle" | "change" | "remove") => void;
   changeOld: string;
@@ -33,6 +35,8 @@ type Props = {
 
 export function AppLockSection({
   hasPin,
+  lockEnabled,
+  onEnableAppLock,
   lockUi,
   setLockUi,
   changeOld,
@@ -54,7 +58,34 @@ export function AppLockSection({
   removePin,
   lockNow,
 }: Props) {
-  if (!hasPin) return null;
+  if (!hasPin) {
+    return (
+      <>
+        <Text style={styles.sectionTitle}>App lock</Text>
+        <Text style={styles.sectionSub}>
+          Optional passcode when you leave the app. {PASSCODE_REQUIREMENTS} Face ID or Touch ID can unlock instead.
+        </Text>
+        <View style={styles.card}>
+          <View style={styles.rowBetween}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={styles.fieldLabelStrong}>Require passcode</Text>
+              <Text style={styles.bioHint}>Lock the app after you&apos;ve been away for a few minutes.</Text>
+            </View>
+            <Switch
+              value={false}
+              onValueChange={(next) => {
+                if (next) onEnableAppLock();
+              }}
+              trackColor={{ false: "rgba(255,255,255,0.18)", true: LIME }}
+              thumbColor="#f4f4f5"
+            />
+          </View>
+        </View>
+      </>
+    );
+  }
+
+  if (!lockEnabled) return null;
 
   return (
     <>

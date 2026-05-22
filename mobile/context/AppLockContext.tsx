@@ -1,6 +1,7 @@
 import {
   clearStoredPin,
   getBiometricsPref,
+  isLockEnabled,
   isValidPinFormat,
   pinConfigured,
   saveNewPin,
@@ -16,11 +17,17 @@ import { AppState, type AppStateStatus, View } from "react-native";
 type AppLockContextValue = {
   bootReady: boolean;
   hasPin: boolean;
+  lockEnabled: boolean;
   isLocked: boolean;
+  /** True while the passcode setup modal should show (user opted in from Account). */
+  enrollmentRequested: boolean;
   biometricsEnabled: boolean;
   biometricsAvailable: boolean;
   unlockWithPin: (pin: string) => Promise<boolean>;
   lockNow: () => void;
+  /** Opt in from Account settings; opens the setup modal. */
+  requestEnrollment: () => void;
+  cancelEnrollment: () => void;
   /** First-time enroll. Session stays unlocked. */
   savePin: (pin: string) => Promise<void>;
   changePin: (currentPin: string, newPin: string) => Promise<boolean>;
@@ -40,7 +47,9 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   const userId = session?.user?.id ?? null;
   const [bootReady, setBootReady] = useState(false);
   const [hasPin, setHasPin] = useState(false);
+  const [lockEnabled, setLockEnabledState] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const [enrollmentRequested, setEnrollmentRequested] = useState(false);
   const [biometricsEnabled, setBiometricsEnabledState] = useState(false);
   const [biometricsAvailable, setBiometricsAvailable] = useState(false);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
@@ -56,9 +65,11 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     void (async () => {
       try {
         const configured = await pinConfigured();
+        const enabled = configured ? await isLockEnabled() : false;
         const bio = await getBiometricsPref();
         setHasPin(configured);
-        setIsLocked(configured);
+        setLockEnabledState(enabled);
+        setIsLocked(configured && enabled);
         setBiometricsEnabledState(bio);
         await refreshBiometricAvailability();
       } catch (e) {
@@ -79,8 +90,11 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     void (async () => {
       try {
         const configured = await pinConfigured();
+        const enabled = configured ? await isLockEnabled() : false;
         if (cancelled) return;
         setHasPin(configured);
+        setLockEnabledState(enabled);
+        setEnrollmentRequested(false);
         if (!configured) {
           setIsLocked(false);
           setBiometricsEnabledState(false);
@@ -100,7 +114,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     const sub = AppState.addEventListener("change", (next) => {
       const prev = appStateRef.current;
       appStateRef.current = next;
-      if (!hasPin) {
+      if (!hasPin || !lockEnabled) {
         backgroundedAtRef.current = null;
         return;
       }
@@ -117,7 +131,15 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       }
     });
     return () => sub.remove();
-  }, [hasPin]);
+  }, [hasPin, lockEnabled]);
+
+  const requestEnrollment = useCallback(() => {
+    setEnrollmentRequested(true);
+  }, []);
+
+  const cancelEnrollment = useCallback(() => {
+    setEnrollmentRequested(false);
+  }, []);
 
   const unlockWithPin = useCallback(async (pin: string): Promise<boolean> => {
     const ok = await verifyStoredPin(pin);
@@ -126,13 +148,15 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const lockNow = useCallback(() => {
-    if (hasPin) setIsLocked(true);
-  }, [hasPin]);
+    if (hasPin && lockEnabled) setIsLocked(true);
+  }, [hasPin, lockEnabled]);
 
   const savePin = useCallback(async (pin: string) => {
     if (!isValidPinFormat(pin)) throw new Error("invalid_pin");
     await saveNewPin(pin);
     setHasPin(true);
+    setLockEnabledState(true);
+    setEnrollmentRequested(false);
     setIsLocked(false);
   }, []);
 
@@ -149,6 +173,8 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     if (!ok) return false;
     await clearStoredPin();
     setHasPin(false);
+    setLockEnabledState(false);
+    setEnrollmentRequested(false);
     setIsLocked(false);
     setBiometricsEnabledState(false);
     return true;
@@ -160,7 +186,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const tryBiometricUnlock = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
-    if (!biometricsEnabled || !hasPin) return { ok: false, error: "disabled" };
+    if (!biometricsEnabled || !hasPin || !lockEnabled) return { ok: false, error: "disabled" };
     const has = await LocalAuthentication.hasHardwareAsync();
     const enrolled = await LocalAuthentication.isEnrolledAsync();
     if (!has || !enrolled) return { ok: false, error: "not_available" };
@@ -179,17 +205,21 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     // Common error values: "user_cancel", "user_fallback", "system_cancel", "lockout", etc.
     const e = typeof (r as { error?: unknown }).error === "string" ? ((r as { error: string }).error as string) : "failed";
     return { ok: false, error: e };
-  }, [biometricsEnabled, hasPin]);
+  }, [biometricsEnabled, hasPin, lockEnabled]);
 
   const value = useMemo(
     () => ({
       bootReady,
       hasPin,
+      lockEnabled,
       isLocked,
+      enrollmentRequested,
       biometricsEnabled,
       biometricsAvailable,
       unlockWithPin,
       lockNow,
+      requestEnrollment,
+      cancelEnrollment,
       savePin,
       changePin,
       removePin,
@@ -200,11 +230,15 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     [
       bootReady,
       hasPin,
+      lockEnabled,
       isLocked,
+      enrollmentRequested,
       biometricsEnabled,
       biometricsAvailable,
       unlockWithPin,
       lockNow,
+      requestEnrollment,
+      cancelEnrollment,
       savePin,
       changePin,
       removePin,

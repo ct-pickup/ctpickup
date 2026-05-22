@@ -121,6 +121,8 @@ export default function AccountScreen() {
   const { isAdmin, isReady: profileAdminReady } = useProfileAdmin();
   const {
     hasPin,
+    lockEnabled,
+    requestEnrollment,
     changePin,
     removePin,
     biometricsEnabled,
@@ -1157,6 +1159,8 @@ export default function AccountScreen() {
 
         <AppLockSection
           hasPin={hasPin}
+          lockEnabled={lockEnabled}
+          onEnableAppLock={requestEnrollment}
           lockUi={lockUi}
           setLockUi={setLockUi}
           changeOld={changeOld}
