@@ -2,15 +2,19 @@ import { SignInPanel } from "@/components/SignInPanel";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigationContainerRef, useRouter } from "expo-router";
 import { useEffect } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
-  const { session, isReady } = useAuth();
+  const { session, isReady, sessionExpiredNotice, clearSessionExpiredNotice } = useAuth();
   const router = useRouter();
   const navigationRef = useNavigationContainerRef();
   const insets = useSafeAreaInsets();
   const isIPad = Platform.OS === "ios" && Platform.isPad;
+
+  useEffect(() => {
+    return () => clearSessionExpiredNotice();
+  }, [clearSessionExpiredNotice]);
 
   useEffect(() => {
     if (!isReady || !session?.user?.email) return;
@@ -59,6 +63,9 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.formWrap}>
+            {sessionExpiredNotice ? (
+              <Text style={styles.sessionExpiredNotice}>{sessionExpiredNotice}</Text>
+            ) : null}
             <SignInPanel hideHeading variant="premium" />
           </View>
         </ScrollView>
@@ -98,5 +105,12 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     alignSelf: "center",
     alignItems: "stretch",
+  },
+  sessionExpiredNotice: {
+    marginBottom: 16,
+    color: "rgba(252,211,212,0.92)",
+    fontSize: 14,
+    textAlign: "center",
+    lineHeight: 20,
   },
 });
