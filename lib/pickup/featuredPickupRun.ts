@@ -10,10 +10,8 @@ export type PickupRunAccessContext = {
 };
 
 /**
- * Load the run the hub should consider: explicit run_id, else is_current, else next upcoming (future start_at).
- * When `region` is set (NY, CT, NJ, MD), prefer that region’s promoted run; if none, fall back to a legacy
- * global promoted run (`service_region` null). There is no anonymous fallback to a different public run
- * (logged-out clients with a hub region see nothing if the promoted run is select-only).
+ * Load the run the hub should consider: explicit run_id, else is_current for the hub region (no cross-region fallback).
+ * When `region` is set (NY, CT, NJ, MD), only that region’s promoted run is returned.
  */
 export async function fetchPickupRunCandidate(
   admin: SupabaseClient,
@@ -45,20 +43,6 @@ export async function fetchPickupRunCandidate(
       .maybeSingle();
 
     if (curR.data) return curR.data as PublicPickupRunRow;
-
-    const legacyGlobal = await admin
-      .from("pickup_runs")
-      .select("*")
-      .is("service_region", null)
-      .eq("is_current", true)
-      .neq("status", "canceled")
-      .neq("status", "completed")
-      .neq("status", "in_progress")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (legacyGlobal.data) return legacyGlobal.data as PublicPickupRunRow;
 
     return null;
   }

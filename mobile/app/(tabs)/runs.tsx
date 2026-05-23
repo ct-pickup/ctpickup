@@ -10,7 +10,7 @@ import { useTeamChatAccess } from "@/hooks/useTeamChat";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
 import { fmtPickupDateEt, fmtPickupTimeEt } from "@/lib/pickupPublic";
 import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickupRunType";
-import { fetchPickupStanding } from "@/lib/siteApi";
+import { fetchPickupRegionRuns, fetchPickupStanding } from "@/lib/siteApi";
 import { useUserChatRooms } from "@/lib/teamChat";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -75,15 +75,164 @@ function CardDivider() {
   return <View style={styles.divider} />;
 }
 
+type RegionRunListItem = {
+  id: string;
+  title: string | null;
+  status: string;
+  start_at: string | null;
+  run_type: string | null;
+  capacity: number;
+  fee_cents: number;
+  confirmed_count: number;
+};
+
+function runTitleFromRow(row: {
+  title?: string | null;
+  location_text?: string | null;
+}): string {
+  if (typeof row.title === "string" && row.title.trim()) return row.title.trim();
+  if (typeof row.location_text === "string" && row.location_text.trim()) {
+    return row.location_text.split(/\r?\n/)[0]?.trim() ?? "Pickup run";
+  }
+  return "Pickup run";
+}
+
+function runVenueFromRow(row: {
+  title?: string | null;
+  location_text?: string | null;
+}): string {
+  if (typeof row.location_text === "string" && row.location_text.trim()) {
+    return row.location_text.split(/\r?\n/)[0]?.trim() ?? runTitleFromRow(row);
+  }
+  return runTitleFromRow(row);
+}
+
+function RunSummaryCard({
+  row,
+  onPress,
+  showChevron = true,
+  embedded = false,
+}: {
+  row: RegionRunListItem | Record<string, unknown>;
+  onPress?: () => void;
+  showChevron?: boolean;
+  embedded?: boolean;
+}) {
+  const runStatus = typeof row.status === "string" ? row.status : null;
+  const isPlanning = runStatus === "planning";
+  const showTypeLabel = isPublicPickupRunType(row.run_type) || isSelectPickupRunType(row.run_type);
+  const typeLabel = isPublicPickupRunType(row.run_type)
+    ? "Public"
+    : isSelectPickupRunType(row.run_type)
+      ? "Select"
+      : "";
+  const title = runTitleFromRow(row);
+  const venue = runVenueFromRow(row);
+  const feeCents = typeof row.fee_cents === "number" ? row.fee_cents : 0;
+  const isFree = feeCents <= 0;
+  const capacity = Number(row.capacity ?? 0) || 0;
+  const confirmed =
+    typeof (row as RegionRunListItem).confirmed_count === "number"
+      ? (row as RegionRunListItem).confirmed_count
+      : 0;
+  const fillRatio = capacity > 0 ? Math.min(1, confirmed / capacity) : 0;
+  const startAt = typeof row.start_at === "string" ? row.start_at : null;
+
+  const inner = (
+    <>
+      <View style={styles.cardHeader}>
+        <View style={styles.titleBlock}>
+          <View style={styles.titleRow}>
+            <Text style={styles.cardTitle} numberOfLines={2}>
+              {title}
+            </Text>
+            {showTypeLabel && typeLabel ? <Text style={styles.typeLabel}>{typeLabel}</Text> : null}
+          </View>
+        </View>
+        <View style={styles.cardHeaderRight}>
+          <View style={styles.statusPill}>
+            <Text style={styles.statusPillText}>{runStatusPillLabel(runStatus)}</Text>
+          </View>
+          {showChevron ? <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" /> : null}
+        </View>
+      </View>
+
+      <CardDivider />
+
+      <View style={styles.dateTimeRow}>
+        {isPlanning ? (
+          <>
+            <Text style={styles.datePlanning}>{fmtPickupDateEt(startAt)}</Text>
+            <Text style={styles.planningTimeHint}>Time TBD — tap for details</Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.dateEt}>{fmtPickupDateEt(startAt)}</Text>
+            <Text style={styles.timeEt}>{fmtPickupTimeEt(startAt)} ET</Text>
+          </>
+        )}
+      </View>
+
+      <CardDivider />
+
+      <View style={styles.locationRow}>
+        <FontAwesome name="map-marker" size={14} color="rgba(255,255,255,0.35)" style={styles.locationIcon} />
+        <Text style={styles.venue} numberOfLines={2}>
+          {venue}
+        </Text>
+      </View>
+
+      <CardDivider />
+
+      <View style={styles.feeSpotsRow}>
+        <Text style={styles.fee}>{isFree ? "Free" : `$${(feeCents / 100).toFixed(2)} per player`}</Text>
+        {capacity > 0 ? (
+          <View style={styles.spotsBlock}>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${fillRatio * 100}%` }]} />
+            </View>
+            <Text style={styles.spotsLabel}>
+              {confirmed} / {capacity} spot{capacity === 1 ? "" : "s"}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    </>
+  );
+
+  if (embedded) return <>{inner}</>;
+
+  if (onPress) {
+    return (
+      <AnimatedPressScale
+        accessibilityRole="button"
+        accessibilityLabel="Open run details"
+        pressedScale={0.98}
+        hapticOnPress
+        onPress={onPress}
+        style={styles.card}
+      >
+        {inner}
+      </AnimatedPressScale>
+    );
+  }
+
+  return <View style={styles.card}>{inner}</View>;
+}
+
 export default function RunsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const token = session?.access_token ?? null;
-  const { region, setRegion } = useSelectedRegion();
+  const { region, setRegion, ready: regionReady } = useSelectedRegion();
   const [showStatePicker, setShowStatePicker] = useState(true);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [regionRuns, setRegionRuns] = useState<RegionRunListItem[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
   const [reliabilityScore, setReliabilityScore] = useState<number | null>(null);
   const autoOpenedFromDeepLinkRef = useRef(false);
 
@@ -144,8 +293,64 @@ export default function RunsScreen() {
 
   const { allowed: chatAllowed } = useTeamChatAccess();
 
-  const { loading, error, data, run, counts, myStatus, myWaitlistExpiresAt, invitedNow, noFeaturedRun, load } =
-    usePickupPublic(token, { focusRunId: focusRunIdParam });
+  const detailRunId = detailOpen ? selectedRunId : focusRunIdParam;
+  const { loading: detailLoading, error: detailError, data, run, counts, myStatus, myWaitlistExpiresAt, invitedNow, load } =
+    usePickupPublic(token, {
+      focusRunId: detailRunId,
+      skipFeatured: !detailRunId,
+    });
+
+  const loadRegionRuns = useCallback(async () => {
+    if (!regionReady) return;
+    setListLoading(true);
+    setListError(null);
+    try {
+      const r = await fetchPickupRegionRuns(region);
+      if (r.ok && r.json && typeof r.json === "object") {
+        const rows = (r.json as { runs?: unknown }).runs;
+        if (Array.isArray(rows)) {
+          const parsed: RegionRunListItem[] = rows
+            .map((row) => {
+              if (!row || typeof row !== "object") return null;
+              const o = row as Record<string, unknown>;
+              const id = typeof o.id === "string" ? o.id : null;
+              if (!id) return null;
+              return {
+                id,
+                title: typeof o.title === "string" ? o.title : null,
+                status: typeof o.status === "string" ? o.status : "planning",
+                start_at: typeof o.start_at === "string" ? o.start_at : null,
+                run_type: typeof o.run_type === "string" ? o.run_type : null,
+                capacity: Number(o.capacity ?? 0) || 0,
+                fee_cents: Number(o.fee_cents ?? 0) || 0,
+                confirmed_count: Number(o.confirmed_count ?? 0) || 0,
+              };
+            })
+            .filter((x): x is RegionRunListItem => x != null);
+          setRegionRuns(parsed);
+          setListError(null);
+        } else {
+          setRegionRuns([]);
+        }
+      } else {
+        const msg =
+          r.json && typeof r.json === "object" && typeof (r.json as { error?: string }).error === "string"
+            ? String((r.json as { error: string }).error)
+            : "Could not load runs.";
+        setListError(msg);
+        setRegionRuns([]);
+      }
+    } catch {
+      setListError("Network error. Pull down to retry.");
+      setRegionRuns([]);
+    }
+    setListLoading(false);
+  }, [region, regionReady]);
+
+  useEffect(() => {
+    if (showStatePicker || !regionReady) return;
+    void loadRegionRuns();
+  }, [showStatePicker, regionReady, loadRegionRuns]);
   const [countdownTick, setCountdownTick] = useState(0);
   const { joinBusy, joinPickup, payBusy, payPickup, availabilityBusy, recordCantMakeIt } = usePickupJoin();
 
@@ -165,31 +370,9 @@ export default function RunsScreen() {
   const capacity = Number(run?.capacity ?? 0) || 0;
   const confirmed = Number(counts?.confirmed ?? 0) || 0;
   const spotsLeft = capacity > 0 ? Math.max(0, capacity - confirmed) : null;
-  const fillRatio = capacity > 0 ? Math.min(1, confirmed / capacity) : 0;
 
   const feeCents = typeof run?.fee_cents === "number" ? run.fee_cents : 0;
   const isFree = feeCents <= 0;
-
-  const showTypeLabel = run ? isPublicPickupRunType(run.run_type) || isSelectPickupRunType(run.run_type) : false;
-  const typeLabel = run
-    ? isPublicPickupRunType(run.run_type)
-      ? "Public"
-      : isSelectPickupRunType(run.run_type)
-        ? "Select"
-        : ""
-    : "";
-
-  const title =
-    typeof run?.title === "string" && run.title.trim()
-      ? run.title.trim()
-      : typeof run?.location_text === "string" && run.location_text.trim()
-        ? run.location_text.split(/\r?\n/)[0]?.trim() ?? "Pickup run"
-        : "Pickup run";
-
-  const venue =
-    typeof run?.location_text === "string" && run.location_text.trim()
-      ? run.location_text.split(/\r?\n/)[0]?.trim()
-      : title;
 
   const planning = useMemo((): PickupPlanningAvailability | null => {
     if (!data || typeof data !== "object") return null;
@@ -266,81 +449,38 @@ export default function RunsScreen() {
     const sub = Linking.addEventListener("url", (event) => {
       const u = event.url || "";
       if (u.startsWith("ctpickup://pickup")) {
-        void load();
+        void loadRegionRuns();
+        if (detailRunId) void load();
       }
     });
     return () => sub.remove();
-  }, [load]);
+  }, [load, loadRegionRuns, detailRunId]);
 
   const rsvpMessage = rsvpStatusMessage(myStatus, waitlistMinutesLeft);
 
   const onRefresh = useCallback(() => {
-    void load();
-  }, [load]);
+    void loadRegionRuns();
+    if (detailRunId) void load();
+  }, [loadRegionRuns, load, detailRunId]);
 
-  const openRunDetail = useCallback(() => {
-    console.log("[runs] run card pressed");
-    // #region agent log
-    fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "525a8d" },
-      body: JSON.stringify({
-        sessionId: "525a8d",
-        runId: "pre-fix",
-        hypothesisId: "A",
-        location: "runs.tsx:openRunDetail",
-        message: "run card onPress fired",
-        data: { runId, hadDetailOpen: detailOpen },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
+  const openRunDetail = useCallback((id: string) => {
     void hapticTap();
+    setSelectedRunId(id);
     setDetailOpen(true);
-  }, [detailOpen, runId]);
+  }, []);
 
   const closeRunDetail = useCallback(() => {
     setDetailOpen(false);
   }, []);
 
   useEffect(() => {
-    if (!focusRunIdParam || !run || showStatePicker || autoOpenedFromDeepLinkRef.current) return;
+    if (!focusRunIdParam || showStatePicker || autoOpenedFromDeepLinkRef.current) return;
     autoOpenedFromDeepLinkRef.current = true;
+    setSelectedRunId(focusRunIdParam);
     setDetailOpen(true);
-    // #region agent log
-    fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "525a8d" },
-      body: JSON.stringify({
-        sessionId: "525a8d",
-        runId: "pre-fix",
-        hypothesisId: "E",
-        location: "runs.tsx:autoOpenDeepLink",
-        message: "auto-opened detail from run_id param",
-        data: { focusRunIdParam },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [focusRunIdParam, run, showStatePicker]);
+  }, [focusRunIdParam, showStatePicker]);
 
-  useEffect(() => {
-    // #region agent log
-    fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "525a8d" },
-      body: JSON.stringify({
-        sessionId: "525a8d",
-        runId: "pre-fix",
-        hypothesisId: "B",
-        location: "runs.tsx:detailOpenEffect",
-        message: "detailOpen state changed",
-        data: { detailOpen, hasRun: !!run },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [detailOpen, run]);
+  const detailVenue = run ? runVenueFromRow(run) : "Pickup run";
 
   const onImIn = useCallback(() => {
     if (!token || !runId) {
@@ -353,11 +493,12 @@ export default function RunsScreen() {
       runId,
       async () => {
         await load();
+        void loadRegionRuns();
         void hapticGoal();
       },
-      { venueName: venue },
+      { venueName: detailVenue },
     );
-  }, [token, runId, joinPickup, load, venue]);
+  }, [token, runId, joinPickup, load, loadRegionRuns, detailVenue]);
 
   const onCantMakeIt = useCallback(() => {
     if (!token || !runId) {
@@ -367,14 +508,18 @@ export default function RunsScreen() {
     void hapticTap();
     void recordCantMakeIt(token, runId, runStatus, run?.final_slot_id, async () => {
       await load();
+      void loadRegionRuns();
     });
-  }, [token, runId, runStatus, run?.final_slot_id, recordCantMakeIt, load]);
+  }, [token, runId, runStatus, run?.final_slot_id, recordCantMakeIt, load, loadRegionRuns]);
 
   const onCompletePayment = useCallback(() => {
     if (!token || !runId) return;
     void hapticTap();
-    void payPickup(token, runId, load, { venueName: venue });
-  }, [token, runId, payPickup, load, venue]);
+    void payPickup(token, runId, async () => {
+      await load();
+      void loadRegionRuns();
+    }, { venueName: detailVenue });
+  }, [token, runId, payPickup, load, loadRegionRuns, detailVenue]);
 
   const onConfirmSpot = useCallback(() => {
     if (!token || !runId) {
@@ -383,7 +528,10 @@ export default function RunsScreen() {
     }
     void hapticTap();
     if (myStatus === "pending_confirm" && feeCents > 0) {
-      void payPickup(token, runId, load, { venueName: venue });
+      void payPickup(token, runId, async () => {
+        await load();
+        void loadRegionRuns();
+      }, { venueName: detailVenue });
       return;
     }
     void joinPickup(
@@ -391,11 +539,12 @@ export default function RunsScreen() {
       runId,
       async () => {
         await load();
+        void loadRegionRuns();
         void hapticGoal();
       },
-      { venueName: venue },
+      { venueName: detailVenue },
     );
-  }, [token, runId, myStatus, feeCents, payPickup, joinPickup, load, venue]);
+  }, [token, runId, myStatus, feeCents, payPickup, joinPickup, load, loadRegionRuns, detailVenue]);
 
   const onOpenChat = useCallback(() => {
     if (banterRoomId) {
@@ -421,7 +570,9 @@ export default function RunsScreen() {
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor={LIME} />}
+        refreshControl={
+          <RefreshControl refreshing={listLoading || detailLoading} onRefresh={onRefresh} tintColor={LIME} />
+        }
       >
         <View style={styles.header}>
           <Text style={styles.h1} numberOfLines={1}>
@@ -444,110 +595,35 @@ export default function RunsScreen() {
             </AnimatedPressScale>
           </View>
         </View>
-        <Text style={styles.regionSub}>Featured pickup for {serviceRegionName(region)} ({region}).</Text>
+        <Text style={styles.regionSub}>
+          Pickup runs in {serviceRegionName(region)} ({region})
+        </Text>
 
-        {loading && !run ? (
-          <SkeletonCard />
-        ) : error ? (
+        {listLoading && regionRuns.length === 0 ? (
+          <View style={styles.runsList}>
+            <SkeletonCard />
+          </View>
+        ) : listError ? (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>Could not load runs</Text>
-            <Text style={styles.emptyBody}>{error}</Text>
+            <Text style={styles.emptyBody}>{listError}</Text>
             <Pressable onPress={onRefresh} style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.9 }]}>
               <Text style={styles.retryBtnText}>Try again</Text>
             </Pressable>
           </View>
-        ) : noFeaturedRun || !run ? (
+        ) : regionRuns.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No runs yet. Check back soon!</Text>
-            <Text style={styles.emptyBody}>
-              When admin posts a pickup in {serviceRegionName(region)}, it will show up here.
-            </Text>
-          </View>
-        ) : !invitedNow && isSelectPickupRunType(run.run_type) ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Invite only</Text>
-            <Text style={styles.emptyBody}>
-              This is a select run. You will see it here once you are invited.
+            <Text style={styles.emptyTitle}>
+              No runs scheduled for {serviceRegionName(region)} right now. Check back soon.
             </Text>
           </View>
         ) : (
           <>
-            <AnimatedPressScale
-              accessibilityRole="button"
-              accessibilityLabel="Open run details"
-              pressedScale={0.98}
-              hapticOnPress
-              onPress={openRunDetail}
-              style={styles.card}
-            >
-              <View style={styles.cardHeader}>
-                <View style={styles.titleBlock}>
-                  <View style={styles.titleRow}>
-                    <Text style={styles.cardTitle} numberOfLines={2}>
-                      {title}
-                    </Text>
-                    {showTypeLabel && typeLabel ? (
-                      <Text style={styles.typeLabel}>{typeLabel}</Text>
-                    ) : null}
-                  </View>
-                </View>
-                <View style={styles.cardHeaderRight}>
-                  <View style={styles.statusPill}>
-                    <Text style={styles.statusPillText}>{runStatusPillLabel(runStatus)}</Text>
-                  </View>
-                  <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
-                </View>
-              </View>
-
-              <CardDivider />
-
-              <View style={styles.dateTimeRow}>
-                {isPlanning ? (
-                  <>
-                    <Text style={styles.datePlanning}>
-                      {fmtPickupDateEt(typeof run.start_at === "string" ? run.start_at : null)}
-                    </Text>
-                    <Text style={styles.planningTimeHint}>Time TBD — tap for details</Text>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.dateEt}>
-                      {fmtPickupDateEt(typeof run.start_at === "string" ? run.start_at : null)}
-                    </Text>
-                    <Text style={styles.timeEt}>
-                      {fmtPickupTimeEt(typeof run.start_at === "string" ? run.start_at : null)} ET
-                    </Text>
-                  </>
-                )}
-              </View>
-
-              <CardDivider />
-
-              <View style={styles.locationRow}>
-                <FontAwesome name="map-marker" size={14} color="rgba(255,255,255,0.35)" style={styles.locationIcon} />
-                <Text style={styles.venue} numberOfLines={2}>
-                  {venue}
-                </Text>
-              </View>
-
-              <CardDivider />
-
-              <View style={styles.feeSpotsRow}>
-                <Text style={styles.fee}>
-                  {isFree ? "Free" : `$${(feeCents / 100).toFixed(2)} per player`}
-                </Text>
-                {capacity > 0 ? (
-                  <View style={styles.spotsBlock}>
-                    <View style={styles.progressTrack}>
-                      <View style={[styles.progressFill, { width: `${fillRatio * 100}%` }]} />
-                    </View>
-                    <Text style={styles.spotsLabel}>
-                      {confirmed} / {capacity} spot{capacity === 1 ? "" : "s"}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            </AnimatedPressScale>
+            <View style={styles.runsList}>
+              {regionRuns.map((listRun) => (
+                <RunSummaryCard key={listRun.id} row={listRun} onPress={() => openRunDetail(listRun.id)} />
+              ))}
+            </View>
 
             <Modal visible={detailOpen} animationType="slide" transparent onRequestClose={closeRunDetail}>
               <View style={styles.modalRoot}>
@@ -560,74 +636,37 @@ export default function RunsScreen() {
                     </Pressable>
                   </View>
                   <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetScroll}>
-                    <View style={styles.card}>
-                      <View style={styles.cardHeader}>
-                        <View style={styles.titleBlock}>
-                          <View style={styles.titleRow}>
-                            <Text style={styles.cardTitle} numberOfLines={3}>
-                              {title}
-                            </Text>
-                            {showTypeLabel && typeLabel ? (
-                              <Text style={styles.typeLabel}>{typeLabel}</Text>
-                            ) : null}
-                          </View>
-                        </View>
-                        <View style={styles.statusPill}>
-                          <Text style={styles.statusPillText}>{runStatusPillLabel(runStatus)}</Text>
-                        </View>
+                    {detailLoading && !run ? (
+                      <SkeletonCard />
+                    ) : detailError ? (
+                      <View style={styles.empty}>
+                        <Text style={styles.emptyTitle}>Could not load run</Text>
+                        <Text style={styles.emptyBody}>{detailError}</Text>
                       </View>
-
-                      <CardDivider />
-
-                      <View style={styles.dateTimeRow}>
-                        {isPlanning ? (
-                          <>
-                            <Text style={styles.datePlanning}>
-                              {fmtPickupDateEt(typeof run.start_at === "string" ? run.start_at : null)}
-                            </Text>
-                            <Text style={styles.planningTimeHint}>Time TBD — vote below</Text>
-                          </>
-                        ) : (
-                          <>
-                            <Text style={styles.dateEt}>
-                              {fmtPickupDateEt(typeof run.start_at === "string" ? run.start_at : null)}
-                            </Text>
-                            <Text style={styles.timeEt}>
-                              {fmtPickupTimeEt(typeof run.start_at === "string" ? run.start_at : null)} ET
-                            </Text>
-                          </>
-                        )}
+                    ) : !run ? (
+                      <View style={styles.empty}>
+                        <Text style={styles.emptyTitle}>Run unavailable</Text>
+                        <Text style={styles.emptyBody}>This run may have ended or is no longer visible.</Text>
                       </View>
-
-                      <CardDivider />
-
-                      <View style={styles.locationRow}>
-                        <FontAwesome
-                          name="map-marker"
-                          size={14}
-                          color="rgba(255,255,255,0.35)"
-                          style={styles.locationIcon}
-                        />
-                        <Text style={styles.venue}>{venue}</Text>
-                      </View>
-
-                      <CardDivider />
-
-                      <View style={styles.feeSpotsRow}>
-                        <Text style={styles.fee}>
-                          {isFree ? "Free" : `$${(feeCents / 100).toFixed(2)} per player`}
+                    ) : !invitedNow && isSelectPickupRunType(run.run_type) ? (
+                      <View style={styles.empty}>
+                        <Text style={styles.emptyTitle}>Invite only</Text>
+                        <Text style={styles.emptyBody}>
+                          This is a select run. Open it after you receive an invite.
                         </Text>
-                        {capacity > 0 ? (
-                          <View style={styles.spotsBlock}>
-                            <View style={styles.progressTrack}>
-                              <View style={[styles.progressFill, { width: `${fillRatio * 100}%` }]} />
-                            </View>
-                            <Text style={styles.spotsLabel}>
-                              {confirmed} / {capacity} spot{capacity === 1 ? "" : "s"}
-                            </Text>
-                          </View>
-                        ) : null}
                       </View>
+                    ) : (
+                    <View style={styles.card}>
+                      <RunSummaryCard
+                        row={{
+                          ...run,
+                          capacity,
+                          fee_cents: feeCents,
+                          confirmed_count: confirmed,
+                        }}
+                        embedded
+                        showChevron={false}
+                      />
 
             {showAvailabilityPoll ? (
               <>
@@ -637,6 +676,7 @@ export default function RunsScreen() {
                   planning={planning}
                   onSubmit={() => {
                     void load();
+                    void loadRegionRuns();
                   }}
                 />
               </>
@@ -705,6 +745,7 @@ export default function RunsScreen() {
                       run={run}
                       onSuccess={() => {
                         void load();
+                        void loadRegionRuns();
                       }}
                     />
                   ) : null}
@@ -756,6 +797,7 @@ export default function RunsScreen() {
               </>
             ) : null}
                     </View>
+                    )}
                   </ScrollView>
                 </View>
               </View>
@@ -795,6 +837,7 @@ const styles = StyleSheet.create({
   },
   statesChipText: { fontSize: 13, fontWeight: "800", color: LIME },
   regionSub: { color: "rgba(255,255,255,0.45)", marginTop: 4, marginBottom: 20, fontSize: 14 },
+  runsList: { gap: 12 },
   empty: {
     padding: 24,
     borderRadius: 14,

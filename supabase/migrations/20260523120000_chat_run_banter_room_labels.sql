@@ -10,8 +10,8 @@ comment on column public.chat_rooms.description is
 update public.chat_rooms cr
 set
   description = case
-    when lower(trim(coalesce(pr.run_type, ''))) = 'public' then 'Public'
-    else 'Select'
+    when pr.run_type = 'public'::pickup_run_type then 'Public'
+    when pr.run_type = 'select'::pickup_run_type then 'Select'
   end,
   title = trim(
     coalesce(

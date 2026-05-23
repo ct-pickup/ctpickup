@@ -400,6 +400,25 @@ export async function postTournamentMvpVote(accessToken: string, matchId: string
   return { ok: r.ok, status: r.status, json };
 }
 
+export async function fetchPickupRegionRuns(region: string): Promise<{
+  ok: boolean;
+  status: number;
+  json: unknown;
+}> {
+  const origin = siteOrigin();
+  if (!origin) {
+    return { ok: false, status: 0, json: { error: "missing_site_url" } };
+  }
+  const u = new URL(`${origin}/api/pickup/region-runs`);
+  u.searchParams.set("region", region);
+  const r = await fetch(u.toString(), {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+  const json = await r.json().catch(() => null);
+  return { ok: r.ok, status: r.status, json };
+}
+
 export async function fetchPickupPublic(
   accessToken: string | null,
   opts?: { region?: string; run_id?: string },

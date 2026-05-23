@@ -10,7 +10,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type PickupPublicLoadOpts = { background?: boolean };
 
-export function usePickupPublic(accessToken: string | null, opts?: { focusRunId?: string | null }) {
+export function usePickupPublic(
+  accessToken: string | null,
+  opts?: { focusRunId?: string | null; skipFeatured?: boolean },
+) {
   const { supabase } = useAuth();
   const { region, ready: regionReady } = useSelectedRegion();
   const pickupRealtimeTopicSeq = useRef(0);
@@ -24,7 +27,9 @@ export function usePickupPublic(accessToken: string | null, opts?: { focusRunId?
   const [lastLiveSuccessAt, setLastLiveSuccessAt] = useState<number | null>(null);
 
   const focusRunId = typeof opts?.focusRunId === "string" ? opts.focusRunId.trim() : "";
+  const skipFeatured = opts?.skipFeatured === true;
   const effectiveRunIdParam = focusRunId || undefined;
+  const shouldFetch = !skipFeatured || Boolean(effectiveRunIdParam);
 
   const originOk = useMemo(() => Boolean(siteOrigin()), []);
 
@@ -36,6 +41,12 @@ export function usePickupPublic(accessToken: string | null, opts?: { focusRunId?
       if (!originOk) {
         setError("Set EXPO_PUBLIC_SITE_URL in mobile/.env");
         setLoading(false);
+        return;
+      }
+      if (!shouldFetch) {
+        setData(null);
+        setError(null);
+        if (!background) setLoading(false);
         return;
       }
       if (!regionReady) {
@@ -115,7 +126,7 @@ export function usePickupPublic(accessToken: string | null, opts?: { focusRunId?
       }
       if (!background) setLoading(false);
     },
-    [accessToken, originOk, region, regionReady, effectiveRunIdParam],
+    [accessToken, originOk, region, regionReady, effectiveRunIdParam, shouldFetch],
   );
 
   loadRef.current = load;
