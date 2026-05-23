@@ -100,7 +100,6 @@ export default function HomeScreen() {
       <Text style={styles.headline}>
         Find Your{"\n"}Next <Text style={styles.headlineAccent}>Run</Text>.
       </Text>
-      <Text style={styles.tagline}>Tonight / this week stay locked in.</Text>
 
       <AnimatedPressScale
         accessibilityRole="button"
