@@ -20,7 +20,7 @@ export function RegionsPickerPanel({ onSelectState }: Props) {
         Where we <Text style={styles.headlineAccent}>run</Text>
       </Text>
       <Text style={styles.lead}>
-        CT Pickup operates across four states. Choose yours for local context. Per-state schedules grow as hubs come online.
+        We run pickup in four states. Select your state to see what's coming up and RSVP.
       </Text>
 
       <View style={styles.grid}>
@@ -52,7 +52,6 @@ export function RegionsPickerPanel({ onSelectState }: Props) {
         })}
       </View>
 
-      <Text style={styles.footerNote}>Featured runs and your RSVP status live on the Runs tab signed in with your account.</Text>
     </ScrollView>
   );
 }
