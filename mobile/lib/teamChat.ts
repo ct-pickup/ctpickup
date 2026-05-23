@@ -29,6 +29,7 @@ export type ChatRoomSummary = {
   id: string;
   slug: string;
   title: string;
+  description: string | null;
   room_type: ChatRoomType;
   announcements_only: boolean;
   is_active: boolean;
@@ -59,7 +60,7 @@ export function useUserChatRooms(enabled: boolean) {
     setError(null);
     const { data, error: qErr } = await supabase
       .from("chat_rooms")
-      .select("id,slug,title,room_type,announcements_only,is_active,auto_close_at,run_id")
+      .select("id,slug,title,description,room_type,announcements_only,is_active,auto_close_at,run_id")
       .order("created_at", { ascending: true });
     if (qErr) {
       setError(qErr.message);

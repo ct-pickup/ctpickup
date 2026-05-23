@@ -16,7 +16,7 @@ import {
   type ChatReportReason,
 } from "@/lib/chatApi";
 import { ANNOUNCEMENTS_CHAT_SLUG, isAdminDmGroupSlug } from "@/lib/teamChat";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -67,8 +67,15 @@ function senderInitials(displayName: string) {
   return w.slice(0, 2).toUpperCase();
 }
 
+function threadHeaderTitle(title: string): string {
+  const t = title.trim();
+  if (t.length <= 42) return t;
+  return `${t.slice(0, 41)}…`;
+}
+
 export default function TeamChatThreadScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const params = useLocalSearchParams();
   const { isReady, session } = useAuth();
   const signedIn = !!session?.user?.id;
@@ -176,6 +183,11 @@ export default function TeamChatThreadScreen() {
   const isDmGroup = !!(room?.slug && isAdminDmGroupSlug(room.slug));
   const isRunBanterRoom = room?.room_type === "run_banter";
   const runBanterAutoCloseAt = room?.auto_close_at ?? null;
+
+  useEffect(() => {
+    if (!room?.title) return;
+    navigation.setOptions({ title: threadHeaderTitle(room.title) });
+  }, [navigation, room?.title]);
 
   useEffect(() => {
     if (!isRunBanterRoom || !runBanterAutoCloseAt) return;

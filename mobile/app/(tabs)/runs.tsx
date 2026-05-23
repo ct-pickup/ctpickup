@@ -15,11 +15,12 @@ import { useUserChatRooms } from "@/lib/teamChat";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect } from "@react-navigation/native";
-import { useNavigation, useRouter } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import * as Linking from "expo-linking";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -28,7 +29,7 @@ import {
   View,
 } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 const BG = "#0a0a0a";
 const LIME = "#a3e635";
@@ -77,11 +78,22 @@ function CardDivider() {
 export default function RunsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const token = session?.access_token ?? null;
   const { region, setRegion } = useSelectedRegion();
   const [showStatePicker, setShowStatePicker] = useState(true);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [reliabilityScore, setReliabilityScore] = useState<number | null>(null);
+  const autoOpenedFromDeepLinkRef = useRef(false);
+
+  const { run_id: rawRunIdParam } = useLocalSearchParams<{ run_id?: string | string[] }>();
+  const focusRunIdParam = useMemo(() => {
+    const raw = rawRunIdParam;
+    if (typeof raw === "string" && raw.trim()) return raw.trim();
+    if (Array.isArray(raw) && typeof raw[0] === "string" && raw[0].trim()) return raw[0].trim();
+    return null;
+  }, [rawRunIdParam]);
 
   useFocusEffect(
     useCallback(() => {
@@ -133,7 +145,7 @@ export default function RunsScreen() {
   const { allowed: chatAllowed } = useTeamChatAccess();
 
   const { loading, error, data, run, counts, myStatus, myWaitlistExpiresAt, invitedNow, noFeaturedRun, load } =
-    usePickupPublic(token);
+    usePickupPublic(token, { focusRunId: focusRunIdParam });
   const [countdownTick, setCountdownTick] = useState(0);
   const { joinBusy, joinPickup, payBusy, payPickup, availabilityBusy, recordCantMakeIt } = usePickupJoin();
 
@@ -266,6 +278,70 @@ export default function RunsScreen() {
     void load();
   }, [load]);
 
+  const openRunDetail = useCallback(() => {
+    console.log("[runs] run card pressed");
+    // #region agent log
+    fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "525a8d" },
+      body: JSON.stringify({
+        sessionId: "525a8d",
+        runId: "pre-fix",
+        hypothesisId: "A",
+        location: "runs.tsx:openRunDetail",
+        message: "run card onPress fired",
+        data: { runId, hadDetailOpen: detailOpen },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+    void hapticTap();
+    setDetailOpen(true);
+  }, [detailOpen, runId]);
+
+  const closeRunDetail = useCallback(() => {
+    setDetailOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!focusRunIdParam || !run || showStatePicker || autoOpenedFromDeepLinkRef.current) return;
+    autoOpenedFromDeepLinkRef.current = true;
+    setDetailOpen(true);
+    // #region agent log
+    fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "525a8d" },
+      body: JSON.stringify({
+        sessionId: "525a8d",
+        runId: "pre-fix",
+        hypothesisId: "E",
+        location: "runs.tsx:autoOpenDeepLink",
+        message: "auto-opened detail from run_id param",
+        data: { focusRunIdParam },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [focusRunIdParam, run, showStatePicker]);
+
+  useEffect(() => {
+    // #region agent log
+    fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "525a8d" },
+      body: JSON.stringify({
+        sessionId: "525a8d",
+        runId: "pre-fix",
+        hypothesisId: "B",
+        location: "runs.tsx:detailOpenEffect",
+        message: "detailOpen state changed",
+        data: { detailOpen, hasRun: !!run },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [detailOpen, run]);
+
   const onImIn = useCallback(() => {
     if (!token || !runId) {
       Alert.alert("Sign in required", "Sign in to join this run.");
@@ -395,71 +471,163 @@ export default function RunsScreen() {
             </Text>
           </View>
         ) : (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.titleBlock}>
-                <View style={styles.titleRow}>
-                  <Text style={styles.cardTitle} numberOfLines={2}>
-                    {title}
-                  </Text>
-                  {showTypeLabel && typeLabel ? (
-                    <Text style={styles.typeLabel}>{typeLabel}</Text>
-                  ) : null}
-                </View>
-              </View>
-              <View style={styles.statusPill}>
-                <Text style={styles.statusPillText}>{runStatusPillLabel(runStatus)}</Text>
-              </View>
-            </View>
-
-            <CardDivider />
-
-            <View style={styles.dateTimeRow}>
-              {isPlanning ? (
-                <>
-                  <Text style={styles.datePlanning}>
-                    {fmtPickupDateEt(typeof run.start_at === "string" ? run.start_at : null)}
-                  </Text>
-                  <Text style={styles.planningTimeHint}>Time TBD — vote below</Text>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.dateEt}>
-                    {fmtPickupDateEt(typeof run.start_at === "string" ? run.start_at : null)}
-                  </Text>
-                  <Text style={styles.timeEt}>
-                    {fmtPickupTimeEt(typeof run.start_at === "string" ? run.start_at : null)} ET
-                  </Text>
-                </>
-              )}
-            </View>
-
-            <CardDivider />
-
-            <View style={styles.locationRow}>
-              <FontAwesome name="map-marker" size={14} color="rgba(255,255,255,0.35)" style={styles.locationIcon} />
-              <Text style={styles.venue} numberOfLines={2}>
-                {venue}
-              </Text>
-            </View>
-
-            <CardDivider />
-
-            <View style={styles.feeSpotsRow}>
-              <Text style={styles.fee}>
-                {isFree ? "Free" : `$${(feeCents / 100).toFixed(2)} per player`}
-              </Text>
-              {capacity > 0 ? (
-                <View style={styles.spotsBlock}>
-                  <View style={styles.progressTrack}>
-                    <View style={[styles.progressFill, { width: `${fillRatio * 100}%` }]} />
+          <>
+            <AnimatedPressScale
+              accessibilityRole="button"
+              accessibilityLabel="Open run details"
+              pressedScale={0.98}
+              hapticOnPress
+              onPress={openRunDetail}
+              style={styles.card}
+            >
+              <View style={styles.cardHeader}>
+                <View style={styles.titleBlock}>
+                  <View style={styles.titleRow}>
+                    <Text style={styles.cardTitle} numberOfLines={2}>
+                      {title}
+                    </Text>
+                    {showTypeLabel && typeLabel ? (
+                      <Text style={styles.typeLabel}>{typeLabel}</Text>
+                    ) : null}
                   </View>
-                  <Text style={styles.spotsLabel}>
-                    {confirmed} / {capacity} spot{capacity === 1 ? "" : "s"}
-                  </Text>
                 </View>
-              ) : null}
-            </View>
+                <View style={styles.cardHeaderRight}>
+                  <View style={styles.statusPill}>
+                    <Text style={styles.statusPillText}>{runStatusPillLabel(runStatus)}</Text>
+                  </View>
+                  <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+                </View>
+              </View>
+
+              <CardDivider />
+
+              <View style={styles.dateTimeRow}>
+                {isPlanning ? (
+                  <>
+                    <Text style={styles.datePlanning}>
+                      {fmtPickupDateEt(typeof run.start_at === "string" ? run.start_at : null)}
+                    </Text>
+                    <Text style={styles.planningTimeHint}>Time TBD — tap for details</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.dateEt}>
+                      {fmtPickupDateEt(typeof run.start_at === "string" ? run.start_at : null)}
+                    </Text>
+                    <Text style={styles.timeEt}>
+                      {fmtPickupTimeEt(typeof run.start_at === "string" ? run.start_at : null)} ET
+                    </Text>
+                  </>
+                )}
+              </View>
+
+              <CardDivider />
+
+              <View style={styles.locationRow}>
+                <FontAwesome name="map-marker" size={14} color="rgba(255,255,255,0.35)" style={styles.locationIcon} />
+                <Text style={styles.venue} numberOfLines={2}>
+                  {venue}
+                </Text>
+              </View>
+
+              <CardDivider />
+
+              <View style={styles.feeSpotsRow}>
+                <Text style={styles.fee}>
+                  {isFree ? "Free" : `$${(feeCents / 100).toFixed(2)} per player`}
+                </Text>
+                {capacity > 0 ? (
+                  <View style={styles.spotsBlock}>
+                    <View style={styles.progressTrack}>
+                      <View style={[styles.progressFill, { width: `${fillRatio * 100}%` }]} />
+                    </View>
+                    <Text style={styles.spotsLabel}>
+                      {confirmed} / {capacity} spot{capacity === 1 ? "" : "s"}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </AnimatedPressScale>
+
+            <Modal visible={detailOpen} animationType="slide" transparent onRequestClose={closeRunDetail}>
+              <View style={styles.modalRoot}>
+                <Pressable style={styles.modalBackdrop} onPress={closeRunDetail} accessibilityLabel="Close run details" />
+                <View style={[styles.detailSheet, { paddingBottom: insets.bottom + 16 }]}>
+                  <View style={styles.sheetHeader}>
+                    <Text style={styles.sheetTitle}>Run details</Text>
+                    <Pressable onPress={closeRunDetail} hitSlop={12} accessibilityLabel="Close">
+                      <FontAwesome name="times" size={20} color="#fff" />
+                    </Pressable>
+                  </View>
+                  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetScroll}>
+                    <View style={styles.card}>
+                      <View style={styles.cardHeader}>
+                        <View style={styles.titleBlock}>
+                          <View style={styles.titleRow}>
+                            <Text style={styles.cardTitle} numberOfLines={3}>
+                              {title}
+                            </Text>
+                            {showTypeLabel && typeLabel ? (
+                              <Text style={styles.typeLabel}>{typeLabel}</Text>
+                            ) : null}
+                          </View>
+                        </View>
+                        <View style={styles.statusPill}>
+                          <Text style={styles.statusPillText}>{runStatusPillLabel(runStatus)}</Text>
+                        </View>
+                      </View>
+
+                      <CardDivider />
+
+                      <View style={styles.dateTimeRow}>
+                        {isPlanning ? (
+                          <>
+                            <Text style={styles.datePlanning}>
+                              {fmtPickupDateEt(typeof run.start_at === "string" ? run.start_at : null)}
+                            </Text>
+                            <Text style={styles.planningTimeHint}>Time TBD — vote below</Text>
+                          </>
+                        ) : (
+                          <>
+                            <Text style={styles.dateEt}>
+                              {fmtPickupDateEt(typeof run.start_at === "string" ? run.start_at : null)}
+                            </Text>
+                            <Text style={styles.timeEt}>
+                              {fmtPickupTimeEt(typeof run.start_at === "string" ? run.start_at : null)} ET
+                            </Text>
+                          </>
+                        )}
+                      </View>
+
+                      <CardDivider />
+
+                      <View style={styles.locationRow}>
+                        <FontAwesome
+                          name="map-marker"
+                          size={14}
+                          color="rgba(255,255,255,0.35)"
+                          style={styles.locationIcon}
+                        />
+                        <Text style={styles.venue}>{venue}</Text>
+                      </View>
+
+                      <CardDivider />
+
+                      <View style={styles.feeSpotsRow}>
+                        <Text style={styles.fee}>
+                          {isFree ? "Free" : `$${(feeCents / 100).toFixed(2)} per player`}
+                        </Text>
+                        {capacity > 0 ? (
+                          <View style={styles.spotsBlock}>
+                            <View style={styles.progressTrack}>
+                              <View style={[styles.progressFill, { width: `${fillRatio * 100}%` }]} />
+                            </View>
+                            <Text style={styles.spotsLabel}>
+                              {confirmed} / {capacity} spot{capacity === 1 ? "" : "s"}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
 
             {showAvailabilityPoll ? (
               <>
@@ -587,7 +755,12 @@ export default function RunsScreen() {
                 <Text style={styles.hint}>This run is live — joining is closed.</Text>
               </>
             ) : null}
-          </View>
+                    </View>
+                  </ScrollView>
+                </View>
+              </View>
+            </Modal>
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -650,12 +823,31 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   divider: { height: 1, backgroundColor: DIVIDER, marginVertical: -4 },
+  modalRoot: { flex: 1, justifyContent: "flex-end" },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.65)" },
+  detailSheet: {
+    maxHeight: "92%",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    backgroundColor: "#111",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  sheetTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
+  sheetScroll: { paddingBottom: 24 },
   cardHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 12,
   },
+  cardHeaderRight: { flexDirection: "row", alignItems: "center", gap: 10, flexShrink: 0 },
   titleBlock: { flex: 1, minWidth: 0 },
   titleRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", gap: 8 },
   cardTitle: { color: "#ffffff", fontSize: 22, fontWeight: "900", lineHeight: 28 },

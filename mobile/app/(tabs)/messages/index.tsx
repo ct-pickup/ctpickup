@@ -196,7 +196,7 @@ export default function MessagesIndex() {
               <FontAwesome name="comments" size={18} color={LIME} style={styles.rowIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle}>{r.title}</Text>
-                <Text style={styles.rowSub}>Pickup run</Text>
+                <Text style={styles.rowSub}>{r.description?.trim() || "Pickup run"}</Text>
               </View>
               <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
             </Pressable>
