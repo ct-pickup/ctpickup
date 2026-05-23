@@ -7,6 +7,21 @@ import * as WebBrowser from "expo-web-browser";
 import { useCallback, useState } from "react";
 import { Alert } from "react-native";
 
+let cancellationPolicyShownThisSession = false;
+
+function confirmCancellationPolicy(): Promise<boolean> {
+  if (cancellationPolicyShownThisSession) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    Alert.alert(
+      "Cancellation Policy",
+      "If this run is cancelled, you will receive a full credit valid for 3 months — no fees deducted.",
+      [{ text: "OK", onPress: () => resolve(true) }],
+      { cancelable: false },
+    );
+    cancellationPolicyShownThisSession = true;
+  });
+}
+
 /**
  * Field fees use Stripe Checkout (hosted). That is not the CT Pickup marketing site.
  * Free RSVPs stay entirely inside the app.
@@ -30,6 +45,9 @@ async function openStripeCheckout(
   venueLabel: string,
   onReturn?: () => void | Promise<void>,
 ) {
+  const policyOk = await confirmCancellationPolicy();
+  if (!policyOk) return;
+
   const confirmed = await confirmPhysicalPaymentCheckout(venueLabel);
   if (!confirmed) return;
 

@@ -186,7 +186,7 @@ export default function AdminRunDetailLifecycle({
     if (!token || !runId) return;
     Alert.alert(
       "Cancel run?",
-      "All confirmed players will be refunded when applicable.",
+      "Paid players receive a full run credit (valid 3 months). No Stripe refunds are issued.",
       [
         { text: "Keep run", style: "cancel" },
         {

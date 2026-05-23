@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { cancelAllPickupRsvpsAndIssueCancellationCredits } from "@/lib/pickup/cancellationCreditsOnRunCancel";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
-import { cancelAllPickupRsvpsAndRefundPaidConfirmed } from "@/lib/pickup/refundAllPickupPlayersOnRunCancel";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export async function POST(req: Request) {
@@ -29,23 +29,26 @@ export async function POST(req: Request) {
     })
     .eq("id", run_id);
 
-  const rsvpsRes = await supabaseAdmin
-    .from("pickup_run_rsvps")
-    .select("user_id")
-    .eq("run_id", run_id);
+  const { credited, creditFailed, paidUserIds, freeUserIds, venueLabel } =
+    await cancelAllPickupRsvpsAndIssueCancellationCredits(supabaseAdmin, run_id);
 
-  const rsvps = rsvpsRes.data || [];
-  const canceledUserIds = Array.from(new Set(rsvps.map((r) => r.user_id).filter(Boolean)));
+  const venue = venueLabel === "your" ? "your" : venueLabel;
 
-  const { refunded, failed } = await cancelAllPickupRsvpsAndRefundPaidConfirmed(supabaseAdmin, run_id);
-
-  if (canceledUserIds.length) {
-    await sendPushToUsers(supabaseAdmin, canceledUserIds, {
-      title: "Pickup canceled",
-      body: "The upcoming pickup run has been canceled.",
+  if (paidUserIds.length) {
+    await sendPushToUsers(supabaseAdmin, paidUserIds, {
+      title: "Run Cancelled",
+      body: `Your ${venue} run was cancelled. A full credit has been added to your account — valid for 3 months.`,
       data: { kind: "pickup_canceled", run_id },
     });
   }
 
-  return NextResponse.json({ ok: true, refunded, failed });
+  if (freeUserIds.length) {
+    await sendPushToUsers(supabaseAdmin, freeUserIds, {
+      title: "Run Cancelled",
+      body: `Your ${venue} run was cancelled.`,
+      data: { kind: "pickup_canceled", run_id },
+    });
+  }
+
+  return NextResponse.json({ ok: true, credited, creditFailed });
 }

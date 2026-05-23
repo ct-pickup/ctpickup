@@ -102,17 +102,18 @@ function venueLine(row: Record<string, unknown>): string {
   return s(row.title).trim() || "Venue TBD";
 }
 
-function feeCentsFromCalculator(fieldCost: number, earnings: number, players: number): number {
-  if (!Number.isFinite(fieldCost) || !Number.isFinite(earnings) || !Number.isFinite(players) || players <= 0) {
-    return 0;
+function recommendedFeeDollars(fieldRentalCost: number, spots: number): number | null {
+  if (!Number.isFinite(fieldRentalCost) || fieldRentalCost < 0 || !Number.isFinite(spots) || spots <= 0) {
+    return null;
   }
-  return Math.ceil(((fieldCost + earnings) / players) * 100);
+  const perPlayer = (fieldRentalCost * 1.25) / (spots * 0.75);
+  return Math.ceil(perPlayer * 100) / 100;
 }
 
-function perPlayerPreview(fieldCost: number, earnings: number, players: number): string | null {
-  const cents = feeCentsFromCalculator(fieldCost, earnings, players);
-  if (!cents) return null;
-  return `$${(cents / 100).toFixed(2)}`;
+function parseFeeDollarsToCents(value: string): number | null {
+  const n = Number(value.trim());
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n * 100);
 }
 
 function SkeletonCard() {
@@ -145,8 +146,9 @@ export default function AdminPickupOpsScreen() {
   const [createRegionOverride, setCreateRegionOverride] = useState<ServiceRegionCode | null>(null);
   const [createStartAt, setCreateStartAt] = useState("");
   const [createCapacity, setCreateCapacity] = useState("24");
-  const [createFieldCost, setCreateFieldCost] = useState("");
   const [createEarnings, setCreateEarnings] = useState("0");
+  const [createPlayerFee, setCreatePlayerFee] = useState("");
+  const [pricingFieldCost, setPricingFieldCost] = useState("");
   const [createBusy, setCreateBusy] = useState(false);
 
   const [detailOpen, setDetailOpen] = useState(false);
@@ -172,10 +174,11 @@ export default function AdminPickupOpsScreen() {
     return serviceRegionForAdminVenueName(createVenue) ?? "CT";
   }, [isCreateCustomVenue, createVenue, createRegionFromAddress, createRegionOverride]);
 
-  const feePreview = useMemo(() => {
-    const players = Number(createCapacity) || 24;
-    return perPlayerPreview(Number(createFieldCost), Number(createEarnings), players);
-  }, [createFieldCost, createEarnings, createCapacity]);
+  const recommendedFee = useMemo(() => {
+    const spots = Number(createCapacity) || 24;
+    const rental = Number(pricingFieldCost);
+    return recommendedFeeDollars(rental, spots);
+  }, [pricingFieldCost, createCapacity]);
 
   const workflowCounts = useMemo(() => {
     const c: Record<WorkflowTab, number> = { planning: 0, active: 0, past: 0 };
@@ -290,8 +293,9 @@ export default function AdminPickupOpsScreen() {
     setCreateCustomVenueName("");
     setCreateCustomVenueAddress("");
     setCreateRegionOverride(null);
-    setCreateFieldCost("");
     setCreateEarnings("0");
+    setCreatePlayerFee("");
+    setPricingFieldCost("");
     setCreateCapacity("24");
   }
 
@@ -307,7 +311,7 @@ export default function AdminPickupOpsScreen() {
     setCreateCustomVenueAddress("");
     setCreateRegionOverride(null);
     const cost = VENUE_FIELD_COST[name];
-    if (typeof cost === "number" && cost > 0) setCreateFieldCost(String(cost));
+    if (typeof cost === "number" && cost > 0) setPricingFieldCost(String(cost));
   }
 
   async function onCreateRun() {
@@ -362,11 +366,11 @@ export default function AdminPickupOpsScreen() {
     } else {
       location_private = adminVenueLocationPreset(createVenue) ?? createVenue;
     }
-    const fc = Number(createFieldCost);
     const me = Number(createEarnings);
     const ep = Number(createCapacity) || 24;
-    if (!Number.isFinite(fc) || fc < 0) {
-      Alert.alert("Field cost", "Enter a valid field cost in dollars.");
+    const feeCents = parseFeeDollarsToCents(createPlayerFee);
+    if (feeCents == null) {
+      Alert.alert("Player fee", "Enter a valid per-player fee in dollars.");
       return;
     }
     if (!Number.isFinite(me) || me < 0) {
@@ -380,7 +384,7 @@ export default function AdminPickupOpsScreen() {
       title: runTitle,
       service_region: createRegion,
       capacity: ep,
-      fee_cents: feeCentsFromCalculator(fc, me, ep),
+      fee_cents: feeCents,
       admin_fee_cents: Math.round(me * 100),
       location_private,
       run_type: createRunType,
@@ -809,13 +813,13 @@ export default function AdminPickupOpsScreen() {
                 placeholderTextColor="rgba(255,255,255,0.35)"
               />
 
-              <Text style={styles.label}>Field cost ($)</Text>
+              <Text style={styles.label}>Player fee ($)</Text>
               <TextInput
                 style={styles.input}
-                value={createFieldCost}
-                onChangeText={setCreateFieldCost}
+                value={createPlayerFee}
+                onChangeText={setCreatePlayerFee}
                 keyboardType="decimal-pad"
-                placeholder="Auto-fills from venue"
+                placeholder="e.g. 12.50"
                 placeholderTextColor="rgba(255,255,255,0.35)"
               />
 
@@ -829,9 +833,39 @@ export default function AdminPickupOpsScreen() {
                 placeholderTextColor="rgba(255,255,255,0.35)"
               />
 
-              <View style={styles.previewBox}>
-                <Text style={styles.previewLabel}>Each player pays:</Text>
-                <Text style={styles.previewValue}>{feePreview ?? "—"}</Text>
+              <View style={styles.pricingCalcBox}>
+                <Text style={styles.pricingCalcTitle}>Pricing calculator</Text>
+                <Text style={styles.label}>Field rental cost $</Text>
+                <TextInput
+                  style={styles.input}
+                  value={pricingFieldCost}
+                  onChangeText={setPricingFieldCost}
+                  keyboardType="decimal-pad"
+                  placeholder="Auto-fills from venue"
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                />
+                <Text style={styles.pricingCalcHint}>
+                  Recommended fee:{" "}
+                  {recommendedFee != null ? `$${recommendedFee.toFixed(2)}` : "—"}
+                </Text>
+                <Text style={styles.pricingCalcSub}>
+                  Based on 75% attendance with 25% buffer
+                </Text>
+                <Pressable
+                  disabled={recommendedFee == null}
+                  onPress={() => {
+                    if (recommendedFee == null) return;
+                    void hapticTap();
+                    setCreatePlayerFee(recommendedFee.toFixed(2));
+                  }}
+                  style={({ pressed }) => [
+                    styles.usePriceBtn,
+                    recommendedFee == null && styles.primaryBtnDisabled,
+                    pressed && recommendedFee != null && { opacity: 0.9 },
+                  ]}
+                >
+                  <Text style={styles.usePriceBtnText}>Use this price</Text>
+                </Pressable>
               </View>
 
               <Pressable
@@ -1150,16 +1184,26 @@ const styles = StyleSheet.create({
     color: "rgba(163,230,53,0.75)",
     fontWeight: "600",
   },
-  previewBox: {
+  pricingCalcBox: {
     marginTop: 16,
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.04)",
   },
-  previewLabel: { color: "rgba(255,255,255,0.55)", fontSize: 13 },
-  previewValue: { color: LIME, fontSize: 22, fontWeight: "800", marginTop: 4 },
+  pricingCalcTitle: { color: "#fff", fontSize: 15, fontWeight: "800", marginBottom: 10 },
+  pricingCalcHint: { color: LIME, fontSize: 16, fontWeight: "700", marginTop: 10 },
+  pricingCalcSub: { color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 6, lineHeight: 18 },
+  usePriceBtn: {
+    marginTop: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: LIME,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  usePriceBtnText: { color: LIME, fontWeight: "700", fontSize: 14 },
   primaryBtn: {
     marginTop: 20,
     backgroundColor: LIME,

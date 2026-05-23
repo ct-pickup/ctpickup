@@ -12,7 +12,7 @@ import {
   isSelectPickupRunType,
   normalizePickupRunTypeForDb,
 } from "@/lib/pickup/pickupRunType";
-import { cancelAllPickupRsvpsAndRefundPaidConfirmed } from "@/lib/pickup/refundAllPickupPlayersOnRunCancel";
+import { cancelAllPickupRsvpsAndIssueCancellationCredits } from "@/lib/pickup/cancellationCreditsOnRunCancel";
 import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
 import {
   pickupFinalizeSlotPushRecipientIds,
@@ -929,23 +929,30 @@ export async function POST(req: Request) {
 
     if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
 
-    const rsvpsRes = await admin.from("pickup_run_rsvps").select("user_id").eq("run_id", run_id);
-    const rsvpRows = rsvpsRes.data || [];
-    const canceledUserIds = Array.from(new Set(rsvpRows.map((r) => r.user_id).filter(Boolean)));
+    const { credited, creditFailed, paidUserIds, freeUserIds, venueLabel } =
+      await cancelAllPickupRsvpsAndIssueCancellationCredits(admin, run_id);
 
-    const { refunded, failed } = await cancelAllPickupRsvpsAndRefundPaidConfirmed(admin, run_id);
+    const venue = venueLabel === "your" ? "your" : venueLabel;
 
-    if (canceledUserIds.length) {
-      await sendPushToUsers(admin, canceledUserIds, {
-        title: "Pickup canceled",
-        body: "The upcoming pickup run has been canceled.",
+    if (paidUserIds.length) {
+      await sendPushToUsers(admin, paidUserIds, {
+        title: "Run Cancelled",
+        body: `Your ${venue} run was cancelled. A full credit has been added to your account — valid for 3 months.`,
+        data: { kind: "pickup_canceled", run_id },
+      });
+    }
+
+    if (freeUserIds.length) {
+      await sendPushToUsers(admin, freeUserIds, {
+        title: "Run Cancelled",
+        body: `Your ${venue} run was cancelled.`,
         data: { kind: "pickup_canceled", run_id },
       });
     }
 
     revalidatePath("/pickup");
     revalidatePath("/status/pickup");
-    return NextResponse.json({ ok: true, refunded, failed });
+    return NextResponse.json({ ok: true, credited, creditFailed });
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });

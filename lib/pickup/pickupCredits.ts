@@ -4,7 +4,11 @@ import { ensurePickupRunInviteLink } from "@/lib/pickup/ensureRunInviteLink";
 import { notifyFollowersWhenFollowedPlayerConfirmsRun } from "@/lib/pickup/notifyFollowersOnPickupConfirm";
 import { deletePendingWaitlistExpiringReminders } from "@/lib/pickup/waitlist";
 
-export type PickupCreditReason = "referral" | "monthly_pod" | "monthly_attendance";
+export type PickupCreditReason =
+  | "referral"
+  | "monthly_pod"
+  | "monthly_attendance"
+  | "cancellation";
 
 export type PickupCreditRow = {
   id: string;
@@ -18,7 +22,12 @@ export type PickupCreditRow = {
   run_id: string | null;
 };
 
-const REASON_PRIORITY: PickupCreditReason[] = ["monthly_pod", "monthly_attendance", "referral"];
+const REASON_PRIORITY: PickupCreditReason[] = [
+  "cancellation",
+  "monthly_pod",
+  "monthly_attendance",
+  "referral",
+];
 
 function reasonRank(reason: string): number {
   const i = REASON_PRIORITY.indexOf(reason as PickupCreditReason);

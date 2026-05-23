@@ -254,7 +254,7 @@ export function postAdminPickupInvitePlayers(
 }
 
 export function postAdminCancelRun(accessToken: string, body: { run_id: string; reason?: string | null }) {
-  return adminFetch<{ ok: boolean; refunded?: string[]; failed?: unknown; error?: string }>(
+  return adminFetch<{ ok: boolean; credited?: string[]; creditFailed?: unknown; error?: string }>(
     "/api/admin/pickup/cancel",
     accessToken,
     {

@@ -33,14 +33,20 @@ type Props = {
 };
 
 function creditLabel(c: PickupCreditItem): string {
+  if (c.reason === "cancellation") return "Cancelled run credit";
   if (c.discount_pct != null && c.discount_pct > 0) return `${c.discount_pct}% off`;
   return "Free run";
 }
 
-function formatCreditMonth(iso: string): string {
+function formatCreditExpiry(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString("en-US", { month: "short", year: "numeric", timeZone: "America/New_York" });
+  return d.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "America/New_York",
+  });
 }
 
 export function ReferralSection({ accessToken }: Props) {
@@ -203,7 +209,7 @@ export function ReferralSection({ accessToken }: Props) {
           <>
             {activeCredits.map((c) => (
               <Text key={c.id} style={styles.creditActive}>
-                {creditLabel(c)} · expires {formatCreditMonth(c.expires_at)}
+                {creditLabel(c)} · expires {formatCreditExpiry(c.expires_at)}
               </Text>
             ))}
             {inactiveCredits.map((c) => {
@@ -211,13 +217,13 @@ export function ReferralSection({ accessToken }: Props) {
               if (c.is_used) {
                 return (
                   <Text key={c.id} style={styles.creditUsed}>
-                    {label} · used {formatCreditMonth(c.used_at || c.awarded_at)}
+                    {label} · used {formatCreditExpiry(c.used_at || c.awarded_at)}
                   </Text>
                 );
               }
               return (
                 <Text key={c.id} style={styles.creditExpired}>
-                  {label} · expired {formatCreditMonth(c.expires_at)}
+                  {label} · expired {formatCreditExpiry(c.expires_at)}
                 </Text>
               );
             })}
