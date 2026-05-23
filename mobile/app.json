@@ -18,7 +18,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.ctpickup.mobile",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "CT Pickup uses your location to auto-fill your ZIP code for finding nearby pickup runs."
       },
       "buildNumber": "25"
     },
@@ -56,6 +57,12 @@
         "expo-local-authentication",
         {
           "faceIDPermission": "Allow CT Pickup to use Face ID to unlock the app."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "CT Pickup uses your location to auto-fill your ZIP code for finding nearby pickup runs."
         }
       ],
       "@sentry/react-native"

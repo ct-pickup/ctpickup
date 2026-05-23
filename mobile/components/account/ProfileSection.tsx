@@ -4,6 +4,8 @@ import {
 } from "@/lib/playerLocationHints";
 import { PROFILE_USERNAME_MAX_LEN } from "@/lib/profileIdentityFields";
 import { serviceRegionName } from "@/lib/serviceRegions";
+import * as Location from "expo-location";
+import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 import { accountStyles as styles, LIME, POSITION_OPTIONS, type PositionValue } from "./accountStyles";
 import { SelectModal } from "./SelectModal";
@@ -72,6 +74,37 @@ export function ProfileSection({
   editOk,
   onSave,
 }: Props) {
+  const [zipLocationBusy, setZipLocationBusy] = useState(false);
+  const [zipLocationError, setZipLocationError] = useState<string | null>(null);
+
+  const onUseMyLocation = useCallback(async () => {
+    if (zipLocationBusy || editBusy) return;
+    setZipLocationError(null);
+    setZipLocationBusy(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setZipLocationError("Could not detect location");
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({});
+      const results = await Location.reverseGeocodeAsync({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+      const postal = results[0]?.postalCode?.replace(/\D/g, "").slice(0, 5) ?? "";
+      if (postal.length !== 5) {
+        setZipLocationError("Could not detect location");
+        return;
+      }
+      setEditZipCode(postal);
+    } catch {
+      setZipLocationError("Could not detect location");
+    } finally {
+      setZipLocationBusy(false);
+    }
+  }, [editBusy, setEditZipCode, zipLocationBusy]);
+
   return (
     <>
       <Text style={styles.sectionTitle}>Edit profile</Text>
@@ -131,11 +164,28 @@ export function ProfileSection({
           placeholderTextColor="rgba(255,255,255,0.35)"
           editable={!editBusy}
         />
-        <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Zip code</Text>
+        <View style={styles.zipLabelRow}>
+          <Text style={styles.fieldLabel}>ZIP CODE</Text>
+          <Pressable
+            onPress={() => void onUseMyLocation()}
+            disabled={editBusy || zipLocationBusy}
+            style={editBusy || zipLocationBusy ? styles.zipLocationBtnDisabled : undefined}
+            hitSlop={8}
+          >
+            {zipLocationBusy ? (
+              <ActivityIndicator size="small" color={LIME} />
+            ) : (
+              <Text style={styles.zipLocationBtn}>Use my location</Text>
+            )}
+          </Pressable>
+        </View>
         <TextInput
           style={styles.input}
           value={editZipCode}
-          onChangeText={(t) => setEditZipCode(t.replace(/\D/g, "").slice(0, 5))}
+          onChangeText={(t) => {
+            setZipLocationError(null);
+            setEditZipCode(t.replace(/\D/g, "").slice(0, 5));
+          }}
           keyboardType="numeric"
           maxLength={5}
           autoCorrect={false}
@@ -143,6 +193,10 @@ export function ProfileSection({
           placeholderTextColor="rgba(255,255,255,0.35)"
           editable={!editBusy}
         />
+        <Text style={styles.zipHelper}>
+          Your ZIP determines which runs appear on your Pickup tab. Update it if you move or travel.
+        </Text>
+        {zipLocationError ? <Text style={styles.zipLocationError}>{zipLocationError}</Text> : null}
         {editZipCode.replace(/\D/g, "").length === 5 && !String(profileNearestVenue ?? "").trim() ? (
           <Text style={styles.zipNearestHint}>{ACCOUNT_ZIP_NO_NEAREST_VENUE_MSG}</Text>
         ) : null}
