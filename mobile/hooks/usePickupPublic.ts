@@ -161,19 +161,6 @@ export function usePickupPublic(
     void load();
   }, [load]);
 
-  useEffect(() => {
-    if (!effectiveRunIdParam) return;
-    setData((prev) => {
-      const p = parsePickupPayload(prev);
-      const rid =
-        p.run && typeof (p.run as { id?: unknown }).id === "string"
-          ? (p.run as { id: string }).id
-          : null;
-      if (rid && rid !== effectiveRunIdParam) return null;
-      return prev;
-    });
-  }, [effectiveRunIdParam]);
-
   const parsed: PickupPublicPayload = useMemo(() => parsePickupPayload(data), [data]);
   const run = parsed.run && typeof parsed.run === "object" ? parsed.run : null;
   const runIdFromPayload =
@@ -252,19 +239,6 @@ export function usePickupPublic(
   const visibility = parsed.visibility ?? {};
 
   const invitedNow = visibility.invitedNow === true;
-
-  const runType =
-    run && typeof (run as { run_type?: unknown }).run_type === "string"
-      ? (run as { run_type: string }).run_type
-      : null;
-  const runIdParsed =
-    run && typeof (run as { id?: unknown }).id === "string" ? (run as { id: string }).id : null;
-  console.log("[usePickupPublic] parsed", {
-    invitedNow,
-    runId: runIdParsed,
-    run_type: runType,
-    focusRunId: effectiveRunIdParam || null,
-  });
 
   const myStatus: string | null =
     parsed.my_status === undefined || parsed.my_status === null

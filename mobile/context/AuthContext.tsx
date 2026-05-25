@@ -2,7 +2,6 @@ import { authRouteRef } from "@/lib/authRouteRef";
 import { clearStoredPin } from "@/lib/appLock";
 import { establishRecoverySession, isResetPasswordDeepLink } from "@/lib/authDeepLink";
 import { clearBiometricSignIn } from "@/lib/biometricSignIn";
-import { getPostAuthHref } from "@/lib/onboarding";
 import { getMobileSupabaseClient } from "@/lib/supabase";
 import * as Sentry from "@sentry/react-native";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
@@ -151,10 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           replaceTabsTimeoutRef.current = setTimeout(() => {
             replaceTabsTimeoutRef.current = null;
-            void (async () => {
-              const href = await getPostAuthHref();
-              router.replace(href);
-            })();
+            router.replace("/(tabs)");
           }, 100);
         }
       }

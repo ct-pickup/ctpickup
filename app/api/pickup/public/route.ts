@@ -168,7 +168,7 @@ export async function GET(req: Request) {
     // - select runs: row in pickup_run_invites
     let invitedNow = false;
 
-    if (userId && approved) {
+    if (userId && approved && profileMatchesRunServiceRegion(nearestVenue, run.service_region)) {
       if (isPublicPickupRunType(run.run_type)) {
         invitedNow = true;
       } else {

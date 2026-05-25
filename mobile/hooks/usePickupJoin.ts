@@ -139,22 +139,6 @@ export function usePickupJoin() {
         Alert.alert("No featured run", "There isn’t a promoted pickup to join yet. Try again later.");
         return;
       }
-      console.log("[pickup join] joinPickup start", { runId: id, payForFriend: !!options?.friendUserId });
-      // #region agent log
-      fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "6fee4d" },
-        body: JSON.stringify({
-          sessionId: "6fee4d",
-          runId: "im-in",
-          hypothesisId: "G",
-          location: "usePickupJoin.ts:joinPickup",
-          message: "joinPickup start",
-          data: { runId: id },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       const friendId = typeof options?.friendUserId === "string" ? options.friendUserId.trim() : "";
       const friendName =
         typeof options?.friendDisplayName === "string" && options.friendDisplayName.trim().length > 0

@@ -203,33 +203,13 @@ function RunSummaryCard({
   if (embedded) return <>{inner}</>;
 
   if (onPress) {
-    const handlePress = () => {
-      const runId = typeof row.id === "string" ? row.id : null;
-      console.log("[runs] card tapped, run id:", runId);
-      // #region agent log
-      fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "6fee4d" },
-        body: JSON.stringify({
-          sessionId: "6fee4d",
-          runId: "pre-fix",
-          hypothesisId: "A",
-          location: "runs.tsx:RunSummaryCard.handlePress",
-          message: "run summary card onPress",
-          data: { runId },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
-      onPress();
-    };
     return (
       <AnimatedPressScale
         accessibilityRole="button"
         accessibilityLabel="Open run details"
         pressedScale={0.98}
         hapticOnPress
-        onPress={handlePress}
+        onPress={onPress}
         style={styles.card}
       >
         {inner}
@@ -255,7 +235,6 @@ export default function RunsScreen() {
   const [listError, setListError] = useState<string | null>(null);
   const [reliabilityScore, setReliabilityScore] = useState<number | null>(null);
   const autoOpenedFromDeepLinkRef = useRef(false);
-  const statePickedRef = useRef(false);
 
   const { run_id: rawRunIdParam } = useLocalSearchParams<{ run_id?: string | string[] }>();
   const focusRunIdParam = useMemo(() => {
@@ -267,9 +246,7 @@ export default function RunsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (!statePickedRef.current) {
-        setShowStatePicker(true);
-      }
+      setShowStatePicker(true);
     }, []),
   );
 
@@ -308,7 +285,6 @@ export default function RunsScreen() {
 
   const onPickState = useCallback(
     (code: ServiceRegionCode) => {
-      statePickedRef.current = true;
       void setRegion(code);
       setShowStatePicker(false);
     },
@@ -382,10 +358,6 @@ export default function RunsScreen() {
   const { rooms } = useUserChatRooms(chatEnabled);
 
   const runId = typeof run?.id === "string" ? run.id : null;
-  /** Prefer sheet selection so join targets the tapped card while public payload reloads. */
-  const joinRunId = detailOpen && selectedRunId ? selectedRunId : runId;
-  const detailRunMatches =
-    !detailOpen || !selectedRunId || !runId || runId === selectedRunId;
   const runStatus = typeof run?.status === "string" ? run.status : null;
   const runLocked = runStatus === "in_progress";
 
@@ -433,9 +405,8 @@ export default function RunsScreen() {
     spotsLeft > 0;
 
   const eligibleToJoin =
-    detailRunMatches &&
     !!token &&
-    !!joinRunId &&
+    !!runId &&
     !runLocked &&
     invitedNow &&
     (myStatus == null || myStatus === "declined") &&
@@ -493,47 +464,14 @@ export default function RunsScreen() {
   }, [loadRegionRuns, load, detailRunId]);
 
   const openRunDetail = useCallback((id: string) => {
-    // #region agent log
-    fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "6fee4d" },
-      body: JSON.stringify({
-        sessionId: "6fee4d",
-        runId: "pre-fix",
-        hypothesisId: "B",
-        location: "runs.tsx:openRunDetail",
-        message: "openRunDetail called",
-        data: { id, detailOpenBefore: detailOpen, selectedRunIdBefore: selectedRunId },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     void hapticTap();
     setSelectedRunId(id);
     setDetailOpen(true);
-  }, [detailOpen, selectedRunId]);
+  }, []);
 
   const closeRunDetail = useCallback(() => {
     setDetailOpen(false);
   }, []);
-
-  useEffect(() => {
-    // #region agent log
-    fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "6fee4d" },
-      body: JSON.stringify({
-        sessionId: "6fee4d",
-        runId: "pre-fix",
-        hypothesisId: "C",
-        location: "runs.tsx:detailOpenEffect",
-        message: "detail sheet state",
-        data: { detailOpen, selectedRunId, detailRunId, showStatePicker, regionRunsCount: regionRuns.length },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [detailOpen, selectedRunId, detailRunId, showStatePicker, regionRuns.length]);
 
   useEffect(() => {
     if (!focusRunIdParam || showStatePicker || autoOpenedFromDeepLinkRef.current) return;
@@ -545,30 +483,14 @@ export default function RunsScreen() {
   const detailVenue = run ? runVenueFromRow(run) : "Pickup run";
 
   const onImIn = useCallback(() => {
-    console.log("[runs] onImIn pressed", { joinRunId, runId, selectedRunId, joinBusy });
-    // #region agent log
-    fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "6fee4d" },
-      body: JSON.stringify({
-        sessionId: "6fee4d",
-        runId: "im-in",
-        hypothesisId: "F",
-        location: "runs.tsx:onImIn",
-        message: "onImIn pressed",
-        data: { joinRunId, runId, selectedRunId, joinBusy, showImIn, eligibleToJoin, invitedNow },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-    if (!token || !joinRunId) {
+    if (!token || !runId) {
       Alert.alert("Sign in required", "Sign in to join this run.");
       return;
     }
     void hapticTap();
     void joinPickup(
       token,
-      joinRunId,
+      runId,
       async () => {
         await load();
         void loadRegionRuns();
@@ -576,37 +498,37 @@ export default function RunsScreen() {
       },
       { venueName: detailVenue },
     );
-  }, [token, joinRunId, runId, selectedRunId, joinBusy, showImIn, eligibleToJoin, invitedNow, joinPickup, load, loadRegionRuns, detailVenue]);
+  }, [token, runId, joinPickup, load, loadRegionRuns, detailVenue]);
 
   const onCantMakeIt = useCallback(() => {
-    if (!token || !joinRunId) {
+    if (!token || !runId) {
       Alert.alert("Sign in required", "Sign in to respond to this run.");
       return;
     }
     void hapticTap();
-    void recordCantMakeIt(token, joinRunId, runStatus, run?.final_slot_id, async () => {
+    void recordCantMakeIt(token, runId, runStatus, run?.final_slot_id, async () => {
       await load();
       void loadRegionRuns();
     });
-  }, [token, joinRunId, runStatus, run?.final_slot_id, recordCantMakeIt, load, loadRegionRuns]);
+  }, [token, runId, runStatus, run?.final_slot_id, recordCantMakeIt, load, loadRegionRuns]);
 
   const onCompletePayment = useCallback(() => {
-    if (!token || !joinRunId) return;
+    if (!token || !runId) return;
     void hapticTap();
-    void payPickup(token, joinRunId, async () => {
+    void payPickup(token, runId, async () => {
       await load();
       void loadRegionRuns();
     }, { venueName: detailVenue });
-  }, [token, joinRunId, payPickup, load, loadRegionRuns, detailVenue]);
+  }, [token, runId, payPickup, load, loadRegionRuns, detailVenue]);
 
   const onConfirmSpot = useCallback(() => {
-    if (!token || !joinRunId) {
+    if (!token || !runId) {
       Alert.alert("Sign in required", "Sign in to confirm your spot.");
       return;
     }
     void hapticTap();
     if (myStatus === "pending_confirm" && feeCents > 0) {
-      void payPickup(token, joinRunId, async () => {
+      void payPickup(token, runId, async () => {
         await load();
         void loadRegionRuns();
       }, { venueName: detailVenue });
@@ -614,7 +536,7 @@ export default function RunsScreen() {
     }
     void joinPickup(
       token,
-      joinRunId,
+      runId,
       async () => {
         await load();
         void loadRegionRuns();
@@ -622,7 +544,7 @@ export default function RunsScreen() {
       },
       { venueName: detailVenue },
     );
-  }, [token, joinRunId, myStatus, feeCents, payPickup, joinPickup, load, loadRegionRuns, detailVenue]);
+  }, [token, runId, myStatus, feeCents, payPickup, joinPickup, load, loadRegionRuns, detailVenue]);
 
   const onOpenChat = useCallback(() => {
     if (banterRoomId) {
@@ -635,24 +557,6 @@ export default function RunsScreen() {
       "Run chat opens once you're confirmed and the room is set up. Check Messages in a moment.",
     );
   }, [banterRoomId, router]);
-
-  console.log("[runs] join gates", {
-    showImIn,
-    eligibleToJoin,
-    invitedNow,
-    timeFinalized,
-    myStatus,
-    runId,
-    joinRunId,
-    selectedRunId,
-    detailRunMatches,
-    detailOpen,
-    token: !!token,
-    joinBusy,
-    runStatus,
-    run_type: run?.run_type,
-    fee_cents: run?.fee_cents,
-  });
 
   if (showStatePicker) {
     return (
@@ -714,16 +618,14 @@ export default function RunsScreen() {
             </Text>
           </View>
         ) : (
-          <View style={styles.runsList}>
-            {regionRuns.map((listRun) => (
-              <RunSummaryCard key={listRun.id} row={listRun} onPress={() => openRunDetail(listRun.id)} />
-            ))}
-          </View>
-        )}
-      </ScrollView>
+          <>
+            <View style={styles.runsList}>
+              {regionRuns.map((listRun) => (
+                <RunSummaryCard key={listRun.id} row={listRun} onPress={() => openRunDetail(listRun.id)} />
+              ))}
+            </View>
 
-      {detailOpen ? (
-        <Modal visible animationType="slide" transparent onRequestClose={closeRunDetail}>
+            <Modal visible={detailOpen} animationType="slide" transparent onRequestClose={closeRunDetail}>
               <View style={styles.modalRoot}>
                 <Pressable style={styles.modalBackdrop} onPress={closeRunDetail} accessibilityLabel="Close run details" />
                 <View style={[styles.detailSheet, { paddingBottom: insets.bottom + 16 }]}>
@@ -733,11 +635,7 @@ export default function RunsScreen() {
                       <FontAwesome name="times" size={20} color="#fff" />
                     </Pressable>
                   </View>
-                  <ScrollView
-                    keyboardShouldPersistTaps="handled"
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.sheetScroll}
-                  >
+                  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetScroll}>
                     {detailLoading && !run ? (
                       <SkeletonCard />
                     ) : detailError ? (
@@ -903,8 +801,10 @@ export default function RunsScreen() {
                   </ScrollView>
                 </View>
               </View>
-        </Modal>
-      ) : null}
+            </Modal>
+          </>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }

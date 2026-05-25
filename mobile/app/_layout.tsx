@@ -152,14 +152,6 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
-                            name="onboarding"
-                            options={{
-                              headerShown: false,
-                              title: "Welcome",
-                              gestureEnabled: false,
-                            }}
-                          />
-                          <Stack.Screen
                             name="rules"
                             options={{
                               headerShown: true,

@@ -102,47 +102,12 @@ function venueLine(row: Record<string, unknown>): string {
   return s(row.title).trim() || "Venue TBD";
 }
 
-function parseOptionalDollarAmount(value: string): number | null {
-  const trimmed = value.trim();
-  if (trimmed === "") return null;
-  const n = Number(trimmed);
-  if (!Number.isFinite(n) || n < 0) return null;
-  return n;
-}
-
-/** Per-player fee: rental ÷ (75% of capacity), then 25% buffer. */
-function recommendedFeeDollars(fieldRentalCost: number, capacity: number): number | null {
-  if (!Number.isFinite(fieldRentalCost) || fieldRentalCost <= 0 || !Number.isFinite(capacity) || capacity <= 0) {
+function recommendedFeeDollars(fieldRentalCost: number, spots: number): number | null {
+  if (!Number.isFinite(fieldRentalCost) || fieldRentalCost < 0 || !Number.isFinite(spots) || spots <= 0) {
     return null;
   }
-  const projectedConfirmed = capacity * 0.75;
-  const perPlayer = (fieldRentalCost / projectedConfirmed) * 1.25;
+  const perPlayer = (fieldRentalCost * 1.25) / (spots * 0.75);
   return Math.ceil(perPlayer * 100) / 100;
-}
-
-function projectedConfirmedPlayers(capacity: number): number {
-  const cap = Number(capacity);
-  if (!Number.isFinite(cap) || cap <= 0) return 0;
-  return cap * 0.75;
-}
-
-/** Gross at projected fill minus field rental. */
-function myEarningsDollars(
-  perPlayerFee: number,
-  projectedConfirmed: number,
-  fieldRentalCost: number,
-): number | null {
-  if (
-    !Number.isFinite(perPlayerFee) ||
-    perPlayerFee < 0 ||
-    !Number.isFinite(projectedConfirmed) ||
-    projectedConfirmed <= 0 ||
-    !Number.isFinite(fieldRentalCost) ||
-    fieldRentalCost < 0
-  ) {
-    return null;
-  }
-  return Math.round((perPlayerFee * projectedConfirmed - fieldRentalCost) * 100) / 100;
 }
 
 function parseFeeDollarsToCents(value: string): number | null {
@@ -181,6 +146,7 @@ export default function AdminPickupOpsScreen() {
   const [createRegionOverride, setCreateRegionOverride] = useState<ServiceRegionCode | null>(null);
   const [createStartAt, setCreateStartAt] = useState("");
   const [createCapacity, setCreateCapacity] = useState("24");
+  const [createEarnings, setCreateEarnings] = useState("0");
   const [createPlayerFee, setCreatePlayerFee] = useState("");
   const [pricingFieldCost, setPricingFieldCost] = useState("");
   const [createBusy, setCreateBusy] = useState(false);
@@ -208,24 +174,11 @@ export default function AdminPickupOpsScreen() {
     return serviceRegionForAdminVenueName(createVenue) ?? "CT";
   }, [isCreateCustomVenue, createVenue, createRegionFromAddress, createRegionOverride]);
 
-  const createCapacityNum = Number(createCapacity) || 0;
-  const fieldRentalCost = parseOptionalDollarAmount(pricingFieldCost);
-  const playerFeeDollars = parseOptionalDollarAmount(createPlayerFee);
-  const projectedFill = projectedConfirmedPlayers(createCapacityNum);
-
   const recommendedFee = useMemo(() => {
-    if (fieldRentalCost == null || createCapacityNum <= 0) return null;
-    return recommendedFeeDollars(fieldRentalCost, createCapacityNum);
-  }, [fieldRentalCost, createCapacityNum]);
-
-  const hasRecommendedFee = recommendedFee != null;
-
-  const effectivePerPlayerFee = playerFeeDollars ?? recommendedFee;
-
-  const myEarnings = useMemo(() => {
-    if (fieldRentalCost == null || effectivePerPlayerFee == null || projectedFill <= 0) return null;
-    return myEarningsDollars(effectivePerPlayerFee, projectedFill, fieldRentalCost);
-  }, [fieldRentalCost, effectivePerPlayerFee, projectedFill]);
+    const spots = Number(createCapacity) || 24;
+    const rental = Number(pricingFieldCost);
+    return recommendedFeeDollars(rental, spots);
+  }, [pricingFieldCost, createCapacity]);
 
   const workflowCounts = useMemo(() => {
     const c: Record<WorkflowTab, number> = { planning: 0, active: 0, past: 0 };
@@ -340,6 +293,7 @@ export default function AdminPickupOpsScreen() {
     setCreateCustomVenueName("");
     setCreateCustomVenueAddress("");
     setCreateRegionOverride(null);
+    setCreateEarnings("0");
     setCreatePlayerFee("");
     setPricingFieldCost("");
     setCreateCapacity("24");
@@ -412,20 +366,17 @@ export default function AdminPickupOpsScreen() {
     } else {
       location_private = adminVenueLocationPreset(createVenue) ?? createVenue;
     }
+    const me = Number(createEarnings);
     const ep = Number(createCapacity) || 24;
     const feeCents = parseFeeDollarsToCents(createPlayerFee);
     if (feeCents == null) {
       Alert.alert("Player fee", "Enter a valid per-player fee in dollars.");
       return;
     }
-    const rental = parseOptionalDollarAmount(pricingFieldCost);
-    const fill = projectedConfirmedPlayers(ep);
-    const feeDollars = Number(createPlayerFee.trim());
-    const meRaw =
-      rental != null && Number.isFinite(feeDollars) && fill > 0
-        ? myEarningsDollars(feeDollars, fill, rental)
-        : null;
-    const me = meRaw != null && Number.isFinite(meRaw) ? Math.max(0, meRaw) : 0;
+    if (!Number.isFinite(me) || me < 0) {
+      Alert.alert("Earnings", "Enter your earnings (0 or more).");
+      return;
+    }
 
     setCreateBusy(true);
     const r = await postAdminCreateRun(token, {
@@ -756,8 +707,6 @@ export default function AdminPickupOpsScreen() {
           <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
             <Text style={styles.sheetTitle}>New run</Text>
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-              <AdminVenuePicker label="Venue" value={createVenue} onChange={onVenueChange} />
-
               <Text style={styles.label}>Run type</Text>
               <View style={styles.typeToggleRow}>
                 {(["public", "select"] as const).map((t) => {
@@ -782,6 +731,8 @@ export default function AdminPickupOpsScreen() {
                   );
                 })}
               </View>
+
+              <AdminVenuePicker label="Venue" value={createVenue} onChange={onVenueChange} />
               {isCreateCustomVenue ? (
                 <>
                   <Text style={styles.label}>Venue name</Text>
@@ -872,51 +823,50 @@ export default function AdminPickupOpsScreen() {
                 placeholderTextColor="rgba(255,255,255,0.35)"
               />
 
+              <Text style={styles.label}>My earnings ($)</Text>
+              <TextInput
+                style={styles.input}
+                value={createEarnings}
+                onChangeText={setCreateEarnings}
+                keyboardType="decimal-pad"
+                placeholder="0"
+                placeholderTextColor="rgba(255,255,255,0.35)"
+              />
+
               <View style={styles.pricingCalcBox}>
                 <Text style={styles.pricingCalcTitle}>Pricing calculator</Text>
+                <Text style={styles.label}>Field rental cost $</Text>
                 <TextInput
                   style={styles.input}
                   value={pricingFieldCost}
                   onChangeText={setPricingFieldCost}
                   keyboardType="decimal-pad"
-                  placeholder="Field rental ($)"
+                  placeholder="Auto-fills from venue"
                   placeholderTextColor="rgba(255,255,255,0.35)"
                 />
-                <View style={styles.pricingCalcRow}>
-                  <Text style={styles.pricingCalcLabel}>Recommended / player</Text>
-                  <Text style={styles.pricingCalcValue}>
-                    {hasRecommendedFee && recommendedFee != null ? `$${recommendedFee.toFixed(2)}` : "—"}
-                  </Text>
-                </View>
+                <Text style={styles.pricingCalcHint}>
+                  Recommended fee:{" "}
+                  {recommendedFee != null ? `$${recommendedFee.toFixed(2)}` : "—"}
+                </Text>
+                <Text style={styles.pricingCalcSub}>
+                  Based on 75% attendance with 25% buffer
+                </Text>
                 <Pressable
-                  disabled={!hasRecommendedFee}
+                  disabled={recommendedFee == null}
                   onPress={() => {
-                    if (!hasRecommendedFee || recommendedFee == null) return;
+                    if (recommendedFee == null) return;
                     void hapticTap();
                     setCreatePlayerFee(recommendedFee.toFixed(2));
                   }}
                   style={({ pressed }) => [
                     styles.usePriceBtn,
-                    !hasRecommendedFee && styles.primaryBtnDisabled,
-                    pressed && hasRecommendedFee && { opacity: 0.9 },
+                    recommendedFee == null && styles.primaryBtnDisabled,
+                    pressed && recommendedFee != null && { opacity: 0.9 },
                   ]}
                 >
-                  <Text style={styles.usePriceBtnText}>Apply recommended fee</Text>
+                  <Text style={styles.usePriceBtnText}>Use this price</Text>
                 </Pressable>
               </View>
-
-              <Text style={styles.label}>My earnings ($)</Text>
-              <View style={styles.readOnlyField}>
-                <Text style={styles.readOnlyFieldText}>
-                  {myEarnings != null ? `$${myEarnings.toFixed(2)}` : "—"}
-                </Text>
-              </View>
-              {fieldRentalCost != null && projectedFill > 0 && effectivePerPlayerFee != null ? (
-                <Text style={styles.earningsHint}>
-                  At {projectedFill % 1 === 0 ? projectedFill : projectedFill.toFixed(1)} players (75% of capacity) ×
-                  ${effectivePerPlayerFee.toFixed(2)} − ${fieldRentalCost.toFixed(2)} rental
-                </Text>
-              ) : null}
 
               <Pressable
                 disabled={createBusy}
@@ -1235,34 +1185,18 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   pricingCalcBox: {
-    marginTop: 10,
-    marginBottom: 4,
+    marginTop: 16,
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.03)",
-    gap: 10,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.04)",
   },
-  pricingCalcTitle: { color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: "700", letterSpacing: 0.4 },
-  pricingCalcRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  pricingCalcLabel: { color: "rgba(255,255,255,0.55)", fontSize: 14 },
-  pricingCalcValue: { color: LIME, fontSize: 18, fontWeight: "800" },
-  readOnlyField: {
-    backgroundColor: "#141414",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    padding: 12,
-  },
-  readOnlyFieldText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  earningsHint: { color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 6, lineHeight: 17 },
+  pricingCalcTitle: { color: "#fff", fontSize: 15, fontWeight: "800", marginBottom: 10 },
+  pricingCalcHint: { color: LIME, fontSize: 16, fontWeight: "700", marginTop: 10 },
+  pricingCalcSub: { color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 6, lineHeight: 18 },
   usePriceBtn: {
+    marginTop: 12,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: LIME,
