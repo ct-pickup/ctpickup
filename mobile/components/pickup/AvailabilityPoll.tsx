@@ -1,7 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { usePickupJoin } from "@/hooks/usePickupJoin";
 import { hapticKick, hapticTap } from "@/lib/haptics";
-import { fmtPickupDtEt, fmtPickupTimeEt } from "@/lib/pickupPublic";
+import { fmtPickupSlotChipEt } from "@/lib/pickupPublic";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
@@ -36,14 +36,6 @@ type Props = {
   onSubmit: () => void;
 };
 
-function slotDisplayFromRow(row: Record<string, unknown>): string {
-  const label = typeof row.label === "string" ? row.label.trim() : "";
-  if (label.length > 0) return label;
-  const startAt = typeof row.start_at === "string" ? row.start_at : null;
-  if (startAt) return fmtPickupDtEt(startAt);
-  return "Time slot";
-}
-
 export function resolvePickupTimeSlotChips(run: Record<string, unknown>): PickupTimeSlotChip[] {
   const raw = run.pickup_run_time_slots;
   if (Array.isArray(raw) && raw.length > 0) {
@@ -54,14 +46,12 @@ export function resolvePickupTimeSlotChips(run: Record<string, unknown>): Pickup
       const slotId = typeof row.id === "string" ? row.id : null;
       const label = typeof row.label === "string" && row.label.trim().length > 0 ? row.label.trim() : null;
       const startAt = typeof row.start_at === "string" ? row.start_at : null;
-      const key = label ?? slotId ?? "";
+      const display = label ?? (startAt ? fmtPickupSlotChipEt(startAt) : "Time slot");
+      const key = slotId ?? label ?? (startAt ? `t:${startAt}` : "");
       if (!key) continue;
-      const display =
-        label ??
-        (startAt ? `${fmtPickupTimeEt(startAt)} ET` : slotDisplayFromRow(row));
       chips.push({
         key,
-        label: label ?? key,
+        label: label ?? display,
         display,
         slotId,
       });
@@ -76,7 +66,7 @@ export function resolvePickupTimeSlotChips(run: Record<string, unknown>): Pickup
   }));
 }
 
-function parseSubmittedLabels(planning: PickupPlanningAvailability | null | undefined): string[] {
+function parseSubmittedKeys(planning: PickupPlanningAvailability | null | undefined): string[] {
   const ma = planning?.my_availability;
   if (!Array.isArray(ma)) return [];
   const out: string[] = [];
@@ -85,10 +75,11 @@ function parseSubmittedLabels(planning: PickupPlanningAvailability | null | unde
     const label =
       typeof entry.slot_label === "string" && entry.slot_label.trim().length > 0
         ? entry.slot_label.trim()
-        : typeof entry.slot_id === "string" && entry.slot_id.trim().length > 0
-          ? entry.slot_id.trim()
-          : null;
-    if (label && !out.includes(label)) out.push(label);
+        : null;
+    const slotId =
+      typeof entry.slot_id === "string" && entry.slot_id.trim().length > 0 ? entry.slot_id.trim() : null;
+    const key = slotId ?? label;
+    if (key && !out.includes(key)) out.push(key);
   }
   return out;
 }
@@ -101,20 +92,20 @@ export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
 
   const chips = useMemo(() => resolvePickupTimeSlotChips(run), [run]);
   const chipKeySet = useMemo(() => new Set(chips.map((c) => c.key)), [chips]);
-  const submittedLabels = useMemo(() => {
-    const fromPlanning = parseSubmittedLabels(planning);
-    return fromPlanning.filter((l) => chipKeySet.has(l));
+  const submittedKeys = useMemo(() => {
+    const fromPlanning = parseSubmittedKeys(planning);
+    return fromPlanning.filter((k) => chipKeySet.has(k));
   }, [planning, chipKeySet]);
 
-  const hasSubmitted = submittedLabels.length > 0;
+  const hasSubmitted = submittedKeys.length > 0;
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     if (hasSubmitted && !editing) {
-      setSelectedKeys([...submittedLabels]);
+      setSelectedKeys([...submittedKeys]);
     }
-  }, [hasSubmitted, submittedLabels, editing]);
+  }, [hasSubmitted, submittedKeys, editing]);
 
   const showPicker = !hasSubmitted || editing;
 
@@ -140,7 +131,7 @@ export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
     if (ok) {
       setEditing(false);
     }
-  }, [token, runId, selectedKeys, chips, commitAvailabilitySlots, onSubmit, submittedLabels]);
+  }, [token, runId, selectedKeys, chips, commitAvailabilitySlots, onSubmit]);
 
   const onPressChange = useCallback(() => {
     setEditing(true);
@@ -149,18 +140,12 @@ export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.heading}>Optional — let us know which times work</Text>
+      <Text style={styles.heading}>Which times work for you?</Text>
 
       {hasSubmitted && !editing ? (
         <View style={styles.submittedRow}>
-          <FontAwesome name="check-circle" size={14} color="rgba(163,230,53,0.7)" />
-          <Text style={styles.submittedText} numberOfLines={3}>
-            Available:{" "}
-            {chips
-              .filter((c) => submittedLabels.includes(c.key))
-              .map((c) => c.display)
-              .join(", ")}
-          </Text>
+          <FontAwesome name="check-circle" size={16} color={LIME} />
+          <Text style={styles.submittedText}>Submitted</Text>
         </View>
       ) : null}
 
@@ -184,7 +169,7 @@ export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
                   accessibilityState={{ selected }}
                   accessibilityLabel={`${chip.display}${selected ? ", selected" : ""}`}
                 >
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]} numberOfLines={1}>
+                  <Text style={[styles.chipText, selected && styles.chipTextSelected]} numberOfLines={2}>
                     {chip.display}
                   </Text>
                 </Pressable>
@@ -192,23 +177,21 @@ export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
             })}
           </View>
 
-          <View style={styles.actionsRow}>
-            <Pressable
-              disabled={availabilityBusy || !runId || selectedKeys.length === 0}
-              onPress={() => void onPressSubmit()}
-              style={({ pressed }) => [
-                styles.saveLink,
-                (availabilityBusy || selectedKeys.length === 0) && styles.saveLinkDisabled,
-                pressed && !availabilityBusy && selectedKeys.length > 0 && { opacity: 0.75 },
-              ]}
-            >
-              {availabilityBusy && pendingSlotKey === "multi" ? (
-                <ActivityIndicator color="rgba(255,255,255,0.45)" size="small" />
-              ) : (
-                <Text style={styles.saveLinkText}>Save availability</Text>
-              )}
-            </Pressable>
-          </View>
+          <Pressable
+            disabled={availabilityBusy || !runId || selectedKeys.length === 0}
+            onPress={() => void onPressSubmit()}
+            style={({ pressed }) => [
+              styles.submitBtn,
+              (availabilityBusy || selectedKeys.length === 0) && styles.submitBtnDisabled,
+              pressed && !availabilityBusy && selectedKeys.length > 0 && { opacity: 0.9 },
+            ]}
+          >
+            {availabilityBusy && pendingSlotKey === "multi" ? (
+              <ActivityIndicator color="#111" size="small" />
+            ) : (
+              <Text style={styles.submitBtnText}>Submit Availability</Text>
+            )}
+          </Pressable>
         </>
       ) : (
         <Pressable
@@ -217,7 +200,7 @@ export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
           accessibilityRole="button"
           accessibilityLabel="Change availability"
         >
-          <Text style={styles.changeBtnText}>Change</Text>
+          <Text style={styles.changeBtnText}>Change selection</Text>
         </Pressable>
       )}
     </View>
@@ -226,37 +209,43 @@ export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
 
 const styles = StyleSheet.create({
   wrap: { gap: 10 },
-  heading: { color: "rgba(255,255,255,0.4)", fontSize: 13, fontWeight: "500", lineHeight: 18 },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  heading: { color: "rgba(255,255,255,0.55)", fontSize: 14, fontWeight: "600", lineHeight: 20 },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: LIME,
     backgroundColor: "transparent",
+    maxWidth: "100%",
   },
   chipSelected: {
     borderColor: LIME,
     backgroundColor: LIME,
   },
   chipDisabled: { opacity: 0.5 },
-  chipText: { color: LIME, fontWeight: "600", fontSize: 12 },
+  chipText: { color: LIME, fontWeight: "600", fontSize: 13, lineHeight: 18 },
   chipTextSelected: { color: "#111", fontWeight: "700" },
-  actionsRow: { alignItems: "center", gap: 8, marginTop: 2 },
-  saveLink: { paddingVertical: 4 },
-  saveLinkDisabled: { opacity: 0.35 },
-  saveLinkText: { color: "rgba(255,255,255,0.45)", fontWeight: "600", fontSize: 13 },
+  submitBtn: {
+    marginTop: 4,
+    backgroundColor: LIME,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  submitBtnDisabled: { opacity: 0.4 },
+  submitBtnText: { color: "#111", fontWeight: "800", fontSize: 14 },
   submittedRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 8,
     paddingVertical: 4,
   },
-  submittedText: { flex: 1, color: "rgba(255,255,255,0.5)", fontSize: 13, lineHeight: 18 },
+  submittedText: { color: LIME, fontSize: 14, fontWeight: "700" },
   changeBtn: {
     alignSelf: "flex-start",
     paddingVertical: 4,
   },
-  changeBtnText: { color: "rgba(255,255,255,0.4)", fontSize: 12, fontWeight: "600" },
+  changeBtnText: { color: "rgba(255,255,255,0.45)", fontSize: 12, fontWeight: "600" },
 });

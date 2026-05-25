@@ -191,8 +191,10 @@ export function postAdminCreateRun(
   body: {
     title?: string;
     run_type?: "select" | "public";
-    /** Required for select runs; omitted for public (server assigns next-day poll slots). */
+    /** Required for select runs when time_slots omitted; omitted for public (server assigns next-day poll slots). */
     start_at?: string;
+    /** Select planning runs: 1–5 kickoff options (ISO strings). First slot becomes run.start_at. */
+    time_slots?: string[];
         capacity?: number;
         fee_cents?: number;
         admin_fee_cents?: number;

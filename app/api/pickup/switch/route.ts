@@ -634,26 +634,53 @@ export async function POST(req: Request) {
 
   if (action === "finalize_slot") {
     const run_id = String(body.run_id || "");
-    const slot_id = String(body.slot_id || "");
+    let slot_id = String(body.slot_id || "").trim();
+    const customStartRaw = String(body.custom_start_at || "").trim();
     if (!run_id) return NextResponse.json({ error: "Missing run_id" }, { status: 400 });
-    if (!slot_id) return NextResponse.json({ error: "Missing slot_id" }, { status: 400 });
 
-    const slotRes = await admin
-      .from("pickup_run_time_slots")
-      .select("id,start_at")
-      .eq("id", slot_id)
-      .maybeSingle();
+    let slotStartAt: string;
 
-    const slot = slotRes.data;
-    if (!slot) return NextResponse.json({ error: "Slot not found" }, { status: 404 });
+    if (customStartRaw) {
+      const parsedMs = Date.parse(customStartRaw);
+      if (!Number.isFinite(parsedMs)) {
+        return NextResponse.json({ error: "Invalid custom_start_at" }, { status: 400 });
+      }
+      slotStartAt = new Date(parsedMs).toISOString();
+      const ins = await admin
+        .from("pickup_run_time_slots")
+        .insert({
+          run_id,
+          start_at: slotStartAt,
+          label: "Custom",
+        })
+        .select("id,start_at")
+        .single();
+      if (ins.error || !ins.data) {
+        return NextResponse.json({ error: ins.error?.message || "Could not create custom slot" }, { status: 500 });
+      }
+      slot_id = String(ins.data.id);
+      slotStartAt = String(ins.data.start_at);
+    } else {
+      if (!slot_id) return NextResponse.json({ error: "Missing slot_id or custom_start_at" }, { status: 400 });
 
-    const cancellation_deadline = computeCancellationDeadline(slot.start_at);
+      const slotRes = await admin
+        .from("pickup_run_time_slots")
+        .select("id,start_at")
+        .eq("id", slot_id)
+        .maybeSingle();
+
+      const slot = slotRes.data;
+      if (!slot) return NextResponse.json({ error: "Slot not found" }, { status: 404 });
+      slotStartAt = String(slot.start_at);
+    }
+
+    const cancellation_deadline = computeCancellationDeadline(slotStartAt);
 
     const up = await admin
       .from("pickup_runs")
       .update({
         final_slot_id: slot_id,
-        start_at: slot.start_at,
+        start_at: slotStartAt,
         status: "active",
         cancellation_deadline,
         updated_at: new Date().toISOString(),
@@ -675,7 +702,7 @@ export async function POST(req: Request) {
     });
     await sendPickupFinalizedPush(admin, { userIds: notifyIds, runId: run_id });
 
-    await ensureRunBanterRoomAndMembers(admin, run_id, String(slot.start_at));
+    await ensureRunBanterRoomAndMembers(admin, run_id, slotStartAt);
 
     revalidatePath("/pickup");
     revalidatePath("/status/pickup");

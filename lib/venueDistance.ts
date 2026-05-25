@@ -18,7 +18,7 @@ export type VenueDestination = {
   lng: number;
 };
 
-function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
+export function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 3959;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;

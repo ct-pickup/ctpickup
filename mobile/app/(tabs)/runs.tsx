@@ -8,7 +8,13 @@ import { usePickupJoin } from "@/hooks/usePickupJoin";
 import { usePickupPublic } from "@/hooks/usePickupPublic";
 import { useTeamChatAccess } from "@/hooks/useTeamChat";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
-import { fmtPickupDateEt, fmtPickupTimeEt } from "@/lib/pickupPublic";
+import {
+  fmtPickupDateEt,
+  fmtPickupDateFromDateOnlyStartAt,
+  fmtPickupTimeEt,
+  isPickupRunDateOnlyStartAt,
+  isPickupRunTimeTbd,
+} from "@/lib/pickupPublic";
 import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickupRunType";
 import { fetchPickupRegionRuns, fetchPickupStanding } from "@/lib/siteApi";
 import { useUserChatRooms } from "@/lib/teamChat";
@@ -85,6 +91,7 @@ type RegionRunListItem = {
   fee_cents: number;
   confirmed_count: number;
   final_slot_id: string | null;
+  distance_miles: number | null;
 };
 
 /** Planning / likely_on before a slot is locked — poll lives on the list, not in the modal. */
@@ -134,7 +141,11 @@ function RunSummaryCard({
   inlinePlanning?: boolean;
 }) {
   const runStatus = typeof row.status === "string" ? row.status : null;
-  const isPlanning = runStatus === "planning";
+  const finalSlotId =
+    typeof (row as RegionRunListItem).final_slot_id === "string"
+      ? (row as RegionRunListItem).final_slot_id
+      : null;
+  const timeTbd = isPickupRunTimeTbd(runStatus, finalSlotId);
   const showTypeLabel = isPublicPickupRunType(row.run_type) || isSelectPickupRunType(row.run_type);
   const typeLabel = isPublicPickupRunType(row.run_type)
     ? "Public"
@@ -152,6 +163,10 @@ function RunSummaryCard({
       : 0;
   const fillRatio = capacity > 0 ? Math.min(1, confirmed / capacity) : 0;
   const startAt = typeof row.start_at === "string" ? row.start_at : null;
+  const distanceMiles =
+    typeof (row as RegionRunListItem).distance_miles === "number"
+      ? (row as RegionRunListItem).distance_miles
+      : null;
 
   const inner = (
     <>
@@ -175,9 +190,13 @@ function RunSummaryCard({
       <CardDivider />
 
       <View style={styles.dateTimeRow}>
-        {isPlanning ? (
+        {timeTbd ? (
           <>
-            <Text style={styles.datePlanning}>{fmtPickupDateEt(startAt)}</Text>
+            <Text style={styles.datePlanning}>
+              {isPickupRunDateOnlyStartAt(startAt)
+                ? fmtPickupDateFromDateOnlyStartAt(startAt)
+                : fmtPickupDateEt(startAt)}
+            </Text>
             <Text style={styles.planningTimeHint}>
               {inlinePlanning ? "Time TBD — vote below" : "Time TBD — tap for details"}
             </Text>
@@ -194,9 +213,16 @@ function RunSummaryCard({
 
       <View style={styles.locationRow}>
         <FontAwesome name="map-marker" size={14} color="rgba(255,255,255,0.35)" style={styles.locationIcon} />
-        <Text style={styles.venue} numberOfLines={2}>
-          {venue}
-        </Text>
+        <View style={styles.locationTextBlock}>
+          <Text style={styles.venue} numberOfLines={2}>
+            {venue}
+          </Text>
+          {distanceMiles != null ? (
+            <Text style={styles.distanceAway}>
+              {distanceMiles % 1 === 0 ? `${Math.round(distanceMiles)}` : distanceMiles.toFixed(1)} mi away
+            </Text>
+          ) : null}
+        </View>
       </View>
 
       <CardDivider />
@@ -276,7 +302,7 @@ function InlinePlanningPoll({
   const showPoll =
     !!run &&
     invitedNow &&
-    isPublicPickupRunType(run.run_type) &&
+    (isPublicPickupRunType(run.run_type) || isSelectPickupRunType(run.run_type)) &&
     (runStatus === "planning" || runStatus === "likely_on") &&
     run.final_slot_id == null &&
     !hasDeclinedAvailability;
@@ -339,6 +365,8 @@ export default function RunsScreen() {
   const [listError, setListError] = useState<string | null>(null);
   const [reliabilityScore, setReliabilityScore] = useState<number | null>(null);
   const [listRefreshNonce, setListRefreshNonce] = useState(0);
+  const [listFilterZip, setListFilterZip] = useState<string | null>(null);
+  const [listFilterMaxMiles, setListFilterMaxMiles] = useState<number | null>(null);
   const autoOpenedFromDeepLinkRef = useRef(false);
 
   const { run_id: rawRunIdParam } = useLocalSearchParams<{ run_id?: string | string[] }>();
@@ -410,9 +438,18 @@ export default function RunsScreen() {
     setListLoading(true);
     setListError(null);
     try {
-      const r = await fetchPickupRegionRuns(region);
+      const r = await fetchPickupRegionRuns(region, token);
       if (r.ok && r.json && typeof r.json === "object") {
-        const rows = (r.json as { runs?: unknown }).runs;
+        const body = r.json as {
+          runs?: unknown;
+          filter?: { zip?: string | null; max_miles?: number | null };
+        };
+        const filter = body.filter;
+        setListFilterZip(typeof filter?.zip === "string" ? filter.zip : null);
+        setListFilterMaxMiles(
+          typeof filter?.max_miles === "number" && Number.isFinite(filter.max_miles) ? filter.max_miles : null,
+        );
+        const rows = body.runs;
         if (Array.isArray(rows)) {
           const parsed: RegionRunListItem[] = rows
             .map((row) => {
@@ -432,6 +469,10 @@ export default function RunsScreen() {
                 final_slot_id:
                   typeof o.final_slot_id === "string" && o.final_slot_id.trim()
                     ? o.final_slot_id.trim()
+                    : null,
+                distance_miles:
+                  typeof o.distance_miles === "number" && Number.isFinite(o.distance_miles)
+                    ? o.distance_miles
                     : null,
               };
             })
@@ -454,7 +495,7 @@ export default function RunsScreen() {
       setRegionRuns([]);
     }
     setListLoading(false);
-  }, [region, regionReady]);
+  }, [region, regionReady, token]);
 
   useEffect(() => {
     if (showStatePicker || !regionReady) return;
@@ -699,7 +740,9 @@ export default function RunsScreen() {
           </View>
         </View>
         <Text style={styles.regionSub}>
-          Pickup runs in {serviceRegionName(region)} ({region})
+          {listFilterZip && listFilterMaxMiles != null
+            ? `Runs within ${listFilterMaxMiles} mi of ${listFilterZip} · ${serviceRegionName(region)}`
+            : `Pickup runs in ${serviceRegionName(region)} (${region})`}
         </Text>
 
         {listLoading && regionRuns.length === 0 ? (
@@ -717,7 +760,9 @@ export default function RunsScreen() {
         ) : regionRuns.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>
-              No runs scheduled for {serviceRegionName(region)} right now. Check back soon.
+              {listFilterZip && listFilterMaxMiles != null
+                ? `No runs within ${listFilterMaxMiles} mi right now. Try a larger radius in Account settings.`
+                : `No runs scheduled for ${serviceRegionName(region)} right now. Check back soon.`}
             </Text>
           </View>
         ) : (
@@ -1052,7 +1097,9 @@ const styles = StyleSheet.create({
     paddingTop: 2,
   },
   locationIcon: { marginTop: 3 },
-  venue: { flex: 1, color: "rgba(255,255,255,0.75)", fontSize: 15, lineHeight: 22 },
+  locationTextBlock: { flex: 1, gap: 4 },
+  venue: { color: "rgba(255,255,255,0.75)", fontSize: 15, lineHeight: 22 },
+  distanceAway: { color: "rgba(163,230,53,0.85)", fontSize: 13, fontWeight: "600" },
   feeSpotsRow: {
     flexDirection: "row",
     alignItems: "center",

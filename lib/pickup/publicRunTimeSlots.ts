@@ -39,10 +39,17 @@ export function buildPublicPickupTimeSlotsForNextDay(
   });
 }
 
-/** Earliest preset kickoff (used as run `start_at` placeholder until a slot is finalized). */
+/**
+ * Placeholder `start_at` for public planning runs: next Eastern calendar day at midnight UTC
+ * (date anchor only — poll slots hold real kickoff options until finalize).
+ */
 export function publicPickupRunPlaceholderStartAt(
   now: DateTime = DateTime.now().setZone(TZ),
 ): string {
-  const slots = buildPublicPickupTimeSlotsForNextDay(now);
-  return slots[0]!.start_at;
+  const { year, month, day } = nextEasternCalendarDay(now);
+  const iso = DateTime.utc(year, month, day, 0, 0, 0, 0).toISO();
+  if (!iso) {
+    throw new RangeError("Invalid placeholder start_at for public pickup run");
+  }
+  return iso;
 }

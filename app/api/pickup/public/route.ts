@@ -238,6 +238,22 @@ export async function GET(req: Request) {
       }));
     }
 
+    const slotsRes = await admin
+      .from("pickup_run_time_slots")
+      .select("id,start_at,label")
+      .eq("run_id", run.id)
+      .order("start_at", { ascending: true });
+
+    if (slotsRes.error) {
+      console.error(`[api/${ROUTE}] pickup_run_time_slots:`, slotsRes.error.message, slotsRes.error);
+    }
+
+    const pickup_run_time_slots = (slotsRes.data || []).map((s) => ({
+      id: String(s.id),
+      start_at: s.start_at,
+      label: typeof s.label === "string" ? s.label : null,
+    }));
+
     // Location privacy (canonical):
     // only confirmed players (or admin) can see exact location.
     const locationText =
@@ -318,6 +334,7 @@ export async function GET(req: Request) {
         likely_on_slot_id: run.likely_on_slot_id,
         final_slot_id: run.final_slot_id,
         service_region: run.service_region ?? null,
+        pickup_run_time_slots,
       },
       visibility: { invitedNow, attendanceVisible },
       counts: {

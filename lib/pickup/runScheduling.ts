@@ -1,3 +1,5 @@
+import { isPickupRunDateOnlyStartAt } from "@/lib/pickup/runStartAtDisplay";
+
 /** ISO instant for start_at minus 24 hours (player-initiated refund if canceled strictly before this time). */
 export function computeCancellationDeadline(startAtISO: string) {
   const startMs = new Date(startAtISO).getTime();
@@ -13,7 +15,7 @@ export function pickupPlayerRefundEligibleNow(
   nowMs: number = Date.now(),
 ): boolean {
   const startRaw = run.start_at != null ? String(run.start_at).trim() : "";
-  if (startRaw) {
+  if (startRaw && !isPickupRunDateOnlyStartAt(startRaw)) {
     try {
       const cutoffMs = new Date(computeCancellationDeadline(startRaw)).getTime();
       if (Number.isFinite(cutoffMs)) return nowMs < cutoffMs;
@@ -32,8 +34,12 @@ export function anchorStartAtMs(
   run: { start_at: string | null },
   slots: { start_at: string }[],
 ): number | null {
-  let best: number | null = run.start_at ? new Date(run.start_at).getTime() : null;
-  if (best !== null && !Number.isFinite(best)) best = null;
+  let best: number | null = null;
+  const runStartRaw = run.start_at != null ? String(run.start_at).trim() : "";
+  if (runStartRaw && !isPickupRunDateOnlyStartAt(runStartRaw)) {
+    const t = new Date(runStartRaw).getTime();
+    if (Number.isFinite(t)) best = t;
+  }
   for (const s of slots) {
     const t = new Date(s.start_at).getTime();
     if (!Number.isFinite(t)) continue;

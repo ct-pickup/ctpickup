@@ -19,7 +19,7 @@ import {
   type PickupSwitchDetailResponse,
 } from "@/lib/adminApi";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
-import { fmtPickupDtEt } from "@/lib/pickupPublic";
+import { fmtPickupRunScheduleEt } from "@/lib/pickupPublic";
 import { isPublicPickupRunType } from "@/lib/pickupRunType";
 import { skipWaveUiForRun } from "@/lib/pickupWaveOutreach";
 import {
@@ -144,7 +144,7 @@ export default function AdminPickupOpsScreen() {
   const [createCustomVenueName, setCreateCustomVenueName] = useState("");
   const [createCustomVenueAddress, setCreateCustomVenueAddress] = useState("");
   const [createRegionOverride, setCreateRegionOverride] = useState<ServiceRegionCode | null>(null);
-  const [createStartAt, setCreateStartAt] = useState("");
+  const [createTimeSlots, setCreateTimeSlots] = useState<string[]>([""]);
   const [createCapacity, setCreateCapacity] = useState("24");
   const [createEarnings, setCreateEarnings] = useState("0");
   const [createPlayerFee, setCreatePlayerFee] = useState("");
@@ -288,7 +288,7 @@ export default function AdminPickupOpsScreen() {
   }
 
   function resetCreateForm() {
-    setCreateStartAt("");
+    setCreateTimeSlots([""]);
     setCreateVenue("");
     setCreateCustomVenueName("");
     setCreateCustomVenueAddress("");
@@ -321,21 +321,32 @@ export default function AdminPickupOpsScreen() {
     }
     const isPublic = createRunType === "public";
     let start_at: string | undefined;
+    let time_slots: string[] | undefined;
     if (!isPublic) {
-      const picked = createStartAt.trim();
-      if (!picked) {
-        Alert.alert("Pick a date & time", "Choose when this run starts (Eastern Time).");
+      const slots: string[] = [];
+      for (const raw of createTimeSlots) {
+        const picked = raw.trim();
+        if (!picked) continue;
+        if (isScheduleWallMidnightEt(picked)) {
+          Alert.alert("Pick a time", "Each slot needs a real start time, not midnight.");
+          return;
+        }
+        if (new Date(picked) <= new Date()) {
+          Alert.alert("Future only", "All slot times must be in the future.");
+          return;
+        }
+        slots.push(picked);
+      }
+      if (slots.length < 1) {
+        Alert.alert("Time slots", "Add at least one date & time option for players to vote on.");
         return;
       }
-      if (isScheduleWallMidnightEt(picked)) {
-        Alert.alert("Pick a time", "Runs need a real start time, not midnight.");
+      if (slots.length > 5) {
+        Alert.alert("Time slots", "You can add at most 5 time options.");
         return;
       }
-      if (new Date(picked) <= new Date()) {
-        Alert.alert("Future only", "Start time must be in the future.");
-        return;
-      }
-      start_at = picked;
+      time_slots = slots;
+      start_at = slots[0];
     }
     if (!createVenue.trim()) {
       Alert.alert("Pick a venue", "Select a venue from the list.");
@@ -381,6 +392,7 @@ export default function AdminPickupOpsScreen() {
     setCreateBusy(true);
     const r = await postAdminCreateRun(token, {
       ...(start_at ? { start_at } : {}),
+      ...(time_slots ? { time_slots } : {}),
       title: runTitle,
       service_region: createRegion,
       capacity: ep,
@@ -659,7 +671,9 @@ export default function AdminPickupOpsScreen() {
                   <Text style={styles.typeBadgeText}>{typeLabel}</Text>
                 </View>
               </View>
-              <Text style={styles.cardEt}>{fmtPickupDtEt(s(row.start_at))}</Text>
+              <Text style={styles.cardEt}>
+                {fmtPickupRunScheduleEt(s(row.start_at), s(row.status), s(row.final_slot_id) || null)}
+              </Text>
               <Text style={styles.cardVenue} numberOfLines={2}>
                 {venueLine(row)}
               </Text>
@@ -794,13 +808,55 @@ export default function AdminPickupOpsScreen() {
                   </Text>
                 </View>
               ) : (
-                <DateTimePicker
-                  label="Date & time (ET)"
-                  value={createStartAt}
-                  onChange={setCreateStartAt}
-                  enforceFuture
-                  prominent
-                />
+                <>
+                  <Text style={styles.label}>Time slot options</Text>
+                  <Text style={styles.slotSectionHint}>
+                    Players vote on which times work (1–5 options). Run stays in planning until you finalize.
+                  </Text>
+                  {createTimeSlots.map((slotVal, idx) => (
+                    <View key={`slot-${idx}`} style={styles.slotBlock}>
+                      <View style={styles.slotBlockHeader}>
+                        <Text style={styles.slotBlockTitle}>Option {idx + 1}</Text>
+                        {createTimeSlots.length > 1 ? (
+                          <Pressable
+                            onPress={() => {
+                              void hapticTap();
+                              setCreateTimeSlots((prev) => prev.filter((_, i) => i !== idx));
+                            }}
+                            hitSlop={8}
+                          >
+                            <Text style={styles.removeSlotText}>Remove</Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
+                      <DateTimePicker
+                        label="Date & time (ET)"
+                        value={slotVal}
+                        onChange={(v) => {
+                          setCreateTimeSlots((prev) => {
+                            const next = [...prev];
+                            next[idx] = v;
+                            return next;
+                          });
+                        }}
+                        enforceFuture
+                        prominent={idx === 0}
+                      />
+                    </View>
+                  ))}
+                  {createTimeSlots.length < 5 ? (
+                    <Pressable
+                      onPress={() => {
+                        void hapticTap();
+                        setCreateTimeSlots((prev) => [...prev, ""]);
+                      }}
+                      style={({ pressed }) => [styles.addSlotBtn, pressed && { opacity: 0.9 }]}
+                    >
+                      <FontAwesome name="plus" size={12} color={LIME} />
+                      <Text style={styles.addSlotBtnText}>Add another time slot</Text>
+                    </Pressable>
+                  ) : null}
+                </>
               )}
 
               <Text style={styles.label}>Capacity</Text>
@@ -906,7 +962,13 @@ export default function AdminPickupOpsScreen() {
             ) : detailRun ? (
               <ScrollView showsVerticalScrollIndicator={false}>
                 <Text style={styles.detailTitle}>{s(detailRun.title) || "Pickup run"}</Text>
-                <Text style={styles.detailEt}>{fmtPickupDtEt(s(detailRun.start_at))}</Text>
+                <Text style={styles.detailEt}>
+                  {fmtPickupRunScheduleEt(
+                    s(detailRun.start_at),
+                    s(detailRun.status),
+                    s(detailRun.final_slot_id) || null,
+                  )}
+                </Text>
                 <Text style={styles.detailVenue}>{venueLine(detailRun)}</Text>
                 <Text style={styles.detailMeta}>
                   {isPublicPickupRunType(detailRun.run_type) ? "Public" : "Select"} · Cap{" "}
@@ -1178,6 +1240,30 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.04)",
   },
   publicTimeNoteText: { color: "rgba(255,255,255,0.65)", fontSize: 14, lineHeight: 20 },
+  slotSectionHint: { color: "rgba(255,255,255,0.45)", fontSize: 13, lineHeight: 18, marginBottom: 10 },
+  slotBlock: {
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.03)",
+  },
+  slotBlockHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
+  slotBlockTitle: { color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: "700", textTransform: "uppercase" },
+  removeSlotText: { color: "#fca5a5", fontSize: 12, fontWeight: "600" },
+  addSlotBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.35)",
+    marginBottom: 8,
+  },
+  addSlotBtnText: { color: LIME, fontWeight: "700", fontSize: 14 },
   regionDetectedHint: {
     marginTop: 8,
     fontSize: 13,

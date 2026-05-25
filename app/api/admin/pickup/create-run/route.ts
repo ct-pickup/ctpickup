@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { buildPublicPickupTimeSlotsForNextDay } from "@/lib/pickup/publicRunTimeSlots";
+import {
+  buildPublicPickupTimeSlotsForNextDay,
+  publicPickupRunPlaceholderStartAt,
+} from "@/lib/pickup/publicRunTimeSlots";
+import { fmtPickupSlotChipEt, isPickupRunDateOnlyStartAt } from "@/lib/pickup/runStartAtDisplay";
 import { isPublicPickupRunType, normalizePickupRunTypeForDb } from "@/lib/pickup/pickupRunType";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
@@ -30,19 +34,59 @@ export async function POST(req: Request) {
   const publicRun = isPublicPickupRunType(run_type);
 
   let start_at: string;
-  let publicSlots: { label: string; start_at: string }[] | null = null;
+  let timeSlotsToInsert: { label: string; start_at: string }[] | null = null;
 
   if (publicRun) {
-    publicSlots = buildPublicPickupTimeSlotsForNextDay();
-    start_at = publicSlots[0]!.start_at;
-  } else {
+    timeSlotsToInsert = buildPublicPickupTimeSlotsForNextDay();
     const startAtRaw = String(b.start_at || "").trim();
-    if (!startAtRaw) return NextResponse.json({ error: "start_at required" }, { status: 400 });
-    const parsedMs = Date.parse(startAtRaw);
-    if (!Number.isFinite(parsedMs)) {
-      return NextResponse.json({ error: "Invalid start_at datetime" }, { status: 400 });
+    if (startAtRaw) {
+      if (!isPickupRunDateOnlyStartAt(startAtRaw)) {
+        return NextResponse.json(
+          { error: "Public planning runs require a date-only start_at (midnight UTC) or omit start_at" },
+          { status: 400 },
+        );
+      }
+      const m = startAtRaw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) {
+        return NextResponse.json({ error: "Invalid date-only start_at" }, { status: 400 });
+      }
+      start_at = `${m[1]}-${m[2]}-${m[3]}T00:00:00.000Z`;
+    } else {
+      start_at = publicPickupRunPlaceholderStartAt();
     }
-    start_at = new Date(parsedMs).toISOString();
+  } else {
+    const slotsFromBody: string[] = [];
+    if (Array.isArray(b.time_slots)) {
+      for (const entry of b.time_slots) {
+        const raw = String(entry ?? "").trim();
+        if (!raw) continue;
+        const parsedMs = Date.parse(raw);
+        if (!Number.isFinite(parsedMs)) {
+          return NextResponse.json({ error: `Invalid time_slots entry: ${raw}` }, { status: 400 });
+        }
+        slotsFromBody.push(new Date(parsedMs).toISOString());
+      }
+    }
+    if (slotsFromBody.length > 5) {
+      return NextResponse.json({ error: "At most 5 time_slots allowed" }, { status: 400 });
+    }
+    if (slotsFromBody.length > 0) {
+      start_at = slotsFromBody[0]!;
+      timeSlotsToInsert = slotsFromBody.map((iso) => ({
+        label: fmtPickupSlotChipEt(iso),
+        start_at: iso,
+      }));
+    } else {
+      const startAtRaw = String(b.start_at || "").trim();
+      if (!startAtRaw) {
+        return NextResponse.json({ error: "start_at or time_slots required" }, { status: 400 });
+      }
+      const parsedMs = Date.parse(startAtRaw);
+      if (!Number.isFinite(parsedMs)) {
+        return NextResponse.json({ error: "Invalid start_at datetime" }, { status: 400 });
+      }
+      start_at = new Date(parsedMs).toISOString();
+    }
   }
   const capacity = Number(b.capacity ?? 24);
   const fee_cents = Number(b.fee_cents ?? 0);
@@ -109,16 +153,16 @@ export async function POST(req: Request) {
 
   const runRow = insert.data as { id: string };
 
-  if (publicRun && publicSlots) {
+  if (timeSlotsToInsert && timeSlotsToInsert.length > 0) {
     const slotIns = await supabaseAdmin.from("pickup_run_time_slots").insert(
-      publicSlots.map((slot) => ({
+      timeSlotsToInsert.map((slot) => ({
         run_id: runRow.id,
         start_at: slot.start_at,
-        label: slot.label,
+        label: slot.label || null,
       })),
     );
     if (slotIns.error) {
-      console.error("[admin/pickup/create-run] public slots insert failed", slotIns.error);
+      console.error("[admin/pickup/create-run] time slots insert failed", slotIns.error);
       return NextResponse.json({ error: slotIns.error.message }, { status: 500 });
     }
   } else {

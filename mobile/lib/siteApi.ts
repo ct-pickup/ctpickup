@@ -400,7 +400,10 @@ export async function postTournamentMvpVote(accessToken: string, matchId: string
   return { ok: r.ok, status: r.status, json };
 }
 
-export async function fetchPickupRegionRuns(region: string): Promise<{
+export async function fetchPickupRegionRuns(
+  region: string,
+  accessToken?: string | null,
+): Promise<{
   ok: boolean;
   status: number;
   json: unknown;
@@ -411,8 +414,11 @@ export async function fetchPickupRegionRuns(region: string): Promise<{
   }
   const u = new URL(`${origin}/api/pickup/region-runs`);
   u.searchParams.set("region", region);
+  const headers: Record<string, string> = { Accept: "application/json" };
+  const t = accessToken?.trim();
+  if (t) headers.Authorization = `Bearer ${t}`;
   const r = await fetch(u.toString(), {
-    headers: { Accept: "application/json" },
+    headers,
     cache: "no-store",
   });
   const json = await r.json().catch(() => null);

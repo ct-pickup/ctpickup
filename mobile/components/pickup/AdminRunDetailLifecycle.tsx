@@ -80,37 +80,31 @@ export default function AdminRunDetailLifecycle({
     );
   }
 
-  function onFinalizeSlot() {
-    if (!token || !runId || !selectedSlotId) return;
-    Alert.alert(
-      "Finalize this time slot?",
-      "This will close the availability poll and open RSVPs. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Confirm",
-          onPress: () => {
-            void (async () => {
-              setActionBusy(true);
-              const r = await postAdminPickupSwitch(token, {
-                action: "finalize_slot",
-                run_id: runId,
-                slot_id: selectedSlotId,
-              });
-              setActionBusy(false);
-              if (!r.ok) {
-                Alert.alert("Could not finalize", r.error);
-                return;
-              }
-              void hapticGoal();
-              setFinalizeOpen(false);
-              setSelectedSlotId("");
-              await onRefresh();
-            })();
-          },
-        },
-      ],
-    );
+  async function finalizeRun(payload: { slot_id?: string; custom_start_at?: string }) {
+    if (!token || !runId) return;
+    setActionBusy(true);
+    const r = await postAdminPickupSwitch(token, {
+      action: "finalize_slot",
+      run_id: runId,
+      ...payload,
+    });
+    setActionBusy(false);
+    if (!r.ok) {
+      Alert.alert("Could not finalize", r.error);
+      return;
+    }
+    void hapticGoal();
+    setFinalizeOpen(false);
+    setSelectedSlotId("");
+    await onRefresh();
+  }
+
+  function onFinalizeSlotId(slotId: string) {
+    void finalizeRun({ slot_id: slotId });
+  }
+
+  function onFinalizeCustom(startAtIso: string) {
+    void finalizeRun({ custom_start_at: startAtIso });
   }
 
   async function onLockTeams(
@@ -267,7 +261,8 @@ export default function AdminRunDetailLifecycle({
         selectedSlotId={selectedSlotId}
         onSelectSlot={setSelectedSlotId}
         onClose={() => setFinalizeOpen(false)}
-        onConfirm={() => void onFinalizeSlot()}
+        onConfirmSlot={onFinalizeSlotId}
+        onConfirmCustom={onFinalizeCustom}
       />
 
       <TeamAssignmentSheet
