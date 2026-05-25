@@ -31,7 +31,7 @@ export async function GET(req: Request) {
 
     const runRes = await admin
       .from("pickup_runs")
-      .select("id,title,status,start_at,run_type,capacity,fee_cents,service_region")
+      .select("id,title,status,start_at,run_type,capacity,fee_cents,service_region,final_slot_id")
       .eq("service_region", hubRegion)
       .in("status", [...LIST_STATUSES])
       .order("start_at", { ascending: true, nullsFirst: false });
@@ -43,7 +43,15 @@ export async function GET(req: Request) {
 
     const runs = (runRes.data || []) as Pick<
       PublicPickupRunRow,
-      "id" | "title" | "status" | "start_at" | "run_type" | "capacity" | "fee_cents" | "service_region"
+      | "id"
+      | "title"
+      | "status"
+      | "start_at"
+      | "run_type"
+      | "capacity"
+      | "fee_cents"
+      | "service_region"
+      | "final_slot_id"
     >[];
 
     if (!runs.length) {
@@ -77,6 +85,7 @@ export async function GET(req: Request) {
       fee_cents: Number(r.fee_cents ?? 0),
       service_region: r.service_region ?? hubRegion,
       confirmed_count: confirmedByRun.get(String(r.id)) ?? 0,
+      final_slot_id: r.final_slot_id ?? null,
     }));
 
     return NextResponse.json({ runs: payload });

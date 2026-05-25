@@ -84,7 +84,19 @@ type RegionRunListItem = {
   capacity: number;
   fee_cents: number;
   confirmed_count: number;
+  final_slot_id: string | null;
 };
+
+/** Planning / likely_on before a slot is locked — poll lives on the list, not in the modal. */
+function isInlinePlanningRun(row: RegionRunListItem): boolean {
+  const st = row.status;
+  if (st !== "planning" && st !== "likely_on") return false;
+  return row.final_slot_id == null;
+}
+
+function opensRunDetailModal(row: RegionRunListItem): boolean {
+  return !isInlinePlanningRun(row);
+}
 
 function runTitleFromRow(row: {
   title?: string | null;
@@ -112,11 +124,14 @@ function RunSummaryCard({
   onPress,
   showChevron = true,
   embedded = false,
+  inlinePlanning = false,
 }: {
   row: RegionRunListItem | Record<string, unknown>;
   onPress?: () => void;
   showChevron?: boolean;
   embedded?: boolean;
+  /** Planning runs on the list show the poll below — no tap hint. */
+  inlinePlanning?: boolean;
 }) {
   const runStatus = typeof row.status === "string" ? row.status : null;
   const isPlanning = runStatus === "planning";
@@ -163,7 +178,9 @@ function RunSummaryCard({
         {isPlanning ? (
           <>
             <Text style={styles.datePlanning}>{fmtPickupDateEt(startAt)}</Text>
-            <Text style={styles.planningTimeHint}>Time TBD — tap for details</Text>
+            <Text style={styles.planningTimeHint}>
+              {inlinePlanning ? "Time TBD — vote below" : "Time TBD — tap for details"}
+            </Text>
           </>
         ) : (
           <>
@@ -210,14 +227,101 @@ function RunSummaryCard({
         pressedScale={0.98}
         hapticOnPress
         onPress={onPress}
-        style={styles.card}
+        style={[styles.card, inlinePlanning && styles.cardInlinePlanning]}
       >
         {inner}
       </AnimatedPressScale>
     );
   }
 
-  return <View style={styles.card}>{inner}</View>;
+  return <View style={[styles.card, inlinePlanning && styles.cardInlinePlanning]}>{inner}</View>;
+}
+
+function InlinePlanningPoll({
+  runId,
+  token,
+  listRun,
+  onListRefresh,
+  refreshNonce,
+}: {
+  runId: string;
+  token: string | null;
+  listRun: RegionRunListItem;
+  onListRefresh: () => void;
+  refreshNonce: number;
+}) {
+  const { loading, error, data, run, invitedNow, load } = usePickupPublic(token, {
+    focusRunId: runId,
+    skipFeatured: true,
+  });
+
+  useEffect(() => {
+    if (refreshNonce > 0) void load();
+  }, [refreshNonce, load]);
+
+  const planning = useMemo((): PickupPlanningAvailability | null => {
+    if (!data || typeof data !== "object") return null;
+    const p = (data as Record<string, unknown>).planning;
+    if (!p || typeof p !== "object") return null;
+    return p as PickupPlanningAvailability;
+  }, [data]);
+
+  const hasDeclinedAvailability = useMemo(() => {
+    const ma = planning?.my_availability;
+    if (!Array.isArray(ma)) return false;
+    return ma.some((entry) => entry?.state === "declined");
+  }, [planning]);
+
+  const runStatus = typeof run?.status === "string" ? run.status : listRun.status;
+  const showPoll =
+    !!run &&
+    invitedNow &&
+    isPublicPickupRunType(run.run_type) &&
+    (runStatus === "planning" || runStatus === "likely_on") &&
+    run.final_slot_id == null &&
+    !hasDeclinedAvailability;
+
+  if (loading && !run) {
+    return (
+      <View style={styles.inlinePoll}>
+        <Text style={styles.inlinePollLoading}>Loading availability…</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.inlinePoll}>
+        <Text style={styles.inlinePollError}>{error}</Text>
+        <Pressable onPress={() => void load()} style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.9 }]}>
+          <Text style={styles.retryBtnText}>Try again</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (!invitedNow && isSelectPickupRunType(listRun.run_type)) {
+    return (
+      <View style={styles.inlinePoll}>
+        <Text style={styles.hint}>Invite only — you will see voting here once you are invited.</Text>
+      </View>
+    );
+  }
+
+  if (!showPoll) return null;
+
+  return (
+    <View style={styles.inlinePoll}>
+      <AvailabilityPoll
+        run={run}
+        planning={planning}
+        onSubmit={() => {
+          void load();
+          onListRefresh();
+        }}
+      />
+    </View>
+  );
 }
 
 export default function RunsScreen() {
@@ -234,6 +338,7 @@ export default function RunsScreen() {
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const [reliabilityScore, setReliabilityScore] = useState<number | null>(null);
+  const [listRefreshNonce, setListRefreshNonce] = useState(0);
   const autoOpenedFromDeepLinkRef = useRef(false);
 
   const { run_id: rawRunIdParam } = useLocalSearchParams<{ run_id?: string | string[] }>();
@@ -324,6 +429,10 @@ export default function RunsScreen() {
                 capacity: Number(o.capacity ?? 0) || 0,
                 fee_cents: Number(o.fee_cents ?? 0) || 0,
                 confirmed_count: Number(o.confirmed_count ?? 0) || 0,
+                final_slot_id:
+                  typeof o.final_slot_id === "string" && o.final_slot_id.trim()
+                    ? o.final_slot_id.trim()
+                    : null,
               };
             })
             .filter((x): x is RegionRunListItem => x != null);
@@ -386,15 +495,6 @@ export default function RunsScreen() {
     if (!Array.isArray(ma)) return false;
     return ma.some((entry) => entry?.state === "declined");
   }, [planning]);
-
-  const showAvailabilityPoll =
-    !!run &&
-    invitedNow &&
-    !runLocked &&
-    isPublicPickupRunType(run.run_type) &&
-    (runStatus === "planning" || runStatus === "likely_on") &&
-    run.final_slot_id == null &&
-    !hasDeclinedAvailability;
 
   const showPayForFriend =
     !!run &&
@@ -460,6 +560,7 @@ export default function RunsScreen() {
 
   const onRefresh = useCallback(() => {
     void loadRegionRuns();
+    setListRefreshNonce((n) => n + 1);
     if (detailRunId) void load();
   }, [loadRegionRuns, load, detailRunId]);
 
@@ -476,9 +577,11 @@ export default function RunsScreen() {
   useEffect(() => {
     if (!focusRunIdParam || showStatePicker || autoOpenedFromDeepLinkRef.current) return;
     autoOpenedFromDeepLinkRef.current = true;
+    const match = regionRuns.find((r) => r.id === focusRunIdParam);
+    if (match && isInlinePlanningRun(match)) return;
     setSelectedRunId(focusRunIdParam);
     setDetailOpen(true);
-  }, [focusRunIdParam, showStatePicker]);
+  }, [focusRunIdParam, showStatePicker, regionRuns]);
 
   const detailVenue = run ? runVenueFromRow(run) : "Pickup run";
 
@@ -620,9 +723,26 @@ export default function RunsScreen() {
         ) : (
           <>
             <View style={styles.runsList}>
-              {regionRuns.map((listRun) => (
-                <RunSummaryCard key={listRun.id} row={listRun} onPress={() => openRunDetail(listRun.id)} />
-              ))}
+              {regionRuns.map((listRun) =>
+                isInlinePlanningRun(listRun) ? (
+                  <View key={listRun.id} style={styles.runBlock}>
+                    <RunSummaryCard row={listRun} showChevron={false} inlinePlanning />
+                    <InlinePlanningPoll
+                      runId={listRun.id}
+                      token={token}
+                      listRun={listRun}
+                      refreshNonce={listRefreshNonce}
+                      onListRefresh={() => void loadRegionRuns()}
+                    />
+                  </View>
+                ) : (
+                  <RunSummaryCard
+                    key={listRun.id}
+                    row={listRun}
+                    onPress={opensRunDetailModal(listRun) ? () => openRunDetail(listRun.id) : undefined}
+                  />
+                ),
+              )}
             </View>
 
             <Modal visible={detailOpen} animationType="slide" transparent onRequestClose={closeRunDetail}>
@@ -667,20 +787,6 @@ export default function RunsScreen() {
                         embedded
                         showChevron={false}
                       />
-
-            {showAvailabilityPoll ? (
-              <>
-                <CardDivider />
-                <AvailabilityPoll
-                  run={run}
-                  planning={planning}
-                  onSubmit={() => {
-                    void load();
-                    void loadRegionRuns();
-                  }}
-                />
-              </>
-            ) : null}
 
             {hasRsvp && rsvpMessage ? (
               <>
@@ -838,6 +944,23 @@ const styles = StyleSheet.create({
   statesChipText: { fontSize: 13, fontWeight: "800", color: LIME },
   regionSub: { color: "rgba(255,255,255,0.45)", marginTop: 4, marginBottom: 20, fontSize: 14 },
   runsList: { gap: 12 },
+  runBlock: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.03)",
+    overflow: "hidden",
+  },
+  inlinePoll: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: DIVIDER,
+    gap: 12,
+  },
+  inlinePollLoading: { color: "rgba(255,255,255,0.45)", fontSize: 14 },
+  inlinePollError: { color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
   empty: {
     padding: 24,
     borderRadius: 14,
@@ -864,6 +987,12 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.1)",
     backgroundColor: "rgba(255,255,255,0.03)",
     gap: 20,
+  },
+  cardInlinePlanning: {
+    borderWidth: 0,
+    borderRadius: 0,
+    backgroundColor: "transparent",
+    marginBottom: 0,
   },
   divider: { height: 1, backgroundColor: DIVIDER, marginVertical: -4 },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
