@@ -63,9 +63,9 @@ export function AnimatedPressScale({
         restore();
         onPressOut?.(e);
       }}
-      style={{ alignSelf: "stretch" }}
+      style={[{ alignSelf: "stretch" }, style]}
     >
-      <Animated.View style={[animStyle, { alignSelf: "stretch" }, style]}>{children}</Animated.View>
+      <Animated.View style={[animStyle, { alignSelf: "stretch" }]}>{children}</Animated.View>
     </Pressable>
   );
 }

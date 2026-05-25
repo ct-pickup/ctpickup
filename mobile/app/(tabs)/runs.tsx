@@ -203,13 +203,33 @@ function RunSummaryCard({
   if (embedded) return <>{inner}</>;
 
   if (onPress) {
+    const handlePress = () => {
+      const runId = typeof row.id === "string" ? row.id : null;
+      console.log("[runs] card tapped, run id:", runId);
+      // #region agent log
+      fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "6fee4d" },
+        body: JSON.stringify({
+          sessionId: "6fee4d",
+          runId: "pre-fix",
+          hypothesisId: "A",
+          location: "runs.tsx:RunSummaryCard.handlePress",
+          message: "run summary card onPress",
+          data: { runId },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      onPress();
+    };
     return (
       <AnimatedPressScale
         accessibilityRole="button"
         accessibilityLabel="Open run details"
         pressedScale={0.98}
         hapticOnPress
-        onPress={onPress}
+        onPress={handlePress}
         style={styles.card}
       >
         {inner}
@@ -235,6 +255,7 @@ export default function RunsScreen() {
   const [listError, setListError] = useState<string | null>(null);
   const [reliabilityScore, setReliabilityScore] = useState<number | null>(null);
   const autoOpenedFromDeepLinkRef = useRef(false);
+  const statePickedRef = useRef(false);
 
   const { run_id: rawRunIdParam } = useLocalSearchParams<{ run_id?: string | string[] }>();
   const focusRunIdParam = useMemo(() => {
@@ -246,7 +267,9 @@ export default function RunsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setShowStatePicker(true);
+      if (!statePickedRef.current) {
+        setShowStatePicker(true);
+      }
     }, []),
   );
 
@@ -285,6 +308,7 @@ export default function RunsScreen() {
 
   const onPickState = useCallback(
     (code: ServiceRegionCode) => {
+      statePickedRef.current = true;
       void setRegion(code);
       setShowStatePicker(false);
     },
@@ -464,14 +488,47 @@ export default function RunsScreen() {
   }, [loadRegionRuns, load, detailRunId]);
 
   const openRunDetail = useCallback((id: string) => {
+    // #region agent log
+    fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "6fee4d" },
+      body: JSON.stringify({
+        sessionId: "6fee4d",
+        runId: "pre-fix",
+        hypothesisId: "B",
+        location: "runs.tsx:openRunDetail",
+        message: "openRunDetail called",
+        data: { id, detailOpenBefore: detailOpen, selectedRunIdBefore: selectedRunId },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     void hapticTap();
     setSelectedRunId(id);
     setDetailOpen(true);
-  }, []);
+  }, [detailOpen, selectedRunId]);
 
   const closeRunDetail = useCallback(() => {
     setDetailOpen(false);
   }, []);
+
+  useEffect(() => {
+    // #region agent log
+    fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "6fee4d" },
+      body: JSON.stringify({
+        sessionId: "6fee4d",
+        runId: "pre-fix",
+        hypothesisId: "C",
+        location: "runs.tsx:detailOpenEffect",
+        message: "detail sheet state",
+        data: { detailOpen, selectedRunId, detailRunId, showStatePicker, regionRunsCount: regionRuns.length },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [detailOpen, selectedRunId, detailRunId, showStatePicker, regionRuns.length]);
 
   useEffect(() => {
     if (!focusRunIdParam || showStatePicker || autoOpenedFromDeepLinkRef.current) return;
@@ -618,14 +675,16 @@ export default function RunsScreen() {
             </Text>
           </View>
         ) : (
-          <>
-            <View style={styles.runsList}>
-              {regionRuns.map((listRun) => (
-                <RunSummaryCard key={listRun.id} row={listRun} onPress={() => openRunDetail(listRun.id)} />
-              ))}
-            </View>
+          <View style={styles.runsList}>
+            {regionRuns.map((listRun) => (
+              <RunSummaryCard key={listRun.id} row={listRun} onPress={() => openRunDetail(listRun.id)} />
+            ))}
+          </View>
+        )}
+      </ScrollView>
 
-            <Modal visible={detailOpen} animationType="slide" transparent onRequestClose={closeRunDetail}>
+      {detailOpen ? (
+        <Modal visible animationType="slide" transparent onRequestClose={closeRunDetail}>
               <View style={styles.modalRoot}>
                 <Pressable style={styles.modalBackdrop} onPress={closeRunDetail} accessibilityLabel="Close run details" />
                 <View style={[styles.detailSheet, { paddingBottom: insets.bottom + 16 }]}>
@@ -801,10 +860,8 @@ export default function RunsScreen() {
                   </ScrollView>
                 </View>
               </View>
-            </Modal>
-          </>
-        )}
-      </ScrollView>
+        </Modal>
+      ) : null}
     </SafeAreaView>
   );
 }
