@@ -1289,6 +1289,18 @@ export default function AccountScreen() {
           </View>
           <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
         </Pressable>
+        <Pressable
+          style={[styles.aboutRow, { marginTop: 8 }]}
+          onPress={() => (router.push as (href: string) => void)("/onboarding?replay=1")}
+        >
+          <View style={styles.aboutLeft}>
+            <View style={styles.aboutIconWrap}>
+              <FontAwesome name="play-circle" size={18} color="rgba(255,255,255,0.75)" />
+            </View>
+            <Text style={styles.aboutText}>App intro</Text>
+          </View>
+          <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+        </Pressable>
 
         {reviewModeEnabled ? (
           <Pressable

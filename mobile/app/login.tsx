@@ -1,5 +1,6 @@
 import { SignInPanel } from "@/components/SignInPanel";
 import { useAuth } from "@/context/AuthContext";
+import { getPostAuthHref } from "@/lib/onboarding";
 import { useNavigationContainerRef, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -21,7 +22,10 @@ export default function LoginScreen() {
     if (!navigationRef.isReady()) return;
 
     const id = setTimeout(() => {
-      router.replace("/(tabs)");
+      void (async () => {
+        const href = await getPostAuthHref();
+        router.replace(href);
+      })();
     }, 100);
 
     return () => clearTimeout(id);

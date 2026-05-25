@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Redirect, Tabs, type Href } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
@@ -10,6 +10,7 @@ import { useProfileCompletionGate } from "@/context/ProfileCompletionContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { useWaiver } from "@/context/WaiverContext";
 import { RunsPickerBridgeProvider } from "@/context/RunsPickerBridge";
+import { isOnboardingCompleted } from "@/lib/onboarding";
 
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>["name"];
@@ -24,6 +25,18 @@ export default function TabLayout() {
   const { isAdmin, isReady: profileAdminReady } = useProfileAdmin();
   const { waiverAccepted, waiverLoading } = useWaiver();
   const { profileGateLoading, profileNeedsCompletion } = useProfileCompletionGate();
+  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const done = await isOnboardingCompleted();
+      if (!cancelled) setOnboardingDone(done);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (!isReady || !adminModeReady || !profileAdminReady) {
     return (
@@ -59,6 +72,18 @@ export default function TabLayout() {
 
   if (profileNeedsCompletion) {
     return <Redirect href={"/complete-profile" as Href} />;
+  }
+
+  if (onboardingDone === null) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0a0a0a", justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  }
+
+  if (!onboardingDone) {
+    return <Redirect href="/onboarding" />;
   }
 
   return (

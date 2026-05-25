@@ -102,8 +102,16 @@ function venueLine(row: Record<string, unknown>): string {
   return s(row.title).trim() || "Venue TBD";
 }
 
+function parseOptionalDollarAmount(value: string): number | null {
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
+}
+
 function recommendedFeeDollars(fieldRentalCost: number, spots: number): number | null {
-  if (!Number.isFinite(fieldRentalCost) || fieldRentalCost < 0 || !Number.isFinite(spots) || spots <= 0) {
+  if (!Number.isFinite(fieldRentalCost) || fieldRentalCost <= 0 || !Number.isFinite(spots) || spots <= 0) {
     return null;
   }
   const perPlayer = (fieldRentalCost * 1.25) / (spots * 0.75);
@@ -176,9 +184,59 @@ export default function AdminPickupOpsScreen() {
 
   const recommendedFee = useMemo(() => {
     const spots = Number(createCapacity) || 24;
-    const rental = Number(pricingFieldCost);
+    const rental = parseOptionalDollarAmount(pricingFieldCost);
+    if (rental == null) return null;
     return recommendedFeeDollars(rental, spots);
   }, [pricingFieldCost, createCapacity]);
+
+  const hasRecommendedFee = recommendedFee != null;
+
+  useEffect(() => {
+    if (!createOpen) return;
+    const rental = parseOptionalDollarAmount(pricingFieldCost);
+    // #region agent log
+    fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "44e7c3" },
+      body: JSON.stringify({
+        sessionId: "44e7c3",
+        runId: "pre-fix",
+        hypothesisId: "D",
+        location: "pickup.tsx:recommendedFeeEffect",
+        message: "recommended fee recalculated",
+        data: {
+          pricingFieldCost,
+          rental,
+          createPlayerFee,
+          createCapacity,
+          recommendedFee,
+          hasRecommendedFee,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [createOpen, pricingFieldCost, createCapacity, createPlayerFee, recommendedFee, hasRecommendedFee]);
+
+  function onCreatePlayerFeeChange(text: string) {
+    console.log("[admin pickup] player fee onChangeText:", text);
+    setCreatePlayerFee(text);
+    // #region agent log
+    fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "44e7c3" },
+      body: JSON.stringify({
+        sessionId: "44e7c3",
+        runId: "pre-fix",
+        hypothesisId: "A",
+        location: "pickup.tsx:onCreatePlayerFeeChange",
+        message: "player fee input change",
+        data: { text, textLen: text.length },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }
 
   const workflowCounts = useMemo(() => {
     const c: Record<WorkflowTab, number> = { planning: 0, active: 0, past: 0 };
@@ -817,7 +875,7 @@ export default function AdminPickupOpsScreen() {
               <TextInput
                 style={styles.input}
                 value={createPlayerFee}
-                onChangeText={setCreatePlayerFee}
+                onChangeText={onCreatePlayerFeeChange}
                 keyboardType="decimal-pad"
                 placeholder="e.g. 12.50"
                 placeholderTextColor="rgba(255,255,255,0.35)"
@@ -846,22 +904,41 @@ export default function AdminPickupOpsScreen() {
                 />
                 <Text style={styles.pricingCalcHint}>
                   Recommended fee:{" "}
-                  {recommendedFee != null ? `$${recommendedFee.toFixed(2)}` : "—"}
+                  {hasRecommendedFee && recommendedFee != null
+                    ? `$${recommendedFee.toFixed(2)}`
+                    : "—"}
                 </Text>
                 <Text style={styles.pricingCalcSub}>
                   Based on 75% attendance with 25% buffer
                 </Text>
                 <Pressable
-                  disabled={recommendedFee == null}
+                  disabled={!hasRecommendedFee}
                   onPress={() => {
-                    if (recommendedFee == null) return;
+                    if (!hasRecommendedFee || recommendedFee == null) return;
                     void hapticTap();
-                    setCreatePlayerFee(recommendedFee.toFixed(2));
+                    const nextFee = recommendedFee.toFixed(2);
+                    console.log("[admin pickup] use recommended fee:", nextFee, "from player fee:", createPlayerFee);
+                    setCreatePlayerFee(nextFee);
+                    // #region agent log
+                    fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "44e7c3" },
+                      body: JSON.stringify({
+                        sessionId: "44e7c3",
+                        runId: "pre-fix",
+                        hypothesisId: "E",
+                        location: "pickup.tsx:useRecommendedFee",
+                        message: "use this price pressed",
+                        data: { nextFee, priorPlayerFee: createPlayerFee, recommendedFee },
+                        timestamp: Date.now(),
+                      }),
+                    }).catch(() => {});
+                    // #endregion
                   }}
                   style={({ pressed }) => [
                     styles.usePriceBtn,
-                    recommendedFee == null && styles.primaryBtnDisabled,
-                    pressed && recommendedFee != null && { opacity: 0.9 },
+                    !hasRecommendedFee && styles.primaryBtnDisabled,
+                    pressed && hasRecommendedFee && { opacity: 0.9 },
                   ]}
                 >
                   <Text style={styles.usePriceBtnText}>Use this price</Text>

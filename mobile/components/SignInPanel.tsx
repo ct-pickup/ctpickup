@@ -11,6 +11,7 @@ import {
   unlockBiometricSignInCredentials,
 } from "@/lib/biometricSignIn";
 import { hasSupabaseEnv, siteOrigin } from "@/lib/env";
+import { getPostAuthHref } from "@/lib/onboarding";
 import { checkEmailExistsResult } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
@@ -257,7 +258,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
     }
     await refreshSession();
     await Promise.resolve();
-    router.replace("/(tabs)");
+    router.replace(await getPostAuthHref());
   }
 
   async function maybeOfferBiometricSignIn(loginPassword: string) {
