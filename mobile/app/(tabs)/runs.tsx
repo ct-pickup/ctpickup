@@ -382,6 +382,10 @@ export default function RunsScreen() {
   const { rooms } = useUserChatRooms(chatEnabled);
 
   const runId = typeof run?.id === "string" ? run.id : null;
+  /** Prefer sheet selection so join targets the tapped card while public payload reloads. */
+  const joinRunId = detailOpen && selectedRunId ? selectedRunId : runId;
+  const detailRunMatches =
+    !detailOpen || !selectedRunId || !runId || runId === selectedRunId;
   const runStatus = typeof run?.status === "string" ? run.status : null;
   const runLocked = runStatus === "in_progress";
 
@@ -429,8 +433,9 @@ export default function RunsScreen() {
     spotsLeft > 0;
 
   const eligibleToJoin =
+    detailRunMatches &&
     !!token &&
-    !!runId &&
+    !!joinRunId &&
     !runLocked &&
     invitedNow &&
     (myStatus == null || myStatus === "declined") &&
@@ -540,14 +545,30 @@ export default function RunsScreen() {
   const detailVenue = run ? runVenueFromRow(run) : "Pickup run";
 
   const onImIn = useCallback(() => {
-    if (!token || !runId) {
+    console.log("[runs] onImIn pressed", { joinRunId, runId, selectedRunId, joinBusy });
+    // #region agent log
+    fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "6fee4d" },
+      body: JSON.stringify({
+        sessionId: "6fee4d",
+        runId: "im-in",
+        hypothesisId: "F",
+        location: "runs.tsx:onImIn",
+        message: "onImIn pressed",
+        data: { joinRunId, runId, selectedRunId, joinBusy, showImIn, eligibleToJoin, invitedNow },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+    if (!token || !joinRunId) {
       Alert.alert("Sign in required", "Sign in to join this run.");
       return;
     }
     void hapticTap();
     void joinPickup(
       token,
-      runId,
+      joinRunId,
       async () => {
         await load();
         void loadRegionRuns();
@@ -555,37 +576,37 @@ export default function RunsScreen() {
       },
       { venueName: detailVenue },
     );
-  }, [token, runId, joinPickup, load, loadRegionRuns, detailVenue]);
+  }, [token, joinRunId, runId, selectedRunId, joinBusy, showImIn, eligibleToJoin, invitedNow, joinPickup, load, loadRegionRuns, detailVenue]);
 
   const onCantMakeIt = useCallback(() => {
-    if (!token || !runId) {
+    if (!token || !joinRunId) {
       Alert.alert("Sign in required", "Sign in to respond to this run.");
       return;
     }
     void hapticTap();
-    void recordCantMakeIt(token, runId, runStatus, run?.final_slot_id, async () => {
+    void recordCantMakeIt(token, joinRunId, runStatus, run?.final_slot_id, async () => {
       await load();
       void loadRegionRuns();
     });
-  }, [token, runId, runStatus, run?.final_slot_id, recordCantMakeIt, load, loadRegionRuns]);
+  }, [token, joinRunId, runStatus, run?.final_slot_id, recordCantMakeIt, load, loadRegionRuns]);
 
   const onCompletePayment = useCallback(() => {
-    if (!token || !runId) return;
+    if (!token || !joinRunId) return;
     void hapticTap();
-    void payPickup(token, runId, async () => {
+    void payPickup(token, joinRunId, async () => {
       await load();
       void loadRegionRuns();
     }, { venueName: detailVenue });
-  }, [token, runId, payPickup, load, loadRegionRuns, detailVenue]);
+  }, [token, joinRunId, payPickup, load, loadRegionRuns, detailVenue]);
 
   const onConfirmSpot = useCallback(() => {
-    if (!token || !runId) {
+    if (!token || !joinRunId) {
       Alert.alert("Sign in required", "Sign in to confirm your spot.");
       return;
     }
     void hapticTap();
     if (myStatus === "pending_confirm" && feeCents > 0) {
-      void payPickup(token, runId, async () => {
+      void payPickup(token, joinRunId, async () => {
         await load();
         void loadRegionRuns();
       }, { venueName: detailVenue });
@@ -593,7 +614,7 @@ export default function RunsScreen() {
     }
     void joinPickup(
       token,
-      runId,
+      joinRunId,
       async () => {
         await load();
         void loadRegionRuns();
@@ -601,7 +622,7 @@ export default function RunsScreen() {
       },
       { venueName: detailVenue },
     );
-  }, [token, runId, myStatus, feeCents, payPickup, joinPickup, load, loadRegionRuns, detailVenue]);
+  }, [token, joinRunId, myStatus, feeCents, payPickup, joinPickup, load, loadRegionRuns, detailVenue]);
 
   const onOpenChat = useCallback(() => {
     if (banterRoomId) {
@@ -614,6 +635,24 @@ export default function RunsScreen() {
       "Run chat opens once you're confirmed and the room is set up. Check Messages in a moment.",
     );
   }, [banterRoomId, router]);
+
+  console.log("[runs] join gates", {
+    showImIn,
+    eligibleToJoin,
+    invitedNow,
+    timeFinalized,
+    myStatus,
+    runId,
+    joinRunId,
+    selectedRunId,
+    detailRunMatches,
+    detailOpen,
+    token: !!token,
+    joinBusy,
+    runStatus,
+    run_type: run?.run_type,
+    fee_cents: run?.fee_cents,
+  });
 
   if (showStatePicker) {
     return (
@@ -694,7 +733,11 @@ export default function RunsScreen() {
                       <FontAwesome name="times" size={20} color="#fff" />
                     </Pressable>
                   </View>
-                  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetScroll}>
+                  <ScrollView
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.sheetScroll}
+                  >
                     {detailLoading && !run ? (
                       <SkeletonCard />
                     ) : detailError ? (
