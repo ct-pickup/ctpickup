@@ -16,6 +16,7 @@ import {
   postAdminCreateRun,
   postAdminDeleteRun,
   postAdminPickupSwitch,
+  postAdminSetHubPickup,
   type PickupSwitchDetailResponse,
 } from "@/lib/adminApi";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
@@ -27,6 +28,8 @@ import {
   derivePickupLifecycleStage,
   pickupLifecycleStageLabel,
   showInvitePlayersButton,
+  showLaunchOutreachButton,
+  showLaunchWaveInvitesButton,
 } from "@/lib/pickupRunLifecycle";
 import { SERVICE_REGIONS, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -497,6 +500,68 @@ export default function AdminPickupOpsScreen() {
     if (detailOpen && detailRunId) await loadDetail();
   }
 
+  const launchWaveInvitesFromList = useCallback(
+    (runId: string) => {
+      if (!token || !runId) return;
+      Alert.alert(
+        "Launch wave invites?",
+        "Tier 1 players in this region will receive push notifications for this run.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Launch",
+            onPress: () => {
+              void (async () => {
+                setActionBusy(true);
+                const r = await postAdminSetHubPickup(token, runId);
+                setActionBusy(false);
+                if (!r.ok) {
+                  Alert.alert("Could not launch waves", r.error);
+                  return;
+                }
+                const waveWarning =
+                  r.data && typeof r.data.wave_warning === "string" ? r.data.wave_warning.trim() : "";
+                const invited = r.data?.wave_outreach?.wave1_invited;
+                if (waveWarning) Alert.alert("Wave invites", waveWarning);
+                else {
+                  const n = typeof invited === "number" ? invited : 0;
+                  Alert.alert(
+                    "Wave invites sent",
+                    n > 0
+                      ? `Tier 1 outreach started (${n} player${n === 1 ? "" : "s"} notified).`
+                      : "Tier 1 outreach started.",
+                  );
+                }
+                void hapticGoal();
+                await refreshDetailAndList();
+              })();
+            },
+          },
+        ],
+      );
+    },
+    [token],
+  );
+
+  const launchOutreachFromList = useCallback(
+    (runId: string) => {
+      if (!token || !runId) return;
+      void (async () => {
+        setActionBusy(true);
+        const r = await postAdminPickupSwitch(token, { action: "launch_outreach", run_id: runId });
+        setActionBusy(false);
+        if (!r.ok) {
+          Alert.alert("Could not launch outreach", r.error);
+          return;
+        }
+        void hapticGoal();
+        Alert.alert("Outreach launched", "The run is in the outreach phase. Players can discover it on the hub.");
+        await refreshDetailAndList();
+      })();
+    },
+    [token],
+  );
+
   function onSkipToNextWave() {
     if (!token || !detailRun || !skipWaveUi) return;
     const runId = s(detailRun.id);
@@ -669,11 +734,23 @@ export default function AdminPickupOpsScreen() {
             is_completed: row.is_completed === true,
             has_result: row.has_result === true,
           });
-          const showInvite = showInvitePlayersButton({
+          const outreachRow = {
             status: s(row.status),
             run_type: row.run_type,
             is_completed: row.is_completed === true,
-          });
+            is_current: row.is_current === true,
+            outreach_started_at: s(row.outreach_started_at) || null,
+          };
+          const showLaunchWave = showLaunchWaveInvitesButton(outreachRow);
+          const showLaunchOutreach = showLaunchOutreachButton(outreachRow);
+          const showInvite = showInvitePlayersButton(outreachRow);
+          const listOutreachLabel = showLaunchWave
+            ? "Launch Wave Invites"
+            : showLaunchOutreach
+              ? "Launch Outreach"
+              : showInvite
+                ? "Invite Players"
+                : null;
 
           return (
             <Pressable
@@ -701,16 +778,26 @@ export default function AdminPickupOpsScreen() {
               <View style={styles.statusBadge}>
                 <Text style={styles.statusBadgeText}>{pickupLifecycleStageLabel(stage)}</Text>
               </View>
-              {showInvite ? (
+              {listOutreachLabel ? (
                 <Pressable
                   onPress={(e) => {
                     e.stopPropagation();
                     void hapticTap();
-                    router.push(`/admin/invite-players?run_id=${encodeURIComponent(id)}`);
+                    if (showInvite) {
+                      router.push(`/admin/invite-players?run_id=${encodeURIComponent(id)}`);
+                      return;
+                    }
+                    if (showLaunchWave) {
+                      launchWaveInvitesFromList(id);
+                      return;
+                    }
+                    if (showLaunchOutreach) {
+                      launchOutreachFromList(id);
+                    }
                   }}
                   style={({ pressed }) => [styles.inviteBtn, pressed && { opacity: 0.9 }]}
                 >
-                  <Text style={styles.inviteBtnText}>Invite Players</Text>
+                  <Text style={styles.inviteBtnText}>{listOutreachLabel}</Text>
                 </Pressable>
               ) : null}
             </Pressable>

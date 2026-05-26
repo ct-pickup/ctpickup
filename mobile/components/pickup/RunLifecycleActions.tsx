@@ -3,6 +3,8 @@ import {
   showEditSettingsButton,
   showFinalizeTimeButton,
   showInvitePlayersButton,
+  showLaunchOutreachButton,
+  showLaunchWaveInvitesButton,
   showPostResultsDuringRun,
   showPromoteToHubDuringPlanning,
 } from "@/lib/pickupRunLifecycle";
@@ -19,6 +21,8 @@ function s(v: unknown): string {
 export type RunLifecycleAction =
   | "promote_hub"
   | "finalize_slot"
+  | "launch_wave_invites"
+  | "launch_outreach"
   | "invite_players"
   | "begin_pickup"
   | "post_results"
@@ -44,6 +48,10 @@ export default function RunLifecycleActions({ run, actionBusy, onAction }: RunLi
       final_slot_id: run.final_slot_id != null ? s(run.final_slot_id) : null,
       has_result: run.has_result === true,
       run_type: run.run_type,
+      outreach_started_at:
+        run.outreach_started_at != null && s(run.outreach_started_at).trim()
+          ? s(run.outreach_started_at)
+          : null,
     }),
     [run],
   );
@@ -53,6 +61,8 @@ export default function RunLifecycleActions({ run, actionBusy, onAction }: RunLi
   const showBegin = showBeginPickupButton(lifecycleRow);
   const showPostResults = showPostResultsDuringRun(lifecycleRow);
   const showEdit = showEditSettingsButton(lifecycleRow);
+  const showLaunchWave = showLaunchWaveInvitesButton(lifecycleRow);
+  const showLaunchOutreach = showLaunchOutreachButton(lifecycleRow);
   const showInvite = showInvitePlayersButton(lifecycleRow);
   const showCancel = !isCanceled(run) && run.is_completed !== true;
 
@@ -63,7 +73,7 @@ export default function RunLifecycleActions({ run, actionBusy, onAction }: RunLi
 
   return (
     <View style={styles.wrap}>
-      {(showPromote || showFinalize || showInvite) && (
+      {(showPromote || showFinalize) && (
         <View style={styles.group}>
           <Text style={styles.groupLabel}>Planning</Text>
           {showPromote ? (
@@ -84,13 +94,47 @@ export default function RunLifecycleActions({ run, actionBusy, onAction }: RunLi
               <Text style={styles.secondaryBtnText}>Finalize Time Slot</Text>
             </Pressable>
           ) : null}
+        </View>
+      )}
+
+      {(showLaunchWave || showLaunchOutreach || showInvite) && (
+        <View style={styles.group}>
+          <Text style={styles.groupLabel}>Outreach</Text>
+          {showLaunchWave ? (
+            <Pressable
+              disabled={actionBusy}
+              onPress={() => press("launch_wave_invites")}
+              style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.9 }, actionBusy && styles.disabled]}
+            >
+              <Text style={styles.primaryBtnText}>Launch Wave Invites</Text>
+            </Pressable>
+          ) : null}
+          {showLaunchOutreach ? (
+            <Pressable
+              disabled={actionBusy}
+              onPress={() => press("launch_outreach")}
+              style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.9 }, actionBusy && styles.disabled]}
+            >
+              <Text style={styles.primaryBtnText}>Launch Outreach</Text>
+            </Pressable>
+          ) : null}
           {showInvite ? (
             <Pressable
               disabled={actionBusy}
               onPress={() => press("invite_players")}
-              style={({ pressed }) => [styles.secondaryBtn, pressed && { opacity: 0.9 }, actionBusy && styles.disabled]}
+              style={({ pressed }) => [
+                showLaunchWave || showLaunchOutreach ? styles.secondaryBtn : styles.primaryBtn,
+                pressed && { opacity: 0.9 },
+                actionBusy && styles.disabled,
+              ]}
             >
-              <Text style={styles.secondaryBtnText}>Invite More Players</Text>
+              <Text
+                style={
+                  showLaunchWave || showLaunchOutreach ? styles.secondaryBtnText : styles.primaryBtnText
+                }
+              >
+                {lifecycleRow.outreach_started_at ? "Invite More Players" : "Invite Players"}
+              </Text>
             </Pressable>
           ) : null}
         </View>

@@ -150,26 +150,62 @@ export function showBeginPickupButton(row: {
   return String(row.status || "").trim() === "active";
 }
 
-export function showInvitePlayersButton(row: {
-  status?: string | null;
-  run_type?: unknown;
-  is_completed?: boolean | null;
-}): boolean {
-  if (row.is_completed === true) return false;
-  if (isPublicPickupRunType(row.run_type)) return false;
-  const st = String(row.status || "").trim();
-  if (st === "canceled" || st === "completed" || st === "in_progress") return false;
+function isHubOutreachEligibleStatus(st: string): boolean {
   return st === "planning" || st === "likely_on" || st === "active";
 }
 
-/** Legacy hub action; mobile uses {@link showInvitePlayersButton} instead. */
-export function showLaunchOutreachButton(_row: {
+/** Run is on the regional hub and still in planning / RSVP outreach phase. */
+export function showHubOutreachActions(row: {
+  is_current?: boolean | null;
+  status?: string | null;
+  is_completed?: boolean | null;
+}): boolean {
+  if (row.is_completed === true) return false;
+  if (row.is_current !== true) return false;
+  const st = String(row.status || "").trim();
+  if (st === "canceled" || st === "completed" || st === "in_progress") return false;
+  return isHubOutreachEligibleStatus(st);
+}
+
+/** Select hub run: start or retry tier-1 wave invites (hub promote path). */
+export function showLaunchWaveInvitesButton(row: {
+  is_current?: boolean | null;
   status?: string | null;
   run_type?: unknown;
   outreach_started_at?: string | null;
   is_completed?: boolean | null;
 }): boolean {
-  return false;
+  if (!showHubOutreachActions(row)) return false;
+  if (isPublicPickupRunType(row.run_type)) return false;
+  if (row.outreach_started_at) return false;
+  return true;
+}
+
+/** Select hub run: manual player invites (after wave 1 has started). */
+export function showInvitePlayersButton(row: {
+  is_current?: boolean | null;
+  status?: string | null;
+  run_type?: unknown;
+  outreach_started_at?: string | null;
+  is_completed?: boolean | null;
+}): boolean {
+  if (!showHubOutreachActions(row)) return false;
+  if (isPublicPickupRunType(row.run_type)) return false;
+  return Boolean(row.outreach_started_at);
+}
+
+/** Public hub run: mark outreach / automation phase (tier waves are select-only). */
+export function showLaunchOutreachButton(row: {
+  is_current?: boolean | null;
+  status?: string | null;
+  run_type?: unknown;
+  outreach_started_at?: string | null;
+  is_completed?: boolean | null;
+}): boolean {
+  if (!showHubOutreachActions(row)) return false;
+  if (!isPublicPickupRunType(row.run_type)) return false;
+  if (row.outreach_started_at) return false;
+  return true;
 }
 
 export function showEditSettingsButton(row: { status?: string | null; is_completed?: boolean | null }): boolean {

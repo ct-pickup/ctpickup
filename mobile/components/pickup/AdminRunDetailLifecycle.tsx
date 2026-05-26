@@ -53,6 +53,59 @@ export default function AdminRunDetailLifecycle({
   const [teamsOpen, setTeamsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
+  async function onLaunchWaveInvites() {
+    if (!token || !runId) return;
+    Alert.alert(
+      "Launch wave invites?",
+      "Tier 1 players in this region will receive push notifications for this run.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Launch",
+          onPress: () => {
+            void (async () => {
+              setActionBusy(true);
+              const r = await postAdminSetHubPickup(token, runId);
+              setActionBusy(false);
+              if (!r.ok) {
+                Alert.alert("Could not launch waves", r.error);
+                return;
+              }
+              const waveWarning =
+                r.data && typeof r.data.wave_warning === "string" ? r.data.wave_warning.trim() : "";
+              const invited = r.data?.wave_outreach?.wave1_invited;
+              if (waveWarning) {
+                Alert.alert("Wave invites", waveWarning);
+              } else {
+                const n = typeof invited === "number" ? invited : 0;
+                Alert.alert(
+                  "Wave invites sent",
+                  n > 0 ? `Tier 1 outreach started (${n} player${n === 1 ? "" : "s"} notified).` : "Tier 1 outreach started.",
+                );
+              }
+              void hapticGoal();
+              await onRefresh();
+            })();
+          },
+        },
+      ],
+    );
+  }
+
+  async function onLaunchOutreach() {
+    if (!token || !runId) return;
+    setActionBusy(true);
+    const r = await postAdminPickupSwitch(token, { action: "launch_outreach", run_id: runId });
+    setActionBusy(false);
+    if (!r.ok) {
+      Alert.alert("Could not launch outreach", r.error);
+      return;
+    }
+    void hapticGoal();
+    Alert.alert("Outreach launched", "The run is in the outreach phase. Players can discover it on the hub.");
+    await onRefresh();
+  }
+
   async function onPromoteToHub() {
     if (!token || !runId) return;
     Alert.alert(
@@ -220,6 +273,12 @@ export default function AdminRunDetailLifecycle({
     switch (action) {
       case "promote_hub":
         void onPromoteToHub();
+        break;
+      case "launch_wave_invites":
+        void onLaunchWaveInvites();
+        break;
+      case "launch_outreach":
+        void onLaunchOutreach();
         break;
       case "finalize_slot":
         setSelectedSlotId("");
