@@ -1,8 +1,12 @@
 import { CT_PICKUP_LIME } from "@/constants/Colors";
+import { useAuth } from "@/context/AuthContext";
+import { useProfileCompletionGate } from "@/context/ProfileCompletionContext";
+import { useWaiver } from "@/context/WaiverContext";
 import { markOnboardingCompleted } from "@/lib/onboarding";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Redirect, useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   FlatList,
   Image,
@@ -24,7 +28,7 @@ const SLIDES: Slide[] = [
   {
     kind: "logo",
     title: "Welcome to CT Pickup",
-    body: "Organized outdoor soccer across NY, CT, NJ, and MD. Built for players who take the game seriously.",
+    body: "Competitive pickup soccer across NY, CT, NJ, and MD. Find your run, join the community.",
   },
   {
     kind: "emoji",
@@ -74,6 +78,9 @@ function parseReplayParam(replay: string | string[] | undefined): boolean {
 export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { session, isReady } = useAuth();
+  const { waiverAccepted, waiverLoading } = useWaiver();
+  const { profileGateLoading, profileNeedsCompletion } = useProfileCompletionGate();
   const { replay } = useLocalSearchParams<{ replay?: string | string[] }>();
   const isReplay = parseReplayParam(replay);
 
@@ -125,6 +132,36 @@ export default function OnboardingScreen() {
       </View>
     );
   }, []);
+
+  if (!isReplay) {
+    if (!isReady) {
+      return (
+        <View style={[styles.screen, styles.center]}>
+          <ActivityIndicator size="large" color="#fff" />
+        </View>
+      );
+    }
+
+    if (!session?.user?.email) {
+      return <Redirect href="/login" />;
+    }
+
+    if (waiverLoading || profileGateLoading) {
+      return (
+        <View style={[styles.screen, styles.center]}>
+          <ActivityIndicator size="large" color="#fff" />
+        </View>
+      );
+    }
+
+    if (!waiverAccepted) {
+      return <Redirect href="/waiver" />;
+    }
+
+    if (profileNeedsCompletion) {
+      return <Redirect href={"/complete-profile" as Href} />;
+    }
+  }
 
   return (
     <View style={styles.screen}>
@@ -191,6 +228,10 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#000",
+  },
+  center: {
+    justifyContent: "center",
+    alignItems: "center",
   },
   skipBtn: {
     position: "absolute",

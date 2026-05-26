@@ -6,7 +6,7 @@ import { getMobileSupabaseClient } from "@/lib/supabase";
 import * as Sentry from "@sentry/react-native";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import * as Linking from "expo-linking";
-import { router, useNavigationContainerRef } from "expo-router";
+import { router } from "expo-router";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 export const SESSION_EXPIRED_MESSAGE = "Your session expired. Please sign in again.";
@@ -46,8 +46,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [sessionExpiredNotice, setSessionExpiredNotice] = useState<string | null>(null);
-  const navigationRef = useNavigationContainerRef();
-  const replaceTabsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const signOutInProgressRef = useRef(false);
   const sessionExpireHandlingRef = useRef(false);
   const hadSessionRef = useRef(false);
@@ -59,9 +57,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const redirectToLoginIfNeeded = useCallback(() => {
     const path = authRouteRef.current;
     const onLoginScreen = path === "/login" || path.endsWith("/login");
-    if (onLoginScreen || !navigationRef.isReady()) return;
+    if (onLoginScreen) return;
     router.replace("/login");
-  }, [navigationRef]);
+  }, []);
 
   const handleExpiredSession = useCallback(
     async (client: SupabaseClient) => {
@@ -140,20 +138,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (event === "SIGNED_IN") {
         setSessionExpiredNotice(null);
       }
-      if (event === "SIGNED_IN" && next?.user?.email) {
-        const path = authRouteRef.current;
-        const onLoginScreen = path === "/login" || path.endsWith("/login");
-        if (onLoginScreen) {
-          if (!navigationRef.isReady()) return;
-          if (replaceTabsTimeoutRef.current !== null) {
-            clearTimeout(replaceTabsTimeoutRef.current);
-          }
-          replaceTabsTimeoutRef.current = setTimeout(() => {
-            replaceTabsTimeoutRef.current = null;
-            router.replace("/(tabs)");
-          }, 100);
-        }
-      }
     });
 
     void (async () => {
@@ -183,14 +167,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })();
 
-    return () => {
-      subscription.unsubscribe();
-      if (replaceTabsTimeoutRef.current !== null) {
-        clearTimeout(replaceTabsTimeoutRef.current);
-        replaceTabsTimeoutRef.current = null;
-      }
-    };
-  }, [navigationRef, handleExpiredSession, redirectToLoginIfNeeded]);
+    return () => subscription.unsubscribe();
+  }, [handleExpiredSession, redirectToLoginIfNeeded]);
 
   useEffect(() => {
     if (!supabase) return;

@@ -307,8 +307,6 @@ export default function CompleteProfileScreen() {
     if (!ageConfirmed) {
       const m = "You must be 13 or older to use CT Pickup";
       setAgeError(m);
-      setSubmitError(m);
-      Alert.alert("Age requirement", m);
       return;
     }
     if (!canContinue) {

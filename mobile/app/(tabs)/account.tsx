@@ -1320,11 +1320,11 @@ export default function AccountScreen() {
             }
             Alert.alert(
               "Delete your account?",
-              "This will permanently delete your account and all your data. This cannot be undone.",
+              "This cannot be undone. All your data will be permanently deleted.",
               [
                 { text: "Cancel", style: "cancel" },
                 {
-                  text: "Delete",
+                  text: "Delete Account",
                   style: "destructive",
                   onPress: () => {
                     void (async () => {

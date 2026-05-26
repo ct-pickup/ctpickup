@@ -1,31 +1,18 @@
 import { SignInPanel } from "@/components/SignInPanel";
 import { useAuth } from "@/context/AuthContext";
-import { useNavigationContainerRef, useRouter } from "expo-router";
+import { Redirect } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
   const { session, isReady, sessionExpiredNotice, clearSessionExpiredNotice } = useAuth();
-  const router = useRouter();
-  const navigationRef = useNavigationContainerRef();
   const insets = useSafeAreaInsets();
   const isIPad = Platform.OS === "ios" && Platform.isPad;
 
   useEffect(() => {
     return () => clearSessionExpiredNotice();
   }, [clearSessionExpiredNotice]);
-
-  useEffect(() => {
-    if (!isReady || !session?.user?.email) return;
-    if (!navigationRef.isReady()) return;
-
-    const id = setTimeout(() => {
-      router.replace("/(tabs)");
-    }, 100);
-
-    return () => clearTimeout(id);
-  }, [isReady, session?.user?.email, router, navigationRef]);
 
   if (!isReady) {
     return (
@@ -36,11 +23,7 @@ export default function LoginScreen() {
   }
 
   if (session?.user?.email) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#fff" />
-      </View>
-    );
+    return <Redirect href="/(tabs)" />;
   }
 
   return (
