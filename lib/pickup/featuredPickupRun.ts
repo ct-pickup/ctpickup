@@ -9,6 +9,43 @@ export type PickupRunAccessContext = {
   tierRank: number | null;
 };
 
+const TERMINAL_PICKUP_RUN_STATUSES = new Set(["canceled", "cancelled", "completed"]);
+
+/** Statuses shown on the Runs tab list (region-runs) — explicit run_id lookups must match. */
+export const PICKUP_RUN_LIST_STATUSES = ["planning", "likely_on", "active"] as const;
+
+function isTerminalPickupRunStatus(status: unknown): boolean {
+  const st = String(status ?? "").trim().toLowerCase();
+  return TERMINAL_PICKUP_RUN_STATUSES.has(st);
+}
+
+/**
+ * Load one run by primary key for inline poll / deep links.
+ * Does not require `is_current`. Only excludes canceled/completed runs.
+ */
+export async function fetchPickupRunById(
+  admin: SupabaseClient,
+  runId: string,
+): Promise<PublicPickupRunRow | null> {
+  const id = String(runId || "").trim();
+  if (!id) return null;
+
+  const r = await admin.from("pickup_runs").select("*").eq("id", id).maybeSingle();
+  if (r.error) {
+    console.error("[pickup/featured] fetchPickupRunById:", r.error.message, r.error);
+    return null;
+  }
+  if (!r.data) return null;
+  if (isTerminalPickupRunStatus(r.data.status)) return null;
+
+  const st = String(r.data.status ?? "").trim().toLowerCase();
+  if (!(PICKUP_RUN_LIST_STATUSES as readonly string[]).includes(st)) {
+    return null;
+  }
+
+  return r.data as PublicPickupRunRow;
+}
+
 /**
  * Load the run the hub should consider: explicit run_id, else is_current for the hub region (no cross-region fallback).
  * When `region` is set (NY, CT, NJ, MD), only that region’s promoted run is returned.
@@ -18,15 +55,7 @@ export async function fetchPickupRunCandidate(
   opts: { runId?: string | null; region?: string | null }
 ): Promise<PublicPickupRunRow | null> {
   if (opts.runId) {
-    const r = await admin
-      .from("pickup_runs")
-      .select("*")
-      .eq("id", opts.runId)
-      .neq("status", "canceled")
-      .neq("status", "completed")
-      .neq("status", "in_progress")
-      .maybeSingle();
-    return (r.data as PublicPickupRunRow | null) ?? null;
+    return fetchPickupRunById(admin, opts.runId);
   }
 
   if (opts.region) {

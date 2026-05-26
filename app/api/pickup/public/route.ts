@@ -3,6 +3,7 @@ import type { PublicPickupRunRow } from "@/lib/pickup/publicUpcomingRuns";
 import {
   fetchFirstPublicUpcomingPickupRun,
   fetchInvitedFeaturedPickupRun,
+  fetchPickupRunById,
   fetchPickupRunCandidate,
   userCanViewPickupRun,
 } from "@/lib/pickup/featuredPickupRun";
@@ -85,19 +86,35 @@ export async function GET(req: Request) {
     const runIdParam = url.searchParams.get("run_id");
     const hubRegion = parseHubRegion(url.searchParams.get("region"));
 
-    let run: PublicPickupRunRow | null = await fetchPickupRunCandidate(admin, {
-      runId: runIdParam,
-      region: hubRegion,
-    });
+    let runLoadReason: "ok" | "not_found" | "not_allowed" | "featured" = "featured";
+    let run: PublicPickupRunRow | null = null;
 
-    if (run) {
-      const canView = await userCanViewPickupRun(admin, run, {
-        userId,
-        approved,
-        isAdmin,
-        tierRank,
-      });
-      if (!canView) run = null;
+    if (runIdParam) {
+      run = await fetchPickupRunById(admin, runIdParam);
+      runLoadReason = run ? "ok" : "not_found";
+      if (run) {
+        const canView = await userCanViewPickupRun(admin, run, {
+          userId,
+          approved,
+          isAdmin,
+          tierRank,
+        });
+        if (!canView) {
+          run = null;
+          runLoadReason = "not_allowed";
+        }
+      }
+    } else {
+      run = await fetchPickupRunCandidate(admin, { region: hubRegion });
+      if (run) {
+        const canView = await userCanViewPickupRun(admin, run, {
+          userId,
+          approved,
+          isAdmin,
+          tierRank,
+        });
+        if (!canView) run = null;
+      }
     }
 
     if (!run && userId && approved && !runIdParam) {
@@ -111,9 +128,46 @@ export async function GET(req: Request) {
     }
 
     if (!run) {
+      // #region agent log
+      if (runIdParam) {
+        let rawRow: Record<string, unknown> | null = null;
+        const rawRes = await admin
+          .from("pickup_runs")
+          .select("id,status,run_type,is_current,service_region")
+          .eq("id", runIdParam)
+          .maybeSingle();
+        if (rawRes.data) rawRow = rawRes.data as Record<string, unknown>;
+        fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "b75987" },
+          body: JSON.stringify({
+            sessionId: "b75987",
+            hypothesisId: "API-null-run",
+            location: "public/route.ts:no-run",
+            message: "public run_id load missed",
+            data: {
+              runIdParam,
+              runLoadReason,
+              hubRegion,
+              approved,
+              hasUserId: Boolean(userId),
+              rawStatus: rawRow?.status ?? null,
+              rawRunType: rawRow?.run_type ?? null,
+              rawIsCurrent: rawRow?.is_current ?? null,
+              rawServiceRegion: rawRow?.service_region ?? null,
+              rawExists: Boolean(rawRow),
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+      }
+      // #endregion
       return NextResponse.json({
         status: "inactive",
         run: null,
+        ...(runIdParam && runLoadReason === "not_allowed"
+          ? { error: "not_invited", run_id: runIdParam }
+          : {}),
         visibility: { invitedNow: false, attendanceVisible: false },
         counts: {
           confirmed: 0,
@@ -194,13 +248,15 @@ export async function GET(req: Request) {
         headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "b75987" },
         body: JSON.stringify({
           sessionId: "b75987",
-          hypothesisId: "A",
+          hypothesisId: "API-null-run",
           location: "public/route.ts:invitedNow",
-          message: "public invitedNow computed",
+          message: "public run_id load ok",
           data: {
             runId: run.id,
+            runLoadReason,
             runType: run.run_type,
             runStatus: run.status,
+            isCurrent: run.is_current === true,
             hubRegion,
             serviceRegion: run.service_region,
             invitedNow,
