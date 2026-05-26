@@ -488,7 +488,35 @@ export async function POST(req: Request) {
 
   if (feeCents <= 0) {
     const prevRsvpStatus = existing.data?.status ?? null;
-    await admin.from("pickup_run_rsvps").upsert(
+    // #region agent log
+    fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "b75987",
+      },
+      body: JSON.stringify({
+        sessionId: "b75987",
+        hypothesisId: "H1-H4",
+        location: "app/api/pickup/rsvp/route.ts:free_fee0_before_upsert",
+        message: "feeCents<=0 RSVP path entering; log capacity and previous status",
+        data: {
+          runId: String(run.id),
+          userId: String(targetUserId),
+          feeCents,
+          capacity,
+          reservedCount,
+          hasSlot,
+          prevRsvpStatus,
+          existingStatus: existing.data?.status ?? null,
+          runStatus: String(run.status || ""),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+
+    const upsertRes = await admin.from("pickup_run_rsvps").upsert(
       {
         run_id: run.id,
         user_id: targetUserId,
@@ -501,12 +529,67 @@ export async function POST(req: Request) {
       },
       { onConflict: "run_id,user_id" },
     );
+    // #region agent log
+    const savedRes = await admin
+      .from("pickup_run_rsvps")
+      .select("status,waitlist_position")
+      .eq("run_id", run.id)
+      .eq("user_id", targetUserId)
+      .maybeSingle();
+    const confirmedAfter = await countAcceptedPickupRsvps(admin, String(run.id));
+    fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "b75987",
+      },
+      body: JSON.stringify({
+        sessionId: "b75987",
+        hypothesisId: "H1",
+        location: "app/api/pickup/rsvp/route.ts:free_fee0_after_upsert",
+        message: "after upsert: log upsert error + saved status + confirmed count",
+        data: {
+          runId: String(run.id),
+          userId: String(targetUserId),
+          upsertOk: !upsertRes?.error,
+          upsertError: upsertRes?.error?.message ?? null,
+          savedStatus: savedRes.data?.status ?? null,
+          savedWaitlistPosition: savedRes.data?.waitlist_position ?? null,
+          confirmedAfter,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     if (existing.data?.status === "pending_confirm") {
       await deletePendingWaitlistExpiringReminders(admin, targetUserId, run.id);
     }
     await ensurePickupRunInviteLink(admin, run.id, targetUserId);
     await addUserToRunBanterRoom(admin, String(run.id), targetUserId);
     if (prevRsvpStatus !== "confirmed") {
+      // #region agent log
+      fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "b75987",
+        },
+        body: JSON.stringify({
+          sessionId: "b75987",
+          hypothesisId: "H2",
+          location: "app/api/pickup/rsvp/route.ts:free_fee0_before_push",
+          message: "log savedStatus and count immediately before sending confirmed push",
+          data: {
+            runId: String(run.id),
+            userId: String(targetUserId),
+            prevRsvpStatus,
+            savedStatus: savedRes.data?.status ?? null,
+            confirmedAfter,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       await sendPickupRsvpConfirmedPush(admin, {
         userId: targetUserId,
         runId: String(run.id),
