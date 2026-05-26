@@ -280,64 +280,65 @@ export function usePickupPublic(
   // reliably reconstruct from a single row payload.
   useEffect(() => {
     if (!supabase || !runId) return;
-    // Unique topic avoids Supabase client returning a channel still subscribed while removeChannel is in flight.
-    const topic = `pickup_public:${runId}:${++pickupRealtimeTopicSeq.current}`;
-    const pickupChannel: RealtimeChannel = supabase
-      .channel(topic)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "pickup_runs",
-          filter: `id=eq.${runId}`,
-        },
-        () => {
-          void load();
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "pickup_run_rsvps",
-          filter: `run_id=eq.${runId}`,
-        },
-        () => {
-          void load();
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "pickup_run_rsvps",
-          filter: `run_id=eq.${runId}`,
-        },
-        () => {
-          void load();
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "pickup_run_rsvps",
-          filter: `run_id=eq.${runId}`,
-        },
-        () => {
-          void load();
-        },
-      )
-      .subscribe();
+
+    const seq = ++pickupRealtimeTopicSeq.current;
+    const refresh = () => {
+      void loadRef.current?.({ background: true });
+    };
+
+    // Separate channels per table (same pattern as useAdminPickupOverview): create,
+    // register all postgres_changes listeners, then subscribe — never chain .on() after .subscribe().
+    const runChannel: RealtimeChannel = supabase.channel(`pickup_public_run:${runId}:${seq}`);
+    runChannel.on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "pickup_runs",
+        filter: `id=eq.${runId}`,
+      },
+      refresh,
+    );
+    runChannel.subscribe();
+
+    const rsvpChannel: RealtimeChannel = supabase.channel(`pickup_public_rsvps:${runId}:${seq}`);
+    rsvpChannel.on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "pickup_run_rsvps",
+        filter: `run_id=eq.${runId}`,
+      },
+      refresh,
+    );
+    rsvpChannel.on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "pickup_run_rsvps",
+        filter: `run_id=eq.${runId}`,
+      },
+      refresh,
+    );
+    rsvpChannel.on(
+      "postgres_changes",
+      {
+        event: "DELETE",
+        schema: "public",
+        table: "pickup_run_rsvps",
+        filter: `run_id=eq.${runId}`,
+      },
+      refresh,
+    );
+    rsvpChannel.subscribe();
 
     return () => {
-      void supabase.removeChannel(pickupChannel);
+      void supabase.removeChannel(runChannel);
+      void supabase.removeChannel(rsvpChannel);
     };
-  }, [supabase, runId, load]);
+  }, [supabase, runId]);
 
   /** API echoes run lifecycle as top-level `status` when a run exists (e.g. planning); only trust `run`. */
   const noFeaturedRun = run == null;
