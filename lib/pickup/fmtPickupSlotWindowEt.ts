@@ -1,3 +1,4 @@
+// Reminder: Run `npm run sync:mobile-lib-pickup` after editing this file (use `-- --overwrite` to propagate edits).
 const ET_TIME_ZONE = "America/New_York";
 const SLOT_WINDOW_MINUTES = 90;
 

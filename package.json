@@ -10,6 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "download-coach-photos": "bash scripts/download-coach-photos.sh",
+    "sync:mobile-lib-pickup": "node scripts/sync-mobile-lib-pickup.mjs",
+    "postbuild": "node scripts/sync-mobile-lib-pickup.mjs --overwrite",
     "supabase:db:push": "npx supabase db push",
     "supabase:db:push:local": "npx supabase db push --local"
   },
