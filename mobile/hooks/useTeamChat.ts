@@ -23,6 +23,7 @@ export type RoomLookup = { slug: string; id?: null } | { id: string; slug?: null
 
 export function useTeamChatRoom(enabled: boolean, lookup: RoomLookup) {
   const { supabase, session } = useAuth();
+  const chatRoomRealtimeTopicSeq = useRef(0);
   const [room, setRoom] = useState<ChatRoomRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,24 +84,25 @@ export function useTeamChatRoom(enabled: boolean, lookup: RoomLookup) {
   const roomId = room?.id ?? null;
   useEffect(() => {
     if (!enabled || !supabase || !roomId) return;
-    const channel = supabase
-      .channel(`chat_rooms:${roomId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "chat_rooms",
-          filter: `id=eq.${roomId}`,
-        },
-        (payload) => {
-          const next = payload.new as ChatRoomRow | null;
-          if (next && next.id === roomId) {
-            setRoom(next);
-          }
-        },
-      )
-      .subscribe();
+
+    const seq = ++chatRoomRealtimeTopicSeq.current;
+    const channel: RealtimeChannel = supabase.channel(`chat_rooms:${roomId}:${seq}`);
+    channel.on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "chat_rooms",
+        filter: `id=eq.${roomId}`,
+      },
+      (payload) => {
+        const next = payload.new as ChatRoomRow | null;
+        if (next && next.id === roomId) {
+          setRoom(next);
+        }
+      },
+    );
+    channel.subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
@@ -266,6 +268,7 @@ export function useTeamChatMessages(roomId: string | null) {
   const { supabase, session } = useAuth();
   const uid = session?.user?.id ?? null;
   const accessToken = session?.access_token ?? null;
+  const chatRealtimeTopicSeq = useRef(0);
   const [messages, setMessages] = useState<ChatMessageRow[]>([]);
   const [reactionsByMessageId, setReactionsByMessageId] = useState<Record<string, ChatReactionGroup[]>>({});
   const [loading, setLoading] = useState(true);
@@ -288,6 +291,9 @@ export function useTeamChatMessages(roomId: string | null) {
     },
     [supabase, uid],
   );
+
+  const refetchReactionsForMessageRef = useRef(refetchReactionsForMessage);
+  refetchReactionsForMessageRef.current = refetchReactionsForMessage;
 
   const applyReactionGroupsFromServer = useCallback((messageId: string, groups: ChatReactionGroup[]) => {
     setReactionsByMessageId((prev) => ({ ...prev, [messageId]: groups }));
@@ -340,43 +346,41 @@ export function useTeamChatMessages(roomId: string | null) {
   useEffect(() => {
     if (!supabase || !roomId) return;
 
-    let ch: RealtimeChannel | null = null;
-
-    ch = supabase
-      .channel(`chat-messages:${roomId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "chat_messages",
-          filter: `room_id=eq.${roomId}`,
-        },
-        (payload) => {
-          const row = payload.new as ChatMessageRow;
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === row.id)) return prev;
-            return [...prev, row];
-          });
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "chat_messages",
-          filter: `room_id=eq.${roomId}`,
-        },
-        (payload) => {
-          const row = payload.new as ChatMessageRow;
-          setMessages((prev) => prev.map((m) => (m.id === row.id ? row : m)));
-        },
-      )
-      .subscribe();
+    const seq = ++chatRealtimeTopicSeq.current;
+    const ch: RealtimeChannel = supabase.channel(`chat-messages:${roomId}:${seq}`);
+    ch.on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "chat_messages",
+        filter: `room_id=eq.${roomId}`,
+      },
+      (payload) => {
+        const row = payload.new as ChatMessageRow;
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === row.id)) return prev;
+          return [...prev, row];
+        });
+      },
+    );
+    ch.on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "chat_messages",
+        filter: `room_id=eq.${roomId}`,
+      },
+      (payload) => {
+        const row = payload.new as ChatMessageRow;
+        setMessages((prev) => prev.map((m) => (m.id === row.id ? row : m)));
+      },
+    );
+    ch.subscribe();
 
     return () => {
-      if (ch) void supabase.removeChannel(ch);
+      void supabase.removeChannel(ch);
     };
   }, [supabase, roomId]);
 
@@ -385,31 +389,31 @@ export function useTeamChatMessages(roomId: string | null) {
 
     const onReactionEvent = (messageId: string | undefined) => {
       if (!messageId || !roomMessageIdsRef.current.has(messageId)) return;
-      void refetchReactionsForMessage(messageId);
+      void refetchReactionsForMessageRef.current(messageId);
     };
 
-    const ch = supabase
-      .channel(`chat-reactions:${roomId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "chat_reactions" },
-        (payload) => {
-          onReactionEvent((payload.new as { message_id?: string })?.message_id);
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "chat_reactions" },
-        (payload) => {
-          onReactionEvent((payload.old as { message_id?: string })?.message_id);
-        },
-      )
-      .subscribe();
+    const seq = ++chatRealtimeTopicSeq.current;
+    const ch: RealtimeChannel = supabase.channel(`chat-reactions:${roomId}:${seq}`);
+    ch.on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "chat_reactions" },
+      (payload) => {
+        onReactionEvent((payload.new as { message_id?: string })?.message_id);
+      },
+    );
+    ch.on(
+      "postgres_changes",
+      { event: "DELETE", schema: "public", table: "chat_reactions" },
+      (payload) => {
+        onReactionEvent((payload.old as { message_id?: string })?.message_id);
+      },
+    );
+    ch.subscribe();
 
     return () => {
       void supabase.removeChannel(ch);
     };
-  }, [supabase, roomId, refetchReactionsForMessage]);
+  }, [supabase, roomId]);
 
   const send = useCallback(
     async (body: string) => {
