@@ -86,12 +86,54 @@ export async function GET(req: Request) {
     const runIdParam = url.searchParams.get("run_id");
     const hubRegion = parseHubRegion(url.searchParams.get("region"));
 
+    console.log(`[api/${ROUTE}] GET start`, {
+      runIdParam,
+      hubRegion,
+      hasToken: Boolean(token),
+      approved,
+      isAdmin,
+    });
+
     let runLoadReason: "ok" | "not_found" | "not_allowed" | "featured" = "featured";
     let run: PublicPickupRunRow | null = null;
 
     if (runIdParam) {
       run = await fetchPickupRunById(admin, runIdParam);
       runLoadReason = run ? "ok" : "not_found";
+      console.log(`[api/${ROUTE}] fetchPickupRunById`, {
+        runIdParam,
+        runLoadReason,
+        found: Boolean(run),
+        runId: run?.id ?? null,
+        status: run?.status ?? null,
+        run_type: run?.run_type ?? null,
+        service_region: run?.service_region ?? null,
+      });
+      // #region agent log
+      fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "b75987" },
+        body: JSON.stringify({
+          sessionId: "b75987",
+          hypothesisId: "H1-H4",
+          location: "public/route.ts:after-fetchPickupRunById",
+          message: "fetchPickupRunById result",
+          data: {
+            runIdParam,
+            runLoadReason,
+            found: Boolean(run),
+            runId: run?.id ?? null,
+            status: run?.status ?? null,
+            run_type: run?.run_type ?? null,
+            service_region: run?.service_region ?? null,
+            hubRegion,
+            approved,
+            hasToken: Boolean(token),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       if (run) {
         const canView = await userCanViewPickupRun(admin, run, {
           userId,
@@ -100,6 +142,7 @@ export async function GET(req: Request) {
           tierRank,
         });
         if (!canView) {
+          console.log(`[api/${ROUTE}] userCanViewPickupRun denied`, { runIdParam });
           run = null;
           runLoadReason = "not_allowed";
         }
