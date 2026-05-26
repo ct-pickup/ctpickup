@@ -113,6 +113,30 @@ function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; isAdmin: bo
           headerShown: false,
           tabBarIcon: ({ color }) => <TabBarIcon name="comment-o" color={color} />,
         }}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            // #region agent log
+            const state = navigation.getState();
+            const messagesRoute = state.routes.find((r) => r.name === "messages");
+            const stackIndex =
+              messagesRoute && "state" in messagesRoute && messagesRoute.state
+                ? (messagesRoute.state as { index?: number }).index
+                : 0;
+            fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c3b686" },
+              body: JSON.stringify({
+                sessionId: "c3b686",
+                hypothesisId: "H1",
+                location: "(tabs)/_layout.tsx:messages-tabPress",
+                message: "messages tab pressed",
+                data: { stackIndex, routeNames: messagesRoute?.state },
+                timestamp: Date.now(),
+              }),
+            }).catch(() => {});
+            // #endregion
+          },
+        })}
       />
       <Tabs.Screen
         name="account"

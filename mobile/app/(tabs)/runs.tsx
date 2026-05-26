@@ -145,12 +145,19 @@ type RegionRunListItem = {
   drive_minutes: number | null;
 };
 
+function parseDriveMinutesField(raw: unknown): number | null {
+  if (raw === null || raw === undefined) return null;
+  const n = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw.trim()) : NaN;
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n);
+}
+
 function formatRunDistanceAway(
   driveMinutes: number | null,
   distanceMiles: number | null,
 ): string | null {
-  if (driveMinutes != null && Number.isFinite(driveMinutes)) {
-    return `${Math.round(driveMinutes)} min away`;
+  if (driveMinutes != null && Number.isFinite(driveMinutes) && driveMinutes > 0) {
+    return `~${Math.round(driveMinutes)} min with traffic now`;
   }
   if (distanceMiles != null && Number.isFinite(distanceMiles)) {
     const miles =
@@ -233,10 +240,7 @@ function RunSummaryCard({
     typeof (row as RegionRunListItem).distance_miles === "number"
       ? (row as RegionRunListItem).distance_miles
       : null;
-  const driveMinutes =
-    typeof (row as RegionRunListItem).drive_minutes === "number"
-      ? (row as RegionRunListItem).drive_minutes
-      : null;
+  const driveMinutes = parseDriveMinutesField((row as RegionRunListItem).drive_minutes);
   const distanceAwayLabel = formatRunDistanceAway(driveMinutes, distanceMiles);
 
   const inner = (
@@ -613,13 +617,45 @@ export default function RunsScreen() {
                   typeof o.distance_miles === "number" && Number.isFinite(o.distance_miles)
                     ? o.distance_miles
                     : null,
-                drive_minutes:
-                  typeof o.drive_minutes === "number" && Number.isFinite(o.drive_minutes)
-                    ? o.drive_minutes
-                    : null,
+                drive_minutes: parseDriveMinutesField(o.drive_minutes),
               };
             })
             .filter((x): x is RegionRunListItem => x != null);
+          // #region agent log
+          const driveStats = parsed.reduce(
+            (acc, row) => {
+              if (row.drive_minutes != null) acc.withMinutes += 1;
+              else if (row.distance_miles != null) acc.milesOnly += 1;
+              else acc.none += 1;
+              return acc;
+            },
+            { withMinutes: 0, milesOnly: 0, none: 0 },
+          );
+          const rawSamples = Array.isArray(rows)
+            ? rows.slice(0, 5).map((row) => {
+                const o = row && typeof row === "object" ? (row as Record<string, unknown>) : {};
+                const raw = o.drive_minutes;
+                return {
+                  id: typeof o.id === "string" ? o.id.slice(0, 8) : null,
+                  rawType: raw === null ? "null" : raw === undefined ? "undefined" : typeof raw,
+                  rawValue: raw,
+                  parsed: parseDriveMinutesField(raw),
+                };
+              })
+            : [];
+          fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c3b686" },
+            body: JSON.stringify({
+              sessionId: "c3b686",
+              hypothesisId: "H1-H3",
+              location: "runs.tsx:loadRegionRuns",
+              message: "region runs parsed drive fields",
+              data: { region, runCount: parsed.length, driveStats, rawSamples, hasToken: !!token },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+          // #endregion
           setRegionRuns(parsed);
           setListError(null);
         } else {

@@ -256,6 +256,33 @@ export async function GET(req: Request) {
 
     const runRows: RowOut[] = payload.map(({ effective_drive_minutes: _eff, ...row }) => row);
 
+    // #region agent log
+    if (playerZip) {
+      const googleMinutes = runRows.filter((r) => r.drive_minutes != null).length;
+      const milesOnly = runRows.filter((r) => r.drive_minutes == null && r.distance_miles != null).length;
+      console.log(
+        JSON.stringify({
+          sessionId: "c3b686",
+          hypothesisId: "H2",
+          location: "region-runs/route.ts:GET",
+          message: "drive_minutes response summary",
+          data: {
+            playerZipPrefix: playerZip.slice(0, 3),
+            runCount: runRows.length,
+            googleMinutes,
+            milesOnly,
+            sample: runRows.slice(0, 3).map((r) => ({
+              id: String(r.id).slice(0, 8),
+              drive_minutes: r.drive_minutes,
+              distance_miles: r.distance_miles,
+            })),
+          },
+          timestamp: Date.now(),
+        }),
+      );
+    }
+    // #endregion
+
     return NextResponse.json({
       runs: runRows,
       filter: filterPayload,

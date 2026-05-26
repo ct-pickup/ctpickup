@@ -16,8 +16,9 @@ import {
   type ChatReportReason,
 } from "@/lib/chatApi";
 import { ANNOUNCEMENTS_CHAT_SLUG, isAdminDmGroupSlug } from "@/lib/teamChat";
+import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -184,10 +185,63 @@ export default function TeamChatThreadScreen() {
   const isRunBanterRoom = room?.room_type === "run_banter";
   const runBanterAutoCloseAt = room?.auto_close_at ?? null;
 
-  useEffect(() => {
-    if (!room?.title) return;
-    navigation.setOptions({ title: threadHeaderTitle(room.title) });
-  }, [navigation, room?.title]);
+  // #region agent log
+  useFocusEffect(
+    useCallback(() => {
+      fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c3b686" },
+        body: JSON.stringify({
+          sessionId: "c3b686",
+          hypothesisId: "H1-H3",
+          location: "messages/thread.tsx:focus",
+          message: "messages thread focused",
+          data: {
+            trimmedId: trimmedId || null,
+            trimmedSlug: trimmedSlug || null,
+            lookupKind: trimmedId ? "id" : "slug",
+            allowed,
+            roomLoading,
+            hasRoom: !!room,
+            roomError: roomError ?? null,
+            showsTeamChatOff: !roomLoading && !roomError && !room,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+    }, [
+      trimmedId,
+      trimmedSlug,
+      allowed,
+      roomLoading,
+      room,
+      roomError,
+    ]),
+  );
+  // #endregion
+
+  useFocusEffect(
+    useCallback(() => {
+      navigation.setOptions({
+        title: room?.title ? threadHeaderTitle(room.title) : "Messages",
+        headerStyle: { backgroundColor: "#0a0a0a" },
+        headerTintColor: "#fff",
+        headerShadowVisible: false,
+        headerBackVisible: false,
+        headerLeft: () => (
+          <Pressable
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            hitSlop={10}
+            style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1, paddingHorizontal: 8 })}
+          >
+            <FontAwesome name="chevron-left" size={20} color="#fff" />
+          </Pressable>
+        ),
+      });
+    }, [navigation, router, room?.title]),
+  );
 
   useEffect(() => {
     if (!isRunBanterRoom || !runBanterAutoCloseAt) return;
