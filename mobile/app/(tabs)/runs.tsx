@@ -996,7 +996,7 @@ export default function RunsScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>
               {listFilterZip && listFilterMaxDriveMinutes != null
-                ? `No runs in ${serviceRegionName(region)} or within your max drive time right now. Increase max drive time in Account.`
+                ? `No runs in ${serviceRegionName(region)} or within your max drive time right now. Increase max drive time in your Profile.`
                 : `No runs scheduled for ${serviceRegionName(region)} right now. Check back soon.`}
             </Text>
           </View>

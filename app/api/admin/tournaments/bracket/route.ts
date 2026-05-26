@@ -66,10 +66,120 @@ export async function GET(req: Request) {
   if (matchesRes.error) return NextResponse.json({ error: matchesRes.error.message }, { status: 500 });
   if (standingsRes.error) return NextResponse.json({ error: standingsRes.error.message }, { status: 500 });
 
+  const teams = (teamsRes.data ?? []) as { id: string; team_name: string; captain_name: string }[];
+  const capIds = teams.map((t) => String(t.id));
+
+  type RosterPlayer = { name: string; team_id: string; team_name: string };
+  const roster_players: RosterPlayer[] = [];
+  const seenRoster = new Set<string>();
+
+  for (const t of teams) {
+    const capName = String(t.captain_name ?? "").trim();
+    if (!capName) continue;
+    const key = `${t.id}|${capName.toLowerCase()}`;
+    if (seenRoster.has(key)) continue;
+    seenRoster.add(key);
+    roster_players.push({
+      name: capName,
+      team_id: t.id,
+      team_name: String(t.team_name ?? "").trim() || "Team",
+    });
+  }
+
+  if (capIds.length) {
+    const rosterRes = await admin
+      .from("tournament_roster")
+      .select("user_id, captain_id, status")
+      .in("captain_id", capIds)
+      .in("status", ["invited", "accepted"]);
+    if (rosterRes.error) return NextResponse.json({ error: rosterRes.error.message }, { status: 500 });
+
+    const userIds = [
+      ...new Set(
+        (rosterRes.data ?? [])
+          .map((r: { user_id?: string | null }) => (typeof r.user_id === "string" ? r.user_id : ""))
+          .filter(Boolean),
+      ),
+    ];
+    const profileMap: Record<string, { first_name: string | null; last_name: string | null; username: string | null }> =
+      {};
+    if (userIds.length) {
+      const profRes = await admin
+        .from("profiles")
+        .select("id, first_name, last_name, username")
+        .in("id", userIds);
+      if (profRes.error) return NextResponse.json({ error: profRes.error.message }, { status: 500 });
+      for (const p of profRes.data ?? []) {
+        profileMap[String((p as { id: string }).id)] = {
+          first_name: (p as { first_name?: string | null }).first_name ?? null,
+          last_name: (p as { last_name?: string | null }).last_name ?? null,
+          username: (p as { username?: string | null }).username ?? null,
+        };
+      }
+    }
+
+    const teamByCap = new Map(teams.map((t) => [String(t.id), t]));
+    for (const row of rosterRes.data ?? []) {
+      const capId = String((row as { captain_id: string }).captain_id);
+      const uid = String((row as { user_id: string }).user_id);
+      const team = teamByCap.get(capId);
+      if (!team) continue;
+      const prof = profileMap[uid];
+      const name =
+        prof && (prof.first_name || prof.last_name)
+          ? `${prof.first_name || ""} ${prof.last_name || ""}`.trim()
+          : String(prof?.username ?? "").trim();
+      if (!name) continue;
+      const key = `${capId}|${name.toLowerCase()}`;
+      if (seenRoster.has(key)) continue;
+      seenRoster.add(key);
+      roster_players.push({
+        name,
+        team_id: capId,
+        team_name: String(team.team_name ?? "").trim() || "Team",
+      });
+    }
+  }
+
+  roster_players.sort(
+    (a, b) => a.team_name.localeCompare(b.team_name) || a.name.localeCompare(b.name),
+  );
+
+  const goalsRes = await admin
+    .from("tournament_match_goals")
+    .select("match_id, team_id, scorer_name, minute, is_own_goal")
+    .eq("tournament_id", tournament_id);
+
+  if (goalsRes.error) return NextResponse.json({ error: goalsRes.error.message }, { status: 500 });
+
+  const match_goals: Record<
+    string,
+    { team_id: string; scorer_name: string; minute: number | null; is_own_goal: boolean }[]
+  > = {};
+  for (const g of goalsRes.data ?? []) {
+    const mid = String((g as { match_id: string }).match_id);
+    if (!match_goals[mid]) match_goals[mid] = [];
+    const minuteRaw = (g as { minute?: unknown }).minute;
+    const minute =
+      minuteRaw === null || minuteRaw === undefined
+        ? null
+        : Number.isFinite(Number(minuteRaw))
+          ? Math.trunc(Number(minuteRaw))
+          : null;
+    match_goals[mid].push({
+      team_id: String((g as { team_id: string }).team_id),
+      scorer_name: String((g as { scorer_name?: string }).scorer_name ?? "").trim(),
+      minute,
+      is_own_goal: Boolean((g as { is_own_goal?: boolean }).is_own_goal),
+    });
+  }
+
   return NextResponse.json({
-    teams: teamsRes.data ?? [],
+    teams,
     matches: matchesRes.data ?? [],
     standings: standingsRes.data ?? [],
+    roster_players,
+    match_goals,
   });
   } catch (err: unknown) {
     Sentry.captureException(err);

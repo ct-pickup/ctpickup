@@ -755,6 +755,49 @@ export function deleteAdminTournament(accessToken: string, id: string) {
   });
 }
 
+export type AdminBracketRosterPlayer = {
+  name: string;
+  team_id: string;
+  team_name: string;
+};
+
+export type AdminBracketMatchGoal = {
+  team_id: string;
+  scorer_name: string;
+  minute: number | null;
+  is_own_goal: boolean;
+};
+
+export type AdminTournamentBracketResponse = {
+  teams: { id: string; team_name: string; captain_name: string }[];
+  matches: Record<string, unknown>[];
+  standings: Record<string, unknown>[];
+  roster_players?: AdminBracketRosterPlayer[];
+  match_goals?: Record<string, AdminBracketMatchGoal[]>;
+  error?: string;
+};
+
+export function fetchAdminTournamentBracket(accessToken: string, tournamentId: string) {
+  const origin = originOrThrow();
+  if (typeof origin !== "string") {
+    return Promise.resolve(missingSiteUrlAdminResult<AdminTournamentBracketResponse>());
+  }
+  const u = new URL("/api/admin/tournaments/bracket", origin);
+  u.searchParams.set("tournament_id", tournamentId);
+  return adminFetch<AdminTournamentBracketResponse>(u.pathname + u.search, accessToken, { method: "GET" });
+}
+
+export function postAdminTournamentBracket(
+  accessToken: string,
+  body: Record<string, unknown>,
+) {
+  return adminFetch<{ ok?: boolean; message?: string; error?: string }>("/api/admin/tournaments/bracket", accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 export function postAdminSetHubTournament(accessToken: string, tournamentId: string | null) {
   return adminFetch<{
     ok: boolean;
