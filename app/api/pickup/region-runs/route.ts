@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { PublicPickupRunRow } from "@/lib/pickup/publicUpcomingRuns";
-import { parseHubRegion } from "@/lib/pickup/hubRegions";
+import { HUB_REGIONS, parseHubRegion } from "@/lib/pickup/hubRegions";
 import { milesFromZipToRunLocation } from "@/lib/pickup/runVenueDistance";
 import { clampMaxRunDistanceMiles } from "@/lib/pickup/runRadiusPreference";
 import {
@@ -20,7 +20,43 @@ function bearer(req: Request): string | null {
   return auth.startsWith("Bearer ") ? auth.slice(7) : null;
 }
 
-/** GET ?region=MD — runs for one hub; optional auth filters/sorts by ZIP + max_run_distance_miles. */
+function normalizeRegionCode(raw: string | null | undefined): string | null {
+  if (raw == null) return null;
+  const u = String(raw).trim().toUpperCase();
+  return HUB_REGIONS.has(u) ? u : raw.trim() ? String(raw).trim().toUpperCase() : null;
+}
+
+type RunRow = Pick<
+  PublicPickupRunRow,
+  | "id"
+  | "title"
+  | "status"
+  | "start_at"
+  | "run_type"
+  | "capacity"
+  | "fee_cents"
+  | "service_region"
+  | "final_slot_id"
+> & { location_private?: string | null };
+
+type RowOut = {
+  id: string;
+  title: string | null;
+  status: string;
+  start_at: string | null;
+  run_type: string | null;
+  capacity: number;
+  fee_cents: number;
+  service_region: string | null;
+  confirmed_count: number;
+  final_slot_id: string | null;
+  distance_miles: number | null;
+};
+
+/**
+ * GET ?region=CT — primary hub runs for the selected state.
+ * With auth + ZIP + max_run_distance_miles: also include other hubs' runs within radius, sorted by distance.
+ */
 export async function GET(req: Request) {
   let admin;
   try {
@@ -60,34 +96,37 @@ export async function GET(req: Request) {
       }
     }
 
-    const runRes = await admin
+    const includeNearbyRegions = playerZip != null && maxRadiusMiles != null;
+
+    let runQuery = admin
       .from("pickup_runs")
       .select(
         "id,title,status,start_at,run_type,capacity,fee_cents,service_region,final_slot_id,location_private",
       )
-      .eq("service_region", hubRegion)
       .in("status", [...LIST_STATUSES]);
+
+    if (!includeNearbyRegions) {
+      runQuery = runQuery.eq("service_region", hubRegion);
+    }
+
+    const runRes = await runQuery.order("start_at", { ascending: true, nullsFirst: false });
 
     if (runRes.error) {
       console.error(`[api/${ROUTE}] pickup_runs:`, runRes.error.message, runRes.error);
       return NextResponse.json({ error: "Could not load runs." }, { status: 500 });
     }
 
-    const runs = (runRes.data || []) as (Pick<
-      PublicPickupRunRow,
-      | "id"
-      | "title"
-      | "status"
-      | "start_at"
-      | "run_type"
-      | "capacity"
-      | "fee_cents"
-      | "service_region"
-      | "final_slot_id"
-    > & { location_private?: string | null })[];
+    const runs = (runRes.data || []) as RunRow[];
+
+    const filterPayload = {
+      zip: playerZip,
+      max_miles: maxRadiusMiles,
+      region: hubRegion,
+      include_nearby_regions: includeNearbyRegions,
+    };
 
     if (!runs.length) {
-      return NextResponse.json({ runs: [], filter: { zip: playerZip, max_miles: maxRadiusMiles } });
+      return NextResponse.json({ runs: [], filter: filterPayload });
     }
 
     const ids = runs.map((r) => r.id);
@@ -107,23 +146,10 @@ export async function GET(req: Request) {
       confirmedByRun.set(rid, (confirmedByRun.get(rid) ?? 0) + 1);
     }
 
-    type RowOut = {
-      id: string;
-      title: string | null;
-      status: string;
-      start_at: string | null;
-      run_type: string | null;
-      capacity: number;
-      fee_cents: number;
-      service_region: string;
-      confirmed_count: number;
-      final_slot_id: string | null;
-      distance_miles: number | null;
-    };
-
     let payload: RowOut[] = runs.map((r) => {
+      const regionCode = normalizeRegionCode(r.service_region);
       const distance_miles = playerZip
-        ? milesFromZipToRunLocation(playerZip, r.location_private ?? null, r.service_region ?? hubRegion)
+        ? milesFromZipToRunLocation(playerZip, r.location_private ?? null, regionCode)
         : null;
       return {
         id: r.id,
@@ -133,17 +159,19 @@ export async function GET(req: Request) {
         run_type: r.run_type,
         capacity: Number(r.capacity ?? 0),
         fee_cents: Number(r.fee_cents ?? 0),
-        service_region: r.service_region ?? hubRegion,
+        service_region: regionCode,
         confirmed_count: confirmedByRun.get(String(r.id)) ?? 0,
         final_slot_id: r.final_slot_id ?? null,
         distance_miles,
       };
     });
 
-    if (playerZip && maxRadiusMiles != null) {
-      payload = payload.filter(
-        (r) => r.distance_miles != null && r.distance_miles <= maxRadiusMiles!,
-      );
+    if (includeNearbyRegions) {
+      payload = payload.filter((r) => {
+        const inSelectedHub = r.service_region === hubRegion;
+        if (inSelectedHub) return true;
+        return r.distance_miles != null && r.distance_miles <= maxRadiusMiles!;
+      });
       payload.sort((a, b) => {
         const da = a.distance_miles ?? 9999;
         const db = b.distance_miles ?? 9999;
@@ -162,7 +190,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       runs: payload,
-      filter: { zip: playerZip, max_miles: maxRadiusMiles },
+      filter: filterPayload,
     });
   } catch (err) {
     return jsonUnexpectedErrorResponse(ROUTE, "GET", err);

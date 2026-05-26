@@ -442,7 +442,12 @@ export default function RunsScreen() {
       if (r.ok && r.json && typeof r.json === "object") {
         const body = r.json as {
           runs?: unknown;
-          filter?: { zip?: string | null; max_miles?: number | null };
+          filter?: {
+            zip?: string | null;
+            max_miles?: number | null;
+            region?: string | null;
+            include_nearby_regions?: boolean;
+          };
         };
         const filter = body.filter;
         setListFilterZip(typeof filter?.zip === "string" ? filter.zip : null);
@@ -741,7 +746,7 @@ export default function RunsScreen() {
         </View>
         <Text style={styles.regionSub}>
           {listFilterZip && listFilterMaxMiles != null
-            ? `Runs within ${listFilterMaxMiles} mi of ${listFilterZip} · ${serviceRegionName(region)}`
+            ? `${serviceRegionName(region)} (${region}) runs + nearby within ${listFilterMaxMiles} mi of ${listFilterZip}`
             : `Pickup runs in ${serviceRegionName(region)} (${region})`}
         </Text>
 
@@ -761,7 +766,7 @@ export default function RunsScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>
               {listFilterZip && listFilterMaxMiles != null
-                ? `No runs within ${listFilterMaxMiles} mi right now. Try a larger radius in Account settings.`
+                ? `No runs in ${serviceRegionName(region)} or within ${listFilterMaxMiles} mi right now. Try a larger radius in Account.`
                 : `No runs scheduled for ${serviceRegionName(region)} right now. Check back soon.`}
             </Text>
           </View>
