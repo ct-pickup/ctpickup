@@ -8,10 +8,7 @@ import {
 } from "@/lib/pickup/profileMaxDriveFilter";
 import { milesFromZipToRunLocation } from "@/lib/pickup/runVenueDistance";
 import {
-  createDriveMinutesCache,
-  driveMinutesCacheKey,
   driveMinutesFromZipToDestination,
-  googleDriveMinutesFromZipToDestination,
   resolveRunVenueDestination,
 } from "@/lib/venueDistance";
 import {
@@ -67,7 +64,7 @@ type RowOut = {
 
 /**
  * GET ?region=CT — primary hub runs for the selected state.
- * With auth + ZIP + max_drive_minutes (under 90): also include other hubs within drive time, sorted by drive time.
+ * With auth + ZIP + max_drive_minutes (under 90): also include other hubs within drive time, sorted by distance.
  */
 export async function GET(req: Request) {
   let admin;
@@ -184,31 +181,15 @@ export async function GET(req: Request) {
       confirmedByRun.set(rid, (confirmedByRun.get(rid) ?? 0) + 1);
     }
 
-    const driveCache = createDriveMinutesCache();
-    type RowWorking = RowOut & { effective_drive_minutes: number | null };
-
-    let payload: RowWorking[] = await Promise.all(
+    let payload: RowOut[] = await Promise.all(
       visibleRuns.map(async (r) => {
         const regionCode = normalizeRegionCode(r.service_region);
         const dest = resolveRunVenueDestination({
           locationPrivate: r.location_private,
           serviceRegion: regionCode,
         });
-        let drive_minutes: number | null = null;
-        let effective_drive_minutes: number | null = null;
-        if (playerZip && dest) {
-          drive_minutes = await googleDriveMinutesFromZipToDestination(playerZip, dest);
-          if (drive_minutes != null) {
-            driveCache.set(driveMinutesCacheKey(playerZip, dest), drive_minutes);
-            effective_drive_minutes = drive_minutes;
-          } else {
-            effective_drive_minutes = await driveMinutesFromZipToDestination(
-              playerZip,
-              dest,
-              driveCache,
-            );
-          }
-        }
+        const drive_minutes =
+          playerZip && dest ? await driveMinutesFromZipToDestination(playerZip, dest) : null;
         const distance_miles = playerZip
           ? milesFromZipToRunLocation(playerZip, r.location_private ?? null, regionCode)
           : null;
@@ -225,7 +206,6 @@ export async function GET(req: Request) {
           final_slot_id: r.final_slot_id ?? null,
           distance_miles,
           drive_minutes,
-          effective_drive_minutes,
         };
       }),
     );
@@ -234,13 +214,11 @@ export async function GET(req: Request) {
       payload = payload.filter((r) => {
         const inSelectedHub = r.service_region === hubRegion;
         if (inSelectedHub) return true;
-        return (
-          r.effective_drive_minutes != null && r.effective_drive_minutes <= maxDriveMinutes
-        );
+        return r.drive_minutes != null && r.drive_minutes <= maxDriveMinutes;
       });
       payload.sort((a, b) => {
-        const da = a.effective_drive_minutes ?? a.distance_miles ?? 9999;
-        const db = b.effective_drive_minutes ?? b.distance_miles ?? 9999;
+        const da = a.distance_miles ?? 9999;
+        const db = b.distance_miles ?? 9999;
         if (da !== db) return da - db;
         const ta = a.start_at ? Date.parse(a.start_at) : 0;
         const tb = b.start_at ? Date.parse(b.start_at) : 0;
@@ -254,37 +232,8 @@ export async function GET(req: Request) {
       });
     }
 
-    const runRows: RowOut[] = payload.map(({ effective_drive_minutes: _eff, ...row }) => row);
-
-    // #region agent log
-    if (playerZip) {
-      const googleMinutes = runRows.filter((r) => r.drive_minutes != null).length;
-      const milesOnly = runRows.filter((r) => r.drive_minutes == null && r.distance_miles != null).length;
-      console.log(
-        JSON.stringify({
-          sessionId: "c3b686",
-          hypothesisId: "H2",
-          location: "region-runs/route.ts:GET",
-          message: "drive_minutes response summary",
-          data: {
-            playerZipPrefix: playerZip.slice(0, 3),
-            runCount: runRows.length,
-            googleMinutes,
-            milesOnly,
-            sample: runRows.slice(0, 3).map((r) => ({
-              id: String(r.id).slice(0, 8),
-              drive_minutes: r.drive_minutes,
-              distance_miles: r.distance_miles,
-            })),
-          },
-          timestamp: Date.now(),
-        }),
-      );
-    }
-    // #endregion
-
     return NextResponse.json({
-      runs: runRows,
+      runs: payload,
       filter: filterPayload,
     });
   } catch (err) {

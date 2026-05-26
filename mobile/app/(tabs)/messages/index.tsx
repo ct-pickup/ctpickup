@@ -9,7 +9,6 @@ import {
   type ChatRoomSummary,
 } from "@/lib/teamChat";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -68,31 +67,6 @@ export default function MessagesIndex() {
     () => rooms.filter((r) => r.room_type === "group" && isAdminDmGroupSlug(r.slug)),
     [rooms],
   );
-
-  // #region agent log
-  useFocusEffect(
-    useCallback(() => {
-      fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c3b686" },
-        body: JSON.stringify({
-          sessionId: "c3b686",
-          hypothesisId: "H1-H4",
-          location: "messages/index.tsx:focus",
-          message: "messages index focused",
-          data: {
-            signedIn,
-            allowed,
-            roomCount: rooms.length,
-            loading,
-            hasError: !!error,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-    }, [signedIn, allowed, rooms.length, loading, error]),
-  );
-  // #endregion
 
   if (!isReady) {
     return (

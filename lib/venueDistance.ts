@@ -128,8 +128,7 @@ function destinationQuery(dest: VenueDestination): string {
   return `${dest.venue}, ${dest.address}`;
 }
 
-/** Google Distance Matrix with traffic only — returns null when the API fails. */
-export async function googleDriveMinutesFromZipToDestination(
+async function googleDriveMinutesFromZipToDestination(
   zip5: string,
   dest: VenueDestination,
 ): Promise<number | null> {
@@ -167,24 +166,14 @@ export async function googleDriveMinutesFromZipToDestination(
 export async function driveMinutesFromZipToDestination(
   zip: string | null | undefined,
   dest: VenueDestination,
-  cache?: DriveMinutesCache,
 ): Promise<number | null> {
   const zip5 = normalizeZip(zip);
   if (!zip5) return null;
 
-  const cacheKey = driveMinutesCacheKey(zip5, dest);
-  const cached = cache?.get(cacheKey);
-  if (cached != null) return cached;
-
   const google = await googleDriveMinutesFromZipToDestination(zip5, dest);
-  if (google != null) {
-    cache?.set(cacheKey, google);
-    return google;
-  }
+  if (google != null) return google;
 
-  const est = haversineMinutesFromZipToDestination(zip5, dest);
-  if (est != null) cache?.set(cacheKey, est);
-  return est;
+  return haversineMinutesFromZipToDestination(zip5, dest);
 }
 
 const MATRIX_ORIGIN_BATCH = 25;

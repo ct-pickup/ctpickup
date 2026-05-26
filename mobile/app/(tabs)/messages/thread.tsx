@@ -185,41 +185,6 @@ export default function TeamChatThreadScreen() {
   const isRunBanterRoom = room?.room_type === "run_banter";
   const runBanterAutoCloseAt = room?.auto_close_at ?? null;
 
-  // #region agent log
-  useFocusEffect(
-    useCallback(() => {
-      fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "c3b686" },
-        body: JSON.stringify({
-          sessionId: "c3b686",
-          hypothesisId: "H1-H3",
-          location: "messages/thread.tsx:focus",
-          message: "messages thread focused",
-          data: {
-            trimmedId: trimmedId || null,
-            trimmedSlug: trimmedSlug || null,
-            lookupKind: trimmedId ? "id" : "slug",
-            allowed,
-            roomLoading,
-            hasRoom: !!room,
-            roomError: roomError ?? null,
-            showsTeamChatOff: !roomLoading && !roomError && !room,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-    }, [
-      trimmedId,
-      trimmedSlug,
-      allowed,
-      roomLoading,
-      room,
-      roomError,
-    ]),
-  );
-  // #endregion
-
   useFocusEffect(
     useCallback(() => {
       navigation.setOptions({
@@ -240,6 +205,12 @@ export default function TeamChatThreadScreen() {
           </Pressable>
         ),
       });
+      return () => {
+        navigation.setOptions({
+          headerLeft: undefined,
+          headerBackVisible: undefined,
+        });
+      };
     }, [navigation, router, room?.title]),
   );
 
