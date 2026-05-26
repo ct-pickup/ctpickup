@@ -142,7 +142,23 @@ type RegionRunListItem = {
   confirmed_count: number;
   final_slot_id: string | null;
   distance_miles: number | null;
+  drive_minutes: number | null;
 };
+
+function formatRunDistanceAway(
+  driveMinutes: number | null,
+  distanceMiles: number | null,
+): string | null {
+  if (driveMinutes != null && Number.isFinite(driveMinutes)) {
+    return `${Math.round(driveMinutes)} min away`;
+  }
+  if (distanceMiles != null && Number.isFinite(distanceMiles)) {
+    const miles =
+      distanceMiles % 1 === 0 ? `${Math.round(distanceMiles)}` : distanceMiles.toFixed(1);
+    return `${miles} mi away`;
+  }
+  return null;
+}
 
 /** Planning / likely_on before a slot is locked — poll lives on the list, not in the modal. */
 function isInlinePlanningRun(row: RegionRunListItem): boolean {
@@ -217,6 +233,11 @@ function RunSummaryCard({
     typeof (row as RegionRunListItem).distance_miles === "number"
       ? (row as RegionRunListItem).distance_miles
       : null;
+  const driveMinutes =
+    typeof (row as RegionRunListItem).drive_minutes === "number"
+      ? (row as RegionRunListItem).drive_minutes
+      : null;
+  const distanceAwayLabel = formatRunDistanceAway(driveMinutes, distanceMiles);
 
   const inner = (
     <>
@@ -267,10 +288,8 @@ function RunSummaryCard({
           <Text style={styles.venue} numberOfLines={2}>
             {venue}
           </Text>
-          {distanceMiles != null ? (
-            <Text style={styles.distanceAway}>
-              {distanceMiles % 1 === 0 ? `${Math.round(distanceMiles)}` : distanceMiles.toFixed(1)} mi away
-            </Text>
+          {distanceAwayLabel ? (
+            <Text style={styles.distanceAway}>{distanceAwayLabel}</Text>
           ) : null}
         </View>
       </View>
@@ -593,6 +612,10 @@ export default function RunsScreen() {
                 distance_miles:
                   typeof o.distance_miles === "number" && Number.isFinite(o.distance_miles)
                     ? o.distance_miles
+                    : null,
+                drive_minutes:
+                  typeof o.drive_minutes === "number" && Number.isFinite(o.drive_minutes)
+                    ? o.drive_minutes
                     : null,
               };
             })

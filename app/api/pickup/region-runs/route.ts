@@ -8,7 +8,10 @@ import {
 } from "@/lib/pickup/profileMaxDriveFilter";
 import { milesFromZipToRunLocation } from "@/lib/pickup/runVenueDistance";
 import {
+  createDriveMinutesCache,
+  driveMinutesCacheKey,
   driveMinutesFromZipToDestination,
+  googleDriveMinutesFromZipToDestination,
   resolveRunVenueDestination,
 } from "@/lib/venueDistance";
 import {
@@ -64,7 +67,7 @@ type RowOut = {
 
 /**
  * GET ?region=CT — primary hub runs for the selected state.
- * With auth + ZIP + max_drive_minutes (under 90): also include other hubs within drive time, sorted by distance.
+ * With auth + ZIP + max_drive_minutes (under 90): also include other hubs within drive time, sorted by drive time.
  */
 export async function GET(req: Request) {
   let admin;
@@ -181,15 +184,31 @@ export async function GET(req: Request) {
       confirmedByRun.set(rid, (confirmedByRun.get(rid) ?? 0) + 1);
     }
 
-    let payload: RowOut[] = await Promise.all(
+    const driveCache = createDriveMinutesCache();
+    type RowWorking = RowOut & { effective_drive_minutes: number | null };
+
+    let payload: RowWorking[] = await Promise.all(
       visibleRuns.map(async (r) => {
         const regionCode = normalizeRegionCode(r.service_region);
         const dest = resolveRunVenueDestination({
           locationPrivate: r.location_private,
           serviceRegion: regionCode,
         });
-        const drive_minutes =
-          playerZip && dest ? await driveMinutesFromZipToDestination(playerZip, dest) : null;
+        let drive_minutes: number | null = null;
+        let effective_drive_minutes: number | null = null;
+        if (playerZip && dest) {
+          drive_minutes = await googleDriveMinutesFromZipToDestination(playerZip, dest);
+          if (drive_minutes != null) {
+            driveCache.set(driveMinutesCacheKey(playerZip, dest), drive_minutes);
+            effective_drive_minutes = drive_minutes;
+          } else {
+            effective_drive_minutes = await driveMinutesFromZipToDestination(
+              playerZip,
+              dest,
+              driveCache,
+            );
+          }
+        }
         const distance_miles = playerZip
           ? milesFromZipToRunLocation(playerZip, r.location_private ?? null, regionCode)
           : null;
@@ -206,6 +225,7 @@ export async function GET(req: Request) {
           final_slot_id: r.final_slot_id ?? null,
           distance_miles,
           drive_minutes,
+          effective_drive_minutes,
         };
       }),
     );
@@ -214,11 +234,13 @@ export async function GET(req: Request) {
       payload = payload.filter((r) => {
         const inSelectedHub = r.service_region === hubRegion;
         if (inSelectedHub) return true;
-        return r.drive_minutes != null && r.drive_minutes <= maxDriveMinutes;
+        return (
+          r.effective_drive_minutes != null && r.effective_drive_minutes <= maxDriveMinutes
+        );
       });
       payload.sort((a, b) => {
-        const da = a.distance_miles ?? 9999;
-        const db = b.distance_miles ?? 9999;
+        const da = a.effective_drive_minutes ?? a.distance_miles ?? 9999;
+        const db = b.effective_drive_minutes ?? b.distance_miles ?? 9999;
         if (da !== db) return da - db;
         const ta = a.start_at ? Date.parse(a.start_at) : 0;
         const tb = b.start_at ? Date.parse(b.start_at) : 0;
@@ -232,8 +254,10 @@ export async function GET(req: Request) {
       });
     }
 
+    const runRows: RowOut[] = payload.map(({ effective_drive_minutes: _eff, ...row }) => row);
+
     return NextResponse.json({
-      runs: payload,
+      runs: runRows,
       filter: filterPayload,
     });
   } catch (err) {
