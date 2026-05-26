@@ -23,8 +23,16 @@ export async function ensurePickupRunInviteLink(
   }
   if (existing) return;
 
-  // `pickup_run_invites.wave` is NOT NULL in newer schemas; default to 0 for legacy/manual inserts.
-  const ins = await admin.from("pickup_run_invites").insert({ run_id: runId, user_id: userId, wave: 0 });
+  // Newer schemas enforce NOT NULL on multiple invite columns.
+  // Defaults here are for "ensure link exists" cases (e.g. RSVP flow on public/free runs).
+  const now = new Date().toISOString();
+  const ins = await admin.from("pickup_run_invites").insert({
+    run_id: runId,
+    user_id: userId,
+    wave: 0,
+    invited_tier_rank: 6,
+    invited_at: now,
+  });
   if (ins.error) {
     const msg = ins.error.message || "";
     if (!/duplicate|unique/i.test(msg)) {
