@@ -20,6 +20,7 @@ import {
 } from "@/lib/adminApi";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
 import { fmtPickupRunScheduleEt } from "@/lib/pickupPublic";
+import { fmtPickupSlotWindowEt } from "@/lib/pickup/fmtPickupSlotWindowEt";
 import { isPublicPickupRunType } from "@/lib/pickupRunType";
 import { skipWaveUiForRun } from "@/lib/pickupWaveOutreach";
 import {
@@ -124,6 +125,23 @@ function SkeletonCard() {
       <View style={[styles.skeletonLine, { width: "40%", marginTop: 10 }]} />
     </View>
   );
+}
+
+function isoToEtDateOnly(iso: string): string {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  const y = get("year");
+  const m = get("month");
+  const day = get("day");
+  if (!y || !m || !day) return "";
+  return `${y}-${m}-${day}`;
 }
 
 export default function AdminPickupOpsScreen() {
@@ -322,32 +340,32 @@ export default function AdminPickupOpsScreen() {
     const isPublic = createRunType === "public";
     let start_at: string | undefined;
     let time_slots: string[] | undefined;
-    if (!isPublic) {
-      const slots: string[] = [];
-      for (const raw of createTimeSlots) {
-        const picked = raw.trim();
-        if (!picked) continue;
-        if (isScheduleWallMidnightEt(picked)) {
-          Alert.alert("Pick a time", "Each slot needs a real start time, not midnight.");
-          return;
-        }
-        if (new Date(picked) <= new Date()) {
-          Alert.alert("Future only", "All slot times must be in the future.");
-          return;
-        }
-        slots.push(picked);
-      }
-      if (slots.length < 1) {
-        Alert.alert("Time slots", "Add at least one date & time option for players to vote on.");
+
+    const slots: string[] = [];
+    for (const raw of createTimeSlots) {
+      const picked = raw.trim();
+      if (!picked) continue;
+      if (isScheduleWallMidnightEt(picked)) {
+        Alert.alert("Pick a time", "Each slot needs a real start time, not midnight.");
         return;
       }
-      if (slots.length > 5) {
-        Alert.alert("Time slots", "You can add at most 5 time options.");
+      if (new Date(picked) <= new Date()) {
+        Alert.alert("Future only", "All slot times must be in the future.");
         return;
       }
-      time_slots = slots;
-      start_at = slots[0];
+      slots.push(picked);
     }
+    if (slots.length < 1) {
+      Alert.alert("Time slots", "Add at least one date & time option for players to vote on.");
+      return;
+    }
+    if (slots.length > 5) {
+      Alert.alert("Time slots", "You can add at most 5 time options.");
+      return;
+    }
+
+    time_slots = slots;
+    start_at = isPublic ? isoToEtDateOnly(slots[0]!) : slots[0];
     if (!createVenue.trim()) {
       Alert.alert("Pick a venue", "Select a venue from the list.");
       return;
@@ -804,60 +822,64 @@ export default function AdminPickupOpsScreen() {
               {createRunType === "public" ? (
                 <View style={styles.publicTimeNote}>
                   <Text style={styles.publicTimeNoteText}>
-                    Players will vote on time — slots added automatically
+                    Public runs: players vote on time — up to 5 options
                   </Text>
                 </View>
-              ) : (
-                <>
-                  <Text style={styles.label}>Time slot options</Text>
-                  <Text style={styles.slotSectionHint}>
-                    Players vote on which times work (1–5 options). Run stays in planning until you finalize.
-                  </Text>
-                  {createTimeSlots.map((slotVal, idx) => (
-                    <View key={`slot-${idx}`} style={styles.slotBlock}>
-                      <View style={styles.slotBlockHeader}>
-                        <Text style={styles.slotBlockTitle}>Option {idx + 1}</Text>
-                        {createTimeSlots.length > 1 ? (
-                          <Pressable
-                            onPress={() => {
-                              void hapticTap();
-                              setCreateTimeSlots((prev) => prev.filter((_, i) => i !== idx));
-                            }}
-                            hitSlop={8}
-                          >
-                            <Text style={styles.removeSlotText}>Remove</Text>
-                          </Pressable>
-                        ) : null}
-                      </View>
-                      <DateTimePicker
-                        label="Date & time (ET)"
-                        value={slotVal}
-                        onChange={(v) => {
-                          setCreateTimeSlots((prev) => {
-                            const next = [...prev];
-                            next[idx] = v;
-                            return next;
-                          });
-                        }}
-                        enforceFuture
-                        prominent={idx === 0}
-                      />
+              ) : null}
+              <>
+                <Text style={styles.label}>Time slot options</Text>
+                <Text style={styles.slotSectionHint}>
+                  {createRunType === "public"
+                    ? "Players vote on which times work (1–5 options). Run stays in planning until you finalize."
+                    : "Players vote on which times work (1–5 options). Run stays in planning until you finalize."}
+                </Text>
+                {createTimeSlots.map((slotVal, idx) => (
+                  <View key={`slot-${idx}`} style={styles.slotBlock}>
+                    <View style={styles.slotBlockHeader}>
+                      <Text style={styles.slotBlockTitle}>Option {idx + 1}</Text>
+                      {createTimeSlots.length > 1 ? (
+                        <Pressable
+                          onPress={() => {
+                            void hapticTap();
+                            setCreateTimeSlots((prev) => prev.filter((_, i) => i !== idx));
+                          }}
+                          hitSlop={8}
+                        >
+                          <Text style={styles.removeSlotText}>Remove</Text>
+                        </Pressable>
+                      ) : null}
                     </View>
-                  ))}
-                  {createTimeSlots.length < 5 ? (
-                    <Pressable
-                      onPress={() => {
-                        void hapticTap();
-                        setCreateTimeSlots((prev) => [...prev, ""]);
+                    <DateTimePicker
+                      label="Date & time (ET)"
+                      value={slotVal}
+                      onChange={(v) => {
+                        setCreateTimeSlots((prev) => {
+                          const next = [...prev];
+                          next[idx] = v;
+                          return next;
+                        });
                       }}
-                      style={({ pressed }) => [styles.addSlotBtn, pressed && { opacity: 0.9 }]}
-                    >
-                      <FontAwesome name="plus" size={12} color={LIME} />
-                      <Text style={styles.addSlotBtnText}>Add another time slot</Text>
-                    </Pressable>
-                  ) : null}
-                </>
-              )}
+                      enforceFuture
+                      prominent={idx === 0}
+                    />
+                    {slotVal.trim() ? (
+                      <Text style={styles.slotWindowPreview}>{fmtPickupSlotWindowEt(slotVal)}</Text>
+                    ) : null}
+                  </View>
+                ))}
+                {createTimeSlots.length < 5 ? (
+                  <Pressable
+                    onPress={() => {
+                      void hapticTap();
+                      setCreateTimeSlots((prev) => [...prev, ""]);
+                    }}
+                    style={({ pressed }) => [styles.addSlotBtn, pressed && { opacity: 0.9 }]}
+                  >
+                    <FontAwesome name="plus" size={12} color={LIME} />
+                    <Text style={styles.addSlotBtnText}>Add another time slot</Text>
+                  </Pressable>
+                ) : null}
+              </>
 
               <Text style={styles.label}>Capacity</Text>
               <TextInput
@@ -1252,6 +1274,7 @@ const styles = StyleSheet.create({
   slotBlockHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
   slotBlockTitle: { color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: "700", textTransform: "uppercase" },
   removeSlotText: { color: "#fca5a5", fontSize: 12, fontWeight: "600" },
+  slotWindowPreview: { marginTop: 8, color: "rgba(163,230,53,0.7)", fontWeight: "700", fontSize: 12, lineHeight: 16 },
   addSlotBtn: {
     flexDirection: "row",
     alignItems: "center",

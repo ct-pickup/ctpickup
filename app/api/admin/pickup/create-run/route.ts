@@ -3,10 +3,12 @@ import {
   buildPublicPickupTimeSlotsForNextDay,
   publicPickupRunPlaceholderStartAt,
 } from "@/lib/pickup/publicRunTimeSlots";
-import { fmtPickupSlotChipEt, isPickupRunDateOnlyStartAt } from "@/lib/pickup/runStartAtDisplay";
+import { isPickupRunDateOnlyStartAt } from "@/lib/pickup/runStartAtDisplay";
 import { isPublicPickupRunType, normalizePickupRunTypeForDb } from "@/lib/pickup/pickupRunType";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
+import { DateTime } from "luxon";
+import { fmtPickupSlotWindowEt } from "@/lib/pickup/fmtPickupSlotWindowEt";
 
 
 export async function POST(req: Request) {
@@ -36,23 +38,63 @@ export async function POST(req: Request) {
   let start_at: string;
   let timeSlotsToInsert: { label: string; start_at: string }[] | null = null;
 
+  const TZ = "America/New_York";
+  function etDateOnlyMidnightUtcIsoFromSlot(startIso: string): string {
+    const dt = DateTime.fromISO(startIso).setZone(TZ);
+    const iso = DateTime.utc(dt.year, dt.month, dt.day, 0, 0, 0, 0).toISO();
+    if (!iso) throw new Error("Could not derive date-only start_at from time slot.");
+    return iso;
+  }
+
   if (publicRun) {
-    timeSlotsToInsert = buildPublicPickupTimeSlotsForNextDay();
+    // Admin can optionally provide time slots for public runs (players vote on kickoff time windows).
+    const slotsFromBody: string[] = [];
+    if (Array.isArray(b.time_slots)) {
+      for (const entry of b.time_slots) {
+        const raw = String(entry ?? "").trim();
+        if (!raw) continue;
+        const parsedMs = Date.parse(raw);
+        if (!Number.isFinite(parsedMs)) {
+          return NextResponse.json({ error: `Invalid time_slots entry: ${raw}` }, { status: 400 });
+        }
+        slotsFromBody.push(new Date(parsedMs).toISOString());
+      }
+    }
+
+    if (slotsFromBody.length > 5) {
+      return NextResponse.json({ error: "At most 5 time_slots allowed" }, { status: 400 });
+    }
+
     const startAtRaw = String(b.start_at || "").trim();
-    if (startAtRaw) {
-      if (!isPickupRunDateOnlyStartAt(startAtRaw)) {
-        return NextResponse.json(
-          { error: "Public planning runs require a date-only start_at (midnight UTC) or omit start_at" },
-          { status: 400 },
-        );
-      }
-      const m = startAtRaw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (!m) {
-        return NextResponse.json({ error: "Invalid date-only start_at" }, { status: 400 });
-      }
-      start_at = `${m[1]}-${m[2]}-${m[3]}T00:00:00.000Z`;
+
+    if (slotsFromBody.length > 0) {
+      // Anchor kickoff date display to the ET wall-clock day of the first slot.
+      start_at = etDateOnlyMidnightUtcIsoFromSlot(slotsFromBody[0]!);
+      timeSlotsToInsert = slotsFromBody.map((iso) => ({
+        label: fmtPickupSlotWindowEt(iso),
+        start_at: iso,
+      }));
     } else {
-      start_at = publicPickupRunPlaceholderStartAt();
+      timeSlotsToInsert = buildPublicPickupTimeSlotsForNextDay().map((slot) => ({
+        start_at: slot.start_at,
+        label: fmtPickupSlotWindowEt(slot.start_at),
+      }));
+
+      if (startAtRaw) {
+        if (!isPickupRunDateOnlyStartAt(startAtRaw)) {
+          return NextResponse.json(
+            { error: "Public planning runs require a date-only start_at (midnight UTC) or omit start_at" },
+            { status: 400 },
+          );
+        }
+        const m = startAtRaw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (!m) {
+          return NextResponse.json({ error: "Invalid date-only start_at" }, { status: 400 });
+        }
+        start_at = `${m[1]}-${m[2]}-${m[3]}T00:00:00.000Z`;
+      } else {
+        start_at = publicPickupRunPlaceholderStartAt();
+      }
     }
   } else {
     const slotsFromBody: string[] = [];
@@ -73,7 +115,7 @@ export async function POST(req: Request) {
     if (slotsFromBody.length > 0) {
       start_at = slotsFromBody[0]!;
       timeSlotsToInsert = slotsFromBody.map((iso) => ({
-        label: fmtPickupSlotChipEt(iso),
+        label: fmtPickupSlotWindowEt(iso),
         start_at: iso,
       }));
     } else {
@@ -86,6 +128,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Invalid start_at datetime" }, { status: 400 });
       }
       start_at = new Date(parsedMs).toISOString();
+      timeSlotsToInsert = [
+        {
+          label: fmtPickupSlotWindowEt(start_at),
+          start_at,
+        },
+      ];
     }
   }
   const capacity = Number(b.capacity ?? 24);
