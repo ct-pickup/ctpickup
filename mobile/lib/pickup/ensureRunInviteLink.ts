@@ -23,7 +23,8 @@ export async function ensurePickupRunInviteLink(
   }
   if (existing) return;
 
-  const ins = await admin.from("pickup_run_invites").insert({ run_id: runId, user_id: userId });
+  // `pickup_run_invites.wave` is NOT NULL in newer schemas; default to 0 for legacy/manual inserts.
+  const ins = await admin.from("pickup_run_invites").insert({ run_id: runId, user_id: userId, wave: 0 });
   if (ins.error) {
     const msg = ins.error.message || "";
     if (!/duplicate|unique/i.test(msg)) {
