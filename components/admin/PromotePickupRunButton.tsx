@@ -28,10 +28,10 @@ export function PromotePickupRunButton({
     if (!token) return;
     setBusy(true);
     try {
-      const r = await fetch("/api/admin/operator", {
+      const r = await fetch("/api/admin/pickup/promote", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set_hub_pickup", run_id: runId }),
+        body: JSON.stringify({ run_id: runId, target: "hub" }),
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) {

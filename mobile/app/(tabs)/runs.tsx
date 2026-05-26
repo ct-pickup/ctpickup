@@ -65,20 +65,30 @@ function bestActiveCredit(credits: PickupCreditItem[]): PickupCreditItem | null 
   return active[0] ?? null;
 }
 
-function creditSummaryLine(credit: PickupCreditItem | null, feeCents: number): string | null {
-  if (!credit || feeCents <= 0) return null;
-  const amt = typeof credit.amount_cents === "number" && Number.isFinite(credit.amount_cents) ? Math.round(credit.amount_cents) : 0;
-  const pct = typeof credit.discount_pct === "number" && Number.isFinite(credit.discount_pct) ? Math.round(credit.discount_pct) : 0;
-  if (amt > 0) {
-    const after = Math.max(0, Math.round(feeCents) - amt);
-    return `Credit available: ${fmtUsdCents(amt)} · You’ll pay ${fmtUsdCents(after)}`;
-  }
-  if (pct > 0) {
-    const mult = Math.max(0, 1 - pct / 100);
-    const after = Math.max(0, Math.round(feeCents * mult));
-    return `Credit available: ${pct}% off · You’ll pay ${fmtUsdCents(after)}`;
-  }
-  return "Credit available · Will be applied automatically at checkout";
+function creditAmountCents(credit: PickupCreditItem): number {
+  const amt =
+    typeof credit.amount_cents === "number" && Number.isFinite(credit.amount_cents)
+      ? Math.round(credit.amount_cents)
+      : 0;
+  return Math.max(0, amt);
+}
+
+function creditDiscountPct(credit: PickupCreditItem): number {
+  const pct =
+    typeof credit.discount_pct === "number" && Number.isFinite(credit.discount_pct)
+      ? Math.round(credit.discount_pct)
+      : 0;
+  return Math.max(0, pct);
+}
+
+/** Matches server pickup credit math for checkout preview (see lib/pickup/pickupCredits.ts). */
+function feeCentsAfterCredit(feeCents: number, credit: PickupCreditItem | null): number {
+  if (!credit || feeCents <= 0) return feeCents;
+  const amt = creditAmountCents(credit);
+  const pct = creditDiscountPct(credit);
+  if (amt > 0) return Math.max(0, Math.round(feeCents) - amt);
+  if (pct > 0) return Math.max(0, Math.round(feeCents * (1 - pct / 100)));
+  return 0;
 }
 
 function SkeletonCard() {
@@ -470,6 +480,7 @@ export default function RunsScreen() {
   const autoOpenedFromDeepLinkRef = useRef(false);
   const [pickupCredits, setPickupCredits] = useState<PickupCreditItem[]>([]);
   const [pickupCreditsLoading, setPickupCreditsLoading] = useState(false);
+  const [creditAppliedPreview, setCreditAppliedPreview] = useState(false);
 
   const { run_id: rawRunIdParam } = useLocalSearchParams<{ run_id?: string | string[] }>();
   const focusRunIdParam = useMemo(() => {
@@ -635,11 +646,10 @@ export default function RunsScreen() {
   const isFree = feeCents <= 0;
   const showCreditPreview = !!token && !!runId && !isFree;
   const creditPreview = useMemo(() => bestActiveCredit(pickupCredits), [pickupCredits]);
-  const creditPreviewLine = useMemo(
-    () => creditSummaryLine(showCreditPreview ? creditPreview : null, feeCents),
-    [showCreditPreview, creditPreview, feeCents],
+  const feeAfterCreditPreview = useMemo(
+    () => (creditPreview ? feeCentsAfterCredit(feeCents, creditPreview) : feeCents),
+    [creditPreview, feeCents],
   );
-
   const loadPickupCredits = useCallback(async () => {
     const origin = siteOrigin();
     if (!origin || !token) {
@@ -686,14 +696,22 @@ export default function RunsScreen() {
     spotsLeft != null &&
     spotsLeft > 0;
 
+  const runServiceRegion = useMemo(() => {
+    const sr = run?.service_region;
+    return typeof sr === "string" ? sr.trim().toUpperCase() : "";
+  }, [run?.service_region]);
+
+  const publicRunJoinable =
+    isPublicPickupRunType(run?.run_type) &&
+    (invitedNow || (runServiceRegion.length > 0 && runServiceRegion === region));
+
   const eligibleToJoin =
     !!token &&
     !!runId &&
     !runLocked &&
-    invitedNow &&
     (myStatus == null || myStatus === "declined") &&
-    (isPublicPickupRunType(run?.run_type) ||
-      (isSelectPickupRunType(run?.run_type) && run?.final_slot_id != null));
+    (publicRunJoinable ||
+      (isSelectPickupRunType(run?.run_type) && invitedNow && run?.final_slot_id != null));
 
   const timeFinalized = runStatus === "active" || runStatus === "likely_on";
   const showImIn = eligibleToJoin && timeFinalized;
@@ -743,6 +761,14 @@ export default function RunsScreen() {
     if (!showCreditPreview) return;
     void loadPickupCredits();
   }, [detailOpen, showCreditPreview, loadPickupCredits]);
+
+  useEffect(() => {
+    if (!detailOpen) setCreditAppliedPreview(false);
+  }, [detailOpen]);
+
+  useEffect(() => {
+    setCreditAppliedPreview(false);
+  }, [selectedRunId, creditPreview?.id]);
 
   const rsvpMessage = rsvpStatusMessage(myStatus, waitlistMinutesLeft);
 
@@ -1023,12 +1049,41 @@ export default function RunsScreen() {
                           <CardDivider />
                           <View style={styles.creditPreviewRow}>
                             <Text style={styles.creditPreviewTitle}>Credits</Text>
-                            <Text style={styles.creditPreviewBody}>
-                              {pickupCreditsLoading
-                                ? "Loading credits…"
-                                : creditPreviewLine ||
-                                  "No active credits right now — full price will be charged."}
-                            </Text>
+                            {pickupCreditsLoading ? (
+                              <Text style={styles.creditPreviewBody}>Loading credits…</Text>
+                            ) : creditPreview ? (
+                              creditAppliedPreview ? (
+                                <Text style={styles.creditPreviewBody}>
+                                  You&apos;ll pay {fmtUsdCents(feeAfterCreditPreview)} after credit
+                                </Text>
+                              ) : (
+                                <View style={styles.creditApplyRow}>
+                                  <Text style={styles.creditPreviewBody}>
+                                    {creditAmountCents(creditPreview) > 0
+                                      ? `You have ${fmtUsdCents(creditAmountCents(creditPreview))} credit — apply to this run?`
+                                      : creditDiscountPct(creditPreview) > 0
+                                        ? `You have ${creditDiscountPct(creditPreview)}% off credit — apply to this run?`
+                                        : "You have a free run credit — apply to this run?"}
+                                  </Text>
+                                  <Pressable
+                                    onPress={() => {
+                                      void hapticTap();
+                                      setCreditAppliedPreview(true);
+                                    }}
+                                    style={({ pressed }) => [
+                                      styles.creditApplyBtn,
+                                      pressed && { opacity: 0.9 },
+                                    ]}
+                                  >
+                                    <Text style={styles.creditApplyBtnText}>Apply</Text>
+                                  </Pressable>
+                                </View>
+                              )
+                            ) : (
+                              <Text style={styles.creditPreviewBody}>
+                                No active credits right now — full price will be charged.
+                              </Text>
+                            )}
                           </View>
                         </>
                       ) : null}
@@ -1259,7 +1314,18 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: DIVIDER, marginVertical: -4 },
   creditPreviewRow: { gap: 6 },
   creditPreviewTitle: { color: "rgba(255,255,255,0.65)", fontWeight: "800", fontSize: 12, letterSpacing: 0.2 },
-  creditPreviewBody: { color: "rgba(255,255,255,0.75)", lineHeight: 20, fontSize: 14 },
+  creditPreviewBody: { color: "rgba(255,255,255,0.75)", lineHeight: 20, fontSize: 14, flex: 1 },
+  creditApplyRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  creditApplyBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.45)",
+    backgroundColor: "rgba(163,230,53,0.1)",
+    flexShrink: 0,
+  },
+  creditApplyBtnText: { color: LIME, fontWeight: "800", fontSize: 14 },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
   modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.65)" },
   detailSheet: {

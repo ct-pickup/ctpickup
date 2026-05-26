@@ -14,17 +14,9 @@ import {
 } from "@/lib/pickup/pickupRunType";
 import { cancelAllPickupRsvpsAndIssueCancellationCredits } from "@/lib/pickup/cancellationCreditsOnRunCancel";
 import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
-import {
-  pickupFinalizeSlotPushRecipientIds,
-  sendPickupFinalizedPush,
-  sendPickupNewRunPush,
-} from "@/lib/pickup/pickupPushNotifications";
-import {
-  pickupWaveCronRunColumns,
-  processDueWaveForRun,
-  startSelectWaveOutreachOnHubPromote,
-  type PickupRunWaveRow,
-} from "@/lib/pickup/waveInviteSystem";
+import { pickupFinalizeSlotPushRecipientIds, sendPickupFinalizedPush } from "@/lib/pickup/pickupPushNotifications";
+import { promotePickupRunToHub } from "@/lib/pickup/hubPromote";
+import { pickupWaveCronRunColumns, processDueWaveForRun, type PickupRunWaveRow } from "@/lib/pickup/waveInviteSystem";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { ensureRunBanterRoomAndMembers } from "@/lib/chat/runBanterRoom";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
@@ -838,99 +830,10 @@ export async function POST(req: Request) {
 
   if (action === "set_hub_pickup" || action === "promote_to_hub") {
     const run_id = body.run_id === null || body.run_id === "" ? null : String(body.run_id);
-    const now = new Date().toISOString();
 
-    let promotedRun: {
-      id: string;
-      title: string;
-      run_type: string;
-      service_region: string | null;
-      location_private: string | null;
-    } | null = null;
-
-    let waveOutreach: { wave1_invited: number; next_wave_at: string | null } | null = null;
-    let promotedRunRow: PickupRunWaveRow | null = null;
-
-    if (run_id) {
-      const runRes = await admin
-        .from("pickup_runs")
-        .select(
-          "id,title,status,run_type,service_region,location_private,start_at,capacity,outreach_started_at,next_wave_at,wave_state",
-        )
-        .eq("id", run_id)
-        .maybeSingle();
-      if (!runRes.data) {
-        return NextResponse.json({ error: "Run not found." }, { status: 404 });
-      }
-      if (runRes.data.status === "canceled") {
-        return NextResponse.json({ error: "Cannot promote a canceled run." }, { status: 400 });
-      }
-      promotedRunRow = runRes.data as PickupRunWaveRow;
-      promotedRun = {
-        id: String(runRes.data.id),
-        title: String(runRes.data.title || ""),
-        run_type: String(runRes.data.run_type || "select"),
-        service_region:
-          runRes.data.service_region === null || runRes.data.service_region === undefined
-            ? null
-            : String(runRes.data.service_region),
-        location_private:
-          runRes.data.location_private === null || runRes.data.location_private === undefined
-            ? null
-            : String(runRes.data.location_private),
-      };
-    }
-
-    const promotedRegion = promotedRun?.service_region ?? null;
-
-    let clear: { error: { message: string } | null };
-    if (run_id) {
-      if (promotedRegion !== null) {
-        clear = await admin
-          .from("pickup_runs")
-          .update({ is_current: false, updated_at: now })
-          .eq("is_current", true)
-          .eq("service_region", promotedRegion);
-      } else {
-        clear = await admin
-          .from("pickup_runs")
-          .update({ is_current: false, updated_at: now })
-          .eq("is_current", true)
-          .is("service_region", null);
-      }
-    } else {
-      clear = await admin.from("pickup_runs").update({ is_current: false, updated_at: now }).eq("is_current", true);
-    }
-    if (clear.error) {
-      return NextResponse.json({ error: clear.error.message }, { status: 500 });
-    }
-
-    if (run_id) {
-      const up = await admin.from("pickup_runs").update({ is_current: true, updated_at: now }).eq("id", run_id);
-      if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
-    }
-
-    let waveWarning: string | null = null;
-    if (promotedRunRow) {
-      const waveRes = await startSelectWaveOutreachOnHubPromote(admin, promotedRunRow);
-      if (!waveRes.ok) {
-        waveWarning = waveRes.error;
-        console.error("[pickup/switch set_hub_pickup] wave outreach failed:", waveRes.error);
-      } else if (!waveRes.skipped) {
-        waveOutreach = {
-          wave1_invited: waveRes.wave1_invited,
-          next_wave_at: waveRes.next_wave_at,
-        };
-      }
-    }
-
-    if (promotedRun && isPublicPickupRunType(promotedRun.run_type)) {
-      await sendPickupNewRunPush(admin, {
-        runId: promotedRun.id,
-        runTitle: promotedRun.title,
-        service_region: promotedRun.service_region,
-        location_private: promotedRun.location_private,
-      });
+    const hub = await promotePickupRunToHub(admin, run_id);
+    if (!hub.ok) {
+      return NextResponse.json({ error: hub.error }, { status: hub.status });
     }
 
     revalidatePath("/pickup");
@@ -938,8 +841,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      wave_outreach: waveOutreach,
-      wave_warning: waveWarning,
+      wave_outreach: hub.wave_outreach,
+      wave_warning: hub.wave_warning,
     });
   }
 

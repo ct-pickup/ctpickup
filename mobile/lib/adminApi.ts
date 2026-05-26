@@ -770,16 +770,29 @@ export function postAdminSetHubTournament(accessToken: string, tournamentId: str
 
 /** Set which pickup run is featured on the public `/pickup` hub for its region (or clear with `null`). */
 export function postAdminSetHubPickup(accessToken: string, run_id: string | null) {
+  if (run_id === null) {
+    return adminFetch<{
+      ok: boolean;
+      action?: string;
+      wave_warning?: string | null;
+      effects?: { record: string; detail: string }[];
+      error?: string;
+    }>("/api/admin/operator", accessToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "set_hub_pickup", run_id }),
+    });
+  }
   return adminFetch<{
     ok: boolean;
     action?: string;
     wave_warning?: string | null;
-    effects?: { record: string; detail: string }[];
+    wave_outreach?: { wave1_invited: number; next_wave_at: string | null } | null;
     error?: string;
-  }>("/api/admin/operator", accessToken, {
+  }>("/api/admin/pickup/promote", accessToken, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "set_hub_pickup", run_id }),
+    body: JSON.stringify({ run_id, target: "hub" }),
   });
 }
 
