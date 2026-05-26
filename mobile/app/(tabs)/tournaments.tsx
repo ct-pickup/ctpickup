@@ -113,7 +113,7 @@ export default function TournamentsScreen() {
   if (showStatePicker) {
     return (
       <SafeAreaView style={styles.pickerSafe} edges={["bottom"]}>
-        <RegionsPickerPanel onSelectState={onPickState} />
+        <RegionsPickerPanel onSelectState={onPickState} variant="tournament" />
       </SafeAreaView>
     );
   }

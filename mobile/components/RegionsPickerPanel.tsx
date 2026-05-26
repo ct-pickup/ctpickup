@@ -10,18 +10,23 @@ const BG = "#0a0a0a";
 type Props = {
   /** Called after the row’s region is chosen (caller may also persist hub region). */
   onSelectState: (code: ServiceRegionCode) => void;
+  /** Controls copy: pickup hub vs tournaments hub. Defaults to pickup. */
+  variant?: "pickup" | "tournament";
 };
 
-export function RegionsPickerPanel({ onSelectState }: Props) {
+export function RegionsPickerPanel({ onSelectState, variant = "pickup" }: Props) {
+  const leadText =
+    variant === "tournament"
+      ? "We run tournaments in four states. Select your state to see what's coming up and register your team."
+      : "We run pickup in four states. Select your state to see what's coming up and RSVP.";
+
   return (
     <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
       <Text style={styles.kicker}>SERVICE AREA</Text>
       <Text style={styles.headline}>
         Where we <Text style={styles.headlineAccent}>run</Text>
       </Text>
-      <Text style={styles.lead}>
-        We run tournaments in four states. Select your state to see what's coming up and register your team.
-      </Text>
+      <Text style={styles.lead}>{leadText}</Text>
 
       <View style={styles.grid}>
         {SERVICE_REGIONS.map((r, i) => {
