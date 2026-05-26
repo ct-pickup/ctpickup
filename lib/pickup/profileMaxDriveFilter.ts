@@ -10,7 +10,7 @@ import {
 export { createDriveMinutesCache, type DriveMinutesCache };
 
 export const DEFAULT_MAX_DRIVE_MINUTES = 50;
-export const MIN_MAX_DRIVE_MINUTES = 35;
+export const MIN_MAX_DRIVE_MINUTES = 30;
 export const MAX_MAX_DRIVE_MINUTES = 90;
 
 export function effectiveMaxDriveMinutes(value: number | null | undefined): number {
@@ -85,7 +85,7 @@ export async function filterProfilesByMaxDriveTime<T extends ProfileDriveProximi
     const maxMinutes = effectiveMaxDriveMinutes(profile.max_drive_minutes);
     const driveMinutes = minutesByZip.get(zip5);
     if (driveMinutes != null) {
-      if (driveMinutes <= maxMinutes) kept.push(profile);
+      if (maxMinutes >= MAX_MAX_DRIVE_MINUTES || driveMinutes <= maxMinutes) kept.push(profile);
       continue;
     }
     if (passesRegionFallback(profile, serviceRegion)) kept.push(profile);

@@ -60,7 +60,7 @@ import {
 const SUPPORT_EMAIL = "pickupct@gmail.com";
 const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}`;
 
-const MIN_MAX_DRIVE_MINUTES = 35;
+const MIN_MAX_DRIVE_MINUTES = 30;
 const MAX_MAX_DRIVE_MINUTES = 90;
 const DEFAULT_MAX_DRIVE_MINUTES = 50;
 const MAX_DRIVE_STEP = 5;
@@ -70,6 +70,7 @@ function clampMaxDriveMinutes(value: number): number {
 }
 
 function maxDriveLabel(minutes: number): string {
+  if (minutes >= MAX_MAX_DRIVE_MINUTES) return "Up to 90+ min drive";
   return `Up to ${minutes} min drive`;
 }
 

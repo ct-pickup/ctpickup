@@ -120,7 +120,7 @@ export function PreferencesSection({
           />
           <View style={styles.maxDriveTicks}>
             <Text style={styles.maxDriveTick}>{minDrive} min</Text>
-            <Text style={styles.maxDriveTick}>{maxDrive} min</Text>
+            <Text style={styles.maxDriveTick}>{maxDrive >= 90 ? "90+ min" : `${maxDrive} min`}</Text>
           </View>
           {maxDriveBusy ? (
             <View style={styles.maxDriveSaving}>
