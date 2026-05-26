@@ -35,6 +35,16 @@ function bearer(req: Request) {
   return auth.startsWith("Bearer ") ? auth.slice(7) : null;
 }
 
+/** `pickup_tier` on RSVPs applies to select runs only; public runs store null. */
+function tierAtTimeForPickupRsvp(
+  publicRun: boolean,
+  tier: string | null | undefined,
+): string | null {
+  if (publicRun) return null;
+  const t = tier != null ? String(tier).trim() : "";
+  return t || null;
+}
+
 type Body = {
   action: "join" | "decline";
   run_id: string;
@@ -183,7 +193,7 @@ export async function POST(req: Request) {
           {
             run_id: run.id,
             user_id: user.id,
-            tier_at_time: prof.data?.tier || null,
+            tier_at_time: tierAtTimeForPickupRsvp(publicRun, prof.data?.tier),
             status: newStatus,
             refund_id: refund.id,
             waitlist_position: null,
@@ -203,7 +213,7 @@ export async function POST(req: Request) {
         {
           run_id: run.id,
           user_id: user.id,
-          tier_at_time: prof.data?.tier || null,
+          tier_at_time: tierAtTimeForPickupRsvp(publicRun, prof.data?.tier),
           status: newStatus,
           waitlist_position: null,
           waitlist_offered_at: null,
@@ -416,7 +426,7 @@ export async function POST(req: Request) {
       {
         run_id: run.id,
         user_id: targetUserId,
-        tier_at_time: targetProf.data?.tier || null,
+        tier_at_time: tierAtTimeForPickupRsvp(publicRun, targetProf.data?.tier),
         status: "waitlist",
         waitlist_position: nextPos,
         waitlist_offered_at: null,
@@ -519,7 +529,7 @@ export async function POST(req: Request) {
     const upsertPayload = {
       run_id: run.id,
       user_id: targetUserId,
-      tier_at_time: targetProf.data?.tier || null,
+      tier_at_time: tierAtTimeForPickupRsvp(publicRun, targetProf.data?.tier),
       status: "confirmed" as const,
       waitlist_position: null,
       waitlist_offered_at: null,
@@ -751,7 +761,7 @@ export async function POST(req: Request) {
     {
       run_id: run.id,
       user_id: targetUserId,
-      tier_at_time: targetProf.data?.tier || null,
+      tier_at_time: tierAtTimeForPickupRsvp(publicRun, targetProf.data?.tier),
       status: "pending_payment",
       checkout_session_id: session.id,
       waitlist_position: null,
