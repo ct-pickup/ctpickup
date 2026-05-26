@@ -516,19 +516,42 @@ export async function POST(req: Request) {
     }).catch(() => {});
     // #endregion
 
-    const upsertRes = await admin.from("pickup_run_rsvps").upsert(
-      {
-        run_id: run.id,
-        user_id: targetUserId,
-        tier_at_time: targetProf.data?.tier || null,
-        status: "confirmed",
-        waitlist_position: null,
-        waitlist_offered_at: null,
-        waitlist_expires_at: null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "run_id,user_id" },
-    );
+    const upsertPayload = {
+      run_id: run.id,
+      user_id: targetUserId,
+      tier_at_time: targetProf.data?.tier || null,
+      status: "confirmed" as const,
+      waitlist_position: null,
+      waitlist_offered_at: null,
+      waitlist_expires_at: null,
+      updated_at: new Date().toISOString(),
+    };
+    const upsertOptions = { onConflict: "run_id,user_id" as const };
+
+    console.log({
+      tag: "pickup-rsvp",
+      message: "free_rsvp_upsert_payload",
+      data: { payload: upsertPayload, options: upsertOptions },
+    });
+
+    const upsertRes = await admin.from("pickup_run_rsvps").upsert(upsertPayload, upsertOptions);
+
+    if (upsertRes.error) {
+      console.error({
+        tag: "pickup-rsvp",
+        message: "free_rsvp_upsert_failed",
+        data: {
+          payload: upsertPayload,
+          options: upsertOptions,
+          error: upsertRes.error,
+        },
+      });
+      return NextResponse.json(
+        { error: "Could not save RSVP. Please try again or contact support." },
+        { status: 500 },
+      );
+    }
+
     // #region agent log
     const savedRes = await admin
       .from("pickup_run_rsvps")
