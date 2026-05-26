@@ -260,14 +260,15 @@ export async function GET(req: Request) {
     }
 
     // invitedNow — may participate in planning poll / join flow:
-    // - approved + hub region match on profile
-    // - public runs: no invite
-    // - select runs: row in pickup_run_invites
+    // - public runs: approved + profile venue matches run region (unchanged)
+    // - select runs: approved + row in pickup_run_invites (invite is the gate; no venue match)
     let invitedNow = false;
 
-    if (userId && approved && profileMatchesRunServiceRegion(nearestVenue, run.service_region)) {
+    if (userId && approved) {
       if (isPublicPickupRunType(run.run_type)) {
-        invitedNow = true;
+        if (profileMatchesRunServiceRegion(nearestVenue, run.service_region)) {
+          invitedNow = true;
+        }
       } else {
         const inv = await admin
           .from("pickup_run_invites")

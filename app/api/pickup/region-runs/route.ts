@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { PublicPickupRunRow } from "@/lib/pickup/publicUpcomingRuns";
 import { HUB_REGIONS, parseHubRegion } from "@/lib/pickup/hubRegions";
+import { isSelectPickupRunType } from "@/lib/pickup/pickupRunType";
 import {
   effectiveMaxDriveMinutes,
   MAX_MAX_DRIVE_MINUTES,
@@ -82,11 +83,12 @@ export async function GET(req: Request) {
 
     let playerZip: string | null = null;
     let maxDriveMinutes: number | null = null;
+    let userId: string | null = null;
 
     const token = bearer(req);
     if (token) {
       const u = await admin.auth.getUser(token);
-      const userId = u.data.user?.id;
+      userId = u.data.user?.id || null;
       if (userId) {
         const prof = await admin
           .from("profiles")
@@ -127,6 +129,30 @@ export async function GET(req: Request) {
 
     const runs = (runRes.data || []) as RunRow[];
 
+    let visibleRuns = runs;
+    const selectRunIds = runs.filter((r) => isSelectPickupRunType(r.run_type)).map((r) => r.id);
+    if (selectRunIds.length > 0) {
+      if (!userId) {
+        visibleRuns = runs.filter((r) => !isSelectPickupRunType(r.run_type));
+      } else {
+        const invRes = await admin
+          .from("pickup_run_invites")
+          .select("run_id")
+          .eq("user_id", userId)
+          .in("run_id", selectRunIds);
+
+        if (invRes.error) {
+          console.error(`[api/${ROUTE}] pickup_run_invites:`, invRes.error.message, invRes.error);
+        }
+
+        const invitedRunIds = new Set((invRes.data || []).map((row) => String(row.run_id)));
+        visibleRuns = runs.filter((r) => {
+          if (isSelectPickupRunType(r.run_type)) return invitedRunIds.has(String(r.id));
+          return true;
+        });
+      }
+    }
+
     const filterPayload = {
       zip: playerZip,
       max_drive_minutes: maxDriveMinutes,
@@ -134,11 +160,11 @@ export async function GET(req: Request) {
       include_nearby_regions: includeNearbyRegions,
     };
 
-    if (!runs.length) {
+    if (!visibleRuns.length) {
       return NextResponse.json({ runs: [], filter: filterPayload });
     }
 
-    const ids = runs.map((r) => r.id);
+    const ids = visibleRuns.map((r) => r.id);
     const rsvpRes = await admin
       .from("pickup_run_rsvps")
       .select("run_id,status")
@@ -156,7 +182,7 @@ export async function GET(req: Request) {
     }
 
     let payload: RowOut[] = await Promise.all(
-      runs.map(async (r) => {
+      visibleRuns.map(async (r) => {
         const regionCode = normalizeRegionCode(r.service_region);
         const dest = resolveRunVenueDestination({
           locationPrivate: r.location_private,

@@ -17,6 +17,7 @@ import {
   promoteNextWaitlistPlayer,
 } from "@/lib/pickup/waitlist";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
+import { pickupTierAtTimeFromRank } from "@/lib/pickup/pickupTierAtTime";
 import { pickupPlayerRefundEligibleNow } from "@/lib/pickup/runScheduling";
 import { tryApplyReferralCreditToPickupJoin } from "@/lib/referral/pickupReferralCredit";
 import {
@@ -38,11 +39,10 @@ function bearer(req: Request) {
 /** `pickup_tier` on RSVPs applies to select runs only; public runs store null. */
 function tierAtTimeForPickupRsvp(
   publicRun: boolean,
-  tier: string | null | undefined,
+  tierRank: number | null | undefined,
 ): string | null {
   if (publicRun) return null;
-  const t = tier != null ? String(tier).trim() : "";
-  return t || null;
+  return pickupTierAtTimeFromRank(tierRank);
 }
 
 type Body = {
@@ -193,7 +193,7 @@ export async function POST(req: Request) {
           {
             run_id: run.id,
             user_id: user.id,
-            tier_at_time: tierAtTimeForPickupRsvp(publicRun, prof.data?.tier),
+            tier_at_time: tierAtTimeForPickupRsvp(publicRun, prof.data?.tier_rank),
             status: newStatus,
             refund_id: refund.id,
             waitlist_position: null,
@@ -213,7 +213,7 @@ export async function POST(req: Request) {
         {
           run_id: run.id,
           user_id: user.id,
-          tier_at_time: tierAtTimeForPickupRsvp(publicRun, prof.data?.tier),
+          tier_at_time: tierAtTimeForPickupRsvp(publicRun, prof.data?.tier_rank),
           status: newStatus,
           waitlist_position: null,
           waitlist_offered_at: null,
@@ -426,7 +426,7 @@ export async function POST(req: Request) {
       {
         run_id: run.id,
         user_id: targetUserId,
-        tier_at_time: tierAtTimeForPickupRsvp(publicRun, targetProf.data?.tier),
+        tier_at_time: tierAtTimeForPickupRsvp(publicRun, targetProf.data?.tier_rank),
         status: "waitlist",
         waitlist_position: nextPos,
         waitlist_offered_at: null,
@@ -473,7 +473,7 @@ export async function POST(req: Request) {
       payerUserId: user.id,
       targetUserId,
       runId: String(run.id),
-      tierAtTime: targetProf.data?.tier || null,
+      tierAtTime: tierAtTimeForPickupRsvp(publicRun, targetProf.data?.tier_rank),
       feeCents,
       previousRsvpStatus: existing.data?.status ?? null,
       hadPendingConfirm: existing.data?.status === "pending_confirm",
@@ -529,7 +529,7 @@ export async function POST(req: Request) {
     const upsertPayload = {
       run_id: run.id,
       user_id: targetUserId,
-      tier_at_time: tierAtTimeForPickupRsvp(publicRun, targetProf.data?.tier),
+      tier_at_time: tierAtTimeForPickupRsvp(publicRun, targetProf.data?.tier_rank),
       status: "confirmed" as const,
       waitlist_position: null,
       waitlist_offered_at: null,
@@ -761,7 +761,7 @@ export async function POST(req: Request) {
     {
       run_id: run.id,
       user_id: targetUserId,
-      tier_at_time: tierAtTimeForPickupRsvp(publicRun, targetProf.data?.tier),
+      tier_at_time: tierAtTimeForPickupRsvp(publicRun, targetProf.data?.tier_rank),
       status: "pending_payment",
       checkout_session_id: session.id,
       waitlist_position: null,
