@@ -6,6 +6,7 @@ import {
 import { isPickupRunDateOnlyStartAt } from "@/lib/pickup/runStartAtDisplay";
 import { isPublicPickupRunType, normalizePickupRunTypeForDb } from "@/lib/pickup/pickupRunType";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { clearCurrentPickupRunsInRegion } from "@/lib/pickup/hubPromote";
 import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 import { DateTime } from "luxon";
 import { fmtPickupSlotWindowEt } from "@/lib/pickup/fmtPickupSlotWindowEt";
@@ -156,12 +157,17 @@ export async function POST(req: Request) {
 
   const now = new Date().toISOString();
 
+  const cleared = await clearCurrentPickupRunsInRegion(supabaseAdmin, service_region);
+  if (cleared.error) {
+    return NextResponse.json({ error: cleared.error }, { status: 500 });
+  }
+
   const insert = await supabaseAdmin
     .from("pickup_runs")
     .insert({
       title,
       run_type,
-      is_current: false,
+      is_current: true,
       status: "planning",
       start_at,
       capacity,

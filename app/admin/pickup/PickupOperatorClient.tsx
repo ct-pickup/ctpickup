@@ -306,7 +306,7 @@ export default function PickupOperatorClient() {
       }
       const action = String(payload?.action || "");
       let success = "Saved.";
-      if (action === "create_run") success = "Run created — it appears under Planning until you promote it to the hub.";
+      if (action === "create_run") success = "Run created — it is on the regional pickup hub.";
       else if (action === "edit_run") success = "Run settings saved.";
       else if (action === "finalize_slot") success = "Time finalized — run is active for RSVP.";
       else if (action === "add_slot") success = "Kickoff slot saved.";

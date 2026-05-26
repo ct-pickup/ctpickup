@@ -11,7 +11,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useNavigation, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -34,11 +34,14 @@ export default function TournamentsScreen() {
   const [showStatePicker, setShowStatePicker] = useState(true);
   const [profileNearestVenue, setProfileNearestVenue] = useState<string | null>(null);
 
+  const reloadRef = useRef(reload);
+  reloadRef.current = reload;
+
   useFocusEffect(
     useCallback(() => {
       setShowStatePicker(true);
-      void reload({ background: true });
-    }, [reload]),
+      void reloadRef.current({ background: true });
+    }, []),
   );
   const [listRefreshing, setListRefreshing] = useState(false);
 

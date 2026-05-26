@@ -8,6 +8,7 @@ import {
 } from "@/lib/pickup/pickupPushNotifications";
 import { isSelectPickupRunType } from "@/lib/pickup/pickupRunType";
 import { anchorStartAtMs } from "@/lib/pickup/runScheduling";
+import { updatePickupRunWaveSchedule } from "@/lib/pickup/pickupRunWavePostgrest";
 import { countAcceptedPickupRsvps } from "@/lib/pickup/waitlist";
 
 export { countAcceptedPickupRsvps } from "@/lib/pickup/waitlist";
@@ -547,21 +548,19 @@ export async function startSelectWaveOutreachOnHubPromote(
     }
   }
 
-  const up = await admin
-    .from("pickup_runs")
-    .update({
-      outreach_started_at: isoNow,
-      auto_managed: true,
-      wave1_started_at: isoNow,
-      open_tier_rank: fired.open_tier_rank,
-      current_wave: fired.current_wave,
-      next_wave_at,
-      wave_state: fired.wave_state,
-      updated_at: isoNow,
-    })
-    .eq("id", run_id);
+  const up = await updatePickupRunWaveSchedule(admin, {
+    run_id,
+    updated_at: isoNow,
+    outreach_started_at: isoNow,
+    wave1_started_at: isoNow,
+    auto_managed: true,
+    open_tier_rank: fired.open_tier_rank,
+    current_wave: fired.current_wave,
+    next_wave_at,
+    wave_state: fired.wave_state,
+  });
 
-  if (up.error) return { ok: false, error: up.error.message };
+  if (!up.ok) return { ok: false, error: up.error };
 
   return {
     ok: true,
@@ -694,19 +693,17 @@ export async function processDueWaveForRun(
     next_wave_at = wave4DueAtIso(anchorMs);
   }
 
-  const up = await admin
-    .from("pickup_runs")
-    .update({
-      open_tier_rank: fired.open_tier_rank,
-      current_wave: fired.current_wave,
-      next_wave_at,
-      wave_state: fired.wave_state,
-      updated_at: isoNow,
-    })
-    .eq("id", run_id);
+  const up = await updatePickupRunWaveSchedule(admin, {
+    run_id,
+    updated_at: isoNow,
+    open_tier_rank: fired.open_tier_rank,
+    current_wave: fired.current_wave,
+    next_wave_at,
+    wave_state: fired.wave_state,
+  });
 
-  if (up.error) {
-    return { run_id, action: "update_failed", detail: up.error.message };
+  if (!up.ok) {
+    return { run_id, action: "update_failed", detail: up.error };
   }
 
   return {
@@ -735,5 +732,6 @@ export async function flagSelectRunNeedsKickoffForWaves(
 
 /** Runs eligible for cron wave processing. */
 export function pickupWaveCronRunColumns(): string {
-  return "id,title,status,start_at,capacity,open_tier_rank,current_wave,next_wave_at,outreach_started_at,run_type,service_region,location_private,wave_state";
+  // `current_wave` is persisted for reporting but derived from `wave_state` at runtime.
+  return "id,title,status,start_at,capacity,open_tier_rank,next_wave_at,outreach_started_at,run_type,service_region,location_private,wave_state";
 }

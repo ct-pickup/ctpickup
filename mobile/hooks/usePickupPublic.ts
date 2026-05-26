@@ -281,15 +281,14 @@ export function usePickupPublic(
   useEffect(() => {
     if (!supabase || !runId) return;
 
-    const seq = ++pickupRealtimeTopicSeq.current;
+    // Unique topic avoids Supabase client returning a channel still subscribed while removeChannel is in flight.
+    const topic = `pickup_public:${runId}:${++pickupRealtimeTopicSeq.current}`;
     const refresh = () => {
       void loadRef.current?.({ background: true });
     };
 
-    // Separate channels per table (same pattern as useAdminPickupOverview): create,
-    // register all postgres_changes listeners, then subscribe — never chain .on() after .subscribe().
-    const runChannel: RealtimeChannel = supabase.channel(`pickup_public_run:${runId}:${seq}`);
-    runChannel.on(
+    const pickupChannel: RealtimeChannel = supabase.channel(topic);
+    pickupChannel.on(
       "postgres_changes",
       {
         event: "UPDATE",
@@ -299,10 +298,7 @@ export function usePickupPublic(
       },
       refresh,
     );
-    runChannel.subscribe();
-
-    const rsvpChannel: RealtimeChannel = supabase.channel(`pickup_public_rsvps:${runId}:${seq}`);
-    rsvpChannel.on(
+    pickupChannel.on(
       "postgres_changes",
       {
         event: "INSERT",
@@ -312,7 +308,7 @@ export function usePickupPublic(
       },
       refresh,
     );
-    rsvpChannel.on(
+    pickupChannel.on(
       "postgres_changes",
       {
         event: "UPDATE",
@@ -322,7 +318,7 @@ export function usePickupPublic(
       },
       refresh,
     );
-    rsvpChannel.on(
+    pickupChannel.on(
       "postgres_changes",
       {
         event: "DELETE",
@@ -332,11 +328,10 @@ export function usePickupPublic(
       },
       refresh,
     );
-    rsvpChannel.subscribe();
+    pickupChannel.subscribe();
 
     return () => {
-      void supabase.removeChannel(runChannel);
-      void supabase.removeChannel(rsvpChannel);
+      void supabase.removeChannel(pickupChannel);
     };
   }, [supabase, runId]);
 

@@ -14,7 +14,7 @@ export const PICKUP_REFUND_UI_NOTICE = `${PICKUP_REFUND_AVAILABILITY_SENTENCE} I
 
 /** Stripe line item (pickup field fee) */
 export const PICKUP_FIELD_FEE_STRIPE_DESCRIPTION =
-  "Non-refundable unless you cancel more than 24h before the run start; no refund within 24h of start or for no-shows; full refund if the organizer cancels the run; duplicate/erroneous charges corrected.";
+  "Cancel 24+ hours before for a full credit. No refunds within 24h or for no-shows. If we cancel, you get a full credit.";
 
 /** Stripe line item (online esports entry) */
 export const ESPORTS_ENTRY_FEE_STRIPE_DESCRIPTION =

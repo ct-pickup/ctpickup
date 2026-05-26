@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import {
+  isPickupRunWaveColumnSchemaError,
+  loadPickupRunWaveScheduleFields,
+} from "@/lib/pickup/pickupRunWavePostgrest";
+import {
   nextWaveToSend,
   parseWaveState,
   pickupWaveCronRunColumns,
@@ -35,19 +39,40 @@ export async function GET(req: Request) {
   const isoNow = new Date().toISOString();
   const nowMs = Date.now();
 
-  const runsRes = await admin
+  const waveCronColumns = pickupWaveCronRunColumns();
+  let runsRes = await admin
     .from("pickup_runs")
-    .select(pickupWaveCronRunColumns())
+    .select(waveCronColumns)
     .not("outreach_started_at", "is", null)
     .in("status", ["planning", "likely_on"])
     .not("next_wave_at", "is", null)
     .lte("next_wave_at", isoNow);
+
+  if (runsRes.error && isPickupRunWaveColumnSchemaError(runsRes.error.message)) {
+    const withoutWaveState = waveCronColumns.replace(/,wave_state\b/, "");
+    runsRes = await admin
+      .from("pickup_runs")
+      .select(withoutWaveState)
+      .not("outreach_started_at", "is", null)
+      .in("status", ["planning", "likely_on"])
+      .not("next_wave_at", "is", null)
+      .lte("next_wave_at", isoNow);
+  }
 
   if (runsRes.error) {
     return NextResponse.json({ error: runsRes.error.message }, { status: 500 });
   }
 
   const runs = (runsRes.data || []) as unknown as PickupRunWaveRow[];
+  if (runs.length > 0 && runs.some((r) => r.wave_state === undefined)) {
+    await Promise.all(
+      runs.map(async (row) => {
+        if (row.wave_state !== undefined) return;
+        const loaded = await loadPickupRunWaveScheduleFields(admin, String(row.id), "wave_state");
+        if (loaded.ok) row.wave_state = loaded.fields.wave_state ?? null;
+      }),
+    );
+  }
   const results: { run_id: string; action: string; detail?: string }[] = [];
 
   for (const row of runs) {

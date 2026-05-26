@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendPickupNewRunPush } from "@/lib/pickup/pickupPushNotifications";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
+import { loadPickupRunWaveScheduleFields } from "@/lib/pickup/pickupRunWavePostgrest";
 import {
   startSelectWaveOutreachOnHubPromote,
   type PickupRunWaveRow,
@@ -9,8 +10,6 @@ import {
 /** Core columns for hub promote lookup (no optional wave migrations required). */
 const HUB_PROMOTE_BASE_COLUMNS =
   "id,title,status,run_type,service_region,location_private,start_at,capacity,outreach_started_at";
-
-const HUB_PROMOTE_WAVE_COLUMNS = "next_wave_at,wave_state";
 
 export type HubPromoteRunMeta = {
   id: string;
@@ -52,11 +51,12 @@ export async function fetchPickupRunForHubPromote(
   }
 
   const row = { ...runRes.data } as PickupRunWaveRow;
-  const waveRes = await admin.from("pickup_runs").select(HUB_PROMOTE_WAVE_COLUMNS).eq("id", runId).maybeSingle();
-  if (!waveRes.error && waveRes.data) {
-    row.next_wave_at = waveRes.data.next_wave_at ?? null;
-    row.wave_state = waveRes.data.wave_state ?? null;
+  const waveFields = await loadPickupRunWaveScheduleFields(admin, runId);
+  if (!waveFields.ok) {
+    return { ok: false, error: waveFields.error, status: 500 };
   }
+  row.next_wave_at = waveFields.fields.next_wave_at ?? null;
+  row.wave_state = waveFields.fields.wave_state ?? null;
 
   const service_region =
     runRes.data.service_region === null || runRes.data.service_region === undefined
@@ -64,6 +64,27 @@ export async function fetchPickupRunForHubPromote(
       : String(runRes.data.service_region);
 
   return { ok: true, row, service_region };
+}
+
+/** Clear `is_current` on other runs in the same hub region (or unscoped runs when region is null). */
+export async function clearCurrentPickupRunsInRegion(
+  admin: SupabaseClient,
+  serviceRegion: string | null,
+): Promise<{ error: string | null }> {
+  const now = new Date().toISOString();
+  const clear =
+    serviceRegion !== null
+      ? await admin
+          .from("pickup_runs")
+          .update({ is_current: false, updated_at: now })
+          .eq("is_current", true)
+          .eq("service_region", serviceRegion)
+      : await admin
+          .from("pickup_runs")
+          .update({ is_current: false, updated_at: now })
+          .eq("is_current", true)
+          .is("service_region", null);
+  return { error: clear.error?.message ?? null };
 }
 
 /** Set `is_current` for a planning (or any non-canceled) run — not gated on prior hub state. */
@@ -99,26 +120,16 @@ export async function promotePickupRunToHub(
     };
   }
 
-  let clear: { error: { message: string } | null };
   if (runId) {
-    if (promotedRegion !== null) {
-      clear = await admin
-        .from("pickup_runs")
-        .update({ is_current: false, updated_at: now })
-        .eq("is_current", true)
-        .eq("service_region", promotedRegion);
-    } else {
-      clear = await admin
-        .from("pickup_runs")
-        .update({ is_current: false, updated_at: now })
-        .eq("is_current", true)
-        .is("service_region", null);
+    const cleared = await clearCurrentPickupRunsInRegion(admin, promotedRegion);
+    if (cleared.error) {
+      return { ok: false, error: cleared.error, status: 500 };
     }
   } else {
-    clear = await admin.from("pickup_runs").update({ is_current: false, updated_at: now }).eq("is_current", true);
-  }
-  if (clear.error) {
-    return { ok: false, error: clear.error.message, status: 500 };
+    const clear = await admin.from("pickup_runs").update({ is_current: false, updated_at: now }).eq("is_current", true);
+    if (clear.error) {
+      return { ok: false, error: clear.error.message, status: 500 };
+    }
   }
 
   let waveWarning: string | null = null;
