@@ -20,7 +20,7 @@ export function RegionsPickerPanel({ onSelectState }: Props) {
         Where we <Text style={styles.headlineAccent}>run</Text>
       </Text>
       <Text style={styles.lead}>
-        We run pickup in four states. Select your state to see what's coming up and RSVP.
+        We run tournaments in four states. Select your state to see what's coming up and register your team.
       </Text>
 
       <View style={styles.grid}>

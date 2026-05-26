@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 import type { PublicPickupRunRow } from "@/lib/pickup/publicUpcomingRuns";
 import { HUB_REGIONS, parseHubRegion } from "@/lib/pickup/hubRegions";
+import {
+  effectiveMaxDriveMinutes,
+  MAX_MAX_DRIVE_MINUTES,
+} from "@/lib/pickup/profileMaxDriveFilter";
 import { milesFromZipToRunLocation } from "@/lib/pickup/runVenueDistance";
-import { clampMaxRunDistanceMiles } from "@/lib/pickup/runRadiusPreference";
+import {
+  driveMinutesFromZipToDestination,
+  resolveRunVenueDestination,
+} from "@/lib/venueDistance";
 import {
   jsonConfigErrorResponse,
   jsonUnexpectedErrorResponse,
@@ -51,11 +58,12 @@ type RowOut = {
   confirmed_count: number;
   final_slot_id: string | null;
   distance_miles: number | null;
+  drive_minutes: number | null;
 };
 
 /**
  * GET ?region=CT — primary hub runs for the selected state.
- * With auth + ZIP + max_run_distance_miles: also include other hubs' runs within radius, sorted by distance.
+ * With auth + ZIP + max_drive_minutes (under 90): also include other hubs within drive time, sorted by distance.
  */
 export async function GET(req: Request) {
   let admin;
@@ -73,7 +81,7 @@ export async function GET(req: Request) {
     }
 
     let playerZip: string | null = null;
-    let maxRadiusMiles: number | null = null;
+    let maxDriveMinutes: number | null = null;
 
     const token = bearer(req);
     if (token) {
@@ -82,7 +90,7 @@ export async function GET(req: Request) {
       if (userId) {
         const prof = await admin
           .from("profiles")
-          .select("zip_code,max_run_distance_miles")
+          .select("zip_code,max_drive_minutes")
           .eq("id", userId)
           .maybeSingle();
         if (!prof.error && prof.data) {
@@ -90,13 +98,14 @@ export async function GET(req: Request) {
           const digits = zipRaw.replace(/\D/g, "").slice(0, 5);
           if (digits.length === 5) {
             playerZip = digits;
-            maxRadiusMiles = clampMaxRunDistanceMiles(prof.data.max_run_distance_miles);
+            maxDriveMinutes = effectiveMaxDriveMinutes(prof.data.max_drive_minutes);
           }
         }
       }
     }
 
-    const includeNearbyRegions = playerZip != null && maxRadiusMiles != null;
+    const includeNearbyRegions =
+      playerZip != null && maxDriveMinutes != null && maxDriveMinutes < MAX_MAX_DRIVE_MINUTES;
 
     let runQuery = admin
       .from("pickup_runs")
@@ -120,7 +129,7 @@ export async function GET(req: Request) {
 
     const filterPayload = {
       zip: playerZip,
-      max_miles: maxRadiusMiles,
+      max_drive_minutes: maxDriveMinutes,
       region: hubRegion,
       include_nearby_regions: includeNearbyRegions,
     };
@@ -146,31 +155,40 @@ export async function GET(req: Request) {
       confirmedByRun.set(rid, (confirmedByRun.get(rid) ?? 0) + 1);
     }
 
-    let payload: RowOut[] = runs.map((r) => {
-      const regionCode = normalizeRegionCode(r.service_region);
-      const distance_miles = playerZip
-        ? milesFromZipToRunLocation(playerZip, r.location_private ?? null, regionCode)
-        : null;
-      return {
-        id: r.id,
-        title: r.title,
-        status: r.status,
-        start_at: r.start_at,
-        run_type: r.run_type,
-        capacity: Number(r.capacity ?? 0),
-        fee_cents: Number(r.fee_cents ?? 0),
-        service_region: regionCode,
-        confirmed_count: confirmedByRun.get(String(r.id)) ?? 0,
-        final_slot_id: r.final_slot_id ?? null,
-        distance_miles,
-      };
-    });
+    let payload: RowOut[] = await Promise.all(
+      runs.map(async (r) => {
+        const regionCode = normalizeRegionCode(r.service_region);
+        const dest = resolveRunVenueDestination({
+          locationPrivate: r.location_private,
+          serviceRegion: regionCode,
+        });
+        const drive_minutes =
+          playerZip && dest ? await driveMinutesFromZipToDestination(playerZip, dest) : null;
+        const distance_miles = playerZip
+          ? milesFromZipToRunLocation(playerZip, r.location_private ?? null, regionCode)
+          : null;
+        return {
+          id: r.id,
+          title: r.title,
+          status: r.status,
+          start_at: r.start_at,
+          run_type: r.run_type,
+          capacity: Number(r.capacity ?? 0),
+          fee_cents: Number(r.fee_cents ?? 0),
+          service_region: regionCode,
+          confirmed_count: confirmedByRun.get(String(r.id)) ?? 0,
+          final_slot_id: r.final_slot_id ?? null,
+          distance_miles,
+          drive_minutes,
+        };
+      }),
+    );
 
-    if (includeNearbyRegions) {
+    if (includeNearbyRegions && maxDriveMinutes != null) {
       payload = payload.filter((r) => {
         const inSelectedHub = r.service_region === hubRegion;
         if (inSelectedHub) return true;
-        return r.distance_miles != null && r.distance_miles <= maxRadiusMiles!;
+        return r.drive_minutes != null && r.drive_minutes <= maxDriveMinutes;
       });
       payload.sort((a, b) => {
         const da = a.distance_miles ?? 9999;

@@ -15,10 +15,17 @@ function confirmCancellationPolicy(): Promise<boolean> {
     Alert.alert(
       "Cancellation Policy",
       "If this run is cancelled, you will receive a full credit valid for 3 months — no fees deducted.",
-      [{ text: "OK", onPress: () => resolve(true) }],
+      [
+        {
+          text: "OK",
+          onPress: () => {
+            cancellationPolicyShownThisSession = true;
+            resolve(true);
+          },
+        },
+      ],
       { cancelable: false },
     );
-    cancellationPolicyShownThisSession = true;
   });
 }
 
@@ -417,7 +424,7 @@ export function usePickupJoin() {
     async (
       accessToken: string | null,
       runId: unknown,
-      slotLabels: string[],
+      selections: { slotId: string | null; label: string }[],
       reload: () => void | Promise<void>,
     ): Promise<boolean> => {
       const id = typeof runId === "string" ? runId : null;
@@ -427,11 +434,19 @@ export function usePickupJoin() {
         return false;
       }
       if (!id) return false;
+      const slotLabels = selections.map((s) => s.label).sort();
       setAvailabilityBusy(true);
       setPendingSlotKey("multi");
       try {
-        for (const label of slotLabels) {
-          const r = await postPickupCommit(accessToken, id, "available", null, label, slotLabels);
+        for (const sel of selections) {
+          const r = await postPickupCommit(
+            accessToken,
+            id,
+            "available",
+            sel.slotId,
+            sel.label,
+            slotLabels,
+          );
           const j = r.json as Record<string, unknown>;
           if (!r.ok) {
             void hapticError();

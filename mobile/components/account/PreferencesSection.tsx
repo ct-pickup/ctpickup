@@ -1,10 +1,5 @@
 import Slider from "@react-native-community/slider";
-import { Pressable, ActivityIndicator, Switch, Text, View } from "react-native";
-import {
-  RUN_RADIUS_MILES_OPTIONS,
-  type RunRadiusMiles,
-} from "@/lib/runRadiusPreference";
-import { hapticTap } from "@/lib/haptics";
+import { ActivityIndicator, Switch, Text, View } from "react-native";
 import { accountStyles as styles, LIME } from "./accountStyles";
 
 type Props = {
@@ -28,11 +23,6 @@ type Props = {
   onMaxDriveChange: (v: number) => void;
   onMaxDriveCommit: (v: number) => void;
   maxDriveDisabled: boolean;
-  maxRunDistanceMiles: RunRadiusMiles;
-  maxRunDistanceBusy: boolean;
-  maxRunDistanceMsg: string | null;
-  onSelectRunDistance: (miles: RunRadiusMiles) => void;
-  maxRunDistanceDisabled: boolean;
 };
 
 export function PreferencesSection({
@@ -56,11 +46,6 @@ export function PreferencesSection({
   onMaxDriveChange,
   onMaxDriveCommit,
   maxDriveDisabled,
-  maxRunDistanceMiles,
-  maxRunDistanceBusy,
-  maxRunDistanceMsg,
-  onSelectRunDistance,
-  maxRunDistanceDisabled,
 }: Props) {
   return (
     <>
@@ -104,7 +89,9 @@ export function PreferencesSection({
             <Text style={styles.fieldLabelStrong}>Max drive time</Text>
             <Text style={styles.maxDriveValue}>{maxDriveLabel(maxDriveMinutes)}</Text>
           </View>
-          <Text style={styles.bioHint}>Pickup invites and nearby run alerts use your zip and this limit.</Text>
+          <Text style={styles.bioHint}>
+            Pickup invites and the Runs tab use your ZIP and this drive-time limit.
+          </Text>
           <Slider
             style={styles.maxDriveSlider}
             minimumValue={minDrive}
@@ -129,38 +116,6 @@ export function PreferencesSection({
             </View>
           ) : null}
           {maxDriveMsg ? <Text style={styles.msg}>{maxDriveMsg}</Text> : null}
-        </View>
-
-        <View style={styles.maxDriveBlock}>
-          <Text style={styles.fieldLabelStrong}>Show me runs within</Text>
-          <Text style={styles.bioHint}>
-            Uses your ZIP on the Runs tab. Without a ZIP, you see all runs in your hub region.
-          </Text>
-          <View style={styles.radiusChipRow}>
-            {RUN_RADIUS_MILES_OPTIONS.map((mi) => {
-              const active = maxRunDistanceMiles === mi;
-              return (
-                <Pressable
-                  key={mi}
-                  disabled={maxRunDistanceBusy || maxRunDistanceDisabled}
-                  onPress={() => {
-                    void hapticTap();
-                    onSelectRunDistance(mi);
-                  }}
-                  style={[styles.radiusChip, active && styles.radiusChipActive]}
-                >
-                  <Text style={[styles.radiusChipText, active && styles.radiusChipTextActive]}>{mi}mi</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          {maxRunDistanceBusy ? (
-            <View style={styles.maxDriveSaving}>
-              <ActivityIndicator color={LIME} size="small" />
-              <Text style={styles.bioHint}>Saving…</Text>
-            </View>
-          ) : null}
-          {maxRunDistanceMsg ? <Text style={styles.msg}>{maxRunDistanceMsg}</Text> : null}
         </View>
       </View>
     </>

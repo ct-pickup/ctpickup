@@ -2,6 +2,7 @@ import { useAuth } from "@/context/AuthContext";
 import { usePickupJoin } from "@/hooks/usePickupJoin";
 import { hapticKick, hapticTap } from "@/lib/haptics";
 import { fmtPickupSlotChipEt } from "@/lib/pickupPublic";
+import { normalizeSlotLabelKey, slotLabelsMatch } from "@/lib/slotLabelMatch";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
@@ -47,11 +48,11 @@ export function resolvePickupTimeSlotChips(run: Record<string, unknown>): Pickup
       const label = typeof row.label === "string" && row.label.trim().length > 0 ? row.label.trim() : null;
       const startAt = typeof row.start_at === "string" ? row.start_at : null;
       const display = label ?? (startAt ? fmtPickupSlotChipEt(startAt) : "Time slot");
-      const key = slotId ?? label ?? (startAt ? `t:${startAt}` : "");
+      const key = label ?? slotId ?? (startAt ? `t:${startAt}` : "");
       if (!key) continue;
       chips.push({
         key,
-        label: label ?? display,
+        label: label ?? key,
         display,
         slotId,
       });
@@ -66,20 +67,41 @@ export function resolvePickupTimeSlotChips(run: Record<string, unknown>): Pickup
   }));
 }
 
-function parseSubmittedKeys(planning: PickupPlanningAvailability | null | undefined): string[] {
+function resolveSubmittedChipKeys(
+  planning: PickupPlanningAvailability | null | undefined,
+  chips: PickupTimeSlotChip[],
+): string[] {
   const ma = planning?.my_availability;
   if (!Array.isArray(ma)) return [];
   const out: string[] = [];
   for (const entry of ma) {
     if (!entry || entry.state !== "available") continue;
-    const label =
-      typeof entry.slot_label === "string" && entry.slot_label.trim().length > 0
-        ? entry.slot_label.trim()
-        : null;
     const slotId =
       typeof entry.slot_id === "string" && entry.slot_id.trim().length > 0 ? entry.slot_id.trim() : null;
-    const key = slotId ?? label;
-    if (key && !out.includes(key)) out.push(key);
+    const slotLabel =
+      typeof entry.slot_label === "string" && entry.slot_label.trim().length > 0
+        ? normalizeSlotLabelKey(entry.slot_label)
+        : null;
+
+    let matched: string | null = null;
+    for (const chip of chips) {
+      if (slotId && chip.slotId && chip.slotId === slotId) {
+        matched = chip.key;
+        break;
+      }
+      if (slotLabel && slotLabelsMatch(slotLabel, chip.label)) {
+        matched = chip.key;
+        break;
+      }
+      if (slotId && chip.key === slotId) {
+        matched = chip.key;
+        break;
+      }
+    }
+    if (!matched) {
+      matched = slotId ?? slotLabel;
+    }
+    if (matched && !out.includes(matched)) out.push(matched);
   }
   return out;
 }
@@ -92,10 +114,18 @@ export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
 
   const chips = useMemo(() => resolvePickupTimeSlotChips(run), [run]);
   const chipKeySet = useMemo(() => new Set(chips.map((c) => c.key)), [chips]);
-  const submittedKeys = useMemo(() => {
-    const fromPlanning = parseSubmittedKeys(planning);
-    return fromPlanning.filter((k) => chipKeySet.has(k));
-  }, [planning, chipKeySet]);
+  const submittedKeys = useMemo(
+    () => resolveSubmittedChipKeys(planning, chips).filter((k) => chipKeySet.has(k)),
+    [planning, chips, chipKeySet],
+  );
+
+  const submittedSummary = useMemo(() => {
+    if (submittedKeys.length === 0) return "";
+    return chips
+      .filter((c) => submittedKeys.includes(c.key))
+      .map((c) => c.display)
+      .join(", ");
+  }, [submittedKeys, chips]);
 
   const hasSubmitted = submittedKeys.length > 0;
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
@@ -120,12 +150,12 @@ export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
 
   const onPressSubmit = useCallback(async () => {
     if (!token || !runId || selectedKeys.length === 0) return;
-    const labels = chips
+    const selections = chips
       .filter((c) => selectedKeys.includes(c.key))
-      .map((c) => c.label)
-      .sort();
+      .map((c) => ({ slotId: c.slotId, label: c.label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
     void hapticKick();
-    const ok = await commitAvailabilitySlots(token, runId, labels, async () => {
+    const ok = await commitAvailabilitySlots(token, runId, selections, async () => {
       onSubmit();
     });
     if (ok) {
@@ -143,9 +173,16 @@ export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
       <Text style={styles.heading}>Which times work for you?</Text>
 
       {hasSubmitted && !editing ? (
-        <View style={styles.submittedRow}>
-          <FontAwesome name="check-circle" size={16} color={LIME} />
-          <Text style={styles.submittedText}>Submitted</Text>
+        <View style={styles.submittedBlock}>
+          <View style={styles.submittedRow}>
+            <FontAwesome name="check-circle" size={16} color={LIME} />
+            <Text style={styles.submittedText}>Submitted</Text>
+          </View>
+          {submittedSummary ? (
+            <Text style={styles.submittedSummary} numberOfLines={3}>
+              {submittedSummary}
+            </Text>
+          ) : null}
         </View>
       ) : null}
 
@@ -236,13 +273,14 @@ const styles = StyleSheet.create({
   },
   submitBtnDisabled: { opacity: 0.4 },
   submitBtnText: { color: "#111", fontWeight: "800", fontSize: 14 },
+  submittedBlock: { gap: 4, paddingVertical: 2 },
   submittedRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingVertical: 4,
   },
   submittedText: { color: LIME, fontSize: 14, fontWeight: "700" },
+  submittedSummary: { color: "rgba(255,255,255,0.55)", fontSize: 13, lineHeight: 18 },
   changeBtn: {
     alignSelf: "flex-start",
     paddingVertical: 4,

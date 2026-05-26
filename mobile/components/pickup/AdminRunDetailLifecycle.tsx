@@ -71,6 +71,14 @@ export default function AdminRunDetailLifecycle({
                 Alert.alert("Could not promote", r.error);
                 return;
               }
+              const waveWarning =
+                r.data && typeof r.data.wave_warning === "string" ? r.data.wave_warning.trim() : "";
+              if (waveWarning) {
+                Alert.alert(
+                  "Promoted to hub",
+                  `Run is on the hub, but wave invites did not start: ${waveWarning}. Use Invite players to retry.`,
+                );
+              }
               void hapticGoal();
               await onRefresh();
             })();

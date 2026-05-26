@@ -366,7 +366,7 @@ export default function RunsScreen() {
   const [reliabilityScore, setReliabilityScore] = useState<number | null>(null);
   const [listRefreshNonce, setListRefreshNonce] = useState(0);
   const [listFilterZip, setListFilterZip] = useState<string | null>(null);
-  const [listFilterMaxMiles, setListFilterMaxMiles] = useState<number | null>(null);
+  const [listFilterMaxDriveMinutes, setListFilterMaxDriveMinutes] = useState<number | null>(null);
   const autoOpenedFromDeepLinkRef = useRef(false);
 
   const { run_id: rawRunIdParam } = useLocalSearchParams<{ run_id?: string | string[] }>();
@@ -444,15 +444,17 @@ export default function RunsScreen() {
           runs?: unknown;
           filter?: {
             zip?: string | null;
-            max_miles?: number | null;
+            max_drive_minutes?: number | null;
             region?: string | null;
             include_nearby_regions?: boolean;
           };
         };
         const filter = body.filter;
         setListFilterZip(typeof filter?.zip === "string" ? filter.zip : null);
-        setListFilterMaxMiles(
-          typeof filter?.max_miles === "number" && Number.isFinite(filter.max_miles) ? filter.max_miles : null,
+        setListFilterMaxDriveMinutes(
+          typeof filter?.max_drive_minutes === "number" && Number.isFinite(filter.max_drive_minutes)
+            ? filter.max_drive_minutes
+            : null,
         );
         const rows = body.runs;
         if (Array.isArray(rows)) {
@@ -745,8 +747,8 @@ export default function RunsScreen() {
           </View>
         </View>
         <Text style={styles.regionSub}>
-          {listFilterZip && listFilterMaxMiles != null
-            ? `${serviceRegionName(region)} (${region}) runs + nearby within ${listFilterMaxMiles} mi of ${listFilterZip}`
+          {listFilterZip && listFilterMaxDriveMinutes != null
+            ? `${serviceRegionName(region)} (${region}) runs + nearby within ${listFilterMaxDriveMinutes >= 90 ? "90+" : listFilterMaxDriveMinutes} min drive of ${listFilterZip}`
             : `Pickup runs in ${serviceRegionName(region)} (${region})`}
         </Text>
 
@@ -765,8 +767,8 @@ export default function RunsScreen() {
         ) : regionRuns.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>
-              {listFilterZip && listFilterMaxMiles != null
-                ? `No runs in ${serviceRegionName(region)} or within ${listFilterMaxMiles} mi right now. Try a larger radius in Account.`
+              {listFilterZip && listFilterMaxDriveMinutes != null
+                ? `No runs in ${serviceRegionName(region)} or within your max drive time right now. Increase max drive time in Account.`
                 : `No runs scheduled for ${serviceRegionName(region)} right now. Check back soon.`}
             </Text>
           </View>

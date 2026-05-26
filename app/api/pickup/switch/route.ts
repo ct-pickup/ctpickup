@@ -910,12 +910,13 @@ export async function POST(req: Request) {
       if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
     }
 
+    let waveWarning: string | null = null;
     if (promotedRunRow) {
       const waveRes = await startSelectWaveOutreachOnHubPromote(admin, promotedRunRow);
       if (!waveRes.ok) {
-        return NextResponse.json({ error: waveRes.error }, { status: 500 });
-      }
-      if (!waveRes.skipped) {
+        waveWarning = waveRes.error;
+        console.error("[pickup/switch set_hub_pickup] wave outreach failed:", waveRes.error);
+      } else if (!waveRes.skipped) {
         waveOutreach = {
           wave1_invited: waveRes.wave1_invited,
           next_wave_at: waveRes.next_wave_at,
@@ -938,6 +939,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       wave_outreach: waveOutreach,
+      wave_warning: waveWarning,
     });
   }
 

@@ -773,6 +773,7 @@ export function postAdminSetHubPickup(accessToken: string, run_id: string | null
   return adminFetch<{
     ok: boolean;
     action?: string;
+    wave_warning?: string | null;
     effects?: { record: string; detail: string }[];
     error?: string;
   }>("/api/admin/operator", accessToken, {

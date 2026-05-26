@@ -15,11 +15,6 @@ import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from
 import { getInstallationContext, resolveExpoPushTokenForApp, shouldRegisterPushToken } from "@/lib/pushToken";
 import { hapticTap } from "@/lib/haptics";
 import { fetchPickupStanding, postMobilePushPreference, postMobilePushToken } from "@/lib/siteApi";
-import {
-  clampMaxRunDistanceMiles,
-  DEFAULT_MAX_RUN_DISTANCE_MILES,
-  type RunRadiusMiles,
-} from "@/lib/runRadiusPreference";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
@@ -87,14 +82,13 @@ type ProfileRow = {
   push_notifications_enabled: boolean | null;
   marketing_push_enabled: boolean | null;
   max_drive_minutes: number | null;
-  max_run_distance_miles: number | null;
 };
 
 const PROFILE_SELECT_WITH_PUSH =
-  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled,marketing_push_enabled,max_drive_minutes,max_run_distance_miles";
+  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled,marketing_push_enabled,max_drive_minutes";
 
 const PROFILE_SELECT_WITHOUT_PUSH =
-  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,max_drive_minutes,max_run_distance_miles";
+  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,max_drive_minutes";
 
 function supabaseLooksLikeMissingColumn(err: { message?: string } | null | undefined, col: string): boolean {
   const msg = err?.message ?? "";
@@ -183,11 +177,6 @@ export default function AccountScreen() {
   const [maxDriveMinutes, setMaxDriveMinutes] = useState(DEFAULT_MAX_DRIVE_MINUTES);
   const [maxDriveBusy, setMaxDriveBusy] = useState(false);
   const [maxDriveMsg, setMaxDriveMsg] = useState<string | null>(null);
-  const [maxRunDistanceMiles, setMaxRunDistanceMiles] = useState<RunRadiusMiles>(
-    DEFAULT_MAX_RUN_DISTANCE_MILES,
-  );
-  const [maxRunDistanceBusy, setMaxRunDistanceBusy] = useState(false);
-  const [maxRunDistanceMsg, setMaxRunDistanceMsg] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [hubRegionResolving, setHubRegionResolving] = useState(false);
   const [hubVenueResolveDone, setHubVenueResolveDone] = useState(false);
@@ -265,8 +254,7 @@ export default function AccountScreen() {
         if (
           supabaseLooksLikeMissingColumn(res.error, "push_notifications_enabled") ||
           supabaseLooksLikeMissingColumn(res.error, "marketing_push_enabled") ||
-          supabaseLooksLikeMissingColumn(res.error, "max_drive_minutes") ||
-          supabaseLooksLikeMissingColumn(res.error, "max_run_distance_miles")
+          supabaseLooksLikeMissingColumn(res.error, "max_drive_minutes")
         ) {
           res = await supabase.from("profiles").select(PROFILE_SELECT_WITHOUT_PUSH).eq("id", uid).maybeSingle();
           if (res.error) {
@@ -285,10 +273,6 @@ export default function AccountScreen() {
                     row.max_drive_minutes == null
                       ? DEFAULT_MAX_DRIVE_MINUTES
                       : clampMaxDriveMinutes(Number(row.max_drive_minutes)),
-                  max_run_distance_miles:
-                    row.max_run_distance_miles == null
-                      ? DEFAULT_MAX_RUN_DISTANCE_MILES
-                      : clampMaxRunDistanceMiles(row.max_run_distance_miles),
                 }
               : null,
           );
@@ -306,10 +290,6 @@ export default function AccountScreen() {
                 row.max_drive_minutes == null
                   ? DEFAULT_MAX_DRIVE_MINUTES
                   : clampMaxDriveMinutes(Number(row.max_drive_minutes)),
-              max_run_distance_miles:
-                row.max_run_distance_miles == null
-                  ? DEFAULT_MAX_RUN_DISTANCE_MILES
-                  : clampMaxRunDistanceMiles(row.max_run_distance_miles),
             }
           : null,
       );
@@ -448,11 +428,6 @@ export default function AccountScreen() {
     const storedMax =
       profile.max_drive_minutes == null ? DEFAULT_MAX_DRIVE_MINUTES : Number(profile.max_drive_minutes);
     setMaxDriveMinutes(clampMaxDriveMinutes(storedMax));
-    setMaxRunDistanceMiles(
-      profile.max_run_distance_miles == null
-        ? DEFAULT_MAX_RUN_DISTANCE_MILES
-        : clampMaxRunDistanceMiles(profile.max_run_distance_miles),
-    );
   }, [profile, editBusy]);
 
   const loadWaiverStatus = useCallback(async (opts?: { silent?: boolean }) => {
@@ -779,51 +754,6 @@ export default function AccountScreen() {
       setMaxDriveMsg(formatProfileSaveError(e));
     } finally {
       setMaxDriveBusy(false);
-    }
-  }
-
-  async function onSaveMaxRunDistanceMiles(next: RunRadiusMiles) {
-    if (maxRunDistanceBusy) return;
-    setMaxRunDistanceMsg(null);
-    if (!supabase) {
-      setMaxRunDistanceMsg("Supabase client is not available. Check app configuration.");
-      return;
-    }
-    const uid = session?.user?.id;
-    if (!uid) {
-      setMaxRunDistanceMsg("Sign in again to change this.");
-      return;
-    }
-
-    const prev = maxRunDistanceMiles;
-    setMaxRunDistanceMiles(next);
-    setMaxRunDistanceBusy(true);
-    try {
-      const res = await supabase
-        .from("profiles")
-        .update({
-          max_run_distance_miles: next,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", uid)
-        .select("id");
-      const { error } = res;
-      if (error) {
-        setMaxRunDistanceMiles(prev);
-        setMaxRunDistanceMsg(formatProfileSaveError(error));
-        return;
-      }
-      if (!res.data?.length) {
-        setMaxRunDistanceMiles(prev);
-        setMaxRunDistanceMsg("Save did not update any profile row.");
-        return;
-      }
-      setProfile((p) => (p ? { ...p, max_run_distance_miles: next } : p));
-    } catch (e) {
-      setMaxRunDistanceMiles(prev);
-      setMaxRunDistanceMsg(formatProfileSaveError(e));
-    } finally {
-      setMaxRunDistanceBusy(false);
     }
   }
 
@@ -1206,11 +1136,6 @@ export default function AccountScreen() {
           onMaxDriveChange={setMaxDriveMinutes}
           onMaxDriveCommit={(v) => void onSaveMaxDriveMinutes(v)}
           maxDriveDisabled={!accessToken}
-          maxRunDistanceMiles={maxRunDistanceMiles}
-          maxRunDistanceBusy={maxRunDistanceBusy}
-          maxRunDistanceMsg={maxRunDistanceMsg}
-          onSelectRunDistance={(mi) => void onSaveMaxRunDistanceMiles(mi)}
-          maxRunDistanceDisabled={!accessToken}
         />
 
         <ReferralSection accessToken={accessToken} />

@@ -114,6 +114,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: clear.error.message }, { status: 500 });
     }
 
+    let waveWarning: string | null = null;
     if (run_id) {
       const up = await admin.from("pickup_runs").update({ is_current: true, updated_at: now }).eq("id", run_id);
       if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
@@ -121,7 +122,8 @@ export async function POST(req: Request) {
       if (promotedRunRow) {
         const waveRes = await startSelectWaveOutreachOnHubPromote(admin, promotedRunRow);
         if (!waveRes.ok) {
-          return NextResponse.json({ error: waveRes.error }, { status: 500 });
+          waveWarning = waveRes.error;
+          console.error("[operator set_hub_pickup] wave outreach failed:", waveRes.error);
         }
       }
     }
@@ -143,6 +145,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       action: "set_hub_pickup",
+      wave_warning: waveWarning,
       effects: [
         {
           record: "Pickup hub",

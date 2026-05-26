@@ -13,8 +13,6 @@ export type PickupLifecycleStage =
   | "completed"
   | "result_recorded";
 
-const ONE_H_MS = 60 * 60 * 1000;
-
 export function pickupLifecycleStageLabel(stage: PickupLifecycleStage): string {
   switch (stage) {
     case "planning":
@@ -78,18 +76,15 @@ export function defaultPickupWorkflowTab(counts: Record<PickupWorkflowTab, numbe
   return "past";
 }
 
-/** True when “Begin Pickup Now” should appear: confirmed (active), not completed, ±1h around kickoff. */
+/** True when “Begin Pickup Now” should appear: confirmed (active), not completed. */
 export function showStartRunNowButton(row: {
   status?: string | null;
   is_completed?: boolean | null;
   start_at?: string | null;
 }): boolean {
+  void row.start_at;
   if (row.is_completed === true) return false;
-  if (String(row.status || "").trim() !== "active") return false;
-  const startMs = row.start_at ? Date.parse(String(row.start_at)) : NaN;
-  if (!Number.isFinite(startMs)) return false;
-  const now = Date.now();
-  return now >= startMs - ONE_H_MS && now <= startMs + ONE_H_MS;
+  return String(row.status || "").trim() === "active";
 }
 
 export function showEndRunButton(row: { status?: string | null; is_completed?: boolean | null }): boolean {

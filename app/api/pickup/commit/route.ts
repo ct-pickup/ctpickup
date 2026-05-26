@@ -5,6 +5,7 @@ import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { pickupFinalizeSlotPushRecipientIds } from "@/lib/pickup/pickupPushNotifications";
 import { isSelectPickupRunType } from "@/lib/pickup/pickupRunType";
+import { slotLabelLookupVariants } from "@/lib/pickup/slotLabelMatch";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -25,18 +26,20 @@ async function resolveSlotIdFromLabel(
   start_at: string | null,
   slot_label: string,
 ): Promise<string> {
-  const existing = await admin
-    .from("pickup_run_time_slots")
-    .select("id")
-    .eq("run_id", run_id)
-    .eq("label", slot_label)
-    .maybeSingle();
+  for (const labelVariant of slotLabelLookupVariants(slot_label)) {
+    const existing = await admin
+      .from("pickup_run_time_slots")
+      .select("id")
+      .eq("run_id", run_id)
+      .eq("label", labelVariant)
+      .maybeSingle();
 
-  if (existing.error) {
-    throw new Error(existing.error.message || "Could not look up slot for label.");
-  }
-  if (existing.data?.id != null) {
-    return String(existing.data.id);
+    if (existing.error) {
+      throw new Error(existing.error.message || "Could not look up slot for label.");
+    }
+    if (existing.data?.id != null) {
+      return String(existing.data.id);
+    }
   }
 
   const inserted = await admin
@@ -54,18 +57,20 @@ async function resolveSlotIdFromLabel(
     (inserted.error?.message?.toLowerCase().includes("duplicate") ?? false);
 
   if (dup) {
-    const again = await admin
-      .from("pickup_run_time_slots")
-      .select("id")
-      .eq("run_id", run_id)
-      .eq("label", slot_label)
-      .maybeSingle();
+    for (const labelVariant of slotLabelLookupVariants(slot_label)) {
+      const again = await admin
+        .from("pickup_run_time_slots")
+        .select("id")
+        .eq("run_id", run_id)
+        .eq("label", labelVariant)
+        .maybeSingle();
 
-    if (again.error) {
-      throw new Error(again.error.message || "Could not load slot after duplicate insert.");
-    }
-    if (again.data?.id != null) {
-      return String(again.data.id);
+      if (again.error) {
+        throw new Error(again.error.message || "Could not load slot after duplicate insert.");
+      }
+      if (again.data?.id != null) {
+        return String(again.data.id);
+      }
     }
   }
 
