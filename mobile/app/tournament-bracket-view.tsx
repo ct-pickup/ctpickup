@@ -188,7 +188,7 @@ export default function TournamentBracketViewScreen() {
         const j = r.json && typeof r.json === "object" ? (r.json as Record<string, unknown>) : null;
         const msg = typeof j?.error === "string" ? j.error : null;
         if (r.status === 403) {
-          setLoadError(msg || "This bracket is not available for your region.");
+          setLoadError(msg || "You need an approved account to view this bracket.");
         } else if (r.status === 401) {
           setLoadError(msg || "Sign in again to view the bracket.");
         } else {

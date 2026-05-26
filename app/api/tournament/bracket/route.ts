@@ -29,7 +29,7 @@ export async function GET(req: Request) {
 
   const allowed = await userMayViewOutdoorTournamentBracket(admin, authedUser.id, tournament_id);
   if (!allowed) {
-    return NextResponse.json({ error: "This bracket is not available for your region." }, { status: 403 });
+    return NextResponse.json({ error: "You need an approved account to view this bracket." }, { status: 403 });
   }
 
   const [teamsRes, matchesRes, standingsRes] = await Promise.all([

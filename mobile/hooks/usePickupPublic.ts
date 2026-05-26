@@ -24,13 +24,15 @@ function cachedPayloadMatchesRunId(data: unknown, expectedRunId: string | undefi
   return String((run as Record<string, unknown>).id) === expectedRunId;
 }
 
+/** Module-scoped so rapid effect re-runs never reuse a topic while removeChannel is in flight. */
+let pickupPublicRealtimeTopicSeq = 0;
+
 export function usePickupPublic(
   accessToken: string | null,
   opts?: { focusRunId?: string | null; skipFeatured?: boolean },
 ) {
   const { supabase } = useAuth();
   const { region, ready: regionReady } = useSelectedRegion();
-  const pickupRealtimeTopicSeq = useRef(0);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
@@ -274,27 +276,31 @@ export function usePickupPublic(
   const runId = focusRunId || runIdFromPayload;
 
   // Realtime: refresh when this run's row changes (status, counts, etc.) or
-  // when any RSVP for this run is inserted/updated. We re-`load()` rather than
-  // patching state in place because the public payload aggregates many
-  // server-computed fields (counts, visibility, my_status) that we can't
-  // reliably reconstruct from a single row payload.
+  // when any RSVP for this run is inserted/updated. We re-`load()` via loadRef
+  // (not `load`) so this effect never depends on the load callback identity.
+  // Channel setup is fully synchronous: topic → channel → all .on() → subscribe once.
   useEffect(() => {
     if (!supabase || !runId) return;
 
-    // Unique topic avoids Supabase client returning a channel still subscribed while removeChannel is in flight.
-    const topic = `pickup_public:${runId}:${++pickupRealtimeTopicSeq.current}`;
+    let cancelled = false;
+    const client = supabase;
+    const subscribedRunId = runId;
+    const topic = `pickup_public:${subscribedRunId}:${++pickupPublicRealtimeTopicSeq}`;
+
     const refresh = () => {
+      if (cancelled) return;
       void loadRef.current?.({ background: true });
     };
 
-    const pickupChannel: RealtimeChannel = supabase.channel(topic);
+    const pickupChannel: RealtimeChannel = client.channel(topic);
+
     pickupChannel.on(
       "postgres_changes",
       {
         event: "UPDATE",
         schema: "public",
         table: "pickup_runs",
-        filter: `id=eq.${runId}`,
+        filter: `id=eq.${subscribedRunId}`,
       },
       refresh,
     );
@@ -304,7 +310,7 @@ export function usePickupPublic(
         event: "INSERT",
         schema: "public",
         table: "pickup_run_rsvps",
-        filter: `run_id=eq.${runId}`,
+        filter: `run_id=eq.${subscribedRunId}`,
       },
       refresh,
     );
@@ -314,7 +320,7 @@ export function usePickupPublic(
         event: "UPDATE",
         schema: "public",
         table: "pickup_run_rsvps",
-        filter: `run_id=eq.${runId}`,
+        filter: `run_id=eq.${subscribedRunId}`,
       },
       refresh,
     );
@@ -324,14 +330,16 @@ export function usePickupPublic(
         event: "DELETE",
         schema: "public",
         table: "pickup_run_rsvps",
-        filter: `run_id=eq.${runId}`,
+        filter: `run_id=eq.${subscribedRunId}`,
       },
       refresh,
     );
+
     pickupChannel.subscribe();
 
     return () => {
-      void supabase.removeChannel(pickupChannel);
+      cancelled = true;
+      void client.removeChannel(pickupChannel);
     };
   }, [supabase, runId]);
 
