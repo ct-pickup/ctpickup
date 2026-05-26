@@ -575,7 +575,7 @@ export async function POST(req: Request) {
           runId: String(run.id),
           userId: String(targetUserId),
           upsertOk: !upsertRes?.error,
-          upsertError: upsertRes?.error?.message ?? null,
+          upsertError: (upsertRes?.error as any)?.message ?? null,
           savedStatus: savedRes.data?.status ?? null,
           savedWaitlistPosition: savedRes.data?.waitlist_position ?? null,
           confirmedAfter,
