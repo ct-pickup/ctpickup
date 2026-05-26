@@ -17,6 +17,7 @@ import {
   isPickupRunTimeTbd,
 } from "@/lib/pickupPublic";
 import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickupRunType";
+import { pickupPlayerRefundEligibleClient } from "@/lib/pickupRefundEligibility";
 import { fetchPickupRegionRuns, fetchPickupStanding } from "@/lib/siteApi";
 import { useUserChatRooms } from "@/lib/teamChat";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
@@ -610,7 +611,8 @@ export default function RunsScreen() {
     void loadRegionRuns();
   }, [showStatePicker, regionReady, loadRegionRuns]);
   const [countdownTick, setCountdownTick] = useState(0);
-  const { joinBusy, joinPickup, payBusy, payPickup, availabilityBusy, recordCantMakeIt } = usePickupJoin();
+  const { joinBusy, joinPickup, payBusy, payPickup, declineBusy, declinePickup, availabilityBusy, recordCantMakeIt } =
+    usePickupJoin();
 
   const chatEnabled = !!session?.user?.id && chatAllowed === true;
   const { rooms } = useUserChatRooms(chatEnabled);
@@ -744,6 +746,23 @@ export default function RunsScreen() {
 
   const rsvpMessage = rsvpStatusMessage(myStatus, waitlistMinutesLeft);
 
+  const showCancelMySpot = myStatus === "confirmed" && !runLocked;
+
+  const cancelSpotRefundEligible = useMemo(() => {
+    if (!run) return false;
+    const startAt = typeof run.start_at === "string" ? run.start_at : null;
+    const cancellationDeadline =
+      typeof run.cancellation_deadline === "string" ? run.cancellation_deadline : null;
+    return pickupPlayerRefundEligibleClient({
+      start_at: startAt,
+      cancellation_deadline: cancellationDeadline,
+    });
+  }, [run]);
+
+  const cancelSpotLabel = cancelSpotRefundEligible
+    ? "Cancel spot — get credit for amount paid"
+    : "Cancel spot — no refund available";
+
   const onRefresh = useCallback(() => {
     void loadRegionRuns();
     setListRefreshNonce((n) => n + 1);
@@ -847,6 +866,26 @@ export default function RunsScreen() {
       "Run chat opens once you're confirmed and the room is set up. Check Messages in a moment.",
     );
   }, [banterRoomId, router]);
+
+  const onCancelMySpot = useCallback(() => {
+    if (!token || !runId) {
+      Alert.alert("Sign in required", "Sign in to cancel your spot.");
+      return;
+    }
+    void hapticTap();
+    const startAt = typeof run?.start_at === "string" ? run.start_at : null;
+    const cancellationDeadline =
+      typeof run?.cancellation_deadline === "string" ? run.cancellation_deadline : null;
+    void declinePickup(
+      token,
+      runId,
+      { start_at: startAt, cancellation_deadline: cancellationDeadline },
+      async () => {
+        await load();
+        void loadRegionRuns();
+      },
+    );
+  }, [token, runId, run?.start_at, run?.cancellation_deadline, declinePickup, load, loadRegionRuns]);
 
   if (showStatePicker) {
     return (
@@ -1060,6 +1099,23 @@ export default function RunsScreen() {
                         void loadRegionRuns();
                       }}
                     />
+                  ) : null}
+                  {showCancelMySpot ? (
+                    <Pressable
+                      disabled={declineBusy}
+                      onPress={onCancelMySpot}
+                      accessibilityRole="button"
+                      accessibilityLabel="Cancel my spot"
+                      style={({ pressed }) => [
+                        styles.destructiveBtn,
+                        pressed && !declineBusy && { opacity: 0.9 },
+                        declineBusy && styles.btnDisabled,
+                      ]}
+                    >
+                      <Text style={styles.destructiveBtnText}>
+                        {declineBusy ? "Canceling…" : cancelSpotLabel}
+                      </Text>
+                    </Pressable>
                   ) : null}
                 </View>
               </>
