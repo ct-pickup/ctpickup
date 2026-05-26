@@ -36,11 +36,23 @@ function reasonRank(reason: string): number {
 
 export function isFreeRunCredit(row: PickupCreditRow): boolean {
   if (row.discount_pct != null && row.discount_pct > 0) return false;
-  return true;
+  const amt = Number(row.amount_cents ?? 0);
+  return !Number.isFinite(amt) || amt <= 0;
 }
 
 export function isDiscountCredit(row: PickupCreditRow): boolean {
   return row.discount_pct != null && row.discount_pct > 0;
+}
+
+export function creditAmountCents(row: PickupCreditRow): number {
+  const amt = Number(row.amount_cents ?? 0);
+  if (!Number.isFinite(amt)) return 0;
+  return Math.max(0, Math.round(amt));
+}
+
+function fmtUsd(cents: number): string {
+  const c = Math.max(0, Math.round(Number(cents) || 0));
+  return `$${(c / 100).toFixed(2)}`;
 }
 
 export function discountMultiplier(row: PickupCreditRow): number {
@@ -145,6 +157,28 @@ export async function tryApplyPickupCreditToJoin(
       creditId: credit.id,
       discountedFeeCents: discounted,
       message: `${credit.discount_pct}% off your next run`,
+    };
+  }
+
+  const amtCents = creditAmountCents(credit);
+  if (amtCents > 0) {
+    const discounted = Math.max(0, Math.round(opts.feeCents) - amtCents);
+    if (discounted <= 0) {
+      await markPickupCreditUsed(admin, credit.id, opts.runId);
+      await confirmPickupRsvpWithCredit(admin, opts);
+      return {
+        applied: true,
+        kind: "free",
+        creditId: credit.id,
+        message: `${fmtUsd(amtCents)} credit applied`,
+      };
+    }
+    return {
+      applied: true,
+      kind: "discount",
+      creditId: credit.id,
+      discountedFeeCents: discounted,
+      message: `${fmtUsd(amtCents)} credit applied`,
     };
   }
 

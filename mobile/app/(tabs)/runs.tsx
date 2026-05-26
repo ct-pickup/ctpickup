@@ -8,6 +8,7 @@ import { usePickupJoin } from "@/hooks/usePickupJoin";
 import { usePickupPublic } from "@/hooks/usePickupPublic";
 import { useTeamChatAccess } from "@/hooks/useTeamChat";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
+import { siteOrigin } from "@/lib/env";
 import {
   fmtPickupDateEt,
   fmtPickupDateFromDateOnlyStartAt,
@@ -40,6 +41,44 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 const BG = "#0a0a0a";
 const LIME = "#a3e635";
 const DIVIDER = "rgba(255,255,255,0.06)";
+
+type PickupCreditItem = {
+  id: string;
+  reason: string;
+  amount_cents: number | null;
+  discount_pct: number | null;
+  awarded_at: string;
+  expires_at: string;
+  used_at: string | null;
+  is_expired: boolean;
+  is_used: boolean;
+};
+
+function fmtUsdCents(cents: number): string {
+  const c = Math.max(0, Math.round(Number(cents) || 0));
+  return `$${(c / 100).toFixed(2)}`;
+}
+
+function bestActiveCredit(credits: PickupCreditItem[]): PickupCreditItem | null {
+  const active = credits.filter((c) => !c.is_used && !c.is_expired);
+  return active[0] ?? null;
+}
+
+function creditSummaryLine(credit: PickupCreditItem | null, feeCents: number): string | null {
+  if (!credit || feeCents <= 0) return null;
+  const amt = typeof credit.amount_cents === "number" && Number.isFinite(credit.amount_cents) ? Math.round(credit.amount_cents) : 0;
+  const pct = typeof credit.discount_pct === "number" && Number.isFinite(credit.discount_pct) ? Math.round(credit.discount_pct) : 0;
+  if (amt > 0) {
+    const after = Math.max(0, Math.round(feeCents) - amt);
+    return `Credit available: ${fmtUsdCents(amt)} · You’ll pay ${fmtUsdCents(after)}`;
+  }
+  if (pct > 0) {
+    const mult = Math.max(0, 1 - pct / 100);
+    const after = Math.max(0, Math.round(feeCents * mult));
+    return `Credit available: ${pct}% off · You’ll pay ${fmtUsdCents(after)}`;
+  }
+  return "Credit available · Will be applied automatically at checkout";
+}
 
 function SkeletonCard() {
   return (
@@ -428,6 +467,8 @@ export default function RunsScreen() {
   const [listFilterZip, setListFilterZip] = useState<string | null>(null);
   const [listFilterMaxDriveMinutes, setListFilterMaxDriveMinutes] = useState<number | null>(null);
   const autoOpenedFromDeepLinkRef = useRef(false);
+  const [pickupCredits, setPickupCredits] = useState<PickupCreditItem[]>([]);
+  const [pickupCreditsLoading, setPickupCreditsLoading] = useState(false);
 
   const { run_id: rawRunIdParam } = useLocalSearchParams<{ run_id?: string | string[] }>();
   const focusRunIdParam = useMemo(() => {
@@ -590,6 +631,37 @@ export default function RunsScreen() {
 
   const feeCents = typeof run?.fee_cents === "number" ? run.fee_cents : 0;
   const isFree = feeCents <= 0;
+  const showCreditPreview = !!token && !!runId && !isFree;
+  const creditPreview = useMemo(() => bestActiveCredit(pickupCredits), [pickupCredits]);
+  const creditPreviewLine = useMemo(
+    () => creditSummaryLine(showCreditPreview ? creditPreview : null, feeCents),
+    [showCreditPreview, creditPreview, feeCents],
+  );
+
+  const loadPickupCredits = useCallback(async () => {
+    const origin = siteOrigin();
+    if (!origin || !token) {
+      setPickupCredits([]);
+      return;
+    }
+    setPickupCreditsLoading(true);
+    try {
+      const r = await fetch(`${origin}/api/pickup/credits`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        cache: "no-store",
+      });
+      const j = (await r.json().catch(() => null)) as { credits?: PickupCreditItem[] } | null;
+      if (r.ok && j && Array.isArray(j.credits)) {
+        setPickupCredits(j.credits);
+      } else {
+        setPickupCredits([]);
+      }
+    } catch {
+      setPickupCredits([]);
+    } finally {
+      setPickupCreditsLoading(false);
+    }
+  }, [token]);
 
   const planning = useMemo((): PickupPlanningAvailability | null => {
     if (!data || typeof data !== "object") return null;
@@ -664,12 +736,19 @@ export default function RunsScreen() {
     return () => sub.remove();
   }, [load, loadRegionRuns, detailRunId]);
 
+  useEffect(() => {
+    if (!detailOpen) return;
+    if (!showCreditPreview) return;
+    void loadPickupCredits();
+  }, [detailOpen, showCreditPreview, loadPickupCredits]);
+
   const rsvpMessage = rsvpStatusMessage(myStatus, waitlistMinutesLeft);
 
   const onRefresh = useCallback(() => {
     void loadRegionRuns();
     setListRefreshNonce((n) => n + 1);
     if (detailRunId) void load();
+    if (detailOpen && showCreditPreview) void loadPickupCredits();
   }, [loadRegionRuns, load, detailRunId]);
 
   const openRunDetail = useCallback((id: string) => {
@@ -900,6 +979,21 @@ export default function RunsScreen() {
                         showChevron={false}
                       />
 
+                      {showCreditPreview ? (
+                        <>
+                          <CardDivider />
+                          <View style={styles.creditPreviewRow}>
+                            <Text style={styles.creditPreviewTitle}>Credits</Text>
+                            <Text style={styles.creditPreviewBody}>
+                              {pickupCreditsLoading
+                                ? "Loading credits…"
+                                : creditPreviewLine ||
+                                  "No active credits right now — full price will be charged."}
+                            </Text>
+                          </View>
+                        </>
+                      ) : null}
+
             {hasRsvp && rsvpMessage ? (
               <>
                 <CardDivider />
@@ -1107,6 +1201,9 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   divider: { height: 1, backgroundColor: DIVIDER, marginVertical: -4 },
+  creditPreviewRow: { gap: 6 },
+  creditPreviewTitle: { color: "rgba(255,255,255,0.65)", fontWeight: "800", fontSize: 12, letterSpacing: 0.2 },
+  creditPreviewBody: { color: "rgba(255,255,255,0.75)", lineHeight: 20, fontSize: 14 },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
   modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.65)" },
   detailSheet: {

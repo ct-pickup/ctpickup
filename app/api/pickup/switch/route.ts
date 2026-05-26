@@ -966,7 +966,7 @@ export async function POST(req: Request) {
     if (paidUserIds.length) {
       await sendPushToUsers(admin, paidUserIds, {
         title: "Run Cancelled",
-        body: `Your ${venue} run was cancelled. A full credit has been added to your account — valid for 3 months.`,
+        body: `Your ${venue} run was cancelled. A credit for the exact amount you paid has been added to your account — valid for 3 months.`,
         data: { kind: "pickup_canceled", run_id },
       });
     }

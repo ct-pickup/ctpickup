@@ -22,7 +22,7 @@ function venueLabelFromRun(run: { title?: string | null; location_private?: stri
 
 /**
  * After a pickup run is marked canceled: cancel RSVPs (no Stripe refunds),
- * issue one free-run credit per player who paid, and return user ids for push targeting.
+ * issue one cancellation credit per player who paid, and return user ids for push targeting.
  */
 export async function cancelAllPickupRsvpsAndIssueCancellationCredits(
   supabaseAdmin: SupabaseClient,
@@ -94,9 +94,12 @@ export async function cancelAllPickupRsvpsAndIssueCancellationCredits(
       if (paidWithMoney) {
         paidUserIds.push(userId);
 
+        const cancellationCreditCents =
+          platformAmount > 0 ? platformAmount : runFeeCents > 0 ? runFeeCents : 0;
+
         const { error: insertErr } = await supabaseAdmin.from("pickup_credits").insert({
           user_id: userId,
-          amount_cents: null,
+          amount_cents: cancellationCreditCents > 0 ? cancellationCreditCents : null,
           discount_pct: null,
           reason: "cancellation",
           expires_at: expiresAt,

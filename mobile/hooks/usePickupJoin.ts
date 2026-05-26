@@ -14,7 +14,7 @@ function confirmCancellationPolicy(): Promise<boolean> {
   return new Promise((resolve) => {
     Alert.alert(
       "Cancellation Policy",
-      "If this run is cancelled, you will receive a full credit valid for 3 months — no fees deducted.",
+      "If this run is cancelled, you will receive a credit for the exact amount you paid, valid for 3 months — no fees deducted.",
       [
         {
           text: "OK",

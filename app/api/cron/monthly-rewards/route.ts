@@ -13,6 +13,8 @@ export const runtime = "nodejs";
 
 type PodCount = { user_id: string; count: number };
 
+const DEFAULT_PICKUP_CREDIT_AMOUNT_CENTS = 1500;
+
 /**
  * Vercel Cron: GET /api/cron/monthly-rewards
  * Schedule: 0 5 1 * * (midnight ET on the 1st ≈ 05:00 UTC).
@@ -93,7 +95,7 @@ export async function GET(req: Request) {
         .from("pickup_credits")
         .insert({
           user_id: winnerId,
-          amount_cents: null,
+          amount_cents: DEFAULT_PICKUP_CREDIT_AMOUNT_CENTS,
           discount_pct: null,
           reason: "monthly_pod",
           expires_at: expiresAt,
@@ -106,7 +108,7 @@ export async function GET(req: Request) {
       } else {
         await sendPushToUsers(admin, [winnerId], {
           title: "🏆 Monthly Award!",
-          body: "You earned a free run for being Player of the Month! Valid 3 months.",
+          body: "You earned a $15 credit for being Player of the Month! Valid 3 months.",
         });
         summary.pod = {
           awarded: true,

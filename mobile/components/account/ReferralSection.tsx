@@ -33,9 +33,17 @@ type Props = {
 };
 
 function creditLabel(c: PickupCreditItem): string {
-  if (c.reason === "cancellation") return "Cancelled run credit";
-  if (c.discount_pct != null && c.discount_pct > 0) return `${c.discount_pct}% off`;
-  return "Free run";
+  const amt = typeof c.amount_cents === "number" && Number.isFinite(c.amount_cents) ? Math.round(c.amount_cents) : 0;
+  const amtLabel = amt > 0 ? `$${(amt / 100).toFixed(2)} credit` : null;
+  if (c.discount_pct != null && c.discount_pct > 0) {
+    return amtLabel ? `${amtLabel} (${c.discount_pct}% off)` : `${c.discount_pct}% off credit`;
+  }
+  if (c.reason === "cancellation") return amtLabel ? `Cancelled run ${amtLabel}` : "Cancelled run credit";
+  if (c.reason === "monthly_pod") return amtLabel ? `Player of the Month ${amtLabel}` : "Player of the Month credit";
+  if (c.reason === "monthly_attendance")
+    return amtLabel ? `Attendance ${amtLabel}` : "Attendance credit";
+  if (c.reason === "referral") return amtLabel ? `Referral ${amtLabel}` : "Referral credit";
+  return amtLabel || "Credit";
 }
 
 function formatCreditExpiry(iso: string): string {
