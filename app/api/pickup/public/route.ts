@@ -187,6 +187,34 @@ export async function GET(req: Request) {
       }
     }
 
+    // #region agent log
+    if (runIdParam) {
+      fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "b75987" },
+        body: JSON.stringify({
+          sessionId: "b75987",
+          hypothesisId: "A",
+          location: "public/route.ts:invitedNow",
+          message: "public invitedNow computed",
+          data: {
+            runId: run.id,
+            runType: run.run_type,
+            runStatus: run.status,
+            hubRegion,
+            serviceRegion: run.service_region,
+            invitedNow,
+            approved,
+            hasUserId: Boolean(userId),
+            nearestVenue,
+            venueRegionMatch: profileMatchesRunServiceRegion(nearestVenue, run.service_region),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+    }
+    // #endregion
+
     let attendanceVisible = false;
     if (invitedNow) attendanceVisible = true;
 

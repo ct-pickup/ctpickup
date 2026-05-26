@@ -299,13 +299,73 @@ function InlinePlanningPoll({
   }, [planning]);
 
   const runStatus = typeof run?.status === "string" ? run.status : listRun.status;
+  const runIdFromPayload = run && typeof run.id === "string" ? run.id : null;
+  const runIdMatchesFocus = !runId || runIdFromPayload === runId;
+  const isPublicRun = isPublicPickupRunType(run?.run_type ?? listRun.run_type);
+  const isSelectRun = isSelectPickupRunType(run?.run_type ?? listRun.run_type);
   const showPoll =
     !!run &&
     invitedNow &&
-    (isPublicPickupRunType(run.run_type) || isSelectPickupRunType(run.run_type)) &&
+    (isPublicRun || isSelectRun) &&
     (runStatus === "planning" || runStatus === "likely_on") &&
     run.final_slot_id == null &&
     !hasDeclinedAvailability;
+
+  // #region agent log
+  useEffect(() => {
+    if (loading) return;
+    const slotCount = Array.isArray(run?.pickup_run_time_slots)
+      ? (run.pickup_run_time_slots as unknown[]).length
+      : 0;
+    const payload = {
+      sessionId: "b75987",
+      hypothesisId: "A-E",
+      location: "runs.tsx:InlinePlanningPoll",
+      message: "inline poll gate",
+      data: {
+        focusRunId: runId,
+        runIdFromPayload,
+        runIdMatchesFocus,
+        invitedNow,
+        isPublicRun,
+        isSelectRun,
+        runStatus,
+        listRunStatus: listRun.status,
+        finalSlotId: run?.final_slot_id ?? listRun.final_slot_id,
+        hasDeclinedAvailability,
+        showPoll,
+        loading,
+        error: error ?? null,
+        slotCount,
+        hasPlanning: planning != null,
+      },
+      timestamp: Date.now(),
+    };
+    console.log("[debug InlinePlanningPoll]", payload.data);
+    fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "b75987" },
+      body: JSON.stringify(payload),
+    }).catch(() => {});
+  }, [
+    loading,
+    runId,
+    runIdFromPayload,
+    runIdMatchesFocus,
+    invitedNow,
+    isPublicRun,
+    isSelectRun,
+    runStatus,
+    listRun.status,
+    listRun.final_slot_id,
+    run?.final_slot_id,
+    hasDeclinedAvailability,
+    showPoll,
+    error,
+    run?.pickup_run_time_slots,
+    planning,
+  ]);
+  // #endregion
 
   if (loading && !run) {
     return (

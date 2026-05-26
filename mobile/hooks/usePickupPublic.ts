@@ -10,6 +10,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type PickupPublicLoadOpts = { background?: boolean };
 
+/** Featured hub uses `pickup_run`; inline polls use `pickup_run:{runId}` so runs never share stale payloads. */
+function pickupPublicCacheKey(runId?: string): string {
+  const id = typeof runId === "string" ? runId.trim() : "";
+  return id ? `pickup_run:${id}` : "pickup_run";
+}
+
+function cachedPayloadMatchesRunId(data: unknown, expectedRunId: string | undefined): boolean {
+  if (!expectedRunId) return true;
+  if (!data || typeof data !== "object") return false;
+  const run = (data as Record<string, unknown>).run;
+  if (!run || typeof run !== "object") return false;
+  return String((run as Record<string, unknown>).id) === expectedRunId;
+}
+
 export function usePickupPublic(
   accessToken: string | null,
   opts?: { focusRunId?: string | null; skipFeatured?: boolean },
@@ -30,6 +44,8 @@ export function usePickupPublic(
   const skipFeatured = opts?.skipFeatured === true;
   const effectiveRunIdParam = focusRunId || undefined;
   const shouldFetch = !skipFeatured || Boolean(effectiveRunIdParam);
+  const cacheKey = pickupPublicCacheKey(effectiveRunIdParam);
+  const useFocusedRunCacheOnly = Boolean(effectiveRunIdParam);
 
   const originOk = useMemo(() => Boolean(siteOrigin()), []);
 
@@ -68,17 +84,33 @@ export function usePickupPublic(
       setNetOffline(offline);
 
       if (offline) {
-        const cached = await getCachedData<unknown>("pickup_run");
-        if (cached) {
-          setData(cached.data);
-          setError(null);
-          setDisplaySource("cache");
-          setDataAsOfMs(cached.cachedAt);
+        if (useFocusedRunCacheOnly) {
+          const cached = await getCachedData<unknown>(cacheKey);
+          if (cached && cachedPayloadMatchesRunId(cached.data, effectiveRunIdParam)) {
+            setData(cached.data);
+            setError(null);
+            setDisplaySource("cache");
+            setDataAsOfMs(cached.cachedAt);
+          } else {
+            setData(null);
+            setDisplaySource("cache");
+            setDataAsOfMs(null);
+            setOfflineNoCache(true);
+            setError("Offline — connect to load this run's availability poll.");
+          }
         } else {
-          setData(null);
-          setDisplaySource("cache");
-          setDataAsOfMs(null);
-          setOfflineNoCache(true);
+          const cached = await getCachedData<unknown>(cacheKey);
+          if (cached) {
+            setData(cached.data);
+            setError(null);
+            setDisplaySource("cache");
+            setDataAsOfMs(cached.cachedAt);
+          } else {
+            setData(null);
+            setDisplaySource("cache");
+            setDataAsOfMs(null);
+            setOfflineNoCache(true);
+          }
         }
         if (!background) setLoading(false);
         return;
@@ -87,15 +119,56 @@ export function usePickupPublic(
       try {
         const r = await fetchPickupPublic(accessToken, { region, run_id: effectiveRunIdParam });
         if (r.ok) {
-          await cacheData("pickup_run", r.json);
+          await cacheData(cacheKey, r.json);
+          if (!useFocusedRunCacheOnly) {
+            await cacheData("pickup_run", r.json);
+          }
           setData(r.json);
           setError(null);
           setDisplaySource("live");
           const now = Date.now();
           setDataAsOfMs(now);
           setLastLiveSuccessAt(now);
+          // #region agent log
+          const j = r.json as Record<string, unknown>;
+          const vis = (j.visibility as Record<string, unknown> | undefined) ?? {};
+          const runRow = (j.run as Record<string, unknown> | undefined) ?? null;
+          const me = (j.me as Record<string, unknown> | undefined) ?? {};
+          const logData = {
+            focusRunId: effectiveRunIdParam || null,
+            cacheKey,
+            useFocusedRunCacheOnly,
+            region,
+            apiOk: true,
+            invitedNow: vis.invitedNow === true,
+            runId: runRow?.id ?? null,
+            runStatus: runRow?.status ?? null,
+            runType: runRow?.run_type ?? null,
+            finalSlotId: runRow?.final_slot_id ?? null,
+            slotCount: Array.isArray(runRow?.pickup_run_time_slots)
+              ? (runRow.pickup_run_time_slots as unknown[]).length
+              : 0,
+            approved: me.approved === true,
+            hasPlanning: j.planning != null,
+          };
+          console.log("[debug usePickupPublic load ok]", logData);
+          fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "b75987" },
+            body: JSON.stringify({
+              sessionId: "b75987",
+              hypothesisId: "A-C",
+              location: "usePickupPublic.ts:load",
+              message: "pickup public fetch ok",
+              data: logData,
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+          // #endregion
         } else {
-          const cached = await getCachedData<unknown>("pickup_run");
+          const cachedRaw = await getCachedData<unknown>(cacheKey);
+          const cached =
+            cachedRaw && cachedPayloadMatchesRunId(cachedRaw.data, effectiveRunIdParam) ? cachedRaw : null;
           if (cached) {
             setData(cached.data);
             setError(null);
@@ -110,9 +183,42 @@ export function usePickupPublic(
             setData(null);
             setDataAsOfMs(null);
           }
+          // #region agent log
+          const j = cached?.data as Record<string, unknown> | undefined;
+          const runRow = j && typeof j.run === "object" ? (j.run as Record<string, unknown>) : null;
+          console.log("[debug usePickupPublic load fail]", {
+            focusRunId: effectiveRunIdParam || null,
+            cacheKey,
+            status: r.status,
+            usedCache: Boolean(cached),
+            skippedSharedCache: useFocusedRunCacheOnly,
+            runId: runRow?.id ?? null,
+          });
+          fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "b75987" },
+            body: JSON.stringify({
+              sessionId: "b75987",
+              hypothesisId: "C-G",
+              location: "usePickupPublic.ts:load",
+              message: "pickup public fetch not ok",
+              data: {
+                focusRunId: effectiveRunIdParam || null,
+                cacheKey,
+                status: r.status,
+                usedCache: Boolean(cached),
+                skippedSharedCache: useFocusedRunCacheOnly,
+                runId: runRow?.id ?? null,
+              },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+          // #endregion
         }
       } catch {
-        const cached = await getCachedData<unknown>("pickup_run");
+        const cachedRaw = await getCachedData<unknown>(cacheKey);
+        const cached =
+          cachedRaw && cachedPayloadMatchesRunId(cachedRaw.data, effectiveRunIdParam) ? cachedRaw : null;
         if (cached) {
           setData(cached.data);
           setError(null);
@@ -126,7 +232,7 @@ export function usePickupPublic(
       }
       if (!background) setLoading(false);
     },
-    [accessToken, originOk, region, regionReady, effectiveRunIdParam, shouldFetch],
+    [accessToken, originOk, region, regionReady, effectiveRunIdParam, shouldFetch, cacheKey, useFocusedRunCacheOnly],
   );
 
   loadRef.current = load;
