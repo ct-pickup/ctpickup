@@ -4,10 +4,12 @@ import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion";
 import { createDriveMinutesCache } from "@/lib/pickup/profileMaxDriveFilter";
 import {
+  destinationFromVenueZipCode,
   driveMinutesFromZipsToDestination,
   enrichVenueDestination,
   resolveRunVenueDestination,
   zipMatchesVenueHubRegion,
+  zipStateForProximity,
 } from "@/lib/venueDistance";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { serviceRegionForAdminVenueName } from "@/lib/venues/adminCtPickupVenues";
@@ -45,21 +47,38 @@ export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const venue = String(url.searchParams.get("venue") || "").trim();
+    const venueZip = normalizeUsZipDigits(url.searchParams.get("venue_zip"));
     const max_minutes = clampMaxMinutes(url.searchParams.get("max_minutes"));
 
-    if (!venue) {
-      return NextResponse.json({ error: "Missing venue" }, { status: 400 });
+    if (!venueZip && !venue) {
+      return NextResponse.json({ error: "Missing venue or venue ZIP code" }, { status: 400 });
     }
 
-    const resolved = resolveRunVenueDestination({ locationPrivate: null, serviceRegion: null, venueName: venue });
-    if (!resolved) {
-      return NextResponse.json(
-        { error: "Unknown venue. Pick a CT Pickup venue name or paste a known venue label." },
-        { status: 400 },
-      );
+    let dest;
+    let venueLabel: string;
+
+    if (venueZip) {
+      const fromZip = destinationFromVenueZipCode(venueZip);
+      if (!fromZip) {
+        return NextResponse.json({ error: "Invalid venue ZIP code." }, { status: 400 });
+      }
+      dest = fromZip;
+      venueLabel = `ZIP ${venueZip}`;
+    } else {
+      const resolved = resolveRunVenueDestination({ locationPrivate: null, serviceRegion: null, venueName: venue });
+      if (!resolved) {
+        return NextResponse.json(
+          { error: "Unknown venue. Pick a CT Pickup venue name or paste a known venue label." },
+          { status: 400 },
+        );
+      }
+      dest = enrichVenueDestination(resolved);
+      venueLabel = dest.venue;
     }
-    const dest = enrichVenueDestination(resolved);
-    const venueHubRegion = serviceRegionForAdminVenueName(dest.venue);
+
+    const venueHubRegion = venueZip
+      ? zipStateForProximity(venueZip)
+      : serviceRegionForAdminVenueName(dest.venue);
 
     const mapsKeyPresent = Boolean(process.env.GOOGLE_MAPS_API_KEY?.trim());
 
@@ -105,6 +124,7 @@ export async function GET(req: Request) {
 
     console.log("[admin/players/proximity]", {
       venueParam: venue,
+      venueZip: venueZip ?? null,
       destVenue: dest.venue,
       destAddress: dest.address,
       venueHubRegion,
@@ -168,7 +188,7 @@ export async function GET(req: Request) {
     });
 
     return NextResponse.json({
-      venue: dest.venue,
+      venue: venueLabel,
       max_minutes,
       count: players.length,
       players,

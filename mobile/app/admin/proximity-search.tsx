@@ -51,6 +51,7 @@ export default function ProximitySearchScreen() {
   const token = session?.access_token ?? null;
 
   const [venue, setVenue] = useState("");
+  const [venueZip, setVenueZip] = useState("");
   const [maxMinutes, setMaxMinutes] = useState(60);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,8 +60,13 @@ export default function ProximitySearchScreen() {
 
   const onSearch = useCallback(async () => {
     const venueTrim = venue.trim();
-    if (!venueTrim) {
-      setError("Choose or enter a venue.");
+    const zip5 = venueZip.replace(/\D/g, "").slice(0, 5);
+    if (!zip5 && !venueTrim) {
+      setError("Enter a venue name or a 5-digit venue ZIP code.");
+      return;
+    }
+    if (venueZip.trim() && zip5.length !== 5) {
+      setError("Venue ZIP code must be 5 digits.");
       return;
     }
     if (!token) {
@@ -69,7 +75,7 @@ export default function ProximitySearchScreen() {
     }
     setLoading(true);
     setError(null);
-    const r = await fetchAdminPlayersProximity(token, venueTrim, maxMinutes);
+    const r = await fetchAdminPlayersProximity(token, venueTrim, maxMinutes, zip5.length === 5 ? zip5 : null);
     setLoading(false);
     if (!r.ok) {
       setError(r.error);
@@ -79,9 +85,10 @@ export default function ProximitySearchScreen() {
     }
     setSearchedVenue(r.data.venue);
     setPlayers(r.data.players || []);
-  }, [venue, maxMinutes, token]);
+  }, [venue, venueZip, maxMinutes, token]);
 
-  const headerVenue = searchedVenue || venue.trim() || "venue";
+  const headerVenue =
+    searchedVenue || (venueZip.replace(/\D/g, "").slice(0, 5) ? `ZIP ${venueZip.replace(/\D/g, "").slice(0, 5)}` : null) || venue.trim() || "venue";
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
@@ -113,6 +120,23 @@ export default function ProximitySearchScreen() {
               autoCorrect={false}
             />
           </View>
+        </View>
+
+        <View style={styles.venueInputWrap}>
+          <Text style={styles.label}>Venue ZIP code</Text>
+          <View style={styles.venueInputRow}>
+            <FontAwesome name="location-arrow" size={16} color={LIME} style={styles.venueInputIcon} />
+            <TextInput
+              style={styles.venueInput}
+              value={venueZip}
+              onChangeText={(text) => setVenueZip(text.replace(/\D/g, "").slice(0, 5))}
+              placeholder="06880"
+              placeholderTextColor="rgba(255,255,255,0.35)"
+              keyboardType="number-pad"
+              maxLength={5}
+            />
+          </View>
+          <Text style={styles.zipHint}>When set, drive time is calculated from this ZIP instead of the venue name.</Text>
         </View>
 
         <View style={styles.sliderBlock}>
@@ -205,6 +229,7 @@ const styles = StyleSheet.create({
   },
   venueInputIcon: { marginTop: 1 },
   venueInput: { flex: 1, color: "#fff", fontSize: 15, padding: 0 },
+  zipHint: { marginTop: 8, fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 17 },
   sliderBlock: { marginTop: 24 },
   sliderHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   sliderValue: { color: LIME, fontSize: 16, fontWeight: "800" },

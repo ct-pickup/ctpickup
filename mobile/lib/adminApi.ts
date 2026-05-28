@@ -941,11 +941,21 @@ export type ProximitySearchResponse = {
   players: ProximitySearchPlayer[];
 };
 
-export function fetchAdminPlayersProximity(accessToken: string, venue: string, maxMinutes: number) {
-  const q = new URLSearchParams({
-    venue: venue.trim(),
-    max_minutes: String(maxMinutes),
-  });
+export function fetchAdminPlayersProximity(
+  accessToken: string,
+  venue: string,
+  maxMinutes: number,
+  venueZip?: string | null,
+) {
+  const q = new URLSearchParams({ max_minutes: String(maxMinutes) });
+  const zip5 = venueZip != null ? String(venueZip).replace(/\D/g, "").slice(0, 5) : "";
+  if (zip5.length === 5) {
+    q.set("venue_zip", zip5);
+    const venueTrim = venue.trim();
+    if (venueTrim) q.set("venue", venueTrim);
+  } else if (venue.trim()) {
+    q.set("venue", venue.trim());
+  }
   return adminFetch<ProximitySearchResponse>(`/api/admin/players/proximity?${q.toString()}`, accessToken, {
     method: "GET",
   });
