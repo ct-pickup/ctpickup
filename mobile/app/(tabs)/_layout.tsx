@@ -188,8 +188,29 @@ function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; isAdmin: bo
         options={{
           href: showAdmin ? undefined : null,
           title: "Admin",
+          headerShown: false,
           tabBarIcon: ({ color }) => <TabBarIcon name="shield" color={color} />,
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            const state = navigation.getState();
+            const adminRoute = state.routes.find((r) => r.name === "admin");
+            const stackIndex =
+              adminRoute && "state" in adminRoute && adminRoute.state
+                ? ((adminRoute.state as { index?: number }).index ?? 0)
+                : 0;
+            if (stackIndex > 0) {
+              e.preventDefault();
+              navigation.dispatch(
+                CommonActions.navigate({
+                  name: "admin",
+                  params: { screen: "index" },
+                  merge: true,
+                }),
+              );
+            }
+          },
+        })}
       />
     </Tabs>
   );

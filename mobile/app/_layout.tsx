@@ -161,7 +161,6 @@ function RootLayoutNav() {
                               headerBackTitle: "Back",
                             }}
                           />
-                          <Stack.Screen name="admin" options={{ headerShown: false }} />
                           <Stack.Screen
                             name="login"
                             options={{

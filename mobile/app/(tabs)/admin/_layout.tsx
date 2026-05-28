@@ -1,7 +1,7 @@
 import { useAdminMode } from "@/context/AdminModeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
-import { goToAdminMenu } from "@/lib/adminNavigation";
+import { goToAdminMenu, isAdminMenuPath } from "@/lib/adminNavigation";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Redirect, Stack, usePathname, useRouter } from "expo-router";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
@@ -9,7 +9,7 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 function AdminHeaderBack({ tintColor }: { tintColor?: string }) {
   const router = useRouter();
   const pathname = usePathname();
-  if (pathname === "/admin" || pathname === "/admin/") return null;
+  if (isAdminMenuPath(pathname)) return null;
 
   return (
     <Pressable
