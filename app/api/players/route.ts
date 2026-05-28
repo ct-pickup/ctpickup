@@ -59,6 +59,45 @@ export async function GET(req: Request) {
     if (authErr || !userData.user?.id) {
       return NextResponse.json({ error: authErr ? authErr.message : "Unauthorized" }, { status: 401 });
     }
+    const viewerId = userData.user.id;
+
+    const viewerProf = await admin
+      .from("profiles")
+      .select("approved,is_admin")
+      .eq("id", viewerId)
+      .maybeSingle();
+
+    const viewerApproved = viewerProf.data?.approved === true;
+    const viewerIsAdmin = viewerProf.data?.is_admin === true;
+    const canViewDirectory = viewerApproved || viewerIsAdmin;
+
+    // #region agent log
+    fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "afd62a" },
+      body: JSON.stringify({
+        sessionId: "afd62a",
+        hypothesisId: "H1-H5:viewer-gate",
+        location: "app/api/players/route.ts:GET",
+        message: "players API viewer auth",
+        data: {
+          viewerIdPrefix: viewerId.slice(0, 8),
+          viewerApproved,
+          viewerIsAdmin,
+          canViewDirectory,
+          viewerProfError: viewerProf.error?.message ?? null,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+
+    if (!canViewDirectory) {
+      return NextResponse.json(
+        { error: "Your account must be approved to browse players." },
+        { status: 403 },
+      );
+    }
 
     const url = new URL(req.url);
     const regionRaw = (url.searchParams.get("region") || "").trim().toUpperCase();
@@ -93,6 +132,20 @@ export async function GET(req: Request) {
 
     const { data, error } = await query;
     if (error) {
+      // #region agent log
+      fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "afd62a" },
+        body: JSON.stringify({
+          sessionId: "afd62a",
+          hypothesisId: "H4:query-error",
+          location: "app/api/players/route.ts:query",
+          message: "players API query failed",
+          data: { code: error.code ?? null, message: error.message },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       return NextResponse.json(
         { error: error.message, details: error.details ?? null, hint: error.hint ?? null, code: error.code ?? null },
         { status: 500 },
@@ -100,6 +153,26 @@ export async function GET(req: Request) {
     }
 
     const rows = (data ?? []) as Array<Record<string, unknown>>;
+
+    // #region agent log
+    fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "afd62a" },
+      body: JSON.stringify({
+        sessionId: "afd62a",
+        hypothesisId: "H2:row-count",
+        location: "app/api/players/route.ts:result",
+        message: "players API query ok",
+        data: {
+          rawRowCount: rows.length,
+          hasSearchQ: !!q,
+          regionFilter: region,
+          viewerIsAdmin,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     const out = rows
       .map((row) => {
         const zip5 = normalizeZipDigits(row.zip_code);

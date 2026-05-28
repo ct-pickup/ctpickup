@@ -105,10 +105,10 @@ export default function PlayersScreen() {
         // #region agent log
         fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f137f7" },
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "afd62a" },
           body: JSON.stringify({
-            sessionId: "f137f7",
-            hypothesisId: "players:origin-token",
+            sessionId: "afd62a",
+            hypothesisId: "H3:origin-token",
             location: "mobile/app/players.tsx:useEffect",
             message: "players fetch starting",
             data: {
@@ -157,15 +157,21 @@ export default function PlayersScreen() {
         const j = (await res.json()) as { error?: string; players?: ProfileRow[] };
 
         // User-requested debugging
-        console.log("[players] response", { ok: res.ok, status: res.status, keys: Object.keys(j ?? {}) });
+        const playerCount = Array.isArray(j?.players) ? j.players.length : 0;
+        console.log("[players] response", {
+          ok: res.ok,
+          status: res.status,
+          playerCount,
+          error: typeof j?.error === "string" ? j.error : null,
+        });
 
         // #region agent log
         fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f137f7" },
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "afd62a" },
           body: JSON.stringify({
-            sessionId: "f137f7",
-            hypothesisId: "players:response",
+            sessionId: "afd62a",
+            hypothesisId: "H1-H2:response",
             location: "mobile/app/players.tsx:fetch",
             message: "players fetch response received",
             data: {
