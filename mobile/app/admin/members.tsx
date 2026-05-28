@@ -449,7 +449,10 @@ export default function AdminMembersScreen() {
   };
 
   const renderItem = ({ item }: { item: Member }) => {
-    const name = [item.first_name, item.last_name].filter(Boolean).join(" ") || item.username || item.id;
+    const name =
+      [item.first_name, item.last_name].filter(Boolean).join(" ") ||
+      item.username ||
+      "Incomplete Profile";
     const joined = new Date(item.created_at).toLocaleDateString();
     const isExpanded = expanded === item.id;
     const isBusy = busy !== null && busy.endsWith(item.id);
@@ -601,7 +604,7 @@ export default function AdminMembersScreen() {
   const dmTargetName = dmTarget
     ? [dmTarget.first_name, dmTarget.last_name].filter(Boolean).join(" ") ||
       dmTarget.username ||
-      dmTarget.id
+      "Incomplete Profile"
     : "";
 
   return (

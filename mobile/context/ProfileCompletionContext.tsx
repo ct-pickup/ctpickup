@@ -5,7 +5,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 type ProfileCompletionContextValue = {
   /** True while checking whether profile fields are set (only after waiver is resolved). */
   profileGateLoading: boolean;
-  /** True when signed-in user must complete profile before tabs (both first_name and username empty). */
+  /** True when signed-in user must complete profile before tabs (first_name and last_name must both be set). */
   profileNeedsCompletion: boolean;
   /** Re-run profile completion check (e.g. after saving on complete-profile). */
   refreshProfileCompletion: () => Promise<void>;
@@ -30,7 +30,7 @@ export function ProfileCompletionProvider({ children }: { children: React.ReactN
 
     const { data, error } = await supabase
       .from("profiles")
-      .select("first_name, username")
+      .select("first_name, last_name")
       .eq("id", session.user.id)
       .maybeSingle();
 
@@ -41,9 +41,12 @@ export function ProfileCompletionProvider({ children }: { children: React.ReactN
     }
 
     const fn = data?.first_name;
-    const un = data?.username;
+    const ln = data?.last_name;
     const needsCompletion =
-      (fn == null || String(fn).trim() === "") && (un == null || String(un).trim() === "");
+      fn == null ||
+      String(fn).trim() === "" ||
+      ln == null ||
+      String(ln).trim() === "";
     setProfileNeedsCompletion(needsCompletion);
   }, [supabase, session?.user?.id]);
 
