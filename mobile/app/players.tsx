@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { siteOrigin } from "@/lib/env";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -23,36 +24,14 @@ type PositionValue = (typeof POSITION_OPTIONS)[number];
 const REGION_OPTIONS = ["CT", "NY", "NJ", "MD"] as const;
 type RegionValue = (typeof REGION_OPTIONS)[number];
 
-const VENUE_TO_REGION: Record<string, RegionValue> = {
-  // NJ
-  "Sofive Meadowlands": "NJ",
-  "Sofive Cherry Hill": "NJ",
-  // NY
-  "Sofive Brooklyn": "NY",
-  "Hudson Sports Complex": "NY",
-  "New Rochelle SoccerRoof": "NY",
-  // MD
-  "Sofive Rockville": "MD",
-  "SoccerDome Jessup": "MD",
-  "SoccerDome Harmans": "MD",
-  // CT
-  "New Haven SoccerRoof": "CT",
-};
-
-const REGION_TO_VENUES: Record<RegionValue, string[]> = {
-  CT: Object.keys(VENUE_TO_REGION).filter((v) => VENUE_TO_REGION[v] === "CT"),
-  NY: Object.keys(VENUE_TO_REGION).filter((v) => VENUE_TO_REGION[v] === "NY"),
-  NJ: Object.keys(VENUE_TO_REGION).filter((v) => VENUE_TO_REGION[v] === "NJ"),
-  MD: Object.keys(VENUE_TO_REGION).filter((v) => VENUE_TO_REGION[v] === "MD"),
-};
-
 type ProfileRow = {
   id: string;
   first_name: string | null;
   last_name: string | null;
   username: string | null;
   playing_position: string | null;
-  nearest_venue: string | null;
+  zip_code: string | null;
+  region: RegionValue | null;
   attended_count: number | null;
 };
 
@@ -81,12 +60,6 @@ function parsePosition(v: string | null): PositionValue | null {
   return (POSITION_OPTIONS as readonly string[]).includes(s) ? (s as PositionValue) : null;
 }
 
-function regionFromVenue(venue: string | null): RegionValue | null {
-  const v = (venue ?? "").trim();
-  if (!v) return null;
-  return VENUE_TO_REGION[v] ?? null;
-}
-
 function toggleInSet<T extends string>(cur: readonly T[], v: T): T[] {
   return cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v];
 }
@@ -94,7 +67,7 @@ function toggleInSet<T extends string>(cur: readonly T[], v: T): T[] {
 export default function PlayersScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { supabase, isReady } = useAuth();
+  const { supabase, isReady, session } = useAuth();
 
   const [q, setQ] = useState("");
   const [posFilter, setPosFilter] = useState<PositionValue[]>([]);
@@ -118,49 +91,74 @@ export default function PlayersScreen() {
     });
   }, [navigation]);
 
-  const venueFilter = useMemo(() => {
-    if (regionFilter.length === 0) return null;
-    const venues = regionFilter.flatMap((r) => REGION_TO_VENUES[r]);
-    return venues.length ? Array.from(new Set(venues)) : null;
-  }, [regionFilter]);
-
   useEffect(() => {
-    if (!isReady || !supabase) return;
+    if (!isReady) return;
     const seq = ++profilesLoadSeq.current;
     setLoading(true);
     setErr(null);
 
     void (async () => {
-      const query = supabase
-        .from("profiles")
-        .select("id,first_name,last_name,username,playing_position,nearest_venue,attended_count")
-        .eq("approved", true)
-        .order("updated_at", { ascending: false })
-        .limit(80);
+      try {
+        const origin = siteOrigin();
+        const token = session?.access_token ?? null;
+        if (!origin) {
+          setRows([]);
+          setErr("Set EXPO_PUBLIC_SITE_URL in mobile/.env to your deployed API host.");
+          setLoading(false);
+          return;
+        }
+        if (!token) {
+          setRows([]);
+          setErr("Sign in to view players.");
+          setLoading(false);
+          return;
+        }
 
-      const trimmed = q.trim();
-      if (trimmed) {
-        const safe = trimmed.replace(/%/g, "\\%").replace(/_/g, "\\_");
-        const like = `%${safe}%`;
-        query.or(`first_name.ilike.${like},last_name.ilike.${like},username.ilike.${like}`);
-      }
+        const url = new URL(`${origin}/api/players`);
+        const trimmed = q.trim();
+        if (trimmed) url.searchParams.set("q", trimmed);
 
-      if (posFilter.length > 0) query.in("playing_position", posFilter);
-      if (venueFilter && venueFilter.length > 0) query.in("nearest_venue", venueFilter);
+        // API accepts a single region; if multiple are selected we fetch unfiltered and filter locally.
+        if (regionFilter.length === 1) url.searchParams.set("region", regionFilter[0]!);
 
-      const { data, error } = await query;
-      if (profilesLoadSeq.current !== seq) return;
-      if (error) {
-        console.warn("[players] profiles query failed", error.message ?? error);
-        setRows([]);
-        setErr("Something went wrong. Please try again.");
+        const res = await fetch(url.toString(), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const j = (await res.json()) as { error?: string; players?: ProfileRow[] };
+        if (profilesLoadSeq.current !== seq) return;
+
+        if (!res.ok) {
+          setRows([]);
+          setErr(j.error || "Something went wrong. Please try again.");
+          setLoading(false);
+          return;
+        }
+
+        let nextRows = (j.players ?? []) as ProfileRow[];
+
+        // If multiple regions are selected, apply filter locally:
+        // keep players in any selected region, plus players with null region (no zip).
+        if (regionFilter.length > 1) {
+          const allowed = new Set(regionFilter);
+          nextRows = nextRows.filter((r) => r.region == null || allowed.has(r.region));
+        }
+
+        if (posFilter.length > 0) {
+          const allowed = new Set(posFilter);
+          nextRows = nextRows.filter((r) => (r.playing_position ? allowed.has(r.playing_position as PositionValue) : false));
+        }
+
+        setRows(nextRows);
         setLoading(false);
-        return;
+      } catch (e) {
+        if (profilesLoadSeq.current !== seq) return;
+        setRows([]);
+        setErr(e instanceof Error ? e.message : "Request failed");
+        setLoading(false);
       }
-      setRows((data as ProfileRow[] | null) ?? []);
-      setLoading(false);
     })();
-  }, [isReady, supabase, q, posFilter, venueFilter]);
+  }, [isReady, session?.access_token, q, posFilter, regionFilter]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -225,14 +223,12 @@ export default function PlayersScreen() {
 
   const players: PlayerCard[] = useMemo(() => {
     return rows.map((r) => {
-      const venue = (r.nearest_venue ?? "").trim() || null;
-      const region = regionFromVenue(venue);
       return {
         id: r.id,
         name: displayName(r),
         username: (r.username ?? "").trim() || null,
         position: parsePosition(r.playing_position),
-        region,
+        region: r.region ?? null,
         gamesPlayed: Math.max(0, Number(r.attended_count ?? 0) || 0),
         winRatePct: winRateByUser[r.id] ?? null,
         awards: awardsByUser[r.id] ?? { potd: 0, gk: 0, def: 0, mid: 0, att: 0 },

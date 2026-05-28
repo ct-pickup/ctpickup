@@ -1,13 +1,15 @@
 import { useAdminMode } from "@/context/AdminModeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
-import { Redirect, Stack } from "expo-router";
-import { ActivityIndicator, View } from "react-native";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { Redirect, Stack, useRouter } from "expo-router";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
 export default function AdminLayout() {
   const { session, isReady: authReady } = useAuth();
   const { isAdmin, isReady: profileAdminReady } = useProfileAdmin();
   const { enabled: adminModeEnabled, isReady: adminModeReady } = useAdminMode();
+  const router = useRouter();
 
   if (!authReady || !profileAdminReady || !adminModeReady) {
     return (
@@ -30,6 +32,20 @@ export default function AdminLayout() {
       screenOptions={{
         headerStyle: { backgroundColor: "#0a0a0a" },
         headerTintColor: "#fff",
+        headerBackTitle: "Back",
+        headerLeft: ({ tintColor, canGoBack }) => {
+          if (!canGoBack) return null;
+          return (
+            <Pressable
+              onPress={() => router.back()}
+              hitSlop={10}
+              style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 6, opacity: pressed ? 0.85 : 1 })}
+            >
+              <FontAwesome name="chevron-left" size={14} color={tintColor ?? "#fff"} />
+              <Text style={{ color: tintColor ?? "#fff", fontSize: 16, fontWeight: "600" }}>Back</Text>
+            </Pressable>
+          );
+        },
         contentStyle: { backgroundColor: "#0a0a0a" },
       }}
     >

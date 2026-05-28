@@ -28,11 +28,14 @@ import { useFonts } from "expo-font";
 import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import "react-native-reanimated";
+import Constants from "expo-constants";
+import * as Linking from "expo-linking";
 
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors, { CT_PICKUP_LIME } from "@/constants/Colors";
+import { siteOrigin } from "@/lib/env";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -81,11 +84,39 @@ function RootLayout() {
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
   const [openingThemeKey, setOpeningThemeKey] = useState(0);
+  const [minVersionBlocked, setMinVersionBlocked] = useState(false);
   const replayOpeningTheme = useCallback(async () => {
     await clearAppOpeningThemeFlag();
     setOpeningThemeKey((k) => k + 1);
   }, []);
   const replayOpeningThemeCtx = useMemo(() => ({ replayOpeningTheme }), [replayOpeningTheme]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const origin = siteOrigin();
+        if (!origin) return;
+
+        const res = await fetch(`${origin}/api/app-version`);
+        const j = (await res.json()) as { min_version?: unknown };
+        if (!res.ok) return;
+        if (cancelled) return;
+
+        const minV = typeof j.min_version === "string" ? j.min_version.trim() : "";
+        const curV = String(Constants.expoConfig?.version ?? "").trim();
+        if (!minV || !curV) return;
+
+        const isBelow = compareSemver(curV, minV) < 0;
+        if (isBelow) setMinVersionBlocked(true);
+      } catch {
+        // If version check fails, don't block app launch.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <ReplayOpeningThemeContext.Provider value={replayOpeningThemeCtx}>
@@ -100,6 +131,7 @@ function RootLayoutNav() {
                   <AppLockProvider>
                     <AccountIntroReplayProvider>
                       <View style={{ flex: 1 }}>
+                        {minVersionBlocked ? <UpdateRequiredGate /> : null}
                         <ReviewModeBanner />
                         <PushRegistrar />
                         <ThemeProvider
@@ -377,3 +409,82 @@ function RootLayoutNav() {
 }
 
 export default Sentry.wrap(RootLayout);
+
+function parseSemver(raw: string): [number, number, number] | null {
+  const s = raw.trim();
+  const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(s);
+  if (!m) return null;
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  const c = Number(m[3]);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || !Number.isFinite(c)) return null;
+  return [a, b, c];
+}
+
+function compareSemver(aRaw: string, bRaw: string): -1 | 0 | 1 {
+  const a = parseSemver(aRaw);
+  const b = parseSemver(bRaw);
+  if (!a || !b) return 0;
+  if (a[0] !== b[0]) return a[0] < b[0] ? -1 : 1;
+  if (a[1] !== b[1]) return a[1] < b[1] ? -1 : 1;
+  if (a[2] !== b[2]) return a[2] < b[2] ? -1 : 1;
+  return 0;
+}
+
+function UpdateRequiredGate() {
+  return (
+    <View style={stylesUpdateGate.root} pointerEvents="auto">
+      <View style={stylesUpdateGate.card}>
+        <Text style={stylesUpdateGate.title}>Update Required</Text>
+        <Text style={stylesUpdateGate.body}>
+          A new version of CT Pickup is available. Please update to continue.
+        </Text>
+        <Pressable
+          onPress={() => {
+            void Linking.openURL("https://apps.apple.com/app/id6766061001");
+          }}
+          style={({ pressed }) => [stylesUpdateGate.btn, pressed && { opacity: 0.9 }]}
+        >
+          <Text style={stylesUpdateGate.btnText}>Update Now</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+const stylesUpdateGate = StyleSheet.create({
+  root: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#0a0a0a",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    zIndex: 1000,
+  },
+  card: {
+    width: "100%",
+    maxWidth: 520,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    padding: 20,
+  },
+  title: { color: "#fff", fontSize: 22, fontWeight: "900", textAlign: "center" },
+  body: {
+    marginTop: 10,
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  btn: {
+    marginTop: 18,
+    backgroundColor: CT_PICKUP_LIME,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  btnText: { color: "#111", fontSize: 16, fontWeight: "900" },
+});
