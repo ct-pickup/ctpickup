@@ -1,15 +1,37 @@
 import { useAdminMode } from "@/context/AdminModeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
+import { goToAdminMenu } from "@/lib/adminNavigation";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { Redirect, Stack, useRouter } from "expo-router";
+import { Redirect, Stack, usePathname, useRouter } from "expo-router";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
+
+function AdminHeaderBack({ tintColor }: { tintColor?: string }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  if (pathname === "/admin" || pathname === "/admin/") return null;
+
+  return (
+    <Pressable
+      onPress={() => goToAdminMenu(router)}
+      hitSlop={10}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        opacity: pressed ? 0.85 : 1,
+      })}
+    >
+      <FontAwesome name="chevron-left" size={14} color={tintColor ?? "#fff"} />
+      <Text style={{ color: tintColor ?? "#fff", fontSize: 16, fontWeight: "600" }}>Back</Text>
+    </Pressable>
+  );
+}
 
 export default function AdminLayout() {
   const { session, isReady: authReady } = useAuth();
   const { isAdmin, isReady: profileAdminReady } = useProfileAdmin();
   const { enabled: adminModeEnabled, isReady: adminModeReady } = useAdminMode();
-  const router = useRouter();
 
   if (!authReady || !profileAdminReady || !adminModeReady) {
     return (
@@ -33,22 +55,11 @@ export default function AdminLayout() {
         headerStyle: { backgroundColor: "#0a0a0a" },
         headerTintColor: "#fff",
         headerBackTitle: "Back",
-        headerLeft: ({ tintColor, canGoBack }) => {
-          if (!canGoBack) return null;
-          return (
-            <Pressable
-              onPress={() => router.back()}
-              hitSlop={10}
-              style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 6, opacity: pressed ? 0.85 : 1 })}
-            >
-              <FontAwesome name="chevron-left" size={14} color={tintColor ?? "#fff"} />
-              <Text style={{ color: tintColor ?? "#fff", fontSize: 16, fontWeight: "600" }}>Back</Text>
-            </Pressable>
-          );
-        },
+        headerLeft: ({ tintColor }) => <AdminHeaderBack tintColor={tintColor} />,
         contentStyle: { backgroundColor: "#0a0a0a" },
       }}
     >
+      <Stack.Screen name="index" options={{ title: "Admin", headerShown: false }} />
       <Stack.Screen name="pickup" options={{ title: "Pickup ops", headerShown: false, headerBackTitle: "Back" }} />
       <Stack.Screen name="invite-players" options={{ title: "Invite players", headerShown: false, headerBackTitle: "Back" }} />
       <Stack.Screen name="run-result" options={{ title: "Run result", headerBackTitle: "Back" }} />

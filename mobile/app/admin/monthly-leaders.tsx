@@ -1,5 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 import { fetchAdminMonthlyLeaders, type MonthlyLeadersResponse } from "@/lib/adminApi";
+import { goToAdminMenu } from "@/lib/adminNavigation";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -106,7 +107,7 @@ export default function MonthlyLeadersScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}>
+        <Pressable onPress={() => goToAdminMenu(router)} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}>
           <FontAwesome name="chevron-left" size={18} color="#fff" />
           <Text style={styles.backBtnText}>Back</Text>
         </Pressable>

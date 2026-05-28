@@ -16,6 +16,7 @@ import {
 } from "@/lib/adminDatabase";
 import { hapticTap } from "@/lib/haptics";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { goToAdminMenu } from "@/lib/adminNavigation";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -342,7 +343,7 @@ export default function AdminDatabaseScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.topRow}>
-          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}>
+          <Pressable onPress={() => goToAdminMenu(router)} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}>
             <FontAwesome name="chevron-left" size={14} color={LIME} />
             <Text style={styles.backBtnText}>Back</Text>
           </Pressable>

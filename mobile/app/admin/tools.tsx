@@ -1,4 +1,5 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { goToAdminMenu } from "@/lib/adminNavigation";
 import { useRouter, type Href } from "expo-router";
 import type { ComponentProps } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -77,7 +78,7 @@ export default function AdminToolsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}>
+        <Pressable onPress={() => goToAdminMenu(router)} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}>
           <FontAwesome name="chevron-left" size={18} color="#fff" />
           <Text style={styles.backBtnText}>Back</Text>
         </Pressable>

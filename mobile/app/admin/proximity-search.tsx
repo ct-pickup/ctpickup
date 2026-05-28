@@ -1,6 +1,7 @@
 import AdminVenuePicker from "@/components/AdminVenuePicker";
 import { useAuth } from "@/context/AuthContext";
 import { fetchAdminPlayersProximity, type ProximitySearchPlayer } from "@/lib/adminApi";
+import { goToAdminMenu } from "@/lib/adminNavigation";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import Slider from "@react-native-community/slider";
 import { useRouter } from "expo-router";
@@ -93,7 +94,7 @@ export default function ProximitySearchScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}>
+        <Pressable onPress={() => goToAdminMenu(router)} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}>
           <FontAwesome name="chevron-left" size={18} color="#fff" />
           <Text style={styles.backBtnText}>Back</Text>
         </Pressable>

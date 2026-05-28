@@ -4,6 +4,7 @@ import {
   postAdminPickupInvitePlayers,
   type InvitePlayersFormPlayer,
 } from "@/lib/adminApi";
+import { goToAdminMenu } from "@/lib/adminNavigation";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -213,7 +214,7 @@ export default function InvitePlayersScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={["bottom"]}>
         <Text style={styles.err}>Missing run_id.</Text>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable onPress={() => goToAdminMenu(router)} style={styles.backBtn}>
           <Text style={styles.backBtnText}>Back</Text>
         </Pressable>
       </SafeAreaView>
@@ -223,7 +224,7 @@ export default function InvitePlayersScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={["bottom"]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backIcon, pressed && { opacity: 0.8 }]}>
+        <Pressable onPress={() => goToAdminMenu(router)} style={({ pressed }) => [styles.backIcon, pressed && { opacity: 0.8 }]}>
           <FontAwesome name="chevron-left" size={18} color="#fff" />
           <Text style={styles.backBtnText}>Back</Text>
         </Pressable>

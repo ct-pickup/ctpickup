@@ -19,6 +19,7 @@ import {
   postAdminSetHubPickup,
   type PickupSwitchDetailResponse,
 } from "@/lib/adminApi";
+import { goToAdminMenu } from "@/lib/adminNavigation";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
 import { fmtPickupRunScheduleEt } from "@/lib/pickupPublic";
 import { fmtPickupSlotWindowEt } from "@/lib/pickup/fmtPickupSlotWindowEt";
@@ -655,7 +656,7 @@ export default function AdminPickupOpsScreen() {
           <Pressable
             onPress={() => {
               void hapticTap();
-              router.back();
+              goToAdminMenu(router);
             }}
             style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}
           >
