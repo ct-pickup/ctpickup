@@ -1,1 +1,1 @@
-export { default } from "../tournament-bracket-view";
+export { default } from "../../tournament-bracket-view";
