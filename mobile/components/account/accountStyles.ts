@@ -233,6 +233,17 @@ export const accountStyles = StyleSheet.create({
     backgroundColor: LIME,
   },
   reviewModalBtnPrimaryText: { color: "#0a0a0a", fontWeight: "800" },
+  deleteConfirmModalBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: "#dc2626",
+    minWidth: 120,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteConfirmModalBtnDisabled: { opacity: 0.4 },
+  deleteConfirmModalBtnText: { color: "#fff", fontWeight: "800" },
   devReplayRow: {
     marginTop: 20,
     paddingVertical: 12,
