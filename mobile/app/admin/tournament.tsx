@@ -1,3 +1,4 @@
+import AdminVenuePicker from "@/components/AdminVenuePicker";
 import DateTimePicker, { formatDateTimePickerEtLabel, isScheduleWallMidnightEt } from "@/components/DateTimePicker";
 import { useAdminOutdoorTournaments } from "@/hooks/useAdminOutdoorTournaments";
 import {
@@ -9,6 +10,11 @@ import {
 } from "@/lib/adminApi";
 import { useAuth } from "@/context/AuthContext";
 import { getMobileSupabaseClient } from "@/lib/supabase";
+import {
+  CUSTOM_VENUE_OPTION,
+  serviceRegionForAdminVenueName,
+  serviceRegionFromAddress,
+} from "@/lib/adminCtPickupVenues";
 import { SERVICE_REGIONS, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { router } from "expo-router";
@@ -30,20 +36,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const LIME = "#a3e635";
-
-const CT_PICKUP_VENUES: readonly { name: string; region: ServiceRegionCode }[] = [
-  { name: "New Haven SoccerRoof", region: "CT" },
-  { name: "Sofive Brooklyn", region: "NY" },
-  { name: "Hudson Sports", region: "NY" },
-  { name: "New Rochelle SoccerRoof", region: "NY" },
-  { name: "Sofive Meadowlands 5v5", region: "NJ" },
-  { name: "Sofive Meadowlands 7v7", region: "NJ" },
-  { name: "Sofive Cherry Hill 5v5", region: "NJ" },
-  { name: "Sofive Cherry Hill 7v7", region: "NJ" },
-  { name: "Sofive Rockville", region: "MD" },
-  { name: "SoccerDome Jessup", region: "MD" },
-  { name: "SoccerDome Harmans", region: "MD" },
-];
 
 const DECISIONS = ["pending", "confirmed", "standby", "rejected"] as const;
 type Decision = (typeof DECISIONS)[number];
@@ -102,54 +94,6 @@ function statusBadgeStyle(status: string) {
   return styles.badgeNeutral;
 }
 
-function TournamentVenuePicker({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (name: string, region: ServiceRegionCode) => void;
-}) {
-  const selected = value.trim();
-
-  return (
-    <View>
-      <Text style={styles.label}>Venue</Text>
-      {selected ? (
-        <View style={styles.venueSelectedRow}>
-          <Text style={styles.venueSelectedText} numberOfLines={2}>
-            {selected}
-          </Text>
-        </View>
-      ) : (
-        <Text style={styles.venuePlaceholder}>Tap a venue below</Text>
-      )}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        nestedScrollEnabled
-        style={styles.venueScroll}
-        contentContainerStyle={styles.venueScrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        {CT_PICKUP_VENUES.map((v) => {
-          const active = selected === v.name;
-          return (
-            <Pressable
-              key={v.name}
-              onPress={() => onChange(v.name, v.region)}
-              style={({ pressed }) => [styles.venueChip, active && styles.venueChipActive, pressed && { opacity: 0.9 }]}
-            >
-              <Text style={[styles.venueChipText, active && styles.venueChipTextActive]} numberOfLines={2}>
-                {v.name}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-}
-
 export default function AdminTournamentScreen() {
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
@@ -174,11 +118,37 @@ export default function AdminTournamentScreen() {
   const [createStartAt, setCreateStartAt] = useState("");
   const [createDeadline, setCreateDeadline] = useState("");
   const [createVenue, setCreateVenue] = useState("");
+  const [createCustomVenueName, setCreateCustomVenueName] = useState("");
+  const [createCustomVenueAddress, setCreateCustomVenueAddress] = useState("");
+  const [createCustomVenueZip, setCreateCustomVenueZip] = useState("");
+  const [createRegionOverride, setCreateRegionOverride] = useState<ServiceRegionCode | null>(null);
   const [createFormat, setCreateFormat] = useState("Group stage → knockout");
   const [createEntryFee, setCreateEntryFee] = useState("250");
   const [createMinRoster, setCreateMinRoster] = useState("5");
 
   const [listTab, setListTab] = useState<"all" | "upcoming" | "active" | "past">("active");
+
+  const isCreateCustomVenue = createVenue === CUSTOM_VENUE_OPTION;
+
+  const createRegionFromAddress = useMemo(
+    () => (isCreateCustomVenue ? serviceRegionFromAddress(createCustomVenueAddress) : null),
+    [isCreateCustomVenue, createCustomVenueAddress],
+  );
+
+  const showCreateRegionPicker = isCreateCustomVenue && !createRegionFromAddress;
+
+  const createRegion = useMemo((): ServiceRegionCode => {
+    if (isCreateCustomVenue) {
+      return createRegionFromAddress ?? createRegionOverride ?? "CT";
+    }
+    return serviceRegionForAdminVenueName(createVenue) ?? createServiceRegion;
+  }, [
+    isCreateCustomVenue,
+    createVenue,
+    createRegionFromAddress,
+    createRegionOverride,
+    createServiceRegion,
+  ]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -344,6 +314,29 @@ export default function AdminTournamentScreen() {
       return Alert.alert("Please select a time for the run");
     }
 
+    let venueLabel = createVenue.trim();
+    let venue_zip_code: string | undefined;
+    if (isCreateCustomVenue) {
+      const customName = createCustomVenueName.trim();
+      const customAddress = createCustomVenueAddress.trim();
+      if (!customName) return Alert.alert("Venue name", "Enter a name for the custom venue.");
+      if (!customAddress) return Alert.alert("Venue address", "Enter the full address for the custom venue.");
+      const customZip = createCustomVenueZip.replace(/\D/g, "").slice(0, 5);
+      if (customZip.length !== 5) {
+        return Alert.alert("Venue ZIP code", "Enter a 5-digit US ZIP code for the custom venue.");
+      }
+      if (!createRegionFromAddress && !createRegionOverride) {
+        return Alert.alert(
+          "Pick a region",
+          "Could not detect NY, CT, NJ, or MD from the address. Select a service region.",
+        );
+      }
+      venueLabel = customName;
+      venue_zip_code = customZip;
+    } else if (!venueLabel) {
+      return Alert.alert("Pick a venue", "Select a venue from the list.");
+    }
+
     setBusy("create");
     const entryCents = Number(createEntryFee) * 100;
     const minR = Number(createMinRoster);
@@ -356,10 +349,11 @@ export default function AdminTournamentScreen() {
         target_teams,
         official_threshold,
         max_teams,
-        service_region: createServiceRegion,
+        service_region: createRegion,
         start_at: startTrim || undefined,
         registration_deadline: deadlineTrim || undefined,
-        venue: createVenue.trim() || undefined,
+        venue: venueLabel || undefined,
+        ...(venue_zip_code ? { venue_zip_code } : {}),
         format_summary: createFormat.trim() || undefined,
         entry_fee_cents: Number.isFinite(entryCents) && entryCents > 0 ? Math.floor(entryCents) : undefined,
         min_roster_players: Number.isFinite(minR) && minR >= 1 ? Math.floor(minR) : undefined,
@@ -373,6 +367,10 @@ export default function AdminTournamentScreen() {
       setCreateStartAt("");
       setCreateDeadline("");
       setCreateVenue("");
+      setCreateCustomVenueName("");
+      setCreateCustomVenueAddress("");
+      setCreateCustomVenueZip("");
+      setCreateRegionOverride(null);
       setCreateFormat("Group stage → knockout");
       setCreateEntryFee("250");
       setCreateMinRoster("5");
@@ -431,13 +429,84 @@ export default function AdminTournamentScreen() {
         keyboardType="number-pad"
         placeholderTextColor="rgba(255,255,255,0.35)"
       />
-      <TournamentVenuePicker
+      <AdminVenuePicker
         value={createVenue}
-        onChange={(name, regionCode) => {
+        onChange={(name) => {
           setCreateVenue(name);
-          setCreateServiceRegion(regionCode);
+          if (name === CUSTOM_VENUE_OPTION) {
+            setCreateCustomVenueName("");
+            setCreateCustomVenueAddress("");
+            setCreateCustomVenueZip("");
+            setCreateRegionOverride(null);
+            return;
+          }
+          setCreateCustomVenueName("");
+          setCreateCustomVenueAddress("");
+          setCreateCustomVenueZip("");
+          setCreateRegionOverride(null);
+          const regionCode = serviceRegionForAdminVenueName(name);
+          if (regionCode) setCreateServiceRegion(regionCode);
         }}
       />
+      {isCreateCustomVenue ? (
+        <>
+          <Text style={styles.label}>Venue name</Text>
+          <TextInput
+            style={styles.input}
+            value={createCustomVenueName}
+            onChangeText={setCreateCustomVenueName}
+            placeholder="Venue name e.g. Chelsea Piers"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+          />
+          <Text style={styles.label}>Venue address</Text>
+          <TextInput
+            style={styles.input}
+            value={createCustomVenueAddress}
+            onChangeText={(text) => {
+              setCreateCustomVenueAddress(text);
+              if (serviceRegionFromAddress(text)) setCreateRegionOverride(null);
+            }}
+            placeholder="Full address e.g. 62 Chelsea Piers, New York, NY"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            multiline
+          />
+          <Text style={styles.label}>Venue ZIP code</Text>
+          <TextInput
+            style={styles.input}
+            value={createCustomVenueZip}
+            onChangeText={(text) => setCreateCustomVenueZip(text.replace(/\D/g, "").slice(0, 5))}
+            placeholder="e.g. 10011"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            keyboardType="number-pad"
+            maxLength={5}
+          />
+          {showCreateRegionPicker ? (
+            <>
+              <Text style={styles.label}>Service region</Text>
+              <View style={styles.regionChipRow}>
+                {SERVICE_REGIONS.map(({ code }) => {
+                  const active = createRegionOverride === code;
+                  return (
+                    <Pressable
+                      key={code}
+                      onPress={() => setCreateRegionOverride(code)}
+                      style={({ pressed }) => [
+                        styles.regionChip,
+                        active && styles.regionChipActive,
+                        pressed && { opacity: 0.9 },
+                      ]}
+                    >
+                      <Text style={[styles.regionChipText, active && styles.regionChipTextActive]}>{code}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          ) : createRegionFromAddress ? (
+            <Text style={styles.fieldHint}>Region: {createRegionFromAddress} (from address)</Text>
+          ) : null}
+        </>
+      ) : null}
       <Text style={styles.label}>Format</Text>
       <TextInput
         style={styles.input}
@@ -1084,6 +1153,21 @@ const styles = StyleSheet.create({
   },
   venueChipText: { fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.65)" },
   venueChipTextActive: { color: LIME },
+  regionChipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
+  regionChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  regionChipActive: {
+    borderColor: "rgba(163,230,53,0.45)",
+    backgroundColor: "rgba(163,230,53,0.12)",
+  },
+  regionChipText: { fontSize: 13, fontWeight: "800", color: "rgba(255,255,255,0.65)" },
+  regionChipTextActive: { color: LIME },
   fab: {
     position: "absolute",
     right: 24,

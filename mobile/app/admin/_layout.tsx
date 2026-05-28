@@ -2,8 +2,44 @@ import { useAdminMode } from "@/context/AdminModeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useNavigation, usePathname } from "@react-navigation/native";
 import { Redirect, Stack, useRouter } from "expo-router";
+import { useEffect } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
+
+function AdminNavDebug() {
+  const pathname = usePathname();
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    const state = navigation.getState();
+    const routes = state?.routes ?? [];
+    const idx = state?.index ?? 0;
+    const prev = idx > 0 ? routes[idx - 1] : null;
+    // #region agent log
+    fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f137f7" },
+      body: JSON.stringify({
+        sessionId: "f137f7",
+        hypothesisId: "B,E",
+        location: "admin/_layout.tsx:AdminNavDebug",
+        message: "admin nav state on route change",
+        data: {
+          pathname,
+          stackIndex: idx,
+          routeCount: routes.length,
+          prevRouteName: prev && "name" in prev ? String(prev.name) : null,
+          currentRouteName: routes[idx] && "name" in routes[idx] ? String(routes[idx].name) : null,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [pathname, navigation]);
+
+  return null;
+}
 
 export default function AdminLayout() {
   const { session, isReady: authReady } = useAuth();
@@ -28,12 +64,28 @@ export default function AdminLayout() {
   }
 
   return (
+    <>
+      <AdminNavDebug />
     <Stack
       screenOptions={{
         headerStyle: { backgroundColor: "#0a0a0a" },
         headerTintColor: "#fff",
         headerBackTitle: "Back",
         headerLeft: ({ tintColor, canGoBack }) => {
+          // #region agent log
+          fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f137f7" },
+            body: JSON.stringify({
+              sessionId: "f137f7",
+              hypothesisId: "A,D",
+              location: "admin/_layout.tsx:headerLeft",
+              message: "custom headerLeft render",
+              data: { canGoBack: !!canGoBack },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+          // #endregion
           if (!canGoBack) return null;
           return (
             <Pressable
@@ -68,5 +120,6 @@ export default function AdminLayout() {
       <Stack.Screen name="tournament-bracket-view" options={{ title: "Live bracket" }} />
       <Stack.Screen name="members" options={{ title: "Members" }} />
     </Stack>
+    </>
   );
 }

@@ -9,6 +9,7 @@ import { refundPaidCaptainsOnTournamentCancel } from "@/lib/tournament/refundPai
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
+import { normalizeUsZipDigits } from "@/lib/zipRegion";
 
 export const runtime = "nodejs";
 
@@ -192,6 +193,9 @@ export async function POST(req: Request) {
     }
 
     const venue = body.venue != null ? String(body.venue).trim() : "";
+    const venue_zip_code = normalizeUsZipDigits(
+      body.venue_zip_code != null ? String(body.venue_zip_code) : null,
+    );
     const format_summary = body.format_summary != null ? String(body.format_summary).trim() : "";
     const entryFeeCents = Number(body.entry_fee_cents);
     const minRoster = Number(body.min_roster_players);
@@ -208,6 +212,7 @@ export async function POST(req: Request) {
     if (start_at) insertRow.start_at = start_at;
     if (registration_deadline) insertRow.registration_deadline = registration_deadline;
     if (venue) insertRow.venue = venue;
+    if (venue_zip_code) insertRow.venue_zip_code = venue_zip_code;
     if (format_summary) insertRow.format_summary = format_summary;
     if (Number.isFinite(entryFeeCents) && entryFeeCents > 0) insertRow.entry_fee_cents = Math.floor(entryFeeCents);
     if (Number.isFinite(minRoster) && minRoster >= 1) insertRow.min_roster_players = Math.floor(minRoster);
@@ -235,7 +240,7 @@ export async function POST(req: Request) {
     if (tournament_id) {
       const tourRes = await admin
         .from("tournaments")
-        .select("venue,service_region")
+        .select("venue,service_region,venue_zip_code")
         .eq("id", tournament_id)
         .maybeSingle();
       if (tourRes.error) return NextResponse.json({ error: tourRes.error.message }, { status: 500 });
@@ -243,6 +248,7 @@ export async function POST(req: Request) {
       const userIds = await approvedUserIdsWithinTournamentDrive(admin, {
         venue: tourRes.data?.venue ?? null,
         serviceRegion: tourRes.data?.service_region ?? null,
+        venueZipCode: tourRes.data?.venue_zip_code ?? null,
       });
       if (userIds.length) {
         await sendPushToUsers(admin, userIds, {

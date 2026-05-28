@@ -2,7 +2,7 @@ import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion"
 import {
   createDriveMinutesCache,
   googleDriveMinutesFromZipsToDestination,
-  resolveRunVenueDestination,
+  resolveDriveTimeDestination,
   type DriveMinutesCache,
   type VenueDestination,
 } from "@/lib/venueDistance";
@@ -29,6 +29,7 @@ export type RunLocationForProximity = {
   locationPrivate?: string | null;
   serviceRegion?: string | null;
   venue?: string | null;
+  venueZipCode?: string | null;
 };
 
 function normalizeZip(zip: string | null | undefined): string | null {
@@ -54,7 +55,8 @@ export async function filterProfilesByMaxDriveTime<T extends ProfileDriveProximi
   cache?: DriveMinutesCache,
 ): Promise<T[]> {
   const serviceRegion = runLocation.serviceRegion;
-  const dest: VenueDestination | null = resolveRunVenueDestination({
+  const dest: VenueDestination | null = resolveDriveTimeDestination({
+    venueZipCode: runLocation.venueZipCode,
     locationPrivate: runLocation.locationPrivate,
     serviceRegion: runLocation.serviceRegion,
     venueName: runLocation.venue,

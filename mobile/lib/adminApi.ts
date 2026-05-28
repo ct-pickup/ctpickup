@@ -201,6 +201,7 @@ export function postAdminCreateRun(
         service_region?: string | null;
     location_private?: string | null;
     location_text?: string | null;
+    venue_zip_code?: string | null;
     cancellation_deadline?: string | null;
   },
 ) {

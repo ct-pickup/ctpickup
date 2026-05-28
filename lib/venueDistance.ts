@@ -46,6 +46,50 @@ function findCtPickupVenueByName(name: string): { venue: string; address: string
   return hit ? { venue: hit.venue, address: hit.address } : null;
 }
 
+/** Lat/lng destination from a stored 5-digit venue ZIP (custom venues). */
+export function destinationFromVenueZipCode(zip: string | null | undefined): VenueDestination | null {
+  const zip5 = normalizeZip(zip);
+  if (!zip5) return null;
+
+  const loc = zipcodes.lookup(zip5) as
+    | { latitude?: number; longitude?: number; city?: string; state?: string }
+    | undefined;
+  const lat = loc?.latitude;
+  const lng = loc?.longitude;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  const city = loc?.city != null ? String(loc.city).trim() : "";
+  const state = loc?.state != null ? String(loc.state).trim() : "";
+  const address =
+    [city, state, zip5].filter(Boolean).join(", ") || `${zip5}, USA`;
+
+  return {
+    venue: address,
+    address,
+    lat: lat!,
+    lng: lng!,
+  };
+}
+
+/**
+ * Destination for drive-time: prefer `venueZipCode` over venue-name / location lookup.
+ */
+export function resolveDriveTimeDestination(args: {
+  venueZipCode?: string | null | undefined;
+  locationPrivate?: string | null | undefined;
+  serviceRegion?: string | null | undefined;
+  venueName?: string | null | undefined;
+}): VenueDestination | null {
+  const fromZip = destinationFromVenueZipCode(args.venueZipCode);
+  if (fromZip) return fromZip;
+
+  return resolveRunVenueDestination({
+    locationPrivate: args.locationPrivate,
+    serviceRegion: args.serviceRegion,
+    venueName: args.venueName,
+  });
+}
+
 /** Resolve run venue from staff location and/or service region. */
 export function resolveRunVenueDestination(args: {
   locationPrivate: string | null | undefined;

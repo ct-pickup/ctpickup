@@ -164,6 +164,7 @@ export default function AdminPickupOpsScreen() {
   const [createVenue, setCreateVenue] = useState("");
   const [createCustomVenueName, setCreateCustomVenueName] = useState("");
   const [createCustomVenueAddress, setCreateCustomVenueAddress] = useState("");
+  const [createCustomVenueZip, setCreateCustomVenueZip] = useState("");
   const [createRegionOverride, setCreateRegionOverride] = useState<ServiceRegionCode | null>(null);
   const [createTimeSlots, setCreateTimeSlots] = useState<string[]>([""]);
   const [createCapacity, setCreateCapacity] = useState("24");
@@ -313,6 +314,7 @@ export default function AdminPickupOpsScreen() {
     setCreateVenue("");
     setCreateCustomVenueName("");
     setCreateCustomVenueAddress("");
+    setCreateCustomVenueZip("");
     setCreateRegionOverride(null);
     setCreateEarnings("0");
     setCreatePlayerFee("");
@@ -325,11 +327,13 @@ export default function AdminPickupOpsScreen() {
     if (name === CUSTOM_VENUE_OPTION) {
       setCreateCustomVenueName("");
       setCreateCustomVenueAddress("");
+      setCreateCustomVenueZip("");
       setCreateRegionOverride(null);
       return;
     }
     setCreateCustomVenueName("");
     setCreateCustomVenueAddress("");
+    setCreateCustomVenueZip("");
     setCreateRegionOverride(null);
     const cost = VENUE_FIELD_COST[name];
     if (typeof cost === "number" && cost > 0) setPricingFieldCost(String(cost));
@@ -386,6 +390,11 @@ export default function AdminPickupOpsScreen() {
         Alert.alert("Venue address", "Enter the full address for the custom venue.");
         return;
       }
+      const customZip = createCustomVenueZip.replace(/\D/g, "").slice(0, 5);
+      if (customZip.length !== 5) {
+        Alert.alert("Venue ZIP code", "Enter a 5-digit US ZIP code for the custom venue.");
+        return;
+      }
       if (!createRegionFromAddress && !createRegionOverride) {
         Alert.alert(
           "Pick a region",
@@ -410,6 +419,10 @@ export default function AdminPickupOpsScreen() {
       return;
     }
 
+    const venueZipForRun = isCreateCustomVenue
+      ? createCustomVenueZip.replace(/\D/g, "").slice(0, 5)
+      : null;
+
     setCreateBusy(true);
     const r = await postAdminCreateRun(token, {
       ...(start_at ? { start_at } : {}),
@@ -420,6 +433,7 @@ export default function AdminPickupOpsScreen() {
       fee_cents: feeCents,
       admin_fee_cents: Math.round(me * 100),
       location_private,
+      ...(venueZipForRun ? { venue_zip_code: venueZipForRun } : {}),
       run_type: createRunType,
     });
     if (!r.ok) {
@@ -873,6 +887,16 @@ export default function AdminPickupOpsScreen() {
                     placeholder="Full address e.g. 62 Chelsea Piers, New York, NY"
                     placeholderTextColor="rgba(255,255,255,0.35)"
                     multiline
+                  />
+                  <Text style={styles.label}>Venue ZIP code</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={createCustomVenueZip}
+                    onChangeText={(text) => setCreateCustomVenueZip(text.replace(/\D/g, "").slice(0, 5))}
+                    placeholder="e.g. 10011"
+                    placeholderTextColor="rgba(255,255,255,0.35)"
+                    keyboardType="number-pad"
+                    maxLength={5}
                   />
                   {showCreateRegionPicker ? (
                     <>

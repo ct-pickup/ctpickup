@@ -1,4 +1,4 @@
-import { haversineMiles, resolveRunVenueDestination } from "@/lib/venueDistance";
+import { haversineMiles, resolveDriveTimeDestination } from "@/lib/venueDistance";
 import zipcodes from "zipcodes";
 
 /** Straight-line miles from a 5-digit US ZIP to a run venue (null when unknown). */
@@ -6,11 +6,13 @@ export function milesFromZipToRunLocation(
   zip: string | null | undefined,
   locationPrivate: string | null | undefined,
   serviceRegion: string | null | undefined,
+  venueZipCode?: string | null | undefined,
 ): number | null {
   const digits = zip != null ? String(zip).replace(/\D/g, "").slice(0, 5) : "";
   if (digits.length !== 5) return null;
 
-  const dest = resolveRunVenueDestination({
+  const dest = resolveDriveTimeDestination({
+    venueZipCode,
     locationPrivate,
     serviceRegion,
   });

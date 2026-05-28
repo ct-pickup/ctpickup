@@ -155,6 +155,20 @@ export default function AdminRunResultScreen() {
       headerTintColor: "#fff",
       headerShadowVisible: false,
     });
+    // #region agent log
+    fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "f137f7" },
+      body: JSON.stringify({
+        sessionId: "f137f7",
+        hypothesisId: "C",
+        location: "admin/run-result.tsx:setOptions",
+        message: "run-result setOptions applied",
+        data: { isReadonly, setsHeaderLeft: false },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
   }, [navigation, isReadonly]);
 
   useEffect(() => {

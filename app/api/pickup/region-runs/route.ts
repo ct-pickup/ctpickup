@@ -9,7 +9,7 @@ import {
 import { milesFromZipToRunLocation } from "@/lib/pickup/runVenueDistance";
 import {
   driveMinutesFromZipToDestination,
-  resolveRunVenueDestination,
+  resolveDriveTimeDestination,
 } from "@/lib/venueDistance";
 import {
   jsonConfigErrorResponse,
@@ -45,7 +45,7 @@ type RunRow = Pick<
   | "fee_cents"
   | "service_region"
   | "final_slot_id"
-> & { location_private?: string | null };
+> & { location_private?: string | null; venue_zip_code?: string | null };
 
 type RowOut = {
   id: string;
@@ -112,7 +112,7 @@ export async function GET(req: Request) {
     let runQuery = admin
       .from("pickup_runs")
       .select(
-        "id,title,status,start_at,run_type,capacity,fee_cents,service_region,final_slot_id,location_private",
+        "id,title,status,start_at,run_type,capacity,fee_cents,service_region,final_slot_id,location_private,venue_zip_code",
       )
       .in("status", [...LIST_STATUSES]);
 
@@ -184,14 +184,20 @@ export async function GET(req: Request) {
     let payload: RowOut[] = await Promise.all(
       visibleRuns.map(async (r) => {
         const regionCode = normalizeRegionCode(r.service_region);
-        const dest = resolveRunVenueDestination({
+        const dest = resolveDriveTimeDestination({
+          venueZipCode: r.venue_zip_code,
           locationPrivate: r.location_private,
           serviceRegion: regionCode,
         });
         const drive_minutes =
           playerZip && dest ? await driveMinutesFromZipToDestination(playerZip, dest) : null;
         const distance_miles = playerZip
-          ? milesFromZipToRunLocation(playerZip, r.location_private ?? null, regionCode)
+          ? milesFromZipToRunLocation(
+              playerZip,
+              r.location_private ?? null,
+              regionCode,
+              r.venue_zip_code ?? null,
+            )
           : null;
         return {
           id: r.id,

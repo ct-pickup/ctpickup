@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
 import { createDriveMinutesCache, filterProfilesByMaxDriveTime } from "@/lib/pickup/profileMaxDriveFilter";
-import { buildProximityInvitePlayerList, resolveRunVenueDestination } from "@/lib/venueDistance";
+import { buildProximityInvitePlayerList, resolveDriveTimeDestination } from "@/lib/venueDistance";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
@@ -22,7 +22,7 @@ export async function GET(req: Request) {
 
     const runRes = await admin
       .from("pickup_runs")
-      .select("id,title,run_type,status,service_region,location_private")
+      .select("id,title,run_type,status,service_region,location_private,venue_zip_code")
       .eq("id", run_id)
       .maybeSingle();
     const run = runRes.data;
@@ -31,7 +31,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Invite players applies to Select runs only." }, { status: 400 });
     }
 
-    const dest = resolveRunVenueDestination({
+    const dest = resolveDriveTimeDestination({
+      venueZipCode: run.venue_zip_code,
       locationPrivate: run.location_private,
       serviceRegion: run.service_region,
     });
@@ -53,10 +54,15 @@ export async function GET(req: Request) {
     }
 
     const driveCache = createDriveMinutesCache();
-    const eligible = await filterProfilesByMaxDriveTime(profRes.data || [], {
-      locationPrivate: run.location_private,
-      serviceRegion: run.service_region,
-    }, driveCache);
+    const eligible = await filterProfilesByMaxDriveTime(
+      profRes.data || [],
+      {
+        venueZipCode: run.venue_zip_code,
+        locationPrivate: run.location_private,
+        serviceRegion: run.service_region,
+      },
+      driveCache,
+    );
     const players = await buildProximityInvitePlayerList(eligible, dest, driveCache);
 
     return NextResponse.json({

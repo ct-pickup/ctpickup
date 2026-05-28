@@ -10,6 +10,7 @@ import { clearCurrentPickupRunsInRegion } from "@/lib/pickup/hubPromote";
 import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 import { DateTime } from "luxon";
 import { fmtPickupSlotWindowEt } from "@/lib/pickup/fmtPickupSlotWindowEt";
+import { normalizeUsZipDigits } from "@/lib/zipRegion";
 
 
 export async function POST(req: Request) {
@@ -155,6 +156,10 @@ export async function POST(req: Request) {
 
   const show_location_to_confirmed_only = b.show_location_to_confirmed_only !== false;
 
+  const venue_zip_code = normalizeUsZipDigits(
+    b.venue_zip_code != null ? String(b.venue_zip_code) : null,
+  );
+
   const now = new Date().toISOString();
 
   const cleared = await clearCurrentPickupRunsInRegion(supabaseAdmin, service_region);
@@ -175,6 +180,7 @@ export async function POST(req: Request) {
       admin_fee_cents,
       currency,
       location_private,
+      ...(venue_zip_code ? { venue_zip_code } : {}),
       show_location_to_confirmed_only,
       cancellation_deadline: b.cancellation_deadline || null,
       invite_phase: 0,

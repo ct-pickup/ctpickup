@@ -12,6 +12,7 @@ export const TOURNAMENT_MAX_DRIVE_MINUTES = 90;
 export type TournamentLocationForProximity = {
   venue?: string | null;
   serviceRegion?: string | null;
+  venueZipCode?: string | null;
 };
 
 function profilesWithTournamentDriveCap<T extends ProfileDriveProximityRow>(profiles: T[]): T[] {
@@ -33,6 +34,7 @@ export async function filterProfilesByTournamentDriveTime<T extends ProfileDrive
       locationPrivate: null,
       serviceRegion: tournament.serviceRegion ?? null,
       venue: tournament.venue ?? null,
+      venueZipCode: tournament.venueZipCode ?? null,
     },
     cache,
   );
