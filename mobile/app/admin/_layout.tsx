@@ -49,24 +49,24 @@ export default function AdminLayout() {
         contentStyle: { backgroundColor: "#0a0a0a" },
       }}
     >
-      <Stack.Screen name="pickup" options={{ title: "Pickup ops", headerShown: false }} />
-      <Stack.Screen name="invite-players" options={{ title: "Invite players" }} />
-      <Stack.Screen name="run-result" options={{ title: "Run result" }} />
-      <Stack.Screen name="analytics" options={{ title: "Analytics" }} />
-      <Stack.Screen name="database" options={{ title: "Database", headerShown: false }} />
-      <Stack.Screen name="bulk-message" options={{ title: "Broadcast Message" }} />
-      <Stack.Screen name="tools" options={{ title: "Admin Tools", headerShown: false }} />
-      <Stack.Screen name="proximity-search" options={{ title: "Proximity Search", headerShown: false }} />
-      <Stack.Screen name="monthly-leaders" options={{ title: "Monthly Leaders", headerShown: false }} />
-      <Stack.Screen name="tier-suggestions" options={{ title: "Tier Suggestions" }} />
-      <Stack.Screen name="standing" options={{ title: "Standing" }} />
-      <Stack.Screen name="chat" options={{ title: "Chat moderation" }} />
-      <Stack.Screen name="chat-room" options={{ title: "Room" }} />
-      <Stack.Screen name="tournament" options={{ title: "Tournaments", headerBackTitle: "" }} />
-      <Stack.Screen name="tournament-bracket" options={{ title: "Tournament Bracket" }} />
-      <Stack.Screen name="tournament-join" options={{ title: "Find a team" }} />
-      <Stack.Screen name="tournament-bracket-view" options={{ title: "Live bracket" }} />
-      <Stack.Screen name="members" options={{ title: "Members" }} />
+      <Stack.Screen name="pickup" options={{ title: "Pickup ops", headerShown: false, headerBackTitle: "Back" }} />
+      <Stack.Screen name="invite-players" options={{ title: "Invite players", headerShown: false, headerBackTitle: "Back" }} />
+      <Stack.Screen name="run-result" options={{ title: "Run result", headerBackTitle: "Back" }} />
+      <Stack.Screen name="analytics" options={{ title: "Analytics", headerBackTitle: "Back" }} />
+      <Stack.Screen name="database" options={{ title: "Database", headerShown: false, headerBackTitle: "Back" }} />
+      <Stack.Screen name="bulk-message" options={{ title: "Broadcast Message", headerBackTitle: "Back" }} />
+      <Stack.Screen name="tools" options={{ title: "Admin Tools", headerShown: false, headerBackTitle: "Back" }} />
+      <Stack.Screen name="proximity-search" options={{ title: "Proximity Search", headerShown: false, headerBackTitle: "Back" }} />
+      <Stack.Screen name="monthly-leaders" options={{ title: "Monthly Leaders", headerShown: false, headerBackTitle: "Back" }} />
+      <Stack.Screen name="tier-suggestions" options={{ title: "Tier Suggestions", headerBackTitle: "Back" }} />
+      <Stack.Screen name="standing" options={{ title: "Standing", headerBackTitle: "Back" }} />
+      <Stack.Screen name="chat" options={{ title: "Chat moderation", headerBackTitle: "Back" }} />
+      <Stack.Screen name="chat-room" options={{ title: "Room", headerBackTitle: "Back" }} />
+      <Stack.Screen name="tournament" options={{ title: "Tournaments", headerBackTitle: "Back" }} />
+      <Stack.Screen name="tournament-bracket" options={{ title: "Tournament Bracket", headerBackTitle: "Back" }} />
+      <Stack.Screen name="tournament-join" options={{ title: "Find a team", headerBackTitle: "Back" }} />
+      <Stack.Screen name="tournament-bracket-view" options={{ title: "Live bracket", headerBackTitle: "Back" }} />
+      <Stack.Screen name="members" options={{ title: "Members", headerBackTitle: "Back" }} />
     </Stack>
   );
 }

@@ -344,7 +344,7 @@ export default function AdminDatabaseScreen() {
         <View style={styles.topRow}>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}>
             <FontAwesome name="chevron-left" size={14} color={LIME} />
-            <Text style={styles.backBtnText}>Pickup ops</Text>
+            <Text style={styles.backBtnText}>Back</Text>
           </Pressable>
         </View>
 

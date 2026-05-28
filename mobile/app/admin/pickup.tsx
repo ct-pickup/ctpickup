@@ -651,8 +651,18 @@ export default function AdminPickupOpsScreen() {
         }
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.headerRow}>
-          <Text style={styles.h1}>Pickup ops</Text>
+        <View style={styles.topBar}>
+          <Pressable
+            onPress={() => {
+              void hapticTap();
+              router.back();
+            }}
+            style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}
+          >
+            <FontAwesome name="chevron-left" size={18} color="#fff" />
+            <Text style={styles.backBtnText}>Back</Text>
+          </Pressable>
+          <Text style={styles.topTitle}>Pickup ops</Text>
           <Pressable
             onPress={() => {
               void hapticTap();
@@ -661,7 +671,6 @@ export default function AdminPickupOpsScreen() {
             style={({ pressed }) => [styles.refreshBtn, pressed && { opacity: 0.85 }]}
           >
             <FontAwesome name="refresh" size={14} color={LIME} />
-            <Text style={styles.refreshText}>Refresh</Text>
           </Pressable>
         </View>
 
@@ -1198,7 +1207,15 @@ export default function AdminPickupOpsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG },
   content: { paddingHorizontal: 16, paddingTop: 8 },
-  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 12,
+  },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 },
+  backBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  topTitle: { flex: 1, fontSize: 22, fontWeight: "800", color: "#fff", textAlign: "center" },
   h1: { fontSize: 26, fontWeight: "800", color: "#fff" },
   refreshBtn: {
     flexDirection: "row",

@@ -158,8 +158,10 @@ function RootLayoutNav() {
                             options={{
                               headerShown: false,
                               title: "Home",
+                              headerBackTitle: "Back",
                             }}
                           />
+                          <Stack.Screen name="admin" options={{ headerShown: false }} />
                           <Stack.Screen
                             name="login"
                             options={{
@@ -373,23 +375,6 @@ function RootLayoutNav() {
                               headerShadowVisible: false,
                             }}
                           />
-                          <Stack.Screen name="admin/pickup" options={{ headerShown: false }} />
-                          <Stack.Screen name="admin/invite-players" options={{ headerShown: false }} />
-                          <Stack.Screen name="admin/run-result" options={{ headerShown: false }} />
-                          <Stack.Screen name="admin/tournament" options={{ headerShown: false }} />
-                          <Stack.Screen name="admin/tournament-bracket" options={{ headerShown: false }} />
-                          <Stack.Screen name="admin/members" options={{ headerShown: false }} />
-                          <Stack.Screen name="admin/analytics" options={{ headerShown: false }} />
-                          <Stack.Screen name="admin/database" options={{ headerShown: false }} />
-                          <Stack.Screen name="admin/tools" options={{ headerShown: false }} />
-                          <Stack.Screen name="admin/proximity-search" options={{ headerShown: false }} />
-                          <Stack.Screen name="admin/tier-suggestions" options={{ headerShown: false }} />
-                          <Stack.Screen name="admin/bulk-message" options={{ headerShown: false }} />
-                          <Stack.Screen name="admin/tournament-join" options={{ headerShown: false }} />
-                          <Stack.Screen name="admin/tournament-bracket-view" options={{ headerShown: false }} />
-                          <Stack.Screen name="admin/chat" options={{ headerShown: false }} />
-                          <Stack.Screen name="admin/chat-room" options={{ headerShown: false }} />
-                          <Stack.Screen name="admin/standing" options={{ headerShown: false }} />
                           </Stack>
                         </ThemeProvider>
                         <AppOpeningTheme key={openingThemeKey} />

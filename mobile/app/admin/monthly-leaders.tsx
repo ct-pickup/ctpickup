@@ -108,6 +108,7 @@ export default function MonthlyLeadersScreen() {
       <View style={styles.topBar}>
         <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}>
           <FontAwesome name="chevron-left" size={18} color="#fff" />
+          <Text style={styles.backBtnText}>Back</Text>
         </Pressable>
         <Text style={styles.topTitle}>Monthly Leaders</Text>
       </View>
@@ -191,15 +192,13 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    gap: 6,
+    paddingVertical: 8,
+    paddingRight: 8,
   },
+  backBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   topTitle: { flex: 1, fontSize: 22, fontWeight: "800", color: "#fff" },
   scroll: { flex: 1 },
   content: { padding: 16, paddingBottom: 40, gap: 14 },

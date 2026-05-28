@@ -76,6 +76,14 @@ export default function AdminToolsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+      <View style={styles.topBar}>
+        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}>
+          <FontAwesome name="chevron-left" size={18} color="#fff" />
+          <Text style={styles.backBtnText}>Back</Text>
+        </Pressable>
+        <Text style={styles.topTitle}>Admin Tools</Text>
+        <View style={styles.topBarSpacer} />
+      </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <Text style={styles.h1}>Admin Tools</Text>
         <Text style={styles.sub}>Utilities for outreach, data, and player management.</Text>
@@ -91,6 +99,17 @@ export default function AdminToolsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: BG },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 8 },
+  backBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  topTitle: { flex: 1, fontSize: 18, fontWeight: "800", color: "#fff", textAlign: "center" },
+  topBarSpacer: { width: 72 },
   scroll: { flex: 1, backgroundColor: BG },
   content: { padding: 20, paddingBottom: 40 },
   h1: { fontSize: 32, fontWeight: "800", color: "#fff", letterSpacing: 0.2 },

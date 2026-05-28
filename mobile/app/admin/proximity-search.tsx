@@ -95,6 +95,7 @@ export default function ProximitySearchScreen() {
       <View style={styles.topBar}>
         <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}>
           <FontAwesome name="chevron-left" size={18} color="#fff" />
+          <Text style={styles.backBtnText}>Back</Text>
         </Pressable>
         <Text style={styles.topTitle}>Player Proximity Search</Text>
       </View>
@@ -209,7 +210,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 8,
   },
-  backBtn: { padding: 8 },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 6, padding: 8 },
+  backBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   topTitle: { flex: 1, fontSize: 18, fontWeight: "800", color: "#fff" },
   scroll: { flex: 1 },
   content: { padding: 20, paddingBottom: 40 },

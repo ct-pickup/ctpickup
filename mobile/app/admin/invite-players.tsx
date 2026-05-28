@@ -214,7 +214,7 @@ export default function InvitePlayersScreen() {
       <SafeAreaView style={styles.safe} edges={["bottom"]}>
         <Text style={styles.err}>Missing run_id.</Text>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>Go back</Text>
+          <Text style={styles.backBtnText}>Back</Text>
         </Pressable>
       </SafeAreaView>
     );
@@ -225,6 +225,7 @@ export default function InvitePlayersScreen() {
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backIcon, pressed && { opacity: 0.8 }]}>
           <FontAwesome name="chevron-left" size={18} color="#fff" />
+          <Text style={styles.backBtnText}>Back</Text>
         </Pressable>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.h1} numberOfLines={2}>
@@ -375,7 +376,7 @@ export default function InvitePlayersScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#0a0a0a", paddingHorizontal: 16 },
   header: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: 8 },
-  backIcon: { paddingVertical: 8, paddingRight: 4 },
+  backIcon: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 8, paddingRight: 4 },
   h1: { fontSize: 22, fontWeight: "800", color: "#fff" },
   sub: { marginTop: 4, fontSize: 14, color: "rgba(255,255,255,0.55)" },
   summary: {
