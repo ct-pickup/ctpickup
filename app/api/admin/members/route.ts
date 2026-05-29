@@ -3,6 +3,7 @@ import {
   ACCOUNT_DELETE_SUPPORT_ERROR,
   deleteUserAccount,
 } from "@/lib/account/deleteUserAccount";
+import { invalidateUserSessions } from "@/lib/auth/invalidateUserSessions";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -64,6 +65,13 @@ export async function PATCH(req: Request) {
 
   const { error } = await admin.from("profiles").update(update).eq("id", user_id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (is_banned === true) {
+    const signOut = await invalidateUserSessions(admin, user_id);
+    if (!signOut.ok) {
+      console.error("[admin/members ban] invalidateUserSessions failed:", signOut.error);
+    }
+  }
 
   return NextResponse.json({ ok: true });
 }

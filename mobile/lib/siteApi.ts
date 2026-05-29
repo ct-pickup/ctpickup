@@ -136,6 +136,7 @@ export async function postPickupCommit(
   slotId: string | null,
   slotLabel: string | null = null,
   slotLabelsSelection: string[] | null = null,
+  hubRegion?: string | null,
 ): Promise<{ ok: boolean; status: number; json: unknown }> {
   const origin = siteOrigin();
   if (!origin) {
@@ -152,6 +153,8 @@ export async function postPickupCommit(
   if (state === "available" && slotLabelsSelection && slotLabelsSelection.length > 0) {
     payload.slot_labels_selection = slotLabelsSelection;
   }
+  const hub = typeof hubRegion === "string" ? hubRegion.trim().toUpperCase() : "";
+  if (hub) payload.hub_region = hub;
   const r = await fetch(`${origin}/api/pickup/commit`, {
     method: "POST",
     headers: {

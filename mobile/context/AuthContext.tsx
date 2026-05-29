@@ -1,3 +1,4 @@
+import { installApiFetchGuard, setApiUnauthorizedHandler } from "@/lib/apiFetchGuard";
 import { authRouteRef } from "@/lib/authRouteRef";
 import { clearStoredPin } from "@/lib/appLock";
 import { establishRecoverySession, isResetPasswordDeepLink } from "@/lib/authDeepLink";
@@ -110,6 +111,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    setApiUnauthorizedHandler(() => {
+      void handleExpiredSession(client);
+    });
+    const uninstallFetchGuard = installApiFetchGuard();
+
+    return () => {
+      setApiUnauthorizedHandler(null);
+      uninstallFetchGuard();
+    };
+  }, [handleExpiredSession]);
+
+  useEffect(() => {
+    const client = getMobileSupabaseClient();
+    if (!client) return;
+
     const {
       data: { subscription },
     } = client.auth.onAuthStateChange((event, next) => {
@@ -168,7 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
 
     return () => subscription.unsubscribe();
-  }, [handleExpiredSession, redirectToLoginIfNeeded]);
+  }, [handleExpiredSession]);
 
   useEffect(() => {
     if (!supabase) return;

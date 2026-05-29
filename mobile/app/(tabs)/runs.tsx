@@ -16,6 +16,7 @@ import {
   isPickupRunDateOnlyStartAt,
   isPickupRunTimeTbd,
 } from "@/lib/pickupPublic";
+import { logPickupDiagnostic } from "@/lib/pickup/pickupDiagnostics";
 import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickupRunType";
 import { pickupPlayerRefundEligibleClient } from "@/lib/pickupRefundEligibility";
 import { fetchPickupRegionRuns, fetchPickupStanding } from "@/lib/siteApi";
@@ -349,10 +350,11 @@ function InlinePlanningPoll({
   onListRefresh: () => void;
   refreshNonce: number;
 }) {
-  const { loading, error, data, run, invitedNow, load } = usePickupPublic(token, {
-    focusRunId: runId,
-    skipFeatured: true,
-  });
+  const { loading, error, data, run, invitedNow, canParticipateInPlanning, approved, load } =
+    usePickupPublic(token, {
+      focusRunId: runId,
+      skipFeatured: true,
+    });
 
   useEffect(() => {
     if (refreshNonce > 0) void load();
@@ -378,28 +380,26 @@ function InlinePlanningPoll({
   const isSelectRun = isSelectPickupRunType(run?.run_type ?? listRun.run_type);
   const showPoll =
     !!run &&
-    invitedNow &&
+    canParticipateInPlanning &&
     (isPublicRun || isSelectRun) &&
     (runStatus === "planning" || runStatus === "likely_on") &&
     run.final_slot_id == null &&
     !hasDeclinedAvailability;
 
-  // #region agent log
   useEffect(() => {
     if (loading) return;
     const slotCount = Array.isArray(run?.pickup_run_time_slots)
       ? (run.pickup_run_time_slots as unknown[]).length
       : 0;
-    const payload = {
-      sessionId: "b75987",
-      hypothesisId: "A-E",
-      location: "runs.tsx:InlinePlanningPoll",
-      message: "inline poll gate",
-      data: {
+    logPickupDiagnostic(
+      "inline_poll_gate",
+      {
         focusRunId: runId,
         runIdFromPayload,
         runIdMatchesFocus,
         invitedNow,
+        canParticipateInPlanning,
+        approved,
         isPublicRun,
         isSelectRun,
         runStatus,
@@ -407,25 +407,21 @@ function InlinePlanningPoll({
         finalSlotId: run?.final_slot_id ?? listRun.final_slot_id,
         hasDeclinedAvailability,
         showPoll,
-        loading,
         error: error ?? null,
         slotCount,
         hasPlanning: planning != null,
+        hasRunPayload: run != null,
       },
-      timestamp: Date.now(),
-    };
-    console.log("[debug InlinePlanningPoll]", payload.data);
-    fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "b75987" },
-      body: JSON.stringify(payload),
-    }).catch(() => {});
+      { always: !showPoll && isPublicRun },
+    );
   }, [
     loading,
     runId,
     runIdFromPayload,
     runIdMatchesFocus,
     invitedNow,
+    canParticipateInPlanning,
+    approved,
     isPublicRun,
     isSelectRun,
     runStatus,
@@ -437,8 +433,8 @@ function InlinePlanningPoll({
     error,
     run?.pickup_run_time_slots,
     planning,
+    run,
   ]);
-  // #endregion
 
   if (loading && !run) {
     return (
@@ -459,10 +455,29 @@ function InlinePlanningPoll({
     );
   }
 
-  if (!invitedNow && isSelectPickupRunType(listRun.run_type)) {
+  if (!loading && !run && !error) {
+    return (
+      <View style={styles.inlinePoll}>
+        <Text style={styles.inlinePollError}>Could not load availability for this run.</Text>
+        <Pressable onPress={() => void load()} style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.9 }]}>
+          <Text style={styles.retryBtnText}>Try again</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (!canParticipateInPlanning && isSelectPickupRunType(listRun.run_type)) {
     return (
       <View style={styles.inlinePoll}>
         <Text style={styles.hint}>Invite only — you will see voting here once you are invited.</Text>
+      </View>
+    );
+  }
+
+  if (!canParticipateInPlanning && isPublicPickupRunType(listRun.run_type) && !approved) {
+    return (
+      <View style={styles.inlinePoll}>
+        <Text style={styles.hint}>Sign in with an approved account to vote on times for this run.</Text>
       </View>
     );
   }
@@ -563,11 +578,20 @@ export default function RunsScreen() {
   const { allowed: chatAllowed } = useTeamChatAccess();
 
   const detailRunId = detailOpen ? selectedRunId : focusRunIdParam;
-  const { loading: detailLoading, error: detailError, data, run, counts, myStatus, myWaitlistExpiresAt, invitedNow, load } =
-    usePickupPublic(token, {
-      focusRunId: detailRunId,
-      skipFeatured: !detailRunId,
-    });
+  const {
+    loading: detailLoading,
+    error: detailError,
+    data,
+    run,
+    counts,
+    myStatus,
+    myWaitlistExpiresAt,
+    canParticipateInPlanning,
+    load,
+  } = usePickupPublic(token, {
+    focusRunId: detailRunId,
+    skipFeatured: !detailRunId,
+  });
 
   const loadRegionRuns = useCallback(async () => {
     if (!regionReady) return;
@@ -720,22 +744,13 @@ export default function RunsScreen() {
     spotsLeft != null &&
     spotsLeft > 0;
 
-  const runServiceRegion = useMemo(() => {
-    const sr = run?.service_region;
-    return typeof sr === "string" ? sr.trim().toUpperCase() : "";
-  }, [run?.service_region]);
-
-  const publicRunJoinable =
-    isPublicPickupRunType(run?.run_type) &&
-    (invitedNow || (runServiceRegion.length > 0 && runServiceRegion === region));
-
   const eligibleToJoin =
     !!token &&
     !!runId &&
     !runLocked &&
     (myStatus == null || myStatus === "declined") &&
-    (publicRunJoinable ||
-      (isSelectPickupRunType(run?.run_type) && invitedNow && run?.final_slot_id != null));
+    ((isPublicPickupRunType(run?.run_type) && canParticipateInPlanning) ||
+      (isSelectPickupRunType(run?.run_type) && canParticipateInPlanning && run?.final_slot_id != null));
 
   const timeFinalized = runStatus === "active" || runStatus === "likely_on";
   const showImIn = eligibleToJoin && timeFinalized;
@@ -1048,7 +1063,7 @@ export default function RunsScreen() {
                         <Text style={styles.emptyTitle}>Run unavailable</Text>
                         <Text style={styles.emptyBody}>This run may have ended or is no longer visible.</Text>
                       </View>
-                    ) : !invitedNow && isSelectPickupRunType(run.run_type) ? (
+                    ) : !canParticipateInPlanning && isSelectPickupRunType(run.run_type) ? (
                       <View style={styles.empty}>
                         <Text style={styles.emptyTitle}>Invite only</Text>
                         <Text style={styles.emptyBody}>

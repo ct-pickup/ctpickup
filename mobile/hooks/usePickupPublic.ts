@@ -3,6 +3,9 @@ import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { siteOrigin } from "@/lib/env";
 import { cacheData, getCachedData } from "@/lib/offlineCache";
 import { fetchPickupPublic } from "@/lib/siteApi";
+import { logPickupDiagnostic } from "@/lib/pickup/pickupDiagnostics";
+import { playerMayParticipateInPublicPickupRun } from "@/lib/pickup/publicRunParticipation";
+import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickupRunType";
 import { parsePickupPayload, type PickupPublicPayload } from "@/lib/pickupPublic";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import NetInfo from "@react-native-community/netinfo";
@@ -72,6 +75,14 @@ export function usePickupPublic(
         if (!background) setLoading(true);
         return;
       }
+      if (useFocusedRunCacheOnly && effectiveRunIdParam && !background) {
+        const cachedRaw = await getCachedData<unknown>(cacheKey);
+        if (cachedRaw && cachedPayloadMatchesRunId(cachedRaw.data, effectiveRunIdParam)) {
+          setData(cachedRaw.data);
+        } else {
+          setData(null);
+        }
+      }
       if (!background) setLoading(true);
       setError(null);
       setOfflineNoCache(false);
@@ -131,42 +142,30 @@ export function usePickupPublic(
           const now = Date.now();
           setDataAsOfMs(now);
           setLastLiveSuccessAt(now);
-          // #region agent log
           const j = r.json as Record<string, unknown>;
           const vis = (j.visibility as Record<string, unknown> | undefined) ?? {};
           const runRow = (j.run as Record<string, unknown> | undefined) ?? null;
           const me = (j.me as Record<string, unknown> | undefined) ?? {};
-          const logData = {
-            focusRunId: effectiveRunIdParam || null,
-            cacheKey,
-            useFocusedRunCacheOnly,
-            region,
-            apiOk: true,
-            invitedNow: vis.invitedNow === true,
-            runId: runRow?.id ?? null,
-            runStatus: runRow?.status ?? null,
-            runType: runRow?.run_type ?? null,
-            finalSlotId: runRow?.final_slot_id ?? null,
-            slotCount: Array.isArray(runRow?.pickup_run_time_slots)
-              ? (runRow.pickup_run_time_slots as unknown[]).length
-              : 0,
-            approved: me.approved === true,
-            hasPlanning: j.planning != null,
-          };
-          console.log("[debug usePickupPublic load ok]", logData);
-          fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "b75987" },
-            body: JSON.stringify({
-              sessionId: "b75987",
-              hypothesisId: "A-C",
-              location: "usePickupPublic.ts:load",
-              message: "pickup public fetch ok",
-              data: logData,
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-          // #endregion
+          logPickupDiagnostic(
+            "public_load_ok",
+            {
+              focusRunId: effectiveRunIdParam || null,
+              cacheKey,
+              region,
+              invitedNow: vis.invitedNow === true,
+              runId: runRow?.id ?? null,
+              runStatus: runRow?.status ?? null,
+              runType: runRow?.run_type ?? null,
+              topStatus: j.status ?? null,
+              approved: me.approved === true,
+              hasPlanning: j.planning != null,
+            },
+            {
+              always:
+                Boolean(effectiveRunIdParam) &&
+                (!runRow || vis.invitedNow !== true),
+            },
+          );
         } else {
           const cachedRaw = await getCachedData<unknown>(cacheKey);
           const cached =
@@ -185,37 +184,23 @@ export function usePickupPublic(
             setData(null);
             setDataAsOfMs(null);
           }
-          // #region agent log
           const j = cached?.data as Record<string, unknown> | undefined;
           const runRow = j && typeof j.run === "object" ? (j.run as Record<string, unknown>) : null;
-          console.log("[debug usePickupPublic load fail]", {
-            focusRunId: effectiveRunIdParam || null,
-            cacheKey,
-            status: r.status,
-            usedCache: Boolean(cached),
-            skippedSharedCache: useFocusedRunCacheOnly,
-            runId: runRow?.id ?? null,
-          });
-          fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "b75987" },
-            body: JSON.stringify({
-              sessionId: "b75987",
-              hypothesisId: "C-G",
-              location: "usePickupPublic.ts:load",
-              message: "pickup public fetch not ok",
-              data: {
-                focusRunId: effectiveRunIdParam || null,
-                cacheKey,
-                status: r.status,
-                usedCache: Boolean(cached),
-                skippedSharedCache: useFocusedRunCacheOnly,
-                runId: runRow?.id ?? null,
-              },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-          // #endregion
+          logPickupDiagnostic(
+            "public_load_fail",
+            {
+              focusRunId: effectiveRunIdParam || null,
+              cacheKey,
+              status: r.status,
+              usedCache: Boolean(cached),
+              runId: runRow?.id ?? null,
+              apiError:
+                r.json && typeof r.json === "object" && typeof (r.json as { error?: string }).error === "string"
+                  ? (r.json as { error: string }).error
+                  : null,
+            },
+            { always: Boolean(effectiveRunIdParam) },
+          );
         }
       } catch {
         const cachedRaw = await getCachedData<unknown>(cacheKey);
@@ -269,8 +254,31 @@ export function usePickupPublic(
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!effectiveRunIdParam) return;
+    let cancelled = false;
+    void (async () => {
+      const cachedRaw = await getCachedData<unknown>(cacheKey);
+      if (cancelled) return;
+      if (cachedRaw && cachedPayloadMatchesRunId(cachedRaw.data, effectiveRunIdParam)) {
+        setData(cachedRaw.data);
+        setDisplaySource("cache");
+        setDataAsOfMs(cachedRaw.cachedAt);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveRunIdParam, cacheKey]);
+
   const parsed: PickupPublicPayload = useMemo(() => parsePickupPayload(data), [data]);
-  const run = parsed.run && typeof parsed.run === "object" ? parsed.run : null;
+  const run = useMemo(() => {
+    const row = parsed.run;
+    if (!row || typeof row !== "object") return null;
+    const id = typeof (row as { id?: unknown }).id === "string" ? (row as { id: string }).id : null;
+    if (effectiveRunIdParam && id && id !== effectiveRunIdParam) return null;
+    return row as Record<string, unknown>;
+  }, [parsed.run, effectiveRunIdParam]);
   const runIdFromPayload =
     run && typeof (run as { id?: unknown }).id === "string" ? ((run as { id: string }).id) : null;
   const runId = focusRunId || runIdFromPayload;
@@ -350,6 +358,24 @@ export function usePickupPublic(
 
   const invitedNow = visibility.invitedNow === true;
 
+  const me = parsed.me ?? {};
+  const approved = me.approved === true;
+
+  const canParticipateInPlanning = useMemo(() => {
+    if (!run) return false;
+    const runType = run.run_type;
+    if (isSelectPickupRunType(runType)) return invitedNow;
+    if (!isPublicPickupRunType(runType)) return false;
+    if (invitedNow) return true;
+    return playerMayParticipateInPublicPickupRun({
+      approved,
+      runServiceRegion: typeof run.service_region === "string" ? run.service_region : null,
+      hubRegion: region,
+      runType,
+      explicitRunAccess: Boolean(effectiveRunIdParam),
+    });
+  }, [run, invitedNow, approved, region, effectiveRunIdParam]);
+
   const myStatus: string | null =
     parsed.my_status === undefined || parsed.my_status === null
       ? null
@@ -370,6 +396,8 @@ export function usePickupPublic(
     counts,
     visibility,
     invitedNow,
+    canParticipateInPlanning,
+    approved,
     myStatus,
     myWaitlistExpiresAt,
     noFeaturedRun,

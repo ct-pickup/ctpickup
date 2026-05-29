@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
+import { invalidateUserSessions } from "@/lib/auth/invalidateUserSessions";
 import { getStripePickup, getStripeTournament } from "@/lib/server/runtimeClients";
 
 export const ACCOUNT_DELETE_SUPPORT_ERROR =
@@ -234,6 +235,11 @@ export async function deleteUserAccount(
   userId: string,
   email?: string | null,
 ): Promise<void> {
+  const signOut = await invalidateUserSessions(svc, userId);
+  if (!signOut.ok) {
+    console.error("[deleteUserAccount] invalidateUserSessions failed:", signOut.error);
+  }
+
   await cancelStripeActivityForUser(svc, userId, email);
   await cleanupUserData(svc, userId);
 

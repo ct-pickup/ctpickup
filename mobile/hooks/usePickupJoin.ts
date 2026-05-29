@@ -1,3 +1,4 @@
+import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { hapticError } from "@/lib/haptics";
 import * as Sentry from "@sentry/react-native";
 import { pickupPlayerRefundEligibleClient, type PickupRunRefundTiming } from "@/lib/pickupRefundEligibility";
@@ -117,6 +118,7 @@ function commitErrorMessage(status: number, j: Record<string, unknown>): string 
 }
 
 export function usePickupJoin() {
+  const { region } = useSelectedRegion();
   const [joinBusy, setJoinBusy] = useState(false);
   const [payBusy, setPayBusy] = useState(false);
   const [declineBusy, setDeclineBusy] = useState(false);
@@ -347,7 +349,7 @@ export function usePickupJoin() {
       setAvailabilityBusy(true);
       try {
         if (useAvailabilityCommit) {
-          const r = await postPickupCommit(accessToken, id, "declined", null, null, null);
+          const r = await postPickupCommit(accessToken, id, "declined", null, null, null, region);
           const j = r.json as Record<string, unknown>;
           if (r.ok) {
             await reload();
@@ -398,7 +400,7 @@ export function usePickupJoin() {
       setAvailabilityBusy(true);
       setPendingSlotKey(state === "available" ? (slotLabel ?? slotId) : null);
       try {
-        const r = await postPickupCommit(accessToken, id, state, slotId, slotLabel, null);
+        const r = await postPickupCommit(accessToken, id, state, slotId, slotLabel, null, region);
         const j = r.json as Record<string, unknown>;
         if (r.ok) {
           await reload();
@@ -446,6 +448,7 @@ export function usePickupJoin() {
             sel.slotId,
             sel.label,
             slotLabels,
+            region,
           );
           const j = r.json as Record<string, unknown>;
           if (!r.ok) {

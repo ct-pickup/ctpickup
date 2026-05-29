@@ -13,7 +13,7 @@ import {
 } from "@/lib/server/publicApiRouteErrors";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
-import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion";
+import { playerMayParticipateInPublicPickupRun } from "@/lib/pickup/publicRunParticipation";
 import { parseHubRegion } from "@/lib/pickup/hubRegions";
 
 export const runtime = "nodejs";
@@ -109,31 +109,6 @@ export async function GET(req: Request) {
         run_type: run?.run_type ?? null,
         service_region: run?.service_region ?? null,
       });
-      // #region agent log
-      fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "b75987" },
-        body: JSON.stringify({
-          sessionId: "b75987",
-          hypothesisId: "H1-H4",
-          location: "public/route.ts:after-fetchPickupRunById",
-          message: "fetchPickupRunById result",
-          data: {
-            runIdParam,
-            runLoadReason,
-            found: Boolean(run),
-            runId: run?.id ?? null,
-            status: run?.status ?? null,
-            run_type: run?.run_type ?? null,
-            service_region: run?.service_region ?? null,
-            hubRegion,
-            approved,
-            hasToken: Boolean(token),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       if (run) {
         const canView = await userCanViewPickupRun(admin, run, {
           userId,
@@ -171,7 +146,6 @@ export async function GET(req: Request) {
     }
 
     if (!run) {
-      // #region agent log
       if (runIdParam) {
         let rawRow: Record<string, unknown> | null = null;
         const rawRes = await admin
@@ -180,31 +154,19 @@ export async function GET(req: Request) {
           .eq("id", runIdParam)
           .maybeSingle();
         if (rawRes.data) rawRow = rawRes.data as Record<string, unknown>;
-        fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "b75987" },
-          body: JSON.stringify({
-            sessionId: "b75987",
-            hypothesisId: "API-null-run",
-            location: "public/route.ts:no-run",
-            message: "public run_id load missed",
-            data: {
-              runIdParam,
-              runLoadReason,
-              hubRegion,
-              approved,
-              hasUserId: Boolean(userId),
-              rawStatus: rawRow?.status ?? null,
-              rawRunType: rawRow?.run_type ?? null,
-              rawIsCurrent: rawRow?.is_current ?? null,
-              rawServiceRegion: rawRow?.service_region ?? null,
-              rawExists: Boolean(rawRow),
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
+        console.warn(`[api/${ROUTE}] run_id load missed`, {
+          runIdParam,
+          runLoadReason,
+          hubRegion,
+          approved,
+          hasUserId: Boolean(userId),
+          rawStatus: rawRow?.status ?? null,
+          rawRunType: rawRow?.run_type ?? null,
+          rawIsCurrent: rawRow?.is_current ?? null,
+          rawServiceRegion: rawRow?.service_region ?? null,
+          rawExists: Boolean(rawRow),
+        });
       }
-      // #endregion
       return NextResponse.json({
         status: "inactive",
         run: null,
@@ -260,15 +222,20 @@ export async function GET(req: Request) {
     }
 
     // invitedNow — may participate in planning poll / join flow:
-    // - public runs: approved + profile venue matches run region (unchanged)
+    // - public runs: venue region, active hub tab, or explicit run_id (Runs list / deep link)
     // - select runs: approved + row in pickup_run_invites (invite is the gate; no venue match)
     let invitedNow = false;
 
     if (userId && approved) {
       if (isPublicPickupRunType(run.run_type)) {
-        if (profileMatchesRunServiceRegion(nearestVenue, run.service_region)) {
-          invitedNow = true;
-        }
+        invitedNow = playerMayParticipateInPublicPickupRun({
+          approved: true,
+          nearestVenue,
+          runServiceRegion: run.service_region,
+          hubRegion,
+          runType: run.run_type,
+          explicitRunAccess: Boolean(runIdParam),
+        });
       } else {
         const inv = await admin
           .from("pickup_run_invites")
@@ -285,35 +252,15 @@ export async function GET(req: Request) {
       }
     }
 
-    // #region agent log
-    if (runIdParam) {
-      fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "b75987" },
-        body: JSON.stringify({
-          sessionId: "b75987",
-          hypothesisId: "API-null-run",
-          location: "public/route.ts:invitedNow",
-          message: "public run_id load ok",
-          data: {
-            runId: run.id,
-            runLoadReason,
-            runType: run.run_type,
-            runStatus: run.status,
-            isCurrent: run.is_current === true,
-            hubRegion,
-            serviceRegion: run.service_region,
-            invitedNow,
-            approved,
-            hasUserId: Boolean(userId),
-            nearestVenue,
-            venueRegionMatch: profileMatchesRunServiceRegion(nearestVenue, run.service_region),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
+    if (runIdParam && isPublicPickupRunType(run.run_type) && approved && !invitedNow) {
+      console.warn(`[api/${ROUTE}] public run_id invitedNow false`, {
+        runId: run.id,
+        runLoadReason,
+        hubRegion,
+        serviceRegion: run.service_region,
+        nearestVenue,
+      });
     }
-    // #endregion
 
     let attendanceVisible = false;
     if (invitedNow) attendanceVisible = true;

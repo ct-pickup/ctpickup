@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { assertPickupStandingAllowsParticipation } from "@/lib/pickup/standing/participationGate";
+import { parseHubRegion } from "@/lib/pickup/hubRegions";
+import { playerMayParticipateInPublicPickupRun } from "@/lib/pickup/publicRunParticipation";
 import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { pickupFinalizeSlotPushRecipientIds } from "@/lib/pickup/pickupPushNotifications";
-import { isSelectPickupRunType } from "@/lib/pickup/pickupRunType";
+import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickup/pickupRunType";
 import { slotLabelLookupVariants } from "@/lib/pickup/slotLabelMatch";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -164,7 +166,21 @@ export async function POST(req: Request) {
     }
   }
 
-  if (!profileMatchesRunServiceRegion(prof.data.nearest_venue, run.data.service_region)) {
+  if (isPublicPickupRunType(run.data.run_type)) {
+    const hubRegion = parseHubRegion(typeof body.hub_region === "string" ? body.hub_region : null);
+    if (
+      !playerMayParticipateInPublicPickupRun({
+        approved: true,
+        nearestVenue: prof.data.nearest_venue,
+        runServiceRegion: run.data.service_region,
+        hubRegion,
+        runType: run.data.run_type,
+        explicitRunAccess: true,
+      })
+    ) {
+      return NextResponse.json({ error: "This run is not available for your region." }, { status: 403 });
+    }
+  } else if (!profileMatchesRunServiceRegion(prof.data.nearest_venue, run.data.service_region)) {
     return NextResponse.json({ error: "This run is not available for your region." }, { status: 403 });
   }
 
