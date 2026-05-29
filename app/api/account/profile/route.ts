@@ -92,8 +92,6 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
   }
 
-  console.log("[account/profile] PATCH incoming body:", JSON.stringify(body));
-
   const admin = getSupabaseAdmin();
   const { data: authData, error: authErr } = await admin.auth.getUser(token);
   const user = authData?.user;
@@ -196,18 +194,8 @@ export async function PATCH(req: Request) {
   const withVenue = { ...coreUpdate, nearest_venue };
   let res = await admin.from("profiles").update(withVenue).eq("id", userId).select("id");
 
-  console.log(
-    "[account/profile] Supabase update response:",
-    JSON.stringify({ data: res.data, error: res.error, rowCount: res.data?.length ?? 0 }),
-  );
-
   if (res.error && looksLikeMissingNearestVenueColumn(res.error)) {
-    console.log("[account/profile] retrying update without nearest_venue:", res.error.message);
     res = await admin.from("profiles").update(coreUpdate).eq("id", userId).select("id");
-    console.log(
-      "[account/profile] Supabase update (no venue) response:",
-      JSON.stringify({ data: res.data, error: res.error, rowCount: res.data?.length ?? 0 }),
-    );
   }
 
   if (res.error) {

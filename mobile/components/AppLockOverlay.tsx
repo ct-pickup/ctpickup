@@ -63,32 +63,6 @@ export function AppLockOverlay() {
   const visible = hasPin && lockEnabled && isLocked;
 
   useEffect(() => {
-    // #region agent log
-    fetch("http://127.0.0.1:7868/ingest/78e6354c-1d0e-4ef4-8b99-968b7592c0e3", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fe3e9d" },
-      body: JSON.stringify({
-        sessionId: "fe3e9d",
-        runId: "pre-fix",
-        hypothesisId: "A",
-        location: "AppLockOverlay.tsx:overlayState",
-        message: "overlay visibility state",
-        data: {
-          hasSession: Boolean(session?.user),
-          hasPin,
-          lockEnabled,
-          isLocked,
-          enrollmentRequested,
-          needsEnrollment,
-          visible,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [session?.user, hasPin, lockEnabled, isLocked, enrollmentRequested, needsEnrollment, visible]);
-
-  useEffect(() => {
     if (!visible) {
       setPin("");
       setError(null);

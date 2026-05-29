@@ -52,21 +52,6 @@ export async function POST(req: Request) {
     const pollDateRaw = String(b.poll_date ?? "").trim();
     if (pollDateRaw) {
       const startAt = pickupDateOnlyStartAtFromPollDateString(pollDateRaw);
-      // #region agent log
-      fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "42e7e9" },
-        body: JSON.stringify({
-          sessionId: "42e7e9",
-          location: "create-run/route.ts:startAtFromPollDateOrFirstSlot",
-          message: "poll_date → start_at anchor",
-          data: { pollDateRaw, startAt },
-          timestamp: Date.now(),
-          hypothesisId: "poll-date-anchor",
-          runId: "post-fix",
-        }),
-      }).catch(() => {});
-      // #endregion
       return startAt;
     }
     if (slotsFromBody.length < 1) {

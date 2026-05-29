@@ -102,27 +102,6 @@ export default function PlayersScreen() {
         const origin = siteOrigin();
         const token = session?.access_token ?? null;
 
-        // #region agent log
-        fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "afd62a" },
-          body: JSON.stringify({
-            sessionId: "afd62a",
-            hypothesisId: "H3:origin-token",
-            location: "mobile/app/players.tsx:useEffect",
-            message: "players fetch starting",
-            data: {
-              hasOrigin: !!origin,
-              hasToken: !!token,
-              qLen: q.trim().length,
-              regionFilter: regionFilter.slice(0, 4),
-              posFilter: posFilter.slice(0, 4),
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
-
         if (!origin) {
           setRows([]);
           setErr("Set EXPO_PUBLIC_SITE_URL in mobile/.env to your deployed API host.");
@@ -143,48 +122,11 @@ export default function PlayersScreen() {
         // API accepts a single region; if multiple are selected we fetch unfiltered and filter locally.
         if (regionFilter.length === 1) url.searchParams.set("region", regionFilter[0]!);
 
-        // User-requested debugging
-        console.log("[players] GET", url.toString(), {
-          hasToken: true,
-          regionCount: regionFilter.length,
-          posCount: posFilter.length,
-        });
-
         const res = await fetch(url.toString(), {
           headers: { Authorization: `Bearer ${token}` },
         });
 
         const j = (await res.json()) as { error?: string; players?: ProfileRow[] };
-
-        // User-requested debugging
-        const playerCount = Array.isArray(j?.players) ? j.players.length : 0;
-        console.log("[players] response", {
-          ok: res.ok,
-          status: res.status,
-          playerCount,
-          error: typeof j?.error === "string" ? j.error : null,
-        });
-
-        // #region agent log
-        fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "afd62a" },
-          body: JSON.stringify({
-            sessionId: "afd62a",
-            hypothesisId: "H1-H2:response",
-            location: "mobile/app/players.tsx:fetch",
-            message: "players fetch response received",
-            data: {
-              url: url.toString(),
-              ok: res.ok,
-              status: res.status,
-              hasErrorField: typeof j?.error === "string" && j.error.length > 0,
-              playerCount: Array.isArray(j?.players) ? j.players.length : null,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
 
         if (profilesLoadSeq.current !== seq) return;
 

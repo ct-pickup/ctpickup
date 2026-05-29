@@ -172,45 +172,17 @@ function weekdayUtc(year: number, month: number, day: number): number {
   return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
 }
 
-/**
- * Eastern wall-clock picker parts from a stored value (UTC ISO, `YYYY-MM-DDTHH:mm` ET local, etc.).
- */
-function etPartsWeekdayLabel(p: EtParts): string {
-  const wd = weekdayUtc(p.year, p.month, p.day);
-  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][wd] ?? "?";
-}
-
 export function partsFromEasternInstant(value: string): EtParts {
   const trimmed = value.trim();
-  // #region agent log
-  const logParts = (branch: string, result: EtParts, extra?: Record<string, unknown>) => {
-    console.log("[partsFromEasternInstant]", {
-      rawInput: value,
-      trimmed,
-      branch,
-      result: {
-        year: result.year,
-        month: result.month,
-        day: result.day,
-        hour12: result.hour12,
-        ampm: result.ampm,
-        minute: result.minute,
-        weekday: etPartsWeekdayLabel(result),
-      },
-      ...extra,
-    });
-    return result;
-  };
-  // #endregion
 
-  if (!trimmed) return logParts("empty-default-next-sunday-8pm-et", defaultNextSundayEightPmEtParts());
+  if (!trimmed) return defaultNextSundayEightPmEtParts();
 
   const wallLocal = parseEasternWallDatetimeLocal(trimmed);
-  if (wallLocal) return logParts("eastern-wall-local-parse", etCalToEtParts(wallLocal), { wallLocal });
+  if (wallLocal) return etCalToEtParts(wallLocal);
 
   const parsed = new Date(trimmed);
   if (!Number.isFinite(parsed.getTime())) {
-    return logParts("invalid-date-default-next-sunday-8pm-et", defaultNextSundayEightPmEtParts());
+    return defaultNextSundayEightPmEtParts();
   }
 
   if (isUtcMidnightIso(trimmed)) {
@@ -222,29 +194,14 @@ export function partsFromEasternInstant(value: string): EtParts {
       const utcSunday = weekdayUtc(utcDate.year, utcDate.month, utcDate.day) === 0;
       const etEightPm = et.hour24 === 20 && et.minute === 0;
       if (etEightPm && etSaturday && utcSunday) {
-        return logParts(
-          "utc-midnight-sunday-anchor-correction",
-          { year: utcDate.year, month: utcDate.month, day: utcDate.day, hour12: 8, ampm: "PM", minute: 0 },
-          { utcDate, et, etSaturday, utcSunday, etEightPm, parsedMs: parsed.getTime() },
-        );
+        return { year: utcDate.year, month: utcDate.month, day: utcDate.day, hour12: 8, ampm: "PM", minute: 0 };
       }
-      return logParts("utc-midnight-fallback-et-calendar", etCalToEtParts(getEtCalendarParts(parsed)), {
-        utcDate,
-        et,
-        etSaturday,
-        utcSunday,
-        etEightPm,
-        parsedMs: parsed.getTime(),
-      });
+      return etCalToEtParts(getEtCalendarParts(parsed));
     }
-    return logParts("utc-midnight-no-utc-date-fallback-et-calendar", etCalToEtParts(getEtCalendarParts(parsed)), {
-      parsedMs: parsed.getTime(),
-    });
+    return etCalToEtParts(getEtCalendarParts(parsed));
   }
 
-  return logParts("iso-instant-et-calendar", etCalToEtParts(getEtCalendarParts(parsed)), {
-    parsedMs: parsed.getTime(),
-  });
+  return etCalToEtParts(getEtCalendarParts(parsed));
 }
 
 /** Resolve any picker value to a UTC ISO instant (for comparisons and slot labels). */

@@ -174,8 +174,6 @@ function buildRow(
 
 export async function GET(req: Request) {
   try {
-    console.log("[admin/pickup/standing][GET] start", { url: req.url });
-
     const gate = await requireAdminBearer(req);
     if (!gate.ok) return gate.response;
 
@@ -194,10 +192,6 @@ export async function GET(req: Request) {
     async function waiverSetFor(userIds: string[]) {
       if (!userIds.length) return new Set<string>();
       try {
-        console.log("[admin/pickup/standing][GET] about to query .from(user_waiver_acceptance) waiverSetFor", {
-          count: userIds.length,
-          version: CURRENT_WAIVER_VERSION,
-        });
         const { data, error } = await svc
           .from("user_waiver_acceptance")
           .select("user_id")
@@ -214,9 +208,6 @@ export async function GET(req: Request) {
     async function standingMapFor(userIds: string[]) {
       if (!userIds.length) return new Map<string, Record<string, unknown>>();
       try {
-        console.log("[admin/pickup/standing][GET] about to query .from(pickup_player_standing) standingMapFor", {
-          count: userIds.length,
-        });
         const { data, error } = await svc
           .from("pickup_player_standing")
           .select("*")
@@ -234,10 +225,6 @@ export async function GET(req: Request) {
     async function lateCancelMapFor(userIds: string[]) {
       if (!userIds.length) return new Map<string, number>();
       try {
-        console.log(
-          "[admin/pickup/standing][GET] about to query .from(pickup_reliability_incidents) lateCancelMapFor",
-          { count: userIds.length },
-        );
         const { data, error } = await svc
           .from("pickup_reliability_incidents")
           .select("user_id")
@@ -262,10 +249,6 @@ export async function GET(req: Request) {
 
     if (filter === "warning" || filter === "suspended" || filter === "banned") {
       try {
-        console.log(
-          "[admin/pickup/standing][GET] about to query .from(pickup_player_standing) standing slice",
-          { filter, limit, offset },
-        );
         const { data: stRows, error: stErr } = await svc
           .from("pickup_player_standing")
           .select("*")
@@ -286,9 +269,6 @@ export async function GET(req: Request) {
           });
         }
 
-        console.log("[admin/pickup/standing][GET] about to query .from(profiles) profiles by ids", {
-          count: ids.length,
-        });
         const { data: pRows, error: pErr } = await svc
           .from("profiles")
           .select(profSelect)
@@ -332,10 +312,6 @@ export async function GET(req: Request) {
 
     if (filter === "missing_waiver") {
       try {
-        console.log(
-          "[admin/pickup/standing][GET] about to query .from(user_waiver_acceptance) waivedRows",
-          { version: CURRENT_WAIVER_VERSION },
-        );
         const { data: waivedRows, error: waivedErr } = await svc
           .from("user_waiver_acceptance")
           .select("user_id")
@@ -344,9 +320,6 @@ export async function GET(req: Request) {
 
         const waived = new Set((waivedRows || []).map((r) => r.user_id));
 
-        console.log("[admin/pickup/standing][GET] about to query .from(profiles) approved list", {
-          limit: 1500,
-        });
         const { data: allApproved, error: apErr } = await svc
           .from("profiles")
           .select(profSelect)
@@ -386,9 +359,6 @@ export async function GET(req: Request) {
 
     if (filter === "good") {
       try {
-        console.log("[admin/pickup/standing][GET] about to query .from(profiles) good filter approved", {
-          limit: 1500,
-        });
         const { data: approved, error: apErr } = await svc
           .from("profiles")
           .select(profSelect)
@@ -436,19 +406,12 @@ export async function GET(req: Request) {
     }
 
     // filter === "all"
-    let profQuery = (() => {
-      console.log("[admin/pickup/standing][GET] about to build query .from(profiles) all", {
-        limit,
-        offset,
-        q: q || null,
-      });
-      return svc
+    let profQuery = svc
         .from("profiles")
         .select(profSelect)
         .eq("approved", true)
         .order("last_name", { ascending: true, nullsFirst: false })
         .range(offset, offset + limit - 1);
-    })();
 
     if (q) {
       const esc = q.replace(/%/g, "\\%").replace(/_/g, "\\_");
