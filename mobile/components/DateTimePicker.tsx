@@ -99,6 +99,84 @@ function addOneCalendarDay(y: number, mo: number, d: number): { year: number; mo
   return { year: dt.getUTCFullYear(), month: dt.getUTCMonth() + 1, day: dt.getUTCDate() };
 }
 
+function etCalToEtParts(et: EtCal): EtParts {
+  const h24 = et.hour24;
+  return {
+    year: et.year,
+    month: et.month,
+    day: et.day,
+    hour12: h24 % 12 || 12,
+    ampm: (h24 >= 12 ? "PM" : "AM") as "AM" | "PM",
+    minute: et.minute,
+  };
+}
+
+/** `YYYY-MM-DDTHH:mm` with no timezone suffix — Eastern wall clock, not device local. */
+function parseEasternWallDatetimeLocal(raw: string): EtCal | null {
+  const s = raw.trim();
+  if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2})?$/.exec(s);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const hour24 = Number(m[4]);
+  const minute = Number(m[5]);
+  if (![year, month, day, hour24, minute].every(Number.isFinite)) return null;
+  return { year, month, day, hour24, minute };
+}
+
+function isUtcMidnightIso(s: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}T00:00:00(?:\.\d{3})?Z$/i.test(s.trim());
+}
+
+function utcCalendarDateFromIso(s: string): { year: number; month: number; day: number } | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T00:00:00/i.exec(s.trim());
+  if (!m) return null;
+  return { year: Number(m[1]), month: Number(m[2]), day: Number(m[3]) };
+}
+
+function weekdayUtc(year: number, month: number, day: number): number {
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+}
+
+/**
+ * Eastern wall-clock picker parts from a stored value (UTC ISO, `YYYY-MM-DDTHH:mm` ET local, etc.).
+ */
+export function partsFromEasternInstant(value: string): EtParts {
+  const trimmed = value.trim();
+  if (!trimmed) return defaultTomorrowEightPmEtParts();
+
+  const wallLocal = parseEasternWallDatetimeLocal(trimmed);
+  if (wallLocal) return etCalToEtParts(wallLocal);
+
+  const parsed = new Date(trimmed);
+  if (!Number.isFinite(parsed.getTime())) return defaultTomorrowEightPmEtParts();
+
+  if (isUtcMidnightIso(trimmed)) {
+    const utcDate = utcCalendarDateFromIso(trimmed);
+    if (utcDate) {
+      const et = getEtCalendarParts(parsed);
+      // Date-only planning anchor: `2026-05-31T00:00:00Z` labels Sunday May 31, but ET shows Saturday 8 PM.
+      const etSaturday = weekdayUtc(et.year, et.month, et.day) === 6;
+      const utcSunday = weekdayUtc(utcDate.year, utcDate.month, utcDate.day) === 0;
+      const etEightPm = et.hour24 === 20 && et.minute === 0;
+      if (etEightPm && etSaturday && utcSunday) {
+        return { year: utcDate.year, month: utcDate.month, day: utcDate.day, hour12: 8, ampm: "PM", minute: 0 };
+      }
+    }
+  }
+
+  return etCalToEtParts(getEtCalendarParts(parsed));
+}
+
+/** Resolve any picker value to a UTC ISO instant (for comparisons and slot labels). */
+export function easternInstantToUtcIso(value: string): string {
+  const parts = partsFromEasternInstant(value);
+  const ms = selectionToUtcMs(parts.year, parts.month, parts.day, parts.hour12, parts.ampm, parts.minute);
+  return new Date(ms).toISOString();
+}
+
 /** First-open default: next calendar day in Eastern at 8:00 PM. */
 function defaultTomorrowEightPmEtParts(): EtParts {
   const et = getEtCalendarParts(new Date());
@@ -125,26 +203,15 @@ function clampPartsToFuture(parts: EtParts): EtParts {
 }
 
 /** Date-only, unparsable, or 12:00 AM Eastern — unsafe for run/tournament schedules. */
-export function isScheduleWallMidnightEt(iso: string): boolean {
-  const s = iso.trim();
+export function isScheduleWallMidnightEt(value: string): boolean {
+  const s = value.trim();
   if (!s) return true;
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return true;
-  const d = new Date(s);
-  if (!Number.isFinite(d.getTime())) return true;
-  const f = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    hour: "numeric",
-    minute: "numeric",
-    hour12: false,
-  });
-  const parts = f.formatToParts(d);
-  const m: Record<string, string> = {};
-  for (const p of parts) {
-    if (p.type !== "literal") m[p.type] = p.value;
-  }
-  const h = Number(m.hour ?? -1);
-  const min = Number(m.minute ?? -1);
-  return h === 0 && min === 0;
+  const wall = parseEasternWallDatetimeLocal(s);
+  if (wall) return wall.hour24 === 0 && wall.minute === 0;
+  const parts = partsFromEasternInstant(s);
+  const h24 = toHour24(parts.hour12, parts.ampm);
+  return h24 === 0 && parts.minute === 0;
 }
 
 function partsFromValue(value: string, enforceFuture?: boolean): EtParts {
@@ -156,24 +223,7 @@ function partsFromValue(value: string, enforceFuture?: boolean): EtParts {
     }
     return draft;
   }
-  const parsed = new Date(trimmed);
-  if (!Number.isFinite(parsed.getTime())) {
-    const draft = defaultTomorrowEightPmEtParts();
-    if (enforceFuture) {
-      return clampPartsToFuture(draft);
-    }
-    return draft;
-  }
-  const et = getEtCalendarParts(parsed);
-  const h24 = et.hour24;
-  const parsedParts = {
-    year: et.year,
-    month: et.month,
-    day: et.day,
-    hour12: h24 % 12 || 12,
-    ampm: (h24 >= 12 ? "PM" : "AM") as "AM" | "PM",
-    minute: et.minute,
-  };
+  const parsedParts = partsFromEasternInstant(trimmed);
   if (enforceFuture) {
     return clampPartsToFuture(parsedParts);
   }
@@ -181,21 +231,21 @@ function partsFromValue(value: string, enforceFuture?: boolean): EtParts {
 }
 
 /**
- * Format a UTC ISO instant as `YYYY-MM-DDTHH:mm` Eastern wall clock for admin APIs
+ * Format a stored picker value as `YYYY-MM-DDTHH:mm` Eastern wall clock for admin APIs
  * that parse datetimes as America/New_York (not as UTC or device local).
  */
-export function utcIsoToEasternDatetimeLocal(iso: string): string {
-  const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return "";
-  const et = getEtCalendarParts(d);
-  return `${et.year}-${pad(et.month)}-${pad(et.day)}T${pad(et.hour24)}:${pad(et.minute)}`;
+export function utcIsoToEasternDatetimeLocal(value: string): string {
+  const parts = partsFromEasternInstant(value);
+  if (!value.trim()) return "";
+  const hour24 = toHour24(parts.hour12, parts.ampm);
+  return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}T${pad(hour24)}:${pad(parts.minute)}`;
 }
 
 /** Display selected instant in America/New_York, e.g. "Thu May 22 · 8:00 PM ET". */
-export function formatDateTimePickerEtLabel(iso: string): string {
-  const trimmed = iso.trim();
+export function formatDateTimePickerEtLabel(value: string): string {
+  const trimmed = value.trim();
   if (!trimmed) return "";
-  const d = new Date(trimmed);
+  const d = new Date(easternInstantToUtcIso(trimmed));
   if (!Number.isFinite(d.getTime())) return "";
   const df = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
@@ -284,7 +334,8 @@ export default function DateTimePicker({ value, onChange, label, enforceFuture, 
       Alert.alert("Invalid date", "Start time must be in the future.");
       return;
     }
-    onChange(new Date(utcMs).toISOString());
+    const hour24 = toHour24(hour12, ampm);
+    onChange(`${year}-${pad(month)}-${pad(day)}T${pad(hour24)}:${pad(minute)}`);
     setOpen(false);
   }
 

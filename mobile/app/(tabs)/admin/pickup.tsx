@@ -1,5 +1,6 @@
 import AdminVenuePicker from "@/components/AdminVenuePicker";
 import DateTimePicker, {
+  easternInstantToUtcIso,
   isScheduleWallMidnightEt,
   utcIsoToEasternDatetimeLocal,
 } from "@/components/DateTimePicker";
@@ -339,7 +340,7 @@ export default function AdminPickupOpsScreen() {
         Alert.alert("Pick a time", "Each slot needs a real start time, not midnight.");
         return;
       }
-      if (new Date(picked) <= new Date()) {
+      if (new Date(easternInstantToUtcIso(picked)) <= new Date()) {
         Alert.alert("Future only", "All slot times must be in the future.");
         return;
       }
@@ -969,7 +970,9 @@ export default function AdminPickupOpsScreen() {
                       prominent={idx === 0}
                     />
                     {slotVal.trim() ? (
-                      <Text style={styles.slotWindowPreview}>{fmtPickupSlotWindowEt(slotVal)}</Text>
+                      <Text style={styles.slotWindowPreview}>
+                        {fmtPickupSlotWindowEt(easternInstantToUtcIso(slotVal))}
+                      </Text>
                     ) : null}
                   </View>
                 ))}
