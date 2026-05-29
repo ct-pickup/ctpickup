@@ -40,12 +40,19 @@ export function parsePickupPayload(data: unknown): PickupPublicPayload {
   return data as PickupPublicPayload;
 }
 
-export {
+import {
   fmtPickupDateFromDateOnlyStartAt,
   fmtPickupRunDateDisplay,
   isPickupRunDateOnlyStartAt,
   isPickupRunTimeTbd,
 } from "@/lib/pickup/runStartAtDisplay";
+
+export {
+  fmtPickupDateFromDateOnlyStartAt,
+  fmtPickupRunDateDisplay,
+  isPickupRunDateOnlyStartAt,
+  isPickupRunTimeTbd,
+};
 
 export function fmtPickupRunScheduleEt(
   startAt: string | null | undefined,
