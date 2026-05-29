@@ -2,7 +2,11 @@ import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { siteOrigin } from "@/lib/env";
 import { cacheData, getCachedData } from "@/lib/offlineCache";
-import { fetchPickupPublic } from "@/lib/siteApi";
+import {
+  fetchPickupPublic,
+  pickupPublicPayloadMatchesRunId,
+  pickupPublicPayloadRunId,
+} from "@/lib/siteApi";
 import { logPickupDiagnostic } from "@/lib/pickup/pickupDiagnostics";
 import {
   explainPlayerMayParticipateInPublicPickupRun,
@@ -134,7 +138,11 @@ export function usePickupPublic(
 
       try {
         const r = await fetchPickupPublic(accessToken, { region, run_id: effectiveRunIdParam });
-        if (r.ok) {
+        const payloadRunId = pickupPublicPayloadRunId(r.json);
+        const focusedRunMissing =
+          Boolean(effectiveRunIdParam) && !pickupPublicPayloadMatchesRunId(r.json, effectiveRunIdParam);
+
+        if (r.ok && !focusedRunMissing) {
           await cacheData(cacheKey, r.json);
           if (!useFocusedRunCacheOnly) {
             await cacheData("pickup_run", r.json);
@@ -157,9 +165,12 @@ export function usePickupPublic(
               focusRunId: effectiveRunIdParam || null,
               cacheKey,
               region,
+              fetchUrl: r.fetchUrl,
+              httpStatus: r.status,
               invitedNow: apiInvited,
               canParticipateInPlanning: apiCanPlan,
               runId: runRow?.id ?? null,
+              payloadRunId,
               runStatus: runRow?.status ?? null,
               runType: runRow?.run_type ?? null,
               topStatus: j.status ?? null,
@@ -172,6 +183,39 @@ export function usePickupPublic(
                 (!runRow || (!apiInvited && !apiCanPlan)),
             },
           );
+        } else if (r.ok && focusedRunMissing) {
+          const j = r.json as Record<string, unknown>;
+          const apiErr =
+            typeof j.error === "string" && j.error.trim()
+              ? j.error.trim()
+              : "Run payload missing from server.";
+          logPickupDiagnostic(
+            "public_load_empty_run",
+            {
+              focusRunId: effectiveRunIdParam || null,
+              cacheKey,
+              region,
+              fetchUrl: r.fetchUrl,
+              httpStatus: r.status,
+              payloadRunId,
+              topStatus: j.status ?? null,
+              apiError: apiErr,
+            },
+            { always: true },
+          );
+          const cachedRaw = await getCachedData<unknown>(cacheKey);
+          const cached =
+            cachedRaw && cachedPayloadMatchesRunId(cachedRaw.data, effectiveRunIdParam) ? cachedRaw : null;
+          if (cached) {
+            setData(cached.data);
+            setError(null);
+            setDisplaySource("cache");
+            setDataAsOfMs(cached.cachedAt);
+          } else {
+            setError(apiErr);
+            setData(null);
+            setDataAsOfMs(null);
+          }
         } else {
           const cachedRaw = await getCachedData<unknown>(cacheKey);
           const cached =
@@ -197,7 +241,9 @@ export function usePickupPublic(
             {
               focusRunId: effectiveRunIdParam || null,
               cacheKey,
+              fetchUrl: r.fetchUrl,
               status: r.status,
+              payloadRunId: pickupPublicPayloadRunId(r.json),
               usedCache: Boolean(cached),
               runId: runRow?.id ?? null,
               apiError:

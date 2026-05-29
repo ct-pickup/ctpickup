@@ -112,6 +112,20 @@ export async function GET(req: Request) {
         run_type: run?.run_type ?? null,
         service_region: run?.service_region ?? null,
       });
+      if (!run) {
+        const rawRes = await admin
+          .from("pickup_runs")
+          .select("id,status,run_type,is_current,service_region")
+          .eq("id", runIdParam)
+          .maybeSingle();
+        console.log(`[api/${ROUTE}] fetchPickupRunById miss — raw row`, {
+          runIdParam,
+          rawExists: Boolean(rawRes.data),
+          rawStatus: rawRes.data?.status ?? null,
+          rawRunType: rawRes.data?.run_type ?? null,
+          rawError: rawRes.error?.message ?? null,
+        });
+      }
       if (run) {
         const canView = await userCanViewPickupRun(admin, run, {
           userId,
@@ -120,9 +134,11 @@ export async function GET(req: Request) {
           tierRank,
         });
         if (!canView) {
-          console.log(`[api/${ROUTE}] userCanViewPickupRun denied`, { runIdParam });
-          run = null;
+          console.log(`[api/${ROUTE}] userCanViewPickupRun denied (keeping run for run_id lookup)`, {
+            runIdParam,
+          });
           runLoadReason = "not_allowed";
+          // Inline planning poll needs the run row (slots, status) even when invite-gated.
         }
       }
     } else {

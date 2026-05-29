@@ -1,4 +1,7 @@
+import { pickupPublicPayloadRunId } from "@/lib/pickup/pickupPublicPayload";
 import { siteOrigin } from "@/lib/env";
+
+export { pickupPublicPayloadMatchesRunId, pickupPublicPayloadRunId } from "@/lib/pickup/pickupPublicPayload";
 
 /** Authenticated pickup RSVP (same contract as the CT Pickup API server — no in-app browser except optional Stripe checkout URL). */
 export async function postPickupRsvp(
@@ -435,10 +438,11 @@ export async function fetchPickupPublic(
   ok: boolean;
   status: number;
   json: unknown;
+  fetchUrl: string;
 }> {
   const origin = siteOrigin();
   if (!origin) {
-    return { ok: false, status: 0, json: { error: "missing_site_url" } };
+    return { ok: false, status: 0, json: { error: "missing_site_url" }, fetchUrl: "" };
   }
   const headers: Record<string, string> = {};
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
@@ -449,12 +453,31 @@ export async function fetchPickupPublic(
   if (opts?.run_id) {
     u.searchParams.set("run_id", opts.run_id);
   }
-  const r = await fetch(u.toString(), {
+  const fetchUrl = u.toString();
+  const r = await fetch(fetchUrl, {
     headers: { ...headers, Accept: "application/json" },
     cache: "no-store",
   });
   const json = await r.json().catch(() => null);
-  return { ok: r.ok, status: r.status, json };
+  const payloadRunId = pickupPublicPayloadRunId(json);
+  const topStatus =
+    json && typeof json === "object" && typeof (json as Record<string, unknown>).status === "string"
+      ? (json as Record<string, unknown>).status
+      : null;
+  console.log("[fetchPickupPublic]", {
+    fetchUrl,
+    httpStatus: r.status,
+    httpOk: r.ok,
+    requestedRunId: opts?.run_id ?? null,
+    region: opts?.region ?? null,
+    payloadRunId,
+    topStatus,
+    apiError:
+      json && typeof json === "object" && typeof (json as { error?: string }).error === "string"
+        ? (json as { error: string }).error
+        : null,
+  });
+  return { ok: r.ok, status: r.status, json, fetchUrl };
 }
 
 export async function postMobilePushToken(
