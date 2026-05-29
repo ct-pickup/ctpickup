@@ -13,7 +13,10 @@ import {
 } from "@/lib/server/publicApiRouteErrors";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
-import { playerMayParticipateInPublicPickupRun } from "@/lib/pickup/publicRunParticipation";
+import {
+  explainPlayerMayParticipateInPublicPickupRun,
+  type PublicPickupParticipationBranch,
+} from "@/lib/pickup/publicRunParticipation";
 import { parseHubRegion } from "@/lib/pickup/hubRegions";
 
 export const runtime = "nodejs";
@@ -221,14 +224,16 @@ export async function GET(req: Request) {
       tier1Confirmed = confirmedRows.filter((r) => isTier1(rankById.get(String(r.user_id)))).length;
     }
 
-    // invitedNow — may participate in planning poll / join flow:
+    // invitedNow / canParticipateInPlanning — planning poll + join flow:
     // - public runs: venue region, active hub tab, or explicit run_id (Runs list / deep link)
     // - select runs: approved + row in pickup_run_invites (invite is the gate; no venue match)
     let invitedNow = false;
+    let canParticipateInPlanning = false;
+    let participationBranch: PublicPickupParticipationBranch | "select_invite" | "none" = "none";
 
     if (userId && approved) {
       if (isPublicPickupRunType(run.run_type)) {
-        invitedNow = playerMayParticipateInPublicPickupRun({
+        const participation = explainPlayerMayParticipateInPublicPickupRun({
           approved: true,
           nearestVenue,
           runServiceRegion: run.service_region,
@@ -236,6 +241,9 @@ export async function GET(req: Request) {
           runType: run.run_type,
           explicitRunAccess: Boolean(runIdParam),
         });
+        invitedNow = participation.allowed;
+        canParticipateInPlanning = participation.allowed;
+        participationBranch = participation.branch;
       } else {
         const inv = await admin
           .from("pickup_run_invites")
@@ -249,8 +257,28 @@ export async function GET(req: Request) {
         }
 
         invitedNow = (inv.data || []).length > 0;
+        canParticipateInPlanning = invitedNow;
+        participationBranch = invitedNow ? "select_invite" : "none";
       }
     }
+
+    const runInPlanningPhase =
+      run.status === "planning" || run.status === "likely_on" ? true : false;
+
+    console.log(`[api/${ROUTE}] participation`, {
+      run_id: run.id,
+      runIdParam,
+      hubRegion,
+      service_region: run.service_region ?? null,
+      run_type: run.run_type,
+      run_status: run.status,
+      approved,
+      invitedNow,
+      canParticipateInPlanning,
+      participationBranch,
+      runInPlanningPhase,
+      nearestVenue,
+    });
 
     if (runIdParam && isPublicPickupRunType(run.run_type) && approved && !invitedNow) {
       console.warn(`[api/${ROUTE}] public run_id invitedNow false`, {
@@ -259,6 +287,7 @@ export async function GET(req: Request) {
         hubRegion,
         serviceRegion: run.service_region,
         nearestVenue,
+        participationBranch,
       });
     }
 
@@ -411,7 +440,7 @@ export async function GET(req: Request) {
         service_region: run.service_region ?? null,
         pickup_run_time_slots,
       },
-      visibility: { invitedNow, attendanceVisible },
+      visibility: { invitedNow, canParticipateInPlanning, attendanceVisible },
       counts: {
         confirmed: confirmedRows.length,
         standby: standbyRows.length,

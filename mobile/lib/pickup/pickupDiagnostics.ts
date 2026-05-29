@@ -13,3 +13,15 @@ export function logPickupDiagnostic(
     /* ignore */
   }
 }
+
+/** Production-visible when a listed planning run should show a poll but does not. */
+export function logPickupPollMismatch(
+  reason: string,
+  data: Record<string, unknown>,
+): void {
+  try {
+    console.error(`${PREFIX} poll_visible_run_no_poll`, { reason, ...data });
+  } catch {
+    /* ignore */
+  }
+}

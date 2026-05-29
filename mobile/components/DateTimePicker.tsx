@@ -24,15 +24,6 @@ function toHour24(hour12: number, ampm: "AM" | "PM"): number {
   return hour12;
 }
 
-function isDST(y: number, m: number, d: number) {
-  const date = new Date(y, m, d);
-  const march = new Date(y, 2, 1);
-  const nov = new Date(y, 10, 1);
-  const dstStart = new Date(y, 2, 8 + (7 - march.getDay()) % 7);
-  const dstEnd = new Date(y, 10, 1 + (7 - nov.getDay()) % 7);
-  return date >= dstStart && date < dstEnd;
-}
-
 /** Resolve UTC millis for Eastern *wall* datetime (America/New_York) via Intl, not device-local DST guesses. */
 function etWallClockToUtcMilliseconds(y: number, mo: number, d: number, hour24: number, minute: number): number {
   const coarse = Date.UTC(y, mo - 1, d, hour24, minute, 0);
@@ -173,21 +164,31 @@ function partsFromValue(value: string, enforceFuture?: boolean): EtParts {
     }
     return draft;
   }
-  const etOffset = isDST(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()) ? 4 : 5;
-  const etDate = new Date(parsed.getTime() - etOffset * 60 * 60 * 1000);
-  const h24 = etDate.getUTCHours();
+  const et = getEtCalendarParts(parsed);
+  const h24 = et.hour24;
   const parsedParts = {
-    year: etDate.getUTCFullYear(),
-    month: etDate.getUTCMonth() + 1,
-    day: etDate.getUTCDate(),
+    year: et.year,
+    month: et.month,
+    day: et.day,
     hour12: h24 % 12 || 12,
     ampm: (h24 >= 12 ? "PM" : "AM") as "AM" | "PM",
-    minute: etDate.getUTCMinutes(),
+    minute: et.minute,
   };
   if (enforceFuture) {
     return clampPartsToFuture(parsedParts);
   }
   return parsedParts;
+}
+
+/**
+ * Format a UTC ISO instant as `YYYY-MM-DDTHH:mm` Eastern wall clock for admin APIs
+ * that parse datetimes as America/New_York (not as UTC or device local).
+ */
+export function utcIsoToEasternDatetimeLocal(iso: string): string {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "";
+  const et = getEtCalendarParts(d);
+  return `${et.year}-${pad(et.month)}-${pad(et.day)}T${pad(et.hour24)}:${pad(et.minute)}`;
 }
 
 /** Display selected instant in America/New_York, e.g. "Thu May 22 · 8:00 PM ET". */

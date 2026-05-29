@@ -8,8 +8,11 @@ import { isPublicPickupRunType, normalizePickupRunTypeForDb } from "@/lib/pickup
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { clearCurrentPickupRunsInRegion } from "@/lib/pickup/hubPromote";
 import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
-import { DateTime } from "luxon";
 import { fmtPickupSlotWindowEt } from "@/lib/pickup/fmtPickupSlotWindowEt";
+import {
+  parsePickupAdminDatetimeToUtcIso,
+  pickupDateOnlyStartAtFromEtInstant,
+} from "@/lib/datetime/easternWallTime";
 import { normalizeUsZipDigits } from "@/lib/zipRegion";
 
 
@@ -40,12 +43,8 @@ export async function POST(req: Request) {
   let start_at: string;
   let timeSlotsToInsert: { label: string; start_at: string }[] | null = null;
 
-  const TZ = "America/New_York";
-  function etDateOnlyMidnightUtcIsoFromSlot(startIso: string): string {
-    const dt = DateTime.fromISO(startIso).setZone(TZ);
-    const iso = DateTime.utc(dt.year, dt.month, dt.day, 0, 0, 0, 0).toISO();
-    if (!iso) throw new Error("Could not derive date-only start_at from time slot.");
-    return iso;
+  function parseAdminSlotToUtcIso(raw: string): string | null {
+    return parsePickupAdminDatetimeToUtcIso(raw);
   }
 
   if (publicRun) {
@@ -55,11 +54,11 @@ export async function POST(req: Request) {
       for (const entry of b.time_slots) {
         const raw = String(entry ?? "").trim();
         if (!raw) continue;
-        const parsedMs = Date.parse(raw);
-        if (!Number.isFinite(parsedMs)) {
+        const iso = parseAdminSlotToUtcIso(raw);
+        if (!iso) {
           return NextResponse.json({ error: `Invalid time_slots entry: ${raw}` }, { status: 400 });
         }
-        slotsFromBody.push(new Date(parsedMs).toISOString());
+        slotsFromBody.push(iso);
       }
     }
 
@@ -71,7 +70,7 @@ export async function POST(req: Request) {
 
     if (slotsFromBody.length > 0) {
       // Anchor kickoff date display to the ET wall-clock day of the first slot.
-      start_at = etDateOnlyMidnightUtcIsoFromSlot(slotsFromBody[0]!);
+      start_at = pickupDateOnlyStartAtFromEtInstant(slotsFromBody[0]!);
       timeSlotsToInsert = slotsFromBody.map((iso) => ({
         label: fmtPickupSlotWindowEt(iso),
         start_at: iso,
@@ -89,11 +88,11 @@ export async function POST(req: Request) {
             { status: 400 },
           );
         }
-        const m = startAtRaw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (!m) {
+        const dateOnlyIso = parseAdminSlotToUtcIso(startAtRaw);
+        if (!dateOnlyIso || !isPickupRunDateOnlyStartAt(dateOnlyIso)) {
           return NextResponse.json({ error: "Invalid date-only start_at" }, { status: 400 });
         }
-        start_at = `${m[1]}-${m[2]}-${m[3]}T00:00:00.000Z`;
+        start_at = dateOnlyIso;
       } else {
         start_at = publicPickupRunPlaceholderStartAt();
       }
@@ -104,11 +103,11 @@ export async function POST(req: Request) {
       for (const entry of b.time_slots) {
         const raw = String(entry ?? "").trim();
         if (!raw) continue;
-        const parsedMs = Date.parse(raw);
-        if (!Number.isFinite(parsedMs)) {
+        const iso = parseAdminSlotToUtcIso(raw);
+        if (!iso) {
           return NextResponse.json({ error: `Invalid time_slots entry: ${raw}` }, { status: 400 });
         }
-        slotsFromBody.push(new Date(parsedMs).toISOString());
+        slotsFromBody.push(iso);
       }
     }
     if (slotsFromBody.length > 5) {
@@ -125,11 +124,11 @@ export async function POST(req: Request) {
       if (!startAtRaw) {
         return NextResponse.json({ error: "start_at or time_slots required" }, { status: 400 });
       }
-      const parsedMs = Date.parse(startAtRaw);
-      if (!Number.isFinite(parsedMs)) {
+      const kickoffIso = parseAdminSlotToUtcIso(startAtRaw);
+      if (!kickoffIso || isPickupRunDateOnlyStartAt(kickoffIso)) {
         return NextResponse.json({ error: "Invalid start_at datetime" }, { status: 400 });
       }
-      start_at = new Date(parsedMs).toISOString();
+      start_at = kickoffIso;
       timeSlotsToInsert = [
         {
           label: fmtPickupSlotWindowEt(start_at),

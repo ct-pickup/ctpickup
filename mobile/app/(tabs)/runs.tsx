@@ -16,7 +16,8 @@ import {
   isPickupRunDateOnlyStartAt,
   isPickupRunTimeTbd,
 } from "@/lib/pickupPublic";
-import { logPickupDiagnostic } from "@/lib/pickup/pickupDiagnostics";
+import { evaluateInlinePlanningPollGate } from "@/lib/pickup/inlinePlanningPollGate";
+import { logPickupDiagnostic, logPickupPollMismatch } from "@/lib/pickup/pickupDiagnostics";
 import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickupRunType";
 import { pickupPlayerRefundEligibleClient } from "@/lib/pickupRefundEligibility";
 import { fetchPickupRegionRuns, fetchPickupStanding } from "@/lib/siteApi";
@@ -350,11 +351,20 @@ function InlinePlanningPoll({
   onListRefresh: () => void;
   refreshNonce: number;
 }) {
-  const { loading, error, data, run, invitedNow, canParticipateInPlanning, approved, load } =
-    usePickupPublic(token, {
-      focusRunId: runId,
-      skipFeatured: true,
-    });
+  const {
+    loading,
+    error,
+    data,
+    run,
+    invitedNow,
+    canParticipateInPlanning,
+    participationBranch,
+    approved,
+    load,
+  } = usePickupPublic(token, {
+    focusRunId: runId,
+    skipFeatured: true,
+  });
 
   useEffect(() => {
     if (refreshNonce > 0) void load();
@@ -373,24 +383,45 @@ function InlinePlanningPoll({
     return ma.some((entry) => entry?.state === "declined");
   }, [planning]);
 
-  const runStatus = typeof run?.status === "string" ? run.status : listRun.status;
   const runIdFromPayload = run && typeof run.id === "string" ? run.id : null;
   const runIdMatchesFocus = !runId || runIdFromPayload === runId;
   const isPublicRun = isPublicPickupRunType(run?.run_type ?? listRun.run_type);
   const isSelectRun = isSelectPickupRunType(run?.run_type ?? listRun.run_type);
-  const showPoll =
-    !!run &&
-    canParticipateInPlanning &&
-    (isPublicRun || isSelectRun) &&
-    (runStatus === "planning" || runStatus === "likely_on") &&
-    run.final_slot_id == null &&
-    !hasDeclinedAvailability;
+
+  const pollGate = useMemo(
+    () =>
+      evaluateInlinePlanningPollGate({
+        loading,
+        error,
+        run: run as Record<string, unknown> | null,
+        listRunStatus: listRun.status,
+        listRunType: listRun.run_type,
+        listFinalSlotId: listRun.final_slot_id,
+        canParticipateInPlanning,
+        approved,
+        hasDeclinedAvailability,
+      }),
+    [
+      loading,
+      error,
+      run,
+      listRun.status,
+      listRun.run_type,
+      listRun.final_slot_id,
+      canParticipateInPlanning,
+      approved,
+      hasDeclinedAvailability,
+    ],
+  );
+  const { showPoll, reason: pollGateReason } = pollGate;
 
   useEffect(() => {
     if (loading) return;
     const slotCount = Array.isArray(run?.pickup_run_time_slots)
       ? (run.pickup_run_time_slots as unknown[]).length
       : 0;
+    const runStatus = typeof run?.status === "string" ? run.status : listRun.status;
+
     logPickupDiagnostic(
       "inline_poll_gate",
       {
@@ -399,6 +430,7 @@ function InlinePlanningPoll({
         runIdMatchesFocus,
         invitedNow,
         canParticipateInPlanning,
+        participationBranch,
         approved,
         isPublicRun,
         isSelectRun,
@@ -407,13 +439,34 @@ function InlinePlanningPoll({
         finalSlotId: run?.final_slot_id ?? listRun.final_slot_id,
         hasDeclinedAvailability,
         showPoll,
+        pollGateReason,
         error: error ?? null,
         slotCount,
         hasPlanning: planning != null,
         hasRunPayload: run != null,
       },
-      { always: !showPoll && isPublicRun },
+      { always: !showPoll },
     );
+
+    if (!showPoll && isPublicPickupRunType(listRun.run_type) && isInlinePlanningRun(listRun)) {
+      logPickupPollMismatch(pollGateReason, {
+        focusRunId: runId,
+        runIdFromPayload,
+        runIdMatchesFocus,
+        invitedNow,
+        canParticipateInPlanning,
+        participationBranch,
+        approved,
+        runStatus,
+        listRunStatus: listRun.status,
+        finalSlotId: run?.final_slot_id ?? listRun.final_slot_id,
+        hasDeclinedAvailability,
+        error: error ?? null,
+        slotCount,
+        hasPlanning: planning != null,
+        hasRunPayload: run != null,
+      });
+    }
   }, [
     loading,
     runId,
@@ -421,17 +474,18 @@ function InlinePlanningPoll({
     runIdMatchesFocus,
     invitedNow,
     canParticipateInPlanning,
+    participationBranch,
     approved,
     isPublicRun,
     isSelectRun,
-    runStatus,
-    listRun.status,
-    listRun.final_slot_id,
-    run?.final_slot_id,
+    listRun,
     hasDeclinedAvailability,
     showPoll,
+    pollGateReason,
     error,
     run?.pickup_run_time_slots,
+    run?.final_slot_id,
+    run?.status,
     planning,
     run,
   ]);
@@ -466,7 +520,7 @@ function InlinePlanningPoll({
     );
   }
 
-  if (!canParticipateInPlanning && isSelectPickupRunType(listRun.run_type)) {
+  if (pollGateReason === "select_not_invited") {
     return (
       <View style={styles.inlinePoll}>
         <Text style={styles.hint}>Invite only — you will see voting here once you are invited.</Text>
@@ -474,7 +528,7 @@ function InlinePlanningPoll({
     );
   }
 
-  if (!canParticipateInPlanning && isPublicPickupRunType(listRun.run_type) && !approved) {
+  if (pollGateReason === "public_not_approved") {
     return (
       <View style={styles.inlinePoll}>
         <Text style={styles.hint}>Sign in with an approved account to vote on times for this run.</Text>

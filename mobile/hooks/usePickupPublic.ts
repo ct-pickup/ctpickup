@@ -4,7 +4,10 @@ import { siteOrigin } from "@/lib/env";
 import { cacheData, getCachedData } from "@/lib/offlineCache";
 import { fetchPickupPublic } from "@/lib/siteApi";
 import { logPickupDiagnostic } from "@/lib/pickup/pickupDiagnostics";
-import { playerMayParticipateInPublicPickupRun } from "@/lib/pickup/publicRunParticipation";
+import {
+  explainPlayerMayParticipateInPublicPickupRun,
+  playerMayParticipateInPublicPickupRun,
+} from "@/lib/pickup/publicRunParticipation";
 import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickupRunType";
 import { parsePickupPayload, type PickupPublicPayload } from "@/lib/pickupPublic";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -146,13 +149,16 @@ export function usePickupPublic(
           const vis = (j.visibility as Record<string, unknown> | undefined) ?? {};
           const runRow = (j.run as Record<string, unknown> | undefined) ?? null;
           const me = (j.me as Record<string, unknown> | undefined) ?? {};
+          const apiCanPlan = vis.canParticipateInPlanning === true;
+          const apiInvited = vis.invitedNow === true;
           logPickupDiagnostic(
             "public_load_ok",
             {
               focusRunId: effectiveRunIdParam || null,
               cacheKey,
               region,
-              invitedNow: vis.invitedNow === true,
+              invitedNow: apiInvited,
+              canParticipateInPlanning: apiCanPlan,
               runId: runRow?.id ?? null,
               runStatus: runRow?.status ?? null,
               runType: runRow?.run_type ?? null,
@@ -163,7 +169,7 @@ export function usePickupPublic(
             {
               always:
                 Boolean(effectiveRunIdParam) &&
-                (!runRow || vis.invitedNow !== true),
+                (!runRow || (!apiInvited && !apiCanPlan)),
             },
           );
         } else {
@@ -256,6 +262,10 @@ export function usePickupPublic(
 
   useEffect(() => {
     if (!effectiveRunIdParam) return;
+    setData((prev) => {
+      if (!prev) return null;
+      return cachedPayloadMatchesRunId(prev, effectiveRunIdParam) ? prev : null;
+    });
     let cancelled = false;
     void (async () => {
       const cachedRaw = await getCachedData<unknown>(cacheKey);
@@ -269,7 +279,7 @@ export function usePickupPublic(
     return () => {
       cancelled = true;
     };
-  }, [effectiveRunIdParam, cacheKey]);
+  }, [effectiveRunIdParam, cacheKey, accessToken]);
 
   const parsed: PickupPublicPayload = useMemo(() => parsePickupPayload(data), [data]);
   const run = useMemo(() => {
@@ -363,6 +373,9 @@ export function usePickupPublic(
 
   const canParticipateInPlanning = useMemo(() => {
     if (!run) return false;
+    if (visibility.canParticipateInPlanning === true) return true;
+    if (visibility.canParticipateInPlanning === false) return false;
+
     const runType = run.run_type;
     if (isSelectPickupRunType(runType)) return invitedNow;
     if (!isPublicPickupRunType(runType)) return false;
@@ -374,7 +387,18 @@ export function usePickupPublic(
       runType,
       explicitRunAccess: Boolean(effectiveRunIdParam),
     });
-  }, [run, invitedNow, approved, region, effectiveRunIdParam]);
+  }, [run, visibility.canParticipateInPlanning, invitedNow, approved, region, effectiveRunIdParam]);
+
+  const participationExplain = useMemo(() => {
+    if (!run || !isPublicPickupRunType(run.run_type)) return null;
+    return explainPlayerMayParticipateInPublicPickupRun({
+      approved,
+      runServiceRegion: typeof run.service_region === "string" ? run.service_region : null,
+      hubRegion: region,
+      runType: run.run_type,
+      explicitRunAccess: Boolean(effectiveRunIdParam),
+    });
+  }, [run, approved, region, effectiveRunIdParam]);
 
   const myStatus: string | null =
     parsed.my_status === undefined || parsed.my_status === null
@@ -397,6 +421,7 @@ export function usePickupPublic(
     visibility,
     invitedNow,
     canParticipateInPlanning,
+    participationBranch: participationExplain?.branch ?? null,
     approved,
     myStatus,
     myWaitlistExpiresAt,

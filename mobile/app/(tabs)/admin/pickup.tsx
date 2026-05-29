@@ -1,5 +1,8 @@
 import AdminVenuePicker from "@/components/AdminVenuePicker";
-import DateTimePicker, { isScheduleWallMidnightEt } from "@/components/DateTimePicker";
+import DateTimePicker, {
+  isScheduleWallMidnightEt,
+  utcIsoToEasternDatetimeLocal,
+} from "@/components/DateTimePicker";
 import AdminRunDetailLifecycle from "@/components/pickup/AdminRunDetailLifecycle";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -129,23 +132,6 @@ function SkeletonCard() {
       <View style={[styles.skeletonLine, { width: "40%", marginTop: 10 }]} />
     </View>
   );
-}
-
-function isoToEtDateOnly(iso: string): string {
-  const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return "";
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(d);
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  const y = get("year");
-  const m = get("month");
-  const day = get("day");
-  if (!y || !m || !day) return "";
-  return `${y}-${m}-${day}`;
 }
 
 export default function AdminPickupOpsScreen() {
@@ -345,10 +331,6 @@ export default function AdminPickupOpsScreen() {
       Alert.alert("Not signed in", "Sign in again, then try creating a run.");
       return;
     }
-    const isPublic = createRunType === "public";
-    let start_at: string | undefined;
-    let time_slots: string[] | undefined;
-
     const slots: string[] = [];
     for (const raw of createTimeSlots) {
       const picked = raw.trim();
@@ -361,7 +343,12 @@ export default function AdminPickupOpsScreen() {
         Alert.alert("Future only", "All slot times must be in the future.");
         return;
       }
-      slots.push(picked);
+      const etLocal = utcIsoToEasternDatetimeLocal(picked);
+      if (!etLocal) {
+        Alert.alert("Invalid time", "Could not read that date and time. Pick the slot again.");
+        return;
+      }
+      slots.push(etLocal);
     }
     if (slots.length < 1) {
       Alert.alert("Time slots", "Add at least one date & time option for players to vote on.");
@@ -372,8 +359,7 @@ export default function AdminPickupOpsScreen() {
       return;
     }
 
-    time_slots = slots;
-    start_at = isPublic ? isoToEtDateOnly(slots[0]!) : slots[0];
+    const time_slots = slots;
     if (!createVenue.trim()) {
       Alert.alert("Pick a venue", "Select a venue from the list.");
       return;
@@ -426,8 +412,7 @@ export default function AdminPickupOpsScreen() {
 
     setCreateBusy(true);
     const r = await postAdminCreateRun(token, {
-      ...(start_at ? { start_at } : {}),
-      ...(time_slots ? { time_slots } : {}),
+      time_slots,
       title: runTitle,
       service_region: createRegion,
       capacity: ep,

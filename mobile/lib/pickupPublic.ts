@@ -9,6 +9,8 @@ export type PickupPublicCounts = {
 
 export type PickupPublicVisibility = {
   invitedNow?: boolean;
+  /** Same gate as `invitedNow` for public runs; invite row for select runs. */
+  canParticipateInPlanning?: boolean;
   attendanceVisible?: boolean;
 };
 
