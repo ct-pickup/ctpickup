@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { useFieldTournament } from "@/hooks/useFieldTournament";
 import { useProfileApproval } from "@/hooks/useProfileApproval";
+import { formatTournamentStartDisplay } from "@/lib/formatTournament";
 import { siteOrigin } from "@/lib/env";
 import { serviceRegionName } from "@/lib/serviceRegions";
 import {
@@ -488,7 +489,9 @@ export default function FieldTournamentDetailScreen() {
           {t.start_at ? (
             <Text style={styles.detailLine}>
               <Text style={styles.detailLabel}>When </Text>
-              {formatPaymentDueAt(typeof t.start_at === "string" ? t.start_at : String(t.start_at))}
+              {formatTournamentStartDisplay(
+                typeof t.start_at === "string" ? t.start_at : String(t.start_at),
+              )}
             </Text>
           ) : null}
           {t.venue ? (

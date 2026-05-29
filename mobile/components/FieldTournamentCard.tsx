@@ -1,6 +1,7 @@
 import { AnimatedPressScale } from "@/components/AnimatedPressScale";
 import { CardLoadingShimmer } from "@/components/CardLoadingShimmer";
 import type { FieldTournamentPayload } from "@/hooks/useFieldTournament";
+import { formatTournamentStartDisplay } from "@/lib/formatTournament";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 
@@ -101,6 +102,9 @@ export function FieldTournamentCard({ loading, error, payload, onPress, style, e
       <Text style={styles.meta}>
         Confirmed teams {confirmedTeams} / {maxTeams} · Claims {claimedTeams}
       </Text>
+      {t.start_at ? (
+        <Text style={styles.when}>{formatTournamentStartDisplay(t.start_at)}</Text>
+      ) : null}
       {t.announcement ? (
         <Text style={styles.announce} numberOfLines={3}>
           {t.announcement}
@@ -193,6 +197,7 @@ const styles = StyleSheet.create({
   },
   title: { flex: 1, fontSize: 18, fontWeight: "700", color: "#fff", lineHeight: 24, minWidth: 0 },
   meta: { marginTop: 10, fontSize: 14, color: "rgba(255,255,255,0.72)", lineHeight: 20 },
+  when: { marginTop: 6, fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 20, fontWeight: "600" },
   announce: { marginTop: 10, fontSize: 14, color: "rgba(255,255,255,0.58)", lineHeight: 21 },
   emptySub: { marginTop: 8, fontSize: 14, lineHeight: 21, color: "rgba(255,255,255,0.5)" },
   emptyAlternate: {

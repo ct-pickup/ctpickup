@@ -1,6 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { FieldTournamentPayload, parseFieldPayload } from "@/hooks/useFieldTournament";
+import { formatTournamentStartDisplay } from "@/lib/formatTournament";
 import { fetchTournamentPublic } from "@/lib/siteApi";
 import { siteOrigin } from "@/lib/env";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -124,6 +125,9 @@ export default function TournamentStatusScreen() {
           <View style={styles.card}>
             <Text style={styles.cardEyebrow}>Status</Text>
             <Text style={styles.tournamentTitle}>{t!.title}</Text>
+            {t!.start_at ? (
+              <Text style={styles.startAt}>{formatTournamentStartDisplay(t!.start_at)}</Text>
+            ) : null}
             <View style={styles.statsBlock}>
               <Text style={styles.statLine}>
                 <Text style={styles.statLabel}>Confirmed teams </Text>
@@ -191,6 +195,13 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#fff",
     lineHeight: 26,
+    marginBottom: 8,
+  },
+  startAt: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.88)",
+    lineHeight: 22,
     marginBottom: 14,
   },
   statsBlock: { gap: 8 },
