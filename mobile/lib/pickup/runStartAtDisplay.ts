@@ -1,9 +1,13 @@
+/** Midnight UTC timestamptz used as a calendar-day anchor (not a kickoff instant). */
+const DATE_ONLY_MIDNIGHT_UTC =
+  /^\d{4}-\d{2}-\d{2}T00:00:00(?:\.\d+)?(?:Z|[+-]00(?::00)?)$/i;
+
 /** True when `start_at` encodes only a calendar day (midnight UTC), not a real kickoff. */
 export function isPickupRunDateOnlyStartAt(iso: string | null | undefined): boolean {
   if (!iso) return false;
   const s = iso.trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return true;
-  return /^\d{4}-\d{2}-\d{2}T00:00:00(?:\.\d{3})?Z$/i.test(s);
+  return DATE_ONLY_MIDNIGHT_UTC.test(s);
 }
 
 /** Format the calendar day from a date-only `start_at` (UTC date portion, no timezone shift). */
@@ -18,6 +22,23 @@ export function fmtPickupDateFromDateOnlyStartAt(iso: string | null | undefined)
   try {
     return new Date(Date.UTC(y, mo, d, 12, 0, 0)).toLocaleString("en-US", {
       timeZone: "UTC",
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return "TBD";
+  }
+}
+
+/** Run list/detail date line: UTC calendar day for date-only anchors, else Eastern. */
+export function fmtPickupRunDateDisplay(iso: string | null | undefined): string {
+  if (!iso) return "TBD";
+  if (isPickupRunDateOnlyStartAt(iso)) return fmtPickupDateFromDateOnlyStartAt(iso);
+  try {
+    return new Date(iso).toLocaleString("en-US", {
+      timeZone: "America/New_York",
       weekday: "short",
       month: "short",
       day: "numeric",

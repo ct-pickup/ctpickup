@@ -10,8 +10,7 @@ import { useTeamChatAccess } from "@/hooks/useTeamChat";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
 import { siteOrigin } from "@/lib/env";
 import {
-  fmtPickupDateEt,
-  fmtPickupDateFromDateOnlyStartAt,
+  fmtPickupRunDateDisplay,
   fmtPickupTimeEt,
   isPickupRunDateOnlyStartAt,
   isPickupRunTimeTbd,
@@ -269,19 +268,17 @@ function RunSummaryCard({
       <View style={styles.dateTimeRow}>
         {timeTbd ? (
           <>
-            <Text style={styles.datePlanning}>
-              {isPickupRunDateOnlyStartAt(startAt)
-                ? fmtPickupDateFromDateOnlyStartAt(startAt)
-                : fmtPickupDateEt(startAt)}
-            </Text>
+            <Text style={styles.datePlanning}>{fmtPickupRunDateDisplay(startAt)}</Text>
             <Text style={styles.planningTimeHint}>
               {inlinePlanning ? "Time TBD — vote below" : "Time TBD — tap for details"}
             </Text>
           </>
         ) : (
           <>
-            <Text style={styles.dateEt}>{fmtPickupDateEt(startAt)}</Text>
-            <Text style={styles.timeEt}>{fmtPickupTimeEt(startAt)} ET</Text>
+            <Text style={styles.dateEt}>{fmtPickupRunDateDisplay(startAt)}</Text>
+            {isPickupRunDateOnlyStartAt(startAt) ? null : (
+              <Text style={styles.timeEt}>{fmtPickupTimeEt(startAt)} ET</Text>
+            )}
           </>
         )}
       </View>
