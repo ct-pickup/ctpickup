@@ -3,6 +3,7 @@ import {
   easternDatetimeLocalToIsoUtc,
   parsePickupAdminDatetimeToUtcIso,
   pickupDateOnlyStartAtFromEtInstant,
+  pickupDateOnlyStartAtFromPollDateString,
 } from "@/lib/datetime/easternWallTime";
 
 describe("parsePickupAdminDatetimeToUtcIso", () => {
@@ -20,6 +21,10 @@ describe("parsePickupAdminDatetimeToUtcIso", () => {
 
   it("builds date-only start_at from Eastern calendar day", () => {
     expect(parsePickupAdminDatetimeToUtcIso("2026-05-25")).toBe("2026-05-25T00:00:00.000Z");
+  });
+
+  it("maps poll_date string to UTC midnight without timezone shift", () => {
+    expect(pickupDateOnlyStartAtFromPollDateString("2026-05-31")).toBe("2026-05-31T00:00:00.000Z");
   });
 
   it("derives date-only anchor from kickoff instant in Eastern", () => {

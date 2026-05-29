@@ -30,20 +30,39 @@ export function easternDatetimeLocalToIsoUtc(raw: string): string | null {
   return iso ?? null;
 }
 
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
 /**
- * Pickup planning `start_at` date anchor: midnight UTC whose Y-M-D matches the Eastern calendar day
- * (see `isPickupRunDateOnlyStartAt` / `fmtPickupDateFromDateOnlyStartAt`).
+ * Date-only planning `start_at`: midnight UTC on the given Y-M-D (no timezone math).
+ * Matches `isPickupRunDateOnlyStartAt` / `fmtPickupDateFromDateOnlyStartAt` (UTC date portion).
  */
 export function pickupDateOnlyStartAtFromEtCalendarParts(
   year: number,
   month: number,
   day: number,
 ): string {
-  const iso = DateTime.utc(year, month, day, 0, 0, 0, 0).toISO();
-  if (!iso) {
-    throw new RangeError("Invalid date-only start_at for Eastern calendar day");
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    throw new RangeError("Invalid date-only start_at calendar parts");
   }
-  return iso;
+  const y = Math.trunc(year);
+  const mo = Math.trunc(month);
+  const d = Math.trunc(day);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) {
+    throw new RangeError("Invalid date-only start_at calendar parts");
+  }
+  return `${y}-${pad2(mo)}-${pad2(d)}T00:00:00.000Z`;
+}
+
+/** `poll_date` from admin UI (`YYYY-MM-DD`) → `start_at` date-only anchor. */
+export function pickupDateOnlyStartAtFromPollDateString(raw: string): string {
+  const s = raw.trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) {
+    throw new RangeError("Invalid poll_date; expected YYYY-MM-DD");
+  }
+  return pickupDateOnlyStartAtFromEtCalendarParts(Number(m[1]), Number(m[2]), Number(m[3]));
 }
 
 /** Derive date-only `start_at` from a kickoff instant (uses Eastern wall-clock date). */

@@ -12,6 +12,7 @@ import { fmtPickupSlotWindowEt } from "@/lib/pickup/fmtPickupSlotWindowEt";
 import {
   parsePickupAdminDatetimeToUtcIso,
   pickupDateOnlyStartAtFromEtInstant,
+  pickupDateOnlyStartAtFromPollDateString,
 } from "@/lib/datetime/easternWallTime";
 import { normalizeUsZipDigits } from "@/lib/zipRegion";
 
@@ -47,22 +48,26 @@ export async function POST(req: Request) {
     return parsePickupAdminDatetimeToUtcIso(raw);
   }
 
-  function parsePollDateEtParam(raw: unknown): { year: number; month: number; day: number } | null {
-    const s = String(raw ?? "").trim();
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-    if (!m) return null;
-    const year = Number(m[1]);
-    const month = Number(m[2]);
-    const day = Number(m[3]);
-    if (![year, month, day].every(Number.isFinite)) return null;
-    return { year, month, day };
-  }
-
-  const pollDateEt = parsePollDateEtParam(b.poll_date);
-
   function startAtFromPollDateOrFirstSlot(slotsFromBody: string[]): string {
-    if (pollDateEt) {
-      return pickupDateOnlyStartAtFromEtCalendarParts(pollDateEt.year, pollDateEt.month, pollDateEt.day);
+    const pollDateRaw = String(b.poll_date ?? "").trim();
+    if (pollDateRaw) {
+      const startAt = pickupDateOnlyStartAtFromPollDateString(pollDateRaw);
+      // #region agent log
+      fetch("http://127.0.0.1:7577/ingest/cb3f3382-e909-4cce-999a-8534dacee8c7", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "42e7e9" },
+        body: JSON.stringify({
+          sessionId: "42e7e9",
+          location: "create-run/route.ts:startAtFromPollDateOrFirstSlot",
+          message: "poll_date → start_at anchor",
+          data: { pollDateRaw, startAt },
+          timestamp: Date.now(),
+          hypothesisId: "poll-date-anchor",
+          runId: "post-fix",
+        }),
+      }).catch(() => {});
+      // #endregion
+      return startAt;
     }
     if (slotsFromBody.length < 1) {
       throw new RangeError("start_at requires poll_date or time_slots");
