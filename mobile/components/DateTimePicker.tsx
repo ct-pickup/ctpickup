@@ -5,10 +5,20 @@ type Props = {
   value: string;
   onChange: (iso: string) => void;
   label?: string;
-  /** Draft defaults to tomorrow 8:00 PM ET; blocks confirming past times. */
+  /** Eastern poll calendar day (`YYYY-MM-DD`); seeds wheels when `value` is empty. */
+  pollDateEt?: string;
+  /** When `value` is empty and `pollDateEt` is unset, use upcoming Sunday 8 PM ET (default true). */
+  useNextSundayWhenEmpty?: boolean;
+  /** Blocks confirming past times. */
   enforceFuture?: boolean;
   /** Larger trigger styling (e.g. create-run form). */
   prominent?: boolean;
+};
+
+type PartsFromValueOptions = {
+  enforceFuture?: boolean;
+  pollDateEt?: string;
+  useNextSundayWhenEmpty?: boolean;
 };
 
 function pad(n: number) {
@@ -94,9 +104,13 @@ function getEtCalendarParts(date: Date): EtCal {
   };
 }
 
-function addOneCalendarDay(y: number, mo: number, d: number): { year: number; month: number; day: number } {
-  const dt = new Date(Date.UTC(y, mo - 1, d + 1));
+function addCalendarDays(y: number, mo: number, d: number, delta: number): { year: number; month: number; day: number } {
+  const dt = new Date(Date.UTC(y, mo - 1, d + delta));
   return { year: dt.getUTCFullYear(), month: dt.getUTCMonth() + 1, day: dt.getUTCDate() };
+}
+
+function addOneCalendarDay(y: number, mo: number, d: number): { year: number; month: number; day: number } {
+  return addCalendarDays(y, mo, d, 1);
 }
 
 function etCalToEtParts(et: EtCal): EtParts {
@@ -109,6 +123,24 @@ function etCalToEtParts(et: EtCal): EtParts {
     ampm: (h24 >= 12 ? "PM" : "AM") as "AM" | "PM",
     minute: et.minute,
   };
+}
+
+/** Merge an Eastern poll calendar day into a wall-clock datetime (keeps time from `existingWall` when set). */
+export function easternWallDatetimeFromPollDate(
+  pollDateEt: string,
+  existingWall?: string,
+  fallbackHour24 = 20,
+  fallbackMinute = 0,
+): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(pollDateEt.trim());
+  if (!m) return existingWall?.trim() ?? "";
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const wall = parseEasternWallDatetimeLocal(existingWall?.trim() ?? "");
+  const hour24 = wall?.hour24 ?? fallbackHour24;
+  const minute = wall?.minute ?? fallbackMinute;
+  return `${y}-${pad(mo)}-${pad(d)}T${pad(hour24)}:${pad(minute)}`;
 }
 
 /** `YYYY-MM-DDTHH:mm` with no timezone suffix — Eastern wall clock, not device local. */
@@ -143,15 +175,43 @@ function weekdayUtc(year: number, month: number, day: number): number {
 /**
  * Eastern wall-clock picker parts from a stored value (UTC ISO, `YYYY-MM-DDTHH:mm` ET local, etc.).
  */
+function etPartsWeekdayLabel(p: EtParts): string {
+  const wd = weekdayUtc(p.year, p.month, p.day);
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][wd] ?? "?";
+}
+
 export function partsFromEasternInstant(value: string): EtParts {
   const trimmed = value.trim();
-  if (!trimmed) return defaultTomorrowEightPmEtParts();
+  // #region agent log
+  const logParts = (branch: string, result: EtParts, extra?: Record<string, unknown>) => {
+    console.log("[partsFromEasternInstant]", {
+      rawInput: value,
+      trimmed,
+      branch,
+      result: {
+        year: result.year,
+        month: result.month,
+        day: result.day,
+        hour12: result.hour12,
+        ampm: result.ampm,
+        minute: result.minute,
+        weekday: etPartsWeekdayLabel(result),
+      },
+      ...extra,
+    });
+    return result;
+  };
+  // #endregion
+
+  if (!trimmed) return logParts("empty-default-next-sunday-8pm-et", defaultNextSundayEightPmEtParts());
 
   const wallLocal = parseEasternWallDatetimeLocal(trimmed);
-  if (wallLocal) return etCalToEtParts(wallLocal);
+  if (wallLocal) return logParts("eastern-wall-local-parse", etCalToEtParts(wallLocal), { wallLocal });
 
   const parsed = new Date(trimmed);
-  if (!Number.isFinite(parsed.getTime())) return defaultTomorrowEightPmEtParts();
+  if (!Number.isFinite(parsed.getTime())) {
+    return logParts("invalid-date-default-next-sunday-8pm-et", defaultNextSundayEightPmEtParts());
+  }
 
   if (isUtcMidnightIso(trimmed)) {
     const utcDate = utcCalendarDateFromIso(trimmed);
@@ -162,12 +222,29 @@ export function partsFromEasternInstant(value: string): EtParts {
       const utcSunday = weekdayUtc(utcDate.year, utcDate.month, utcDate.day) === 0;
       const etEightPm = et.hour24 === 20 && et.minute === 0;
       if (etEightPm && etSaturday && utcSunday) {
-        return { year: utcDate.year, month: utcDate.month, day: utcDate.day, hour12: 8, ampm: "PM", minute: 0 };
+        return logParts(
+          "utc-midnight-sunday-anchor-correction",
+          { year: utcDate.year, month: utcDate.month, day: utcDate.day, hour12: 8, ampm: "PM", minute: 0 },
+          { utcDate, et, etSaturday, utcSunday, etEightPm, parsedMs: parsed.getTime() },
+        );
       }
+      return logParts("utc-midnight-fallback-et-calendar", etCalToEtParts(getEtCalendarParts(parsed)), {
+        utcDate,
+        et,
+        etSaturday,
+        utcSunday,
+        etEightPm,
+        parsedMs: parsed.getTime(),
+      });
     }
+    return logParts("utc-midnight-no-utc-date-fallback-et-calendar", etCalToEtParts(getEtCalendarParts(parsed)), {
+      parsedMs: parsed.getTime(),
+    });
   }
 
-  return etCalToEtParts(getEtCalendarParts(parsed));
+  return logParts("iso-instant-et-calendar", etCalToEtParts(getEtCalendarParts(parsed)), {
+    parsedMs: parsed.getTime(),
+  });
 }
 
 /** Resolve any picker value to a UTC ISO instant (for comparisons and slot labels). */
@@ -177,14 +254,23 @@ export function easternInstantToUtcIso(value: string): string {
   return new Date(ms).toISOString();
 }
 
-/** First-open default: next calendar day in Eastern at 8:00 PM. */
-function defaultTomorrowEightPmEtParts(): EtParts {
+/** First-open default: upcoming Sunday in Eastern at 8:00 PM (this Sunday if still in the future). */
+function defaultNextSundayEightPmEtParts(): EtParts {
   const et = getEtCalendarParts(new Date());
-  const tomorrow = addOneCalendarDay(et.year, et.month, et.day);
+  const todayWd = weekdayUtc(et.year, et.month, et.day);
+  let daysUntilSunday = (7 - todayWd) % 7;
+  if (daysUntilSunday === 0) {
+    const ms = selectionToUtcMs(et.year, et.month, et.day, 8, "PM", 0);
+    if (ms > Date.now()) {
+      return { year: et.year, month: et.month, day: et.day, hour12: 8, ampm: "PM", minute: 0 };
+    }
+    daysUntilSunday = 7;
+  }
+  const sunday = addCalendarDays(et.year, et.month, et.day, daysUntilSunday);
   return {
-    year: tomorrow.year,
-    month: tomorrow.month,
-    day: tomorrow.day,
+    year: sunday.year,
+    month: sunday.month,
+    day: sunday.day,
     hour12: 8,
     ampm: "PM",
     minute: 0,
@@ -199,7 +285,7 @@ function clampPartsToFuture(parts: EtParts): EtParts {
     const nd = addOneCalendarDay(p.year, p.month, p.day);
     p = { ...p, year: nd.year, month: nd.month, day: nd.day };
   }
-  return defaultTomorrowEightPmEtParts();
+  return defaultNextSundayEightPmEtParts();
 }
 
 /** Date-only, unparsable, or 12:00 AM Eastern — unsafe for run/tournament schedules. */
@@ -214,10 +300,22 @@ export function isScheduleWallMidnightEt(value: string): boolean {
   return h24 === 0 && parts.minute === 0;
 }
 
-function partsFromValue(value: string, enforceFuture?: boolean): EtParts {
+function partsFromValue(value: string, options?: PartsFromValueOptions): EtParts {
   const trimmed = value.trim();
+  const enforceFuture = options?.enforceFuture;
+  const pollDateEt = options?.pollDateEt?.trim() ?? "";
+  const useNextSundayWhenEmpty = options?.useNextSundayWhenEmpty !== false;
+
   if (!trimmed) {
-    const draft = defaultTomorrowEightPmEtParts();
+    let draft: EtParts;
+    if (pollDateEt) {
+      draft = partsFromEasternInstant(easternWallDatetimeFromPollDate(pollDateEt));
+    } else if (useNextSundayWhenEmpty) {
+      draft = defaultNextSundayEightPmEtParts();
+    } else {
+      const et = getEtCalendarParts(new Date());
+      draft = { year: et.year, month: et.month, day: et.day, hour12: 8, ampm: "PM", minute: 0 };
+    }
     if (enforceFuture) {
       return clampPartsToFuture(draft);
     }
@@ -274,9 +372,19 @@ export function formatDateTimePickerEtLabel(value: string): string {
   return `${weekday} ${month} ${dayNum} · ${timeEt} ET`;
 }
 
-export default function DateTimePicker({ value, onChange, label, enforceFuture, prominent }: Props) {
+export default function DateTimePicker({
+  value,
+  onChange,
+  label,
+  pollDateEt,
+  useNextSundayWhenEmpty = true,
+  enforceFuture,
+  prominent,
+}: Props) {
   const [open, setOpen] = useState(false);
-  const initial = partsFromValue(value, enforceFuture);
+  const partsOptions = { enforceFuture, pollDateEt, useNextSundayWhenEmpty };
+  const initial = partsFromValue(value, partsOptions);
+  const pollDateReady = Boolean(pollDateEt?.trim()) || useNextSundayWhenEmpty;
 
   const [year, setYear] = useState(initial.year);
   const [month, setMonth] = useState(initial.month);
@@ -301,14 +409,14 @@ export default function DateTimePicker({ value, onChange, label, enforceFuture, 
   }, [year, month, day, hour12, ampm, minute]);
 
   useEffect(() => {
-    const p = partsFromValue(value, enforceFuture);
+    const p = partsFromValue(value, partsOptions);
     setYear(p.year);
     setMonth(p.month);
     setDay(p.day);
     setHour12(p.hour12);
     setAmpm(p.ampm);
     setMinute(p.minute);
-  }, [value, enforceFuture, open]);
+  }, [value, enforceFuture, pollDateEt, useNextSundayWhenEmpty, open]);
 
   useEffect(() => {
     const dim = daysInMonth(year, month);
@@ -339,18 +447,40 @@ export default function DateTimePicker({ value, onChange, label, enforceFuture, 
     setOpen(false);
   }
 
-  const display = value.trim()
-    ? formatDateTimePickerEtLabel(value)
-    : "Tap to set date & time";
+  const effectiveValue = value.trim()
+    ? value
+    : pollDateEt?.trim()
+      ? easternWallDatetimeFromPollDate(pollDateEt)
+      : "";
+
+  const display = effectiveValue.trim()
+    ? formatDateTimePickerEtLabel(effectiveValue)
+    : pollDateEt?.trim()
+      ? "Tap to set time"
+      : "Select poll date first";
+
+  function openPicker() {
+    if (!pollDateReady) {
+      Alert.alert("Select poll date", "Pick a day on the availability poll calendar first.");
+      return;
+    }
+    setOpen(true);
+  }
 
   return (
     <>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <Pressable
-        onPress={() => setOpen(true)}
-        style={[styles.trigger, prominent && styles.triggerProminent]}
+        onPress={openPicker}
+        style={[styles.trigger, prominent && styles.triggerProminent, !pollDateReady && styles.triggerDisabled]}
       >
-        <Text style={[styles.triggerText, prominent && styles.triggerTextProminent, !value.trim() && styles.placeholder]}>
+        <Text
+          style={[
+            styles.triggerText,
+            prominent && styles.triggerTextProminent,
+            !effectiveValue.trim() && styles.placeholder,
+          ]}
+        >
           {display}
         </Text>
         <Text style={styles.icon}>{"📅"}</Text>
@@ -468,6 +598,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     backgroundColor: "#141414",
   },
+  triggerDisabled: { opacity: 0.45 },
   triggerText: { color: "#fff", fontSize: 14, flex: 1, paddingRight: 8 },
   triggerTextProminent: { fontSize: 16, fontWeight: "700" },
   placeholder: { color: "rgba(255,255,255,0.35)", fontWeight: "600" },

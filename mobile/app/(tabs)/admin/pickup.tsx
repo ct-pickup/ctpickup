@@ -1,9 +1,11 @@
 import AdminVenuePicker from "@/components/AdminVenuePicker";
 import DateTimePicker, {
   easternInstantToUtcIso,
+  easternWallDatetimeFromPollDate,
   isScheduleWallMidnightEt,
   utcIsoToEasternDatetimeLocal,
 } from "@/components/DateTimePicker";
+import AvailabilityPollDateCalendar from "@/components/pickup/AvailabilityPollDateCalendar";
 import AdminRunDetailLifecycle from "@/components/pickup/AdminRunDetailLifecycle";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -154,6 +156,7 @@ export default function AdminPickupOpsScreen() {
   const [createCustomVenueAddress, setCreateCustomVenueAddress] = useState("");
   const [createCustomVenueZip, setCreateCustomVenueZip] = useState("");
   const [createRegionOverride, setCreateRegionOverride] = useState<ServiceRegionCode | null>(null);
+  const [createPollDateEt, setCreatePollDateEt] = useState("");
   const [createTimeSlots, setCreateTimeSlots] = useState<string[]>([""]);
   const [createCapacity, setCreateCapacity] = useState("24");
   const [createEarnings, setCreateEarnings] = useState("0");
@@ -297,7 +300,18 @@ export default function AdminPickupOpsScreen() {
     setDetailError(null);
   }
 
+  function applyPollDateToTimeSlots(dateEt: string, slots: string[]): string[] {
+    const base = slots.length > 0 ? slots : [""];
+    return base.map((slot) => easternWallDatetimeFromPollDate(dateEt, slot));
+  }
+
+  function onCreatePollDateChange(dateEt: string) {
+    setCreatePollDateEt(dateEt);
+    setCreateTimeSlots((prev) => applyPollDateToTimeSlots(dateEt, prev));
+  }
+
   function resetCreateForm() {
+    setCreatePollDateEt("");
     setCreateTimeSlots([""]);
     setCreateVenue("");
     setCreateCustomVenueName("");
@@ -350,6 +364,10 @@ export default function AdminPickupOpsScreen() {
         return;
       }
       slots.push(etLocal);
+    }
+    if (!createPollDateEt.trim()) {
+      Alert.alert("Poll date", "Select a day on the availability poll calendar.");
+      return;
     }
     if (slots.length < 1) {
       Alert.alert("Time slots", "Add at least one date & time option for players to vote on.");
@@ -934,6 +952,7 @@ export default function AdminPickupOpsScreen() {
                 </View>
               ) : null}
               <>
+                <AvailabilityPollDateCalendar value={createPollDateEt} onChange={onCreatePollDateChange} />
                 <Text style={styles.label}>Time slot options</Text>
                 <Text style={styles.slotSectionHint}>
                   {createRunType === "public"
@@ -956,10 +975,22 @@ export default function AdminPickupOpsScreen() {
                         </Pressable>
                       ) : null}
                     </View>
+                    {console.log("[pickup] DateTimePicker props", {
+                      optionIndex: idx,
+                      value: slotVal,
+                      pollDateEt: createPollDateEt,
+                    })}
                     <DateTimePicker
-                      label="Date & time (ET)"
+                      label="Time (ET)"
                       value={slotVal}
+                      pollDateEt={createPollDateEt}
+                      useNextSundayWhenEmpty={false}
                       onChange={(v) => {
+                        console.log("[pickup] DateTimePicker onChange", {
+                          optionIndex: idx,
+                          value: v,
+                          pollDateEt: createPollDateEt,
+                        });
                         setCreateTimeSlots((prev) => {
                           const next = [...prev];
                           next[idx] = v;
@@ -978,11 +1009,19 @@ export default function AdminPickupOpsScreen() {
                 ))}
                 {createTimeSlots.length < 5 ? (
                   <Pressable
+                    disabled={!createPollDateEt.trim()}
                     onPress={() => {
                       void hapticTap();
-                      setCreateTimeSlots((prev) => [...prev, ""]);
+                      setCreateTimeSlots((prev) => [
+                        ...prev,
+                        easternWallDatetimeFromPollDate(createPollDateEt, ""),
+                      ]);
                     }}
-                    style={({ pressed }) => [styles.addSlotBtn, pressed && { opacity: 0.9 }]}
+                    style={({ pressed }) => [
+                      styles.addSlotBtn,
+                      !createPollDateEt.trim() && { opacity: 0.45 },
+                      pressed && createPollDateEt.trim() && { opacity: 0.9 },
+                    ]}
                   >
                     <FontAwesome name="plus" size={12} color={LIME} />
                     <Text style={styles.addSlotBtnText}>Add another time slot</Text>
