@@ -3,7 +3,7 @@
     "name": "CT Pickup",
     "description": "Soccer pickup & tournaments",
     "slug": "ctpickup-mobile",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "ctpickup",
@@ -21,7 +21,7 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "CT Pickup uses your location to auto-fill your ZIP code for finding nearby pickup runs."
       },
-      "buildNumber": "31"
+      "buildNumber": "32"
     },
     "android": {
       "package": "com.ctpickup.mobile",
