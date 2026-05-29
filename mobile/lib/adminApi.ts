@@ -193,6 +193,8 @@ export function postAdminCreateRun(
     run_type?: "select" | "public";
     /** Required for select runs when time_slots omitted; omitted for public (server assigns next-day poll slots). */
     start_at?: string;
+    /** Eastern poll calendar day (`YYYY-MM-DD`) — anchors run `start_at` to the selected poll date. */
+    poll_date?: string;
     /** Select planning runs: 1–5 kickoff options (ISO strings). First slot becomes run.start_at. */
     time_slots?: string[];
         capacity?: number;

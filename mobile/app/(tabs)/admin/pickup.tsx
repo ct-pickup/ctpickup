@@ -348,7 +348,9 @@ export default function AdminPickupOpsScreen() {
     }
     const slots: string[] = [];
     for (const raw of createTimeSlots) {
-      const picked = raw.trim();
+      const picked = createPollDateEt.trim()
+        ? easternWallDatetimeFromPollDate(createPollDateEt, raw).trim()
+        : raw.trim();
       if (!picked) continue;
       if (isScheduleWallMidnightEt(picked)) {
         Alert.alert("Pick a time", "Each slot needs a real start time, not midnight.");
@@ -432,6 +434,7 @@ export default function AdminPickupOpsScreen() {
     setCreateBusy(true);
     const r = await postAdminCreateRun(token, {
       time_slots,
+      poll_date: createPollDateEt.trim(),
       title: runTitle,
       service_region: createRegion,
       capacity: ep,
@@ -986,23 +989,30 @@ export default function AdminPickupOpsScreen() {
                       pollDateEt={createPollDateEt}
                       useNextSundayWhenEmpty={false}
                       onChange={(v) => {
+                        const merged = createPollDateEt.trim()
+                          ? easternWallDatetimeFromPollDate(createPollDateEt, v)
+                          : v;
                         console.log("[pickup] DateTimePicker onChange", {
                           optionIndex: idx,
-                          value: v,
+                          value: merged,
                           pollDateEt: createPollDateEt,
                         });
                         setCreateTimeSlots((prev) => {
                           const next = [...prev];
-                          next[idx] = v;
+                          next[idx] = merged;
                           return next;
                         });
                       }}
                       enforceFuture
                       prominent={idx === 0}
                     />
-                    {slotVal.trim() ? (
+                    {createPollDateEt.trim() || slotVal.trim() ? (
                       <Text style={styles.slotWindowPreview}>
-                        {fmtPickupSlotWindowEt(easternInstantToUtcIso(slotVal))}
+                        {fmtPickupSlotWindowEt(
+                          easternInstantToUtcIso(
+                            slotVal.trim() || easternWallDatetimeFromPollDate(createPollDateEt, ""),
+                          ),
+                        )}
                       </Text>
                     ) : null}
                   </View>

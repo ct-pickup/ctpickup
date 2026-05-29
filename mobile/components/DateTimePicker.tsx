@@ -301,9 +301,12 @@ export function isScheduleWallMidnightEt(value: string): boolean {
 }
 
 function partsFromValue(value: string, options?: PartsFromValueOptions): EtParts {
-  const trimmed = value.trim();
-  const enforceFuture = options?.enforceFuture;
   const pollDateEt = options?.pollDateEt?.trim() ?? "";
+  let trimmed = value.trim();
+  if (pollDateEt) {
+    trimmed = easternWallDatetimeFromPollDate(pollDateEt, trimmed);
+  }
+  const enforceFuture = options?.enforceFuture;
   const useNextSundayWhenEmpty = options?.useNextSundayWhenEmpty !== false;
 
   if (!trimmed) {
@@ -417,6 +420,15 @@ export default function DateTimePicker({
     setAmpm(p.ampm);
     setMinute(p.minute);
   }, [value, enforceFuture, pollDateEt, useNextSundayWhenEmpty, open]);
+
+  /** Keep parent `value` in sync when the poll calendar day changes (display-only merge is not enough). */
+  useEffect(() => {
+    if (!pollDateEt?.trim()) return;
+    const merged = easternWallDatetimeFromPollDate(pollDateEt, value);
+    if (merged && merged !== value.trim()) {
+      onChange(merged);
+    }
+  }, [pollDateEt]);
 
   useEffect(() => {
     const dim = daysInMonth(year, month);

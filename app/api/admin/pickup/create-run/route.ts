@@ -47,6 +47,32 @@ export async function POST(req: Request) {
     return parsePickupAdminDatetimeToUtcIso(raw);
   }
 
+  function parsePollDateEtParam(raw: unknown): { year: number; month: number; day: number } | null {
+    const s = String(raw ?? "").trim();
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (!m) return null;
+    const year = Number(m[1]);
+    const month = Number(m[2]);
+    const day = Number(m[3]);
+    if (![year, month, day].every(Number.isFinite)) return null;
+    return { year, month, day };
+  }
+
+  const pollDateEt = parsePollDateEtParam(b.poll_date);
+
+  function startAtFromPollDateOrFirstSlot(slotsFromBody: string[]): string {
+    if (pollDateEt) {
+      return pickupDateOnlyStartAtFromEtCalendarParts(pollDateEt.year, pollDateEt.month, pollDateEt.day);
+    }
+    if (slotsFromBody.length < 1) {
+      throw new RangeError("start_at requires poll_date or time_slots");
+    }
+    if (publicRun) {
+      return pickupDateOnlyStartAtFromEtInstant(slotsFromBody[0]!);
+    }
+    return slotsFromBody[0]!;
+  }
+
   if (publicRun) {
     // Admin can optionally provide time slots for public runs (players vote on kickoff time windows).
     const slotsFromBody: string[] = [];
@@ -69,8 +95,7 @@ export async function POST(req: Request) {
     const startAtRaw = String(b.start_at || "").trim();
 
     if (slotsFromBody.length > 0) {
-      // Anchor kickoff date display to the ET wall-clock day of the first slot.
-      start_at = pickupDateOnlyStartAtFromEtInstant(slotsFromBody[0]!);
+      start_at = startAtFromPollDateOrFirstSlot(slotsFromBody);
       timeSlotsToInsert = slotsFromBody.map((iso) => ({
         label: fmtPickupSlotWindowEt(iso),
         start_at: iso,
@@ -114,7 +139,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "At most 5 time_slots allowed" }, { status: 400 });
     }
     if (slotsFromBody.length > 0) {
-      start_at = slotsFromBody[0]!;
+      start_at = startAtFromPollDateOrFirstSlot(slotsFromBody);
       timeSlotsToInsert = slotsFromBody.map((iso) => ({
         label: fmtPickupSlotWindowEt(iso),
         start_at: iso,
