@@ -103,10 +103,12 @@ export default function AdminTournamentScreen() {
   const [signupFilter, setSignupFilter] = useState<"all" | Decision>("all");
   const submissionDecision = signupFilter === "all" ? undefined : signupFilter;
 
-  const { loading, error, tournaments, activeTournament, captains, submissions, panelError, reload } =
+  const { loading, error, tournaments, activeTournament, captains, submissions, prizePoolCents, panelError, reload } =
     useAdminOutdoorTournaments(region, submissionDecision, true);
 
   const [busy, setBusy] = useState<string | null>(null);
+  const [earlyTermBusy, setEarlyTermBusy] = useState(false);
+  const [prizesPaidBusy, setPrizesPaidBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
@@ -212,6 +214,40 @@ export default function AdminTournamentScreen() {
   }, [tournaments, listTab]);
 
   const activeTitle = activeTournament ? s(activeTournament.title) : "";
+  const activeTournamentId = activeTournament ? s(activeTournament.id) : null;
+  const earlyTermination = activeTournament ? !!activeTournament.early_termination : false;
+  const prizesPaidAt = activeTournament ? (activeTournament.prizes_paid_at as string | null | undefined) ?? null : null;
+
+  function fmtDollars(cents: number | null): string {
+    if (cents == null) return "—";
+    return `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  async function setEarlyTermination(value: boolean) {
+    if (!token || !activeTournamentId) return Alert.alert("No active tournament");
+    setEarlyTermBusy(true);
+    const r = await postAdminTournaments(token, {
+      action: "set_early_termination",
+      tournament_id: activeTournamentId,
+      early_termination: value,
+    });
+    setEarlyTermBusy(false);
+    if (!r.ok) return Alert.alert("Update failed", r.error);
+    reload();
+  }
+
+  async function markPrizesPaid() {
+    if (!token || !activeTournamentId) return Alert.alert("No active tournament");
+    setPrizesPaidBusy(true);
+    const r = await postAdminTournaments(token, {
+      action: "mark_prizes_paid",
+      tournament_id: activeTournamentId,
+    });
+    setPrizesPaidBusy(false);
+    if (!r.ok) return Alert.alert("Error", r.error);
+    reload();
+    Alert.alert("Recorded", "Cash payout marked as complete.");
+  }
 
   async function setHub(tournamentId: string | null) {
     if (!token) return Alert.alert("Not signed in", "Sign in again.");
@@ -787,6 +823,103 @@ export default function AdminTournamentScreen() {
             )}
           </View>
 
+          {activeTournament ? (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Prize Pool</Text>
+
+              <View style={styles.prizeRow}>
+                <Text style={styles.prizeLabel}>Total collected</Text>
+                <Text style={styles.prizeValue}>{fmtDollars(prizePoolCents)}</Text>
+              </View>
+              <View style={[styles.prizeRow, styles.prizeRowTotal]}>
+                <Text style={styles.prizeLabelBold}>Prize pool</Text>
+                <Text style={styles.prizeValueBold}>{fmtDollars(prizePoolCents)}</Text>
+              </View>
+
+              <View style={styles.prizeDivider} />
+
+              {!earlyTermination ? (
+                <>
+                  <Text style={styles.prizeSplitLabel}>Normal completion — 100% to winner</Text>
+                  <View style={styles.prizeRow}>
+                    <Text style={styles.prizeLabel}>1st place</Text>
+                    <Text style={styles.prizeValue}>{fmtDollars(prizePoolCents)}</Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.prizeSplitLabel}>Early termination — 3-way split</Text>
+                  <View style={styles.prizeRow}>
+                    <Text style={styles.prizeLabel}>1st place (60%)</Text>
+                    <Text style={styles.prizeValue}>{fmtDollars(prizePoolCents != null ? Math.floor(prizePoolCents * 0.60) : null)}</Text>
+                  </View>
+                  <View style={styles.prizeRow}>
+                    <Text style={styles.prizeLabel}>2nd place (25%)</Text>
+                    <Text style={styles.prizeValue}>{fmtDollars(prizePoolCents != null ? Math.floor(prizePoolCents * 0.25) : null)}</Text>
+                  </View>
+                  <View style={styles.prizeRow}>
+                    <Text style={styles.prizeLabel}>3rd place (15%)</Text>
+                    <Text style={styles.prizeValue}>{fmtDollars(prizePoolCents != null ? Math.floor(prizePoolCents * 0.15) : null)}</Text>
+                  </View>
+                </>
+              )}
+
+              <View style={styles.prizeDivider} />
+
+              <Pressable
+                onPress={() => {
+                  if (earlyTermBusy) return;
+                  Alert.alert(
+                    earlyTermination ? "Remove early termination?" : "Mark as early termination?",
+                    earlyTermination
+                      ? "Switch back to 100% payout to winner."
+                      : "Switches payout split to 60% / 25% / 15%.",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      { text: "Confirm", onPress: () => void setEarlyTermination(!earlyTermination) },
+                    ],
+                  );
+                }}
+                style={({ pressed }) => [
+                  styles.earlyTermToggle,
+                  earlyTermination && styles.earlyTermToggleOn,
+                  pressed && { opacity: 0.88 },
+                  earlyTermBusy && styles.disabled,
+                ]}
+              >
+                <Text style={[styles.earlyTermToggleText, earlyTermination && styles.earlyTermToggleTextOn]}>
+                  {earlyTermBusy ? "Updating…" : earlyTermination ? "Early termination: ON" : "Early termination: OFF"}
+                </Text>
+              </Pressable>
+
+              {prizesPaidAt ? (
+                <View style={styles.prizesPaidBanner}>
+                  <Text style={styles.prizesPaidText}>
+                    Prizes paid (cash) · {new Date(prizesPaidAt).toLocaleString()}
+                  </Text>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={() =>
+                    Alert.alert("Mark prizes paid?", "Records that cash was handed out. Cannot be undone.", [
+                      { text: "Cancel", style: "cancel" },
+                      { text: "Mark paid", onPress: () => void markPrizesPaid() },
+                    ])
+                  }
+                  disabled={prizesPaidBusy}
+                  style={({ pressed }) => [
+                    styles.primary,
+                    { marginTop: 14 },
+                    pressed && { opacity: 0.9 },
+                    prizesPaidBusy && styles.disabled,
+                  ]}
+                >
+                  <Text style={styles.primaryText}>{prizesPaidBusy ? "Saving…" : "Mark Prizes Paid (Cash)"}</Text>
+                </Pressable>
+              )}
+            </View>
+          ) : null}
+
           <View style={styles.card}>
             <View style={styles.cardHeaderRow}>
               <Text style={styles.cardTitle}>Tournament signups</Text>
@@ -1203,4 +1336,38 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.1)",
   },
+  prizeRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10 },
+  prizeRowTotal: { marginTop: 6 },
+  prizeLabel: { fontSize: 14, color: "rgba(255,255,255,0.65)" },
+  prizeValue: { fontSize: 14, color: "#fff", fontWeight: "700" },
+  prizeLabelBold: { fontSize: 15, color: "#fff", fontWeight: "800" },
+  prizeValueBold: { fontSize: 15, color: LIME, fontWeight: "900" },
+  prizeDivider: { marginTop: 14, marginBottom: 4, height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,0.1)" },
+  prizeSplitLabel: { marginTop: 10, fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 0.8 },
+  earlyTermToggle: {
+    marginTop: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    alignItems: "center",
+  },
+  earlyTermToggleOn: {
+    borderColor: "rgba(251,191,36,0.5)",
+    backgroundColor: "rgba(251,191,36,0.1)",
+  },
+  earlyTermToggleText: { fontSize: 14, fontWeight: "800", color: "rgba(255,255,255,0.65)" },
+  earlyTermToggleTextOn: { color: "#fcd34d" },
+  prizesPaidBanner: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.3)",
+    backgroundColor: "rgba(163,230,53,0.08)",
+    alignItems: "center",
+  },
+  prizesPaidText: { fontSize: 13, fontWeight: "700", color: LIME },
 });

@@ -14,6 +14,7 @@ type State = {
   activeTournament: Record<string, unknown> | null;
   captains: TournamentCaptainRow[];
   submissions: TourneySubmissionRow[];
+  prizePoolCents: number | null;
   panelError: string | null;
   reload: () => void;
 };
@@ -34,6 +35,7 @@ export function useAdminOutdoorTournaments(
   const [activeTournament, setActiveTournament] = useState<Record<string, unknown> | null>(null);
   const [captains, setCaptains] = useState<TournamentCaptainRow[]>([]);
   const [submissions, setSubmissions] = useState<TourneySubmissionRow[]>([]);
+  const [prizePoolCents, setPrizePoolCents] = useState<number | null>(null);
   const [panelError, setPanelError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
 
@@ -80,11 +82,13 @@ export function useAdminOutdoorTournaments(
           setActiveTournament((d.active_tournament as Record<string, unknown> | null | undefined) ?? null);
           setCaptains(Array.isArray(d.captains) ? (d.captains as TournamentCaptainRow[]) : []);
           setSubmissions(Array.isArray(d.submissions) ? (d.submissions as TourneySubmissionRow[]) : []);
+          setPrizePoolCents(typeof d.prize_pool_cents === "number" ? d.prize_pool_cents : null);
           setPanelError(typeof d.panel_error === "string" ? d.panel_error : null);
         } else {
           setActiveTournament(null);
           setCaptains([]);
           setSubmissions([]);
+          setPrizePoolCents(null);
         }
       } catch (e: unknown) {
         if (cancelled) return;
@@ -103,5 +107,5 @@ export function useAdminOutdoorTournaments(
     };
   }, [isReady, session?.access_token, nonce, region, submissionDecision, includePanel]);
 
-  return { loading, error, tournaments, activeTournament, captains, submissions, panelError, reload };
+  return { loading, error, tournaments, activeTournament, captains, submissions, prizePoolCents, panelError, reload };
 }

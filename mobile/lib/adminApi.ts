@@ -688,6 +688,9 @@ export type AdminOutdoorTournament = {
   start_at?: string | null;
   venue?: string | null;
   canceled_at?: string | null;
+  early_termination?: boolean | null;
+  prizes_paid_at?: string | null;
+  prizes_paid_by?: string | null;
 };
 
 export type TournamentCaptainRow = {
@@ -723,6 +726,7 @@ export type AdminTournamentsPanelResponse = {
   active_tournament?: Record<string, unknown> | null;
   captains?: TournamentCaptainRow[];
   submissions?: TourneySubmissionRow[];
+  prize_pool_cents?: number | null;
   panel_error?: string;
   error?: string;
 };

@@ -112,6 +112,21 @@ export async function GET(req: Request) {
     }));
   }
 
+  let prize_pool_cents: number | null = null;
+  if (active?.id) {
+    const ppRes = await admin
+      .from("tournament_payments")
+      .select("amount_cents")
+      .eq("tournament_id", active.id)
+      .eq("status", "captured");
+    if (!ppRes.error && ppRes.data) {
+      prize_pool_cents = (ppRes.data as { amount_cents: number }[]).reduce(
+        (sum, r) => sum + (r.amount_cents ?? 0),
+        0,
+      );
+    }
+  }
+
   let subQuery = admin
     .from("tourney_submissions")
     .select("id,created_at,first_name,last_name,instagram,decision,notes,reviewed,meta")
@@ -130,6 +145,7 @@ export async function GET(req: Request) {
       active_tournament: active,
       captains,
       submissions: [],
+      prize_pool_cents,
       panel_error: subErr.message,
     });
   }
@@ -140,6 +156,7 @@ export async function GET(req: Request) {
     active_tournament: active,
     captains,
     submissions: submissions ?? [],
+    prize_pool_cents,
   });
 }
 
@@ -346,6 +363,38 @@ export async function POST(req: Request) {
     revalidatePath("/tournament");
 
     return NextResponse.json({ ok: true, refund: refundResult });
+  }
+
+  if (action === "set_early_termination") {
+    const tournament_id = String(body.tournament_id || "").trim();
+    if (!tournament_id) return NextResponse.json({ error: "Missing tournament_id." }, { status: 400 });
+    const early_termination = !!body.early_termination;
+    const { error } = await admin
+      .from("tournaments")
+      .update({ early_termination })
+      .eq("id", tournament_id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === "mark_prizes_paid") {
+    const tournament_id = String(body.tournament_id || "").trim();
+    if (!tournament_id) return NextResponse.json({ error: "Missing tournament_id." }, { status: 400 });
+    const { data: existing, error: fetchErr } = await admin
+      .from("tournaments")
+      .select("prizes_paid_at")
+      .eq("id", tournament_id)
+      .maybeSingle();
+    if (fetchErr) return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+    if (existing?.prizes_paid_at) {
+      return NextResponse.json({ error: "Prizes already marked as paid." }, { status: 409 });
+    }
+    const { error } = await admin
+      .from("tournaments")
+      .update({ prizes_paid_at: new Date().toISOString(), prizes_paid_by: guard.userId })
+      .eq("id", tournament_id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
