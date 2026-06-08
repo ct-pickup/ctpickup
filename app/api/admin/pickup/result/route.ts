@@ -64,8 +64,7 @@ async function applyGoalieOfTheDayDelta(
       .eq("id", uid)
       .maybeSingle();
     if (profRes.error || !profRes.data) {
-      console.error("[pickup/result] goalie award profile read failed:", profRes.error?.message, uid);
-      continue;
+      throw new Error(`goalie read failed for ${uid}: ${profRes.error?.message ?? "no data"}`);
     }
     const current = Number((profRes.data as { goalie_of_the_day_count?: number | null }).goalie_of_the_day_count ?? 0);
     const next = Math.max(0, current + delta);
@@ -74,7 +73,7 @@ async function applyGoalieOfTheDayDelta(
       .update({ goalie_of_the_day_count: next, updated_at: now })
       .eq("id", uid);
     if (up.error) {
-      console.error("[pickup/result] goalie award profile update failed:", up.error.message, uid);
+      throw new Error(`goalie update failed for ${uid}: ${up.error.message}`);
     }
   }
 }
@@ -192,13 +191,19 @@ export async function POST(req: Request) {
     }
   }
 
-  await applyPickupResultWinLossDeltas(supabase, {
-    oldWinningTeam,
-    oldAssignments,
-    newWinningTeam: winning_team,
-    newAssignments: assignments,
-  });
-  await applyGoalieOfTheDayDelta(supabase, oldGoalieOfTheDay, goalie_of_the_day);
+  try {
+    await applyPickupResultWinLossDeltas(supabase, {
+      oldWinningTeam,
+      oldAssignments,
+      newWinningTeam: winning_team,
+      newAssignments: assignments,
+    });
+    await applyGoalieOfTheDayDelta(supabase, oldGoalieOfTheDay, goalie_of_the_day);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[pickup/result] stat update failed:", msg);
+    return NextResponse.json({ error: `Stat update failed: ${msg}` }, { status: 500 });
+  }
 
   // 3) Push notifications: confirmed players + award winners.
   const rsvps = await supabase

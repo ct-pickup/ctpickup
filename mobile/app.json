@@ -21,7 +21,7 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "CT Pickup uses your location to auto-fill your ZIP code for finding nearby pickup runs."
       },
-      "buildNumber": "32"
+      "buildNumber": "33"
     },
     "android": {
       "package": "com.ctpickup.mobile",

@@ -320,36 +320,40 @@ export function usePushRegistration(accessToken: string | null) {
     let cancelled = false;
 
     void (async () => {
-      if (!shouldRegisterPushToken()) return;
-
-      const { status: existing } = await Notifications.getPermissionsAsync();
-      let finalStatus = existing;
-      if (existing !== "granted") {
-        const req = await Notifications.requestPermissionsAsync();
-        finalStatus = req.status;
-      }
-      if (finalStatus !== "granted" || cancelled) return;
-
-      const installationContext = getInstallationContext();
-      if (installationContext === "storeClient") return;
-
-      let expoPushToken: string | null;
       try {
-        expoPushToken = await resolveExpoPushTokenForApp();
+        if (!shouldRegisterPushToken()) return;
+
+        const { status: existing } = await Notifications.getPermissionsAsync();
+        let finalStatus = existing;
+        if (existing !== "granted") {
+          const req = await Notifications.requestPermissionsAsync();
+          finalStatus = req.status;
+        }
+        if (finalStatus !== "granted" || cancelled) return;
+
+        const installationContext = getInstallationContext();
+        if (installationContext === "storeClient") return;
+
+        let expoPushToken: string | null;
+        try {
+          expoPushToken = await resolveExpoPushTokenForApp();
+        } catch (e) {
+          console.warn("[push] getExpoPushTokenAsync failed:", e);
+          Sentry.captureException(e);
+          return;
+        }
+
+        if (cancelled || !expoPushToken) return;
+        if (lastSent.current === expoPushToken) return;
+
+        const platform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : null;
+        if (!platform) return;
+
+        const res = await postMobilePushToken(accessToken, expoPushToken, platform, installationContext);
+        if (res.ok) lastSent.current = expoPushToken;
       } catch (e) {
-        console.warn("[push] getExpoPushTokenAsync failed:", e);
-        Sentry.captureException(e);
-        return;
+        console.warn("[push] usePushRegistration error:", e);
       }
-
-      if (cancelled || !expoPushToken) return;
-      if (lastSent.current === expoPushToken) return;
-
-      const platform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : null;
-      if (!platform) return;
-
-      const res = await postMobilePushToken(accessToken, expoPushToken, platform, installationContext);
-      if (res.ok) lastSent.current = expoPushToken;
     })();
 
     return () => {

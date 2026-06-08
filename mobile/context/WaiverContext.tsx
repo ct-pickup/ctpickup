@@ -19,20 +19,25 @@ const WaiverContext = createContext<WaiverContextValue | undefined>(undefined);
 async function fetchWaiverStatus(accessToken: string): Promise<boolean> {
   const origin = siteOrigin();
   if (!origin) return false;
-  const r = await fetch(`${origin}/api/waiver/status`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-    cache: "no-store",
-  });
-  if (!r.ok) {
-    console.warn("[waiver] GET /api/waiver/status failed:", r.status);
+  try {
+    const r = await fetch(`${origin}/api/waiver/status`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      cache: "no-store",
+    });
+    if (!r.ok) {
+      console.warn("[waiver] GET /api/waiver/status failed:", r.status);
+      return false;
+    }
+    const data = (await r.json()) as WaiverStatusResponse;
+    return !!data.accepted;
+  } catch (err) {
+    console.warn("[waiver] fetchWaiverStatus network error:", err);
     return false;
   }
-  const data = (await r.json()) as WaiverStatusResponse;
-  return !!data.accepted;
 }
 
 export function WaiverProvider({ children }: { children: React.ReactNode }) {
