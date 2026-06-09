@@ -90,12 +90,9 @@ export async function POST(req: Request) {
 
     const origin = requestSiteUrlFromRequest(req);
 
-    const feeCentsRaw = t.entry_fee_cents;
-    const feeCents =
-      typeof feeCentsRaw === "number" && Number.isFinite(feeCentsRaw) && feeCentsRaw > 0 ? feeCentsRaw : 25000;
-
     const expectedPlayers = Number((cap as { expected_players?: unknown }).expected_players ?? 0) || 10;
     const rosterHeadcount = Math.max(5, Math.min(25, expectedPlayers));
+    const feeCents = rosterHeadcount * 5000;
 
     const sessionMetadata = {
       kind: "tournament" as const,
@@ -114,7 +111,7 @@ export async function POST(req: Request) {
             currency: "usd",
             unit_amount: feeCents,
             product_data: {
-              name: "CT Pickup Tournament — Captain Payment",
+              name: `CT Pickup Tournament Entry — ${rosterHeadcount} players × $50`,
               description: IN_PERSON_TOURNAMENT_CAPTAIN_STRIPE_DESCRIPTION,
             },
           },

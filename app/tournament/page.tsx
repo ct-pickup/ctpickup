@@ -671,7 +671,7 @@ export default function TournamentPage() {
                     disabled={payBusy}
                     className="rounded-md bg-black px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                   >
-                    {payBusy ? "Starting checkout…" : "Proceed to payment ($250)"}
+                    {payBusy ? "Starting checkout…" : `Proceed to payment ($${Math.max(5, Math.min(25, expectedPlayers)) * 50})`}
                   </button>
 
                   <button
