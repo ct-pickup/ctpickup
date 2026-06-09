@@ -11,7 +11,7 @@ const LIME = "#a3e635";
 
 type Team = "A" | "B" | "C";
 
-type ConfirmedRow = { id: string; full_name: string | null };
+type ConfirmedRow = { id: string; full_name: string | null; photo_package?: boolean };
 
 function nameFor(p: ConfirmedRow) {
   const n = (p.full_name ?? "").trim();
@@ -266,7 +266,14 @@ export default function RunResultClient({ runId }: { runId: string }) {
             {confirmed.length === 0 ? <p className="text-sm text-white/55">No confirmed players.</p> : null}
             {confirmed.map((p) => (
               <div key={p.id} className="flex flex-wrap items-center gap-3">
-                <div className="min-w-0 flex-1 text-sm font-semibold text-white truncate">{nameFor(p)}</div>
+                <div className="min-w-0 flex-1 flex items-center gap-2 truncate">
+                  <span className="text-sm font-semibold text-white truncate">{nameFor(p)}</span>
+                  {p.photo_package ? (
+                    <span className="shrink-0 rounded-full bg-[#a3e63520] border border-[#a3e63540] px-2 py-0.5 text-xs font-semibold text-[#d9f99d]">
+                      📸 Photos
+                    </span>
+                  ) : null}
+                </div>
                 <select
                   value={teamByUser[p.id] ?? "A"}
                   onChange={(e) =>

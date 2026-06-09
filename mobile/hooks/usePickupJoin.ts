@@ -5,7 +5,7 @@ import { pickupPlayerRefundEligibleClient, type PickupRunRefundTiming } from "@/
 import { postPickupCommit, postPickupPay, postPickupRsvp } from "@/lib/siteApi";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Alert } from "react-native";
 
 let cancellationPolicyShownThisSession = false;
@@ -48,14 +48,12 @@ function confirmPhysicalPaymentCheckout(venueLabel: string): Promise<boolean> {
   });
 }
 
-async function openStripeCheckout(
+/** Opens browser after showing the physical-payment confirmation. Does NOT show the cancellation policy. */
+async function openBrowserWithPhysicalConfirm(
   url: string,
   venueLabel: string,
   onReturn?: () => void | Promise<void>,
 ) {
-  const policyOk = await confirmCancellationPolicy();
-  if (!policyOk) return;
-
   const confirmed = await confirmPhysicalPaymentCheckout(venueLabel);
   if (!confirmed) return;
 
@@ -70,6 +68,17 @@ async function openStripeCheckout(
   } finally {
     sub.remove();
   }
+}
+
+/** Full checkout open: cancellation policy + physical-payment confirm + browser. Used by payPickup. */
+async function openStripeCheckout(
+  url: string,
+  venueLabel: string,
+  onReturn?: () => void | Promise<void>,
+) {
+  const policyOk = await confirmCancellationPolicy();
+  if (!policyOk) return;
+  await openBrowserWithPhysicalConfirm(url, venueLabel, onReturn);
 }
 
 /** Server-side `/api/pickup/pay` returns `waiver_required` / `standing_not_eligible` (with `detail`); fall back to a generic message otherwise. */
@@ -117,6 +126,12 @@ function commitErrorMessage(status: number, j: Record<string, unknown>): string 
   return `Could not submit availability (${status}).`;
 }
 
+type PhotoModalState = {
+  resolve: (photoPackage: boolean) => void;
+  runName: string | null;
+  feeCents: number;
+};
+
 export function usePickupJoin() {
   const { region } = useSelectedRegion();
   const [joinBusy, setJoinBusy] = useState(false);
@@ -129,13 +144,31 @@ export function usePickupJoin() {
    * `slot_label` when the fixed-range buttons drive the commit.
    */
   const [pendingSlotKey, setPendingSlotKey] = useState<string | null>(null);
+  const [photoModalState, setPhotoModalState] = useState<PhotoModalState | null>(null);
+  // Keep a ref so the confirm callback doesn’t close over stale state
+  const photoModalResolveRef = useRef<((v: boolean) => void) | null>(null);
+
+  const onPhotoModalConfirm = useCallback((photoPackage: boolean) => {
+    photoModalResolveRef.current?.(photoPackage);
+    photoModalResolveRef.current = null;
+    setPhotoModalState(null);
+  }, []);
+
+  const promptPhotoPackage = useCallback(
+    (runName: string | null, feeCents: number): Promise<boolean> =>
+      new Promise((resolve) => {
+        photoModalResolveRef.current = resolve;
+        setPhotoModalState({ resolve, runName, feeCents });
+      }),
+    [],
+  );
 
   const joinPickup = useCallback(
     async (
       accessToken: string | null,
       runId: unknown,
       reload: () => void | Promise<void>,
-      options?: { friendUserId?: string; friendDisplayName?: string; venueName?: string },
+      options?: { friendUserId?: string; friendDisplayName?: string; venueName?: string; runName?: string; feeCents?: number },
     ) => {
       const id = typeof runId === "string" ? runId : null;
       if (!accessToken) {
@@ -156,8 +189,21 @@ export function usePickupJoin() {
       const payForFriend = friendId.length > 0;
       setJoinBusy(true);
       try {
+        // Show cancellation policy before the API call so photo_package choice can be included.
+        const policyOk = await confirmCancellationPolicy();
+        if (!policyOk) return;
+
+        // Photo package opt-in — skipped for pay-for-friend flows.
+        let photoPackage = false;
+        if (!payForFriend) {
+          const runName = typeof options?.runName === "string" ? options.runName : null;
+          const feeCents = typeof options?.feeCents === "number" ? options.feeCents : 0;
+          photoPackage = await promptPhotoPackage(runName, feeCents);
+        }
+
         const r = await postPickupRsvp(accessToken, id, "join", {
           ...(payForFriend ? { friend_user_id: friendId } : {}),
+          ...(photoPackage ? { photo_package: true } : {}),
           checkout_return: "mobile",
         });
         const j = r.json as Record<string, unknown>;
@@ -166,7 +212,8 @@ export function usePickupJoin() {
             typeof options?.venueName === "string" && options.venueName.trim()
               ? options.venueName.trim()
               : "the scheduled venue";
-          await openStripeCheckout(j.checkout_url, venueName, reload);
+          // Policy already shown above; skip to physical confirm + browser.
+          await openBrowserWithPhysicalConfirm(j.checkout_url, venueName, reload);
           await reload();
           return;
         }
@@ -479,5 +526,11 @@ export function usePickupJoin() {
     commitAvailability,
     commitAvailabilitySlots,
     pendingSlotKey,
+    photoPackageModalProps: {
+      visible: !!photoModalState,
+      runName: photoModalState?.runName ?? null,
+      feeCents: photoModalState?.feeCents ?? 0,
+      onConfirm: onPhotoModalConfirm,
+    },
   };
 }

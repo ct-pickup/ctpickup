@@ -285,7 +285,7 @@ export async function GET(req: Request) {
 
   const rsvpRes = await admin
     .from("pickup_run_rsvps")
-    .select("user_id,status,updated_at")
+    .select("user_id,status,updated_at,photo_package")
     .eq("run_id", run_id);
 
   const rsvps = rsvpRes.data || [];
@@ -317,6 +317,11 @@ export async function GET(req: Request) {
   const confirmedIds = (rsvps || []).filter((r) => r.status === "confirmed").map((r) => r.user_id);
   const standbyIds = (rsvps || []).filter((r) => r.status === "standby").map((r) => r.user_id);
 
+  const photoPackageByUserId = new Map<string, boolean>();
+  for (const r of rsvps || []) {
+    if (r.photo_package) photoPackageByUserId.set(r.user_id, true);
+  }
+
   const [confirmedRes, standbyRes] = await Promise.all([
     confirmedIds.length
       ? admin.from("profiles").select("id,first_name,last_name,playing_position").in("id", confirmedIds)
@@ -347,6 +352,7 @@ export async function GET(req: Request) {
     id: r.id,
     full_name: `${String(r.first_name || "").trim()} ${String(r.last_name || "").trim()}`.trim() || null,
     playing_position: r.playing_position ?? null,
+    photo_package: photoPackageByUserId.get(r.id) ?? false,
   });
 
   const confirmed = (confirmedRes.data || []).map(mapConfirmedProfile);

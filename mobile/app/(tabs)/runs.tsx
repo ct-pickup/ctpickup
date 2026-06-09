@@ -1,6 +1,7 @@
 import { AnimatedPressScale } from "@/components/AnimatedPressScale";
 import { AvailabilityPoll, type PickupPlanningAvailability } from "@/components/pickup/AvailabilityPoll";
 import { PayForFriendButton } from "@/components/pickup/PayForFriendButton";
+import { PhotoPackageModal } from "@/components/pickup/PhotoPackageModal";
 import { RegionsPickerPanel } from "@/components/RegionsPickerPanel";
 import { useAuth } from "@/context/AuthContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
@@ -721,7 +722,7 @@ export default function RunsScreen() {
     void loadRegionRuns();
   }, [showStatePicker, regionReady, loadRegionRuns]);
   const [countdownTick, setCountdownTick] = useState(0);
-  const { joinBusy, joinPickup, payBusy, payPickup, declineBusy, declinePickup, availabilityBusy, recordCantMakeIt } =
+  const { joinBusy, joinPickup, payBusy, payPickup, declineBusy, declinePickup, availabilityBusy, recordCantMakeIt, photoPackageModalProps } =
     usePickupJoin();
 
   const chatEnabled = !!session?.user?.id && chatAllowed === true;
@@ -921,9 +922,9 @@ export default function RunsScreen() {
         void loadRegionRuns();
         void hapticGoal();
       },
-      { venueName: detailVenue },
+      { venueName: detailVenue, runName: run ? runTitleFromRow(run) : null, feeCents },
     );
-  }, [token, runId, joinPickup, load, loadRegionRuns, detailVenue]);
+  }, [token, runId, run, feeCents, joinPickup, load, loadRegionRuns, detailVenue]);
 
   const onCantMakeIt = useCallback(() => {
     if (!token || !runId) {
@@ -967,9 +968,9 @@ export default function RunsScreen() {
         void loadRegionRuns();
         void hapticGoal();
       },
-      { venueName: detailVenue },
+      { venueName: detailVenue, runName: run ? runTitleFromRow(run) : null, feeCents },
     );
-  }, [token, runId, myStatus, feeCents, payPickup, joinPickup, load, loadRegionRuns, detailVenue]);
+  }, [token, runId, run, feeCents, myStatus, payPickup, joinPickup, load, loadRegionRuns, detailVenue]);
 
   const onOpenChat = useCallback(() => {
     if (banterRoomId) {
@@ -1318,6 +1319,7 @@ export default function RunsScreen() {
           </>
         )}
       </ScrollView>
+      <PhotoPackageModal {...photoPackageModalProps} />
     </SafeAreaView>
   );
 }

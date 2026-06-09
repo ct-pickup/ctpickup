@@ -51,6 +51,7 @@ type Body = {
   friend_user_id?: string;
   friend_identifier?: string;
   checkout_return?: "mobile" | "app";
+  photo_package?: boolean;
 };
 
 export async function POST(req: Request) {
@@ -573,17 +574,44 @@ export async function POST(req: Request) {
     pickupMeta.paid_by_user_id = String(user.id);
   }
 
+  const photoPackage = body.photo_package === true;
+
   let unitAmount = Number.isFinite(feeCents) ? Math.round(feeCents) : feeCents;
   if (pickupCreditResult.applied && pickupCreditResult.kind === "discount") {
     unitAmount = pickupCreditResult.discountedFeeCents;
     pickupMeta.credit_id = pickupCreditResult.creditId;
   }
+  if (photoPackage) pickupMeta.photo_package = "true";
 
   let session;
   try {
     const currency = String(run.currency || "usd").trim().toLowerCase() || "usd";
     const successUrl = pickupCheckoutSuccessUrl(baseUrl, mobileReturn);
     const cancelUrl = pickupCheckoutCancelUrl(baseUrl, mobileReturn);
+
+    const lineItems: Parameters<typeof stripe.checkout.sessions.create>[0]["line_items"] = [
+      {
+        price_data: {
+          currency,
+          unit_amount: unitAmount,
+          product_data: {
+            name: `CT Pickup Field Fee`,
+            description: PICKUP_FIELD_FEE_STRIPE_DESCRIPTION,
+          },
+        },
+        quantity: 1,
+      },
+    ];
+    if (photoPackage) {
+      lineItems.push({
+        price_data: {
+          currency,
+          unit_amount: 500,
+          product_data: { name: "Action Photos" },
+        },
+        quantity: 1,
+      });
+    }
 
     const snapshot = {
       event: "stripe_checkout_create_attempt" as const,
@@ -595,6 +623,7 @@ export async function POST(req: Request) {
       mode: "payment" as const,
       currency,
       unit_amount: unitAmount,
+      photo_package: photoPackage,
       customer_email_present: !!(user.email && String(user.email).trim()),
       metadata_keys: Object.keys(pickupMeta),
     };
@@ -605,19 +634,7 @@ export async function POST(req: Request) {
       mode: "payment",
       payment_method_types: ["card"],
       customer_email: user.email || undefined,
-      line_items: [
-        {
-          price_data: {
-            currency,
-            unit_amount: unitAmount,
-            product_data: {
-              name: `CT Pickup Field Fee`,
-              description: PICKUP_FIELD_FEE_STRIPE_DESCRIPTION,
-            },
-          },
-          quantity: 1,
-        },
-      ],
+      line_items: lineItems,
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: pickupMeta,
@@ -676,6 +693,7 @@ export async function POST(req: Request) {
       tier_at_time: tierAtTimeForPickupRsvp(publicRun, targetProf.data?.tier_rank),
       status: "pending_payment",
       checkout_session_id: session.id,
+      photo_package: photoPackage,
       waitlist_position: null,
       waitlist_offered_at: null,
       waitlist_expires_at: null,
