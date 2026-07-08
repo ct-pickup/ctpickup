@@ -338,8 +338,7 @@ export function usePushRegistration(accessToken: string | null) {
         try {
           expoPushToken = await resolveExpoPushTokenForApp();
         } catch (e) {
-          console.warn("[push] getExpoPushTokenAsync failed:", e);
-          Sentry.captureException(e);
+          console.warn("[push] resolveExpoPushTokenForApp unexpected error:", e);
           return;
         }
 

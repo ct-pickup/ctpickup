@@ -56,6 +56,9 @@ export function WaiverProvider({ children }: { children: React.ReactNode }) {
     try {
       const accepted = await fetchWaiverStatus(token);
       setWaiverAccepted(accepted);
+    } catch (e) {
+      console.warn("[waiver] refreshWaiver error:", e);
+      setWaiverAccepted(false);
     } finally {
       setWaiverLoading(false);
     }
@@ -78,6 +81,9 @@ export function WaiverProvider({ children }: { children: React.ReactNode }) {
       try {
         const accepted = await fetchWaiverStatus(token);
         if (!cancelled) setWaiverAccepted(accepted);
+      } catch (e) {
+        console.warn("[waiver] effect fetchWaiverStatus error:", e);
+        if (!cancelled) setWaiverAccepted(false);
       } finally {
         if (!cancelled) setWaiverLoading(false);
       }

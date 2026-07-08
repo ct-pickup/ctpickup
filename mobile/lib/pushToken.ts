@@ -44,6 +44,11 @@ export async function resolveExpoPushTokenForApp(): Promise<string | null> {
     console.warn("[push] Missing EAS projectId — set extra.eas.projectId in app.json or EXPO_PUBLIC_EAS_PROJECT_ID");
   }
 
-  const tokenRes = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
-  return tokenRes.data || null;
+  try {
+    const tokenRes = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
+    return tokenRes.data || null;
+  } catch (e) {
+    console.warn("[push] getExpoPushTokenAsync failed (network or Expo service error):", e);
+    return null;
+  }
 }

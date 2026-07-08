@@ -528,7 +528,8 @@ export default function AccountScreen() {
         setWaiverAccepted(Boolean(j.accepted));
         setWaiverVersion(typeof j.currentVersion === "string" ? j.currentVersion : null);
       }
-    } catch {
+    } catch (e) {
+      console.warn("[account] loadWaiverStatus error:", e);
       setWaiverAccepted(null);
       setWaiverVersion(null);
     } finally {
