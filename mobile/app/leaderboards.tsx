@@ -1,5 +1,7 @@
+import { AnimatedPressScale } from "@/components/AnimatedPressScale";
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
+import { hapticTap } from "@/lib/haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -230,7 +232,6 @@ export default function LeaderboardsScreen() {
 
   const load = useCallback(async (isRefresh: boolean) => {
     const origin = siteOrigin();
-    console.log("[leaderboards] siteOrigin:", origin);
     if (!origin) {
       setErr("App configuration error. Please restart.");
       setLoading(false);
@@ -252,10 +253,7 @@ export default function LeaderboardsScreen() {
         headers: { Accept: "application/json" },
         cache: "no-store",
       });
-      console.log("[leaderboards] status:", r.status);
-      const text = await r.text();
-      console.log("[leaderboards] raw response:", text.slice(0, 200));
-      const json = JSON.parse(text) as unknown;
+      const json = (await r.json().catch(() => null)) as unknown;
 
       if (!r.ok) {
         setErr("Something went wrong. Please try again.");
@@ -337,7 +335,7 @@ export default function LeaderboardsScreen() {
           return (
             <Pressable
               key={t.id}
-              onPress={() => setTab(t.id)}
+              onPress={() => { void hapticTap(); setTab(t.id); }}
               style={({ pressed }) => [styles.tabPill, on ? styles.tabPillOn : styles.tabPillOff, pressed && { opacity: 0.92 }]}
             >
               <Text style={[styles.tabPillText, on && styles.tabPillTextOn]} numberOfLines={1}>
@@ -373,14 +371,11 @@ export default function LeaderboardsScreen() {
                 rank === 1 ? styles.rowCardRank1 : rank === 2 ? styles.rowCardRank2 : rank === 3 ? styles.rowCardRank3 : null;
 
               return (
-                <Pressable
+                <AnimatedPressScale
+                  hapticOnPress
+                  pressedScale={0.98}
                   onPress={() => router.push(`/player/${encodeURIComponent(item.id)}`)}
-                  style={({ pressed }) => [
-                    styles.rowCard,
-                    topBg,
-                    mine && styles.rowCardMine,
-                    pressed && { opacity: 0.92 },
-                  ]}
+                  style={[styles.rowCard, topBg, mine && styles.rowCardMine]}
                 >
                   <View style={[styles.rankCell, rank <= 3 && styles.rankCellTop3]}>
                     {medal ? (
@@ -408,7 +403,7 @@ export default function LeaderboardsScreen() {
                   <Text style={styles.statValue} numberOfLines={1}>
                     {formatStat(tab, item)}
                   </Text>
-                </Pressable>
+                </AnimatedPressScale>
               );
             }}
           />
@@ -429,6 +424,7 @@ export default function LeaderboardsScreen() {
                   <Pressable
                     key={reg}
                     onPress={() => {
+                      void hapticTap();
                       setRegion(reg);
                       setFilterOpen(false);
                     }}

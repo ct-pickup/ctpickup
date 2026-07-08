@@ -607,11 +607,15 @@ export default function RunsScreen() {
     }
     let cancelled = false;
     void (async () => {
-      const r = await fetchPickupStanding(token);
-      if (cancelled) return;
-      const scorePct = r.data?.reliability?.score_pct;
-      if (r.ok && r.data?.ok && scorePct != null) {
-        setReliabilityScore(Math.round(Number(scorePct)));
+      try {
+        const r = await fetchPickupStanding(token);
+        if (cancelled) return;
+        const scorePct = r.data?.reliability?.score_pct;
+        if (r.ok && r.data?.ok && scorePct != null) {
+          setReliabilityScore(Math.round(Number(scorePct)));
+        }
+      } catch {
+        // Network error — reliability score stays null, no crash.
       }
     })();
     return () => {

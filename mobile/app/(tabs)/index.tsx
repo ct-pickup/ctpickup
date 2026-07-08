@@ -3,6 +3,7 @@ import { FieldTournamentCard } from "@/components/FieldTournamentCard";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { useAuth } from "@/context/AuthContext";
 import { useFieldTournament } from "@/hooks/useFieldTournament";
+import { hapticTap } from "@/lib/haptics";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -36,6 +37,7 @@ export default function HomeScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
+    void hapticTap();
     setRefreshing(true);
     try {
       await reloadFieldTournament({ background: true });
@@ -112,7 +114,7 @@ export default function HomeScreen() {
           <Text style={styles.leaderboardsEmoji}>🏆</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.leaderboardsTitle}>Leaderboards 🏆</Text>
+          <Text style={styles.leaderboardsTitle}>Leaderboards</Text>
           <Text style={styles.leaderboardsSub}>All-time stats · wins · sessions · POTD & more</Text>
         </View>
         <FontAwesome name="chevron-right" size={16} color="rgba(255,255,255,0.5)" />
