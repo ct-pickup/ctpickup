@@ -19,7 +19,7 @@
       "bundleIdentifier": "com.ctpickup.mobile",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "CT Pickup uses your location to auto-fill your ZIP code for finding nearby pickup runs."
+        "NSLocationWhenInUseUsageDescription": "Show pickup sessions near you."
       },
       "buildNumber": "33"
     },
@@ -62,7 +62,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "CT Pickup uses your location to auto-fill your ZIP code for finding nearby pickup runs."
+          "locationWhenInUsePermission": "Show pickup sessions near you."
         }
       ],
       "@sentry/react-native"

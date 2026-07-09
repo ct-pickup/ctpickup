@@ -374,6 +374,29 @@ function RootLayoutNav() {
                               headerShadowVisible: false,
                             }}
                           />
+                          <Stack.Screen
+                            name="session-map"
+                            options={{ headerShown: false }}
+                          />
+                          <Stack.Screen
+                            name="session/[id]"
+                            options={{
+                              headerShown: true,
+                              title: "Session",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="session-create"
+                            options={{
+                              headerShown: true,
+                              title: "Host a Session",
+                              headerStyle: { backgroundColor: "#0a0a0a" },
+                              headerTintColor: "#fff",
+                            }}
+                          />
                           </Stack>
                         </ThemeProvider>
                         <AppOpeningTheme key={openingThemeKey} />
