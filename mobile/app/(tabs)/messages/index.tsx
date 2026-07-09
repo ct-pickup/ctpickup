@@ -1,6 +1,8 @@
+import { AnimatedPressScale } from "@/components/AnimatedPressScale";
 import { SignInPanel } from "@/components/SignInPanel";
 import { useAuth } from "@/context/AuthContext";
 import { useAdminDmPeerLabels, useTeamChatAccess } from "@/hooks/useTeamChat";
+import { hapticTap } from "@/lib/haptics";
 import {
   ANNOUNCEMENTS_CHAT_SLUG,
   TEAM_CHAT_SLUG,
@@ -43,6 +45,7 @@ export default function MessagesIndex() {
   const { rooms, loading, error, reload } = useUserChatRooms(enabled);
   const adminDmPeerLabels = useAdminDmPeerLabels(enabled, isAdmin === true, rooms, session?.user?.id ?? null);
 
+  const [runChatTab, setRunChatTab] = useState<"active" | "past">("active");
   const [listRefreshing, setListRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setListRefreshing(true);
@@ -63,6 +66,9 @@ export default function MessagesIndex() {
   );
   const tournamentTeamRooms = useMemo(() => rooms.filter((r) => r.room_type === "tournament_team"), [rooms]);
   const runBanterRooms = useMemo(() => rooms.filter((r) => r.room_type === "run_banter"), [rooms]);
+  const activeRunRooms = useMemo(() => runBanterRooms.filter((r) => r.is_active), [runBanterRooms]);
+  const pastRunRooms = useMemo(() => runBanterRooms.filter((r) => !r.is_active), [runBanterRooms]);
+  const visibleRunRooms = runChatTab === "active" ? activeRunRooms : pastRunRooms;
   const dmGroupRooms = useMemo(
     () => rooms.filter((r) => r.room_type === "group" && isAdminDmGroupSlug(r.slug)),
     [rooms],
@@ -187,20 +193,43 @@ export default function MessagesIndex() {
       {runBanterRooms.length > 0 ? (
         <>
           <Text style={[styles.section, { marginTop: 22 }]}>Run chats</Text>
-          {runBanterRooms.map((r) => (
-            <Pressable
-              key={r.id}
-              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-              onPress={() => router.push({ pathname: "/(tabs)/messages/thread", params: { id: r.id } })}
-            >
-              <FontAwesome name="comments" size={18} color={LIME} style={styles.rowIcon} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowTitle}>{r.title}</Text>
-                <Text style={styles.rowSub}>{r.description?.trim() || "Pickup run"}</Text>
-              </View>
-              <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
-            </Pressable>
-          ))}
+          <View style={styles.runTabRow}>
+            {(["active", "past"] as const).map((t) => {
+              const active = runChatTab === t;
+              return (
+                <AnimatedPressScale
+                  key={t}
+                  pressedScale={0.95}
+                  onPress={() => { void hapticTap(); setRunChatTab(t); }}
+                  style={[styles.runTab, active && styles.runTabActive]}
+                >
+                  <Text style={[styles.runTabText, active && styles.runTabTextActive]}>
+                    {t === "active" ? "Active" : "Past"}
+                  </Text>
+                </AnimatedPressScale>
+              );
+            })}
+          </View>
+          {visibleRunRooms.length === 0 ? (
+            <Text style={styles.runTabEmpty}>
+              {runChatTab === "active" ? "No active run chats." : "No past run chats."}
+            </Text>
+          ) : (
+            visibleRunRooms.map((r) => (
+              <Pressable
+                key={r.id}
+                style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+                onPress={() => router.push({ pathname: "/(tabs)/messages/thread", params: { id: r.id } })}
+              >
+                <FontAwesome name="comments" size={18} color={LIME} style={styles.rowIcon} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowTitle}>{r.title}</Text>
+                  <Text style={styles.rowSub}>{r.description?.trim() || "Pickup run"}</Text>
+                </View>
+                <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+              </Pressable>
+            ))
+          )}
         </>
       ) : null}
 
@@ -287,4 +316,20 @@ const styles = StyleSheet.create({
   rowTitle: { color: "#fff", fontSize: 16, fontWeight: "800" },
   rowSub: { color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 2 },
   err: { color: "#f87171", marginBottom: 12, fontSize: 13 },
+  runTabRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
+  runTab: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  runTabActive: {
+    borderColor: LIME,
+    backgroundColor: "rgba(163,230,53,0.12)",
+  },
+  runTabText: { fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.5)" },
+  runTabTextActive: { color: LIME },
+  runTabEmpty: { color: "rgba(255,255,255,0.35)", fontSize: 14, marginBottom: 10 },
 });
