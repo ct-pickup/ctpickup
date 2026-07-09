@@ -3,13 +3,12 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import MapView, { Marker, Region } from "react-native-maps";
+import MapView, { Marker, type MarkerProps, Region } from "react-native-maps";
 import Svg, { Circle } from "react-native-svg";
 import * as Location from "expo-location";
 import { format, isToday, isTomorrow } from "date-fns";
@@ -108,6 +107,20 @@ function useSessions(level: Level | "all") {
       .channel("sessions-seats")
       .on(
         "postgres_changes",
+        { event: "INSERT", schema: "public", table: "sessions" },
+        (payload) => {
+          const next = payload.new as Session;
+          // Only surface newly published sessions; drafts stay invisible.
+          if (next.status !== "published") return;
+          setSessions((prev) =>
+            prev.some((s) => s.id === next.id) ? prev : [...prev, next].sort(
+              (a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at),
+            ),
+          );
+        },
+      )
+      .on(
+        "postgres_changes",
         { event: "UPDATE", schema: "public", table: "sessions" },
         (payload) => {
           const next = payload.new as Session;
@@ -169,6 +182,39 @@ function FillPin({
         </Text>
       </View>
     </View>
+  );
+}
+
+/* --------------------------------------------------- tracking marker (iOS) */
+
+// react-native-maps snapshots custom markers on iOS — tracksViewChanges must
+// be briefly true after spots_taken or selected changes, then false to keep
+// map scrolling smooth.
+function TrackingMarker({
+  spots_taken,
+  selected,
+  children,
+  ...rest
+}: Omit<MarkerProps, "tracksViewChanges"> & {
+  spots_taken: number;
+  selected: boolean;
+  children: React.ReactNode;
+}) {
+  const [tracking, setTracking] = useState(true);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setTracking(true);
+    timer.current = setTimeout(() => setTracking(false), 400);
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, [spots_taken, selected]);
+
+  return (
+    <Marker {...rest} tracksViewChanges={tracking}>
+      {children}
+    </Marker>
   );
 }
 
@@ -312,11 +358,12 @@ export default function SessionMapScreen() {
         onPress={() => setSelectedId(null)}
       >
         {sessions.map((s, i) => (
-          <Marker
+          <TrackingMarker
             key={s.id}
             coordinate={{ latitude: s.latitude, longitude: s.longitude }}
             onPress={() => focus(s, i)}
-            tracksViewChanges={Platform.OS === "android"}
+            spots_taken={s.spots_taken}
+            selected={s.id === selectedId}
             zIndex={s.id === selectedId ? 99 : 1}
           >
             <FillPin
@@ -325,7 +372,7 @@ export default function SessionMapScreen() {
               capacity={s.capacity}
               selected={s.id === selectedId}
             />
-          </Marker>
+          </TrackingMarker>
         ))}
       </MapView>
 
