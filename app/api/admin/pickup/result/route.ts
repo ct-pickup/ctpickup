@@ -172,9 +172,10 @@ export async function POST(req: Request) {
   }
 
   // Mark the run completed so it never stays stuck in_progress.
+  // is_completed (boolean) must also be set — analytics queries filter on it, not status.
   const runUpdate = await supabase
     .from("pickup_runs")
-    .update({ status: "completed" })
+    .update({ status: "completed", is_completed: true })
     .eq("id", run_id);
 
   if (runUpdate.error) {
