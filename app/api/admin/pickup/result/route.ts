@@ -171,6 +171,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: upRes.error.message }, { status: 500 });
   }
 
+  // Mark the run completed so it never stays stuck in_progress.
+  const runUpdate = await supabase
+    .from("pickup_runs")
+    .update({ status: "completed" })
+    .eq("id", run_id);
+
+  if (runUpdate.error) {
+    return NextResponse.json({ error: runUpdate.error.message }, { status: 500 });
+  }
+
   // 2) Replace team assignments (idempotent for edits).
   const del = await supabase.from("pickup_run_team_assignments").delete().eq("run_id", run_id);
   if (del.error) {
