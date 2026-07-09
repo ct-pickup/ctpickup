@@ -12,16 +12,25 @@ end $$;
 
 -- ── 2. New columns on pickup_runs ──────────────────────────────────────────
 alter table public.pickup_runs
-  add column if not exists latitude    double precision,
-  add column if not exists longitude   double precision,
-  add column if not exists level       session_level,
-  add column if not exists spots_taken integer not null default 0;
+  add column if not exists latitude     double precision,
+  add column if not exists longitude    double precision,
+  add column if not exists level        session_level,
+  add column if not exists spots_taken  integer not null default 0,
+  add column if not exists is_completed boolean not null default false;
 
 -- ── 3. Index for map time-range queries ────────────────────────────────────
 create index if not exists pickup_runs_start_at_idx
   on public.pickup_runs (start_at asc);
 
--- ── 4. Backfill spots_taken from live RSVPs ────────────────────────────────
+-- ── 4. Backfill is_completed from existing completed runs ─────────────────
+-- status = 'completed' is the source of truth; is_completed mirrors it so
+-- analytics queries (which filter on is_completed) and the result/end-run
+-- routes (which set both) stay in sync.
+update public.pickup_runs
+set is_completed = true
+where status = 'completed';
+
+-- ── 5. Backfill spots_taken from live RSVPs ────────────────────────────────
 -- Capacity-holding statuses: confirmed + pending_payment
 -- (defined in mobile/lib/pickup/waitlist.ts as PICKUP_CAPACITY_STATUSES).
 -- Sets absolute count so this is safe to run multiple times.
@@ -33,7 +42,7 @@ set spots_taken = (
     and r.status in ('confirmed', 'pending_payment')
 );
 
--- ── 5. Trigger: keep spots_taken live ──────────────────────────────────────
+-- ── 6. Trigger: keep spots_taken live ──────────────────────────────────────
 -- Fires BEFORE INSERT | DELETE | UPDATE OF status on pickup_run_rsvps.
 --
 -- pickup_rsvp_status enum values (from production):
@@ -124,7 +133,7 @@ create trigger trg_sync_pickup_run_spots
   before insert or delete or update of status on public.pickup_run_rsvps
   for each row execute function sync_pickup_run_spots();
 
--- ── 6. Realtime on pickup_runs ─────────────────────────────────────────────
+-- ── 7. Realtime on pickup_runs ─────────────────────────────────────────────
 do $$ begin
   alter publication supabase_realtime add table public.pickup_runs;
 exception when duplicate_object then null;
