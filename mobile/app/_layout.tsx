@@ -397,6 +397,13 @@ function RootLayoutNav() {
                               headerTintColor: "#fff",
                             }}
                           />
+                          <Stack.Screen
+                            name="peer-vote/[id]"
+                            options={{
+                              headerShown: false,
+                              gestureEnabled: false,
+                            }}
+                          />
                           </Stack>
                         </ThemeProvider>
                         <AppOpeningTheme key={openingThemeKey} />
