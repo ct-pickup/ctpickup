@@ -38,8 +38,7 @@ type TabId =
   | "goalie"
   | "defender"
   | "midfielder"
-  | "attacker"
-  | "goals";
+  | "attacker";
 
 type ApiRow = {
   id: string;
@@ -64,7 +63,6 @@ type LeaderboardsPayload = {
   defender: unknown[];
   midfielder: unknown[];
   attacker: unknown[];
-  goals: unknown[];
 };
 
 const TABS: Array<{ id: TabId; label: string }> = [
@@ -76,7 +74,6 @@ const TABS: Array<{ id: TabId; label: string }> = [
   { id: "defender", label: "Def" },
   { id: "midfielder", label: "Mid" },
   { id: "attacker", label: "Atk" },
-  { id: "goals", label: "Goals" },
 ];
 
 const REGIONS: RegionFilter[] = ["ALL", "CT", "NY", "NJ", "MD"];
@@ -105,7 +102,6 @@ function parsePayload(json: unknown): LeaderboardsPayload | null {
     defender: asRowArray(json.defender),
     midfielder: asRowArray(json.midfielder),
     attacker: asRowArray(json.attacker),
-    goals: asRowArray(json.goals),
   };
 }
 
@@ -219,9 +215,7 @@ export default function LeaderboardsScreen() {
                   ? payload.defender
                   : tab === "midfielder"
                     ? payload.midfielder
-                    : tab === "attacker"
-                      ? payload.attacker
-                      : payload.goals;
+                    : payload.attacker;
     const out: ApiRow[] = [];
     for (const item of raw) {
       const r = parseRow(item);

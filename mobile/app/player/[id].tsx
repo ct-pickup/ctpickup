@@ -672,9 +672,6 @@ export default function PlayerProfileScreen() {
         ) : (
           <>
             <Text style={styles.valueLine}>
-              <Text style={styles.valueK}>Sessions</Text> {sessionsPlayed == null ? "—" : sessionsPlayed}
-            </Text>
-            <Text style={styles.valueLine}>
               <Text style={styles.valueK}>Tournaments</Text> {tournamentsPlayed == null ? "—" : tournamentsPlayed}
             </Text>
             {games == null ? (
