@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 const ALLOWED_FORMATS = ["5v5", "6v6", "7v7", "Open"];
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
 
   const { data: profile, error: profErr } = await admin
     .from("profiles")
-    .select("approved, first_name, last_name, service_region")
+    .select("approved, first_name, last_name, nearest_venue")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
 
   const invite_only = body.invite_only === true;
 
-  const service_region = String(profile.service_region ?? "CT").toUpperCase();
+  const service_region = serviceRegionForVenueName(profile.nearest_venue ?? "") ?? "CT";
   const host_name = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Host";
   const title = `${host_name}'s ${format} Session`;
 
