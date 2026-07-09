@@ -45,11 +45,16 @@ import { PreferencesSection } from "@/components/account/PreferencesSection";
 import { ProfileSection } from "@/components/account/ProfileSection";
 import { ReferralSection } from "@/components/account/ReferralSection";
 import { ReliabilitySection } from "@/components/account/ReliabilitySection";
+import { SoccerBackgroundSection } from "@/components/account/SoccerBackgroundSection";
 import {
   accountStyles as styles,
   LIME,
   POSITION_OPTIONS,
+  SPECIFIC_POSITION_OPTIONS,
+  EXPERIENCE_LEVEL_OPTIONS,
   type PositionValue,
+  type SpecificPositionValue,
+  type ExperienceLevelValue,
 } from "@/components/account/accountStyles";
 
 const SUPPORT_EMAIL = "pickupct@gmail.com";
@@ -83,13 +88,19 @@ type ProfileRow = {
   push_notifications_enabled: boolean | null;
   marketing_push_enabled: boolean | null;
   max_drive_minutes: number | null;
+  primary_position: string | null;
+  secondary_positions: string[] | null;
+  experience_level: string | null;
+  date_of_birth: string | null;
+  club_name: string | null;
+  roster_url: string | null;
 };
 
 const PROFILE_SELECT_WITH_PUSH =
-  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled,marketing_push_enabled,max_drive_minutes";
+  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled,marketing_push_enabled,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url";
 
 const PROFILE_SELECT_WITHOUT_PUSH =
-  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,max_drive_minutes";
+  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url";
 
 function supabaseLooksLikeMissingColumn(err: { message?: string } | null | undefined, col: string): boolean {
   const msg = err?.message ?? "";
@@ -147,6 +158,12 @@ export default function AccountScreen() {
   const [editFirstName, setEditFirstName] = useState("");
   const [editLastName, setEditLastName] = useState("");
   const [editPlayingPosition, setEditPlayingPosition] = useState<PositionValue | null>(null);
+  const [editPrimaryPosition, setEditPrimaryPosition] = useState<SpecificPositionValue | null>(null);
+  const [editSecondaryPositions, setEditSecondaryPositions] = useState<SpecificPositionValue[]>([]);
+  const [editExperienceLevel, setEditExperienceLevel] = useState<ExperienceLevelValue | null>(null);
+  const [editDateOfBirth, setEditDateOfBirth] = useState("");
+  const [editClubName, setEditClubName] = useState("");
+  const [editRosterUrl, setEditRosterUrl] = useState("");
   const [editInstagram, setEditInstagram] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editZipCode, setEditZipCode] = useState("");
@@ -156,6 +173,8 @@ export default function AccountScreen() {
   const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
   const [editOk, setEditOk] = useState(false);
   const [positionPickerOpen, setPositionPickerOpen] = useState(false);
+  const [primaryPositionPickerOpen, setPrimaryPositionPickerOpen] = useState(false);
+  const [experienceLevelPickerOpen, setExperienceLevelPickerOpen] = useState(false);
 
   const [waiverAccepted, setWaiverAccepted] = useState<boolean | null>(null);
   const [waiverVersion, setWaiverVersion] = useState<string | null>(null);
@@ -495,6 +514,21 @@ export default function AccountScreen() {
     const storedMax =
       profile.max_drive_minutes == null ? DEFAULT_MAX_DRIVE_MINUTES : Number(profile.max_drive_minutes);
     setMaxDriveMinutes(clampMaxDriveMinutes(storedMax));
+    const rawPrimary = String(profile.primary_position ?? "").trim();
+    setEditPrimaryPosition(
+      (SPECIFIC_POSITION_OPTIONS as readonly { value: string }[]).some((o) => o.value === rawPrimary) ? (rawPrimary as SpecificPositionValue) : null,
+    );
+    const rawSecondary = Array.isArray(profile.secondary_positions) ? profile.secondary_positions : [];
+    setEditSecondaryPositions(rawSecondary.filter((p): p is SpecificPositionValue =>
+      (SPECIFIC_POSITION_OPTIONS as readonly { value: string }[]).some((o) => o.value === p)
+    ));
+    const rawExp = String(profile.experience_level ?? "").trim();
+    setEditExperienceLevel(
+      (EXPERIENCE_LEVEL_OPTIONS as readonly { value: string }[]).some((o) => o.value === rawExp) ? (rawExp as ExperienceLevelValue) : null,
+    );
+    setEditDateOfBirth(String(profile.date_of_birth ?? ""));
+    setEditClubName(String(profile.club_name ?? ""));
+    setEditRosterUrl(String(profile.roster_url ?? ""));
   }, [profile, editBusy]);
 
   const loadWaiverStatus = useCallback(async (opts?: { silent?: boolean }) => {
@@ -662,6 +696,12 @@ export default function AccountScreen() {
         zip_code: zipStored,
         username: usernameResolved,
         updated_at: updatedAt,
+        primary_position: editPrimaryPosition ?? null,
+        secondary_positions: editSecondaryPositions.length > 0 ? editSecondaryPositions : null,
+        experience_level: editExperienceLevel ?? null,
+        date_of_birth: editDateOfBirth.trim() || null,
+        club_name: editClubName.trim() || null,
+        roster_url: editRosterUrl.trim() || null,
       };
 
       const origin = siteOrigin();
@@ -1161,6 +1201,18 @@ export default function AccountScreen() {
           setEditLastName={setEditLastName}
           editPlayingPosition={editPlayingPosition}
           setEditPlayingPosition={setEditPlayingPosition}
+          editPrimaryPosition={editPrimaryPosition}
+          setEditPrimaryPosition={setEditPrimaryPosition}
+          editSecondaryPositions={editSecondaryPositions}
+          setEditSecondaryPositions={setEditSecondaryPositions}
+          editExperienceLevel={editExperienceLevel}
+          setEditExperienceLevel={setEditExperienceLevel}
+          editDateOfBirth={editDateOfBirth}
+          setEditDateOfBirth={setEditDateOfBirth}
+          editClubName={editClubName}
+          setEditClubName={setEditClubName}
+          editRosterUrl={editRosterUrl}
+          setEditRosterUrl={setEditRosterUrl}
           editInstagram={editInstagram}
           setEditInstagram={setEditInstagram}
           editPhone={editPhone}
@@ -1178,6 +1230,10 @@ export default function AccountScreen() {
           usernameAutoFromName={usernameAutoFromName}
           positionPickerOpen={positionPickerOpen}
           setPositionPickerOpen={setPositionPickerOpen}
+          primaryPositionPickerOpen={primaryPositionPickerOpen}
+          setPrimaryPositionPickerOpen={setPrimaryPositionPickerOpen}
+          experienceLevelPickerOpen={experienceLevelPickerOpen}
+          setExperienceLevelPickerOpen={setExperienceLevelPickerOpen}
           profileSaveError={profileSaveError}
           editMsg={editMsg}
           editOk={editOk}
@@ -1226,6 +1282,14 @@ export default function AccountScreen() {
           )}
         </View>
 
+        <SoccerBackgroundSection
+          primaryPosition={profile?.primary_position ?? null}
+          secondaryPositions={profile?.secondary_positions ?? null}
+          experienceLevel={profile?.experience_level ?? null}
+          dateOfBirth={profile?.date_of_birth ?? null}
+          clubName={profile?.club_name ?? null}
+          rosterUrl={profile?.roster_url ?? null}
+        />
         <ReliabilitySection
           loading={reliabilityLoading}
           label={reliabilityLabel}

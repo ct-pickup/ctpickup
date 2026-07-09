@@ -256,6 +256,11 @@ export const accountStyles = StyleSheet.create({
   },
   devReplayText: { fontSize: 13, color: "rgba(253,224,71,0.85)", fontWeight: "600" },
   devReplayRowGap: { marginTop: 12 },
+  bgRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 6 },
+  bgLabel: { fontSize: 13, color: "rgba(255,255,255,0.45)", fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase" },
+  bgValue: { fontSize: 14, color: "#fff", fontWeight: "600", flexShrink: 1, textAlign: "right", maxWidth: "65%" },
+  ghostBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", alignItems: "center" },
+  ghostBtnText: { fontSize: 14, color: "rgba(255,255,255,0.65)", fontWeight: "600" },
 });
 
 export const POSITION_OPTIONS = [
@@ -266,3 +271,29 @@ export const POSITION_OPTIONS = [
 ] as const;
 
 export type PositionValue = (typeof POSITION_OPTIONS)[number]["value"];
+
+export const SPECIFIC_POSITION_OPTIONS = [
+  { value: "GK" as const, label: "GK — Goalkeeper" },
+  { value: "CB" as const, label: "CB — Center Back" },
+  { value: "RB" as const, label: "RB — Right Back" },
+  { value: "LB" as const, label: "LB — Left Back" },
+  { value: "CDM" as const, label: "CDM — Defensive Mid" },
+  { value: "CM" as const, label: "CM — Central Mid" },
+  { value: "CAM" as const, label: "CAM — Attacking Mid" },
+  { value: "LW" as const, label: "LW — Left Wing" },
+  { value: "RW" as const, label: "RW — Right Wing" },
+  { value: "ST" as const, label: "ST — Striker" },
+] as const;
+
+export type SpecificPositionValue = (typeof SPECIFIC_POSITION_OPTIONS)[number]["value"];
+
+export const EXPERIENCE_LEVEL_OPTIONS = [
+  { value: "recreational" as const, label: "Recreational" },
+  { value: "club" as const, label: "Club" },
+  { value: "hs_varsity" as const, label: "High School Varsity" },
+  { value: "college" as const, label: "College" },
+  { value: "semi_pro" as const, label: "Semi-Pro" },
+  { value: "pro" as const, label: "Pro" },
+] as const;
+
+export type ExperienceLevelValue = (typeof EXPERIENCE_LEVEL_OPTIONS)[number]["value"];
