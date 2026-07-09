@@ -1,10 +1,12 @@
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -29,17 +31,42 @@ const SKILL_LEVELS = [
   { value: "diamond", label: "Diamond only" },
 ];
 
+type NominatimResult = { place_id: number; display_name: string; lat: string; lon: string };
 type Step = 1 | 2 | 3;
+
+function fmt12Hour(date: Date): string {
+  let h = date.getHours();
+  const m = date.getMinutes();
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  return `${h}:${m.toString().padStart(2, "0")} ${ampm}`;
+}
+
+function fmtDate(date: Date): string {
+  return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+}
 
 export default function SessionCreateScreen() {
   const router = useRouter();
   const { session } = useAuth();
   const [step, setStep] = useState<Step>(1);
 
+  // Location
+  const [locationQuery, setLocationQuery] = useState("");
+  const [locationSuggestions, setLocationSuggestions] = useState<NominatimResult[]>([]);
+  const [locationSelected, setLocationSelected] = useState<NominatimResult | null>(null);
+  const [locationSearching, setLocationSearching] = useState(false);
+
+  // Date & time
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(18, 0, 0, 0);
+  const [sessionDate, setSessionDate] = useState<Date>(tomorrow);
+  const [sessionTime, setSessionTime] = useState<Date>(tomorrow);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
   // Step 1
-  const [location, setLocation] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
   const [playerLimit, setPlayerLimit] = useState(10);
   const [skillLevel, setSkillLevel] = useState("all");
   const [format, setFormat] = useState("Open");
@@ -52,12 +79,31 @@ export default function SessionCreateScreen() {
   const [isInviteOnly, setIsInviteOnly] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
+  async function searchLocation(q: string) {
+    setLocationQuery(q);
+    setLocationSelected(null);
+    if (q.trim().length < 3) { setLocationSuggestions([]); return; }
+    setLocationSearching(true);
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=5&countrycodes=us`;
+      const r = await fetch(url, { headers: { "Accept-Language": "en", "User-Agent": "CTPickup/1.0" } });
+      const data = (await r.json()) as NominatimResult[];
+      setLocationSuggestions(data);
+    } catch {
+      setLocationSuggestions([]);
+    } finally {
+      setLocationSearching(false);
+    }
+  }
+
+  function selectLocation(item: NominatimResult) {
+    setLocationSelected(item);
+    setLocationQuery(item.display_name);
+    setLocationSuggestions([]);
+  }
+
   function validateStep1(): string | null {
-    if (!location.trim()) return "Please enter a location.";
-    if (!date.trim()) return "Please enter a date (YYYY-MM-DD).";
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) return "Date must be YYYY-MM-DD format.";
-    if (!time.trim()) return "Please enter a time (e.g. 18:00).";
-    if (!/^\d{1,2}:\d{2}$/.test(time.trim())) return "Time must be HH:MM format.";
+    if (!locationSelected && !locationQuery.trim()) return "Please enter a location.";
     return null;
   }
 
@@ -88,8 +134,13 @@ export default function SessionCreateScreen() {
   }
 
   function hostRakeCents(): number {
-    const total = buyInCents() * playerLimit;
-    return Math.round(total * 0.9);
+    return Math.round(buyInCents() * playerLimit * 0.9);
+  }
+
+  function combinedDateTime(): Date {
+    const d = new Date(sessionDate);
+    d.setHours(sessionTime.getHours(), sessionTime.getMinutes(), 0, 0);
+    return d;
   }
 
   async function publish() {
@@ -101,10 +152,14 @@ export default function SessionCreateScreen() {
 
     setPublishing(true);
     try {
-      const startAt = `${date.trim()}T${time.trim()}:00`;
+      const dt = combinedDateTime();
+      if (dt <= new Date()) { Alert.alert("Invalid time", "Session must be in the future."); return; }
+
       const body = {
-        location_text: location.trim(),
-        start_at: startAt,
+        location_text: locationSelected?.display_name ?? locationQuery.trim(),
+        latitude: locationSelected ? parseFloat(locationSelected.lat) : null,
+        longitude: locationSelected ? parseFloat(locationSelected.lon) : null,
+        start_at: dt.toISOString(),
         capacity: playerLimit,
         min_tier: skillLevel === "all" ? null : skillLevel,
         format,
@@ -114,10 +169,7 @@ export default function SessionCreateScreen() {
 
       const r = await fetch(`${origin}/api/sessions/create`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
       });
 
@@ -132,7 +184,7 @@ export default function SessionCreateScreen() {
         { text: "View map", onPress: () => router.replace("/session-map") },
         { text: "Done", onPress: () => router.back() },
       ]);
-    } catch (e) {
+    } catch {
       Alert.alert("Error", "Network error. Please try again.");
     } finally {
       setPublishing(false);
@@ -143,7 +195,8 @@ export default function SessionCreateScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 60 }}>
+      <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 80 }} keyboardShouldPersistTaps="handled">
+
         {/* Header */}
         <View style={s.header}>
           <Pressable onPress={() => step === 1 ? router.back() : setStep((step - 1) as Step)} hitSlop={10}>
@@ -166,46 +219,83 @@ export default function SessionCreateScreen() {
           <View style={s.card}>
             <Text style={s.fieldLabel}>LOCATION</Text>
             <TextInput
-              style={s.input} value={location} onChangeText={setLocation}
-              placeholder="Field name or address" placeholderTextColor="rgba(255,255,255,0.3)"
+              style={s.input}
+              value={locationQuery}
+              onChangeText={(t) => void searchLocation(t)}
+              placeholder="Search field name or address…"
+              placeholderTextColor="rgba(255,255,255,0.3)"
               autoCorrect={false}
+              returnKeyType="search"
             />
+            {locationSearching && <ActivityIndicator color={LIME} style={{ marginTop: 8 }} />}
+            {locationSuggestions.length > 0 && (
+              <View style={s.suggestBox}>
+                {locationSuggestions.map((item) => (
+                  <Pressable key={item.place_id} onPress={() => selectLocation(item)} style={s.suggestRow}>
+                    <FontAwesome name="map-marker" size={13} color={LIME} style={{ marginTop: 2 }} />
+                    <Text style={s.suggestText} numberOfLines={2}>{item.display_name}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+            {locationSelected && (
+              <View style={s.selectedBadge}>
+                <FontAwesome name="check-circle" size={13} color={LIME} />
+                <Text style={s.selectedText} numberOfLines={1}>{locationSelected.display_name}</Text>
+              </View>
+            )}
 
-            <Text style={[s.fieldLabel, { marginTop: 16 }]}>DATE</Text>
-            <TextInput
-              style={s.input} value={date} onChangeText={setDate}
-              placeholder="YYYY-MM-DD" placeholderTextColor="rgba(255,255,255,0.3)"
-              keyboardType="numeric"
-            />
+            <Text style={[s.fieldLabel, { marginTop: 20 }]}>DATE</Text>
+            <Pressable onPress={() => { setShowDatePicker(true); setShowTimePicker(false); }} style={s.pickerBtn}>
+              <FontAwesome name="calendar" size={15} color={LIME} />
+              <Text style={s.pickerBtnText}>{fmtDate(sessionDate)}</Text>
+            </Pressable>
+            {showDatePicker && (
+              <DateTimePicker
+                value={sessionDate}
+                mode="date"
+                minimumDate={new Date()}
+                display="inline"
+                themeVariant="dark"
+                onChange={(_, d) => { if (d) setSessionDate(d); setShowDatePicker(false); }}
+              />
+            )}
 
-            <Text style={[s.fieldLabel, { marginTop: 16 }]}>KICKOFF TIME (ET)</Text>
-            <TextInput
-              style={s.input} value={time} onChangeText={setTime}
-              placeholder="18:00" placeholderTextColor="rgba(255,255,255,0.3)"
-              keyboardType="numeric"
-            />
+            <Text style={[s.fieldLabel, { marginTop: 16 }]}>KICKOFF TIME</Text>
+            <Pressable onPress={() => { setShowTimePicker(true); setShowDatePicker(false); }} style={s.pickerBtn}>
+              <FontAwesome name="clock-o" size={15} color={LIME} />
+              <Text style={s.pickerBtnText}>{fmt12Hour(sessionTime)}</Text>
+            </Pressable>
+            {showTimePicker && (
+              <DateTimePicker
+                value={sessionTime}
+                mode="time"
+                is24Hour={false}
+                display="spinner"
+                themeVariant="dark"
+                onChange={(_, t) => { if (t) setSessionTime(t); setShowTimePicker(false); }}
+              />
+            )}
 
-            <Text style={[s.fieldLabel, { marginTop: 16 }]}>PLAYER LIMIT</Text>
+            <Text style={[s.fieldLabel, { marginTop: 20 }]}>PLAYER LIMIT</Text>
             <View style={s.chipRow}>
               {PLAYER_LIMITS.map((n) => (
-                <Pressable key={n} onPress={() => setPlayerLimit(n)}
-                  style={[s.chip, playerLimit === n && s.chipActive]}>
+                <Pressable key={n} onPress={() => setPlayerLimit(n)} style={[s.chip, playerLimit === n && s.chipActive]}>
                   <Text style={[s.chipText, playerLimit === n && s.chipTextActive]}>{n}</Text>
                 </Pressable>
               ))}
             </View>
 
-            <Text style={[s.fieldLabel, { marginTop: 16 }]}>FORMAT</Text>
+            <Text style={[s.fieldLabel, { marginTop: 20 }]}>FORMAT</Text>
             <View style={s.chipRow}>
               {FORMATS.map((f) => (
-                <Pressable key={f} onPress={() => setFormat(f)}
-                  style={[s.chip, format === f && s.chipActive]}>
+                <Pressable key={f} onPress={() => setFormat(f)} style={[s.chip, format === f && s.chipActive]}>
                   <Text style={[s.chipText, format === f && s.chipTextActive]}>{f}</Text>
                 </Pressable>
               ))}
             </View>
 
-            <Text style={[s.fieldLabel, { marginTop: 16 }]}>MINIMUM SKILL LEVEL</Text>
+            <Text style={[s.fieldLabel, { marginTop: 20 }]}>MINIMUM SKILL LEVEL</Text>
             {SKILL_LEVELS.map((sl) => (
               <Pressable key={sl.value} onPress={() => setSkillLevel(sl.value)}
                 style={[s.radioRow, skillLevel === sl.value && s.radioRowActive]}>
@@ -221,12 +311,10 @@ export default function SessionCreateScreen() {
           <View style={s.card}>
             <Text style={s.fieldLabel}>SESSION TYPE</Text>
             <View style={s.toggleRow}>
-              <Pressable onPress={() => setIsPaid(false)}
-                style={[s.toggleBtn, !isPaid && s.toggleBtnActive]}>
+              <Pressable onPress={() => setIsPaid(false)} style={[s.toggleBtn, !isPaid && s.toggleBtnActive]}>
                 <Text style={[s.toggleBtnText, !isPaid && s.toggleBtnTextActive]}>Free</Text>
               </Pressable>
-              <Pressable onPress={() => setIsPaid(true)}
-                style={[s.toggleBtn, isPaid && s.toggleBtnActive]}>
+              <Pressable onPress={() => setIsPaid(true)} style={[s.toggleBtn, isPaid && s.toggleBtnActive]}>
                 <Text style={[s.toggleBtnText, isPaid && s.toggleBtnTextActive]}>Paid</Text>
               </Pressable>
             </View>
@@ -258,10 +346,7 @@ export default function SessionCreateScreen() {
                 <Text style={s.hint}>Players pay when they RSVP. You get paid out after the session ends.</Text>
               </>
             )}
-
-            {!isPaid && (
-              <Text style={s.hint}>Free sessions are open to all eligible players at no cost.</Text>
-            )}
+            {!isPaid && <Text style={s.hint}>Free sessions are open to all eligible players at no cost.</Text>}
           </View>
         )}
 
@@ -269,14 +354,17 @@ export default function SessionCreateScreen() {
         {step === 3 && (
           <View style={s.card}>
             <Text style={s.reviewTitle}>Session summary</Text>
-
             <View style={s.reviewRow}>
               <Text style={s.reviewLabel}>Location</Text>
-              <Text style={s.reviewValue}>{location}</Text>
+              <Text style={s.reviewValue} numberOfLines={2}>{locationSelected?.display_name ?? locationQuery}</Text>
             </View>
             <View style={s.reviewRow}>
-              <Text style={s.reviewLabel}>Date & time</Text>
-              <Text style={s.reviewValue}>{date} at {time}</Text>
+              <Text style={s.reviewLabel}>Date</Text>
+              <Text style={s.reviewValue}>{fmtDate(sessionDate)}</Text>
+            </View>
+            <View style={s.reviewRow}>
+              <Text style={s.reviewLabel}>Kickoff</Text>
+              <Text style={s.reviewValue}>{fmt12Hour(sessionTime)}</Text>
             </View>
             <View style={s.reviewRow}>
               <Text style={s.reviewLabel}>Players</Text>
@@ -288,7 +376,7 @@ export default function SessionCreateScreen() {
             </View>
             <View style={s.reviewRow}>
               <Text style={s.reviewLabel}>Skill level</Text>
-              <Text style={s.reviewValue}>{SKILL_LEVELS.find(s => s.value === skillLevel)?.label}</Text>
+              <Text style={s.reviewValue}>{SKILL_LEVELS.find((sl) => sl.value === skillLevel)?.label}</Text>
             </View>
             <View style={s.reviewRow}>
               <Text style={s.reviewLabel}>Pricing</Text>
@@ -308,8 +396,7 @@ export default function SessionCreateScreen() {
               {isInviteOnly ? "Only players you invite can join." : "Anyone who meets the skill level can join."}
             </Text>
 
-            <Pressable onPress={() => void publish()}
-              disabled={publishing}
+            <Pressable onPress={() => void publish()} disabled={publishing}
               style={[s.publishBtn, publishing && { opacity: 0.5 }]}>
               {publishing
                 ? <ActivityIndicator color="#0a0a0a" />
@@ -318,7 +405,6 @@ export default function SessionCreateScreen() {
           </View>
         )}
 
-        {/* Next button for steps 1 and 2 */}
         {step < 3 && (
           <Pressable onPress={nextStep} style={s.nextBtn}>
             <Text style={s.nextBtnText}>Continue →</Text>
@@ -340,6 +426,13 @@ const s = StyleSheet.create({
   card: { backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", padding: 18, marginBottom: 16 },
   fieldLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 1.2, color: "rgba(255,255,255,0.45)", marginBottom: 8, textTransform: "uppercase" },
   input: { backgroundColor: "rgba(255,255,255,0.07)", borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", color: "#fff", paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
+  suggestBox: { marginTop: 6, backgroundColor: "#1a1a1a", borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", overflow: "hidden" },
+  suggestRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, padding: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
+  suggestText: { flex: 1, color: "#fff", fontSize: 13, lineHeight: 18 },
+  selectedBadge: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, padding: 10, backgroundColor: "rgba(163,230,53,0.08)", borderRadius: 8, borderWidth: 1, borderColor: "rgba(163,230,53,0.2)" },
+  selectedText: { flex: 1, color: LIME, fontSize: 13 },
+  pickerBtn: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "rgba(255,255,255,0.07)", borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", paddingHorizontal: 14, paddingVertical: 13 },
+  pickerBtnText: { color: "#fff", fontSize: 16, fontWeight: "500" },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.04)" },
   chipActive: { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.12)" },
