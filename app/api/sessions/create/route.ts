@@ -87,6 +87,7 @@ export async function POST(req: Request) {
       fee_cents,
       status: "planning",
       run_type: invite_only ? "select" : "public",
+      format,
       service_region,
       created_by: user.id,
       is_current: false,
