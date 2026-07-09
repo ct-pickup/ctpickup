@@ -85,9 +85,15 @@ export default function SessionCreateScreen() {
     if (q.trim().length < 3) { setLocationSuggestions([]); return; }
     setLocationSearching(true);
     try {
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=5&countrycodes=us`;
+      const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5&bbox=-79.76,36.85,-71.79,45.01`;
       const r = await fetch(url, { headers: { "Accept-Language": "en", "User-Agent": "CTPickup/1.0" } });
-      const data = (await r.json()) as NominatimResult[];
+      const json = await r.json() as { features: { properties: { name?: string; street?: string; city?: string; state?: string; osm_id: number }; geometry: { coordinates: [number, number] } }[] };
+      const data: NominatimResult[] = (json.features ?? []).map((f) => ({
+        place_id: f.properties.osm_id,
+        display_name: [f.properties.name, f.properties.street, f.properties.city, f.properties.state].filter(Boolean).join(", "),
+        lat: String(f.geometry.coordinates[1]),
+        lon: String(f.geometry.coordinates[0]),
+      }));
       setLocationSuggestions(data);
     } catch {
       setLocationSuggestions([]);
