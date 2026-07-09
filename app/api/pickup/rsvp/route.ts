@@ -589,7 +589,7 @@ export async function POST(req: Request) {
     const successUrl = pickupCheckoutSuccessUrl(baseUrl, mobileReturn);
     const cancelUrl = pickupCheckoutCancelUrl(baseUrl, mobileReturn);
 
-    const lineItems: Parameters<typeof stripe.checkout.sessions.create>[0]["line_items"] = [
+    const lineItems = [
       {
         price_data: {
           currency,
@@ -607,7 +607,7 @@ export async function POST(req: Request) {
         price_data: {
           currency,
           unit_amount: 500,
-          product_data: { name: "Action Photos" },
+          product_data: { name: "Action Photos", description: "Professional action photos from your session" },
         },
         quantity: 1,
       });
