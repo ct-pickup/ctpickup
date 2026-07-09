@@ -18,11 +18,11 @@ export async function POST(req: Request) {
 
   const { data: profile, error: profErr } = await admin
     .from("profiles")
-    .select("approved, first_name, last_name, nearest_venue")
+    .select("approved, is_admin, first_name, last_name, nearest_venue")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (profErr || !profile?.approved) {
+  if (profErr || (!profile?.approved && !profile?.is_admin)) {
     return NextResponse.json({ error: "Your account must be approved to host sessions." }, { status: 403 });
   }
 
