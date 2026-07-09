@@ -35,14 +35,35 @@ export async function fetchPickupRunById(
     console.error("[pickup/featured] fetchPickupRunById:", r.error.message, r.error);
     return null;
   }
-  if (!r.data) return null;
-  if (isTerminalPickupRunStatus(r.data.status)) return null;
-
-  const st = String(r.data.status ?? "").trim().toLowerCase();
-  if (!(PICKUP_RUN_LIST_STATUSES as readonly string[]).includes(st)) {
+  if (!r.data) {
+    console.log("[pickup/featured] fetchPickupRunById: no row", { id });
+    return null;
+  }
+  if (isTerminalPickupRunStatus(r.data.status)) {
+    console.log("[pickup/featured] fetchPickupRunById: terminal status", {
+      id,
+      status: r.data.status,
+    });
     return null;
   }
 
+  const st = String(r.data.status ?? "").trim().toLowerCase();
+  if (!(PICKUP_RUN_LIST_STATUSES as readonly string[]).includes(st)) {
+    console.log("[pickup/featured] fetchPickupRunById: status not listable", {
+      id,
+      status: r.data.status,
+      normalized: st,
+      allowed: PICKUP_RUN_LIST_STATUSES,
+    });
+    return null;
+  }
+
+  console.log("[pickup/featured] fetchPickupRunById: ok", {
+    id,
+    status: st,
+    run_type: r.data.run_type,
+    service_region: r.data.service_region,
+  });
   return r.data as PublicPickupRunRow;
 }
 

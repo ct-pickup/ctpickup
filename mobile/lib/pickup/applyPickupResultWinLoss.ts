@@ -49,6 +49,8 @@ export async function applyPickupResultWinLossDeltas(
   const uids = new Set([...netW.keys(), ...netL.keys()]);
   const now = new Date().toISOString();
 
+  const errors: string[] = [];
+
   for (const uid of uids) {
     const dw = netW.get(uid) || 0;
     const dl = netL.get(uid) || 0;
@@ -61,7 +63,7 @@ export async function applyPickupResultWinLossDeltas(
       .maybeSingle();
 
     if (profRes.error || !profRes.data) {
-      console.error("[applyPickupResultWinLossDeltas] profile read failed:", profRes.error?.message, uid);
+      errors.push(`read failed for ${uid}: ${profRes.error?.message ?? "no data"}`);
       continue;
     }
 
@@ -75,7 +77,11 @@ export async function applyPickupResultWinLossDeltas(
       .eq("id", uid);
 
     if (up.error) {
-      console.error("[applyPickupResultWinLossDeltas] profile update failed:", up.error.message, uid);
+      errors.push(`update failed for ${uid}: ${up.error.message}`);
     }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`applyPickupResultWinLossDeltas: ${errors.join("; ")}`);
   }
 }
