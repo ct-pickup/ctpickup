@@ -3,8 +3,16 @@ import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 const ALLOWED_FORMATS = ["5v5", "6v6", "7v7", "Open"];
-const ALLOWED_TIERS = ["bronze", "silver", "gold", "platinum", "diamond"];
 const ALLOWED_CAPACITIES = [6, 8, 10, 12, 14, 16];
+
+const TIER_MAP: Record<string, { level: string; open_tier_rank: number }> = {
+  all:      { level: "casual",      open_tier_rank: 0 },
+  bronze:   { level: "casual",      open_tier_rank: 1 },
+  silver:   { level: "casual",      open_tier_rank: 2 },
+  gold:     { level: "competitive", open_tier_rank: 3 },
+  platinum: { level: "competitive", open_tier_rank: 4 },
+  diamond:  { level: "elite",       open_tier_rank: 5 },
+};
 
 export async function POST(req: Request) {
   const admin = getSupabaseAdmin();
@@ -27,11 +35,8 @@ export async function POST(req: Request) {
   }
 
   let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
   const location_text = String(body.location_text ?? "").trim();
   if (!location_text) return NextResponse.json({ error: "location_text is required." }, { status: 400 });
@@ -52,18 +57,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `format must be one of: ${ALLOWED_FORMATS.join(", ")}` }, { status: 400 });
   }
 
-  const min_tier_raw = body.min_tier == null ? null : String(body.min_tier).trim().toLowerCase();
-  const min_tier = min_tier_raw && ALLOWED_TIERS.includes(min_tier_raw) ? min_tier_raw : null;
+  const min_tier_raw = String(body.min_tier ?? "all").trim().toLowerCase();
+  const tierConfig = TIER_MAP[min_tier_raw] ?? TIER_MAP["all"]!;
 
   const fee_cents = Math.max(0, Math.round(Number(body.fee_cents ?? 0)));
   if (fee_cents > 50000) return NextResponse.json({ error: "fee_cents cannot exceed $500." }, { status: 400 });
 
   const invite_only = body.invite_only === true;
+  const latitude = body.latitude != null ? Number(body.latitude) : null;
+  const longitude = body.longitude != null ? Number(body.longitude) : null;
 
   const service_region = serviceRegionForVenueName(profile.nearest_venue ?? "") ?? "CT";
   const host_name = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Host";
   const title = `${host_name}'s ${format} Session`;
-
   const now = new Date().toISOString();
 
   const { data: run, error: insertErr } = await admin
@@ -71,10 +77,13 @@ export async function POST(req: Request) {
     .insert({
       title,
       location_text,
+      latitude,
+      longitude,
       start_at: start_at.toISOString(),
       capacity,
       spots_taken: 0,
-      level: min_tier,
+      level: tierConfig.level,
+      open_tier_rank: tierConfig.open_tier_rank,
       fee_cents,
       status: "planning",
       run_type: invite_only ? "select" : "public",
