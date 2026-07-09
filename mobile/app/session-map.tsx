@@ -43,18 +43,19 @@ const CARD_GAP = 12;
 
 /* ----------------------------------------------------------------- types */
 
+// Matches pickup_runs columns — the production table for pickup games.
 export type Session = {
   id: string;
   title: string;
-  venue_name: string;
-  latitude: number;
-  longitude: number;
-  starts_at: string;
-  format: string;
-  level: Level;
+  location_private: string | null; // venue name (shown to confirmed players)
+  latitude: number | null;
+  longitude: number | null;
+  start_at: string;               // note: pickup_runs uses start_at, not starts_at
+  run_type: string;               // '7v7', '6v6', etc.
+  level: Level | null;
   capacity: number;
   spots_taken: number;
-  price_cents: number;
+  fee_cents: number;              // pickup_runs uses fee_cents, not price_cents
 };
 
 /* ------------------------------------------------------------------ data */
@@ -76,13 +77,15 @@ function useSessions(level: Level | "all") {
     if (!supabase) return;
     setLoading(true);
     let q = supabase
-      .from("sessions")
+      .from("pickup_runs")
       .select(
-        "id,title,venue_name,latitude,longitude,starts_at,format,level,capacity,spots_taken,price_cents",
+        "id,title,location_private,latitude,longitude,start_at,run_type,level,capacity,spots_taken,fee_cents",
       )
-      .eq("status", "published")
-      .gte("starts_at", new Date().toISOString())
-      .order("starts_at", { ascending: true })
+      .in("status", ["planning", "likely_on", "active", "in_progress"])
+      .gte("start_at", new Date().toISOString())
+      .not("latitude", "is", null)   // only show runs that have been geocoded
+      .not("longitude", "is", null)
+      .order("start_at", { ascending: true })
       .limit(60);
 
     if (level !== "all") q = q.eq("level", level);
@@ -104,24 +107,26 @@ function useSessions(level: Level | "all") {
   useEffect(() => {
     if (!supabase) return;
     const channel = supabase
-      .channel("sessions-seats")
+      .channel("pickup-runs-map")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "sessions" },
+        { event: "INSERT", schema: "public", table: "pickup_runs" },
         (payload) => {
-          const next = payload.new as Session;
-          // Only surface newly published sessions; drafts stay invisible.
-          if (next.status !== "published") return;
+          const next = payload.new as Session & { status: string };
+          const active = ["planning", "likely_on", "active", "in_progress"];
+          if (!active.includes(next.status) || !next.latitude || !next.longitude) return;
           setSessions((prev) =>
-            prev.some((s) => s.id === next.id) ? prev : [...prev, next].sort(
-              (a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at),
-            ),
+            prev.some((s) => s.id === next.id)
+              ? prev
+              : [...prev, next].sort(
+                  (a, b) => Date.parse(a.start_at) - Date.parse(b.start_at),
+                ),
           );
         },
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "sessions" },
+        { event: "UPDATE", schema: "public", table: "pickup_runs" },
         (payload) => {
           const next = payload.new as Session;
           setSessions((prev) =>
@@ -231,26 +236,28 @@ function whenLabel(iso: string) {
 function SessionCard({ session, onPress }: { session: Session; onPress: (s: Session) => void }) {
   const left = session.capacity - session.spots_taken;
   const full = left <= 0;
+  const venue = session.location_private?.trim() || "Location TBD";
+  const levelColor = session.level ? LEVEL_COLOR[session.level] : C.muted;
 
   return (
     <Pressable
       onPress={() => onPress(session)}
       accessibilityRole="button"
-      accessibilityLabel={`${session.title} at ${session.venue_name}, ${full ? "full" : `${left} spots left`}`}
+      accessibilityLabel={`${session.title} at ${venue}, ${full ? "full" : `${left} spots left`}`}
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.88 }]}
     >
       <View style={styles.cardTopRow}>
-        <View style={[styles.levelDot, { backgroundColor: LEVEL_COLOR[session.level] }]} />
+        <View style={[styles.levelDot, { backgroundColor: levelColor }]} />
         <Text style={styles.cardLevel}>
-          {session.level.toUpperCase()} · {session.format}
+          {session.level ? session.level.toUpperCase() : "PICKUP"} · {session.run_type}
         </Text>
-        <Text style={styles.cardPrice}>${(session.price_cents / 100).toFixed(0)}</Text>
+        <Text style={styles.cardPrice}>${(session.fee_cents / 100).toFixed(0)}</Text>
       </View>
 
       <Text style={styles.cardVenue} numberOfLines={1}>
-        {session.venue_name}
+        {venue}
       </Text>
-      <Text style={styles.cardWhen}>{whenLabel(session.starts_at)}</Text>
+      <Text style={styles.cardWhen}>{whenLabel(session.start_at)}</Text>
 
       <View style={styles.cardBottomRow}>
         <Text style={[styles.cardSpots, full && { color: C.muted }]}>
@@ -295,7 +302,7 @@ export default function SessionMapScreen() {
   const focus = useCallback((s: Session, index: number) => {
     setSelectedId(s.id);
     mapRef.current?.animateCamera(
-      { center: { latitude: s.latitude, longitude: s.longitude }, zoom: 13 },
+      { center: { latitude: s.latitude!, longitude: s.longitude! }, zoom: 13 },
       { duration: 320 },
     );
     listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
@@ -308,7 +315,7 @@ export default function SessionMapScreen() {
       if (s && s.id !== selectedId) {
         setSelectedId(s.id);
         mapRef.current?.animateCamera(
-          { center: { latitude: s.latitude, longitude: s.longitude } },
+          { center: { latitude: s.latitude!, longitude: s.longitude! } },
           { duration: 260 },
         );
       }
@@ -360,14 +367,14 @@ export default function SessionMapScreen() {
         {sessions.map((s, i) => (
           <TrackingMarker
             key={s.id}
-            coordinate={{ latitude: s.latitude, longitude: s.longitude }}
+            coordinate={{ latitude: s.latitude!, longitude: s.longitude! }}
             onPress={() => focus(s, i)}
             spots_taken={s.spots_taken}
             selected={s.id === selectedId}
             zIndex={s.id === selectedId ? 99 : 1}
           >
             <FillPin
-              level={s.level}
+              level={s.level ?? "casual"}
               taken={s.spots_taken}
               capacity={s.capacity}
               selected={s.id === selectedId}
