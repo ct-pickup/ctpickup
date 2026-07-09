@@ -49,9 +49,9 @@ create table player_ratings (
 create index on player_ratings (tier);
 
 -- ------------------------------------------------------------
--- Sessions
+-- Tier sessions (rating-system sessions, distinct from pickup_runs)
 -- ------------------------------------------------------------
-create table sessions (
+create table tier_sessions (
   id             uuid primary key default gen_random_uuid(),
   organizer_id   uuid not null references auth.users(id),
   venue          text not null,
@@ -65,7 +65,7 @@ create table sessions (
 );
 
 create table session_attendance (
-  session_id      uuid not null references sessions(id) on delete cascade,
+  session_id      uuid not null references tier_sessions(id) on delete cascade,
   user_id         uuid not null references auth.users(id) on delete cascade,
   status          attendance_status not null default 'registered',
   organizer_score numeric(3,1) check (organizer_score between 1 and 10),
@@ -77,7 +77,7 @@ create table session_attendance (
 -- on the pitch other than themselves, in order.
 -- ------------------------------------------------------------
 create table peer_votes (
-  session_id uuid not null references sessions(id) on delete cascade,
+  session_id uuid not null references tier_sessions(id) on delete cascade,
   voter_id   uuid not null references auth.users(id) on delete cascade,
   votee_id   uuid not null references auth.users(id) on delete cascade,
   rank       smallint not null check (rank between 1 and 3),
@@ -94,7 +94,7 @@ create index on peer_votes (session_id, votee_id);
 -- ------------------------------------------------------------
 create table rating_events (
   id              bigserial primary key,
-  session_id      uuid not null references sessions(id),
+  session_id      uuid not null references tier_sessions(id),
   user_id         uuid not null references auth.users(id),
   votes_received  integer not null,
   votes_expected  numeric(4,2) not null,
@@ -170,7 +170,7 @@ create or replace function settle_session(
 ) returns integer
 language plpgsql security definer set search_path = public as $body$
 declare
-  s              sessions%rowtype;
+  s              tier_sessions%rowtype;
   n_attendees    integer;
   n_voters       integer;
   total_votes    integer;
@@ -178,7 +178,7 @@ declare
   thin_turnout   boolean;
   rows_written   integer;
 begin
-  select * into s from sessions where id = p_session_id for update;
+  select * into s from tier_sessions where id = p_session_id for update;
   if not found then raise exception 'No such session'; end if;
   if s.state = 'settled' then return 0; end if;
   if auth.uid() is distinct from s.organizer_id and auth.role() <> 'service_role' then
@@ -258,7 +258,7 @@ begin
      and a.status = 'no_show'
      and pr.user_id = a.user_id;
 
-  update sessions set state = 'settled', settled_at = now() where id = p_session_id;
+  update tier_sessions set state = 'settled', settled_at = now() where id = p_session_id;
   return rows_written;
 end;
 $body$;
@@ -269,7 +269,7 @@ $body$;
 alter table player_ratings        enable row level security;
 alter table peer_votes            enable row level security;
 alter table session_attendance    enable row level security;
-alter table sessions              enable row level security;
+alter table tier_sessions         enable row level security;
 alter table rating_events         enable row level security;
 alter table verification_requests enable row level security;
 alter table vouches               enable row level security;
@@ -287,7 +287,7 @@ create policy cast_vote on peer_votes
          and a.status = 'attended'
     )
     and exists (
-      select 1 from sessions s
+      select 1 from tier_sessions s
        where s.id = peer_votes.session_id
          and s.state <> 'settled'
          and (s.votes_close_at is null or now() < s.votes_close_at)
@@ -300,7 +300,7 @@ create policy read_own_votes on peer_votes
 create policy read_own_events on rating_events
   for select using (auth.uid() = user_id);
 
-create policy read_sessions on sessions for select using (true);
+create policy read_tier_sessions on tier_sessions for select using (true);
 create policy read_attendance on session_attendance for select using (true);
 
 create policy own_verification on verification_requests

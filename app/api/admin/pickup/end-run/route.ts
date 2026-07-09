@@ -30,30 +30,14 @@ export async function POST(req: Request) {
 
   const now = new Date().toISOString();
 
-  // Prefer setting `is_completed` when present; fall back to status-only for older schemas.
-  const preferred = await supabase
+  const result = await supabase
     .from("pickup_runs")
-    .update({ is_completed: true, status: "completed", updated_at: now })
+    .update({ status: "completed", updated_at: now })
     .eq("id", run_id)
     .select("id,status,is_completed")
     .maybeSingle();
 
-  if (preferred.error) {
-    const msg = preferred.error.message || "Update failed";
-    const missingCol = /is_completed/i.test(msg) && (/column/i.test(msg) || /schema cache/i.test(msg) || /Could not find/i.test(msg));
-    if (!missingCol) return NextResponse.json({ error: msg }, { status: 500 });
-
-    const fallback = await supabase
-      .from("pickup_runs")
-      .update({ status: "completed", updated_at: now })
-      .eq("id", run_id)
-      .select("id,status")
-      .maybeSingle();
-
-    if (fallback.error) return NextResponse.json({ error: fallback.error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, run: fallback.data, mode: "status_only" });
-  }
-
-  return NextResponse.json({ ok: true, run: preferred.data, mode: "status_and_is_completed" });
+  if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
+  return NextResponse.json({ ok: true, run: result.data });
 }
 
