@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
-import MapView, { Marker, type MarkerProps, Region } from "react-native-maps";
+import MapView, { Marker, type MapMarkerProps, Region } from "react-native-maps";
 import Svg, { Circle } from "react-native-svg";
 import * as Location from "expo-location";
 import { format, isToday, isTomorrow } from "date-fns";
@@ -200,7 +200,7 @@ function TrackingMarker({
   selected,
   children,
   ...rest
-}: Omit<MarkerProps, "tracksViewChanges"> & {
+}: Omit<MapMarkerProps, "tracksViewChanges"> & {
   spots_taken: number;
   selected: boolean;
   children: React.ReactNode;

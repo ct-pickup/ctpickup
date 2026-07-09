@@ -36,6 +36,19 @@ function titleForRoomRow(
   return r.title;
 }
 
+// Rebuilds the run chat display title with the actual venue from pickup_runs.location_private.
+// The baked-in r.title falls back to a service-region default when location_private was null
+// at room creation time, causing every CT run to show "New Haven SoccerRoof."
+function runChatTitle(r: ChatRoomSummary): string {
+  const loc = r.pickup_runs?.location_private?.trim();
+  if (loc) {
+    const venueName = loc.split(/\r?\n/)[0]!.trim();
+    const datePart = r.title.split(" · ")[1]; // "Jun 11"
+    return datePart ? `${venueName} · ${datePart}` : venueName;
+  }
+  return r.title;
+}
+
 export default function MessagesIndex() {
   const router = useRouter();
   const { isReady, session } = useAuth();
@@ -66,8 +79,24 @@ export default function MessagesIndex() {
   );
   const tournamentTeamRooms = useMemo(() => rooms.filter((r) => r.room_type === "tournament_team"), [rooms]);
   const runBanterRooms = useMemo(() => rooms.filter((r) => r.room_type === "run_banter"), [rooms]);
-  const activeRunRooms = useMemo(() => runBanterRooms.filter((r) => r.is_active), [runBanterRooms]);
-  const pastRunRooms = useMemo(() => runBanterRooms.filter((r) => !r.is_active), [runBanterRooms]);
+  // auto_close_at = start_at + 24h (set at room creation, never updated).
+  // Active = run hasn't started yet; Past = it has. Null auto_close_at → Past.
+  const activeRunRooms = useMemo(
+    () =>
+      runBanterRooms.filter((r) => {
+        if (!r.auto_close_at) return false;
+        return Date.parse(r.auto_close_at) - 86_400_000 > Date.now();
+      }),
+    [runBanterRooms],
+  );
+  const pastRunRooms = useMemo(
+    () =>
+      runBanterRooms.filter((r) => {
+        if (!r.auto_close_at) return true;
+        return Date.parse(r.auto_close_at) - 86_400_000 <= Date.now();
+      }),
+    [runBanterRooms],
+  );
   const visibleRunRooms = runChatTab === "active" ? activeRunRooms : pastRunRooms;
   const dmGroupRooms = useMemo(
     () => rooms.filter((r) => r.room_type === "group" && isAdminDmGroupSlug(r.slug)),
@@ -223,7 +252,7 @@ export default function MessagesIndex() {
               >
                 <FontAwesome name="comments" size={18} color={LIME} style={styles.rowIcon} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.rowTitle}>{r.title}</Text>
+                  <Text style={styles.rowTitle}>{runChatTitle(r)}</Text>
                   <Text style={styles.rowSub}>{r.description?.trim() || "Pickup run"}</Text>
                 </View>
                 <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />

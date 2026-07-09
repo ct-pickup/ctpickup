@@ -35,6 +35,7 @@ export type ChatRoomSummary = {
   is_active: boolean;
   auto_close_at: string | null;
   run_id: string | null;
+  pickup_runs: { location_private: string | null; start_at: string } | null;
 };
 
 /**
@@ -60,13 +61,13 @@ export function useUserChatRooms(enabled: boolean) {
     setError(null);
     const { data, error: qErr } = await supabase
       .from("chat_rooms")
-      .select("id,slug,title,description,room_type,announcements_only,is_active,auto_close_at,run_id")
+      .select("id,slug,title,description,room_type,announcements_only,is_active,auto_close_at,run_id,pickup_runs!run_id(location_private,start_at)")
       .order("created_at", { ascending: true });
     if (qErr) {
       setError(qErr.message);
       setRooms([]);
     } else {
-      setRooms((data ?? []) as ChatRoomSummary[]);
+      setRooms((data ?? []) as unknown as ChatRoomSummary[]);
     }
     setLoading(false);
   }, [enabled, supabase, session?.user?.id]);
