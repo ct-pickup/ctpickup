@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
+import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 const ALLOWED_FORMATS = ["5v5", "6v6", "7v7", "Open"];
