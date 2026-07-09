@@ -137,6 +137,23 @@ export default function HomeScreen() {
         <FontAwesome name="chevron-right" size={16} color="rgba(255,255,255,0.5)" />
       </AnimatedPressScale>
 
+      <AnimatedPressScale
+        accessibilityRole="button"
+        accessibilityLabel="Open session map"
+        hapticOnPress
+        onPress={() => (router.push as (href: string) => void)("/session-map")}
+        style={styles.sessionMapCard}
+      >
+        <View style={styles.sessionMapIconWrap}>
+          <FontAwesome name="map" size={20} color="#0a0a0a" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.sessionMapTitle}>Session Map</Text>
+          <Text style={styles.sessionMapSub}>Find pickup near you on the map</Text>
+        </View>
+        <FontAwesome name="chevron-right" size={16} color="rgba(255,255,255,0.5)" />
+      </AnimatedPressScale>
+
       <Text style={[styles.sectionLabel, styles.sectionLabelTournament]}>IN-PERSON TOURNAMENT</Text>
       <FieldTournamentCard
         loading={fieldTournamentLoading}
@@ -238,6 +255,28 @@ const styles = StyleSheet.create({
   },
   regionHubTitle: { fontSize: 17, fontWeight: "800", color: "#fff", letterSpacing: -0.2 },
   regionHubSub: { marginTop: 4, fontSize: 13, color: "rgba(255,255,255,0.48)" },
+  sessionMapCard: {
+    marginTop: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.22)",
+    backgroundColor: "rgba(163,230,53,0.06)",
+    gap: 14,
+  },
+  sessionMapIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: LIME,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sessionMapTitle: { fontSize: 17, fontWeight: "800", color: "#fff", letterSpacing: -0.2 },
+  sessionMapSub: { marginTop: 4, fontSize: 13, color: "rgba(255,255,255,0.48)" },
   sectionLabel: {
     marginTop: 28,
     marginBottom: 12,
