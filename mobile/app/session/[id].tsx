@@ -37,6 +37,7 @@ type SessionDetail = {
   created_by: string | null;
   service_region: string | null;
   tier_session_id: string | null;
+  tiered_pricing: boolean | null;
 };
 
 type Attendee = {
@@ -116,7 +117,7 @@ export default function SessionDetailScreen() {
     try {
       const { data: runData } = await supabase
         .from("pickup_runs")
-        .select("id,title,location_text,latitude,longitude,start_at,capacity,spots_taken,fee_cents,level,open_tier_rank,run_type,format,status,created_by,service_region,tier_session_id")
+        .select("id,title,location_text,latitude,longitude,start_at,capacity,spots_taken,fee_cents,level,open_tier_rank,run_type,format,status,created_by,service_region,tier_session_id,tiered_pricing")
         .eq("id", id)
         .maybeSingle();
       if (runData) setRun(runData as SessionDetail);
@@ -286,13 +287,31 @@ export default function SessionDetailScreen() {
     if (!origin) return;
     setRsvpBusy(true);
     try {
+      // Step 1: Join the run (creates pending_payment RSVP if fee > 0)
       const r = await fetch(`${origin}/api/pickup/rsvp`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ run_id: id, action: "join" }),
+        body: JSON.stringify({ run_id: id, action: "join", checkout_return: "mobile" }),
       });
-      const j = await r.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+      const j = await r.json().catch(() => null) as { ok?: boolean; error?: string; checkout_url?: string; status?: string } | null;
       if (!r.ok || !j?.ok) { Alert.alert("Error", j?.error ?? "Could not RSVP."); return; }
+
+      // Step 2: If there's a fee and we got a checkout URL, open payment
+      if (run?.fee_cents && run.fee_cents > 0 && j?.status === "pending_payment") {
+        const payRes = await fetch(`${origin}/api/pickup/pay`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ run_id: id, checkout_return: "mobile" }),
+        });
+        const payJ = await payRes.json().catch(() => null) as { ok?: boolean; checkout_url?: string; error?: string } | null;
+        if (payJ?.checkout_url) {
+          const { Linking } = await import("react-native");
+          await Linking.openURL(payJ.checkout_url);
+        } else if (!payRes.ok) {
+          Alert.alert("Payment error", payJ?.error ?? "Could not start payment.");
+          return;
+        }
+      }
       await load();
     } finally {
       setRsvpBusy(false);
