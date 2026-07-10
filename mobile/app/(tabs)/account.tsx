@@ -207,6 +207,7 @@ export default function AccountScreen() {
   const [hubVenueResolveDone, setHubVenueResolveDone] = useState(false);
   const hubResolveKeyRef = useRef<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+  const verificationSectionY = useRef<number>(0);
   const [aboutTapCount, setAboutTapCount] = useState(0);
   const [reviewCodeModalOpen, setReviewCodeModalOpen] = useState(false);
   const [reviewCodeInput, setReviewCodeInput] = useState("");
@@ -1192,7 +1193,7 @@ export default function AccountScreen() {
           {profile?.verification_level === "self" && (
             <Pressable
               onPress={() => {
-                scrollRef.current?.scrollTo({ y: 9999, animated: true });
+                scrollRef.current?.scrollTo({ y: verificationSectionY.current, animated: true });
               }}
               style={{
                 flexDirection: "row", alignItems: "center", gap: 10,
@@ -1309,16 +1310,18 @@ export default function AccountScreen() {
           )}
         </View>
 
-        <SoccerBackgroundSection
-          primaryPosition={profile?.primary_position ?? null}
-          secondaryPositions={profile?.secondary_positions ?? null}
-          experienceLevel={profile?.experience_level ?? null}
-          dateOfBirth={profile?.date_of_birth ?? null}
-          clubName={profile?.club_name ?? null}
-          rosterUrl={profile?.roster_url ?? null}
-          verificationLevel={profile?.verification_level ?? null}
-          onSubmitVerification={() => setVerificationModalOpen(true)}
-        />
+        <View onLayout={(e) => { verificationSectionY.current = e.nativeEvent.layout.y; }}>
+          <SoccerBackgroundSection
+            primaryPosition={profile?.primary_position ?? null}
+            secondaryPositions={profile?.secondary_positions ?? null}
+            experienceLevel={profile?.experience_level ?? null}
+            dateOfBirth={profile?.date_of_birth ?? null}
+            clubName={profile?.club_name ?? null}
+            rosterUrl={profile?.roster_url ?? null}
+            verificationLevel={profile?.verification_level ?? null}
+            onSubmitVerification={() => setVerificationModalOpen(true)}
+          />
+        </View>
         <ReliabilitySection
           loading={reliabilityLoading}
           label={reliabilityLabel}
