@@ -70,6 +70,14 @@ export default function AdminMenuScreen() {
 
         <Pressable
           style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
+          onPress={() => router.push("/admin/tier-management")}
+        >
+          <Text style={styles.cardTitle}>Tier Management</Text>
+          <Text style={styles.cardBody}>Search players and manually set their tier and verification level.</Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
           onPress={() => router.push("/admin/standing")}
         >
           <Text style={styles.cardTitle}>Standing</Text>
