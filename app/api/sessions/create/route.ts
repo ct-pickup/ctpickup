@@ -88,6 +88,7 @@ export async function POST(req: Request) {
       status: "planning",
       run_type: invite_only ? "select" : "public",
       format,
+      tiered_pricing: body.tiered_pricing === true,
       service_region,
       created_by: user.id,
       is_current: false,

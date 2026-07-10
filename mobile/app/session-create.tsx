@@ -73,6 +73,7 @@ export default function SessionCreateScreen() {
 
   // Step 2
   const [isPaid, setIsPaid] = useState(false);
+  const [tieredPricing, setTieredPricing] = useState(false);
   const [buyIn, setBuyIn] = useState("");
 
   // Step 3
@@ -171,6 +172,7 @@ export default function SessionCreateScreen() {
         format,
         fee_cents: buyInCents(),
         invite_only: isInviteOnly,
+        tiered_pricing: tieredPricing,
       };
 
       const r = await fetch(`${origin}/api/sessions/create`, {
