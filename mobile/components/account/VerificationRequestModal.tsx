@@ -111,11 +111,11 @@ export function VerificationRequestModal({ visible, onClose, onSubmitted }: Prop
           />
           <Text style={s.hint}>
             Link to your roster page, athletics bio, team website, or MaxPreps profile.{" "}
-            <Text style={{ color: LIME }} onPress={() => Linking.openURL("https://topdrawersoccer.com")}>
+            <Text style={{ color: LIME }} onPress={() => void Linking.openURL("https://topdrawersoccer.com").catch(() => {})}>
               TopDrawer ↗
             </Text>
             {"  "}
-            <Text style={{ color: LIME }} onPress={() => Linking.openURL("https://www.maxpreps.com")}>
+            <Text style={{ color: LIME }} onPress={() => void Linking.openURL("https://www.maxpreps.com").catch(() => {})}>
               MaxPreps ↗
             </Text>
           </Text>
