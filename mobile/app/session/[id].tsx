@@ -198,6 +198,68 @@ export default function SessionDetailScreen() {
     ]);
   }
 
+  async function leaveSession() {
+    if (rsvpBusy || !session?.access_token) return;
+    Alert.alert(
+      "Leave session?",
+      run?.fee_cents && run.fee_cents > 0
+        ? "You won't get a refund for leaving. Only refunds if the host cancels."
+        : "Are you sure you want to leave this session?",
+      [
+        { text: "Stay", style: "cancel" },
+        {
+          text: "Leave", style: "destructive", onPress: async () => {
+            const origin = siteOrigin();
+            if (!origin) return;
+            setRsvpBusy(true);
+            try {
+              const r = await fetch(`${origin}/api/pickup/rsvp`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${session!.access_token}` },
+                body: JSON.stringify({ run_id: id, action: "decline" }),
+              });
+              const j = await r.json().catch(() => null) as { ok?: boolean } | null;
+              if (j?.ok) await load();
+            } finally {
+              setRsvpBusy(false);
+            }
+          }
+        }
+      ]
+    );
+  }
+
+  async function cancelSession() {
+    if (endBusy || !session?.access_token) return;
+    Alert.alert(
+      "Cancel session?",
+      "All players will be notified and refunded if they paid. This cannot be undone.",
+      [
+        { text: "Keep it", style: "cancel" },
+        {
+          text: "Cancel session", style: "destructive", onPress: async () => {
+            const origin = siteOrigin();
+            if (!origin) return;
+            setEndBusy(true);
+            try {
+              const r = await fetch(`${origin}/api/sessions/cancel`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${session!.access_token}` },
+                body: JSON.stringify({ run_id: id }),
+              });
+              const j = await r.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+              if (!r.ok || !j?.ok) { Alert.alert("Error", j?.error ?? "Could not cancel."); return; }
+              Alert.alert("Session cancelled", "All players have been notified.");
+              await load();
+            } finally {
+              setEndBusy(false);
+            }
+          }
+        }
+      ]
+    );
+  }
+
   async function submitTeams() {
     if (teamsBusy || !session?.access_token) return;
     const origin = siteOrigin();
@@ -326,7 +388,18 @@ export default function SessionDetailScreen() {
   async function sendInvite(player: PlayerResult) {
     if (invitedIds.has(player.id)) return;
     setInvitedIds((prev) => new Set([...prev, player.id]));
+    const origin = siteOrigin();
+    const token = session?.access_token;
     try {
+      // Send push notification to invitee
+      if (origin && token) {
+        await fetch(`${origin}/api/sessions/invite`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ run_id: id, invitee_id: player.id }),
+        });
+      }
+      // Also open share sheet as fallback
       await Share.share({
         message: `Join my CT Pickup session: ${run?.title ?? "Soccer Session"} on ${fmtDate(run?.start_at ?? "")}`,
         url: `https://ctpickup.net/session/${id}`,
@@ -457,6 +530,13 @@ export default function SessionDetailScreen() {
           </Pressable>
         )}
 
+        {isJoined && !isHost && !isCompleted && (
+          <Pressable onPress={() => void leaveSession()} disabled={rsvpBusy}
+            style={[s.endBtn, { marginBottom: 12 }, rsvpBusy && { opacity: 0.5 }]}>
+            <Text style={s.endBtnText}>Leave session</Text>
+          </Pressable>
+        )}
+
         {canVote && (
           <Pressable onPress={() => setVoteOpen(true)} style={s.voteBtn}>
             <FontAwesome name="star" size={14} color="#0a0a0a" />
@@ -487,6 +567,10 @@ export default function SessionDetailScreen() {
             <Pressable onPress={() => setResultOpen(true)} style={s.shareBtn}>
               <FontAwesome name="trophy" size={14} color={LIME} />
               <Text style={s.shareBtnText}>Record result</Text>
+            </Pressable>
+            <Pressable onPress={() => void cancelSession()} disabled={endBusy}
+              style={[s.endBtn, { borderColor: "rgba(239,68,68,0.5)" }, endBusy && { opacity: 0.5 }]}>
+              <Text style={[s.endBtnText, { color: "rgba(239,68,68,0.6)" }]}>Cancel session</Text>
             </Pressable>
             <Pressable onPress={() => void endSession()} disabled={endBusy}
               style={[s.endBtn, endBusy && { opacity: 0.5 }]}>
