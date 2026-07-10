@@ -206,6 +206,7 @@ export default function AccountScreen() {
   const [hubRegionResolving, setHubRegionResolving] = useState(false);
   const [hubVenueResolveDone, setHubVenueResolveDone] = useState(false);
   const hubResolveKeyRef = useRef<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const [aboutTapCount, setAboutTapCount] = useState(0);
   const [reviewCodeModalOpen, setReviewCodeModalOpen] = useState(false);
   const [reviewCodeInput, setReviewCodeInput] = useState("");
@@ -1171,7 +1172,7 @@ export default function AccountScreen() {
         </View>
       </Modal>
       <KeyboardAvoidingView style={styles.scroll} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-        <ScrollView
+        <ScrollView ref={scrollRef}
           contentContainerStyle={[styles.content, { paddingBottom: 200 }]}
           keyboardShouldPersistTaps="handled"
           refreshControl={
@@ -1187,6 +1188,29 @@ export default function AccountScreen() {
             Email sign-in, push, and your device passcode{"\n"}
             (same one-time email code Supabase sends you).
           </Text>
+
+          {profile?.verification_level === "self" && (
+            <Pressable
+              onPress={() => {
+                scrollRef.current?.scrollTo({ y: 9999, animated: true });
+              }}
+              style={{
+                flexDirection: "row", alignItems: "center", gap: 10,
+                backgroundColor: "rgba(239,68,68,0.08)",
+                borderWidth: 1.5, borderColor: "#ef4444",
+                borderRadius: 12, padding: 14, marginBottom: 4,
+              }}
+            >
+              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#ef4444" }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: "#ef4444", fontWeight: "800", fontSize: 14 }}>Action required</Text>
+                <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 2 }}>
+                  Your profile is not verified. Scroll down to submit.
+                </Text>
+              </View>
+              <Text style={{ color: "#ef4444", fontSize: 16 }}>↓</Text>
+            </Pressable>
+          )}
 
         <View style={[styles.card, styles.cardLime]}>
           <Text style={styles.signedLabel}>SIGNED IN</Text>
