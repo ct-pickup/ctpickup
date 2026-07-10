@@ -106,6 +106,17 @@ export default function SessionDetailScreen() {
   const [scoreOpen, setScoreOpen] = useState(false);
   const [scores, setScores] = useState<Record<string, string>>({});
   const [scoreBusy, setScoreBusy] = useState(false);
+  const [teamsOpen, setTeamsOpen] = useState(false);
+  const [teamAssignments, setTeamAssignments] = useState<Record<string, "A" | "B">>({});
+  const [teamsBusy, setTeamsBusy] = useState(false);
+  const [resultOpen, setResultOpen] = useState(false);
+  const [winningTeam, setWinningTeam] = useState<"A" | "B" | null>(null);
+  const [potd, setPotd] = useState<string | null>(null);
+  const [defenderPotd, setDefenderPotd] = useState<string | null>(null);
+  const [midfielderPotd, setMidfielderPotd] = useState<string | null>(null);
+  const [attackerPotd, setAttackerPotd] = useState<string | null>(null);
+  const [goaliePotd, setGoaliePotd] = useState<string | null>(null);
+  const [resultBusy, setResultBusy] = useState(false);
 
   const myUserId = session?.user?.id;
   const isHost = run?.created_by === myUserId;
@@ -185,6 +196,57 @@ export default function SessionDetailScreen() {
         }
       }
     ]);
+  }
+
+  async function submitTeams() {
+    if (teamsBusy || !session?.access_token) return;
+    const origin = siteOrigin();
+    if (!origin) return;
+    setTeamsBusy(true);
+    try {
+      const assignments = Object.entries(teamAssignments).map(([user_id, team]) => ({ user_id, team }));
+      if (assignments.length === 0) { Alert.alert("Assign teams first."); return; }
+      const r = await fetch(`${origin}/api/sessions/assign-teams`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ run_id: id, assignments }),
+      });
+      const j = await r.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+      if (!r.ok || !j?.ok) { Alert.alert("Error", j?.error ?? "Failed to save teams."); return; }
+      setTeamsOpen(false);
+      Alert.alert("Teams saved!", "Now record the result when the game ends.");
+    } finally {
+      setTeamsBusy(false);
+    }
+  }
+
+  async function submitResult() {
+    if (resultBusy || !session?.access_token || !winningTeam) return;
+    const origin = siteOrigin();
+    if (!origin) return;
+    setResultBusy(true);
+    try {
+      const r = await fetch(`${origin}/api/sessions/result`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          run_id: id,
+          winning_team: winningTeam,
+          player_of_the_day: potd,
+          defender_of_the_day: defenderPotd,
+          midfielder_of_the_day: midfielderPotd,
+          attacker_of_the_day: attackerPotd,
+          goalie_of_the_day: goaliePotd,
+        }),
+      });
+      const j = await r.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+      if (!r.ok || !j?.ok) { Alert.alert("Error", j?.error ?? "Failed to save result."); return; }
+      setResultOpen(false);
+      Alert.alert("Result recorded!", "Win/loss stats and awards have been updated.");
+      await load();
+    } finally {
+      setResultBusy(false);
+    }
   }
 
   async function submitVotes() {
@@ -418,6 +480,14 @@ export default function SessionDetailScreen() {
               <FontAwesome name="share" size={14} color={LIME} />
               <Text style={s.shareBtnText}>Share link</Text>
             </Pressable>
+            <Pressable onPress={() => setTeamsOpen(true)} style={s.shareBtn}>
+              <FontAwesome name="users" size={14} color={LIME} />
+              <Text style={s.shareBtnText}>Assign teams</Text>
+            </Pressable>
+            <Pressable onPress={() => setResultOpen(true)} style={s.shareBtn}>
+              <FontAwesome name="trophy" size={14} color={LIME} />
+              <Text style={s.shareBtnText}>Record result</Text>
+            </Pressable>
             <Pressable onPress={() => void endSession()} disabled={endBusy}
               style={[s.endBtn, endBusy && { opacity: 0.5 }]}>
               {endBusy ? <ActivityIndicator color="#ef4444" /> :
@@ -607,6 +677,102 @@ export default function SessionDetailScreen() {
             style={[s.publishBtn, scoreBusy && { opacity: 0.5 }, { margin: 16 }]}>
             {scoreBusy ? <ActivityIndicator color="#0a0a0a" /> :
               <Text style={s.publishBtnText}>Submit & settle ratings</Text>}
+          </Pressable>
+        </ScrollView>
+      </Modal>
+
+      {/* Team Assignment Modal */}
+      <Modal visible={teamsOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setTeamsOpen(false)}>
+        <ScrollView style={s.modalRoot}>
+          <View style={s.modalHeader}>
+            <Text style={s.modalTitle}>Assign teams</Text>
+            <Pressable onPress={() => setTeamsOpen(false)} hitSlop={10}>
+              <FontAwesome name="times" size={18} color="rgba(255,255,255,0.6)" />
+            </Pressable>
+          </View>
+          <Text style={s.voteSubtitle}>Tap a player to toggle between Team A and Team B.</Text>
+          <View style={{ padding: 16, gap: 10 }}>
+            {attendees.map((a) => {
+              const name = playerName(a);
+              const team = teamAssignments[a.user_id];
+              return (
+                <Pressable key={a.user_id}
+                  onPress={() => setTeamAssignments((prev) => ({
+                    ...prev,
+                    [a.user_id]: prev[a.user_id] === "A" ? "B" : "A",
+                  }))}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: team === "A" ? "#3B82F6" : team === "B" ? "#ef4444" : "rgba(255,255,255,0.1)" }}>
+                  <View style={[s.avatar, { backgroundColor: team === "A" ? "rgba(59,130,246,0.2)" : team === "B" ? "rgba(239,68,68,0.2)" : "rgba(163,230,53,0.1)" }]}>
+                    <Text style={[s.avatarText, { color: team === "A" ? "#3B82F6" : team === "B" ? "#ef4444" : LIME }]}>{name[0]?.toUpperCase() ?? "?"}</Text>
+                  </View>
+                  <Text style={s.playerName}>{name}</Text>
+                  <View style={{ marginLeft: "auto", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: team === "A" ? "#3B82F6" : team === "B" ? "#ef4444" : "rgba(255,255,255,0.1)" }}>
+                    <Text style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>{team ?? "—"}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Pressable onPress={() => void submitTeams()} disabled={teamsBusy}
+            style={[s.publishBtn, teamsBusy && { opacity: 0.5 }, { margin: 16 }]}>
+            {teamsBusy ? <ActivityIndicator color="#0a0a0a" /> :
+              <Text style={s.publishBtnText}>Save teams</Text>}
+          </Pressable>
+        </ScrollView>
+      </Modal>
+
+      {/* Result Modal */}
+      <Modal visible={resultOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setResultOpen(false)}>
+        <ScrollView style={s.modalRoot}>
+          <View style={s.modalHeader}>
+            <Text style={s.modalTitle}>Record result</Text>
+            <Pressable onPress={() => setResultOpen(false)} hitSlop={10}>
+              <FontAwesome name="times" size={18} color="rgba(255,255,255,0.6)" />
+            </Pressable>
+          </View>
+
+          <Text style={s.voteSubtitle}>Who won?</Text>
+          <View style={{ flexDirection: "row", gap: 10, padding: 16, paddingTop: 8 }}>
+            <Pressable onPress={() => setWinningTeam("A")}
+              style={{ flex: 1, paddingVertical: 16, borderRadius: 12, borderWidth: 2, borderColor: winningTeam === "A" ? "#3B82F6" : "rgba(255,255,255,0.15)", backgroundColor: winningTeam === "A" ? "rgba(59,130,246,0.15)" : "transparent", alignItems: "center" }}>
+              <Text style={{ color: winningTeam === "A" ? "#3B82F6" : "rgba(255,255,255,0.5)", fontWeight: "800", fontSize: 18 }}>Team A</Text>
+            </Pressable>
+            <Pressable onPress={() => setWinningTeam("B")}
+              style={{ flex: 1, paddingVertical: 16, borderRadius: 12, borderWidth: 2, borderColor: winningTeam === "B" ? "#ef4444" : "rgba(255,255,255,0.15)", backgroundColor: winningTeam === "B" ? "rgba(239,68,68,0.15)" : "transparent", alignItems: "center" }}>
+              <Text style={{ color: winningTeam === "B" ? "#ef4444" : "rgba(255,255,255,0.5)", fontWeight: "800", fontSize: 18 }}>Team B</Text>
+            </Pressable>
+          </View>
+
+          {[
+            { label: "Player of the Day", state: potd, set: setPotd },
+            { label: "Defender of the Day", state: defenderPotd, set: setDefenderPotd },
+            { label: "Midfielder of the Day", state: midfielderPotd, set: setMidfielderPotd },
+            { label: "Attacker of the Day", state: attackerPotd, set: setAttackerPotd },
+            { label: "Goalie of the Day", state: goaliePotd, set: setGoaliePotd },
+          ].map(({ label, state, set }) => (
+            <View key={label} style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+              <Text style={s.voteSubtitle}>{label}</Text>
+              <View style={{ gap: 8 }}>
+                {attendees.map((a) => {
+                  const name = playerName(a);
+                  const selected = state === a.user_id;
+                  return (
+                    <Pressable key={a.user_id} onPress={() => set(selected ? null : a.user_id)}
+                      style={{ flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: selected ? "rgba(163,230,53,0.08)" : "rgba(255,255,255,0.04)", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: selected ? LIME : "rgba(255,255,255,0.08)" }}>
+                      <View style={s.avatar}><Text style={s.avatarText}>{name[0]?.toUpperCase() ?? "?"}</Text></View>
+                      <Text style={[s.playerName, selected && { color: LIME }]}>{name}</Text>
+                      {selected && <FontAwesome name="star" size={14} color={LIME} style={{ marginLeft: "auto" }} />}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
+
+          <Pressable onPress={() => void submitResult()} disabled={resultBusy || !winningTeam}
+            style={[s.publishBtn, (resultBusy || !winningTeam) && { opacity: 0.4 }, { margin: 16 }]}>
+            {resultBusy ? <ActivityIndicator color="#0a0a0a" /> :
+              <Text style={s.publishBtnText}>Save result & awards</Text>}
           </Pressable>
         </ScrollView>
       </Modal>
