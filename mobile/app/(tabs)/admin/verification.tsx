@@ -31,7 +31,7 @@ type VerificationRequest = {
 };
 
 export default function AdminVerificationScreen() {
-  const { supabase } = useAuth();
+  const { supabase, session } = useAuth();
   const [requests, setRequests] = useState<VerificationRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -67,31 +67,19 @@ export default function AdminVerificationScreen() {
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   async function review(req: VerificationRequest, decision: "approved" | "rejected") {
-    if (busyId || !supabase) return;
+    if (busyId) return;
     setBusyId(req.id);
+    const origin = siteOrigin();
+    const token = session?.access_token;
+    if (!origin || !token) { setBusyId(null); return; }
     try {
-      // Update verification_requests
-      const { error } = await supabase
-        .from("verification_requests")
-        .update({ status: decision, reviewed_at: new Date().toISOString() })
-        .eq("id", req.id);
-
-      if (error) { Alert.alert("Error", error.message); return; }
-
-      if (decision === "approved") {
-        // Update profiles.verification_level
-        await supabase
-          .from("profiles")
-          .update({ verification_level: "document" })
-          .eq("id", req.user_id);
-
-        // Update player_ratings.verification if row exists
-        await supabase
-          .from("player_ratings")
-          .update({ verification: "document", updated_at: new Date().toISOString() })
-          .eq("user_id", req.user_id);
-      }
-
+      const r = await fetch(`${origin}/api/admin/verification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ request_id: req.id, decision }),
+      });
+      const j = await r.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+      if (!r.ok || !j?.ok) { Alert.alert("Error", j?.error ?? "Failed."); return; }
       await load();
       Alert.alert(decision === "approved" ? "Approved ✓" : "Rejected", `${req.profiles?.first_name ?? "Player"} has been ${decision}.`);
     } finally {
