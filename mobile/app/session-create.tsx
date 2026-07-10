@@ -319,15 +319,18 @@ export default function SessionCreateScreen() {
           <View style={s.card}>
             <Text style={s.fieldLabel}>SESSION TYPE</Text>
             <View style={s.toggleRow}>
-              <Pressable onPress={() => setIsPaid(false)} style={[s.toggleBtn, !isPaid && s.toggleBtnActive]}>
-                <Text style={[s.toggleBtnText, !isPaid && s.toggleBtnTextActive]}>Free</Text>
+              <Pressable onPress={() => { setIsPaid(false); setTieredPricing(false); }} style={[s.toggleBtn, !isPaid && !tieredPricing && s.toggleBtnActive]}>
+                <Text style={[s.toggleBtnText, !isPaid && !tieredPricing && s.toggleBtnTextActive]}>Free</Text>
               </Pressable>
-              <Pressable onPress={() => setIsPaid(true)} style={[s.toggleBtn, isPaid && s.toggleBtnActive]}>
-                <Text style={[s.toggleBtnText, isPaid && s.toggleBtnTextActive]}>Paid</Text>
+              <Pressable onPress={() => { setIsPaid(true); setTieredPricing(false); }} style={[s.toggleBtn, isPaid && !tieredPricing && s.toggleBtnActive]}>
+                <Text style={[s.toggleBtnText, isPaid && !tieredPricing && s.toggleBtnTextActive]}>Flat fee</Text>
+              </Pressable>
+              <Pressable onPress={() => { setIsPaid(false); setTieredPricing(true); }} style={[s.toggleBtn, tieredPricing && s.toggleBtnActive]}>
+                <Text style={[s.toggleBtnText, tieredPricing && s.toggleBtnTextActive]}>Tiered</Text>
               </Pressable>
             </View>
 
-            {isPaid && (
+            {isPaid && !tieredPricing && (
               <>
                 <Text style={[s.fieldLabel, { marginTop: 20 }]}>BUY-IN PER PLAYER ($)</Text>
                 <TextInput
@@ -342,19 +345,40 @@ export default function SessionCreateScreen() {
                       <Text style={s.payoutValue}>${(parseFloat(buyIn) * playerLimit).toFixed(2)}</Text>
                     </View>
                     <View style={s.payoutRow}>
-                      <Text style={s.payoutLabel}>CT Pickup rake (10%)</Text>
-                      <Text style={s.payoutValue}>−${(parseFloat(buyIn) * playerLimit * 0.1).toFixed(2)}</Text>
+                      <Text style={s.payoutLabel}>CT Pickup rake (20%)</Text>
+                      <Text style={s.payoutValue}>−${(parseFloat(buyIn) * playerLimit * 0.2).toFixed(2)}</Text>
                     </View>
                     <View style={[s.payoutRow, { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)", paddingTop: 10, marginTop: 4 }]}>
                       <Text style={[s.payoutLabel, { color: "#fff", fontWeight: "700" }]}>You take home</Text>
-                      <Text style={[s.payoutValue, { color: LIME, fontWeight: "800" }]}>${(hostRakeCents() / 100).toFixed(2)}</Text>
+                      <Text style={[s.payoutValue, { color: LIME, fontWeight: "800" }]}>${(parseFloat(buyIn) * playerLimit * 0.8).toFixed(2)}</Text>
                     </View>
                   </View>
                 )}
-                <Text style={s.hint}>Players pay when they RSVP. You get paid out after the session ends.</Text>
+                <Text style={s.hint}>Players pay a flat fee when they RSVP.</Text>
               </>
             )}
-            {!isPaid && <Text style={s.hint}>Free sessions are open to all eligible players at no cost.</Text>}
+
+            {tieredPricing && (
+              <>
+                <Text style={[s.fieldLabel, { marginTop: 20 }]}>PRICING BY TIER</Text>
+                <View style={s.payoutCard}>
+                  <View style={s.payoutRow}><Text style={s.payoutLabel}>Bronze players pay</Text><Text style={s.payoutValue}>$12</Text></View>
+                  <View style={s.payoutRow}><Text style={s.payoutLabel}>Silver players pay</Text><Text style={s.payoutValue}>$9</Text></View>
+                  <View style={s.payoutRow}><Text style={s.payoutLabel}>Gold players pay</Text><Text style={s.payoutValue}>$6</Text></View>
+                  <View style={s.payoutRow}><Text style={s.payoutLabel}>Platinum</Text><Text style={s.payoutValue}>Free</Text></View>
+                  <View style={s.payoutRow}><Text style={[s.payoutLabel, { color: "#a3e635" }]}>Diamond players earn</Text><Text style={[s.payoutValue, { color: "#a3e635" }]}>$8</Text></View>
+                  <View style={[s.payoutRow, { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)", paddingTop: 10, marginTop: 4 }]}>
+                    <Text style={[s.payoutLabel, { color: "#fff", fontWeight: "700" }]}>CT Pickup rake</Text>
+                    <Text style={[s.payoutValue, { color: "#a3e635" }]}>20% of collected</Text>
+                  </View>
+                </View>
+                <Text style={s.hint}>Prices are set automatically based on each player's tier. Diamond players get paid to show up.</Text>
+              </>
+            )}
+
+            {!isPaid && !tieredPricing && (
+              <Text style={s.hint}>Free sessions are open to all eligible players at no cost.</Text>
+            )}
           </View>
         )}
 
