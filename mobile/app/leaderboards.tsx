@@ -31,6 +31,7 @@ const RANK3_BG = "#150e00";
 
 type RegionFilter = "ALL" | "CT" | "NY" | "NJ" | "MD";
 type TabId =
+  | "tier"
   | "wins"
   | "sessions"
   | "win_rate"
@@ -66,6 +67,7 @@ type LeaderboardsPayload = {
 };
 
 const TABS: Array<{ id: TabId; label: string }> = [
+  { id: "tier", label: "🏆 Tier" },
   { id: "wins", label: "Wins" },
   { id: "sessions", label: "Sessions" },
   { id: "win_rate", label: "Win %" },
@@ -187,16 +189,17 @@ function LeaderboardSkeleton() {
 export default function LeaderboardsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { session } = useAuth();
+  const { session, supabase } = useAuth();
   const myUserId = session?.user?.id ?? null;
-
-  const [tab, setTab] = useState<TabId>("wins");
+  const [tab, setTab] = useState<TabId>("tier");
   const [region, setRegion] = useState<RegionFilter>("ALL");
   const [filterOpen, setFilterOpen] = useState(false);
   const [payload, setPayload] = useState<LeaderboardsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [tierRows, setTierRows] = useState<Array<{ user_id: string; tier: string; score: number; sessions: number; verification: string; display_name: string; username: string | null }>>([]);
+  const [tierLoading, setTierLoading] = useState(false);
 
   const rowsForTab = useMemo(() => {
     if (!payload) return [];
@@ -223,6 +226,36 @@ export default function LeaderboardsScreen() {
     }
     return out;
   }, [payload, tab]);
+
+  const loadTier = useCallback(async () => {
+    if (!supabase) return;
+    setTierLoading(true);
+    try {
+      const { data } = await supabase
+        .from("player_ratings")
+        .select("user_id, tier, score, sessions, verification, profiles(first_name, last_name, username)")
+        .gt("sessions", 0)
+        .order("score", { ascending: false })
+        .limit(50);
+      if (data) {
+        setTierRows(data.map((r: any) => ({
+          user_id: r.user_id,
+          tier: r.tier ?? "bronze",
+          score: r.score ?? 50,
+          sessions: r.sessions ?? 0,
+          verification: r.verification ?? "self",
+          display_name: [r.profiles?.first_name, r.profiles?.last_name].filter(Boolean).join(" ") || r.profiles?.username || "Player",
+          username: r.profiles?.username ?? null,
+        })));
+      }
+    } finally {
+      setTierLoading(false);
+    }
+  }, [supabase]);
+
+  useEffect(() => {
+    if (tab === "tier") void loadTier();
+  }, [tab, loadTier]);
 
   const load = useCallback(async (isRefresh: boolean) => {
     const origin = siteOrigin();
@@ -345,6 +378,62 @@ export default function LeaderboardsScreen() {
           <View style={styles.skeletonFill}>
             <LeaderboardSkeleton />
           </View>
+        ) : tab === "tier" ? (
+          <FlatList
+            style={styles.listFlex}
+            data={tierRows}
+            keyExtractor={(item) => item.user_id}
+            contentContainerStyle={tierRows.length === 0 ? styles.listContentGrow : styles.listContent}
+            refreshControl={<RefreshControl refreshing={tierLoading} onRefresh={loadTier} tintColor={LIME} />}
+            ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+            ListEmptyComponent={
+              tierLoading ? null : (
+                <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 40 }}>
+                  <Text style={{ color: "rgba(255,255,255,0.35)", fontSize: 14, textAlign: "center" }}>
+                    No rated players yet.{"
+"}Complete a session to earn a tier.
+                  </Text>
+                </View>
+              )
+            }
+            renderItem={({ item, index }) => {
+              const rank = index + 1;
+              const mine = myUserId != null && item.user_id === myUserId;
+              const TIER_COLORS: Record<string, string> = {
+                diamond: "#7FE3E0", platinum: "#CFD8DC", gold: "#E3B23C",
+                silver: "#A8B0B5", bronze: "#B87333",
+              };
+              const tierColor = TIER_COLORS[item.tier] ?? "#fff";
+              const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : null;
+              return (
+                <Pressable
+                  onPress={() => router.push(`/player/${item.user_id}` as any)}
+                  style={({ pressed }) => [
+                    { backgroundColor: mine ? "rgba(163,230,53,0.08)" : "#141414", borderRadius: 14, borderWidth: 1, borderColor: mine ? LIME : "#222", padding: 14, flexDirection: "row", alignItems: "center", gap: 12, opacity: pressed ? 0.85 : 1 }
+                  ]}
+                >
+                  <Text style={{ fontSize: 18, width: 32, textAlign: "center" }}>
+                    {medal ?? <Text style={{ color: "rgba(255,255,255,0.35)", fontSize: 14 }}>{rank}</Text>}
+                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: mine ? LIME : "#fff", fontWeight: "700", fontSize: 15 }}>{item.display_name}</Text>
+                    {item.username && <Text style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>@{item.username}</Text>}
+                    <Text style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, marginTop: 2 }}>{item.sessions} sessions</Text>
+                  </View>
+                  <View style={{ alignItems: "flex-end", gap: 4 }}>
+                    <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: tierColor }}>
+                      <Text style={{ color: tierColor, fontWeight: "700", fontSize: 12 }}>
+                        {item.tier.charAt(0).toUpperCase() + item.tier.slice(1)}
+                      </Text>
+                    </View>
+                    {item.verification !== "self" && (
+                      <Text style={{ color: "#7FE3E0", fontSize: 11 }}>✓ Verified</Text>
+                    )}
+                  </View>
+                </Pressable>
+              );
+            }}
+          />
         ) : (
           <FlatList
             style={styles.listFlex}
