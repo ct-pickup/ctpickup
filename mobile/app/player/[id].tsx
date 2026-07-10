@@ -566,22 +566,37 @@ export default function PlayerProfileScreen() {
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       <View style={styles.hero}>
         {profile.avatar_url ? (
-          <View>
-            <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
-            {profile.tier && (
-              <View style={{ position: "absolute", bottom: 10, right: -4, width: 20, height: 20, borderRadius: 10, backgroundColor: tierColor(profile.tier), borderWidth: 2, borderColor: BG }} />
+          <View style={{ marginBottom: 14 }}>
+            {profile.tier === "diamond" ? (
+              <View style={{ width: 96, height: 96, alignItems: "center", justifyContent: "center" }}>
+                <View style={{ width: 72, height: 72, backgroundColor: `${tierColor(profile.tier)}22`, borderWidth: 3, borderColor: tierColor(profile.tier), transform: [{ rotate: "45deg" }] }} />
+                <Image source={{ uri: profile.avatar_url }} style={{ position: "absolute", width: 80, height: 80, borderRadius: 40 }} />
+              </View>
+            ) : (
+              <View>
+                <Image source={{ uri: profile.avatar_url }} style={[styles.avatarImg, { borderWidth: 3, borderColor: profile.tier ? tierColor(profile.tier) : "transparent" }]} />
+              </View>
             )}
           </View>
         ) : (
-          <View style={[styles.avatarPh, {
-            backgroundColor: profile.tier ? `${tierColor(profile.tier)}22` : "rgba(163,230,53,0.2)",
-            borderWidth: 3,
-            borderColor: profile.tier ? tierColor(profile.tier) : LIME,
-          }]}>
-            <Text style={[styles.avatarPhText, { color: profile.tier ? tierColor(profile.tier) : LIME }]}>
-              {initials(profile.display_name)}
-            </Text>
-          </View>
+          profile.tier === "diamond" ? (
+            <View style={{ width: 96, height: 96, alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+              <View style={{ width: 72, height: 72, backgroundColor: `${tierColor("diamond")}22`, borderWidth: 3, borderColor: tierColor("diamond"), transform: [{ rotate: "45deg" }] }} />
+              <Text style={{ position: "absolute", fontSize: 28, fontWeight: "800", color: tierColor("diamond") }}>
+                {initials(profile.display_name)}
+              </Text>
+            </View>
+          ) : (
+            <View style={[styles.avatarPh, {
+              backgroundColor: profile.tier ? `${tierColor(profile.tier)}22` : "rgba(163,230,53,0.2)",
+              borderWidth: 3,
+              borderColor: profile.tier ? tierColor(profile.tier) : LIME,
+            }]}>
+              <Text style={[styles.avatarPhText, { color: profile.tier ? tierColor(profile.tier) : LIME }]}>
+                {initials(profile.display_name)}
+              </Text>
+            </View>
+          )
         )}
         <Text style={styles.heroLabel}>Full name</Text>
         <Text style={styles.displayName}>{profile.display_name}</Text>
