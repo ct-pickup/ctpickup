@@ -204,9 +204,44 @@ export function ProfileSection({
         </Pressable>
 
         <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Date of birth</Text>
-        <TextInput style={styles.input} value={editDateOfBirth} onChangeText={setEditDateOfBirth}
-          placeholder="YYYY-MM-DD" placeholderTextColor="rgba(255,255,255,0.35)"
-          keyboardType="numeric" autoCorrect={false} editable={!editBusy} />
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <TextInput
+            style={[styles.input, { flex: 1, textAlign: "center" }]}
+            value={editDateOfBirth ? editDateOfBirth.split("-")[1] ?? "" : ""}
+            onChangeText={(t) => {
+              const parts = editDateOfBirth ? editDateOfBirth.split("-") : ["", "", ""];
+              parts[1] = t.replace(/\D/g, "").slice(0, 2);
+              setEditDateOfBirth(`${parts[0] ?? ""}-${parts[1]}-${parts[2] ?? ""}`);
+            }}
+            placeholder="MM"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            keyboardType="numeric" maxLength={2} autoCorrect={false} editable={!editBusy}
+          />
+          <TextInput
+            style={[styles.input, { flex: 1, textAlign: "center" }]}
+            value={editDateOfBirth ? editDateOfBirth.split("-")[2] ?? "" : ""}
+            onChangeText={(t) => {
+              const parts = editDateOfBirth ? editDateOfBirth.split("-") : ["", "", ""];
+              parts[2] = t.replace(/\D/g, "").slice(0, 2);
+              setEditDateOfBirth(`${parts[0] ?? ""}-${parts[1] ?? ""}-${parts[2]}`);
+            }}
+            placeholder="DD"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            keyboardType="numeric" maxLength={2} autoCorrect={false} editable={!editBusy}
+          />
+          <TextInput
+            style={[styles.input, { flex: 2, textAlign: "center" }]}
+            value={editDateOfBirth ? editDateOfBirth.split("-")[0] ?? "" : ""}
+            onChangeText={(t) => {
+              const parts = editDateOfBirth ? editDateOfBirth.split("-") : ["", "", ""];
+              parts[0] = t.replace(/\D/g, "").slice(0, 4);
+              setEditDateOfBirth(`${parts[0]}-${parts[1] ?? ""}-${parts[2] ?? ""}`);
+            }}
+            placeholder="YYYY"
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            keyboardType="numeric" maxLength={4} autoCorrect={false} editable={!editBusy}
+          />
+        </View>
         <Text style={styles.bioHint}>Used to display your age on your profile. Never shown as a full date.</Text>
 
         <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Club / team</Text>
