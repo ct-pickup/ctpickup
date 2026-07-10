@@ -178,6 +178,13 @@ export async function PATCH(req: Request) {
   }
 
   const updatedAt = new Date().toISOString();
+  const primary_position = typeof b.primary_position === "string" ? b.primary_position.trim() || null : null;
+  const secondary_positions = Array.isArray(b.secondary_positions) ? b.secondary_positions.filter((p: unknown) => typeof p === "string") : null;
+  const experience_level = typeof b.experience_level === "string" ? b.experience_level.trim() || null : null;
+  const date_of_birth = typeof b.date_of_birth === "string" ? b.date_of_birth.trim() || null : null;
+  const club_name = typeof b.club_name === "string" ? b.club_name.trim() || null : null;
+  const roster_url = typeof b.roster_url === "string" ? b.roster_url.trim() || null : null;
+
   const coreUpdate = {
     first_name,
     last_name,
@@ -187,6 +194,12 @@ export async function PATCH(req: Request) {
     zip_code,
     username: resolvedUsername,
     updated_at: updatedAt,
+    primary_position,
+    secondary_positions,
+    experience_level,
+    date_of_birth,
+    club_name,
+    roster_url,
   };
 
   await ensureProfileRowForAuthUser({ id: userId, email: user.email ?? null });
