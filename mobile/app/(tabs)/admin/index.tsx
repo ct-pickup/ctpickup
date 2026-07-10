@@ -62,6 +62,14 @@ export default function AdminMenuScreen() {
 
         <Pressable
           style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
+          onPress={() => router.push("/admin/verification")}
+        >
+          <Text style={styles.cardTitle}>Verification Requests</Text>
+          <Text style={styles.cardBody}>Review and approve player verification requests. Grant Document Verified status.</Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
           onPress={() => router.push("/admin/standing")}
         >
           <Text style={styles.cardTitle}>Standing</Text>

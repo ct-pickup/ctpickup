@@ -46,6 +46,7 @@ import { ProfileSection } from "@/components/account/ProfileSection";
 import { ReferralSection } from "@/components/account/ReferralSection";
 import { ReliabilitySection } from "@/components/account/ReliabilitySection";
 import { SoccerBackgroundSection } from "@/components/account/SoccerBackgroundSection";
+import { VerificationRequestModal } from "@/components/account/VerificationRequestModal";
 import {
   accountStyles as styles,
   LIME,
@@ -94,13 +95,14 @@ type ProfileRow = {
   date_of_birth: string | null;
   club_name: string | null;
   roster_url: string | null;
+  verification_level: string | null;
 };
 
 const PROFILE_SELECT_WITH_PUSH =
-  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled,marketing_push_enabled,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url";
+  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled,marketing_push_enabled,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url,verification_level";
 
 const PROFILE_SELECT_WITHOUT_PUSH =
-  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url";
+  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url,verification_level";
 
 function supabaseLooksLikeMissingColumn(err: { message?: string } | null | undefined, col: string): boolean {
   const msg = err?.message ?? "";
@@ -175,6 +177,7 @@ export default function AccountScreen() {
   const [positionPickerOpen, setPositionPickerOpen] = useState(false);
   const [primaryPositionPickerOpen, setPrimaryPositionPickerOpen] = useState(false);
   const [experienceLevelPickerOpen, setExperienceLevelPickerOpen] = useState(false);
+  const [verificationModalOpen, setVerificationModalOpen] = useState(false);
 
   const [waiverAccepted, setWaiverAccepted] = useState<boolean | null>(null);
   const [waiverVersion, setWaiverVersion] = useState<string | null>(null);
@@ -1289,6 +1292,8 @@ export default function AccountScreen() {
           dateOfBirth={profile?.date_of_birth ?? null}
           clubName={profile?.club_name ?? null}
           rosterUrl={profile?.roster_url ?? null}
+          verificationLevel={profile?.verification_level ?? null}
+          onSubmitVerification={() => setVerificationModalOpen(true)}
         />
         <ReliabilitySection
           loading={reliabilityLoading}
@@ -1506,6 +1511,11 @@ export default function AccountScreen() {
           )}
         </Pressable>
         </ScrollView>
+      <VerificationRequestModal
+        visible={verificationModalOpen}
+        onClose={() => setVerificationModalOpen(false)}
+        onSubmitted={() => void loadProfile()}
+      />
       </KeyboardAvoidingView>
     </View>
   );
