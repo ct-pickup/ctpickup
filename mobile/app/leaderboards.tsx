@@ -390,8 +390,7 @@ export default function LeaderboardsScreen() {
               tierLoading ? null : (
                 <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 40 }}>
                   <Text style={{ color: "rgba(255,255,255,0.35)", fontSize: 14, textAlign: "center" }}>
-                    No rated players yet.{"
-"}Complete a session to earn a tier.
+                    No rated players yet. Complete a session to earn a tier.
                   </Text>
                 </View>
               )
