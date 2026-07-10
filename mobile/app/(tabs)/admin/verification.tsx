@@ -42,10 +42,23 @@ export default function AdminVerificationScreen() {
     try {
       const { data } = await supabase
         .from("verification_requests")
-        .select("id,user_id,claim,evidence_url,status,created_at,profiles(first_name,last_name,username,verification_level)")
+        .select("id,user_id,claim,evidence_url,status,created_at")
         .order("created_at", { ascending: false })
         .limit(50);
-      setRequests((data ?? []) as VerificationRequest[]);
+
+      if (data && data.length > 0) {
+        const userIds = [...new Set(data.map((r: any) => r.user_id))];
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("id,first_name,last_name,username,verification_level")
+          .in("id", userIds);
+
+        const profileMap = Object.fromEntries((profileData ?? []).map((p: any) => [p.id, p]));
+        const merged = data.map((r: any) => ({ ...r, profiles: profileMap[r.user_id] ?? null }));
+        setRequests(merged as VerificationRequest[]);
+      } else {
+        setRequests([]);
+      }
     } finally {
       setLoading(false);
     }
