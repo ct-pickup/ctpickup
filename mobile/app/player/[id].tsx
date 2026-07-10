@@ -21,6 +21,18 @@ import {
 const LIME = "#a3e635";
 const BG = "#0a0a0a";
 
+const TIER_COLORS: Record<string, string> = {
+  bronze: "#B87333",
+  silver: "#A8B0B5",
+  gold: "#E3B23C",
+  platinum: "#E8E8E8",
+  diamond: "#9B59B6",
+};
+
+function tierColor(tier: string | null | undefined): string {
+  return tier ? (TIER_COLORS[tier] ?? LIME) : LIME;
+}
+
 const PROFILE_REPORT_REASONS = [
   "Inappropriate profile",
   "Harassment or abuse",
@@ -554,10 +566,21 @@ export default function PlayerProfileScreen() {
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       <View style={styles.hero}>
         {profile.avatar_url ? (
-          <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
+          <View>
+            <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
+            {profile.tier && (
+              <View style={{ position: "absolute", bottom: 10, right: -4, width: 20, height: 20, borderRadius: 10, backgroundColor: tierColor(profile.tier), borderWidth: 2, borderColor: BG }} />
+            )}
+          </View>
         ) : (
-          <View style={styles.avatarPh}>
-            <Text style={styles.avatarPhText}>{initials(profile.display_name)}</Text>
+          <View style={[styles.avatarPh, {
+            backgroundColor: profile.tier ? `${tierColor(profile.tier)}22` : "rgba(163,230,53,0.2)",
+            borderWidth: 3,
+            borderColor: profile.tier ? tierColor(profile.tier) : LIME,
+          }]}>
+            <Text style={[styles.avatarPhText, { color: profile.tier ? tierColor(profile.tier) : LIME }]}>
+              {initials(profile.display_name)}
+            </Text>
           </View>
         )}
         <Text style={styles.heroLabel}>Full name</Text>
