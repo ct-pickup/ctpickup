@@ -78,6 +78,14 @@ export default function AdminMenuScreen() {
 
         <Pressable
           style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
+          onPress={() => router.push("/admin/session-economics")}
+        >
+          <Text style={styles.cardTitle}>Session Economics</Text>
+          <Text style={styles.cardBody}>See who to pay after each session — host payout, your rake, Diamond player compensation.</Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
           onPress={() => router.push("/admin/standing")}
         >
           <Text style={styles.cardTitle}>Standing</Text>
