@@ -384,6 +384,9 @@ export default function SessionMapScreen() {
       </MapView>
 
       <View style={styles.topBar} pointerEvents="box-none">
+        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
+          <Text style={styles.backBtnText}>{"‹"} Back</Text>
+        </Pressable>
         {header}
       </View>
 
@@ -444,6 +447,8 @@ const styles = StyleSheet.create({
   center: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
 
   topBar: { position: "absolute", top: 60, left: 0, right: 0 },
+  backBtn: { marginLeft: 12, marginBottom: 8, backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, alignSelf: "flex-start" },
+  backBtnText: { color: "#fff", fontWeight: "600", fontSize: 15 },
   filterRow: { flexDirection: "row", paddingHorizontal: 16, gap: 8 },
   chip: {
     flexDirection: "row",
