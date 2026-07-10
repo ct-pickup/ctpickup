@@ -213,10 +213,13 @@ export default function SessionDetailScreen() {
   async function submitScores() {
     if (scoreBusy || !run?.tier_session_id || !supabase) return;
     setScoreBusy(true);
+    const TIER_TO_SCORE: Record<string, number> = {
+      bronze: 2, silver: 4, gold: 6, platinum: 8, diamond: 10,
+    };
     try {
-      for (const [user_id, scoreStr] of Object.entries(scores)) {
-        const score = parseFloat(scoreStr);
-        if (isNaN(score) || score < 1 || score > 10) continue;
+      for (const [user_id, tierVal] of Object.entries(scores)) {
+        const score = TIER_TO_SCORE[tierVal];
+        if (!score) continue;
         await supabase
           .from("session_attendance")
           .update({ organizer_score: score })
@@ -527,30 +530,67 @@ export default function SessionDetailScreen() {
 
       {/* Organizer Score Modal */}
       <Modal visible={scoreOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setScoreOpen(false)}>
-        <ScrollView style={s.modalRoot}>
+        <ScrollView style={s.modalRoot} keyboardShouldPersistTaps="handled">
           <View style={s.modalHeader}>
-            <Text style={s.modalTitle}>Score players (1–10)</Text>
+            <Text style={s.modalTitle}>Rate players</Text>
             <Pressable onPress={() => setScoreOpen(false)} hitSlop={10}>
               <FontAwesome name="times" size={18} color="rgba(255,255,255,0.6)" />
             </Pressable>
           </View>
-          <Text style={s.voteSubtitle}>Rate each player 1–10. This feeds the rating engine alongside peer votes.</Text>
-          <View style={{ padding: 16, gap: 12 }}>
+          <Text style={s.voteSubtitle}>Assign each player the tier that best reflects how they played today.</Text>
+
+          <View style={s.tierLegend}>
+            {[
+              { tier: "bronze", label: "Bronze", desc: "Learning the game", color: "#B87333" },
+              { tier: "silver", label: "Silver", desc: "Solid recreational", color: "#A8B0B5" },
+              { tier: "gold", label: "Gold", desc: "Competitive club level", color: "#E3B23C" },
+              { tier: "platinum", label: "Platinum", desc: "College / semi-pro", color: "#E8E8E8" },
+              { tier: "diamond", label: "Diamond", desc: "Elite / pro level", color: "#9B59B6" },
+            ].map((t) => (
+              <View key={t.tier} style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: t.color }} />
+                <Text style={{ color: t.color, fontWeight: "700", fontSize: 12, width: 60 }}>{t.label}</Text>
+                <Text style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>{t.desc}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={{ padding: 16, gap: 16 }}>
             {attendees.filter((a) => a.user_id !== myUserId).map((a) => {
               const name = playerName(a);
+              const selectedTier = scores[a.user_id] ?? "";
+              const TIERS = [
+                { value: "bronze", label: "B", color: "#B87333" },
+                { value: "silver", label: "S", color: "#A8B0B5" },
+                { value: "gold", label: "G", color: "#E3B23C" },
+                { value: "platinum", label: "P", color: "#E8E8E8" },
+                { value: "diamond", label: "D", color: "#9B59B6" },
+              ];
               return (
                 <View key={a.user_id} style={s.scoreRow}>
                   <View style={s.avatar}><Text style={s.avatarText}>{name[0]?.toUpperCase() ?? "?"}</Text></View>
-                  <Text style={[s.playerName, { flex: 1 }]}>{name}</Text>
-                  <TextInput
-                    style={s.scoreInput}
-                    value={scores[a.user_id] ?? ""}
-                    onChangeText={(t) => setScores((prev) => ({ ...prev, [a.user_id]: t }))}
-                    placeholder="—"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    keyboardType="decimal-pad"
-                    maxLength={4}
-                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.playerName}>{name}</Text>
+                    <View style={{ flexDirection: "row", gap: 6, marginTop: 8 }}>
+                      {TIERS.map((t) => (
+                        <Pressable
+                          key={t.value}
+                          onPress={() => setScores((prev) => ({ ...prev, [a.user_id]: t.value }))}
+                          style={{
+                            width: 40, height: 40, borderRadius: 20,
+                            borderWidth: 2,
+                            borderColor: selectedTier === t.value ? t.color : "rgba(255,255,255,0.15)",
+                            backgroundColor: selectedTier === t.value ? `${t.color}22` : "transparent",
+                            alignItems: "center", justifyContent: "center",
+                          }}
+                        >
+                          <Text style={{ color: selectedTier === t.value ? t.color : "rgba(255,255,255,0.4)", fontWeight: "800", fontSize: 13 }}>
+                            {t.label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
                 </View>
               );
             })}
@@ -558,7 +598,7 @@ export default function SessionDetailScreen() {
           <Pressable onPress={() => void submitScores()} disabled={scoreBusy}
             style={[s.publishBtn, scoreBusy && { opacity: 0.5 }, { margin: 16 }]}>
             {scoreBusy ? <ActivityIndicator color="#0a0a0a" /> :
-              <Text style={s.publishBtnText}>Submit scores & settle ratings</Text>}
+              <Text style={s.publishBtnText}>Submit & settle ratings</Text>}
           </Pressable>
         </ScrollView>
       </Modal>
@@ -615,6 +655,7 @@ const s = StyleSheet.create({
   inviteRowBtnText: { color: LIME, fontWeight: "700", fontSize: 13 },
   inviteRowBtnTextDone: { color: "rgba(255,255,255,0.35)" },
   voteSubtitle: { color: "rgba(255,255,255,0.45)", fontSize: 13, padding: 16, paddingBottom: 8, lineHeight: 18 },
+  tierLegend: { margin: 16, padding: 14, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
   scoreRow: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 12 },
   scoreInput: { width: 56, backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", color: "#fff", textAlign: "center", fontSize: 16, fontWeight: "700", paddingVertical: 8 },
   publishBtn: { backgroundColor: LIME, borderRadius: 14, paddingVertical: 16, alignItems: "center" },
