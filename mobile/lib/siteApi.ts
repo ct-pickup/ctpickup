@@ -624,6 +624,16 @@ export type PublicPlayerProfile = {
   plays_goalie: boolean | null;
   /** Hub region display name (e.g. Connecticut), derived server-side from ZIP / nearest venue. */
   region: string | null;
+  verification_level: string | null;
+  verification: string | null;
+  primary_position: string | null;
+  secondary_positions: string[];
+  experience_level: string | null;
+  age: number | null;
+  club_name: string | null;
+  roster_url: string | null;
+  rating_sessions: number;
+  reliability: number | null;
 };
 
 /** In-app public card (team chat, etc.); requires approved viewer. */

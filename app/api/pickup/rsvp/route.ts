@@ -395,6 +395,32 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not eligible for this final RSVP." }, { status: 403 });
   }
 
+  // Tier gate — check player's tier against session minimum
+  const minTierRank = typeof run.open_tier_rank === "number" ? run.open_tier_rank : 0;
+  if (minTierRank > 0) {
+    const { data: playerRating } = await admin
+      .from("player_ratings")
+      .select("tier, score")
+      .eq("user_id", targetUserId)
+      .maybeSingle();
+
+    const TIER_RANK: Record<string, number> = {
+      bronze: 1, silver: 2, gold: 3, platinum: 4, diamond: 5,
+    };
+    const playerTierRank = playerRating?.tier ? (TIER_RANK[playerRating.tier] ?? 0) : 0;
+
+    if (playerTierRank < minTierRank) {
+      const TIER_NAMES: Record<number, string> = {
+        1: "Bronze", 2: "Silver", 3: "Gold", 4: "Platinum", 5: "Diamond",
+      };
+      const required = TIER_NAMES[minTierRank] ?? "higher";
+      return NextResponse.json(
+        { error: `This session requires ${required} tier or above. Your current tier is too low.` },
+        { status: 403 },
+      );
+    }
+  }
+
   const existing = await admin
     .from("pickup_run_rsvps")
     .select("*")

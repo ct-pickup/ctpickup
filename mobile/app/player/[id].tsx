@@ -613,6 +613,70 @@ export default function PlayerProfileScreen() {
         ) : null}
       </View>
 
+      {/* Tier + Verification badges */}
+      {(profile.tier || profile.verification_level) && (
+        <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 20, marginBottom: 4, flexWrap: "wrap" }}>
+          {profile.tier && (
+            <View style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: LIME }}>
+              <Text style={{ color: LIME, fontWeight: "700", fontSize: 12 }}>
+                {profile.tier.charAt(0).toUpperCase() + profile.tier.slice(1)}
+              </Text>
+            </View>
+          )}
+          {profile.verification && profile.verification !== "self" && (
+            <View style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: "#7FE3E0" }}>
+              <Text style={{ color: "#7FE3E0", fontWeight: "700", fontSize: 12 }}>
+                {profile.verification === "document" ? "✓ Verified" : "✓ Vouched"}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Soccer Background */}
+      {(profile.primary_position || profile.experience_level || profile.club_name || profile.age) && (
+        <View style={[styles.block, { backgroundColor: "rgba(255,255,255,0.03)", borderRadius: 14, marginHorizontal: 16, padding: 14, marginBottom: 8 }]}>
+          <Text style={[styles.label, { marginBottom: 10 }]}>Soccer Background</Text>
+          {profile.primary_position && (
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+              <Text style={styles.label}>Position</Text>
+              <Text style={styles.value}>
+                {profile.primary_position}
+                {profile.secondary_positions?.length > 0 ? ` · ${profile.secondary_positions.join(" · ")}` : ""}
+              </Text>
+            </View>
+          )}
+          {profile.experience_level && (
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+              <Text style={styles.label}>Level</Text>
+              <Text style={styles.value}>
+                {profile.experience_level === "hs_varsity" ? "HS Varsity" :
+                 profile.experience_level === "semi_pro" ? "Semi-Pro" :
+                 profile.experience_level.charAt(0).toUpperCase() + profile.experience_level.slice(1)}
+              </Text>
+            </View>
+          )}
+          {profile.age && (
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+              <Text style={styles.label}>Age</Text>
+              <Text style={styles.value}>{profile.age}</Text>
+            </View>
+          )}
+          {profile.club_name && (
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+              <Text style={styles.label}>Club</Text>
+              <Text style={styles.value}>{profile.club_name}</Text>
+            </View>
+          )}
+          {profile.rating_sessions > 0 && (
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text style={styles.label}>Sessions rated</Text>
+              <Text style={styles.value}>{profile.rating_sessions}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
       <View style={styles.block}>
         <Text style={styles.label}>Username</Text>
         {profile.username ? (
