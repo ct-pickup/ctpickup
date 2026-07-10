@@ -6,7 +6,7 @@ import { useFieldTournament } from "@/hooks/useFieldTournament";
 import { hapticTap } from "@/lib/haptics";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,8 +25,21 @@ function welcomeFromEmail(email: string | undefined): string {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { session } = useAuth();
+  const { session, supabase } = useAuth();
   const myUserId = session?.user?.id ?? null;
+  const [verificationLevel, setVerificationLevel] = useState<string>("self");
+
+  useEffect(() => {
+    if (!myUserId || !supabase) return;
+    supabase
+      .from("profiles")
+      .select("verification_level")
+      .eq("id", myUserId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.verification_level) setVerificationLevel(data.verification_level);
+      });
+  }, [myUserId, supabase]);
   const email = session?.user?.email ?? undefined;
   const {
     loading: fieldTournamentLoading,
@@ -93,9 +106,13 @@ export default function HomeScreen() {
             if (myUserId) router.push(`/player/${myUserId}`);
             else router.push("/(tabs)/account");
           }}
-          style={styles.profileBtn}
+          style={[styles.profileBtn, verificationLevel === "self" && {
+            borderColor: "#ef4444",
+            borderWidth: 2,
+            backgroundColor: "rgba(239,68,68,0.08)",
+          }]}
         >
-          <FontAwesome name="user" size={16} color={LIME} />
+          <FontAwesome name="user" size={16} color={verificationLevel === "self" ? "#ef4444" : LIME} />
         </AnimatedPressScale>
       </View>
 

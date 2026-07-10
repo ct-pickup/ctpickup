@@ -113,15 +113,44 @@ export function SoccerBackgroundSection({
           </Text>
         </View>
 
-        {verif === "self" && onSubmitVerification ? (
+
+      </View>
+      {verif === "self" && onSubmitVerification ? (
+        <View style={{
+          marginTop: 16,
+          borderRadius: 14,
+          borderWidth: 2,
+          borderColor: "#ef4444",
+          backgroundColor: "rgba(239,68,68,0.06)",
+          padding: 16,
+          gap: 8,
+        }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#ef4444" }} />
+            <Text style={{ color: "#ef4444", fontWeight: "800", fontSize: 15, letterSpacing: 0.3 }}>
+              NOT VERIFIED
+            </Text>
+          </View>
+          <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, lineHeight: 18 }}>
+            Self-declared players are capped at Gold tier. Get verified to unlock Platinum and Diamond.
+          </Text>
           <Pressable
             onPress={onSubmitVerification}
-            style={({ pressed }) => [styles.ghostBtn, pressed && { opacity: 0.75 }, { marginTop: 12 }]}
+            style={({ pressed }) => [{
+              backgroundColor: "#ef4444",
+              borderRadius: 10,
+              paddingVertical: 13,
+              alignItems: "center",
+              marginTop: 4,
+              opacity: pressed ? 0.85 : 1,
+            }]}
           >
-            <Text style={styles.ghostBtnText}>Submit for verification →</Text>
+            <Text style={{ color: "#fff", fontWeight: "800", fontSize: 15, letterSpacing: 0.5 }}>
+              Submit for Verification →
+            </Text>
           </Pressable>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
     </>
   );
 }
