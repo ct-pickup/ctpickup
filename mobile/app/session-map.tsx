@@ -280,6 +280,23 @@ const FILTERS: Array<Level | "all"> = ["all", "casual", "competitive", "elite"];
 export default function SessionMapScreen() {
   const router = useRouter();
   const [filter, setFilter] = useState<Level | "all">("all");
+  const [userRegion, setUserRegion] = useState<Region | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") return;
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setUserRegion({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          latitudeDelta: 0.42,
+          longitudeDelta: 0.42,
+        });
+      } catch {}
+    })();
+  }, []);
   const { sessions, loading, error, reload } = useSessions(filter);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const mapRef = useRef<MapView>(null);
@@ -357,7 +374,7 @@ export default function SessionMapScreen() {
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFill}
-        initialRegion={FAIRFIELD}
+        initialRegion={userRegion ?? FAIRFIELD}
         showsUserLocation
         showsMyLocationButton={false}
         showsPointsOfInterest={false}
