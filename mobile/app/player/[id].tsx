@@ -571,10 +571,20 @@ export default function PlayerProfileScreen() {
               <View style={{ width: 96, height: 96, alignItems: "center", justifyContent: "center" }}>
                 <View style={{ width: 72, height: 72, backgroundColor: `${tierColor(profile.tier)}22`, borderWidth: 3, borderColor: tierColor(profile.tier), transform: [{ rotate: "45deg" }] }} />
                 <Image source={{ uri: profile.avatar_url }} style={{ position: "absolute", width: 80, height: 80, borderRadius: 40 }} />
+                {profile.verification && profile.verification !== "self" && (
+                  <View style={{ position: "absolute", bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: "#3B82F6", borderWidth: 2, borderColor: BG, alignItems: "center", justifyContent: "center" }}>
+                    <Text style={{ color: "#fff", fontSize: 13, fontWeight: "900" }}>✓</Text>
+                  </View>
+                )}
               </View>
             ) : (
               <View>
                 <Image source={{ uri: profile.avatar_url }} style={[styles.avatarImg, { borderWidth: 3, borderColor: profile.tier ? tierColor(profile.tier) : "transparent" }]} />
+                {profile.verification && profile.verification !== "self" && (
+                  <View style={{ position: "absolute", bottom: 10, right: -4, width: 26, height: 26, borderRadius: 13, backgroundColor: "#3B82F6", borderWidth: 2, borderColor: BG, alignItems: "center", justifyContent: "center" }}>
+                    <Text style={{ color: "#fff", fontSize: 13, fontWeight: "900" }}>✓</Text>
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -585,16 +595,28 @@ export default function PlayerProfileScreen() {
               <Text style={{ position: "absolute", fontSize: 28, fontWeight: "800", color: tierColor("diamond") }}>
                 {initials(profile.display_name)}
               </Text>
+              {profile.verification && profile.verification !== "self" && (
+                <View style={{ position: "absolute", bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: "#3B82F6", borderWidth: 2, borderColor: BG, alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ color: "#fff", fontSize: 13, fontWeight: "900" }}>✓</Text>
+                </View>
+              )}
             </View>
           ) : (
-            <View style={[styles.avatarPh, {
-              backgroundColor: profile.tier ? `${tierColor(profile.tier)}22` : "rgba(163,230,53,0.2)",
-              borderWidth: 3,
-              borderColor: profile.tier ? tierColor(profile.tier) : LIME,
-            }]}>
-              <Text style={[styles.avatarPhText, { color: profile.tier ? tierColor(profile.tier) : LIME }]}>
-                {initials(profile.display_name)}
-              </Text>
+            <View style={{ marginBottom: 14 }}>
+              <View style={[styles.avatarPh, {
+                backgroundColor: profile.tier ? `${tierColor(profile.tier)}22` : "rgba(163,230,53,0.2)",
+                borderWidth: 3,
+                borderColor: profile.tier ? tierColor(profile.tier) : LIME,
+              }]}>
+                <Text style={[styles.avatarPhText, { color: profile.tier ? tierColor(profile.tier) : LIME }]}>
+                  {initials(profile.display_name)}
+                </Text>
+              </View>
+              {profile.verification && profile.verification !== "self" && (
+                <View style={{ position: "absolute", bottom: 10, right: -4, width: 26, height: 26, borderRadius: 13, backgroundColor: "#3B82F6", borderWidth: 2, borderColor: BG, alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ color: "#fff", fontSize: 13, fontWeight: "900" }}>✓</Text>
+                </View>
+              )}
             </View>
           )
         )}
@@ -664,9 +686,7 @@ export default function PlayerProfileScreen() {
                 <Text style={{ color: tierColor(profile.tier), fontWeight: "800", fontSize: 14 }}>
                   {profile.tier.charAt(0).toUpperCase() + profile.tier.slice(1)}
                 </Text>
-                {profile.verification && profile.verification !== "self" && (
-                  <Text style={{ color: tierColor(profile.tier), fontSize: 12 }}>✓</Text>
-                )}
+
               </View>
             </View>
           )}
