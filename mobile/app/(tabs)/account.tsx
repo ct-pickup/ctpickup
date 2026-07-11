@@ -98,15 +98,13 @@ type ProfileRow = {
   club_name: string | null;
   roster_url: string | null;
   verification_level: string | null;
-  attended_count: number | null;
-  potd_count: number | null;
 };
 
 const PROFILE_SELECT_WITH_PUSH =
-  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled,marketing_push_enabled,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url,verification_level,attended_count,potd_count";
+  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled,marketing_push_enabled,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url,verification_level";
 
 const PROFILE_SELECT_WITHOUT_PUSH =
-  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url,verification_level,attended_count,potd_count";
+  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url,verification_level";
 
 function supabaseLooksLikeMissingColumn(err: { message?: string } | null | undefined, col: string): boolean {
   const msg = err?.message ?? "";
@@ -347,9 +345,10 @@ export default function AccountScreen() {
   } | null>(null);
   const [winsCount, setWinsCount] = useState<number | null>(null);
   const [lossesCount, setLossesCount] = useState<number | null>(null);
-  // potdCount and points are computed at render time from profile.potd_count + ratingEventsDelta
-  // to avoid race conditions between loadProfile and loadStats.
+  // Points bonus from rating_events (positive deltas × 10). Combined with tier base at render time.
   const [ratingEventsDelta, setRatingEventsDelta] = useState<number>(0);
+  // MOTM count from pickup_run_results (player_of_day matches).
+  const [motmCount, setMotmCount] = useState<number | null>(null);
   const [creditsCount, setCreditsCount] = useState<number | null>(null);
   const settingsSectionY = useRef<number>(0);
   const openEdit = useCallback(() => setEditModalOpen(true), []);
@@ -646,29 +645,21 @@ export default function AccountScreen() {
   }, [loadProfile]);
 
   // Profile-view stats.
-  // - Sessions and MOTM (potd_count) come from the profile state set by loadProfile —
-  //   they are computed at render time, not here, to avoid the race condition.
+  // - Sessions come from player_ratings.sessions (rated sessions count).
   // - Tier/score come from player_ratings.
   // - Avatar + wins/losses come from a profiles query (avatar_url not in the main profile select).
-  // - Points delta comes from rating_events; combined with profile.potd_count at render time.
+  // - MOTM count comes from pickup_run_results where player_of_day = uid.
+  // - Points = (sessions × tierPts) + (positiveDelta × 10), computed at render time.
   const loadStats = useCallback(async () => {
     const uid = session?.user?.id;
     if (!isReady || !supabase || !uid) return;
     try {
-      const [ratingRes, extrasRes, eventsRes] = await Promise.all([
+      const [ratingRes, extrasRes, eventsRes, motmRes] = await Promise.all([
         supabase.from("player_ratings").select("tier,score,sessions").eq("user_id", uid).maybeSingle(),
         supabase.from("profiles").select("avatar_url,pickup_wins_count,pickup_losses_count").eq("id", uid).maybeSingle(),
         supabase.from("rating_events").select("delta").eq("user_id", uid),
+        supabase.from("pickup_run_results").select("player_of_day", { count: "exact", head: true }).eq("player_of_day", uid),
       ]);
-
-      console.log("player_ratings result:", ratingRes.data, ratingRes.error);
-      console.log(
-        "profile wins/losses:",
-        (extrasRes.data as { pickup_wins_count?: unknown } | null)?.pickup_wins_count,
-        (extrasRes.data as { pickup_losses_count?: unknown } | null)?.pickup_losses_count,
-        extrasRes.error,
-      );
-      console.log("rating_events:", eventsRes.data?.length, eventsRes.error);
 
       // Tier info (for the tier badge and percentile display).
       const mine = ratingRes.data as
@@ -708,13 +699,16 @@ export default function AccountScreen() {
         setAvatarUrl((av as { avatar_url: string | null } | null)?.avatar_url?.trim() || null);
       }
 
-      // Rating events delta — combined with profile.potd_count at render time for Points.
+      // Rating events: sum positive deltas (multiplied × 10 at render time for bonus points).
       const deltaRows = (eventsRes.data ?? []) as Array<{ delta: number | string | null }>;
       const positiveDelta = deltaRows.reduce((acc, r) => {
         const d = Number(r.delta ?? 0);
         return acc + (Number.isFinite(d) && d > 0 ? d : 0);
       }, 0);
       setRatingEventsDelta(positiveDelta);
+
+      // MOTM count.
+      setMotmCount(motmRes.count ?? 0);
     } catch (e) {
       console.error("[account loadStats] exception", e);
     }
@@ -1457,13 +1451,14 @@ export default function AccountScreen() {
   const ptsPerSessionLabel = `${ptsPerSession > 0 ? "+" : ""}${ptsPerSession} pts / session`;
   const gamesPlayed = (winsCount ?? 0) + (lossesCount ?? 0);
   const winPct = gamesPlayed > 0 ? Math.round(((winsCount ?? 0) / gamesPlayed) * 100) : null;
-  // Sessions: directly from profile.attended_count (fetched by loadProfile on every focus).
-  const sessionsCount = profile?.attended_count ?? 0;
-  // MOTM + Points: profile.potd_count is now in the profile select, so it arrives with loadProfile.
-  // ratingEventsDelta is set by loadStats. Computing here avoids the loadProfile/loadStats race.
-  const potdCount = profile?.potd_count ?? 0;
-  const points = Math.round(ratingEventsDelta * 30) + potdCount * 100;
-  console.log("Stats debug:", { attended: profile?.attended_count, potd: profile?.potd_count, delta: ratingEventsDelta, points });
+  // Sessions: rated sessions from player_ratings (already loaded in loadStats).
+  const sessionsCount = tierInfo?.sessions ?? 0;
+  // MOTM: count from pickup_run_results (loaded in loadStats).
+  const potdCount = motmCount ?? 0;
+  // Points = base (sessions × tierPts) + bonus (positiveDelta × 10).
+  const TIER_PTS_PER_SESSION: Record<string, number> = { diamond: 8, platinum: 6, gold: 4, silver: 2, bronze: 0 };
+  const tierPtsPerSession = TIER_PTS_PER_SESSION[currentTier] ?? 0;
+  const points = sessionsCount * tierPtsPerSession + Math.round(ratingEventsDelta * 10);
 
   const primaryPos = (profile?.primary_position ?? "").trim() || null;
   const secondaryPos = Array.isArray(profile?.secondary_positions)
