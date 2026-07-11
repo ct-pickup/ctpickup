@@ -18,8 +18,10 @@ export function WaiverDocumentBody() {
           other participants, and unforeseen hazards.
         </p>
         <p>
-          You voluntarily assume all risks associated with participation, whether known
-          or unknown, and accept full responsibility for your involvement.
+          You voluntarily assume all risks associated with participation in CT Pickup
+          sessions, whether known or unknown, including but not limited to: physical
+          injury, illness, property damage, and adverse weather conditions. You accept
+          full responsibility for your involvement.
         </p>
       </section>
 
@@ -134,6 +136,11 @@ export function WaiverDocumentBody() {
           You agree to compete fairly, submit accurate results where applicable, and not
           engage in cheating, manipulation, or misconduct.
         </p>
+        <p>
+          You agree to conduct yourself in a respectful and sportsmanlike manner at all
+          times. CT Pickup reserves the right to remove any player from the platform for
+          conduct deemed unsafe, disruptive, or unsportsmanlike, without refund.
+        </p>
       </section>
 
       <section className="space-y-3">
@@ -217,7 +224,45 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">15. No Affiliation</h2>
+        <h2 className="text-base font-semibold text-white md:text-lg">
+          16. Injury Liability
+        </h2>
+        <p>
+          You understand that participating in soccer sessions involves risk of physical
+          injury. You release CT Pickup, its organizers, hosts, and affiliated parties
+          from any and all claims arising from injury, illness, or death occurring during
+          or related to any CT Pickup session or event, to the fullest extent permitted
+          by applicable law.
+        </p>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-white md:text-lg">
+          17. Field &amp; Venue Ejection
+        </h2>
+        <p>
+          You understand that CT Pickup sessions take place at third-party venues. If a
+          venue operator asks participants to leave for any reason, CT Pickup is not
+          liable for any resulting disruption, loss of session time, or inability to
+          complete the session. No refunds are guaranteed in the event of a
+          venue-initiated ejection.
+        </p>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-white md:text-lg">
+          18. Host Liability
+        </h2>
+        <p>
+          You understand that sessions may be organized by individual approved hosts who
+          are independent participants and not employees or agents of CT Pickup. CT Pickup
+          is not liable for the actions, omissions, or decisions of individual hosts
+          before, during, or after any session.
+        </p>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-white md:text-lg">19. No Affiliation</h2>
         <p>
           This platform is not affiliated with or endorsed by EA SPORTS or other third
           parties referenced only in connection with user-run activities.
