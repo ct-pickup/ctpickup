@@ -1,5 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
-import { useFocusEffect } from "expo-router";
+import { siteOrigin } from "@/lib/env";
+import { Stack, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator, Pressable, ScrollView,
@@ -36,6 +37,10 @@ export default function SessionEconomicsScreen() {
   const { supabase } = useAuth();
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);
+  const [diamondPayouts, setDiamondPayouts] = useState<{ user_id: string; name: string; sessions: number; payout_dollars: string }[]>([]);
+  const [diamondTotal, setDiamondTotal] = useState("$0.00");
+  const [diamondLoading, setDiamondLoading] = useState(false);
+  const { session } = useAuth();
 
   const load = useCallback(async () => {
     if (!supabase) return;
@@ -108,6 +113,25 @@ export default function SessionEconomicsScreen() {
     }
   }, [supabase]);
 
+  const loadDiamondPayouts = useCallback(async () => {
+    const origin = siteOrigin();
+    const token = session?.access_token;
+    if (!origin || !token) return;
+    setDiamondLoading(true);
+    try {
+      const r = await fetch(`${origin}/api/admin/diamond-payouts`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const j = await r.json().catch(() => null) as { ok?: boolean; payouts?: any[]; total_dollars?: string } | null;
+      if (j?.ok) {
+        setDiamondPayouts(j.payouts ?? []);
+        setDiamondTotal(j.total_dollars ?? "$0.00");
+      }
+    } finally {
+      setDiamondLoading(false);
+    }
+  }, [session]);
+
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   if (loading) {
@@ -116,8 +140,39 @@ export default function SessionEconomicsScreen() {
 
   return (
     <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 60 }}>
+      <Stack.Screen options={{ title: "Session Economics", headerStyle: { backgroundColor: "#0a0a0a" }, headerTintColor: "#fff", headerShadowVisible: false }} />
       <Text style={s.title}>Session Economics</Text>
       <Text style={s.sub}>Who to pay after each session settles.</Text>
+
+      {/* Diamond Payouts */}
+      <View style={s.card}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <Text style={s.runTitle}><Text style={{ color: "#9B59B6" }}>◆</Text> Diamond Payouts (this week)</Text>
+          <Pressable onPress={() => void loadDiamondPayouts()} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" }}>
+            {diamondLoading ? <ActivityIndicator color={LIME} size="small" /> :
+              <Text style={{ color: LIME, fontSize: 12, fontWeight: "700" }}>Load</Text>}
+          </Pressable>
+        </View>
+        {diamondPayouts.length === 0 ? (
+          <Text style={s.emptyText}>Tap Load to see who to pay.</Text>
+        ) : (
+          <>
+            {diamondPayouts.map((p) => (
+              <View key={p.user_id} style={s.payoutRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.payoutName}>{p.name}</Text>
+                  <Text style={s.payoutLabel}>{p.sessions} session{p.sessions === 1 ? "" : "s"}</Text>
+                </View>
+                <Text style={[s.payoutAmount, { color: "#9B59B6" }]}>{p.payout_dollars}</Text>
+              </View>
+            ))}
+            <View style={[s.payoutRow, { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)", marginTop: 8, paddingTop: 8 }]}>
+              <Text style={[s.payoutLabel, { color: "#fff", fontWeight: "700" }]}>Total to pay out</Text>
+              <Text style={[s.payoutAmount, { color: "#9B59B6", fontWeight: "800" }]}>{diamondTotal}</Text>
+            </View>
+          </>
+        )}
+      </View>
 
       {runs.length === 0 && (
         <View style={s.emptyCard}>
@@ -154,6 +209,9 @@ export default function SessionEconomicsScreen() {
 
             {/* Economics breakdown */}
             <View style={s.breakdownCard}>
+              {collected === 0 && (
+                <Text style={s.freeNote}>Free session — no payments collected</Text>
+              )}
               <View style={s.row}>
                 <Text style={s.rowLabel}>Total collected</Text>
                 <Text style={s.rowValue}>${(collected / 100).toFixed(2)}</Text>
@@ -242,4 +300,5 @@ const s = StyleSheet.create({
   payoutLabel: { fontSize: 10, fontWeight: "700", letterSpacing: 1.2, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" },
   payoutName: { color: "#fff", fontSize: 14, fontWeight: "500" },
   payoutAmount: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  freeNote: { color: "rgba(255,255,255,0.35)", fontSize: 12, fontStyle: "italic", marginBottom: 8 },
 });
