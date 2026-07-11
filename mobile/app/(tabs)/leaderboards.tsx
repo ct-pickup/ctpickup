@@ -232,6 +232,7 @@ export default function LeaderboardsScreen() {
   const [region, setRegion] = useState<RegionFilter>("ALL");
   const [filterOpen, setFilterOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [howOpen, setHowOpen] = useState(false);
 
   // API-backed tabs (wins/sessions/etc.)
   const [payload, setPayload] = useState<LeaderboardsPayload | null>(null);
@@ -628,7 +629,7 @@ export default function LeaderboardsScreen() {
             <Text style={styles.climbSub}>Play more sessions to earn points and increase your tier.</Text>
           </View>
           <Pressable
-            onPress={() => (router.push as (h: string) => void)("/how-pickup-works")}
+            onPress={() => { void hapticTap(); setHowOpen(true); }}
             style={({ pressed }) => [styles.climbBtn, pressed && { opacity: 0.85 }]}
           >
             <Text style={styles.climbBtnText}>How it works →</Text>
@@ -737,6 +738,74 @@ export default function LeaderboardsScreen() {
             </View>
             <Pressable onPress={() => setFilterOpen(false)} style={({ pressed }) => [styles.modalCloseBtn, pressed && { opacity: 0.88 }]}>
               <Text style={styles.modalCloseBtnText}>Close</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* How Rankings Work */}
+      <Modal visible={howOpen} transparent animationType="slide" onRequestClose={() => setHowOpen(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setHowOpen(false)} accessibilityLabel="Dismiss" />
+          <View style={[styles.modalSheet, styles.howSheet]}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>How Rankings Work</Text>
+
+            {/* Points */}
+            <Text style={styles.howSectionHeader}>EARNING POINTS</Text>
+            <Text style={styles.howBody}>
+              Points are earned every time you play a rated session. The higher your tier, the more points you earn per session.
+            </Text>
+            <View style={styles.howCard}>
+              {([
+                { tier: "diamond", label: "Diamond", pts: 8, color: "#9B59B6", dot: "◆" },
+                { tier: "platinum", label: "Platinum", pts: 6, color: "#E8E8E8", dot: "●" },
+                { tier: "gold", label: "Gold", pts: 4, color: "#E3B23C", dot: "●" },
+                { tier: "silver", label: "Silver", pts: 2, color: "#A8B0B5", dot: "●" },
+                { tier: "bronze", label: "Bronze", pts: 0, color: "#B87333", dot: "●" },
+              ] as const).map(({ tier, label, pts, color, dot }) => (
+                <View key={tier} style={styles.howRow}>
+                  <Text style={[styles.howDot, { color }]}>{dot}</Text>
+                  <Text style={styles.howRowLabel}>{label}</Text>
+                  <Text style={styles.howRowValue}>{pts} pts / session</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Tiers */}
+            <Text style={[styles.howSectionHeader, { marginTop: 18 }]}>TIER SYSTEM</Text>
+            <Text style={styles.howBody}>
+              Your tier is determined by your rating score, earned through peer votes and organizer ratings after each session.
+            </Text>
+            <View style={styles.howCard}>
+              {([
+                { label: "Bronze", desc: "Score 0–39 · Self-declared players", color: "#B87333", dot: "●" },
+                { label: "Silver", desc: "Score 40–59 · Consistent rec level", color: "#A8B0B5", dot: "●" },
+                { label: "Gold", desc: "Score 60–77 · Club / competitive level", color: "#E3B23C", dot: "●" },
+                { label: "Platinum", desc: "Score 78–89 · College / semi-pro · Verification required", color: "#E8E8E8", dot: "●" },
+                { label: "Diamond", desc: "Score 90+ · Elite level · Verification required · You earn $8/session", color: "#9B59B6", dot: "◆" },
+              ] as const).map(({ label, desc, color, dot }) => (
+                <View key={label} style={[styles.howRow, { alignItems: "flex-start" }]}>
+                  <Text style={[styles.howDot, { color, marginTop: 2 }]}>{dot}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.howRowLabel, { color }]}>{label}</Text>
+                    <Text style={styles.howRowDesc}>{desc}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* Verification */}
+            <Text style={[styles.howSectionHeader, { marginTop: 18 }]}>VERIFICATION</Text>
+            <Text style={styles.howBody}>
+              Self-declared players are capped at Gold. Submit for verification in your Profile to unlock Platinum and Diamond.
+            </Text>
+
+            <Pressable
+              onPress={() => setHowOpen(false)}
+              style={({ pressed }) => [styles.howCloseBtn, pressed && { opacity: 0.88 }]}
+            >
+              <Text style={styles.howCloseBtnText}>Got it</Text>
             </Pressable>
           </View>
         </View>
@@ -969,6 +1038,47 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalCloseBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+
+  /* how it works sheet */
+  howSheet: { maxHeight: "88%" },
+  howSectionHeader: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  howBody: { color: "rgba(255,255,255,0.6)", fontSize: 13, lineHeight: 20, marginBottom: 12 },
+  howCard: {
+    backgroundColor: CARD,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    paddingVertical: 4,
+    paddingHorizontal: 14,
+    gap: 0,
+  },
+  howRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.06)",
+  },
+  howDot: { fontSize: 13, width: 16, textAlign: "center" },
+  howRowLabel: { color: "#fff", fontSize: 14, fontWeight: "700", flex: 1 },
+  howRowValue: { color: "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: "600" },
+  howRowDesc: { color: "rgba(255,255,255,0.45)", fontSize: 12, lineHeight: 17, marginTop: 1 },
+  howCloseBtn: {
+    marginTop: 20,
+    backgroundColor: LIME,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  howCloseBtnText: { color: "#0a0a0a", fontWeight: "900", fontSize: 16 },
 
   /* more dropdown */
   moreBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", paddingTop: 96, paddingHorizontal: 16 },
