@@ -375,31 +375,37 @@ export default function AccountScreen() {
       const arrayBuffer = await response.arrayBuffer();
 
       const path = `${userId}/avatar.jpg`;
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(path, arrayBuffer, { contentType: "image/jpeg", upsert: true });
 
-      if (uploadError) {
-        Alert.alert("Upload failed", uploadError.message);
-        setAvatarUrl(prevAvatarUrl);
-        return;
+      let publicUrl: string | null = null;
+
+      try {
+        const { error: uploadError } = await supabase.storage
+          .from("avatars")
+          .upload(path, arrayBuffer, { contentType: "image/jpeg", upsert: true });
+
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+          publicUrl = urlData.publicUrl + `?t=${Date.now()}`;
+        }
+        // If the bucket doesn't exist or upload fails, skip silently — local preview stays.
+      } catch {
+        // Storage bucket missing or network error — skip silently.
       }
 
-      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-      const publicUrl = urlData.publicUrl + `?t=${Date.now()}`;
+      if (publicUrl) {
+        const { error: updateError } = await supabase
+          .from("profiles")
+          .update({ avatar_url: publicUrl })
+          .eq("id", userId);
 
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ avatar_url: publicUrl })
-        .eq("id", userId);
-
-      if (updateError) {
-        Alert.alert("Update failed", updateError.message);
-        setAvatarUrl(prevAvatarUrl);
-        return;
+        if (!updateError) {
+          setAvatarUrl(publicUrl);
+        } else {
+          // Profile update failed — keep local preview but don't persist.
+          console.warn("[avatar] profiles.update error:", updateError.message);
+        }
       }
-
-      setAvatarUrl(publicUrl);
+      // If no publicUrl (storage skipped), the optimistic local URI preview stays for this session.
     } catch {
       Alert.alert("Upload failed", "Could not upload photo. Please try again.");
       setAvatarUrl(prevAvatarUrl);
