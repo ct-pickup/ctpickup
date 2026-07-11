@@ -351,68 +351,107 @@ export default function AccountScreen() {
   const settingsSectionY = useRef<number>(0);
   const openEdit = useCallback(() => setEditModalOpen(true), []);
 
-  const pickAndUploadAvatar = useCallback(async () => {
+  const uploadAvatarUri = useCallback(
+    async (uri: string, userId: string, prevAvatarUrl: string | null) => {
+      setAvatarUploading(true);
+      setAvatarUrl(uri); // optimistic local preview
+      try {
+        const response = await fetch(uri);
+        const arrayBuffer = await response.arrayBuffer();
+        const path = `${userId}/avatar.jpg`;
+
+        let publicUrl: string | null = null;
+        try {
+          const { error: uploadError } = await supabase!.storage
+            .from("avatars")
+            .upload(path, arrayBuffer, { contentType: "image/jpeg", upsert: true });
+          if (!uploadError) {
+            const { data: urlData } = supabase!.storage.from("avatars").getPublicUrl(path);
+            publicUrl = urlData.publicUrl + `?t=${Date.now()}`;
+          }
+        } catch {
+          // Storage bucket missing or network error — skip silently.
+        }
+
+        if (publicUrl) {
+          const { error: updateError } = await supabase!
+            .from("profiles")
+            .update({ avatar_url: publicUrl })
+            .eq("id", userId);
+          if (!updateError) {
+            setAvatarUrl(publicUrl);
+          } else {
+            console.warn("[avatar] profiles.update error:", updateError.message);
+          }
+        }
+      } catch {
+        Alert.alert("Upload failed", "Could not upload photo. Please try again.");
+        setAvatarUrl(prevAvatarUrl);
+      } finally {
+        setAvatarUploading(false);
+      }
+    },
+    [supabase],
+  );
+
+  const pickAndUploadAvatar = useCallback(() => {
     if (!supabase || !session?.user?.id) return;
     const userId = session.user.id;
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (result.canceled || !result.assets?.[0]) return;
-
-    const uri = result.assets[0].uri;
     const prevAvatarUrl = avatarUrl;
 
-    setAvatarUploading(true);
-    setAvatarUrl(uri); // optimistic local preview
-
-    try {
-      const response = await fetch(uri);
-      const arrayBuffer = await response.arrayBuffer();
-
-      const path = `${userId}/avatar.jpg`;
-
-      let publicUrl: string | null = null;
-
-      try {
-        const { error: uploadError } = await supabase.storage
-          .from("avatars")
-          .upload(path, arrayBuffer, { contentType: "image/jpeg", upsert: true });
-
-        if (!uploadError) {
-          const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-          publicUrl = urlData.publicUrl + `?t=${Date.now()}`;
-        }
-        // If the bucket doesn't exist or upload fails, skip silently — local preview stays.
-      } catch {
-        // Storage bucket missing or network error — skip silently.
-      }
-
-      if (publicUrl) {
-        const { error: updateError } = await supabase
-          .from("profiles")
-          .update({ avatar_url: publicUrl })
-          .eq("id", userId);
-
-        if (!updateError) {
-          setAvatarUrl(publicUrl);
-        } else {
-          // Profile update failed — keep local preview but don't persist.
-          console.warn("[avatar] profiles.update error:", updateError.message);
-        }
-      }
-      // If no publicUrl (storage skipped), the optimistic local URI preview stays for this session.
-    } catch {
-      Alert.alert("Upload failed", "Could not upload photo. Please try again.");
-      setAvatarUrl(prevAvatarUrl);
-    } finally {
-      setAvatarUploading(false);
-    }
-  }, [supabase, session?.user?.id, avatarUrl]);
+    Alert.alert("Profile Photo", undefined, [
+      {
+        text: "Take Photo",
+        onPress: async () => {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== "granted") {
+            Alert.alert("Permission required", "Camera access is needed to take a photo.");
+            return;
+          }
+          const result = await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+          });
+          if (!result.canceled && result.assets?.[0]) {
+            await uploadAvatarUri(result.assets[0].uri, userId, prevAvatarUrl);
+          }
+        },
+      },
+      {
+        text: "Choose from Library",
+        onPress: async () => {
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== "granted") {
+            Alert.alert("Permission required", "Photo library access is needed to choose a photo.");
+            return;
+          }
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+          });
+          if (!result.canceled && result.assets?.[0]) {
+            await uploadAvatarUri(result.assets[0].uri, userId, prevAvatarUrl);
+          }
+        },
+      },
+      {
+        text: "Remove Photo",
+        style: "destructive",
+        onPress: async () => {
+          setAvatarUrl(null);
+          try {
+            await supabase.from("profiles").update({ avatar_url: null }).eq("id", userId);
+          } catch {
+            // ignore — optimistic clear already applied
+          }
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }, [supabase, session?.user?.id, avatarUrl, uploadAvatarUri]);
 
   const appVersion =
     Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? "1.0.0";
