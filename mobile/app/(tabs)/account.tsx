@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAccountIntroReplay } from "@/context/AccountIntroReplayContext";
 import { useReplayOpeningTheme } from "@/context/ReplayOpeningThemeContext";
 import { useAdminMode } from "@/context/AdminModeContext";
@@ -677,12 +678,16 @@ export default function AccountScreen() {
         };
         _cachedTierInfo = resolved;
         setTierInfo(resolved);
+        AsyncStorage.setItem("cached_tier_info", JSON.stringify(resolved)).catch(() => {});
       } else {
         _cachedTierInfo = null;
         setTierInfo(null);
+        AsyncStorage.removeItem("cached_tier_info").catch(() => {});
       }
 
       // Avatar + wins/losses (not in the main profile select).
+      let wins = 0;
+      let losses = 0;
       if (!extrasRes.error && extrasRes.data) {
         const row = extrasRes.data as {
           avatar_url: string | null;
@@ -690,8 +695,10 @@ export default function AccountScreen() {
           pickup_losses_count: unknown;
         };
         setAvatarUrl(row.avatar_url?.trim() || null);
-        setWinsCount(Math.max(0, Math.trunc(Number(row.pickup_wins_count ?? 0))));
-        setLossesCount(Math.max(0, Math.trunc(Number(row.pickup_losses_count ?? 0))));
+        wins = Math.max(0, Math.trunc(Number(row.pickup_wins_count ?? 0)));
+        losses = Math.max(0, Math.trunc(Number(row.pickup_losses_count ?? 0)));
+        setWinsCount(wins);
+        setLossesCount(losses);
       } else if (extrasRes.error) {
         // Fallback: at least get the avatar.
         const { data: av } = await supabase.from("profiles").select("avatar_url").eq("id", uid).maybeSingle();
@@ -699,7 +706,11 @@ export default function AccountScreen() {
       }
 
       // MOTM count.
-      setMotmCount(motmRes.count ?? 0);
+      const motm = motmRes.count ?? 0;
+      setMotmCount(motm);
+
+      // Persist stats so next mount shows correct values instantly.
+      AsyncStorage.setItem("cached_stats", JSON.stringify({ wins, losses, motm })).catch(() => {});
     } catch (e) {
       console.error("[account loadStats] exception", e);
     }
@@ -728,6 +739,33 @@ export default function AccountScreen() {
       setCreditsCount(0);
     }
   }, [accessToken]);
+
+  // Load cached tier + stats from AsyncStorage on mount so the UI shows
+  // correct values instantly before the Supabase query completes.
+  useEffect(() => {
+    AsyncStorage.getItem("cached_tier_info").then((raw) => {
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw) as TierInfoCache;
+        if (parsed && typeof parsed.tier === "string") {
+          _cachedTierInfo = parsed;
+          setTierInfo(parsed);
+        }
+      } catch {}
+    }).catch(() => {});
+
+    AsyncStorage.getItem("cached_stats").then((raw) => {
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw) as { wins?: number; losses?: number; motm?: number };
+        if (parsed && typeof parsed === "object") {
+          if (typeof parsed.wins === "number") setWinsCount(parsed.wins);
+          if (typeof parsed.losses === "number") setLossesCount(parsed.losses);
+          if (typeof parsed.motm === "number") setMotmCount(parsed.motm);
+        }
+      } catch {}
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     void loadStats();
