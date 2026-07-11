@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE, type MapMarkerProps, Region } from "react-native-maps";
+import MapView, { Marker, type MapMarkerProps, Region } from "react-native-maps";
 import Svg, { Circle } from "react-native-svg";
 import * as Location from "expo-location";
 import { format, isToday, isTomorrow } from "date-fns";
@@ -60,27 +60,6 @@ export type Session = {
 
 /* ------------------------------------------------------------------ data */
 
-const DARK_MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#1a2420" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#8a9e8e" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#1a2420" }] },
-  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#a3e635" }] },
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#1e2e22" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#2a3d2e" }] },
-  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#1a2420" }] },
-  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#6b8f71" }] },
-  { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#2e4a32" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#3a5e3e" }] },
-  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#243828" }] },
-  { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#a3e635" }] },
-  { featureType: "road.local", stylers: [{ visibility: "off" }] },
-  { featureType: "transit", stylers: [{ visibility: "off" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0d1a14" }] },
-  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#4a6e52" }] },
-  { featureType: "administrative.country", elementType: "labels.text.fill", stylers: [{ color: "#6b8f71" }] },
-  { featureType: "administrative.province", elementType: "labels.text.fill", stylers: [{ color: "#6b8f71" }] },
-];
 
 const FAIRFIELD: Region = {
   latitude: 40.8,
@@ -453,13 +432,14 @@ export default function SessionMapScreen() {
     <View style={styles.root}>
       <MapView
         ref={mapRef}
-        provider={PROVIDER_GOOGLE}
         style={StyleSheet.absoluteFill}
         initialRegion={userRegion ?? FAIRFIELD}
+        userInterfaceStyle="dark"
+        backgroundColor="#1a2420"
+        loadingBackgroundColor="#1a2420"
         showsUserLocation
         showsMyLocationButton={false}
         showsPointsOfInterest={false}
-        customMapStyle={DARK_MAP_STYLE}
         onPress={() => setSelectedId(null)}
       >
         {sessions.map((s, i) => (

@@ -4,7 +4,7 @@ import { format, isToday, isTomorrow } from "date-fns";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE, type Region } from "react-native-maps";
+import MapView, { Marker, type Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Line, Rect } from "react-native-svg";
 
@@ -14,27 +14,6 @@ const LIME = "#a3e635";
 const CARD_BG = "rgba(255,255,255,0.04)";
 const CARD_BORDER = "rgba(255,255,255,0.08)";
 
-const DARK_MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#1a2420" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#8a9e8e" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#1a2420" }] },
-  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#a3e635" }] },
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#1e2e22" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#2a3d2e" }] },
-  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#1a2420" }] },
-  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#6b8f71" }] },
-  { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#2e4a32" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#3a5e3e" }] },
-  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#243828" }] },
-  { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#a3e635" }] },
-  { featureType: "road.local", stylers: [{ visibility: "off" }] },
-  { featureType: "transit", stylers: [{ visibility: "off" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0d1a14" }] },
-  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#4a6e52" }] },
-  { featureType: "administrative.country", elementType: "labels.text.fill", stylers: [{ color: "#6b8f71" }] },
-  { featureType: "administrative.province", elementType: "labels.text.fill", stylers: [{ color: "#6b8f71" }] },
-];
 
 /* ----------------------------------------------------------------- tiers */
 
@@ -590,10 +569,11 @@ export default function HomeScreen() {
         >
           <MapView
             style={StyleSheet.absoluteFill}
-            provider={PROVIDER_GOOGLE}
             pointerEvents="none"
             initialRegion={mapRegion}
-            customMapStyle={DARK_MAP_STYLE}
+            userInterfaceStyle="dark"
+            backgroundColor="#1a2420"
+            loadingBackgroundColor="#1a2420"
             scrollEnabled={false}
             zoomEnabled={false}
             pitchEnabled={false}
