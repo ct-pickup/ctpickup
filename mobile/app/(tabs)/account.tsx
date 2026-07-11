@@ -649,11 +649,23 @@ export default function AccountScreen() {
     try {
       // Tier (player_ratings), profile counters (profiles), and rating deltas
       // (rating_events) are independent — fetch them together.
+      // NOTE: actual column names are pickup_wins_count / pickup_losses_count, not wins_count / losses_count.
+      // potd_count is attempted first; if the column doesn't exist we fall back without it.
       const [ratingRes, extrasRes, eventsRes] = await Promise.all([
         supabase.from("player_ratings").select("tier,score,sessions").eq("user_id", uid).maybeSingle(),
-        supabase.from("profiles").select("avatar_url,wins_count,losses_count,potd_count").eq("id", uid).maybeSingle(),
+        supabase.from("profiles").select("avatar_url,pickup_wins_count,pickup_losses_count,potd_count").eq("id", uid).maybeSingle(),
         supabase.from("rating_events").select("delta").eq("user_id", uid),
       ]);
+
+      console.log("player_ratings result:", ratingRes.data, ratingRes.error);
+      console.log(
+        "profile stats:",
+        (extrasRes.data as { pickup_wins_count?: unknown } | null)?.pickup_wins_count,
+        (extrasRes.data as { pickup_losses_count?: unknown } | null)?.pickup_losses_count,
+        (extrasRes.data as { potd_count?: unknown } | null)?.potd_count,
+        extrasRes.error,
+      );
+      console.log("rating_events:", eventsRes.data?.length, eventsRes.error);
 
       const mine = ratingRes.data as
         | { tier: string | null; score: number | null; sessions: number | null }
@@ -677,20 +689,39 @@ export default function AccountScreen() {
       }
 
       let potd = 0;
+
       if (extrasRes.error) {
-        // Older DBs may not have the session-counter columns yet; still show the avatar.
-        const { data: av } = await supabase.from("profiles").select("avatar_url").eq("id", uid).maybeSingle();
-        setAvatarUrl((av as { avatar_url: string | null } | null)?.avatar_url?.trim() || null);
+        // potd_count column may not exist yet — retry without it to still get wins/losses.
+        const fallback = await supabase
+          .from("profiles")
+          .select("avatar_url,pickup_wins_count,pickup_losses_count")
+          .eq("id", uid)
+          .maybeSingle();
+        console.log("profile stats fallback (no potd_count):", fallback.data, fallback.error);
+        if (!fallback.error && fallback.data) {
+          const row = fallback.data as {
+            avatar_url: string | null;
+            pickup_wins_count: unknown;
+            pickup_losses_count: unknown;
+          };
+          setAvatarUrl(row.avatar_url?.trim() || null);
+          setWinsCount(Math.max(0, Math.trunc(Number(row.pickup_wins_count ?? 0))));
+          setLossesCount(Math.max(0, Math.trunc(Number(row.pickup_losses_count ?? 0))));
+        } else {
+          // Last resort — just pull avatar.
+          const { data: av } = await supabase.from("profiles").select("avatar_url").eq("id", uid).maybeSingle();
+          setAvatarUrl((av as { avatar_url: string | null } | null)?.avatar_url?.trim() || null);
+        }
       } else if (extrasRes.data) {
         const row = extrasRes.data as {
           avatar_url: string | null;
-          wins_count: unknown;
-          losses_count: unknown;
+          pickup_wins_count: unknown;
+          pickup_losses_count: unknown;
           potd_count: unknown;
         };
         setAvatarUrl(row.avatar_url?.trim() || null);
-        setWinsCount(Math.max(0, Math.trunc(Number(row.wins_count ?? 0))));
-        setLossesCount(Math.max(0, Math.trunc(Number(row.losses_count ?? 0))));
+        setWinsCount(Math.max(0, Math.trunc(Number(row.pickup_wins_count ?? 0))));
+        setLossesCount(Math.max(0, Math.trunc(Number(row.pickup_losses_count ?? 0))));
         potd = Math.max(0, Math.trunc(Number(row.potd_count ?? 0)));
         setPotdCount(potd);
       }
