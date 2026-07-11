@@ -345,8 +345,6 @@ export default function AccountScreen() {
   } | null>(null);
   const [winsCount, setWinsCount] = useState<number | null>(null);
   const [lossesCount, setLossesCount] = useState<number | null>(null);
-  // Points bonus from rating_events (positive deltas × 10). Combined with tier base at render time.
-  const [ratingEventsDelta, setRatingEventsDelta] = useState<number>(0);
   // MOTM count from pickup_run_results (player_of_day matches).
   const [motmCount, setMotmCount] = useState<number | null>(null);
   const [creditsCount, setCreditsCount] = useState<number | null>(null);
@@ -649,15 +647,14 @@ export default function AccountScreen() {
   // - Tier/score come from player_ratings.
   // - Avatar + wins/losses come from a profiles query (avatar_url not in the main profile select).
   // - MOTM count comes from pickup_run_results where player_of_day = uid.
-  // - Points = (sessions × tierPts) + (positiveDelta × 10), computed at render time.
+  // - Points = (sessions × tierPts) + (score × 10), using player_ratings.score — same source as leaderboard.
   const loadStats = useCallback(async () => {
     const uid = session?.user?.id;
     if (!isReady || !supabase || !uid) return;
     try {
-      const [ratingRes, extrasRes, eventsRes, motmRes] = await Promise.all([
+      const [ratingRes, extrasRes, motmRes] = await Promise.all([
         supabase.from("player_ratings").select("tier,score,sessions").eq("user_id", uid).maybeSingle(),
         supabase.from("profiles").select("avatar_url,pickup_wins_count,pickup_losses_count").eq("id", uid).maybeSingle(),
-        supabase.from("rating_events").select("delta").eq("user_id", uid),
         supabase.from("pickup_run_results").select("player_of_day", { count: "exact", head: true }).eq("player_of_day", uid),
       ]);
 
@@ -698,14 +695,6 @@ export default function AccountScreen() {
         const { data: av } = await supabase.from("profiles").select("avatar_url").eq("id", uid).maybeSingle();
         setAvatarUrl((av as { avatar_url: string | null } | null)?.avatar_url?.trim() || null);
       }
-
-      // Rating events: sum positive deltas (multiplied × 10 at render time for bonus points).
-      const deltaRows = (eventsRes.data ?? []) as Array<{ delta: number | string | null }>;
-      const positiveDelta = deltaRows.reduce((acc, r) => {
-        const d = Number(r.delta ?? 0);
-        return acc + (Number.isFinite(d) && d > 0 ? d : 0);
-      }, 0);
-      setRatingEventsDelta(positiveDelta);
 
       // MOTM count.
       setMotmCount(motmRes.count ?? 0);
@@ -1455,10 +1444,11 @@ export default function AccountScreen() {
   const sessionsCount = tierInfo?.sessions ?? 0;
   // MOTM: count from pickup_run_results (loaded in loadStats).
   const potdCount = motmCount ?? 0;
-  // Points = base (sessions × tierPts) + bonus (positiveDelta × 10).
+  // Points = (sessions × tierPts) + (player_ratings.score × 10).
+  // Uses the same data source as the leaderboard so both screens show identical values.
   const TIER_PTS_PER_SESSION: Record<string, number> = { diamond: 8, platinum: 6, gold: 4, silver: 2, bronze: 0 };
   const tierPtsPerSession = TIER_PTS_PER_SESSION[currentTier] ?? 0;
-  const points = sessionsCount * tierPtsPerSession + Math.round(ratingEventsDelta * 10);
+  const points = sessionsCount * tierPtsPerSession + Math.round((tierInfo?.score ?? 0) * 10);
 
   const primaryPos = (profile?.primary_position ?? "").trim() || null;
   const secondaryPos = Array.isArray(profile?.secondary_positions)
