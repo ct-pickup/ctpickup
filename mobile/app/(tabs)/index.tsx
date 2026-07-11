@@ -3,7 +3,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { format, isToday, isTomorrow } from "date-fns";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, type Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Line, Rect } from "react-native-svg";
@@ -59,6 +59,15 @@ function whenLabel(iso: string): string {
 
 type MapRun = Session & { min_tier: string | null; location_text: string | null };
 
+type FriendPlaying = {
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+  tier: string | null;
+  start_at: string;
+};
+
 type NextMatch = {
   id: string;
   title: string | null;
@@ -98,6 +107,7 @@ function useHomeData() {
   const [tier, setTier] = useState<string | null>(null);
   const [nextMatch, setNextMatch] = useState<NextMatch | null>(null);
   const [mapRuns, setMapRuns] = useState<MapRun[]>([]);
+  const [friendsPlaying, setFriendsPlaying] = useState<FriendPlaying[]>([]);
 
   const load = useCallback(async () => {
     if (!supabase || !myUserId) return;
@@ -164,13 +174,86 @@ function useHomeData() {
       .order("start_at", { ascending: true })
       .limit(40);
     setMapRuns((mapData as MapRun[]) ?? []);
+
+    // Friends playing tonight — people I follow with a confirmed RSVP today.
+    const { data: follows } = await supabase
+      .from("player_follows")
+      .select("following_id")
+      .eq("follower_id", myUserId);
+    const followingIds = ((follows ?? []) as Array<{ following_id: string | null }>)
+      .map((f) => f.following_id)
+      .filter((v): v is string => Boolean(v));
+
+    if (!followingIds.length) {
+      setFriendsPlaying([]);
+      return;
+    }
+
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const { data: rsvpRows } = await supabase
+      .from("pickup_run_rsvps")
+      .select("user_id, pickup_runs!inner(start_at)")
+      .in("user_id", followingIds)
+      .eq("status", "confirmed");
+
+    // Filter to today's range client-side
+    const todayRsvps = ((rsvpRows ?? []) as Array<{ user_id: string; pickup_runs: { start_at: string } }>).filter(
+      (r) => {
+        const s = r.pickup_runs?.start_at;
+        if (!s) return false;
+        const d = new Date(s);
+        return d >= new Date(nowIso) && d <= todayEnd;
+      },
+    );
+
+    // Keep the earliest start_at per user
+    const userStartMap = new Map<string, string>();
+    for (const r of todayRsvps) {
+      const uid = r.user_id;
+      const s = r.pickup_runs?.start_at;
+      if (!uid || !s) continue;
+      if (!userStartMap.has(uid) || s < userStartMap.get(uid)!) userStartMap.set(uid, s);
+    }
+    const friendIds = Array.from(userStartMap.keys());
+
+    if (!friendIds.length) {
+      setFriendsPlaying([]);
+      return;
+    }
+
+    const [profRes, ratRes] = await Promise.all([
+      supabase.from("profiles").select("id,first_name,last_name,avatar_url").in("id", friendIds),
+      supabase.from("player_ratings").select("user_id,tier").in("user_id", friendIds),
+    ]);
+    const profMap = new Map(
+      ((profRes.data ?? []) as Array<{ id: string; first_name?: string | null; last_name?: string | null; avatar_url?: string | null }>).map((p) => [p.id, p]),
+    );
+    const ratMap = new Map(
+      ((ratRes.data ?? []) as Array<{ user_id: string; tier?: string | null }>).map((r) => [r.user_id, r.tier ?? null]),
+    );
+
+    setFriendsPlaying(
+      friendIds.map((uid) => {
+        const p = profMap.get(uid);
+        return {
+          user_id: uid,
+          first_name: p?.first_name ?? null,
+          last_name: p?.last_name ?? null,
+          avatar_url: p?.avatar_url ?? null,
+          tier: ratMap.get(uid) ?? null,
+          start_at: userStartMap.get(uid)!,
+        };
+      }),
+    );
   }, [supabase, myUserId]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  return { myUserId, firstName, avatarUrl, verificationLevel, tier, nextMatch, mapRuns };
+  return { myUserId, firstName, avatarUrl, verificationLevel, tier, nextMatch, mapRuns, friendsPlaying };
 }
 
 /* --------------------------------------------------------------- pieces */
@@ -262,13 +345,88 @@ function MapDot({ run }: { run: MapRun }) {
   );
 }
 
+function friendDotStatus(startAt: string): "playing" | "soon" | null {
+  const now = Date.now();
+  const start = new Date(startAt).getTime();
+  const twoHrs = 2 * 60 * 60 * 1000;
+  const threeHrs = 3 * 60 * 60 * 1000;
+  if (now >= start && now < start + twoHrs) return "playing";
+  if (now >= start - threeHrs && now < start) return "soon";
+  return null;
+}
+
+function FriendAvatar({ friend, onPress }: { friend: FriendPlaying; onPress: () => void }) {
+  const meta = tierMeta(friend.tier);
+  const borderColor = meta?.color ?? "rgba(255,255,255,0.15)";
+  const initials = [friend.first_name, friend.last_name]
+    .filter(Boolean)
+    .map((n) => n!.charAt(0).toUpperCase())
+    .join("");
+  const displayInitials = initials || "?";
+  const dot = friendDotStatus(friend.start_at);
+  const shortName =
+    friend.first_name
+      ? `${friend.first_name}${friend.last_name ? ` ${friend.last_name.charAt(0)}.` : ""}`
+      : "Player";
+  const statusLabel = dot === "playing" ? "Playing" : "On the way";
+  const statusColor = dot === "playing" ? LIME : "rgba(255,255,255,0.45)";
+
+  return (
+    <Pressable onPress={onPress} style={styles.friendItem} hitSlop={4}>
+      <View style={[styles.friendAvatarWrap, { borderColor }]}>
+        {friend.avatar_url ? (
+          <Image source={{ uri: friend.avatar_url }} style={styles.friendAvatarImg} />
+        ) : (
+          <View style={[styles.friendAvatarImg, styles.friendAvatarFallback]}>
+            <Text style={styles.friendInitials}>{displayInitials}</Text>
+          </View>
+        )}
+        {dot ? (
+          <View style={[styles.friendDot, { backgroundColor: dot === "playing" ? "#22c55e" : "#6b7280" }]} />
+        ) : null}
+      </View>
+      <Text style={styles.friendName} numberOfLines={1}>{shortName}</Text>
+      <Text style={[styles.friendStatus, { color: statusColor }]} numberOfLines={1}>{statusLabel}</Text>
+    </Pressable>
+  );
+}
+
+function FriendsPlayingSection({
+  friends,
+  onSeeAll,
+  onFriendPress,
+}: {
+  friends: FriendPlaying[];
+  onSeeAll: () => void;
+  onFriendPress: (id: string) => void;
+}) {
+  return (
+    <View style={{ marginTop: 16 }}>
+      <SectionHeader label="Friends Playing Tonight" actionLabel="See all" onAction={onSeeAll} />
+      {friends.length === 0 ? (
+        <Text style={styles.friendsEmpty}>No friends playing tonight</Text>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.friendsRow}
+        >
+          {friends.map((f) => (
+            <FriendAvatar key={f.user_id} friend={f} onPress={() => onFriendPress(f.user_id)} />
+          ))}
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
 /* --------------------------------------------------------------- screen */
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const push = router.push as (href: string) => void;
-  const { myUserId, firstName, avatarUrl, verificationLevel, tier, nextMatch, mapRuns } = useHomeData();
+  const { myUserId, firstName, avatarUrl, verificationLevel, tier, nextMatch, mapRuns, friendsPlaying } = useHomeData();
   const { session } = useAuth();
 
   const name = firstName || firstNameFromEmail(session?.user?.email ?? undefined);
@@ -446,6 +604,13 @@ export default function HomeScreen() {
           </View>
         </Pressable>
       </View>
+
+      {/* 4. FRIENDS PLAYING TONIGHT */}
+      <FriendsPlayingSection
+        friends={friendsPlaying}
+        onSeeAll={() => push("/following")}
+        onFriendPress={(id) => push(`/player/${id}`)}
+      />
     </View>
   );
 }
@@ -594,4 +759,48 @@ const styles = StyleSheet.create({
     maxWidth: 90,
   },
   markerLabelText: { fontSize: 9, fontWeight: "700", color: "#fff" },
+
+  /* friends playing tonight */
+  friendsEmpty: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.3)",
+    fontStyle: "italic",
+    marginTop: 2,
+    marginBottom: 8,
+  },
+  friendsRow: { paddingBottom: 4, gap: 16 },
+  friendItem: { alignItems: "center", width: 68 },
+  friendAvatarWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    overflow: "visible",
+  },
+  friendAvatarImg: { width: 56, height: 56, borderRadius: 28, margin: 0 },
+  friendAvatarFallback: {
+    backgroundColor: "#1e1e1e",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  friendInitials: { fontSize: 18, fontWeight: "700", color: "#fff" },
+  friendDot: {
+    position: "absolute",
+    bottom: -1,
+    right: -1,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: "#0a0a0a",
+  },
+  friendName: {
+    marginTop: 6,
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#fff",
+    textAlign: "center",
+    width: 68,
+  },
+  friendStatus: { marginTop: 2, fontSize: 10, fontWeight: "500", textAlign: "center" },
 });
