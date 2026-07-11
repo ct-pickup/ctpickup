@@ -539,7 +539,7 @@ export default function AccountScreen() {
     void loadProfile();
   }, [loadProfile]);
 
-  // Profile-view stats: tier + percentile (player_ratings), avatar + win/loss (profiles), MOTM (results join).
+  // Profile-view stats: tier + sessions (player_ratings), avatar + wins/losses/MOTM (profiles counters).
   const loadStats = useCallback(async () => {
     const uid = session?.user?.id;
     if (!isReady || !supabase || !uid) return;
@@ -568,37 +568,26 @@ export default function AccountScreen() {
         setTierInfo(null);
       }
 
-      const { data: extras } = await supabase
+      const { data: extras, error: extrasErr } = await supabase
         .from("profiles")
-        .select("avatar_url,pickup_wins_count,pickup_losses_count")
+        .select("avatar_url,wins_count,losses_count,potd_count")
         .eq("id", uid)
         .maybeSingle();
-      if (extras) {
+      if (extrasErr) {
+        // Older DBs may not have the session-counter columns yet; still show the avatar.
+        const { data: av } = await supabase.from("profiles").select("avatar_url").eq("id", uid).maybeSingle();
+        setAvatarUrl((av as { avatar_url: string | null } | null)?.avatar_url?.trim() || null);
+      } else if (extras) {
         const row = extras as {
           avatar_url: string | null;
-          pickup_wins_count: unknown;
-          pickup_losses_count: unknown;
+          wins_count: unknown;
+          losses_count: unknown;
+          potd_count: unknown;
         };
         setAvatarUrl(row.avatar_url?.trim() || null);
-        setWinsCount(Math.max(0, Math.trunc(Number(row.pickup_wins_count ?? 0))));
-        setLossesCount(Math.max(0, Math.trunc(Number(row.pickup_losses_count ?? 0))));
-      }
-
-      const { data: assigns } = await supabase
-        .from("pickup_run_team_assignments")
-        .select("team,pickup_run_results(winning_team,player_of_day)")
-        .eq("user_id", uid)
-        .limit(2000);
-      if (Array.isArray(assigns)) {
-        let potd = 0;
-        for (const row of assigns as unknown as Array<{
-          pickup_run_results?: { winning_team: string | null; player_of_day: string | null } | null;
-        }>) {
-          const res = row.pickup_run_results;
-          if (!res?.winning_team) continue;
-          if (res.player_of_day === uid) potd += 1;
-        }
-        setPotdCount(potd);
+        setWinsCount(Math.max(0, Math.trunc(Number(row.wins_count ?? 0))));
+        setLossesCount(Math.max(0, Math.trunc(Number(row.losses_count ?? 0))));
+        setPotdCount(Math.max(0, Math.trunc(Number(row.potd_count ?? 0))));
       }
     } catch (e) {
       console.error("[account loadStats] exception", e);
@@ -1334,7 +1323,6 @@ export default function AccountScreen() {
   const tMeta = TIER_META[currentTier] ?? TIER_META.bronze;
   const ptsPerSession = tMeta.pts;
   const ptsPerSessionLabel = `${ptsPerSession > 0 ? "+" : ""}${ptsPerSession} pts / session`;
-  const totalPoints = Math.round((tierInfo?.score ?? 0) * 30);
   const gamesPlayed = (winsCount ?? 0) + (lossesCount ?? 0);
   const winPct = gamesPlayed > 0 ? Math.round(((winsCount ?? 0) / gamesPlayed) * 100) : null;
   const sessionsCount = tierInfo?.sessions ?? 0;
@@ -1353,13 +1341,15 @@ export default function AccountScreen() {
   const hasBackground = !!(primaryPos || secondaryPos.length || expLabel || age || dob || club);
   const isSelfDeclared = profile?.verification_level === "self";
 
-  const soccerTiles: Array<{ icon: React.ComponentProps<typeof FontAwesome>["name"]; label: string; value: string }> = [];
-  if (primaryPos) soccerTiles.push({ icon: "shield", label: "Primary Position", value: positionFull(primaryPos) });
-  if (secondaryPos.length) soccerTiles.push({ icon: "th", label: "Other Positions", value: secondaryPos.join(" · ") });
-  if (expLabel) soccerTiles.push({ icon: "user", label: "Experience Level", value: expLabel });
-  if (age != null) soccerTiles.push({ icon: "calendar", label: "Age", value: String(age) });
-  if (dobFormatted) soccerTiles.push({ icon: "calendar-o", label: "Date of Birth", value: dobFormatted });
-  if (club) soccerTiles.push({ icon: "shield", label: "Club / Team", value: club });
+  // Fixed 3×2 grid so the second row is always Age · Date of Birth · Club/Team.
+  const soccerTiles: Array<{ icon: React.ComponentProps<typeof FontAwesome>["name"]; label: string; value: string }> = [
+    { icon: "shield", label: "Primary Position", value: primaryPos ? positionFull(primaryPos) : "—" },
+    { icon: "th", label: "Other Positions", value: secondaryPos.length ? secondaryPos.join(" · ") : "—" },
+    { icon: "user", label: "Experience Level", value: expLabel ?? "—" },
+    { icon: "calendar", label: "Age", value: age != null ? String(age) : "—" },
+    { icon: "calendar-o", label: "Date of Birth", value: dobFormatted ?? "—" },
+    { icon: "shield", label: "Club / Team", value: club ?? "—" },
+  ];
 
   const accountRows: Array<{
     icon: React.ComponentProps<typeof FontAwesome>["name"];
@@ -1613,14 +1603,14 @@ export default function AccountScreen() {
                 <Text style={s.statLabel}>Sessions</Text>
               </View>
               <View style={s.statCell}>
-                <FontAwesome name="trophy" size={20} color={LIME} />
+                <FontAwesome name="percent" size={18} color={LIME} />
                 <Text style={s.statValue}>{winPct == null ? "—" : `${winPct}%`}</Text>
                 <Text style={s.statLabel}>Win %</Text>
               </View>
               <View style={s.statCell}>
-                <FontAwesome name="star" size={20} color={LIME} />
-                <Text style={s.statValue}>{totalPoints.toLocaleString()}</Text>
-                <Text style={s.statLabel}>Points</Text>
+                <FontAwesome name="trophy" size={20} color={LIME} />
+                <Text style={s.statValue}>{winsCount ?? 0}</Text>
+                <Text style={s.statLabel}>Wins</Text>
               </View>
               <View style={s.statCell}>
                 <FontAwesome name="fire" size={20} color={LIME} />
@@ -1634,7 +1624,7 @@ export default function AccountScreen() {
               <TierGem tier={currentTier} size={54} gid="accountTierGem" />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={s.tierProgressTitle}>{tierLabel(currentTier)} Tier</Text>
-                <Text style={s.tierProgressSub} numberOfLines={1}>{tMeta.topPct}</Text>
+                <Text style={s.tierProgressSub}>{tMeta.topPct}</Text>
               </View>
               <Pressable
                 onPress={() => myUserId && (router.push as (h: string) => void)(`/player/${myUserId}`)}
@@ -2055,8 +2045,9 @@ const s = StyleSheet.create({
     borderColor: CARD_BORDER,
   },
   tierProgressTitle: { color: "#fff", fontSize: 15, fontWeight: "800" },
-  tierProgressSub: { color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 2 },
+  tierProgressSub: { color: "rgba(255,255,255,0.5)", fontSize: 11, lineHeight: 15, marginTop: 2 },
   viewProgressBtn: {
+    flexShrink: 0,
     borderWidth: 1,
     borderColor: LIME,
     borderRadius: 999,
