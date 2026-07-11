@@ -99,13 +99,14 @@ type ProfileRow = {
   roster_url: string | null;
   verification_level: string | null;
   attended_count: number | null;
+  potd_count: number | null;
 };
 
 const PROFILE_SELECT_WITH_PUSH =
-  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled,marketing_push_enabled,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url,verification_level,attended_count";
+  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled,marketing_push_enabled,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url,verification_level,attended_count,potd_count";
 
 const PROFILE_SELECT_WITHOUT_PUSH =
-  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url,verification_level,attended_count";
+  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url,verification_level,attended_count,potd_count";
 
 function supabaseLooksLikeMissingColumn(err: { message?: string } | null | undefined, col: string): boolean {
   const msg = err?.message ?? "";
@@ -346,8 +347,9 @@ export default function AccountScreen() {
   } | null>(null);
   const [winsCount, setWinsCount] = useState<number | null>(null);
   const [lossesCount, setLossesCount] = useState<number | null>(null);
-  const [potdCount, setPotdCount] = useState<number | null>(null);
-  const [points, setPoints] = useState<number | null>(null);
+  // potdCount and points are computed at render time from profile.potd_count + ratingEventsDelta
+  // to avoid race conditions between loadProfile and loadStats.
+  const [ratingEventsDelta, setRatingEventsDelta] = useState<number>(0);
   const [creditsCount, setCreditsCount] = useState<number | null>(null);
   const settingsSectionY = useRef<number>(0);
   const openEdit = useCallback(() => setEditModalOpen(true), []);
@@ -643,31 +645,32 @@ export default function AccountScreen() {
     void loadProfile();
   }, [loadProfile]);
 
-  // Profile-view stats: tier + sessions (player_ratings), avatar + wins/losses/MOTM (profiles counters).
+  // Profile-view stats.
+  // - Sessions and MOTM (potd_count) come from the profile state set by loadProfile —
+  //   they are computed at render time, not here, to avoid the race condition.
+  // - Tier/score come from player_ratings.
+  // - Avatar + wins/losses come from a profiles query (avatar_url not in the main profile select).
+  // - Points delta comes from rating_events; combined with profile.potd_count at render time.
   const loadStats = useCallback(async () => {
     const uid = session?.user?.id;
     if (!isReady || !supabase || !uid) return;
     try {
-      // Tier (player_ratings), profile counters (profiles), and rating deltas
-      // (rating_events) are independent — fetch them together.
-      // NOTE: actual column names are pickup_wins_count / pickup_losses_count, not wins_count / losses_count.
-      // potd_count is attempted first; if the column doesn't exist we fall back without it.
       const [ratingRes, extrasRes, eventsRes] = await Promise.all([
         supabase.from("player_ratings").select("tier,score,sessions").eq("user_id", uid).maybeSingle(),
-        supabase.from("profiles").select("avatar_url,pickup_wins_count,pickup_losses_count,potd_count").eq("id", uid).maybeSingle(),
+        supabase.from("profiles").select("avatar_url,pickup_wins_count,pickup_losses_count").eq("id", uid).maybeSingle(),
         supabase.from("rating_events").select("delta").eq("user_id", uid),
       ]);
 
       console.log("player_ratings result:", ratingRes.data, ratingRes.error);
       console.log(
-        "profile stats:",
+        "profile wins/losses:",
         (extrasRes.data as { pickup_wins_count?: unknown } | null)?.pickup_wins_count,
         (extrasRes.data as { pickup_losses_count?: unknown } | null)?.pickup_losses_count,
-        (extrasRes.data as { potd_count?: unknown } | null)?.potd_count,
         extrasRes.error,
       );
       console.log("rating_events:", eventsRes.data?.length, eventsRes.error);
 
+      // Tier info (for the tier badge and percentile display).
       const mine = ratingRes.data as
         | { tier: string | null; score: number | null; sessions: number | null }
         | null;
@@ -689,51 +692,29 @@ export default function AccountScreen() {
         setTierInfo(null);
       }
 
-      let potd = 0;
-
-      if (extrasRes.error) {
-        // potd_count column may not exist yet — retry without it to still get wins/losses.
-        const fallback = await supabase
-          .from("profiles")
-          .select("avatar_url,pickup_wins_count,pickup_losses_count")
-          .eq("id", uid)
-          .maybeSingle();
-        console.log("profile stats fallback (no potd_count):", fallback.data, fallback.error);
-        if (!fallback.error && fallback.data) {
-          const row = fallback.data as {
-            avatar_url: string | null;
-            pickup_wins_count: unknown;
-            pickup_losses_count: unknown;
-          };
-          setAvatarUrl(row.avatar_url?.trim() || null);
-          setWinsCount(Math.max(0, Math.trunc(Number(row.pickup_wins_count ?? 0))));
-          setLossesCount(Math.max(0, Math.trunc(Number(row.pickup_losses_count ?? 0))));
-        } else {
-          // Last resort — just pull avatar.
-          const { data: av } = await supabase.from("profiles").select("avatar_url").eq("id", uid).maybeSingle();
-          setAvatarUrl((av as { avatar_url: string | null } | null)?.avatar_url?.trim() || null);
-        }
-      } else if (extrasRes.data) {
+      // Avatar + wins/losses (not in the main profile select).
+      if (!extrasRes.error && extrasRes.data) {
         const row = extrasRes.data as {
           avatar_url: string | null;
           pickup_wins_count: unknown;
           pickup_losses_count: unknown;
-          potd_count: unknown;
         };
         setAvatarUrl(row.avatar_url?.trim() || null);
         setWinsCount(Math.max(0, Math.trunc(Number(row.pickup_wins_count ?? 0))));
         setLossesCount(Math.max(0, Math.trunc(Number(row.pickup_losses_count ?? 0))));
-        potd = Math.max(0, Math.trunc(Number(row.potd_count ?? 0)));
-        setPotdCount(potd);
+      } else if (extrasRes.error) {
+        // Fallback: at least get the avatar.
+        const { data: av } = await supabase.from("profiles").select("avatar_url").eq("id", uid).maybeSingle();
+        setAvatarUrl((av as { avatar_url: string | null } | null)?.avatar_url?.trim() || null);
       }
 
-      // Points = sum(positive rating deltas) × 30 + MOTM × 100.
+      // Rating events delta — combined with profile.potd_count at render time for Points.
       const deltaRows = (eventsRes.data ?? []) as Array<{ delta: number | string | null }>;
       const positiveDelta = deltaRows.reduce((acc, r) => {
         const d = Number(r.delta ?? 0);
         return acc + (Number.isFinite(d) && d > 0 ? d : 0);
       }, 0);
-      setPoints(Math.round(positiveDelta * 30) + potd * 100);
+      setRatingEventsDelta(positiveDelta);
     } catch (e) {
       console.error("[account loadStats] exception", e);
     }
@@ -1476,12 +1457,13 @@ export default function AccountScreen() {
   const ptsPerSessionLabel = `${ptsPerSession > 0 ? "+" : ""}${ptsPerSession} pts / session`;
   const gamesPlayed = (winsCount ?? 0) + (lossesCount ?? 0);
   const winPct = gamesPlayed > 0 ? Math.round(((winsCount ?? 0) / gamesPlayed) * 100) : null;
-  // Prefer the attended_count column from the already-loaded profile (refreshed on focus),
-  // fall back to the player_ratings.sessions value if attended_count is absent or zero.
-  const attendedCount = typeof profile?.attended_count === "number" ? profile.attended_count : null;
-  const sessionsCount = (attendedCount != null && attendedCount > 0)
-    ? attendedCount
-    : (tierInfo?.sessions ?? 0);
+  // Sessions: directly from profile.attended_count (fetched by loadProfile on every focus).
+  const sessionsCount = profile?.attended_count ?? 0;
+  // MOTM + Points: profile.potd_count is now in the profile select, so it arrives with loadProfile.
+  // ratingEventsDelta is set by loadStats. Computing here avoids the loadProfile/loadStats race.
+  const potdCount = profile?.potd_count ?? 0;
+  const points = Math.round(ratingEventsDelta * 30) + potdCount * 100;
+  console.log("Stats debug:", { attended: profile?.attended_count, potd: profile?.potd_count, delta: ratingEventsDelta, points });
 
   const primaryPos = (profile?.primary_position ?? "").trim() || null;
   const secondaryPos = Array.isArray(profile?.secondary_positions)
@@ -1761,13 +1743,13 @@ export default function AccountScreen() {
               </View>
               <View style={s.statCell}>
                 <FontAwesome name="fire" size={20} color={LIME} />
-                <Text style={s.statValue}>{potdCount ?? 0}</Text>
+                <Text style={s.statValue}>{potdCount}</Text>
                 <Text style={s.statLabel}>MOTM</Text>
               </View>
               <View style={s.statCell}>
                 <FontAwesome name="star" size={19} color={LIME} />
                 <Text style={s.statValue} numberOfLines={1} adjustsFontSizeToFit>
-                  {points == null ? "—" : points.toLocaleString()}
+                  {points.toLocaleString()}
                 </Text>
                 <Text style={s.statLabel}>Points</Text>
               </View>
