@@ -1,6 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
 import { profileDisplayName } from "@/lib/profileFields";
-import { usePickupJoin } from "@/hooks/usePickupJoin";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
@@ -51,7 +50,6 @@ export default function RunDetailScreen() {
   const navigation = useNavigation();
   const router = useRouter();
   const { session, supabase, isReady } = useAuth();
-  const { declinePickup, declineBusy } = usePickupJoin();
 
   const userId = session?.user?.id ?? null;
   const token = session?.access_token ?? null;
@@ -65,7 +63,6 @@ export default function RunDetailScreen() {
   const [isCompleted, setIsCompleted] = useState(false);
   const [runStatus, setRunStatus] = useState<string | null>(null);
   const [lockedAt, setLockedAt] = useState<string | null>(null);
-  const [cancellationDeadline, setCancellationDeadline] = useState<string | null>(null);
   const [myRsvpStatus, setMyRsvpStatus] = useState<string | null>(null);
 
   const [myTeam, setMyTeam] = useState<Team | null>(null);
@@ -147,8 +144,6 @@ export default function RunDetailScreen() {
     setIsCompleted(run?.is_completed === true);
     const la = run?.locked_at;
     setLockedAt(typeof la === "string" && la.trim().length > 0 ? la : null);
-    const cd = run?.cancellation_deadline;
-    setCancellationDeadline(typeof cd === "string" && cd.trim().length > 0 ? cd : null);
 
     if (!rsvpRes.error && rsvpRes.data && typeof (rsvpRes.data as { status?: unknown }).status === "string") {
       setMyRsvpStatus((rsvpRes.data as { status: string }).status);
@@ -246,15 +241,6 @@ export default function RunDetailScreen() {
     return String(runStatus || "").trim().toLowerCase() === "completed";
   }, [isCompleted, runStatus]);
 
-  const runLocked = useMemo(() => {
-    const st = String(runStatus || "").trim().toLowerCase();
-    if (st === "in_progress") return true;
-    return typeof lockedAt === "string" && lockedAt.trim().length > 0;
-  }, [runStatus, lockedAt]);
-
-  const showCancelSpot =
-    myRsvpStatus === "confirmed" && !runLocked && Boolean(token) && Boolean(runId);
-
   if (loading) {
     return (
       <View style={styles.center}>
@@ -338,32 +324,6 @@ export default function RunDetailScreen() {
         </View>
       ) : null}
 
-      {showCancelSpot ? (
-        <View style={styles.cancelSection}>
-          <Pressable
-            disabled={declineBusy}
-            onPress={() =>
-              void declinePickup(
-                token,
-                runId,
-                { start_at: startAt, cancellation_deadline: cancellationDeadline },
-                loadRunDetail,
-              )
-            }
-            style={({ pressed }) => [
-              styles.cancelSpotButton,
-              declineBusy && styles.cancelSpotButtonDisabled,
-              pressed && !declineBusy && { opacity: 0.85 },
-            ]}
-          >
-            {declineBusy ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.cancelSpotText}>Cancel spot</Text>
-            )}
-          </Pressable>
-        </View>
-      ) : null}
     </ScrollView>
   );
 }
@@ -423,20 +383,4 @@ const styles = StyleSheet.create({
   pillText: { fontWeight: "900", fontSize: 13 },
   pillTextWin: { color: "#111" },
   pillTextLoss: { color: "#fff" },
-
-  cancelSection: { marginTop: 28, alignSelf: "stretch" },
-  cancelSpotButton: {
-    alignSelf: "stretch",
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    backgroundColor: "rgba(0,0,0,0.4)",
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 44,
-  },
-  cancelSpotButtonDisabled: { opacity: 0.45 },
-  cancelSpotText: { color: "#fff", fontSize: 15, fontWeight: "700" },
 });
