@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const LIME = "#a3e635";
 
@@ -33,6 +34,7 @@ function fmt12Hour(date: Date): string {
 
 export default function TrainingPostScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
 
   const [fieldQuery, setFieldQuery] = useState("");
@@ -43,9 +45,9 @@ export default function TrainingPostScreen() {
   const [workingOn, setWorkingOn] = useState("");
   const [spots, setSpots] = useState(2);
 
-  const twoHoursOut = new Date(Date.now() + 2 * 60 * 60 * 1000);
   const [untilEnabled, setUntilEnabled] = useState(true);
-  const [trainingUntil, setTrainingUntil] = useState<Date>(twoHoursOut);
+  // Default the end time to exactly two hours from now (computed once at mount).
+  const [trainingUntil, setTrainingUntil] = useState<Date>(() => new Date(Date.now() + 2 * 60 * 60 * 1000));
   const [showTimePicker, setShowTimePicker] = useState(false);
 
   const [notes, setNotes] = useState("");
@@ -143,7 +145,11 @@ export default function TrainingPostScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 80 }} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={[s.root, { paddingTop: insets.top + 16 }]}
+        contentContainerStyle={{ paddingBottom: 80 }}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Header */}
         <View style={s.header}>
           <Text style={s.headerTitle}>Start Training</Text>
@@ -260,7 +266,7 @@ export default function TrainingPostScreen() {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#0a0a0a", padding: 20 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 16, marginBottom: 24 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 24 },
   headerTitle: { color: "#fff", fontSize: 20, fontWeight: "800" },
   card: {
     backgroundColor: "rgba(255,255,255,0.04)",
