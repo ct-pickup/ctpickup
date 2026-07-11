@@ -1,6 +1,4 @@
-import { FieldTournamentCard } from "@/components/FieldTournamentCard";
 import { useAuth } from "@/context/AuthContext";
-import { useFieldTournament } from "@/hooks/useFieldTournament";
 import { hapticTap } from "@/lib/haptics";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { format, isToday, isTomorrow } from "date-fns";
@@ -8,7 +6,6 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   Image,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -67,35 +64,6 @@ function whenLabel(iso: string): string {
   return `${format(d, "EEE MMM d")} · ${t}`;
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
-}
-
-/** Live-updating elapsed-time string, refreshed every 60 seconds. */
-function useElapsedTime(startedAt: string | null): string {
-  const [elapsed, setElapsed] = useState("");
-  useEffect(() => {
-    if (!startedAt) return;
-    const update = () => {
-      const mins = Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000);
-      if (mins < 1) setElapsed("Just started");
-      else if (mins < 60) setElapsed(mins + " min in");
-      else {
-        const h = Math.floor(mins / 60);
-        const m = mins % 60;
-        setElapsed(h + "h " + (m > 0 ? m + "min " : "") + "in");
-      }
-    };
-    update();
-    const interval = setInterval(update, 60000);
-    return () => clearInterval(interval);
-  }, [startedAt]);
-  return elapsed;
-}
-
 /* --------------------------------------------------------------- types */
 
 type MapRun = Session & { min_tier: string | null; location_text: string | null };
@@ -109,23 +77,6 @@ type NextMatch = {
   spots_taken: number;
   fee_cents: number;
   min_tier: string | null;
-};
-
-type Friend = {
-  user_id: string;
-  name: string;
-  avatar_url: string | null;
-  status: "playing" | "on_the_way" | "later";
-};
-
-type TrainingNearby = {
-  id: string;
-  field_name: string;
-  started_at: string;
-  what_im_working_on: string | null;
-  spots_available: number;
-  host_name: string;
-  host_tier: string | null;
 };
 
 const FAIRFIELD: Region = {
@@ -156,19 +107,10 @@ function useHomeData() {
   const [tier, setTier] = useState<string | null>(null);
   const [nextMatch, setNextMatch] = useState<NextMatch | null>(null);
   const [mapRuns, setMapRuns] = useState<MapRun[]>([]);
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [training, setTraining] = useState<TrainingNearby[]>([]);
-  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!supabase || !myUserId) {
-      setLoading(false);
-      return;
-    }
+    if (!supabase || !myUserId) return;
     const nowIso = new Date().toISOString();
-    const midnight = new Date();
-    midnight.setHours(23, 59, 59, 999);
-    const midnightIso = midnight.toISOString();
 
     // Profile (name, avatar, verification) + tier — independent, run together.
     const [profileRes, tierRes] = await Promise.all([
@@ -231,134 +173,6 @@ function useHomeData() {
       .order("start_at", { ascending: true })
       .limit(40);
     setMapRuns((mapData as MapRun[]) ?? []);
-
-    // Friends playing tonight.
-    const { data: followRows } = await supabase
-      .from("player_follows")
-      .select("following_id")
-      .eq("follower_id", myUserId);
-    const followingIds = Array.from(
-      new Set(
-        ((followRows ?? []) as Array<{ following_id: string | null }>)
-          .map((r) => r.following_id)
-          .filter((v): v is string => Boolean(v)),
-      ),
-    );
-    if (followingIds.length > 0) {
-      const { data: friendRsvps } = await supabase
-        .from("pickup_run_rsvps")
-        .select("user_id,pickup_runs!inner(start_at)")
-        .in("user_id", followingIds)
-        .eq("status", "confirmed")
-        .gte("pickup_runs.start_at", nowIso)
-        .lte("pickup_runs.start_at", midnightIso);
-
-      // Keep the soonest session per friend.
-      const soonest = new Map<string, string>();
-      for (const row of (friendRsvps ?? []) as Array<{
-        user_id: string | null;
-        pickup_runs?: { start_at?: string | null } | { start_at?: string | null }[] | null;
-      }>) {
-        if (!row.user_id) continue;
-        const runField = Array.isArray(row.pickup_runs) ? row.pickup_runs[0] : row.pickup_runs;
-        const startAt = runField?.start_at;
-        if (!startAt) continue;
-        const prev = soonest.get(row.user_id);
-        if (!prev || Date.parse(startAt) < Date.parse(prev)) soonest.set(row.user_id, startAt);
-      }
-
-      const friendIds = Array.from(soonest.keys());
-      if (friendIds.length > 0) {
-        const { data: friendProfiles } = await supabase
-          .from("profiles")
-          .select("id,first_name,last_name,avatar_url")
-          .in("id", friendIds);
-        const now = Date.now();
-        const built: Friend[] = friendIds.map((id) => {
-          const p = ((friendProfiles ?? []) as Array<{
-            id: string;
-            first_name?: string | null;
-            last_name?: string | null;
-            avatar_url?: string | null;
-          }>).find((row) => row.id === id);
-          const fn = p?.first_name?.trim() || "";
-          const ln = p?.last_name?.trim() || "";
-          const name = `${fn}${ln ? ` ${ln.charAt(0)}.` : ""}`.trim() || "Player";
-          const startMs = Date.parse(soonest.get(id)!);
-          let status: Friend["status"] = "later";
-          if (startMs < now && now < startMs + 2 * 60 * 60 * 1000) status = "playing";
-          else if (startMs > now && startMs - now <= 3 * 60 * 60 * 1000) status = "on_the_way";
-          return {
-            user_id: id,
-            name,
-            avatar_url: p?.avatar_url?.trim() || null,
-            status,
-          };
-        });
-        // Playing first, then on the way, then later.
-        const order = { playing: 0, on_the_way: 1, later: 2 };
-        built.sort((a, b) => order[a.status] - order[b.status]);
-        setFriends(built);
-      } else {
-        setFriends([]);
-      }
-    } else {
-      setFriends([]);
-    }
-
-    // Training nearby — active posts with host name + tier.
-    const { data: trainingRows } = await supabase
-      .from("training_posts")
-      .select("id,user_id,field_name,started_at,what_im_working_on,spots_available")
-      .eq("status", "active")
-      .order("started_at", { ascending: false })
-      .limit(3);
-    const tRows = (trainingRows ?? []) as Array<{
-      id: string;
-      user_id: string;
-      field_name: string;
-      started_at: string;
-      what_im_working_on: string | null;
-      spots_available: number;
-    }>;
-    if (tRows.length > 0) {
-      const hostIds = Array.from(new Set(tRows.map((r) => r.user_id)));
-      const [hostProfilesRes, hostTiersRes] = await Promise.all([
-        supabase.from("profiles").select("id,first_name,last_name,username").in("id", hostIds),
-        supabase.from("player_ratings").select("user_id,tier").in("user_id", hostIds),
-      ]);
-      const nameById = new Map<string, string>();
-      for (const row of (hostProfilesRes.data ?? []) as Array<{
-        id: string;
-        first_name?: string | null;
-        last_name?: string | null;
-        username?: string | null;
-      }>) {
-        nameById.set(
-          row.id,
-          [row.first_name, row.last_name].filter(Boolean).join(" ") || row.username || "Player",
-        );
-      }
-      const tierByHost = new Map<string, string | null>();
-      for (const row of (hostTiersRes.data ?? []) as Array<{ user_id: string; tier: string | null }>) {
-        tierByHost.set(row.user_id, row.tier);
-      }
-      setTraining(
-        tRows.map((r) => ({
-          id: r.id,
-          field_name: r.field_name,
-          started_at: r.started_at,
-          what_im_working_on: r.what_im_working_on,
-          spots_available: r.spots_available,
-          host_name: nameById.get(r.user_id) ?? "Player",
-          host_tier: tierByHost.get(r.user_id) ?? null,
-        })),
-      );
-    } else {
-      setTraining([]);
-    }
-
-    setLoading(false);
   }, [supabase, myUserId]);
 
   useEffect(() => {
@@ -373,9 +187,6 @@ function useHomeData() {
     tier,
     nextMatch,
     mapRuns,
-    friends,
-    training,
-    loading,
     reload: load,
   };
 }
@@ -409,16 +220,16 @@ function SectionHeader({
 
 /** Faded top-down pitch outline for the next-match card. */
 function PitchGraphic() {
-  const W = 150;
-  const H = 100;
+  const W = 130;
+  const H = 84;
   const stroke = "rgba(255,255,255,0.05)";
   return (
     <Svg width={W} height={H} style={styles.pitch}>
       <Rect x={2} y={2} width={W - 4} height={H - 4} rx={4} stroke={stroke} strokeWidth={2} fill="none" />
       <Line x1={W / 2} y1={2} x2={W / 2} y2={H - 2} stroke={stroke} strokeWidth={2} />
-      <Circle cx={W / 2} cy={H / 2} r={16} stroke={stroke} strokeWidth={2} fill="none" />
-      <Rect x={2} y={H / 2 - 22} width={22} height={44} stroke={stroke} strokeWidth={2} fill="none" />
-      <Rect x={W - 24} y={H / 2 - 22} width={22} height={44} stroke={stroke} strokeWidth={2} fill="none" />
+      <Circle cx={W / 2} cy={H / 2} r={14} stroke={stroke} strokeWidth={2} fill="none" />
+      <Rect x={2} y={H / 2 - 18} width={18} height={36} stroke={stroke} strokeWidth={2} fill="none" />
+      <Rect x={W - 20} y={H / 2 - 18} width={18} height={36} stroke={stroke} strokeWidth={2} fill="none" />
     </Svg>
   );
 }
@@ -437,62 +248,6 @@ function TierBadge({ tier, size = "sm" }: { tier: string | null; size?: "sm" | "
       {meta.diamond ? <Text style={[styles.tierDiamond, { color: meta.color }]}>◆ </Text> : null}
       <Text style={[styles.tierBadgeText, { color: meta.color }]}>{meta.label.toUpperCase()}</Text>
     </View>
-  );
-}
-
-function FriendAvatar({ friend }: { friend: Friend }) {
-  const dotColor = friend.status === "playing" ? LIME : friend.status === "on_the_way" ? "#9aa0a6" : null;
-  const statusText = friend.status === "playing" ? "Playing" : friend.status === "on_the_way" ? "On the way" : "Later";
-  const statusColor = friend.status === "playing" ? LIME : "rgba(255,255,255,0.5)";
-  return (
-    <View style={styles.friendCol}>
-      <View>
-        {friend.avatar_url ? (
-          <Image source={{ uri: friend.avatar_url }} style={styles.friendAvatar} />
-        ) : (
-          <View style={[styles.friendAvatar, styles.friendAvatarFallback]}>
-            <Text style={styles.friendInitials}>{initials(friend.name)}</Text>
-          </View>
-        )}
-        {dotColor ? <View style={[styles.friendDot, { backgroundColor: dotColor }]} /> : null}
-      </View>
-      <Text style={styles.friendName} numberOfLines={1}>
-        {friend.name}
-      </Text>
-      <Text style={[styles.friendStatus, { color: statusColor }]} numberOfLines={1}>
-        {statusText}
-      </Text>
-    </View>
-  );
-}
-
-function TrainingCard({ item, onPress }: { item: TrainingNearby; onPress: () => void }) {
-  const elapsed = useElapsedTime(item.started_at);
-  const isFull = item.spots_available <= 0;
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.trainingCard, pressed && { opacity: 0.85 }]}>
-      <View style={styles.trainingCardTop}>
-        <Text style={styles.trainingHost} numberOfLines={1}>
-          {item.host_name}
-        </Text>
-        <TierBadge tier={item.host_tier} />
-      </View>
-      <Text style={styles.trainingField} numberOfLines={1}>
-        {item.field_name}
-      </Text>
-      <View style={styles.trainingLiveRow}>
-        <View style={styles.trainingLiveDot} />
-        <Text style={styles.trainingLiveText}>{elapsed || "Live"}</Text>
-      </View>
-      {item.what_im_working_on ? (
-        <Text style={styles.trainingWorking} numberOfLines={2}>
-          {item.what_im_working_on}
-        </Text>
-      ) : null}
-      <Text style={[styles.trainingSpots, isFull && { color: "#ef4444" }]}>
-        {isFull ? "Full" : `${item.spots_available} spot${item.spots_available === 1 ? "" : "s"} open`}
-      </Text>
-    </Pressable>
   );
 }
 
@@ -531,37 +286,20 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const push = router.push as (href: string) => void;
-  const {
-    myUserId,
-    firstName,
-    avatarUrl,
-    verificationLevel,
-    tier,
-    nextMatch,
-    mapRuns,
-    friends,
-    training,
-    reload,
-  } = useHomeData();
+  const { myUserId, firstName, avatarUrl, verificationLevel, tier, nextMatch, mapRuns, reload } =
+    useHomeData();
   const { session } = useAuth();
-  const {
-    loading: tournamentLoading,
-    error: tournamentError,
-    payload: tournamentPayload,
-    reload: reloadTournament,
-  } = useFieldTournament();
 
-  const [tournamentsOpen, setTournamentsOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     void hapticTap();
     setRefreshing(true);
     try {
-      await Promise.all([reload(), reloadTournament({ background: true })]);
+      await reload();
     } finally {
       setRefreshing(false);
     }
-  }, [reload, reloadTournament]);
+  }, [reload]);
 
   const name = firstName || firstNameFromEmail(session?.user?.email ?? undefined);
   const notVerified = verificationLevel === "self";
@@ -579,12 +317,11 @@ export default function HomeScreen() {
     : FAIRFIELD;
 
   return (
-    <View style={styles.root}>
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={[
         styles.content,
-        { paddingTop: Math.max(insets.top, 12) + 8, paddingBottom: 120 + insets.bottom },
+        { paddingTop: Math.max(insets.top, 12) + 8, paddingBottom: 24 },
       ]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={LIME} />
@@ -660,15 +397,15 @@ export default function HomeScreen() {
         <View style={[styles.matchCard, { borderLeftColor: isDiamondRun ? "#9B59B6" : LIME }]}>
           <PitchGraphic />
           <TierBadge tier={nextMatch.min_tier} />
-          <Text style={styles.matchTitle} numberOfLines={2}>
+          <Text style={styles.matchTitle} numberOfLines={1}>
             {nextMatch.title || "Pickup run"}
           </Text>
           <View style={styles.matchMetaRow}>
-            <FontAwesome name="clock-o" size={13} color="rgba(255,255,255,0.55)" />
+            <FontAwesome name="clock-o" size={12} color="rgba(255,255,255,0.55)" />
             <Text style={styles.matchMeta}>{whenLabel(nextMatch.start_at)}</Text>
           </View>
           <View style={styles.matchMetaRow}>
-            <FontAwesome name="map-marker" size={13} color="rgba(255,255,255,0.55)" />
+            <FontAwesome name="map-marker" size={12} color="rgba(255,255,255,0.55)" />
             <Text style={styles.matchMeta} numberOfLines={1}>
               {nextMatch.location_text || "Location TBD"}
             </Text>
@@ -708,7 +445,7 @@ export default function HomeScreen() {
       )}
 
       {/* 3. LIVE MAP */}
-      <View style={{ marginTop: 28 }}>
+      <View style={{ marginTop: 18 }}>
         <SectionHeader label="Live Map" actionLabel="View full map" onAction={() => push("/session-map")} />
         <Pressable
           accessibilityRole="button"
@@ -748,118 +485,13 @@ export default function HomeScreen() {
           </View>
         </Pressable>
       </View>
-
-      {/* 4. FRIENDS PLAYING TONIGHT */}
-      <View style={{ marginTop: 28 }}>
-        <SectionHeader
-          label="Friends Playing Tonight"
-          actionLabel="See all"
-          onAction={() => push("/following")}
-        />
-        {friends.length > 0 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.friendsRow}>
-            {friends.map((f) => (
-              <Pressable key={f.user_id} onPress={() => push(`/player/${f.user_id}`)}>
-                <FriendAvatar friend={f} />
-              </Pressable>
-            ))}
-          </ScrollView>
-        ) : (
-          <View style={styles.friendsEmpty}>
-            <Text style={styles.friendsEmptyText}>No friends playing tonight</Text>
-          </View>
-        )}
-      </View>
-
-      {/* TRAINING NEARBY */}
-      <View style={{ marginTop: 28 }}>
-        <View style={styles.sectionHeaderRow}>
-          <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>Training Nearby</SectionLabel>
-          <Pressable onPress={() => push("/training-post")} hitSlop={8} style={styles.startTrainingBtn}>
-            <FontAwesome name="plus" size={11} color="#0a0a0a" />
-            <Text style={styles.startTrainingText}>Start Training</Text>
-          </Pressable>
-        </View>
-        {training.length > 0 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trainingRow}>
-            {training.map((t) => (
-              <TrainingCard key={t.id} item={t} onPress={() => push(`/training/${t.id}`)} />
-            ))}
-          </ScrollView>
-        ) : (
-          <View style={styles.friendsEmpty}>
-            <Text style={styles.friendsEmptyText}>No one training nearby</Text>
-          </View>
-        )}
-      </View>
-
     </ScrollView>
-
-      {/* Floating Tournaments button */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Open tournaments"
-        onPress={() => {
-          void hapticTap();
-          setTournamentsOpen(true);
-        }}
-        style={({ pressed }) => [
-          styles.fab,
-          { bottom: 74 + insets.bottom },
-          pressed && { transform: [{ scale: 0.95 }] },
-        ]}
-      >
-        <FontAwesome name="trophy" size={16} color="#0a0a0a" />
-        <Text style={styles.fabText}>Tournaments</Text>
-      </Pressable>
-
-      {/* Tournaments slide-up drawer */}
-      <Modal
-        visible={tournamentsOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setTournamentsOpen(false)}
-      >
-        <Pressable style={styles.sheetBackdrop} onPress={() => setTournamentsOpen(false)}>
-          <Pressable
-            style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}
-            onPress={() => {}}
-          >
-            <View style={styles.sheetHandle} />
-            <View style={styles.sheetHeaderRow}>
-              <Text style={styles.sheetTitle}>Tournaments</Text>
-              <Pressable
-                onPress={() => {
-                  setTournamentsOpen(false);
-                  push("/(tabs)/tournaments");
-                }}
-                hitSlop={8}
-              >
-                <Text style={styles.sectionAction}>View all →</Text>
-              </Pressable>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 460 }}>
-              <FieldTournamentCard
-                loading={tournamentLoading}
-                error={tournamentError}
-                payload={tournamentPayload}
-                onPress={() => {
-                  setTournamentsOpen(false);
-                  push("/field-tournament");
-                }}
-              />
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
-    </View>
   );
 }
 
 /* --------------------------------------------------------------- styles */
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0a0a0a" },
   scroll: { flex: 1, backgroundColor: "#0a0a0a" },
   content: { paddingHorizontal: 20 },
 
@@ -892,13 +524,13 @@ const styles = StyleSheet.create({
   },
   avatarUnverified: { borderWidth: 2, borderColor: "#ef4444" },
 
-  greeting: { marginTop: 18, fontSize: 22, fontWeight: "800", color: "#fff", letterSpacing: -0.3 },
+  greeting: { marginTop: 14, fontSize: 20, fontWeight: "800", color: "#fff", letterSpacing: -0.3 },
   greetingName: { color: LIME },
 
   /* section labels */
   sectionLabel: {
-    marginTop: 24,
-    marginBottom: 12,
+    marginTop: 18,
+    marginBottom: 10,
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.5,
@@ -909,7 +541,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 10,
   },
   sectionAction: { fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.6)" },
 
@@ -926,35 +558,35 @@ const styles = StyleSheet.create({
   tierBadgeText: { fontSize: 10, fontWeight: "800", letterSpacing: 0.8 },
   tierDiamond: { fontSize: 10, fontWeight: "800" },
 
-  /* next match card */
+  /* next match card — compact */
   matchCard: {
     backgroundColor: CARD_BG,
     borderWidth: 1,
     borderColor: CARD_BORDER,
     borderLeftWidth: 4,
     borderRadius: 16,
-    padding: 18,
+    padding: 14,
     overflow: "hidden",
   },
-  pitch: { position: "absolute", top: 8, right: 8 },
-  matchTitle: { marginTop: 12, fontSize: 22, fontWeight: "800", color: "#fff", letterSpacing: -0.4 },
-  matchMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
-  matchMeta: { fontSize: 14, color: "rgba(255,255,255,0.7)", flexShrink: 1 },
+  pitch: { position: "absolute", top: 6, right: 6 },
+  matchTitle: { marginTop: 8, fontSize: 18, fontWeight: "800", color: "#fff", letterSpacing: -0.3 },
+  matchMetaRow: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 5 },
+  matchMeta: { fontSize: 13, color: "rgba(255,255,255,0.7)", flexShrink: 1 },
   matchBottom: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    marginTop: 16,
+    marginTop: 12,
   },
-  matchSpots: { fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.85)", flexShrink: 1 },
+  matchSpots: { fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.85)", flexShrink: 1 },
   priceBox: { alignItems: "flex-end" },
-  priceText: { fontSize: 26, fontWeight: "800", color: "#fff", letterSpacing: -0.5 },
+  priceText: { fontSize: 22, fontWeight: "800", color: "#fff", letterSpacing: -0.5 },
   priceTier: { fontSize: 11, fontWeight: "600", color: "rgba(255,255,255,0.5)" },
   primaryBtn: {
-    marginTop: 18,
+    marginTop: 12,
     backgroundColor: LIME,
     borderRadius: 12,
-    paddingVertical: 15,
+    paddingVertical: 12,
     alignItems: "center",
   },
   primaryBtnText: { color: "#0a0a0a", fontSize: 15, fontWeight: "800", letterSpacing: 0.5 },
@@ -964,7 +596,7 @@ const styles = StyleSheet.create({
 
   /* map */
   mapWrap: {
-    height: 220,
+    height: 140,
     borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
@@ -1002,112 +634,4 @@ const styles = StyleSheet.create({
     maxWidth: 90,
   },
   markerLabelText: { fontSize: 9, fontWeight: "700", color: "#fff" },
-
-  /* friends */
-  friendsRow: { gap: 16, paddingRight: 8 },
-  friendCol: { alignItems: "center", width: 64 },
-  friendAvatar: { width: 56, height: 56, borderRadius: 999, backgroundColor: "#1a1a1a" },
-  friendAvatarFallback: {
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-  },
-  friendInitials: { fontSize: 18, fontWeight: "800", color: "#fff" },
-  friendDot: {
-    position: "absolute",
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 2,
-    borderColor: "#0a0a0a",
-  },
-  friendName: { marginTop: 6, fontSize: 12, fontWeight: "600", color: "#fff", maxWidth: 64 },
-  friendStatus: { fontSize: 11, fontWeight: "600" },
-  friendsEmpty: {
-    backgroundColor: CARD_BG,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    borderRadius: 16,
-    paddingVertical: 20,
-    alignItems: "center",
-  },
-  friendsEmptyText: { fontSize: 13, color: "rgba(255,255,255,0.4)" },
-
-  /* training nearby */
-  startTrainingBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: LIME,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-  },
-  startTrainingText: { color: "#0a0a0a", fontSize: 12, fontWeight: "800" },
-  trainingRow: { gap: 12, paddingRight: 8 },
-  trainingCard: {
-    width: 200,
-    backgroundColor: CARD_BG,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    borderRadius: 16,
-    padding: 14,
-  },
-  trainingCardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
-  trainingHost: { flex: 1, color: "#fff", fontSize: 15, fontWeight: "700" },
-  trainingField: { marginTop: 8, color: "rgba(255,255,255,0.7)", fontSize: 13 },
-  trainingLiveRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
-  trainingLiveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#4ADE80" },
-  trainingLiveText: { color: "#4ADE80", fontSize: 12, fontWeight: "700" },
-  trainingWorking: { marginTop: 8, color: "#fff", fontSize: 13, fontWeight: "500", lineHeight: 18 },
-  trainingSpots: { marginTop: 10, color: LIME, fontSize: 12, fontWeight: "700" },
-
-  /* floating tournaments button */
-  fab: {
-    position: "absolute",
-    right: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 999,
-    backgroundColor: LIME,
-    shadowColor: "#000",
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
-  },
-  fabText: { color: "#0a0a0a", fontSize: 14, fontWeight: "800", letterSpacing: 0.2 },
-
-  /* tournaments drawer */
-  sheetBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
-  sheet: {
-    backgroundColor: "#111311",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderTopWidth: 1,
-    borderColor: CARD_BORDER,
-    paddingHorizontal: 20,
-    paddingTop: 10,
-  },
-  sheetHandle: {
-    alignSelf: "center",
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    marginBottom: 14,
-  },
-  sheetHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 14,
-  },
-  sheetTitle: { fontSize: 20, fontWeight: "800", color: "#fff", letterSpacing: -0.3 },
 });
