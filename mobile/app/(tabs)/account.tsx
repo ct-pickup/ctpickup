@@ -27,25 +27,28 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Linking,
   Platform,
   Pressable,
   RefreshControl,
   ScrollView,
+  StyleSheet,
   Switch,
   Modal,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Circle, Defs, Ellipse, Polygon, RadialGradient, Stop } from "react-native-svg";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { Ionicons } from "@expo/vector-icons";
 import { AppLockSection } from "@/components/account/AppLockSection";
 import { PreferencesSection } from "@/components/account/PreferencesSection";
 import { ProfileSection } from "@/components/account/ProfileSection";
 import { ReferralSection } from "@/components/account/ReferralSection";
-import { ReliabilitySection } from "@/components/account/ReliabilitySection";
-import { SoccerBackgroundSection } from "@/components/account/SoccerBackgroundSection";
 import { VerificationRequestModal } from "@/components/account/VerificationRequestModal";
 import {
   accountStyles as styles,
@@ -126,8 +129,127 @@ function formatProfileSaveError(err: unknown): string {
   return String(err);
 }
 
+/* ----------------------------------------------------------- tier + gems */
+
+const TIER_COLORS: Record<string, string> = {
+  diamond: "#9B59B6",
+  platinum: "#E8E8E8",
+  gold: "#E3B23C",
+  silver: "#A8B0B5",
+  bronze: "#B87333",
+};
+
+function tierColor(tier: string | null | undefined): string {
+  return tier ? (TIER_COLORS[tier.toLowerCase()] ?? LIME) : LIME;
+}
+
+function tierLabel(tier: string | null | undefined): string {
+  if (!tier) return "Unranked";
+  return tier.charAt(0).toUpperCase() + tier.slice(1).toLowerCase();
+}
+
+// pts/session per tier (negative means the player pays); subtitle = tier percentile band.
+const TIER_META: Record<string, { pts: number; topPct: string }> = {
+  diamond: { pts: 8, topPct: "Top 5% of all players" },
+  platinum: { pts: 0, topPct: "Top 10% of all players" },
+  gold: { pts: -6, topPct: "Top 25% of all players" },
+  silver: { pts: -9, topPct: "Top 50% of all players" },
+  bronze: { pts: -12, topPct: "Entry tier — keep climbing" },
+};
+
+function DiamondGem({ size }: { size: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 100 100">
+      <Polygon points="32,14 68,14 60,36 40,36" fill="#C89BE0" />
+      <Polygon points="32,14 18,36 40,36" fill="#A56FC9" />
+      <Polygon points="68,14 82,36 60,36" fill="#8E57B8" />
+      <Polygon points="18,36 50,36 50,92" fill="#8E57B8" />
+      <Polygon points="50,36 82,36 50,92" fill="#6B3E86" />
+      <Polygon points="40,36 60,36 50,92" fill="#A56FC9" />
+      <Polygon points="38,17 62,17 57,33 43,33" fill="#D9B8EC" opacity={0.55} />
+    </Svg>
+  );
+}
+
+function CircleGem({ color, size, gid }: { color: string; size: number; gid: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 100 100">
+      <Defs>
+        <RadialGradient id={gid} cx="38%" cy="32%" r="80%">
+          <Stop offset="0" stopColor="#ffffff" stopOpacity="0.9" />
+          <Stop offset="0.4" stopColor={color} stopOpacity="1" />
+          <Stop offset="1" stopColor={color} stopOpacity="1" />
+        </RadialGradient>
+      </Defs>
+      <Circle cx="50" cy="50" r="46" fill={`url(#${gid})`} />
+      <Ellipse cx="37" cy="33" rx="17" ry="11" fill="#ffffff" opacity={0.28} />
+    </Svg>
+  );
+}
+
+function TierGem({ tier, size, gid }: { tier: string; size: number; gid: string }) {
+  const t = (tier ?? "").toLowerCase();
+  if (t === "diamond") return <DiamondGem size={size} />;
+  return <CircleGem color={TIER_COLORS[t] ?? "#A8B0B5"} size={size} gid={gid} />;
+}
+
+function initialsFromName(name: string): string {
+  const parts = name.replace(/^@/, "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+const EXPERIENCE_LABELS: Record<string, string> = {
+  recreational: "Recreational",
+  club: "Club",
+  hs_varsity: "High School Varsity",
+  college: "College",
+  semi_pro: "Semi-Pro",
+  pro: "Pro",
+};
+
+// "CB" -> "CB · Center Back" (SelectModal labels are "CB — Center Back").
+function positionFull(code: string): string {
+  const opt = (SPECIFIC_POSITION_OPTIONS as readonly { value: string; label: string }[]).find(
+    (o) => o.value === code,
+  );
+  return opt ? opt.label.replace(" — ", " · ") : code;
+}
+
+function ageFromDob(dob: string | null): number | null {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  if (Number.isNaN(birth.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - birth.getFullYear();
+  const m = now.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--;
+  return age > 0 && age < 100 ? age : null;
+}
+
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// Parse an ISO "YYYY-MM-DD" without timezone drift -> "Mar 28, 2004".
+function formatDob(dob: string | null): string | null {
+  if (!dob) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dob.trim());
+  if (m) {
+    const year = Number(m[1]);
+    const month = Number(m[2]) - 1;
+    const day = Number(m[3]);
+    if (month >= 0 && month < 12 && day >= 1 && day <= 31) {
+      return `${MONTHS_SHORT[month]} ${day}, ${year}`;
+    }
+  }
+  const d = new Date(dob);
+  if (Number.isNaN(d.getTime())) return dob;
+  return `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
 export default function AccountScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { replay: replayAccountIntro } = useAccountIntroReplay();
   const replayOpeningThemeCtx = useReplayOpeningTheme();
   const { session, supabase, isReady, signOut } = useAuth();
@@ -211,6 +333,22 @@ export default function AccountScreen() {
   const [aboutTapCount, setAboutTapCount] = useState(0);
   const [reviewCodeModalOpen, setReviewCodeModalOpen] = useState(false);
   const [reviewCodeInput, setReviewCodeInput] = useState("");
+
+  // Profile-view extras (tier, avatar, stats, credits). Additive — existing data flow untouched.
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [tierInfo, setTierInfo] = useState<{
+    tier: string;
+    score: number;
+    sessions: number;
+    percentile: number | null;
+  } | null>(null);
+  const [winsCount, setWinsCount] = useState<number | null>(null);
+  const [lossesCount, setLossesCount] = useState<number | null>(null);
+  const [potdCount, setPotdCount] = useState<number | null>(null);
+  const [creditsCount, setCreditsCount] = useState<number | null>(null);
+  const settingsSectionY = useRef<number>(0);
+  const openEdit = useCallback(() => setEditModalOpen(true), []);
 
   const appVersion =
     Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? "1.0.0";
@@ -400,6 +538,101 @@ export default function AccountScreen() {
   useEffect(() => {
     void loadProfile();
   }, [loadProfile]);
+
+  // Profile-view stats: tier + percentile (player_ratings), avatar + win/loss (profiles), MOTM (results join).
+  const loadStats = useCallback(async () => {
+    const uid = session?.user?.id;
+    if (!isReady || !supabase || !uid) return;
+    try {
+      const { data: mine } = await supabase
+        .from("player_ratings")
+        .select("tier,score,sessions")
+        .eq("user_id", uid)
+        .maybeSingle();
+      if (mine) {
+        const myRow = mine as { tier: string | null; score: number | null; sessions: number | null };
+        const myScore = myRow.score ?? 0;
+        const [{ count: total }, { count: better }] = await Promise.all([
+          supabase.from("player_ratings").select("*", { count: "exact", head: true }).gt("sessions", 0),
+          supabase.from("player_ratings").select("*", { count: "exact", head: true }).gt("score", myScore),
+        ]);
+        const percentile =
+          total && total > 0 ? Math.min(100, Math.max(1, Math.round(((better ?? 0) / total) * 100))) : null;
+        setTierInfo({
+          tier: (myRow.tier ?? "bronze").toLowerCase(),
+          score: myScore,
+          sessions: myRow.sessions ?? 0,
+          percentile,
+        });
+      } else {
+        setTierInfo(null);
+      }
+
+      const { data: extras } = await supabase
+        .from("profiles")
+        .select("avatar_url,pickup_wins_count,pickup_losses_count")
+        .eq("id", uid)
+        .maybeSingle();
+      if (extras) {
+        const row = extras as {
+          avatar_url: string | null;
+          pickup_wins_count: unknown;
+          pickup_losses_count: unknown;
+        };
+        setAvatarUrl(row.avatar_url?.trim() || null);
+        setWinsCount(Math.max(0, Math.trunc(Number(row.pickup_wins_count ?? 0))));
+        setLossesCount(Math.max(0, Math.trunc(Number(row.pickup_losses_count ?? 0))));
+      }
+
+      const { data: assigns } = await supabase
+        .from("pickup_run_team_assignments")
+        .select("team,pickup_run_results(winning_team,player_of_day)")
+        .eq("user_id", uid)
+        .limit(2000);
+      if (Array.isArray(assigns)) {
+        let potd = 0;
+        for (const row of assigns as unknown as Array<{
+          pickup_run_results?: { winning_team: string | null; player_of_day: string | null } | null;
+        }>) {
+          const res = row.pickup_run_results;
+          if (!res?.winning_team) continue;
+          if (res.player_of_day === uid) potd += 1;
+        }
+        setPotdCount(potd);
+      }
+    } catch (e) {
+      console.error("[account loadStats] exception", e);
+    }
+  }, [isReady, supabase, session?.user?.id]);
+
+  const loadCredits = useCallback(async () => {
+    const origin = siteOrigin();
+    if (!origin || !accessToken) {
+      setCreditsCount(0);
+      return;
+    }
+    try {
+      const r = await fetch(`${origin}/api/pickup/credits`, {
+        headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+        cache: "no-store",
+      });
+      const j = (await r.json().catch(() => null)) as
+        | { credits?: Array<{ is_used?: boolean; is_expired?: boolean }> }
+        | null;
+      if (r.ok && j && Array.isArray(j.credits)) {
+        setCreditsCount(j.credits.filter((c) => !c.is_used && !c.is_expired).length);
+      } else {
+        setCreditsCount(0);
+      }
+    } catch {
+      setCreditsCount(0);
+    }
+  }, [accessToken]);
+
+  useEffect(() => {
+    void loadStats();
+    void loadCredits();
+  }, [loadStats, loadCredits]);
 
   useEffect(() => {
     setHubVenueResolveDone(false);
@@ -622,11 +855,13 @@ export default function AccountScreen() {
         loadProfile(),
         loadWaiverStatus({ silent: true }),
         loadReliability({ silent: true }),
+        loadStats(),
+        loadCredits(),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [loadProfile, loadWaiverStatus, loadReliability]);
+  }, [loadProfile, loadWaiverStatus, loadReliability, loadStats, loadCredits]);
 
   async function onSaveProfile() {
     setEditMsg(null);
@@ -1089,6 +1324,55 @@ export default function AccountScreen() {
     );
   }
 
+  const myUserId = session?.user?.id ?? null;
+  const fullName =
+    [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim() ||
+    (profile?.username ? `@${profile.username}` : "Player");
+  const uname = (profile?.username ?? "").trim();
+  const currentTier = tierInfo?.tier ?? "bronze";
+  const tColor = tierColor(currentTier);
+  const tMeta = TIER_META[currentTier] ?? TIER_META.bronze;
+  const ptsPerSession = tMeta.pts;
+  const ptsPerSessionLabel = `${ptsPerSession > 0 ? "+" : ""}${ptsPerSession} pts / session`;
+  const totalPoints = Math.round((tierInfo?.score ?? 0) * 30);
+  const gamesPlayed = (winsCount ?? 0) + (lossesCount ?? 0);
+  const winPct = gamesPlayed > 0 ? Math.round(((winsCount ?? 0) / gamesPlayed) * 100) : null;
+  const sessionsCount = tierInfo?.sessions ?? 0;
+
+  const primaryPos = (profile?.primary_position ?? "").trim() || null;
+  const secondaryPos = Array.isArray(profile?.secondary_positions)
+    ? (profile!.secondary_positions as string[]).filter(Boolean)
+    : [];
+  const expLabel = profile?.experience_level
+    ? EXPERIENCE_LABELS[profile.experience_level] ?? profile.experience_level
+    : null;
+  const dob = profile?.date_of_birth ?? null;
+  const dobFormatted = formatDob(dob);
+  const age = ageFromDob(dob);
+  const club = (profile?.club_name ?? "").trim() || null;
+  const hasBackground = !!(primaryPos || secondaryPos.length || expLabel || age || dob || club);
+  const isSelfDeclared = profile?.verification_level === "self";
+
+  const soccerTiles: Array<{ icon: React.ComponentProps<typeof FontAwesome>["name"]; label: string; value: string }> = [];
+  if (primaryPos) soccerTiles.push({ icon: "shield", label: "Primary Position", value: positionFull(primaryPos) });
+  if (secondaryPos.length) soccerTiles.push({ icon: "th", label: "Other Positions", value: secondaryPos.join(" · ") });
+  if (expLabel) soccerTiles.push({ icon: "user", label: "Experience Level", value: expLabel });
+  if (age != null) soccerTiles.push({ icon: "calendar", label: "Age", value: String(age) });
+  if (dobFormatted) soccerTiles.push({ icon: "calendar-o", label: "Date of Birth", value: dobFormatted });
+  if (club) soccerTiles.push({ icon: "shield", label: "Club / Team", value: club });
+
+  const accountRows: Array<{
+    icon: React.ComponentProps<typeof FontAwesome>["name"];
+    label: string;
+    value: string;
+  }> = [
+    { icon: "envelope", label: "Email", value: signedEmail },
+    { icon: "phone", label: "Phone", value: (profile?.phone ?? "").trim() || "Not set" },
+    { icon: "user", label: "Username", value: uname ? `@${uname}` : "Not set" },
+    { icon: "map-marker", label: "Region", value: profileRegionCode ?? ((profile?.nearest_venue ?? "").trim() || "Not set") },
+    { icon: "map-o", label: "ZIP Code", value: (profile?.zip_code ?? "").trim() || "Not set" },
+  ];
+
   return (
     <View style={styles.screen}>
       <Modal
@@ -1172,9 +1456,73 @@ export default function AccountScreen() {
           </View>
         </View>
       </Modal>
+      <Modal
+        visible={editModalOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setEditModalOpen(false)}
+      >
+        <View style={[styles.screen, { paddingTop: Platform.OS === "android" ? insets.top : 0 }]}>
+          <View style={s.editModalHeader}>
+            <Text style={s.editModalTitle}>Edit profile</Text>
+            <Pressable onPress={() => setEditModalOpen(false)} hitSlop={12} style={s.editModalClose}>
+              <FontAwesome name="close" size={20} color="rgba(255,255,255,0.75)" />
+            </Pressable>
+          </View>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+            <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 80 }} keyboardShouldPersistTaps="handled">
+              <ProfileSection
+                editFirstName={editFirstName}
+                setEditFirstName={setEditFirstName}
+                editLastName={editLastName}
+                setEditLastName={setEditLastName}
+                editPlayingPosition={editPlayingPosition}
+                setEditPlayingPosition={setEditPlayingPosition}
+                editPrimaryPosition={editPrimaryPosition}
+                setEditPrimaryPosition={setEditPrimaryPosition}
+                editSecondaryPositions={editSecondaryPositions}
+                setEditSecondaryPositions={setEditSecondaryPositions}
+                editExperienceLevel={editExperienceLevel}
+                setEditExperienceLevel={setEditExperienceLevel}
+                editDateOfBirth={editDateOfBirth}
+                setEditDateOfBirth={setEditDateOfBirth}
+                editClubName={editClubName}
+                setEditClubName={setEditClubName}
+                editRosterUrl={editRosterUrl}
+                setEditRosterUrl={setEditRosterUrl}
+                editInstagram={editInstagram}
+                setEditInstagram={setEditInstagram}
+                editPhone={editPhone}
+                setEditPhone={setEditPhone}
+                editZipCode={editZipCode}
+                setEditZipCode={setEditZipCode}
+                editUsername={editUsername}
+                setEditUsername={setEditUsername}
+                editBusy={editBusy}
+                profileNearestVenue={profile?.nearest_venue ?? null}
+                profileRegionCode={profileRegionCode}
+                profileZipCode={profile?.zip_code ?? null}
+                hubRegionResolving={hubRegionResolving}
+                hubVenueResolveDone={hubVenueResolveDone}
+                usernameAutoFromName={usernameAutoFromName}
+                positionPickerOpen={positionPickerOpen}
+                setPositionPickerOpen={setPositionPickerOpen}
+                primaryPositionPickerOpen={primaryPositionPickerOpen}
+                setPrimaryPositionPickerOpen={setPrimaryPositionPickerOpen}
+                experienceLevelPickerOpen={experienceLevelPickerOpen}
+                setExperienceLevelPickerOpen={setExperienceLevelPickerOpen}
+                profileSaveError={profileSaveError}
+                editMsg={editMsg}
+                editOk={editOk}
+                onSave={() => void onSaveProfile()}
+              />
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
       <KeyboardAvoidingView style={styles.scroll} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView ref={scrollRef}
-          contentContainerStyle={[styles.content, { paddingBottom: 200 }]}
+          contentContainerStyle={[styles.content, { paddingTop: insets.top + 4, paddingBottom: 200 }]}
           keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
@@ -1184,23 +1532,31 @@ export default function AccountScreen() {
             />
           }
         >
-          <Text style={styles.title}>Account</Text>
-          <Text style={styles.sub}>
-            Email sign-in, push, and your device passcode{"\n"}
-            (same one-time email code Supabase sends you).
-          </Text>
+          {/* 1. HEADER */}
+          <View style={s.header}>
+            <View style={s.headerSide} />
+            <Text style={s.headerTitle}>Profile</Text>
+            <View style={[s.headerSide, { alignItems: "flex-end" }]}>
+              <Pressable
+                onPress={() => {
+                  void hapticTap();
+                  scrollRef.current?.scrollTo({ y: settingsSectionY.current, animated: true });
+                }}
+                hitSlop={12}
+                style={({ pressed }) => [s.gearBtn, pressed && { opacity: 0.7 }]}
+                accessibilityLabel="Settings"
+              >
+                <Ionicons name="settings-outline" size={22} color="#fff" />
+              </Pressable>
+            </View>
+          </View>
 
-          {profile?.verification_level === "self" && (
+          {isSelfDeclared && (
             <Pressable
               onPress={() => {
                 scrollRef.current?.scrollTo({ y: verificationSectionY.current, animated: true });
               }}
-              style={{
-                flexDirection: "row", alignItems: "center", gap: 10,
-                backgroundColor: "rgba(239,68,68,0.08)",
-                borderWidth: 1.5, borderColor: "#ef4444",
-                borderRadius: 12, padding: 14, marginBottom: 4,
-              }}
+              style={s.actionBanner}
             >
               <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#ef4444" }} />
               <View style={{ flex: 1 }}>
@@ -1213,122 +1569,155 @@ export default function AccountScreen() {
             </Pressable>
           )}
 
-        <View style={[styles.card, styles.cardLime]}>
-          <Text style={styles.signedLabel}>SIGNED IN</Text>
-          <Text style={styles.email}>{signedEmail}</Text>
-          <Text style={styles.signedAssist}>You&apos;re signed in on this device. Push reminders use your account.</Text>
-          <Pressable style={styles.outlineBtnLime} onPress={() => void signOut()}>
-            <Text style={styles.outlineBtnLimeText}>Sign out</Text>
-          </Pressable>
-        </View>
-
-        <ProfileSection
-          editFirstName={editFirstName}
-          setEditFirstName={setEditFirstName}
-          editLastName={editLastName}
-          setEditLastName={setEditLastName}
-          editPlayingPosition={editPlayingPosition}
-          setEditPlayingPosition={setEditPlayingPosition}
-          editPrimaryPosition={editPrimaryPosition}
-          setEditPrimaryPosition={setEditPrimaryPosition}
-          editSecondaryPositions={editSecondaryPositions}
-          setEditSecondaryPositions={setEditSecondaryPositions}
-          editExperienceLevel={editExperienceLevel}
-          setEditExperienceLevel={setEditExperienceLevel}
-          editDateOfBirth={editDateOfBirth}
-          setEditDateOfBirth={setEditDateOfBirth}
-          editClubName={editClubName}
-          setEditClubName={setEditClubName}
-          editRosterUrl={editRosterUrl}
-          setEditRosterUrl={setEditRosterUrl}
-          editInstagram={editInstagram}
-          setEditInstagram={setEditInstagram}
-          editPhone={editPhone}
-          setEditPhone={setEditPhone}
-          editZipCode={editZipCode}
-          setEditZipCode={setEditZipCode}
-          editUsername={editUsername}
-          setEditUsername={setEditUsername}
-          editBusy={editBusy}
-          profileNearestVenue={profile?.nearest_venue ?? null}
-          profileRegionCode={profileRegionCode}
-          profileZipCode={profile?.zip_code ?? null}
-          hubRegionResolving={hubRegionResolving}
-          hubVenueResolveDone={hubVenueResolveDone}
-          usernameAutoFromName={usernameAutoFromName}
-          positionPickerOpen={positionPickerOpen}
-          setPositionPickerOpen={setPositionPickerOpen}
-          primaryPositionPickerOpen={primaryPositionPickerOpen}
-          setPrimaryPositionPickerOpen={setPrimaryPositionPickerOpen}
-          experienceLevelPickerOpen={experienceLevelPickerOpen}
-          setExperienceLevelPickerOpen={setExperienceLevelPickerOpen}
-          profileSaveError={profileSaveError}
-          editMsg={editMsg}
-          editOk={editOk}
-          onSave={() => void onSaveProfile()}
-        />
-
-        <Text style={styles.sectionTitle}>Waiver</Text>
-        <View style={styles.card}>
-          {waiverLoading ? (
-            <View style={styles.cardLoadingRow}>
-              <ActivityIndicator color="#fff" />
-              <Text style={styles.cardLoadingText}>Checking waiver…</Text>
-            </View>
-          ) : waiverAccepted ? (
-            <>
-              <View style={styles.statusRow}>
-                <View style={[styles.statusPill, styles.statusPillGreen]}>
-                  <Text style={[styles.statusPillText, styles.statusPillTextGreen]}>
-                    Waiver accepted
-                  </Text>
+          {/* 2. PROFILE HERO CARD */}
+          <View style={s.heroCard}>
+            <View style={s.heroTop}>
+              <Pressable onPress={openEdit} style={s.avatarWrap} accessibilityLabel="Change profile photo">
+                <View style={[s.avatarRing, { borderColor: tColor }]}>
+                  {avatarUrl ? (
+                    <Image source={{ uri: avatarUrl }} style={s.avatarImg} />
+                  ) : (
+                    <View style={[s.avatarImg, s.avatarFallback]}>
+                      <Text style={[s.avatarFallbackText, { color: tColor }]}>{initialsFromName(fullName)}</Text>
+                    </View>
+                  )}
                 </View>
-              </View>
-              {waiverVersion ? (
-                <Text style={styles.cardSubtle}>Version {waiverVersion}</Text>
-              ) : null}
-            </>
-          ) : (
-            <>
-              <View style={styles.statusRow}>
-                <View style={[styles.statusPill, styles.statusPillAmber]}>
-                  <Text style={[styles.statusPillText, styles.statusPillTextAmber]}>
-                    Waiver required
-                  </Text>
+                <View style={s.cameraBadge}>
+                  <FontAwesome name="camera" size={11} color="#0a0a0a" />
                 </View>
-              </View>
-              <Text style={styles.cardSubtle}>
-                Sign the liability waiver to RSVP for pickup and tournaments.
-              </Text>
-              <Pressable
-                style={styles.outlineBtnLime}
-                onPress={() => router.push("/waiver")}
-              >
-                <Text style={styles.outlineBtnLimeText}>Sign waiver</Text>
               </Pressable>
-            </>
-          )}
-        </View>
 
-        <View onLayout={(e) => { verificationSectionY.current = e.nativeEvent.layout.y; }}>
-          <SoccerBackgroundSection
-            primaryPosition={profile?.primary_position ?? null}
-            secondaryPositions={profile?.secondary_positions ?? null}
-            experienceLevel={profile?.experience_level ?? null}
-            dateOfBirth={profile?.date_of_birth ?? null}
-            clubName={profile?.club_name ?? null}
-            rosterUrl={profile?.roster_url ?? null}
-            verificationLevel={profile?.verification_level ?? null}
-            onSubmitVerification={() => setVerificationModalOpen(true)}
-          />
-        </View>
-        <ReliabilitySection
-          loading={reliabilityLoading}
-          label={reliabilityLabel}
-          scorePct={reliabilityScorePct}
-          subtext={reliabilitySubtext}
+              <View style={s.heroInfo}>
+                <Text style={s.heroName} numberOfLines={2}>{fullName}</Text>
+                {uname ? <Text style={s.heroUsername} numberOfLines={1}>@{uname}</Text> : null}
+                <View style={s.heroBadgeRow}>
+                  <View style={[s.tierBadge, { backgroundColor: `${tColor}33`, borderColor: `${tColor}88` }]}>
+                    <Text style={[s.tierBadgeDiamond, { color: tColor }]}>◆</Text>
+                    <Text style={[s.tierBadgeText, { color: tColor }]}>{tierLabel(currentTier)}</Text>
+                  </View>
+                  <Text
+                    style={[s.ptsPerSession, { color: ptsPerSession >= 0 ? LIME : "#fca5a5" }]}
+                    numberOfLines={1}
+                  >
+                    {ptsPerSessionLabel}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Stats row */}
+            <View style={s.statsRow}>
+              <View style={s.statCell}>
+                <FontAwesome name="futbol-o" size={20} color={LIME} />
+                <Text style={s.statValue}>{sessionsCount}</Text>
+                <Text style={s.statLabel}>Sessions</Text>
+              </View>
+              <View style={s.statCell}>
+                <FontAwesome name="trophy" size={20} color={LIME} />
+                <Text style={s.statValue}>{winPct == null ? "—" : `${winPct}%`}</Text>
+                <Text style={s.statLabel}>Win %</Text>
+              </View>
+              <View style={s.statCell}>
+                <FontAwesome name="star" size={20} color={LIME} />
+                <Text style={s.statValue}>{totalPoints.toLocaleString()}</Text>
+                <Text style={s.statLabel}>Points</Text>
+              </View>
+              <View style={s.statCell}>
+                <FontAwesome name="fire" size={20} color={LIME} />
+                <Text style={s.statValue}>{potdCount ?? 0}</Text>
+                <Text style={s.statLabel}>MOTM</Text>
+              </View>
+            </View>
+
+            {/* Tier progress card */}
+            <View style={s.tierProgress}>
+              <TierGem tier={currentTier} size={54} gid="accountTierGem" />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={s.tierProgressTitle}>{tierLabel(currentTier)} Tier</Text>
+                <Text style={s.tierProgressSub} numberOfLines={1}>{tMeta.topPct}</Text>
+              </View>
+              <Pressable
+                onPress={() => myUserId && (router.push as (h: string) => void)(`/player/${myUserId}`)}
+                style={({ pressed }) => [s.viewProgressBtn, pressed && { opacity: 0.85 }]}
+              >
+                <Text style={s.viewProgressBtnText}>View progress →</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          {/* 3. SOCCER BACKGROUND */}
+          <View
+            style={s.blockCard}
+            onLayout={(e) => {
+              verificationSectionY.current = e.nativeEvent.layout.y;
+            }}
+          >
+            <View style={s.blockHeader}>
+              <Text style={s.blockTitle}>Soccer Background</Text>
+              <Pressable onPress={openEdit} hitSlop={8}>
+                <Text style={s.editLink}>Edit →</Text>
+              </Pressable>
+            </View>
+            {hasBackground ? (
+              <View style={s.tileGrid}>
+                {soccerTiles.map((t, i) => (
+                  <View key={`${t.label}-${i}`} style={s.tile}>
+                    <FontAwesome name={t.icon} size={16} color={LIME} />
+                    <Text style={s.tileLabel} numberOfLines={2}>{t.label}</Text>
+                    <Text style={s.tileValue} numberOfLines={2}>{t.value}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={s.emptyBackground}>
+                <Text style={s.emptyBackgroundText}>
+                  Complete your profile to show your position, experience, and club.
+                </Text>
+                <Pressable onPress={openEdit} style={styles.outlineBtnLime}>
+                  <Text style={styles.outlineBtnLimeText}>Complete your profile</Text>
+                </Pressable>
+              </View>
+            )}
+            {isSelfDeclared ? (
+              <Pressable
+                onPress={() => setVerificationModalOpen(true)}
+                style={s.verifyPrompt}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: "#ef4444" }} />
+                  <Text style={s.verifyPromptTitle}>NOT VERIFIED</Text>
+                </View>
+                <Text style={s.verifyPromptSub}>
+                  Self-declared players are capped at Gold tier. Submit for verification to unlock Platinum and Diamond. →
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          {/* 4. ACCOUNT */}
+          <View style={s.blockCard}>
+            <Text style={[s.blockTitle, { marginBottom: 4 }]}>Account</Text>
+            {accountRows.map((row, i) => (
+              <Pressable
+                key={row.label}
+                onPress={openEdit}
+                style={[s.listRow, i === accountRows.length - 1 && s.listRowLast]}
+              >
+                <FontAwesome name={row.icon} size={17} color={LIME} style={s.listRowIcon} />
+                <Text style={s.listRowLabel}>{row.label}</Text>
+                <Text style={s.listRowValue} numberOfLines={1}>{row.value}</Text>
+                <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+              </Pressable>
+            ))}
+          </View>
+
+        {/* 5. PREFERENCES */}
+        <View
+          style={{ marginTop: 8 }}
+          onLayout={(e) => {
+            settingsSectionY.current = e.nativeEvent.layout.y;
+          }}
         />
-
         <PreferencesSection
           pushEnabled={pushEnabled}
           pushBusy={pushBusy}
@@ -1354,13 +1743,60 @@ export default function AccountScreen() {
 
         <ReferralSection accessToken={accessToken} />
 
-        {isAdmin ? (
-          <View style={styles.card}>
-            <View style={styles.rowBetween}>
-              <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={styles.fieldLabelStrong}>Admin Mode</Text>
-                <Text style={styles.bioHint}>Show the Admin tab and pages on this device.</Text>
-              </View>
+        {/* 7. ACCOUNT & APP */}
+        <View style={s.blockCard}>
+          <Text style={[s.blockTitle, { marginBottom: 4 }]}>Account &amp; App</Text>
+
+          <Pressable style={s.listRow} onPress={() => (router.push as (href: string) => void)("/waiver")}>
+            <FontAwesome name="file-text-o" size={17} color={LIME} style={s.listRowIcon} />
+            <Text style={s.listRowLabel}>Waiver</Text>
+            {waiverLoading ? (
+              <Text style={s.listRowValue}>…</Text>
+            ) : waiverAccepted ? (
+              <Text style={[s.listRowValue, { color: LIME }]}>Accepted</Text>
+            ) : (
+              <Text style={[s.listRowValue, { color: "#fcd34d" }]}>Required</Text>
+            )}
+            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+          </Pressable>
+
+          <Pressable style={s.listRow} onPress={openEdit}>
+            <FontAwesome name="futbol-o" size={17} color={LIME} style={s.listRowIcon} />
+            <Text style={s.listRowLabel}>Soccer Background</Text>
+            <Text style={s.listRowValue} />
+            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+          </Pressable>
+
+          <View style={s.listRow}>
+            <FontAwesome name="line-chart" size={17} color={LIME} style={s.listRowIcon} />
+            <Text style={s.listRowLabel}>Reliability</Text>
+            <Text style={s.listRowValue}>Coming soon</Text>
+            <View style={{ width: 13 }} />
+          </View>
+
+          <View style={s.listRow}>
+            <FontAwesome name="ticket" size={17} color={LIME} style={s.listRowIcon} />
+            <Text style={s.listRowLabel}>Your credits</Text>
+            <Text style={[s.listRowValue, { color: (creditsCount ?? 0) > 0 ? LIME : "rgba(255,255,255,0.5)" }]}>
+              {creditsCount ?? 0}
+            </Text>
+            <View style={{ width: 13 }} />
+          </View>
+
+          <Pressable
+            style={[s.listRow, !isAdmin && s.listRowLast]}
+            onPress={() => (router.push as (href: string) => void)("/run-history")}
+          >
+            <FontAwesome name="history" size={17} color={LIME} style={s.listRowIcon} />
+            <Text style={s.listRowLabel}>Run history</Text>
+            <Text style={s.listRowValue} />
+            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+          </Pressable>
+
+          {isAdmin ? (
+            <View style={[s.listRow, s.listRowLast]}>
+              <FontAwesome name="shield" size={17} color={LIME} style={s.listRowIcon} />
+              <Text style={s.listRowLabel}>Admin mode</Text>
               <Switch
                 value={adminModeEnabled}
                 onValueChange={(v) => void setAdminModeEnabled(v)}
@@ -1369,9 +1805,61 @@ export default function AccountScreen() {
                 thumbColor="#f4f4f5"
               />
             </View>
-          </View>
-        ) : null}
+          ) : null}
+        </View>
 
+        {/* 8. SUPPORT & LEGAL */}
+        <View style={s.blockCard}>
+          <Text style={[s.blockTitle, { marginBottom: 4 }]}>Support &amp; Legal</Text>
+
+          <Pressable style={s.listRow} onPress={() => (router.push as (href: string) => void)("/help")}>
+            <FontAwesome name="question-circle" size={17} color={LIME} style={s.listRowIcon} />
+            <Text style={s.listRowLabel}>Help</Text>
+            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+          </Pressable>
+
+          <Pressable style={s.listRow} onPress={() => void Linking.openURL(SUPPORT_MAILTO)}>
+            <FontAwesome name="envelope" size={17} color={LIME} style={s.listRowIcon} />
+            <Text style={s.listRowLabel}>Contact support</Text>
+            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+          </Pressable>
+
+          <Pressable style={s.listRow} onPress={() => (router.push as (href: string) => void)("/rules")}>
+            <FontAwesome name="list-alt" size={17} color={LIME} style={s.listRowIcon} />
+            <Text style={s.listRowLabel}>Rules</Text>
+            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+          </Pressable>
+
+          <Pressable style={s.listRow} onPress={() => (router.push as (href: string) => void)("/terms")}>
+            <FontAwesome name="file-o" size={17} color={LIME} style={s.listRowIcon} />
+            <Text style={s.listRowLabel}>Terms of Service</Text>
+            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+          </Pressable>
+
+          <Pressable style={s.listRow} onPress={() => (router.push as (href: string) => void)("/privacy-policy")}>
+            <FontAwesome name="shield" size={17} color={LIME} style={s.listRowIcon} />
+            <Text style={s.listRowLabel}>Privacy Policy</Text>
+            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+          </Pressable>
+
+          <Pressable
+            style={[s.listRow, s.listRowLast]}
+            onPress={() => {
+              const next = aboutTapCount + 1;
+              setAboutTapCount(next);
+              if (next < REVIEW_MODE_TAP_TARGET) return;
+              setAboutTapCount(0);
+              openReviewCodeEntry();
+            }}
+          >
+            <FontAwesome name="info-circle" size={17} color={LIME} style={s.listRowIcon} />
+            <Text style={s.listRowLabel}>About this app</Text>
+            <Text style={s.listRowValue}>v{appVersion}</Text>
+            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+          </Pressable>
+        </View>
+
+        <Text style={styles.sectionTitle}>Security</Text>
         <AppLockSection
           hasPin={hasPin}
           lockEnabled={lockEnabled}
@@ -1416,91 +1904,12 @@ export default function AccountScreen() {
           </Pressable>
         </>
       ) : null}
-        <Pressable style={styles.aboutRow} onPress={() => (router.push as (href: string) => void)("/rules")}>
+        <Pressable style={styles.aboutRow} onPress={() => void signOut()}>
           <View style={styles.aboutLeft}>
             <View style={styles.aboutIconWrap}>
-              <FontAwesome name="list-alt" size={18} color="rgba(255,255,255,0.75)" />
+              <FontAwesome name="sign-out" size={18} color="rgba(255,255,255,0.75)" />
             </View>
-            <Text style={styles.aboutText}>Rules</Text>
-          </View>
-          <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
-        </Pressable>
-        <Pressable
-          style={styles.aboutRow}
-          onPress={() => (router.push as (href: string) => void)("/help")}
-        >
-          <View style={styles.aboutLeft}>
-            <View style={styles.aboutIconWrap}>
-              <FontAwesome name="question-circle" size={18} color="rgba(255,255,255,0.75)" />
-            </View>
-            <Text style={styles.aboutText}>Help</Text>
-          </View>
-          <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
-        </Pressable>
-        <Pressable
-          style={styles.aboutRow}
-          onPress={() => void Linking.openURL(SUPPORT_MAILTO)}
-        >
-          <View style={styles.aboutLeft}>
-            <View style={styles.aboutIconWrap}>
-              <FontAwesome name="envelope" size={18} color="rgba(255,255,255,0.75)" />
-            </View>
-            <Text style={styles.aboutText}>Contact Support</Text>
-          </View>
-          <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
-        </Pressable>
-        <Pressable
-          style={styles.aboutRow}
-          onPress={() => (router.push as (href: string) => void)("/terms")}
-        >
-          <View style={styles.aboutLeft}>
-            <View style={styles.aboutIconWrap}>
-              <FontAwesome name="file-o" size={18} color="rgba(255,255,255,0.75)" />
-            </View>
-            <Text style={styles.aboutText}>Terms of Service</Text>
-          </View>
-          <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
-        </Pressable>
-        <Pressable
-          style={styles.aboutRow}
-          onPress={() => (router.push as (href: string) => void)("/privacy-policy")}
-        >
-          <View style={styles.aboutLeft}>
-            <View style={styles.aboutIconWrap}>
-              <FontAwesome name="shield" size={18} color="rgba(255,255,255,0.75)" />
-            </View>
-            <Text style={styles.aboutText}>Privacy Policy</Text>
-          </View>
-          <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
-        </Pressable>
-
-        <Pressable style={styles.aboutRow} onPress={() => (router.push as (href: string) => void)("/run-history")}>
-          <View style={styles.aboutLeft}>
-            <View style={styles.aboutIconWrap}>
-              <FontAwesome name="history" size={18} color="rgba(255,255,255,0.75)" />
-            </View>
-            <Text style={styles.aboutText}>Run history</Text>
-          </View>
-          <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
-        </Pressable>
-        <Pressable
-          style={styles.aboutRow}
-          onPress={() => {
-            const next = aboutTapCount + 1;
-            setAboutTapCount(next);
-            if (next < REVIEW_MODE_TAP_TARGET) return;
-            setAboutTapCount(0);
-            openReviewCodeEntry();
-          }}
-        >
-          <View style={styles.aboutLeft}>
-            <View style={styles.aboutIconWrap}>
-              <FontAwesome name="info-circle" size={18} color="rgba(255,255,255,0.75)" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.aboutText}>About this app</Text>
-              <Text style={styles.aboutVersionSub}>Version {appVersion}</Text>
-            </View>
+            <Text style={styles.aboutText}>Sign out</Text>
           </View>
           <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
         </Pressable>
@@ -1524,7 +1933,7 @@ export default function AccountScreen() {
           Permanently remove your account and associated data from CT Pickup.
         </Text>
         <Pressable
-          style={[styles.deleteAccountBtn, deleteAccountBusy && styles.disabled]}
+          style={[styles.deleteAccountBtn, { backgroundColor: "#ef4444" }, deleteAccountBusy && styles.disabled]}
           disabled={deleteAccountBusy || !accessToken}
           onPress={startDeleteAccountFlow}
         >
@@ -1547,4 +1956,176 @@ export default function AccountScreen() {
     </View>
   );
 }
+
+const CARD_BG = "rgba(255,255,255,0.04)";
+const CARD_BORDER = "rgba(255,255,255,0.08)";
+
+const s = StyleSheet.create({
+  /* header */
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  headerSide: { width: 40, justifyContent: "center" },
+  headerTitle: { flex: 1, textAlign: "center", color: "#fff", fontSize: 20, fontWeight: "800", letterSpacing: 0.2 },
+  gearBtn: { padding: 4 },
+
+  actionBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "rgba(239,68,68,0.08)",
+    borderWidth: 1.5,
+    borderColor: "#ef4444",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 4,
+    marginTop: 4,
+  },
+
+  /* hero */
+  heroCard: {
+    marginTop: 12,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    padding: 16,
+  },
+  heroTop: { flexDirection: "row", alignItems: "center", gap: 16 },
+  avatarWrap: { width: 84, height: 84 },
+  avatarRing: { width: 84, height: 84, borderRadius: 42, borderWidth: 2.5, padding: 3 },
+  avatarImg: { width: "100%", height: "100%", borderRadius: 40 },
+  avatarFallback: { backgroundColor: "rgba(255,255,255,0.06)", alignItems: "center", justifyContent: "center" },
+  avatarFallbackText: { fontSize: 28, fontWeight: "800" },
+  cameraBadge: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: LIME,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#0a0a0a",
+  },
+  heroInfo: { flex: 1, minWidth: 0 },
+  heroName: { color: "#fff", fontSize: 22, fontWeight: "900", letterSpacing: -0.4 },
+  heroUsername: { color: LIME, fontSize: 14, fontWeight: "700", marginTop: 2 },
+  heroBadgeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" },
+  tierBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  tierBadgeDiamond: { fontSize: 11 },
+  tierBadgeText: { fontSize: 12, fontWeight: "800", letterSpacing: 0.3 },
+  ptsPerSession: { fontSize: 12, fontWeight: "700", flexShrink: 1 },
+
+  /* stats */
+  statsRow: {
+    flexDirection: "row",
+    marginTop: 18,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: CARD_BORDER,
+  },
+  statCell: { flex: 1, alignItems: "center", gap: 5 },
+  statValue: { color: "#fff", fontSize: 18, fontWeight: "900", letterSpacing: -0.3 },
+  statLabel: { color: "rgba(255,255,255,0.45)", fontSize: 11, fontWeight: "600" },
+
+  /* tier progress */
+  tierProgress: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: "rgba(0,0,0,0.25)",
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+  },
+  tierProgressTitle: { color: "#fff", fontSize: 15, fontWeight: "800" },
+  tierProgressSub: { color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 2 },
+  viewProgressBtn: {
+    borderWidth: 1,
+    borderColor: LIME,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  viewProgressBtnText: { color: LIME, fontWeight: "800", fontSize: 12 },
+
+  /* generic block card */
+  blockCard: {
+    marginTop: 16,
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    padding: 16,
+  },
+  blockHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  blockTitle: { color: "#fff", fontSize: 17, fontWeight: "800", letterSpacing: -0.2 },
+  editLink: { color: LIME, fontSize: 14, fontWeight: "800" },
+
+  /* soccer tile grid */
+  tileGrid: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: -6 },
+  tile: {
+    width: "33.333%",
+    paddingHorizontal: 6,
+    paddingVertical: 10,
+    gap: 6,
+  },
+  tileLabel: { color: "rgba(255,255,255,0.45)", fontSize: 11, fontWeight: "600", marginTop: 4 },
+  tileValue: { color: "#fff", fontSize: 13, fontWeight: "700" },
+  emptyBackground: { gap: 12 },
+  emptyBackgroundText: { color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
+  verifyPrompt: {
+    marginTop: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#ef4444",
+    backgroundColor: "rgba(239,68,68,0.06)",
+    padding: 12,
+    gap: 6,
+  },
+  verifyPromptTitle: { color: "#ef4444", fontWeight: "800", fontSize: 13, letterSpacing: 0.3 },
+  verifyPromptSub: { color: "rgba(255,255,255,0.6)", fontSize: 12, lineHeight: 17 },
+
+  /* list rows */
+  listRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.06)",
+  },
+  listRowLast: { borderBottomWidth: 0 },
+  listRowIcon: { width: 26 },
+  listRowLabel: { flex: 1, color: "#fff", fontSize: 15, fontWeight: "600" },
+  listRowValue: { color: "rgba(255,255,255,0.5)", fontSize: 14, marginRight: 10, maxWidth: "48%", textAlign: "right" },
+
+  /* edit modal */
+  editModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: CARD_BORDER,
+  },
+  editModalTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
+  editModalClose: { padding: 4 },
+});
 
