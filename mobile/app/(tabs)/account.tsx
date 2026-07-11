@@ -13,8 +13,8 @@ import {
 } from "@/lib/profileIdentityFields";
 import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
 import { getInstallationContext, resolveExpoPushTokenForApp, shouldRegisterPushToken } from "@/lib/pushToken";
-import { hapticTap } from "@/lib/haptics";
 import { fetchPickupStanding, postMobilePushPreference, postMobilePushToken } from "@/lib/siteApi";
+import * as ImagePicker from "expo-image-picker";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
@@ -44,7 +44,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, Ellipse, Polygon, RadialGradient, Stop } from "react-native-svg";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { Ionicons } from "@expo/vector-icons";
 import { AppLockSection } from "@/components/account/AppLockSection";
 import { PreferencesSection } from "@/components/account/PreferencesSection";
 import { ProfileSection } from "@/components/account/ProfileSection";
@@ -337,6 +336,7 @@ export default function AccountScreen() {
   // Profile-view extras (tier, avatar, stats, credits). Additive — existing data flow untouched.
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [tierInfo, setTierInfo] = useState<{
     tier: string;
     score: number;
@@ -350,6 +350,63 @@ export default function AccountScreen() {
   const [creditsCount, setCreditsCount] = useState<number | null>(null);
   const settingsSectionY = useRef<number>(0);
   const openEdit = useCallback(() => setEditModalOpen(true), []);
+
+  const pickAndUploadAvatar = useCallback(async () => {
+    if (!supabase || !session?.user?.id) return;
+    const userId = session.user.id;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const uri = result.assets[0].uri;
+    const prevAvatarUrl = avatarUrl;
+
+    setAvatarUploading(true);
+    setAvatarUrl(uri); // optimistic local preview
+
+    try {
+      const response = await fetch(uri);
+      const arrayBuffer = await response.arrayBuffer();
+
+      const path = `${userId}/avatar.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, arrayBuffer, { contentType: "image/jpeg", upsert: true });
+
+      if (uploadError) {
+        Alert.alert("Upload failed", uploadError.message);
+        setAvatarUrl(prevAvatarUrl);
+        return;
+      }
+
+      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+      const publicUrl = urlData.publicUrl + `?t=${Date.now()}`;
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: publicUrl })
+        .eq("id", userId);
+
+      if (updateError) {
+        Alert.alert("Update failed", updateError.message);
+        setAvatarUrl(prevAvatarUrl);
+        return;
+      }
+
+      setAvatarUrl(publicUrl);
+    } catch {
+      Alert.alert("Upload failed", "Could not upload photo. Please try again.");
+      setAvatarUrl(prevAvatarUrl);
+    } finally {
+      setAvatarUploading(false);
+    }
+  }, [supabase, session?.user?.id, avatarUrl]);
 
   const appVersion =
     Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? "1.0.0";
@@ -1031,6 +1088,12 @@ export default function AccountScreen() {
         zip_code: zipDigits.length === 5 ? zipDigits : null,
         username: usernameResolved,
         nearest_venue: nearestVenue,
+        primary_position: editPrimaryPosition ?? null,
+        secondary_positions: editSecondaryPositions.length > 0 ? editSecondaryPositions : null,
+        experience_level: editExperienceLevel ?? null,
+        date_of_birth: editDateOfBirth.trim() || null,
+        club_name: editClubName.trim() || null,
+        roster_url: editRosterUrl.trim() || null,
       };
       setProfile((p) => {
         if (p) {
@@ -1523,7 +1586,7 @@ export default function AccountScreen() {
       </Modal>
       <KeyboardAvoidingView style={styles.scroll} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView ref={scrollRef}
-          contentContainerStyle={[styles.content, { paddingTop: insets.top + 4, paddingBottom: 200 }]}
+          contentContainerStyle={[styles.content, { paddingTop: 8, paddingBottom: 200 }]}
           keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
@@ -1533,25 +1596,6 @@ export default function AccountScreen() {
             />
           }
         >
-          {/* 1. HEADER */}
-          <View style={s.header}>
-            <View style={s.headerSide} />
-            <Text style={s.headerTitle}>Profile</Text>
-            <View style={[s.headerSide, { alignItems: "flex-end" }]}>
-              <Pressable
-                onPress={() => {
-                  void hapticTap();
-                  scrollRef.current?.scrollTo({ y: settingsSectionY.current, animated: true });
-                }}
-                hitSlop={12}
-                style={({ pressed }) => [s.gearBtn, pressed && { opacity: 0.7 }]}
-                accessibilityLabel="Settings"
-              >
-                <Ionicons name="settings-outline" size={22} color="#fff" />
-              </Pressable>
-            </View>
-          </View>
-
           {isSelfDeclared && (
             <Pressable
               onPress={() => {
@@ -1573,13 +1617,23 @@ export default function AccountScreen() {
           {/* 2. PROFILE HERO CARD */}
           <View style={s.heroCard}>
             <View style={s.heroTop}>
-              <Pressable onPress={openEdit} style={s.avatarWrap} accessibilityLabel="Change profile photo">
+              <Pressable
+                onPress={() => void pickAndUploadAvatar()}
+                style={s.avatarWrap}
+                accessibilityLabel="Change profile photo"
+                disabled={avatarUploading}
+              >
                 <View style={[s.avatarRing, { borderColor: tColor }]}>
                   {avatarUrl ? (
                     <Image source={{ uri: avatarUrl }} style={s.avatarImg} />
                   ) : (
                     <View style={[s.avatarImg, s.avatarFallback]}>
                       <Text style={[s.avatarFallbackText, { color: tColor }]}>{initialsFromName(fullName)}</Text>
+                    </View>
+                  )}
+                  {avatarUploading && (
+                    <View style={[StyleSheet.absoluteFill, s.avatarFallback, { borderRadius: 40, zIndex: 2 }]}>
+                      <ActivityIndicator color={LIME} />
                     </View>
                   )}
                 </View>
