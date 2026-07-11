@@ -346,6 +346,7 @@ export default function AccountScreen() {
   const [winsCount, setWinsCount] = useState<number | null>(null);
   const [lossesCount, setLossesCount] = useState<number | null>(null);
   const [potdCount, setPotdCount] = useState<number | null>(null);
+  const [points, setPoints] = useState<number | null>(null);
   const [creditsCount, setCreditsCount] = useState<number | null>(null);
   const settingsSectionY = useRef<number>(0);
   const openEdit = useCallback(() => setEditModalOpen(true), []);
@@ -544,14 +545,19 @@ export default function AccountScreen() {
     const uid = session?.user?.id;
     if (!isReady || !supabase || !uid) return;
     try {
-      const { data: mine } = await supabase
-        .from("player_ratings")
-        .select("tier,score,sessions")
-        .eq("user_id", uid)
-        .maybeSingle();
+      // Tier (player_ratings), profile counters (profiles), and rating deltas
+      // (rating_events) are independent — fetch them together.
+      const [ratingRes, extrasRes, eventsRes] = await Promise.all([
+        supabase.from("player_ratings").select("tier,score,sessions").eq("user_id", uid).maybeSingle(),
+        supabase.from("profiles").select("avatar_url,wins_count,losses_count,potd_count").eq("id", uid).maybeSingle(),
+        supabase.from("rating_events").select("delta").eq("user_id", uid),
+      ]);
+
+      const mine = ratingRes.data as
+        | { tier: string | null; score: number | null; sessions: number | null }
+        | null;
       if (mine) {
-        const myRow = mine as { tier: string | null; score: number | null; sessions: number | null };
-        const myScore = myRow.score ?? 0;
+        const myScore = mine.score ?? 0;
         const [{ count: total }, { count: better }] = await Promise.all([
           supabase.from("player_ratings").select("*", { count: "exact", head: true }).gt("sessions", 0),
           supabase.from("player_ratings").select("*", { count: "exact", head: true }).gt("score", myScore),
@@ -559,26 +565,22 @@ export default function AccountScreen() {
         const percentile =
           total && total > 0 ? Math.min(100, Math.max(1, Math.round(((better ?? 0) / total) * 100))) : null;
         setTierInfo({
-          tier: (myRow.tier ?? "bronze").toLowerCase(),
+          tier: (mine.tier ?? "bronze").toLowerCase(),
           score: myScore,
-          sessions: myRow.sessions ?? 0,
+          sessions: mine.sessions ?? 0,
           percentile,
         });
       } else {
         setTierInfo(null);
       }
 
-      const { data: extras, error: extrasErr } = await supabase
-        .from("profiles")
-        .select("avatar_url,wins_count,losses_count,potd_count")
-        .eq("id", uid)
-        .maybeSingle();
-      if (extrasErr) {
+      let potd = 0;
+      if (extrasRes.error) {
         // Older DBs may not have the session-counter columns yet; still show the avatar.
         const { data: av } = await supabase.from("profiles").select("avatar_url").eq("id", uid).maybeSingle();
         setAvatarUrl((av as { avatar_url: string | null } | null)?.avatar_url?.trim() || null);
-      } else if (extras) {
-        const row = extras as {
+      } else if (extrasRes.data) {
+        const row = extrasRes.data as {
           avatar_url: string | null;
           wins_count: unknown;
           losses_count: unknown;
@@ -587,8 +589,17 @@ export default function AccountScreen() {
         setAvatarUrl(row.avatar_url?.trim() || null);
         setWinsCount(Math.max(0, Math.trunc(Number(row.wins_count ?? 0))));
         setLossesCount(Math.max(0, Math.trunc(Number(row.losses_count ?? 0))));
-        setPotdCount(Math.max(0, Math.trunc(Number(row.potd_count ?? 0))));
+        potd = Math.max(0, Math.trunc(Number(row.potd_count ?? 0)));
+        setPotdCount(potd);
       }
+
+      // Points = sum(positive rating deltas) × 30 + MOTM × 100.
+      const deltaRows = (eventsRes.data ?? []) as Array<{ delta: number | string | null }>;
+      const positiveDelta = deltaRows.reduce((acc, r) => {
+        const d = Number(r.delta ?? 0);
+        return acc + (Number.isFinite(d) && d > 0 ? d : 0);
+      }, 0);
+      setPoints(Math.round(positiveDelta * 30) + potd * 100);
     } catch (e) {
       console.error("[account loadStats] exception", e);
     }
@@ -1617,13 +1628,22 @@ export default function AccountScreen() {
                 <Text style={s.statValue}>{potdCount ?? 0}</Text>
                 <Text style={s.statLabel}>MOTM</Text>
               </View>
+              <View style={s.statCell}>
+                <FontAwesome name="star" size={19} color={LIME} />
+                <Text style={s.statValue} numberOfLines={1} adjustsFontSizeToFit>
+                  {points == null ? "—" : points.toLocaleString()}
+                </Text>
+                <Text style={s.statLabel}>Points</Text>
+              </View>
             </View>
 
             {/* Tier progress card */}
             <View style={s.tierProgress}>
               <TierGem tier={currentTier} size={54} gid="accountTierGem" />
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={s.tierProgressTitle}>{tierLabel(currentTier)} Tier</Text>
+                <Text style={s.tierProgressTitle} numberOfLines={1} adjustsFontSizeToFit>
+                  {tierLabel(currentTier)} Tier
+                </Text>
                 <Text style={s.tierProgressSub}>{tMeta.topPct}</Text>
               </View>
               <Pressable
@@ -2044,7 +2064,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CARD_BORDER,
   },
-  tierProgressTitle: { color: "#fff", fontSize: 15, fontWeight: "800" },
+  tierProgressTitle: { color: "#fff", fontSize: 14, fontWeight: "800" },
   tierProgressSub: { color: "rgba(255,255,255,0.5)", fontSize: 11, lineHeight: 15, marginTop: 2 },
   viewProgressBtn: {
     flexShrink: 0,

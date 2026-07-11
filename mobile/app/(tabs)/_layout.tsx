@@ -109,10 +109,10 @@ const LIME = "#a3e635";
 const INACTIVE = "rgba(255,255,255,0.42)";
 
 /**
- * The redesigned 5-slot bar: Home · Map · Host (elevated) · Rankings · Profile,
- * plus a conditional 6th Admin slot. Map / Host / Rankings jump to root-level
- * routes (they aren't tab screens), so we drive navigation manually rather than
- * rely on the default tab bar. Home / Profile / Admin map to registered tab
+ * The redesigned 5-slot bar: Home · Tournaments · Host (elevated) · Rankings · Profile,
+ * plus a conditional 6th Admin slot. Host / Rankings jump to root-level routes
+ * (they aren't tab screens), so we drive navigation manually rather than rely on
+ * the default tab bar. Home / Tournaments / Profile / Admin map to registered tab
  * screens and light up when active.
  */
 function CTTabBar({ state, navigation, isAdmin }: BottomTabBarProps & { isAdmin: boolean }) {
