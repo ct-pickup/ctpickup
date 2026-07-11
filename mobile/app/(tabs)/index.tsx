@@ -7,8 +7,8 @@ import { format, isToday, isTomorrow } from "date-fns";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Image,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -89,17 +89,6 @@ type NextMatch = {
   min_tier: string | null;
 };
 
-type UpcomingRun = {
-  id: string;
-  title: string | null;
-  start_at: string;
-  location_text: string | null;
-  capacity: number;
-  spots_taken: number;
-  fee_cents: number;
-  min_tier: string | null;
-};
-
 type Friend = {
   user_id: string;
   name: string;
@@ -136,7 +125,6 @@ function useHomeData() {
   const [nextMatch, setNextMatch] = useState<NextMatch | null>(null);
   const [mapRuns, setMapRuns] = useState<MapRun[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [upcoming, setUpcoming] = useState<UpcomingRun[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -210,16 +198,6 @@ function useHomeData() {
       .order("start_at", { ascending: true })
       .limit(40);
     setMapRuns((mapData as MapRun[]) ?? []);
-
-    // Upcoming pickup you can join.
-    const { data: upcomingData } = await supabase
-      .from("pickup_runs")
-      .select("id,title,start_at,location_text,capacity,spots_taken,fee_cents,min_tier")
-      .in("status", ACTIVE_STATUSES)
-      .gte("start_at", nowIso)
-      .order("start_at", { ascending: true })
-      .limit(3);
-    setUpcoming((upcomingData as UpcomingRun[]) ?? []);
 
     // Friends playing tonight.
     const { data: followRows } = await supabase
@@ -311,7 +289,6 @@ function useHomeData() {
     nextMatch,
     mapRuns,
     friends,
-    upcoming,
     loading,
     reload: load,
   };
@@ -432,30 +409,6 @@ function MapDot({ run }: { run: MapRun }) {
   );
 }
 
-function RunListCard({ run, onPress }: { run: UpcomingRun; onPress: () => void }) {
-  const left = Math.max(run.capacity - run.spots_taken, 0);
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.listCard, pressed && { opacity: 0.85 }]}>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <View style={styles.listCardTop}>
-          <Text style={styles.listCardTitle} numberOfLines={1}>
-            {run.title || "Pickup run"}
-          </Text>
-          <TierBadge tier={run.min_tier} />
-        </View>
-        <Text style={styles.listCardSub} numberOfLines={1}>
-          {whenLabel(run.start_at)}
-          {run.location_text ? ` · ${run.location_text}` : ""}
-        </Text>
-        <Text style={styles.listCardMeta} numberOfLines={1}>
-          {left > 0 ? `${left} of ${run.capacity} spots left` : "Full"} · ${(run.fee_cents / 100).toFixed(0)}
-        </Text>
-      </View>
-      <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.4)" />
-    </Pressable>
-  );
-}
-
 /* --------------------------------------------------------------- screen */
 
 export default function HomeScreen() {
@@ -471,8 +424,6 @@ export default function HomeScreen() {
     nextMatch,
     mapRuns,
     friends,
-    upcoming,
-    loading,
     reload,
   } = useHomeData();
   const { session } = useAuth();
@@ -483,6 +434,7 @@ export default function HomeScreen() {
     reload: reloadTournament,
   } = useFieldTournament();
 
+  const [tournamentsOpen, setTournamentsOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     void hapticTap();
@@ -510,9 +462,13 @@ export default function HomeScreen() {
     : FAIRFIELD;
 
   return (
+    <View style={styles.root}>
     <ScrollView
       style={styles.scroll}
-      contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 12) + 8 }]}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: Math.max(insets.top, 12) + 8, paddingBottom: 120 + insets.bottom },
+      ]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={LIME} />
       }
@@ -698,47 +654,75 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {/* 5. UPCOMING PICKUP */}
-      <View style={{ marginTop: 28 }}>
-        <SectionHeader label="Upcoming Pickup" actionLabel="View all" onAction={() => push("/(tabs)/runs")} />
-        {loading && upcoming.length === 0 ? (
-          <ActivityIndicator color={LIME} style={{ marginTop: 12 }} />
-        ) : upcoming.length > 0 ? (
-          <View style={{ gap: 10 }}>
-            {upcoming.map((run) => (
-              <RunListCard
-                key={run.id}
-                run={run}
-                onPress={() => push(`/session/${encodeURIComponent(run.id)}`)}
-              />
-            ))}
-          </View>
-        ) : (
-          <View style={styles.friendsEmpty}>
-            <Text style={styles.friendsEmptyText}>No pickup runs available right now</Text>
-          </View>
-        )}
-      </View>
-
-      {/* 6. TOURNAMENTS */}
-      <View style={{ marginTop: 28 }}>
-        <SectionHeader label="Tournaments" actionLabel="View all" onAction={() => push("/(tabs)/tournaments")} />
-        <FieldTournamentCard
-          loading={tournamentLoading}
-          error={tournamentError}
-          payload={tournamentPayload}
-          onPress={() => push("/field-tournament")}
-        />
-      </View>
     </ScrollView>
+
+      {/* Floating Tournaments button */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open tournaments"
+        onPress={() => {
+          void hapticTap();
+          setTournamentsOpen(true);
+        }}
+        style={({ pressed }) => [
+          styles.fab,
+          { bottom: 74 + insets.bottom },
+          pressed && { transform: [{ scale: 0.95 }] },
+        ]}
+      >
+        <FontAwesome name="trophy" size={16} color="#0a0a0a" />
+        <Text style={styles.fabText}>Tournaments</Text>
+      </Pressable>
+
+      {/* Tournaments slide-up drawer */}
+      <Modal
+        visible={tournamentsOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setTournamentsOpen(false)}
+      >
+        <Pressable style={styles.sheetBackdrop} onPress={() => setTournamentsOpen(false)}>
+          <Pressable
+            style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}
+            onPress={() => {}}
+          >
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeaderRow}>
+              <Text style={styles.sheetTitle}>Tournaments</Text>
+              <Pressable
+                onPress={() => {
+                  setTournamentsOpen(false);
+                  push("/(tabs)/tournaments");
+                }}
+                hitSlop={8}
+              >
+                <Text style={styles.sectionAction}>View all →</Text>
+              </Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 460 }}>
+              <FieldTournamentCard
+                loading={tournamentLoading}
+                error={tournamentError}
+                payload={tournamentPayload}
+                onPress={() => {
+                  setTournamentsOpen(false);
+                  push("/field-tournament");
+                }}
+              />
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
   );
 }
 
 /* --------------------------------------------------------------- styles */
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: "#0a0a0a" },
   scroll: { flex: 1, backgroundColor: "#0a0a0a" },
-  content: { paddingHorizontal: 20, paddingBottom: 48 },
+  content: { paddingHorizontal: 20 },
 
   /* header */
   header: {
@@ -913,19 +897,49 @@ const styles = StyleSheet.create({
   },
   friendsEmptyText: { fontSize: 13, color: "rgba(255,255,255,0.4)" },
 
-  /* list cards */
-  listCard: {
+  /* floating tournaments button */
+  fab: {
+    position: "absolute",
+    right: 20,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    backgroundColor: CARD_BG,
-    borderWidth: 1,
-    borderColor: CARD_BORDER,
-    borderRadius: 16,
-    padding: 16,
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+    backgroundColor: LIME,
+    shadowColor: "#000",
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
-  listCardTop: { flexDirection: "row", alignItems: "center", gap: 8, justifyContent: "space-between" },
-  listCardTitle: { fontSize: 16, fontWeight: "700", color: "#fff", flexShrink: 1 },
-  listCardSub: { marginTop: 4, fontSize: 13, color: "rgba(255,255,255,0.6)" },
-  listCardMeta: { marginTop: 4, fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.5)" },
+  fabText: { color: "#0a0a0a", fontSize: 14, fontWeight: "800", letterSpacing: 0.2 },
+
+  /* tournaments drawer */
+  sheetBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
+  sheet: {
+    backgroundColor: "#111311",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderColor: CARD_BORDER,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+  },
+  sheetHandle: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    marginBottom: 14,
+  },
+  sheetHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  sheetTitle: { fontSize: 20, fontWeight: "800", color: "#fff", letterSpacing: -0.3 },
 });
