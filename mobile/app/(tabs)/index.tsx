@@ -401,7 +401,7 @@ function FriendsPlayingSection({
   onFriendPress: (id: string) => void;
 }) {
   return (
-    <View style={{ marginTop: 16 }}>
+    <View style={{ marginTop: 10 }}>
       <SectionHeader label="Friends Playing Tonight" actionLabel="See all" onAction={onSeeAll} />
       {friends.length === 0 ? (
         <Text style={styles.friendsEmpty}>No friends playing tonight</Text>
@@ -420,6 +420,31 @@ function FriendsPlayingSection({
   );
 }
 
+const QUICK_ACTIONS = [
+  { label: "Find a Run", icon: "search" as const, href: "/session-map" },
+  { label: "Host", icon: "plus" as const, href: "/session-create" },
+  { label: "Train", icon: "futbol-o" as const, href: "/training-post" },
+] as const;
+
+function QuickActions({ onPress }: { onPress: (href: string) => void }) {
+  return (
+    <View style={styles.quickActionsRow}>
+      {QUICK_ACTIONS.map((a) => (
+        <Pressable
+          key={a.href}
+          onPress={() => onPress(a.href)}
+          style={({ pressed }) => [styles.quickActionBtn, pressed && { opacity: 0.75 }]}
+          accessibilityRole="button"
+          accessibilityLabel={a.label}
+        >
+          <FontAwesome name={a.icon} size={18} color={LIME} />
+          <Text style={styles.quickActionLabel}>{a.label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 /* --------------------------------------------------------------- screen */
 
 export default function HomeScreen() {
@@ -431,6 +456,8 @@ export default function HomeScreen() {
 
   const name = firstName || firstNameFromEmail(session?.user?.email ?? undefined);
   const notVerified = verificationLevel === "self";
+  const myTierMeta = tierMeta(tier);
+  const avatarBorderColor = notVerified ? "#ef4444" : (myTierMeta?.color ?? LIME);
 
   const nextTierMeta = tierMeta(nextMatch?.min_tier);
   const isDiamondRun = nextTierMeta?.diamond === true;
@@ -489,14 +516,14 @@ export default function HomeScreen() {
             {avatarUrl ? (
               <Image
                 source={{ uri: avatarUrl }}
-                style={[styles.headerAvatar, notVerified && styles.avatarUnverified]}
+                style={[styles.headerAvatar, { borderWidth: 2, borderColor: avatarBorderColor }]}
               />
             ) : (
               <View
                 style={[
                   styles.headerAvatar,
                   styles.headerAvatarFallback,
-                  notVerified && styles.avatarUnverified,
+                  { borderWidth: 2, borderColor: avatarBorderColor },
                 ]}
               >
                 <FontAwesome name="user" size={16} color={notVerified ? "#ef4444" : LIME} />
@@ -564,7 +591,7 @@ export default function HomeScreen() {
       )}
 
       {/* 3. LIVE MAP */}
-      <View style={{ marginTop: 16 }}>
+      <View style={{ marginTop: 12 }}>
         <SectionHeader label="Live Map" actionLabel="View full map" onAction={() => push("/session-map")} />
         <Pressable
           accessibilityRole="button"
@@ -611,6 +638,9 @@ export default function HomeScreen() {
         onSeeAll={() => push("/following")}
         onFriendPress={(id) => push(`/player/${id}`)}
       />
+
+      {/* 5. QUICK ACTIONS */}
+      <QuickActions onPress={push} />
     </View>
   );
 }
@@ -649,13 +679,13 @@ const styles = StyleSheet.create({
   },
   avatarUnverified: { borderWidth: 2, borderColor: "#ef4444" },
 
-  greeting: { marginTop: 14, fontSize: 20, fontWeight: "800", color: "#fff", letterSpacing: -0.3 },
+  greeting: { marginTop: 10, fontSize: 20, fontWeight: "800", color: "#fff", letterSpacing: -0.3 },
   greetingName: { color: LIME },
 
   /* section labels */
   sectionLabel: {
-    marginTop: 16,
-    marginBottom: 10,
+    marginTop: 12,
+    marginBottom: 8,
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.5,
@@ -666,7 +696,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   sectionAction: { fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.6)" },
 
@@ -690,38 +720,38 @@ const styles = StyleSheet.create({
     borderColor: CARD_BORDER,
     borderLeftWidth: 4,
     borderRadius: 16,
-    padding: 13,
+    padding: 10,
     overflow: "hidden",
   },
   pitch: { position: "absolute", top: 6, right: 6 },
-  matchTitle: { marginTop: 7, fontSize: 17, fontWeight: "800", color: "#fff", letterSpacing: -0.3 },
-  matchMetaRow: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 4 },
+  matchTitle: { marginTop: 5, fontSize: 17, fontWeight: "800", color: "#fff", letterSpacing: -0.3 },
+  matchMetaRow: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 3 },
   matchMeta: { fontSize: 12, color: "rgba(255,255,255,0.7)", flexShrink: 1 },
   matchBottom: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    marginTop: 10,
+    marginTop: 7,
   },
   matchSpots: { fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.85)", flexShrink: 1 },
   priceBox: { alignItems: "flex-end" },
   priceText: { fontSize: 20, fontWeight: "800", color: "#fff", letterSpacing: -0.5 },
   priceTier: { fontSize: 10, fontWeight: "600", color: "rgba(255,255,255,0.5)" },
   primaryBtn: {
-    marginTop: 11,
+    marginTop: 8,
     backgroundColor: LIME,
     borderRadius: 12,
-    paddingVertical: 11,
+    paddingVertical: 9,
     alignItems: "center",
   },
   primaryBtnText: { color: "#0a0a0a", fontSize: 15, fontWeight: "800", letterSpacing: 0.5 },
   matchEmpty: { alignItems: "flex-start" },
   matchEmptyTitle: { fontSize: 16, fontWeight: "800", color: "#fff", letterSpacing: 0.5 },
-  matchEmptySub: { marginTop: 6, fontSize: 14, color: "rgba(255,255,255,0.55)" },
+  matchEmptySub: { marginTop: 5, fontSize: 13, color: "rgba(255,255,255,0.55)" },
 
   /* map */
   mapWrap: {
-    height: 120,
+    height: 160,
     borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
@@ -803,4 +833,28 @@ const styles = StyleSheet.create({
     width: 68,
   },
   friendStatus: { marginTop: 2, fontSize: 10, fontWeight: "500", textAlign: "center" },
+
+  /* quick actions */
+  quickActionsRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 10,
+  },
+  quickActionBtn: {
+    flex: 1,
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    borderRadius: 14,
+    height: 68,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  quickActionLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.65)",
+    letterSpacing: 0.2,
+  },
 });
