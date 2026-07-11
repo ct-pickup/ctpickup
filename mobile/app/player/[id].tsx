@@ -562,64 +562,50 @@ export default function PlayerProfileScreen() {
     })();
   }
 
+  const verified = !!profile.verification && profile.verification !== "self";
+  const isDiamond = (profile.tier ?? "").toLowerCase() === "diamond";
+  const tColor = tierColor(profile.tier);
+
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       <View style={styles.hero}>
-        {profile.avatar_url ? (
-          <View style={{ marginBottom: 14 }}>
-            {profile.tier === "diamond" ? (
-              <View style={{ width: 96, height: 96, alignItems: "center", justifyContent: "center" }}>
-                <View style={{ width: 72, height: 72, backgroundColor: `${tierColor(profile.tier)}22`, borderWidth: 3, borderColor: tierColor(profile.tier), transform: [{ rotate: "45deg" }] }} />
-                <Image source={{ uri: profile.avatar_url }} style={{ position: "absolute", width: 80, height: 80, borderRadius: 40 }} />
-                {profile.verification && profile.verification !== "self" && (
-                  <View style={{ position: "absolute", bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: "#3B82F6", borderWidth: 2, borderColor: BG, alignItems: "center", justifyContent: "center" }}>
-                    <Text style={{ color: "#fff", fontSize: 13, fontWeight: "900" }}>✓</Text>
-                  </View>
-                )}
-              </View>
-            ) : (
-              <View>
-                <Image source={{ uri: profile.avatar_url }} style={[styles.avatarImg, { borderWidth: 3, borderColor: profile.tier ? tierColor(profile.tier) : "transparent" }]} />
-                {profile.verification && profile.verification !== "self" && (
-                  <View style={{ position: "absolute", bottom: 10, right: -4, width: 26, height: 26, borderRadius: 13, backgroundColor: "#3B82F6", borderWidth: 2, borderColor: BG, alignItems: "center", justifyContent: "center" }}>
-                    <Text style={{ color: "#fff", fontSize: 13, fontWeight: "900" }}>✓</Text>
-                  </View>
-                )}
-              </View>
-            )}
-          </View>
-        ) : (
-          profile.tier === "diamond" ? (
-            <View style={{ width: 96, height: 96, alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
-              <View style={{ width: 72, height: 72, backgroundColor: `${tierColor("diamond")}22`, borderWidth: 3, borderColor: tierColor("diamond"), transform: [{ rotate: "45deg" }] }} />
-              <Text style={{ position: "absolute", fontSize: 28, fontWeight: "800", color: tierColor("diamond") }}>
+        {/* Avatar — fixed 96×96 container for all tiers */}
+        <View style={styles.avatarContainer}>
+          {isDiamond && (
+            /* Diamond border ring: 80×80 square rotated 45°, inscribes the 80px circle */
+            <View style={[styles.diamondRing, { borderColor: tColor }]} />
+          )}
+          {profile.avatar_url ? (
+            <Image
+              source={{ uri: profile.avatar_url }}
+              style={[
+                styles.avatarCircle,
+                isDiamond
+                  ? styles.avatarCircleDiamond
+                  : { borderWidth: 3, borderColor: tColor },
+              ]}
+            />
+          ) : (
+            <View
+              style={[
+                styles.avatarCircle,
+                isDiamond
+                  ? [styles.avatarCircleDiamond, { backgroundColor: `${tColor}22` }]
+                  : { borderWidth: 3, borderColor: tColor, backgroundColor: `${tColor}22` },
+                { alignItems: "center", justifyContent: "center" },
+              ]}
+            >
+              <Text style={[styles.avatarInitialsText, { color: tColor }]}>
                 {initials(profile.display_name)}
               </Text>
-              {profile.verification && profile.verification !== "self" && (
-                <View style={{ position: "absolute", bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: "#3B82F6", borderWidth: 2, borderColor: BG, alignItems: "center", justifyContent: "center" }}>
-                  <Text style={{ color: "#fff", fontSize: 13, fontWeight: "900" }}>✓</Text>
-                </View>
-              )}
             </View>
-          ) : (
-            <View style={{ marginBottom: 14 }}>
-              <View style={[styles.avatarPh, {
-                backgroundColor: profile.tier ? `${tierColor(profile.tier)}22` : "rgba(163,230,53,0.2)",
-                borderWidth: 3,
-                borderColor: profile.tier ? tierColor(profile.tier) : LIME,
-              }]}>
-                <Text style={[styles.avatarPhText, { color: profile.tier ? tierColor(profile.tier) : LIME }]}>
-                  {initials(profile.display_name)}
-                </Text>
-              </View>
-              {profile.verification && profile.verification !== "self" && (
-                <View style={{ position: "absolute", bottom: 10, right: -4, width: 26, height: 26, borderRadius: 13, backgroundColor: "#3B82F6", borderWidth: 2, borderColor: BG, alignItems: "center", justifyContent: "center" }}>
-                  <Text style={{ color: "#fff", fontSize: 13, fontWeight: "900" }}>✓</Text>
-                </View>
-              )}
+          )}
+          {verified && (
+            <View style={styles.checkBadge}>
+              <Text style={styles.checkBadgeText}>✓</Text>
             </View>
-          )
-        )}
+          )}
+        </View>
         <Text style={styles.heroLabel}>Full name</Text>
         <Text style={styles.displayName}>{profile.display_name}</Text>
         {followStatsLoading && followersCount == null && followingCount == null ? (
@@ -937,6 +923,14 @@ export default function PlayerProfileScreen() {
   );
 }
 
+const AVATAR_SIZE = 96;
+// Non-diamond circle: 90px, 3px gap on each side of 96px container
+const CIRCLE_SIZE = 90;
+const CIRCLE_OFFSET = (AVATAR_SIZE - CIRCLE_SIZE) / 2; // 3
+// Diamond circle: 80px, inscribed in the 80×80 diamond ring
+const DIAMOND_CIRCLE_SIZE = 80;
+const DIAMOND_OFFSET = (AVATAR_SIZE - DIAMOND_CIRCLE_SIZE) / 2; // 8
+
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: BG },
   content: { padding: 20, paddingBottom: 40 },
@@ -949,6 +943,58 @@ const styles = StyleSheet.create({
   },
   errText: { color: "#fca5a5", fontSize: 15, textAlign: "center" },
   hero: { alignItems: "center", marginBottom: 28 },
+
+  /* Avatar — same container size for all tiers */
+  avatarContainer: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    marginBottom: 14,
+  },
+  /* Default circle (non-diamond): positioned inside container */
+  avatarCircle: {
+    position: "absolute",
+    top: CIRCLE_OFFSET,
+    left: CIRCLE_OFFSET,
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    borderRadius: CIRCLE_SIZE / 2,
+  },
+  /* Diamond circle override */
+  avatarCircleDiamond: {
+    top: DIAMOND_OFFSET,
+    left: DIAMOND_OFFSET,
+    width: DIAMOND_CIRCLE_SIZE,
+    height: DIAMOND_CIRCLE_SIZE,
+    borderRadius: DIAMOND_CIRCLE_SIZE / 2,
+  },
+  /* Diamond border ring: 80×80 square rotated 45° (diagonal ≈ 113px, slightly bleeds past container — intentional) */
+  diamondRing: {
+    position: "absolute",
+    top: DIAMOND_OFFSET,
+    left: DIAMOND_OFFSET,
+    width: DIAMOND_CIRCLE_SIZE,
+    height: DIAMOND_CIRCLE_SIZE,
+    borderWidth: 3,
+    transform: [{ rotate: "45deg" }],
+  },
+  /* Verified checkmark badge — bottom-right for all tiers */
+  checkBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#3B82F6",
+    borderWidth: 2,
+    borderColor: BG,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkBadgeText: { color: "#fff", fontSize: 13, fontWeight: "900" },
+  avatarInitialsText: { fontSize: 28, fontWeight: "800" },
+
+  /* Legacy — kept to avoid removing referenced styles elsewhere */
   avatarImg: { width: 96, height: 96, borderRadius: 48, marginBottom: 14 },
   avatarPh: {
     width: 96,
