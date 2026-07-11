@@ -61,10 +61,10 @@ export type Session = {
 /* ------------------------------------------------------------------ data */
 
 const FAIRFIELD: Region = {
-  latitude: 41.1412,
-  longitude: -73.3579,
-  latitudeDelta: 0.42,
-  longitudeDelta: 0.42,
+  latitude: 40.8,
+  longitude: -73.8,
+  latitudeDelta: 3.5,
+  longitudeDelta: 3.5,
 };
 
 function useSessions(level: Level | "all") {
@@ -141,6 +141,63 @@ function useSessions(level: Level | "all") {
   }, [supabase]);
 
   return { sessions, loading, error, reload: load };
+}
+
+/* ------------------------------------------------------- training posts */
+
+type TrainingPin = {
+  id: string;
+  field_name: string;
+  latitude: number;
+  longitude: number;
+  status: string;
+};
+
+function useTrainingPosts() {
+  const { supabase } = useAuth();
+  const [posts, setPosts] = useState<TrainingPin[]>([]);
+
+  const load = useCallback(async () => {
+    if (!supabase) return;
+    const { data } = await supabase
+      .from("training_posts")
+      .select("id,field_name,latitude,longitude,status")
+      .eq("status", "active")
+      .not("latitude", "is", null)
+      .not("longitude", "is", null)
+      .limit(60);
+    if (data) setPosts(data as TrainingPin[]);
+  }, [supabase]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return posts;
+}
+
+// Small "T" pin for someone actively training (distinct from session fill pins).
+function TrainingMarkerPin({ post, onPress }: { post: TrainingPin; onPress: () => void }) {
+  const [tracking, setTracking] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setTracking(false), 400);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <Marker
+      coordinate={{ latitude: post.latitude, longitude: post.longitude }}
+      onPress={onPress}
+      tracksViewChanges={tracking}
+      anchor={{ x: 0.5, y: 0.5 }}
+      zIndex={2}
+    >
+      <View style={styles.trainingPin}>
+        <Text style={styles.trainingPinText} allowFontScaling={false}>
+          T
+        </Text>
+      </View>
+    </Marker>
+  );
 }
 
 /* ------------------------------------------------------------- fill pin */
@@ -298,6 +355,7 @@ export default function SessionMapScreen() {
     })();
   }, []);
   const { sessions, loading, error, reload } = useSessions(filter);
+  const trainingPosts = useTrainingPosts();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const mapRef = useRef<MapView>(null);
   const listRef = useRef<FlatList<Session>>(null);
@@ -398,6 +456,13 @@ export default function SessionMapScreen() {
             />
           </TrackingMarker>
         ))}
+        {trainingPosts.map((p) => (
+          <TrainingMarkerPin
+            key={p.id}
+            post={p}
+            onPress={() => router.push(`/training/${p.id}`)}
+          />
+        ))}
       </MapView>
 
       <View style={styles.topBar} pointerEvents="box-none">
@@ -484,6 +549,17 @@ const styles = StyleSheet.create({
 
   pinLabel: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
   pinNum: { fontSize: 15, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  trainingPin: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: C.bg,
+    borderWidth: 2,
+    borderColor: "#a3e635",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  trainingPinText: { color: "#a3e635", fontSize: 13, fontWeight: "800" },
 
   carouselWrap: { position: "absolute", bottom: 34, left: 0, right: 0 },
   carousel: { paddingHorizontal: (SCREEN_W - CARD_W) / 2, gap: CARD_GAP },

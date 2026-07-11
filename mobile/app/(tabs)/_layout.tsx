@@ -2,7 +2,7 @@ import React, { useCallback, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Redirect, Tabs, useFocusEffect, useRouter, type Href } from "expo-router";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { hapticTap } from "@/lib/haptics";
@@ -136,6 +136,16 @@ function CTTabBar({ state, navigation, isAdmin }: BottomTabBarProps & { isAdmin:
     [router],
   );
 
+  const openCreateMenu = useCallback(() => {
+    void hapticTap();
+    const push = router.push as (href: string) => void;
+    Alert.alert("Create", "What would you like to start?", [
+      { text: "Host a Session", onPress: () => push("/session-create") },
+      { text: "Start Training", onPress: () => push("/training-post") },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }, [router]);
+
   return (
     <View
       style={[
@@ -150,7 +160,7 @@ function CTTabBar({ state, navigation, isAdmin }: BottomTabBarProps & { isAdmin:
         onPress={() => goTab("index")}
       />
       <TabItem icon="map-marker" label="Map" active={false} onPress={() => goRoute("/session-map")} />
-      <HostButton onPress={() => goRoute("/session-create")} />
+      <HostButton onPress={openCreateMenu} />
       <TabItem icon="trophy" label="Rankings" active={false} onPress={() => goRoute("/leaderboards")} />
       <TabItem
         icon="user"
