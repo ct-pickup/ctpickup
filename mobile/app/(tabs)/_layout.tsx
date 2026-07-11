@@ -167,7 +167,7 @@ function CTTabBar({ state, navigation, isAdmin }: BottomTabBarProps & { isAdmin:
         onPress={() => goTab("tournaments")}
       />
       <HostButton onPress={openCreateMenu} />
-      <TabItem icon="trophy" label="Rankings" active={false} onPress={() => goRoute("/leaderboards")} />
+      <TabItem icon="trophy" label="Rankings" active={activeName === "leaderboards"} onPress={() => goTab("leaderboards")} />
       <TabItem
         icon="user"
         label="Profile"
@@ -273,6 +273,7 @@ function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; isAdmin: bo
       <Tabs.Screen name="tournaments" options={{ title: "Tournaments" }} />
       <Tabs.Screen name="messages" options={{ title: "Messages", headerShown: false }} />
       <Tabs.Screen name="account" options={{ title: "Profile" }} />
+      <Tabs.Screen name="leaderboards" options={{ title: "Rankings" }} />
       <Tabs.Screen name="admin" options={{ title: "Admin", headerShown: false }} />
     </Tabs>
   );
