@@ -340,6 +340,7 @@ function RootLayoutNav() {
                               headerStyle: { backgroundColor: "#0a0a0a" },
                               headerTintColor: "#fff",
                               headerShadowVisible: false,
+                              headerBackTitle: "",
                             }}
                           />
                           <Stack.Screen name="player-card/[id]" options={{ headerShown: false }} />

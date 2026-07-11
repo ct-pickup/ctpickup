@@ -516,6 +516,25 @@ export default function PlayerProfileScreen() {
       headerStyle: { backgroundColor: BG },
       headerTintColor: "#fff",
       headerShadowVisible: false,
+      /* Custom back button — no label, with canGoBack fallback */
+      headerBackVisible: false,
+      headerLeft: () => (
+        <Pressable
+          onPress={() => {
+            if (navigation.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/(tabs)");
+            }
+          }}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingHorizontal: 8 })}
+        >
+          <FontAwesome name="chevron-left" size={18} color="#fff" />
+        </Pressable>
+      ),
       headerRight: isOwnProfile
         ? () => (
             <Pressable
