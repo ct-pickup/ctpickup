@@ -1448,7 +1448,7 @@ export default function AccountScreen() {
   // Uses the same data source as the leaderboard so both screens show identical values.
   const TIER_PTS_PER_SESSION: Record<string, number> = { diamond: 8, platinum: 6, gold: 4, silver: 2, bronze: 0 };
   const tierPtsPerSession = TIER_PTS_PER_SESSION[currentTier] ?? 0;
-  const points = sessionsCount * tierPtsPerSession + Math.round((tierInfo?.score ?? 0) * 10);
+  const points = sessionsCount * tierPtsPerSession * 10;
 
   const primaryPos = (profile?.primary_position ?? "").trim() || null;
   const secondaryPos = Array.isArray(profile?.secondary_positions)

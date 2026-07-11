@@ -541,7 +541,7 @@ export default function LeaderboardsScreen() {
     const top3 = rank <= 3;
     const TIER_PTS: Record<string, number> = { diamond: 8, platinum: 6, gold: 4, silver: 2, bronze: 0 };
     const tierPtsPerSession = TIER_PTS[(item.tier ?? "bronze").toLowerCase()] ?? 0;
-    const pts = (item.sessions ?? 0) * tierPtsPerSession + Math.round((item.score ?? 0) * 10);
+    const pts = (item.sessions ?? 0) * tierPtsPerSession * 10;
     return (
       <Pressable
         key={item.user_id}
