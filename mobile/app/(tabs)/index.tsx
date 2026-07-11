@@ -4,7 +4,7 @@ import { format, isToday, isTomorrow } from "date-fns";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import MapView, { Marker, type Region } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE, type Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Line, Rect } from "react-native-svg";
 
@@ -24,13 +24,10 @@ const DARK_MAP_STYLE = [
   { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#6b8f71" }] },
   { featureType: "poi", stylers: [{ visibility: "off" }] },
   { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#0d1a10" }] },
-  { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#1a2b1e" }] },
   { featureType: "road", elementType: "geometry", stylers: [{ color: "#141f14" }] },
-  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#0a0f0a" }] },
   { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#2a3a2e" }] },
   { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#1a2b1e" }] },
   { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#1e3020" }] },
-  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#0d1a10" }] },
   { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#3a5a3e" }] },
   { featureType: "road.local", stylers: [{ visibility: "off" }] },
   { featureType: "transit", stylers: [{ visibility: "off" }] },
@@ -592,6 +589,7 @@ export default function HomeScreen() {
         >
           <MapView
             style={StyleSheet.absoluteFill}
+            provider={PROVIDER_GOOGLE}
             pointerEvents="none"
             initialRegion={mapRegion}
             customMapStyle={DARK_MAP_STYLE}
