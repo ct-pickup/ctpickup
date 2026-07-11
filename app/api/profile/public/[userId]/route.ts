@@ -71,7 +71,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ userId: string 
   const target = await admin
     .from("profiles")
     .select(
-      "id,first_name,last_name,username,avatar_url,instagram,tier,tier_rank,playing_position,plays_goalie,approved,is_admin,zip_code,nearest_venue,verification_level,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url",
+      "id,first_name,last_name,username,avatar_url,instagram,tier,tier_rank,playing_position,plays_goalie,approved,is_admin,zip_code,nearest_venue,verification_level,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url,attended_count",
     )
     .eq("id", targetId)
     .maybeSingle();
@@ -137,5 +137,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ userId: string 
     roster_url: p.roster_url ?? null,
     rating_sessions: rating?.sessions ?? 0,
     reliability: rating?.reliability ?? null,
+    attended_count: typeof p.attended_count === "number" ? p.attended_count : null,
   });
 }

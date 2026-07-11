@@ -634,6 +634,7 @@ export type PublicPlayerProfile = {
   roster_url: string | null;
   rating_sessions: number;
   reliability: number | null;
+  attended_count: number | null;
 };
 
 /** In-app public card (team chat, etc.); requires approved viewer. */

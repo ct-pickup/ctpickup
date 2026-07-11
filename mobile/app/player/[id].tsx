@@ -786,11 +786,14 @@ export default function PlayerProfileScreen() {
             <Text style={styles.valueLine}>
               <Text style={styles.valueK}>Tournaments</Text> {tournamentsPlayed == null ? "—" : tournamentsPlayed}
             </Text>
+            {/* Sessions from attended_count (authoritative pickup count) */}
+            <Text style={styles.valueLine}>
+              <Text style={styles.valueK}>Sessions</Text>{" "}
+              {profile.attended_count != null ? profile.attended_count : "—"}
+            </Text>
+            {/* W/L record */}
             {games == null ? (
               <>
-                <Text style={styles.valueLine}>
-                  <Text style={styles.valueK}>Sessions</Text> —
-                </Text>
                 <Text style={styles.valueLine}>
                   <Text style={styles.valueK}>Wins</Text> —
                 </Text>
@@ -803,9 +806,6 @@ export default function PlayerProfileScreen() {
               </>
             ) : (
               <>
-                <Text style={styles.valueLine}>
-                  <Text style={styles.valueK}>Sessions</Text> {games}
-                </Text>
                 <Text style={styles.valueLine}>
                   <Text style={styles.valueK}>Wins</Text> {wins ?? 0}
                 </Text>
