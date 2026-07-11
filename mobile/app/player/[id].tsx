@@ -30,7 +30,8 @@ const TIER_COLORS: Record<string, string> = {
 };
 
 function tierColor(tier: string | null | undefined): string {
-  return tier ? (TIER_COLORS[tier] ?? LIME) : LIME;
+  if (!tier) return "rgba(255,255,255,0.18)"; // neutral grey until tier is known
+  return TIER_COLORS[tier] ?? LIME;
 }
 
 const PROFILE_REPORT_REASONS = [
@@ -122,10 +123,12 @@ export default function PlayerProfileScreen() {
       setErr(!token ? "Sign in to view profiles." : "Missing player.");
       return;
     }
+    // Reset synchronously so stale tier data never flashes during a re-fetch
+    setProfile(null);
+    setLoading(true);
+    setErr(null);
     let cancelled = false;
     void (async () => {
-      setLoading(true);
-      setErr(null);
       const r = await fetchPublicPlayerProfile(token, userId);
       if (cancelled) return;
       if (!r.ok) {
