@@ -159,7 +159,6 @@ function CTTabBar({ state, navigation, isAdmin }: BottomTabBarProps & { isAdmin:
         active={activeName === "index"}
         onPress={() => goTab("index")}
       />
-      <TabItem icon="map-marker" label="Map" active={false} onPress={() => goRoute("/session-map")} />
       <TabItem
         icon="trophy"
         label="Tournaments"
