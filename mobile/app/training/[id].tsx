@@ -13,6 +13,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const LIME = "#a3e635";
 
@@ -106,6 +107,7 @@ function initials(name: string): string {
 export default function TrainingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { session, supabase } = useAuth();
   const myUserId = session?.user?.id ?? null;
 
@@ -302,7 +304,7 @@ export default function TrainingDetailScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 60 }}>
+      <ScrollView style={[s.root, { paddingTop: insets.top }]} contentContainerStyle={{ paddingBottom: 60 }}>
         {/* Header */}
         <View style={s.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
@@ -515,7 +517,7 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#0a0a0a", padding: 20 },
   center: { flex: 1, backgroundColor: "#0a0a0a", alignItems: "center", justifyContent: "center", padding: 24 },
   errorText: { color: "rgba(255,255,255,0.5)", fontSize: 16 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 16, marginBottom: 20 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 8, marginBottom: 20 },
   headerTitle: { color: "#fff", fontSize: 17, fontWeight: "700", flex: 1, textAlign: "center", marginHorizontal: 12 },
   endLink: { color: "#ef4444", fontSize: 15, fontWeight: "700" },
   endedBanner: {
