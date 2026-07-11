@@ -342,7 +342,7 @@ export default function RunHistoryScreen() {
           <View style={styles.statsGrid}>
             <View style={styles.statCell}>
               <Text style={styles.statValue}>{stats.total}</Text>
-              <Text style={styles.statLabel}>Games</Text>
+              <Text style={styles.statLabel}>Sessions</Text>
             </View>
             <View style={styles.statCell}>
               <Text style={[styles.statValue, { color: LIME }]}>{stats.wins}</Text>

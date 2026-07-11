@@ -789,7 +789,7 @@ export default function PlayerProfileScreen() {
             {games == null ? (
               <>
                 <Text style={styles.valueLine}>
-                  <Text style={styles.valueK}>Games</Text> —
+                  <Text style={styles.valueK}>Sessions</Text> —
                 </Text>
                 <Text style={styles.valueLine}>
                   <Text style={styles.valueK}>Wins</Text> —
@@ -804,7 +804,7 @@ export default function PlayerProfileScreen() {
             ) : (
               <>
                 <Text style={styles.valueLine}>
-                  <Text style={styles.valueK}>Games</Text> {games}
+                  <Text style={styles.valueK}>Sessions</Text> {games}
                 </Text>
                 <Text style={styles.valueLine}>
                   <Text style={styles.valueK}>Wins</Text> {wins ?? 0}

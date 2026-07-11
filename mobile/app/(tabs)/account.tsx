@@ -98,13 +98,14 @@ type ProfileRow = {
   club_name: string | null;
   roster_url: string | null;
   verification_level: string | null;
+  attended_count: number | null;
 };
 
 const PROFILE_SELECT_WITH_PUSH =
-  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled,marketing_push_enabled,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url,verification_level";
+  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled,marketing_push_enabled,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url,verification_level,attended_count";
 
 const PROFILE_SELECT_WITHOUT_PUSH =
-  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url,verification_level";
+  "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url,verification_level,attended_count";
 
 function supabaseLooksLikeMissingColumn(err: { message?: string } | null | undefined, col: string): boolean {
   const msg = err?.message ?? "";
@@ -1475,7 +1476,12 @@ export default function AccountScreen() {
   const ptsPerSessionLabel = `${ptsPerSession > 0 ? "+" : ""}${ptsPerSession} pts / session`;
   const gamesPlayed = (winsCount ?? 0) + (lossesCount ?? 0);
   const winPct = gamesPlayed > 0 ? Math.round(((winsCount ?? 0) / gamesPlayed) * 100) : null;
-  const sessionsCount = tierInfo?.sessions ?? 0;
+  // Prefer the attended_count column from the already-loaded profile (refreshed on focus),
+  // fall back to the player_ratings.sessions value if attended_count is absent or zero.
+  const attendedCount = typeof profile?.attended_count === "number" ? profile.attended_count : null;
+  const sessionsCount = (attendedCount != null && attendedCount > 0)
+    ? attendedCount
+    : (tierInfo?.sessions ?? 0);
 
   const primaryPos = (profile?.primary_position ?? "").trim() || null;
   const secondaryPos = Array.isArray(profile?.secondary_positions)

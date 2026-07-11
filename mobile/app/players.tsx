@@ -342,7 +342,7 @@ export default function PlayersScreen() {
 
                   <View style={[styles.metaRow, { marginTop: 8 }]}>
                     <Text style={styles.meta}>
-                      <Text style={styles.metaK}>Games</Text> {p.gamesPlayed}
+                      <Text style={styles.metaK}>Sessions</Text> {p.gamesPlayed}
                     </Text>
                     <Text style={styles.metaSep}>·</Text>
                     <Text style={styles.meta}>
