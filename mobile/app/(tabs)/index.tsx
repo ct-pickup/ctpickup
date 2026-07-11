@@ -14,6 +14,30 @@ const LIME = "#a3e635";
 const CARD_BG = "rgba(255,255,255,0.04)";
 const CARD_BORDER = "rgba(255,255,255,0.08)";
 
+const DARK_MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#0a0f0a" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#4a5e4e" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#0a0f0a" }] },
+  { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#1a2b1e" }] },
+  { featureType: "administrative.country", elementType: "labels.text.fill", stylers: [{ color: "#4a5e4e" }] },
+  { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
+  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#6b8f71" }] },
+  { featureType: "poi", stylers: [{ visibility: "off" }] },
+  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#0d1a10" }] },
+  { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#1a2b1e" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#141f14" }] },
+  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#0a0f0a" }] },
+  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#2a3a2e" }] },
+  { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#1a2b1e" }] },
+  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#1e3020" }] },
+  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#0d1a10" }] },
+  { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#3a5a3e" }] },
+  { featureType: "road.local", stylers: [{ visibility: "off" }] },
+  { featureType: "transit", stylers: [{ visibility: "off" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#060d08" }] },
+  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#1a2b1e" }] },
+];
+
 /* ----------------------------------------------------------------- tiers */
 
 type TierMeta = { label: string; color: string; diamond?: boolean };
@@ -558,7 +582,7 @@ export default function HomeScreen() {
       )}
 
       {/* 3. LIVE MAP */}
-      <View style={{ marginTop: 12 }}>
+      <View style={{ marginTop: 12 }} pointerEvents="box-none">
         <SectionHeader label="Live Map" actionLabel="View full map" onAction={() => push("/session-map")} />
         <Pressable
           accessibilityRole="button"
@@ -570,7 +594,7 @@ export default function HomeScreen() {
             style={StyleSheet.absoluteFill}
             pointerEvents="none"
             initialRegion={mapRegion}
-            userInterfaceStyle="dark"
+            customMapStyle={DARK_MAP_STYLE}
             scrollEnabled={false}
             zoomEnabled={false}
             pitchEnabled={false}
