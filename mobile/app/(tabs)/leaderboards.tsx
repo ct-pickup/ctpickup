@@ -93,6 +93,9 @@ type TierPlayer = {
 
 type MyTier = { tier: string; score: number; sessions: number; percentile: number | null } | null;
 
+// Module-level cache — survives tab switches and back-navigation re-mounts.
+let _cachedMyTier: MyTier = null;
+
 const PRIMARY_TABS: Array<{ id: TabId; label: string; icon?: React.ComponentProps<typeof FontAwesome>["name"] }> = [
   { id: "tier", label: "Tier", icon: "trophy" },
   { id: "wins", label: "Wins" },
@@ -242,7 +245,7 @@ export default function LeaderboardsScreen() {
 
   // Tier tab (player_ratings)
   const [tierPlayers, setTierPlayers] = useState<TierPlayer[]>([]);
-  const [myTier, setMyTier] = useState<MyTier>(null);
+  const [myTier, setMyTier] = useState<MyTier>(_cachedMyTier);
   const [tierLoading, setTierLoading] = useState(false);
 
   const rowsForTab = useMemo(() => {
@@ -347,13 +350,16 @@ export default function LeaderboardsScreen() {
           ]);
           const percentile =
             total && total > 0 ? Math.min(100, Math.max(1, Math.round(((better ?? 0) / total) * 100))) : null;
-          setMyTier({
+          const resolved: MyTier = {
             tier: (myRow.tier ?? "bronze").toLowerCase(),
             score: myScore,
             sessions: myRow.sessions ?? 0,
             percentile,
-          });
+          };
+          _cachedMyTier = resolved;
+          setMyTier(resolved);
         } else {
+          _cachedMyTier = null;
           setMyTier(null);
         }
       }
@@ -494,6 +500,10 @@ export default function LeaderboardsScreen() {
   }
 
   function renderHero() {
+    if (myTier === null && tierLoading) {
+      return <View style={[styles.hero, styles.heroSkeleton]} />;
+    }
+
     const t = myTier?.tier ?? "bronze";
     const color = tierColor(t);
     const isDiamond = t === "diamond";
@@ -881,6 +891,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     overflow: "hidden",
     minHeight: 148,
+  },
+  heroSkeleton: {
+    backgroundColor: CARD,
+    borderColor: CARD_BORDER,
   },
   heroLeft: { flex: 1, minWidth: 0 },
   heroLabel: { color: LIME, fontSize: 11, fontWeight: "800", letterSpacing: 1.5 },

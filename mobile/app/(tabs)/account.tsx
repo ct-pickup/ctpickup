@@ -100,6 +100,10 @@ type ProfileRow = {
   verification_level: string | null;
 };
 
+// Module-level cache — keeps the last loaded tier so re-mounts show it instantly.
+type TierInfoCache = { tier: string; score: number; sessions: number; percentile: number | null } | null;
+let _cachedTierInfo: TierInfoCache = null;
+
 const PROFILE_SELECT_WITH_PUSH =
   "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled,marketing_push_enabled,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url,verification_level";
 
@@ -337,12 +341,7 @@ export default function AccountScreen() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
-  const [tierInfo, setTierInfo] = useState<{
-    tier: string;
-    score: number;
-    sessions: number;
-    percentile: number | null;
-  } | null>(null);
+  const [tierInfo, setTierInfo] = useState<TierInfoCache>(_cachedTierInfo);
   const [winsCount, setWinsCount] = useState<number | null>(null);
   const [lossesCount, setLossesCount] = useState<number | null>(null);
   // MOTM count from pickup_run_results (player_of_day matches).
@@ -670,13 +669,16 @@ export default function AccountScreen() {
         ]);
         const percentile =
           total && total > 0 ? Math.min(100, Math.max(1, Math.round(((better ?? 0) / total) * 100))) : null;
-        setTierInfo({
+        const resolved: TierInfoCache = {
           tier: (mine.tier ?? "bronze").toLowerCase(),
           score: myScore,
           sessions: mine.sessions ?? 0,
           percentile,
-        });
+        };
+        _cachedTierInfo = resolved;
+        setTierInfo(resolved);
       } else {
+        _cachedTierInfo = null;
         setTierInfo(null);
       }
 
@@ -1694,18 +1696,20 @@ export default function AccountScreen() {
               <View style={s.heroInfo}>
                 <Text style={s.heroName} numberOfLines={2}>{fullName}</Text>
                 {uname ? <Text style={s.heroUsername} numberOfLines={1}>@{uname}</Text> : null}
-                <View style={s.heroBadgeRow}>
-                  <View style={[s.tierBadge, { backgroundColor: `${tColor}33`, borderColor: `${tColor}88` }]}>
-                    <Text style={[s.tierBadgeDiamond, { color: tColor }]}>◆</Text>
-                    <Text style={[s.tierBadgeText, { color: tColor }]}>{tierLabel(currentTier)}</Text>
+                {tierInfo !== null ? (
+                  <View style={s.heroBadgeRow}>
+                    <View style={[s.tierBadge, { backgroundColor: `${tColor}33`, borderColor: `${tColor}88` }]}>
+                      <Text style={[s.tierBadgeDiamond, { color: tColor }]}>◆</Text>
+                      <Text style={[s.tierBadgeText, { color: tColor }]}>{tierLabel(currentTier)}</Text>
+                    </View>
+                    <Text
+                      style={[s.ptsPerSession, { color: ptsPerSession >= 0 ? LIME : "#fca5a5" }]}
+                      numberOfLines={1}
+                    >
+                      {ptsPerSessionLabel}
+                    </Text>
                   </View>
-                  <Text
-                    style={[s.ptsPerSession, { color: ptsPerSession >= 0 ? LIME : "#fca5a5" }]}
-                    numberOfLines={1}
-                  >
-                    {ptsPerSessionLabel}
-                  </Text>
-                </View>
+                ) : null}
               </View>
             </View>
 
@@ -1741,21 +1745,25 @@ export default function AccountScreen() {
             </View>
 
             {/* Tier progress card */}
-            <View style={s.tierProgress}>
-              <TierGem tier={currentTier} size={54} gid="accountTierGem" />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={s.tierProgressTitle} numberOfLines={1} adjustsFontSizeToFit>
-                  {tierLabel(currentTier)} Tier
-                </Text>
-                <Text style={s.tierProgressSub}>{tMeta.topPct}</Text>
+            {tierInfo !== null ? (
+              <View style={s.tierProgress}>
+                <TierGem tier={currentTier} size={54} gid="accountTierGem" />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={s.tierProgressTitle} numberOfLines={1} adjustsFontSizeToFit>
+                    {tierLabel(currentTier)} Tier
+                  </Text>
+                  <Text style={s.tierProgressSub}>{tMeta.topPct}</Text>
+                </View>
+                <Pressable
+                  onPress={() => myUserId && (router.push as (h: string) => void)(`/player/${myUserId}`)}
+                  style={({ pressed }) => [s.viewProgressBtn, pressed && { opacity: 0.85 }]}
+                >
+                  <Text style={s.viewProgressBtnText}>View progress →</Text>
+                </Pressable>
               </View>
-              <Pressable
-                onPress={() => myUserId && (router.push as (h: string) => void)(`/player/${myUserId}`)}
-                style={({ pressed }) => [s.viewProgressBtn, pressed && { opacity: 0.85 }]}
-              >
-                <Text style={s.viewProgressBtnText}>View progress →</Text>
-              </Pressable>
-            </View>
+            ) : (
+              <View style={[s.tierProgress, s.tierProgressSkeleton]} />
+            )}
           </View>
 
           {/* 3. SOCCER BACKGROUND */}
@@ -2167,6 +2175,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: CARD_BORDER,
   },
+  tierProgressSkeleton: { minHeight: 68, backgroundColor: "rgba(255,255,255,0.04)" },
   tierProgressTitle: { color: "#fff", fontSize: 14, fontWeight: "800" },
   tierProgressSub: { color: "rgba(255,255,255,0.5)", fontSize: 11, lineHeight: 15, marginTop: 2 },
   viewProgressBtn: {
