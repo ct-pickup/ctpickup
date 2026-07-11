@@ -17,6 +17,8 @@ export type ChatRoomRow = {
   closes_at: string | null;
   auto_close_at: string | null;
   created_at: string;
+  run_id: string | null;
+  pickup_runs: { location_private: string | null } | null;
 };
 
 export type RoomLookup = { slug: string; id?: null } | { id: string; slug?: null };
@@ -56,7 +58,7 @@ export function useTeamChatRoom(enabled: boolean, lookup: RoomLookup) {
     void (async () => {
       const base = supabase
         .from("chat_rooms")
-        .select("id,slug,title,description,room_type,is_active,announcements_only,closes_at,auto_close_at,created_at");
+        .select("id,slug,title,description,room_type,is_active,announcements_only,closes_at,auto_close_at,created_at,run_id,pickup_runs!run_id(location_private)");
       const query = id ? base.eq("id", id) : base.eq("slug", slug);
       const { data, error: qErr } = await query.maybeSingle();
       if (cancelled) return;

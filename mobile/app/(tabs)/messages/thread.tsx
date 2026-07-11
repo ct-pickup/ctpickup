@@ -74,6 +74,18 @@ function threadHeaderTitle(title: string): string {
   return `${t.slice(0, 41)}…`;
 }
 
+// For run_banter rooms, the baked-in room.title may contain a stale venue name set at creation
+// time. Rebuild it from pickup_runs.location_private (first line) + the date part of room.title.
+function resolvedRoomTitle(room: { title: string; room_type: string | null; pickup_runs: { location_private: string | null } | null } | null): string {
+  if (!room) return "Messages";
+  if (room.room_type === "run_banter" && room.pickup_runs?.location_private) {
+    const venueName = room.pickup_runs.location_private.trim().split(/\r?\n/)[0]!.trim();
+    const datePart = room.title.split(" · ")[1];
+    return threadHeaderTitle(datePart ? `${venueName} · ${datePart}` : venueName);
+  }
+  return threadHeaderTitle(room.title);
+}
+
 export default function TeamChatThreadScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -188,7 +200,7 @@ export default function TeamChatThreadScreen() {
   useFocusEffect(
     useCallback(() => {
       navigation.setOptions({
-        title: room?.title ? threadHeaderTitle(room.title) : "Messages",
+        title: resolvedRoomTitle(room),
         headerStyle: { backgroundColor: "#0a0a0a" },
         headerTintColor: "#fff",
         headerShadowVisible: false,
@@ -211,7 +223,7 @@ export default function TeamChatThreadScreen() {
           headerBackVisible: undefined,
         });
       };
-    }, [navigation, router, room?.title]),
+    }, [navigation, router, room]),
   );
 
   useEffect(() => {
@@ -699,42 +711,42 @@ export default function TeamChatThreadScreen() {
         </Pressable>
       </Modal>
 
-      <View style={styles.composer}>
-        <TextInput
-          style={[styles.input, !canCompose && styles.inputDisabled]}
-          placeholder={
-            !canCompose
-              ? runBanterAutoCloseUi.closedForPlayer
-                ? "This chat has closed"
-                : announcementsOnly
+      {!runBanterAutoCloseUi.closedForPlayer ? (
+        <View style={styles.composer}>
+          <TextInput
+            style={[styles.input, !canCompose && styles.inputDisabled]}
+            placeholder={
+              !canCompose
+                ? announcementsOnly
                   ? "Announcements only"
                   : "Chat is unavailable"
-              : isAdmin === true && announcementsOnly
-                ? "Post an announcement"
-                : isGroupRoom
-                  ? isDmGroup
-                    ? "Message…"
-                    : "Message the group"
-                  : "Message the team…"
-          }
-          placeholderTextColor="rgba(255,255,255,0.35)"
-          value={draft}
-          onChangeText={(t) => {
-            setDraft(t);
-            if (sendError) setSendError(null);
-          }}
-          editable={canCompose && !sendBusy}
-          multiline
-        />
-        <Pressable
-          accessibilityRole="button"
-          style={[styles.sendBtn, (!draft.trim() || !canCompose || sendBusy) && styles.disabled]}
-          disabled={!draft.trim() || !canCompose || sendBusy}
-          onPress={() => void onSend()}
-        >
-          {sendBusy ? <ActivityIndicator color="#0a0a0a" /> : <Text style={styles.sendBtnText}>Send</Text>}
-        </Pressable>
-      </View>
+                : isAdmin === true && announcementsOnly
+                  ? "Post an announcement"
+                  : isGroupRoom
+                    ? isDmGroup
+                      ? "Message…"
+                      : "Message the group"
+                    : "Message the team…"
+            }
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            value={draft}
+            onChangeText={(t) => {
+              setDraft(t);
+              if (sendError) setSendError(null);
+            }}
+            editable={canCompose && !sendBusy}
+            multiline
+          />
+          <Pressable
+            accessibilityRole="button"
+            style={[styles.sendBtn, (!draft.trim() || !canCompose || sendBusy) && styles.disabled]}
+            disabled={!draft.trim() || !canCompose || sendBusy}
+            onPress={() => void onSend()}
+          >
+            {sendBusy ? <ActivityIndicator color="#0a0a0a" /> : <Text style={styles.sendBtnText}>Send</Text>}
+          </Pressable>
+        </View>
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
