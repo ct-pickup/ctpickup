@@ -3,7 +3,7 @@ import { postPlayerProfileReportViaApi } from "@/lib/chatApi";
 import { displayRegionNameFromZip } from "@/lib/zipRegion";
 import { fetchPlayerFollowStats, fetchPublicPlayerProfile, togglePlayerFollow, type PublicPlayerProfile } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useLocalSearchParams, useNavigation, useRouter, type Href } from "expo-router";
+import { Stack, useLocalSearchParams, useNavigation, useRouter, type Href } from "expo-router";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { useEffect, useLayoutEffect, useState } from "react";
 import {
@@ -516,40 +516,8 @@ export default function PlayerProfileScreen() {
       headerStyle: { backgroundColor: BG },
       headerTintColor: "#fff",
       headerShadowVisible: false,
-      /* Custom back button — no label, with canGoBack fallback */
-      headerBackVisible: false,
-      headerLeft: () => (
-        <Pressable
-          onPress={() => {
-            if (navigation.canGoBack()) {
-              router.back();
-            } else {
-              router.replace("/(tabs)");
-            }
-          }}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, paddingHorizontal: 8 })}
-        >
-          <FontAwesome name="chevron-left" size={18} color="#fff" />
-        </Pressable>
-      ),
-      headerRight: isOwnProfile
-        ? () => (
-            <Pressable
-              onPress={() => router.push("/(tabs)/account")}
-              accessibilityRole="button"
-              accessibilityLabel="Account settings"
-              hitSlop={10}
-              style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1, paddingHorizontal: 12 })}
-            >
-              <FontAwesome name="cog" size={20} color="#fff" />
-            </Pressable>
-          )
-        : undefined,
     });
-  }, [navigation, nameForTitle, isOwnProfile, router]);
+  }, [navigation, nameForTitle]);
 
   if (loading) {
     return (
@@ -586,7 +554,30 @@ export default function PlayerProfileScreen() {
   const tColor = tierColor(profile.tier);
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <>
+      <Stack.Screen
+        options={{
+          headerBackTitle: "",
+          title: nameForTitle,
+          headerStyle: { backgroundColor: BG },
+          headerTintColor: "#fff",
+          headerShadowVisible: false,
+          headerRight: isOwnProfile
+            ? () => (
+                <Pressable
+                  onPress={() => router.push("/(tabs)/account")}
+                  accessibilityRole="button"
+                  accessibilityLabel="Account settings"
+                  hitSlop={10}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1, paddingHorizontal: 12 })}
+                >
+                  <FontAwesome name="cog" size={20} color="#fff" />
+                </Pressable>
+              )
+            : undefined,
+        }}
+      />
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       <View style={styles.hero}>
         {/* Avatar — fixed 96×96 container for all tiers */}
         <View style={styles.avatarContainer}>
@@ -939,6 +930,7 @@ export default function PlayerProfileScreen() {
         </Pressable>
       ) : null}
     </ScrollView>
+    </>
   );
 }
 
