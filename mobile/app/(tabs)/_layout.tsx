@@ -1,9 +1,11 @@
 import React, { useCallback, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { CommonActions } from "@react-navigation/native";
-import { Redirect, Tabs, useFocusEffect, type Href } from "expo-router";
-import { ActivityIndicator, View } from "react-native";
+import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { Redirect, Tabs, useFocusEffect, useRouter, type Href } from "expo-router";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { hapticTap } from "@/lib/haptics";
 import { useClientOnlyValue } from "@/components/useClientOnlyValue";
 import { useAdminMode } from "@/context/AdminModeContext";
 import { useAuth } from "@/context/AuthContext";
@@ -12,13 +14,6 @@ import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { useWaiver } from "@/context/WaiverContext";
 import { RunsPickerBridgeProvider } from "@/context/RunsPickerBridge";
 import { hasCompletedOnboarding } from "@/lib/onboarding";
-
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>["name"];
-  color: string;
-}) {
-  return <FontAwesome size={26} style={{ marginBottom: -2 }} {...props} />;
-}
 
 export default function TabLayout() {
   const { session, isReady } = useAuth();
@@ -110,108 +105,159 @@ export default function TabLayout() {
   );
 }
 
+const LIME = "#a3e635";
+const INACTIVE = "rgba(255,255,255,0.42)";
+
+/**
+ * The redesigned 5-slot bar: Home · Map · Host (elevated) · Rankings · Profile,
+ * plus a conditional 6th Admin slot. Map / Host / Rankings jump to root-level
+ * routes (they aren't tab screens), so we drive navigation manually rather than
+ * rely on the default tab bar. Home / Profile / Admin map to registered tab
+ * screens and light up when active.
+ */
+function CTTabBar({ state, navigation, isAdmin }: BottomTabBarProps & { isAdmin: boolean }) {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const activeName = state.routes[state.index]?.name ?? "index";
+
+  const goTab = useCallback(
+    (name: string) => {
+      void hapticTap();
+      if (activeName !== name) navigation.navigate(name as never);
+    },
+    [navigation, activeName],
+  );
+
+  const goRoute = useCallback(
+    (href: string) => {
+      void hapticTap();
+      (router.push as (href: string) => void)(href);
+    },
+    [router],
+  );
+
+  return (
+    <View
+      style={[
+        tabStyles.bar,
+        { paddingBottom: Math.max(insets.bottom, 8), height: 60 + Math.max(insets.bottom, 8) },
+      ]}
+    >
+      <TabItem
+        icon="home"
+        label="Home"
+        active={activeName === "index"}
+        onPress={() => goTab("index")}
+      />
+      <TabItem icon="map-marker" label="Map" active={false} onPress={() => goRoute("/session-map")} />
+      <HostButton onPress={() => goRoute("/session-create")} />
+      <TabItem icon="trophy" label="Rankings" active={false} onPress={() => goRoute("/leaderboards")} />
+      <TabItem
+        icon="user"
+        label="Profile"
+        active={activeName === "account"}
+        onPress={() => goTab("account")}
+      />
+      {isAdmin && (
+        <TabItem
+          icon="shield"
+          label="Admin"
+          active={activeName === "admin"}
+          onPress={() => goTab("admin")}
+        />
+      )}
+    </View>
+  );
+}
+
+function TabItem(props: {
+  icon: React.ComponentProps<typeof FontAwesome>["name"];
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const color = props.active ? LIME : INACTIVE;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={props.label}
+      accessibilityState={{ selected: props.active }}
+      onPress={props.onPress}
+      style={tabStyles.item}
+      hitSlop={6}
+    >
+      <FontAwesome name={props.icon} size={22} color={color} />
+      <Text style={[tabStyles.label, { color }]} numberOfLines={1} allowFontScaling={false}>
+        {props.label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function HostButton({ onPress }: { onPress: () => void }) {
+  return (
+    <View style={tabStyles.hostSlot}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Host a session"
+        onPress={onPress}
+        style={({ pressed }) => [tabStyles.hostBtn, pressed && { transform: [{ scale: 0.94 }] }]}
+      >
+        <FontAwesome name="plus" size={26} color="#0a0a0a" />
+      </Pressable>
+    </View>
+  );
+}
+
+const tabStyles = StyleSheet.create({
+  bar: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#050505",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(255,255,255,0.08)",
+    paddingTop: 8,
+  },
+  item: { flex: 1, alignItems: "center", justifyContent: "flex-start", gap: 3 },
+  label: { fontSize: 10, fontWeight: "600", letterSpacing: 0.2 },
+  hostSlot: { flex: 1, alignItems: "center" },
+  hostBtn: {
+    position: "absolute",
+    top: -26,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: LIME,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 4,
+    borderColor: "#050505",
+    shadowColor: LIME,
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 10,
+  },
+});
+
 function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; isAdmin: boolean }) {
-  const lime = "#a3e635";
   const showAdmin = props.isAdmin && props.adminModeEnabled;
 
   return (
     <Tabs
+      tabBar={(bar) => <CTTabBar {...bar} isAdmin={showAdmin} />}
       screenOptions={{
-        tabBarActiveTintColor: lime,
-        tabBarInactiveTintColor: "rgba(255,255,255,0.4)",
-        tabBarStyle: { backgroundColor: "#050505", borderTopColor: "rgba(255,255,255,0.08)" },
         headerShown: useClientOnlyValue(false, true),
         headerStyle: { backgroundColor: "#0a0a0a" },
         headerTintColor: "#fff",
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Home",
-          headerShown: false,
-          tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="runs"
-        options={{
-          title: "Pickup",
-          tabBarLabel: "Pickup",
-          tabBarIcon: ({ color }) => <TabBarIcon name="futbol-o" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="tournaments"
-        options={{
-          title: "Tournaments",
-          tabBarIcon: ({ color }) => <TabBarIcon name="trophy" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="messages"
-        options={{
-          title: "Messages",
-          headerShown: false,
-          tabBarIcon: ({ color }) => <TabBarIcon name="comment-o" color={color} />,
-        }}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            const state = navigation.getState();
-            const messagesRoute = state.routes.find((r) => r.name === "messages");
-            const stackIndex =
-              messagesRoute && "state" in messagesRoute && messagesRoute.state
-                ? ((messagesRoute.state as { index?: number }).index ?? 0)
-                : 0;
-            if (stackIndex > 0) {
-              e.preventDefault();
-              navigation.dispatch(
-                CommonActions.navigate({
-                  name: "messages",
-                  params: { screen: "index" },
-                  merge: true,
-                }),
-              );
-            }
-          },
-        })}
-      />
-      <Tabs.Screen
-        name="account"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="admin"
-        options={{
-          href: showAdmin ? undefined : null,
-          title: "Admin",
-          headerShown: false,
-          tabBarIcon: ({ color }) => <TabBarIcon name="shield" color={color} />,
-        }}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            const state = navigation.getState();
-            const adminRoute = state.routes.find((r) => r.name === "admin");
-            const stackIndex =
-              adminRoute && "state" in adminRoute && adminRoute.state
-                ? ((adminRoute.state as { index?: number }).index ?? 0)
-                : 0;
-            if (stackIndex > 0) {
-              e.preventDefault();
-              navigation.dispatch(
-                CommonActions.navigate({
-                  name: "admin",
-                  params: { screen: "index" },
-                  merge: true,
-                }),
-              );
-            }
-          },
-        })}
-      />
+      <Tabs.Screen name="index" options={{ title: "Home", headerShown: false }} />
+      <Tabs.Screen name="runs" options={{ title: "Pickup" }} />
+      <Tabs.Screen name="tournaments" options={{ title: "Tournaments" }} />
+      <Tabs.Screen name="messages" options={{ title: "Messages", headerShown: false }} />
+      <Tabs.Screen name="account" options={{ title: "Profile" }} />
+      <Tabs.Screen name="admin" options={{ title: "Admin", headerShown: false }} />
     </Tabs>
   );
 }
