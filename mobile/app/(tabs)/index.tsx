@@ -64,6 +64,35 @@ function whenLabel(iso: string): string {
   return `${format(d, "EEE MMM d")} · ${t}`;
 }
 
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+/** Live-updating elapsed-time string, refreshed every 60 seconds. */
+function useElapsedTime(startedAt: string | null): string {
+  const [elapsed, setElapsed] = useState("");
+  useEffect(() => {
+    if (!startedAt) return;
+    const update = () => {
+      const mins = Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000);
+      if (mins < 1) setElapsed("Just started");
+      else if (mins < 60) setElapsed(mins + " min in");
+      else {
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        setElapsed(h + "h " + (m > 0 ? m + "min " : "") + "in");
+      }
+    };
+    update();
+    const interval = setInterval(update, 60000);
+    return () => clearInterval(interval);
+  }, [startedAt]);
+  return elapsed;
+}
+
 /* --------------------------------------------------------------- types */
 
 type MapRun = Session & { min_tier: string | null; location_text: string | null };
@@ -77,6 +106,23 @@ type NextMatch = {
   spots_taken: number;
   fee_cents: number;
   min_tier: string | null;
+};
+
+type Friend = {
+  user_id: string;
+  name: string;
+  avatar_url: string | null;
+  status: "playing" | "on_the_way" | "later";
+};
+
+type TrainingNearby = {
+  id: string;
+  field_name: string;
+  started_at: string;
+  what_im_working_on: string | null;
+  spots_available: number;
+  host_name: string;
+  host_tier: string | null;
 };
 
 const FAIRFIELD: Region = {
@@ -107,10 +153,15 @@ function useHomeData() {
   const [tier, setTier] = useState<string | null>(null);
   const [nextMatch, setNextMatch] = useState<NextMatch | null>(null);
   const [mapRuns, setMapRuns] = useState<MapRun[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [training, setTraining] = useState<TrainingNearby[]>([]);
 
   const load = useCallback(async () => {
     if (!supabase || !myUserId) return;
     const nowIso = new Date().toISOString();
+    const midnight = new Date();
+    midnight.setHours(23, 59, 59, 999);
+    const midnightIso = midnight.toISOString();
 
     // Profile (name, avatar, verification) + tier — independent, run together.
     const [profileRes, tierRes] = await Promise.all([
@@ -173,6 +224,126 @@ function useHomeData() {
       .order("start_at", { ascending: true })
       .limit(40);
     setMapRuns((mapData as MapRun[]) ?? []);
+
+    // Friends playing tonight — people I follow with a confirmed session today.
+    const { data: followRows } = await supabase
+      .from("player_follows")
+      .select("following_id")
+      .eq("follower_id", myUserId);
+    const followingIds = Array.from(
+      new Set(
+        ((followRows ?? []) as Array<{ following_id: string | null }>)
+          .map((r) => r.following_id)
+          .filter((v): v is string => Boolean(v)),
+      ),
+    );
+    if (followingIds.length > 0) {
+      const { data: friendRsvps } = await supabase
+        .from("pickup_run_rsvps")
+        .select("user_id,pickup_runs!inner(start_at)")
+        .in("user_id", followingIds)
+        .eq("status", "confirmed")
+        .gte("pickup_runs.start_at", nowIso)
+        .lte("pickup_runs.start_at", midnightIso);
+
+      // Keep the soonest session per friend.
+      const soonest = new Map<string, string>();
+      for (const row of (friendRsvps ?? []) as Array<{
+        user_id: string | null;
+        pickup_runs?: { start_at?: string | null } | { start_at?: string | null }[] | null;
+      }>) {
+        if (!row.user_id) continue;
+        const runField = Array.isArray(row.pickup_runs) ? row.pickup_runs[0] : row.pickup_runs;
+        const startAt = runField?.start_at;
+        if (!startAt) continue;
+        const prev = soonest.get(row.user_id);
+        if (!prev || Date.parse(startAt) < Date.parse(prev)) soonest.set(row.user_id, startAt);
+      }
+
+      const friendIds = Array.from(soonest.keys());
+      if (friendIds.length > 0) {
+        const { data: friendProfiles } = await supabase
+          .from("profiles")
+          .select("id,first_name,last_name,avatar_url")
+          .in("id", friendIds);
+        const now = Date.now();
+        const built: Friend[] = friendIds.map((id) => {
+          const p = ((friendProfiles ?? []) as Array<{
+            id: string;
+            first_name?: string | null;
+            last_name?: string | null;
+            avatar_url?: string | null;
+          }>).find((row) => row.id === id);
+          const fn = p?.first_name?.trim() || "";
+          const ln = p?.last_name?.trim() || "";
+          const nm = `${fn}${ln ? ` ${ln.charAt(0)}.` : ""}`.trim() || "Player";
+          const startMs = Date.parse(soonest.get(id)!);
+          let status: Friend["status"] = "later";
+          if (startMs < now && now < startMs + 2 * 60 * 60 * 1000) status = "playing";
+          else if (startMs > now && startMs - now <= 3 * 60 * 60 * 1000) status = "on_the_way";
+          return { user_id: id, name: nm, avatar_url: p?.avatar_url?.trim() || null, status };
+        });
+        const order = { playing: 0, on_the_way: 1, later: 2 };
+        built.sort((a, b) => order[a.status] - order[b.status]);
+        setFriends(built);
+      } else {
+        setFriends([]);
+      }
+    } else {
+      setFriends([]);
+    }
+
+    // Training nearby — active posts with host name + tier.
+    const { data: trainingRows } = await supabase
+      .from("training_posts")
+      .select("id,user_id,field_name,started_at,what_im_working_on,spots_available")
+      .eq("status", "active")
+      .order("started_at", { ascending: false })
+      .limit(3);
+    const tRows = (trainingRows ?? []) as Array<{
+      id: string;
+      user_id: string;
+      field_name: string;
+      started_at: string;
+      what_im_working_on: string | null;
+      spots_available: number;
+    }>;
+    if (tRows.length > 0) {
+      const hostIds = Array.from(new Set(tRows.map((r) => r.user_id)));
+      const [hostProfilesRes, hostTiersRes] = await Promise.all([
+        supabase.from("profiles").select("id,first_name,last_name,username").in("id", hostIds),
+        supabase.from("player_ratings").select("user_id,tier").in("user_id", hostIds),
+      ]);
+      const nameById = new Map<string, string>();
+      for (const row of (hostProfilesRes.data ?? []) as Array<{
+        id: string;
+        first_name?: string | null;
+        last_name?: string | null;
+        username?: string | null;
+      }>) {
+        nameById.set(
+          row.id,
+          [row.first_name, row.last_name].filter(Boolean).join(" ") || row.username || "Player",
+        );
+      }
+      const tierByHost = new Map<string, string | null>();
+      for (const row of (hostTiersRes.data ?? []) as Array<{ user_id: string; tier: string | null }>) {
+        tierByHost.set(row.user_id, row.tier);
+      }
+      setTraining(
+        tRows.map((r) => ({
+          id: r.id,
+          field_name: r.field_name,
+          started_at: r.started_at,
+          what_im_working_on: r.what_im_working_on,
+          spots_available: r.spots_available,
+          host_name: nameById.get(r.user_id) ?? "Player",
+          host_tier: tierByHost.get(r.user_id) ?? null,
+        })),
+      );
+    } else {
+      setTraining([]);
+    }
   }, [supabase, myUserId]);
 
   useEffect(() => {
@@ -187,6 +358,8 @@ function useHomeData() {
     tier,
     nextMatch,
     mapRuns,
+    friends,
+    training,
     reload: load,
   };
 }
@@ -251,6 +424,67 @@ function TierBadge({ tier, size = "sm" }: { tier: string | null; size?: "sm" | "
   );
 }
 
+function FriendAvatar({ friend }: { friend: Friend }) {
+  const dotColor = friend.status === "playing" ? LIME : friend.status === "on_the_way" ? "#9aa0a6" : null;
+  const statusText = friend.status === "playing" ? "Playing" : friend.status === "on_the_way" ? "On the way" : "Later";
+  const statusColor = friend.status === "playing" ? LIME : "rgba(255,255,255,0.5)";
+  return (
+    <View style={styles.friendCol}>
+      <View>
+        {friend.avatar_url ? (
+          <Image source={{ uri: friend.avatar_url }} style={styles.friendAvatar} />
+        ) : (
+          <View style={[styles.friendAvatar, styles.friendAvatarFallback]}>
+            <Text style={styles.friendInitials}>{initials(friend.name)}</Text>
+          </View>
+        )}
+        {dotColor ? <View style={[styles.friendDot, { backgroundColor: dotColor }]} /> : null}
+      </View>
+      <Text style={styles.friendName} numberOfLines={1}>
+        {friend.name}
+      </Text>
+      <Text style={[styles.friendStatus, { color: statusColor }]} numberOfLines={1}>
+        {statusText}
+      </Text>
+    </View>
+  );
+}
+
+function TrainingCard({ item, onPress }: { item: TrainingNearby; onPress: () => void }) {
+  const elapsed = useElapsedTime(item.started_at);
+  const isFull = item.spots_available <= 0;
+  const ringColor = tierMeta(item.host_tier)?.color ?? LIME;
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.trainingCard, pressed && { opacity: 0.85 }]}>
+      <View style={styles.trainingCardTop}>
+        <View style={[styles.trainingRing, { borderColor: ringColor }]}>
+          <Text style={[styles.trainingInitials, { color: ringColor }]}>{initials(item.host_name)}</Text>
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.trainingHost} numberOfLines={1}>
+            {item.host_name}
+          </Text>
+          <View style={styles.trainingLiveRow}>
+            <View style={styles.trainingLiveDot} />
+            <Text style={styles.trainingLiveText}>{elapsed || "Live"}</Text>
+          </View>
+        </View>
+      </View>
+      <Text style={styles.trainingField} numberOfLines={1}>
+        {item.field_name}
+      </Text>
+      {item.what_im_working_on ? (
+        <Text style={styles.trainingWorking} numberOfLines={2}>
+          {item.what_im_working_on}
+        </Text>
+      ) : null}
+      <Text style={[styles.trainingSpots, isFull && { color: "#ef4444" }]}>
+        {isFull ? "Full" : `${item.spots_available} spot${item.spots_available === 1 ? "" : "s"} open`}
+      </Text>
+    </Pressable>
+  );
+}
+
 function MapDot({ run }: { run: MapRun }) {
   const [track, setTrack] = useState(true);
   useEffect(() => {
@@ -286,7 +520,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const push = router.push as (href: string) => void;
-  const { myUserId, firstName, avatarUrl, verificationLevel, tier, nextMatch, mapRuns, reload } =
+  const { myUserId, firstName, avatarUrl, verificationLevel, tier, nextMatch, mapRuns, friends, training, reload } =
     useHomeData();
   const { session } = useAuth();
 
@@ -321,7 +555,7 @@ export default function HomeScreen() {
       style={styles.scroll}
       contentContainerStyle={[
         styles.content,
-        { paddingTop: Math.max(insets.top, 12) + 8, paddingBottom: 24 },
+        { paddingTop: Math.max(insets.top, 12) + 8, paddingBottom: 120 + insets.bottom },
       ]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={LIME} />
@@ -485,6 +719,54 @@ export default function HomeScreen() {
           </View>
         </Pressable>
       </View>
+
+      {/* 4. FRIENDS PLAYING TONIGHT */}
+      <View style={{ marginTop: 28 }}>
+        <SectionHeader
+          label="Friends Playing Tonight"
+          actionLabel="See all"
+          onAction={() => push("/following")}
+        />
+        {friends.length > 0 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.friendsRow}>
+            {friends.map((f) => (
+              <Pressable key={f.user_id} onPress={() => push(`/player/${f.user_id}`)}>
+                <FriendAvatar friend={f} />
+              </Pressable>
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyCardText}>No friends playing tonight</Text>
+          </View>
+        )}
+      </View>
+
+      {/* 5. TRAINING NEARBY */}
+      <View style={{ marginTop: 28 }}>
+        <View style={styles.sectionHeaderRow}>
+          <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>Training Nearby</SectionLabel>
+          <Pressable onPress={() => push("/training-post")} hitSlop={8} style={styles.startTrainingBtn}>
+            <FontAwesome name="plus" size={11} color="#0a0a0a" />
+            <Text style={styles.startTrainingText}>Start Training</Text>
+          </Pressable>
+        </View>
+        {training.length > 0 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trainingRow}>
+            {training.map((t) => (
+              <TrainingCard key={t.id} item={t} onPress={() => push(`/training/${t.id}`)} />
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={styles.trainingEmpty}>
+            <Text style={styles.emptyCardText}>No one training nearby</Text>
+            <Pressable onPress={() => push("/training-post")} style={({ pressed }) => [styles.trainingEmptyBtn, pressed && { opacity: 0.9 }]}>
+              <FontAwesome name="plus" size={11} color="#0a0a0a" />
+              <Text style={styles.startTrainingText}>Start Training</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -634,4 +916,96 @@ const styles = StyleSheet.create({
     maxWidth: 90,
   },
   markerLabelText: { fontSize: 9, fontWeight: "700", color: "#fff" },
+
+  /* shared empty state */
+  emptyCard: {
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    borderRadius: 16,
+    paddingVertical: 20,
+    alignItems: "center",
+  },
+  emptyCardText: { fontSize: 13, color: "rgba(255,255,255,0.4)" },
+
+  /* friends */
+  friendsRow: { gap: 16, paddingRight: 8 },
+  friendCol: { alignItems: "center", width: 64 },
+  friendAvatar: { width: 56, height: 56, borderRadius: 999, backgroundColor: "#1a1a1a" },
+  friendAvatarFallback: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+  },
+  friendInitials: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  friendDot: {
+    position: "absolute",
+    bottom: 2,
+    right: 2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: "#0a0a0a",
+  },
+  friendName: { marginTop: 6, fontSize: 12, fontWeight: "600", color: "#fff", maxWidth: 64 },
+  friendStatus: { fontSize: 11, fontWeight: "600" },
+
+  /* training nearby */
+  startTrainingBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: LIME,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+  },
+  startTrainingText: { color: "#0a0a0a", fontSize: 12, fontWeight: "800" },
+  trainingRow: { gap: 12, paddingRight: 8 },
+  trainingCard: {
+    width: 210,
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    borderRadius: 16,
+    padding: 14,
+  },
+  trainingCardTop: { flexDirection: "row", alignItems: "center", gap: 10 },
+  trainingRing: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  trainingInitials: { fontSize: 14, fontWeight: "800" },
+  trainingHost: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  trainingLiveRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 },
+  trainingLiveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#4ADE80" },
+  trainingLiveText: { color: "#4ADE80", fontSize: 12, fontWeight: "700" },
+  trainingField: { marginTop: 10, color: "rgba(255,255,255,0.7)", fontSize: 13 },
+  trainingWorking: { marginTop: 8, color: "#fff", fontSize: 13, fontWeight: "500", lineHeight: 18 },
+  trainingSpots: { marginTop: 10, color: LIME, fontSize: 12, fontWeight: "700" },
+  trainingEmpty: {
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    borderRadius: 16,
+    paddingVertical: 20,
+    alignItems: "center",
+    gap: 12,
+  },
+  trainingEmptyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: LIME,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+  },
 });
