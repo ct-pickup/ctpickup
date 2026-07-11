@@ -421,9 +421,8 @@ function FriendsPlayingSection({
 }
 
 const QUICK_ACTIONS = [
-  { label: "Find a Run", icon: "search" as const, href: "/session-map" },
-  { label: "Host", icon: "plus" as const, href: "/session-create" },
-  { label: "Train", icon: "futbol-o" as const, href: "/training-post" },
+  { label: "Host a Session", icon: "plus" as const, href: "/session-create" },
+  { label: "Start Training", icon: "futbol-o" as const, href: "/training-post" },
 ] as const;
 
 function QuickActions({ onPress }: { onPress: (href: string) => void }) {
@@ -475,62 +474,30 @@ export default function HomeScreen() {
     <View style={[styles.root, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
       {/* 1. HEADER */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Help"
-            onPress={() => push("/help")}
-            style={styles.iconBtn}
-            hitSlop={6}
-          >
-            <FontAwesome name="question" size={15} color={LIME} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Search players"
-            onPress={() => push("/players")}
-            style={styles.iconBtn}
-            hitSlop={6}
-          >
-            <FontAwesome name="search" size={15} color={LIME} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Messages"
-            onPress={() => push("/(tabs)/messages")}
-            style={styles.iconBtn}
-            hitSlop={6}
-          >
-            <FontAwesome name="comment-o" size={15} color={LIME} />
-          </Pressable>
-        </View>
-
-        <View style={styles.headerRight}>
-          <TierBadge tier={tier} size="md" />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open profile"
-            onPress={() => (myUserId ? push(`/player/${myUserId}`) : push("/(tabs)/account"))}
-            hitSlop={6}
-          >
-            {avatarUrl ? (
-              <Image
-                source={{ uri: avatarUrl }}
-                style={[styles.headerAvatar, { borderWidth: 2, borderColor: avatarBorderColor }]}
-              />
-            ) : (
-              <View
-                style={[
-                  styles.headerAvatar,
-                  styles.headerAvatarFallback,
-                  { borderWidth: 2, borderColor: avatarBorderColor },
-                ]}
-              >
-                <FontAwesome name="user" size={16} color={notVerified ? "#ef4444" : LIME} />
-              </View>
-            )}
-          </Pressable>
-        </View>
+        <TierBadge tier={tier} size="md" />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open profile"
+          onPress={() => (myUserId ? push(`/player/${myUserId}`) : push("/(tabs)/account"))}
+          hitSlop={6}
+        >
+          {avatarUrl ? (
+            <Image
+              source={{ uri: avatarUrl }}
+              style={[styles.headerAvatar, { borderWidth: 2, borderColor: avatarBorderColor }]}
+            />
+          ) : (
+            <View
+              style={[
+                styles.headerAvatar,
+                styles.headerAvatarFallback,
+                { borderWidth: 2, borderColor: avatarBorderColor },
+              ]}
+            >
+              <FontAwesome name="user" size={16} color={notVerified ? "#ef4444" : LIME} />
+            </View>
+          )}
+        </Pressable>
       </View>
 
       <Text style={styles.greeting} numberOfLines={1}>
@@ -654,20 +621,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     gap: 10,
-  },
-  headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  headerRight: { flexDirection: "row", alignItems: "center", gap: 10 },
-  iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.5)",
-    backgroundColor: "rgba(163,230,53,0.08)",
-    alignItems: "center",
-    justifyContent: "center",
   },
   headerAvatar: { width: 36, height: 36, borderRadius: 999, backgroundColor: "#1a1a1a" },
   headerAvatarFallback: {
@@ -751,7 +706,7 @@ const styles = StyleSheet.create({
 
   /* map */
   mapWrap: {
-    height: 160,
+    height: 200,
     borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,

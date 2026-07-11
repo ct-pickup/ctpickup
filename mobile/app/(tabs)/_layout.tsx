@@ -139,9 +139,10 @@ function CTTabBar({ state, navigation, isAdmin }: BottomTabBarProps & { isAdmin:
   const openCreateMenu = useCallback(() => {
     void hapticTap();
     const push = router.push as (href: string) => void;
-    Alert.alert("Create", "What would you like to start?", [
-      { text: "Host a Session", onPress: () => push("/session-create") },
-      { text: "Start Training", onPress: () => push("/training-post") },
+    Alert.alert("Menu", undefined, [
+      { text: "Ask AI", onPress: () => push("/help") },
+      { text: "Search Players", onPress: () => push("/players") },
+      { text: "Messages", onPress: () => push("/(tabs)/messages") },
       { text: "Cancel", style: "cancel" },
     ]);
   }, [router]);
