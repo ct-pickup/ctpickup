@@ -1,11 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import MapView, { Marker, type MapMarkerProps, Region } from "react-native-maps";
@@ -337,43 +342,124 @@ const FILTERS: Array<Level | "all"> = ["all", "casual", "competitive", "elite"];
 
 export default function SessionMapScreen() {
   const router = useRouter();
+  const { supabase, session: authSession } = useAuth();
   const [filter, setFilter] = useState<Level | "all">("all");
-  const [userRegion, setUserRegion] = useState<Region | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") return;
-        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        setUserRegion({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          latitudeDelta: 0.42,
-          longitudeDelta: 0.42,
-        });
-      } catch {}
-    })();
-  }, []);
   const { sessions, loading, error, reload } = useSessions(filter);
   const trainingPosts = useTrainingPosts();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const mapRef = useRef<MapView>(null);
   const listRef = useRef<FlatList<Session>>(null);
 
+  // ZIP modal state
+  const [zipModalOpen, setZipModalOpen] = useState(false);
+  const [zipInput, setZipInput] = useState("");
+  const [zipCurrent, setZipCurrent] = useState<string | null>(null);
+  const [zipSaving, setZipSaving] = useState(false);
+  const [zipGpsLoading, setZipGpsLoading] = useState(false);
+
+  // Load user's current ZIP from profile
+  useEffect(() => {
+    if (!supabase || !authSession?.user?.id) return;
+    void supabase
+      .from("profiles")
+      .select("zip_code")
+      .eq("id", authSession.user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.zip_code) setZipCurrent(String(data.zip_code));
+      });
+  }, [supabase, authSession?.user?.id]);
+
+  // Center map on user's GPS location on mount
   useEffect(() => {
     void (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") return;
-      const pos = await Location.getCurrentPositionAsync({});
-      mapRef.current?.animateToRegion({
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-        latitudeDelta: 0.18,
-        longitudeDelta: 0.18,
-      });
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") return;
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        // Small delay ensures MapView is fully mounted before animating
+        setTimeout(() => {
+          mapRef.current?.animateToRegion({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            latitudeDelta: 0.18,
+            longitudeDelta: 0.18,
+          }, 500);
+        }, 350);
+      } catch {}
     })();
   }, []);
+
+  async function detectGpsZip() {
+    setZipGpsLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission denied", "Location access is required to detect your ZIP.");
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const { latitude, longitude } = pos.coords;
+      const r = await fetch(
+        `https://photon.komoot.io/reverse?lon=${longitude}&lat=${latitude}`,
+        { headers: { "Accept-Language": "en" } },
+      );
+      const json = await r.json() as { features?: { properties?: { postcode?: string } }[] };
+      const zip = json.features?.[0]?.properties?.postcode?.trim();
+      if (zip) {
+        setZipInput(zip);
+      } else {
+        Alert.alert("No ZIP found", "Could not determine ZIP code from your location.");
+      }
+    } catch {
+      Alert.alert("Error", "Could not detect location. Please try again.");
+    } finally {
+      setZipGpsLoading(false);
+    }
+  }
+
+  async function saveZip() {
+    const zip = zipInput.trim();
+    if (!zip || zip.length < 5) {
+      Alert.alert("Invalid ZIP", "Please enter a valid 5-digit ZIP code.");
+      return;
+    }
+    if (!supabase || !authSession?.user?.id) return;
+    setZipSaving(true);
+    try {
+      const { error: updateErr } = await supabase
+        .from("profiles")
+        .update({ zip_code: zip })
+        .eq("id", authSession.user.id);
+      if (updateErr) throw updateErr;
+
+      setZipCurrent(zip);
+      setZipModalOpen(false);
+
+      // Forward geocode ZIP to animate map there
+      try {
+        const r = await fetch(
+          `https://photon.komoot.io/api/?q=${encodeURIComponent(zip + " CT USA")}&limit=1`,
+          { headers: { "Accept-Language": "en" } },
+        );
+        const json = await r.json() as { features?: { geometry?: { coordinates?: [number, number] } }[] };
+        const coords = json.features?.[0]?.geometry?.coordinates;
+        if (coords) {
+          mapRef.current?.animateToRegion({
+            longitude: coords[0],
+            latitude: coords[1],
+            latitudeDelta: 0.12,
+            longitudeDelta: 0.12,
+          }, 500);
+        }
+      } catch {}
+    } catch {
+      Alert.alert("Error", "Could not save ZIP code. Please try again.");
+    } finally {
+      setZipSaving(false);
+    }
+  }
 
   const focus = useCallback((s: Session, index: number) => {
     setSelectedId(s.id);
@@ -433,7 +519,7 @@ export default function SessionMapScreen() {
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFill}
-        initialRegion={userRegion ?? FAIRFIELD}
+        initialRegion={FAIRFIELD}
         userInterfaceStyle="dark"
         backgroundColor="#1a2420"
         loadingBackgroundColor="#1a2420"
@@ -469,9 +555,19 @@ export default function SessionMapScreen() {
       </MapView>
 
       <View style={styles.topBar} pointerEvents="box-none">
-        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>{"‹"} Back</Text>
-        </Pressable>
+        <View style={styles.topRow} pointerEvents="box-none">
+          <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
+            <Text style={styles.backBtnText}>{"‹"} Back</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => { setZipInput(zipCurrent ?? ""); setZipModalOpen(true); }}
+            style={styles.zipPill}
+          >
+            <Text style={styles.zipPillText}>
+              📍 {zipCurrent ? zipCurrent : "My Location"}
+            </Text>
+          </Pressable>
+        </View>
         {header}
       </View>
 
@@ -521,6 +617,59 @@ export default function SessionMapScreen() {
           )}
         />
       )}
+
+      {/* ZIP Update Modal */}
+      <Modal
+        visible={zipModalOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setZipModalOpen(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.zipModal}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <View style={styles.zipModalHeader}>
+            <Text style={styles.zipModalTitle}>Update My Location</Text>
+            <Pressable onPress={() => setZipModalOpen(false)} hitSlop={10}>
+              <Text style={styles.zipModalClose}>✕</Text>
+            </Pressable>
+          </View>
+
+          <Text style={styles.zipModalLabel}>ZIP CODE</Text>
+          <TextInput
+            style={styles.zipInput}
+            value={zipInput}
+            onChangeText={(v) => setZipInput(v.replace(/[^0-9]/g, "").slice(0, 5))}
+            keyboardType="number-pad"
+            returnKeyType="done"
+            placeholder="e.g. 06880"
+            placeholderTextColor="rgba(255,255,255,0.25)"
+            maxLength={5}
+            autoFocus
+          />
+
+          <Pressable
+            onPress={() => void detectGpsZip()}
+            disabled={zipGpsLoading}
+            style={[styles.zipGpsBtn, zipGpsLoading && { opacity: 0.5 }]}
+          >
+            {zipGpsLoading
+              ? <ActivityIndicator color="#0a0a0a" size="small" />
+              : <Text style={styles.zipGpsBtnText}>📡 Use my GPS</Text>}
+          </Pressable>
+
+          <Pressable
+            onPress={() => void saveZip()}
+            disabled={zipSaving || zipInput.length < 5}
+            style={[styles.zipSaveBtn, (zipSaving || zipInput.length < 5) && { opacity: 0.4 }]}
+          >
+            {zipSaving
+              ? <ActivityIndicator color="#0a0a0a" />
+              : <Text style={styles.zipSaveBtnText}>Save ZIP</Text>}
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -532,9 +681,23 @@ const styles = StyleSheet.create({
   center: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
 
   topBar: { position: "absolute", top: 60, left: 0, right: 0 },
-  backBtn: { marginLeft: 12, marginBottom: 8, backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, alignSelf: "flex-start" },
+  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, marginBottom: 8 },
+  backBtn: { backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
   backBtnText: { color: "#fff", fontWeight: "600", fontSize: 15 },
+  zipPill: { backgroundColor: "rgba(0,0,0,0.65)", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: "rgba(163,230,53,0.4)" },
+  zipPillText: { color: "#a3e635", fontWeight: "600", fontSize: 13 },
   filterRow: { flexDirection: "row", paddingHorizontal: 16, gap: 8 },
+
+  zipModal: { flex: 1, backgroundColor: "#0a0a0a", padding: 24 },
+  zipModalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 28, paddingTop: 8 },
+  zipModalTitle: { color: "#fff", fontSize: 20, fontWeight: "700" },
+  zipModalClose: { color: "rgba(255,255,255,0.5)", fontSize: 20 },
+  zipModalLabel: { color: "rgba(255,255,255,0.45)", fontSize: 11, fontWeight: "700", letterSpacing: 1.2, marginBottom: 8 },
+  zipInput: { backgroundColor: "rgba(255,255,255,0.07)", borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", color: "#fff", fontSize: 28, fontWeight: "700", paddingHorizontal: 18, paddingVertical: 14, textAlign: "center", letterSpacing: 6, marginBottom: 16 },
+  zipGpsBtn: { backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 14, paddingVertical: 16, alignItems: "center", marginBottom: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
+  zipGpsBtnText: { color: "#fff", fontWeight: "600", fontSize: 15 },
+  zipSaveBtn: { backgroundColor: "#a3e635", borderRadius: 14, paddingVertical: 16, alignItems: "center" },
+  zipSaveBtnText: { color: "#0a0a0a", fontWeight: "800", fontSize: 16 },
   chip: {
     flexDirection: "row",
     alignItems: "center",
