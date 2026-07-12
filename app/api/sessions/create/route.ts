@@ -3,7 +3,6 @@ import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 const ALLOWED_FORMATS = ["5v5", "6v6", "7v7", "Open"];
-const ALLOWED_CAPACITIES = [6, 8, 10, 12, 14, 16];
 
 const TIER_MAP: Record<string, { level: string; open_tier_rank: number }> = {
   all:      { level: "casual",      open_tier_rank: 0 },
@@ -48,8 +47,8 @@ export async function POST(req: Request) {
   if (start_at < new Date()) return NextResponse.json({ error: "start_at must be in the future." }, { status: 400 });
 
   const capacity = Number(body.capacity ?? 10);
-  if (!ALLOWED_CAPACITIES.includes(capacity)) {
-    return NextResponse.json({ error: `capacity must be one of: ${ALLOWED_CAPACITIES.join(", ")}` }, { status: 400 });
+  if (!Number.isInteger(capacity) || capacity < 4 || capacity > 30) {
+    return NextResponse.json({ error: "capacity must be a whole number between 4 and 30." }, { status: 400 });
   }
 
   const format = String(body.format ?? "Open").trim();

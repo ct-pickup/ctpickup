@@ -20,7 +20,8 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 const LIME = "#a3e635";
 
-const PLAYER_LIMITS = [6, 8, 10, 12, 14, 16];
+const CAPACITY_MIN = 4;
+const CAPACITY_MAX = 30;
 const FORMATS = ["5v5", "6v6", "7v7", "Open"];
 const SKILL_LEVELS = [
   { value: "all", label: "All levels" },
@@ -67,8 +68,11 @@ export default function SessionCreateScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
 
   // Step 1
-  const [playerLimit, setPlayerLimit] = useState(10);
+  const [playerLimitText, setPlayerLimitText] = useState("10");
+  const playerLimit = Math.min(CAPACITY_MAX, Math.max(CAPACITY_MIN, parseInt(playerLimitText, 10) || 10));
   const [skillLevel, setSkillLevel] = useState("all");
+  const [playerCounts, setPlayerCounts] = useState<Record<string, number> | null>(null);
+  const [countLoading, setCountLoading] = useState(false);
   const [format, setFormat] = useState("Open");
 
   // Step 2
@@ -107,6 +111,29 @@ export default function SessionCreateScreen() {
     setLocationSelected(item);
     setLocationQuery(item.display_name);
     setLocationSuggestions([]);
+  }
+
+  async function fetchPlayerCounts(tier: string) {
+    if (!locationSelected || !session?.access_token) return;
+    const origin = siteOrigin();
+    if (!origin) return;
+    setCountLoading(true);
+    try {
+      const r = await fetch(`${origin}/api/sessions/player-count`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          latitude: parseFloat(locationSelected.lat),
+          longitude: parseFloat(locationSelected.lon),
+          min_tier: tier === "all" ? "bronze" : tier,
+          radius_miles: 30,
+        }),
+      });
+      const j = await r.json().catch(() => null) as { ok?: boolean; counts?: Record<string, number> } | null;
+      if (j?.ok) setPlayerCounts(j.counts ?? null);
+    } finally {
+      setCountLoading(false);
+    }
   }
 
   function validateStep1(): string | null {
@@ -286,13 +313,22 @@ export default function SessionCreateScreen() {
             )}
 
             <Text style={[s.fieldLabel, { marginTop: 20 }]}>PLAYER LIMIT</Text>
-            <View style={s.chipRow}>
-              {PLAYER_LIMITS.map((n) => (
-                <Pressable key={n} onPress={() => setPlayerLimit(n)} style={[s.chip, playerLimit === n && s.chipActive]}>
-                  <Text style={[s.chipText, playerLimit === n && s.chipTextActive]}>{n}</Text>
-                </Pressable>
-              ))}
-            </View>
+            <TextInput
+              style={s.capacityInput}
+              value={playerLimitText}
+              onChangeText={(v) => setPlayerLimitText(v.replace(/[^0-9]/g, ""))}
+              onBlur={() => {
+                const n = parseInt(playerLimitText, 10);
+                const clamped = isNaN(n) ? 10 : Math.min(CAPACITY_MAX, Math.max(CAPACITY_MIN, n));
+                setPlayerLimitText(String(clamped));
+              }}
+              keyboardType="number-pad"
+              returnKeyType="done"
+              maxLength={2}
+              placeholder="10"
+              placeholderTextColor="rgba(255,255,255,0.3)"
+            />
+            <Text style={s.capacityHint}>Min {CAPACITY_MIN} · Max {CAPACITY_MAX}</Text>
 
             <Text style={[s.fieldLabel, { marginTop: 20 }]}>FORMAT</Text>
             <View style={s.chipRow}>
@@ -305,12 +341,47 @@ export default function SessionCreateScreen() {
 
             <Text style={[s.fieldLabel, { marginTop: 20 }]}>MINIMUM SKILL LEVEL</Text>
             {SKILL_LEVELS.map((sl) => (
-              <Pressable key={sl.value} onPress={() => setSkillLevel(sl.value)}
+              <Pressable key={sl.value} onPress={() => {
+                setSkillLevel(sl.value);
+                void fetchPlayerCounts(sl.value);
+              }}
                 style={[s.radioRow, skillLevel === sl.value && s.radioRowActive]}>
                 <View style={[s.radio, skillLevel === sl.value && s.radioActive]} />
                 <Text style={s.radioLabel}>{sl.label}</Text>
               </Pressable>
             ))}
+            {locationSelected && playerCounts && (
+              <View style={{ marginTop: 14, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 12, gap: 6 }}>
+                <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, fontWeight: "700", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 }}>
+                  Players within 30 miles
+                </Text>
+                {[
+                  { tier: "diamond", label: "Diamond", color: "#9B59B6" },
+                  { tier: "platinum", label: "Platinum", color: "#E8E8E8" },
+                  { tier: "gold", label: "Gold", color: "#E3B23C" },
+                  { tier: "silver", label: "Silver", color: "#A8B0B5" },
+                  { tier: "bronze", label: "Bronze", color: "#B87333" },
+                ].map((t) => (
+                  <View key={t.tier} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.color }} />
+                      <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 13 }}>{t.label}</Text>
+                    </View>
+                    <Text style={{ color: t.color, fontWeight: "700", fontSize: 13 }}>
+                      {playerCounts[t.tier] ?? 0}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            {locationSelected && countLoading && (
+              <ActivityIndicator color={LIME} style={{ marginTop: 10 }} />
+            )}
+            {locationSelected && !playerCounts && !countLoading && (
+              <Pressable onPress={() => void fetchPlayerCounts(skillLevel)} style={{ marginTop: 10, alignItems: "center" }}>
+                <Text style={{ color: LIME, fontSize: 13 }}>Tap a tier to see player counts →</Text>
+              </Pressable>
+            )}
           </View>
         )}
 
@@ -470,6 +541,8 @@ const s = StyleSheet.create({
   chipActive: { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.12)" },
   chipText: { color: "rgba(255,255,255,0.55)", fontWeight: "600", fontSize: 14 },
   chipTextActive: { color: LIME },
+  capacityInput: { backgroundColor: "rgba(255,255,255,0.07)", borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", color: "#fff", fontSize: 20, fontWeight: "700", paddingHorizontal: 16, paddingVertical: 12, textAlign: "center", width: 100 },
+  capacityHint: { color: "rgba(255,255,255,0.35)", fontSize: 12, marginTop: 6 },
   radioRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, paddingHorizontal: 4, borderRadius: 8 },
   radioRowActive: { backgroundColor: "rgba(163,230,53,0.06)" },
   radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: "rgba(255,255,255,0.3)" },

@@ -200,33 +200,39 @@ export default function SessionDetailScreen() {
 
   async function leaveSession() {
     if (rsvpBusy || !session?.access_token) return;
-    Alert.alert(
-      "Leave session?",
-      run?.fee_cents && run.fee_cents > 0
-        ? "You won't get a refund for leaving. Only refunds if the host cancels."
-        : "Are you sure you want to leave this session?",
-      [
-        { text: "Stay", style: "cancel" },
-        {
-          text: "Leave", style: "destructive", onPress: async () => {
-            const origin = siteOrigin();
-            if (!origin) return;
-            setRsvpBusy(true);
-            try {
-              const r = await fetch(`${origin}/api/pickup/rsvp`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${session!.access_token}` },
-                body: JSON.stringify({ run_id: id, action: "decline" }),
-              });
-              const j = await r.json().catch(() => null) as { ok?: boolean } | null;
-              if (j?.ok) await load();
-            } finally {
-              setRsvpBusy(false);
+    const isPaid = (run?.fee_cents ?? 0) > 0;
+    const alertBody = isPaid
+      ? "Leaving more than 24 hours before kickoff earns a platform credit. Within 24 hours: no refund."
+      : "Are you sure you want to leave this session?";
+    Alert.alert("Leave session?", alertBody, [
+      { text: "Stay", style: "cancel" },
+      {
+        text: "Leave", style: "destructive", onPress: async () => {
+          const origin = siteOrigin();
+          if (!origin) return;
+          setRsvpBusy(true);
+          try {
+            const r = await fetch(`${origin}/api/sessions/leave`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${session!.access_token}` },
+              body: JSON.stringify({ run_id: id }),
+            });
+            const j = await r.json().catch(() => null) as { ok?: boolean; credit_issued?: boolean; amount_cents?: number } | null;
+            if (j?.ok) {
+              await load();
+              if (j.credit_issued && j.amount_cents) {
+                const dollars = (j.amount_cents / 100).toFixed(2);
+                Alert.alert("Left session", `A platform credit of $${dollars} has been added to your account.`);
+              } else if (isPaid) {
+                Alert.alert("Left session", "No refund applies within 24 hours of kickoff.");
+              }
             }
+          } finally {
+            setRsvpBusy(false);
           }
         }
-      ]
-    );
+      }
+    ]);
   }
 
   async function cancelSession() {
@@ -662,7 +668,7 @@ export default function SessionDetailScreen() {
           </View>
           <Text style={s.voteSubtitle}>Pick the 3 best players on the pitch. Nobody sees your picks.</Text>
           <FlatList
-            data={attendees.filter((a) => a.user_id !== myUserId)}
+            data={attendees.filter((a) => a.user_id !== myUserId && a.user_id !== run.created_by)}
             keyExtractor={(a) => a.user_id}
             contentContainerStyle={{ padding: 16, gap: 8 }}
             renderItem={({ item }) => {
@@ -815,6 +821,10 @@ export default function SessionDetailScreen() {
             </Pressable>
           </View>
 
+          <View style={{ marginHorizontal: 16, marginTop: 12, marginBottom: 4, backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" }}>
+            <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, lineHeight: 18 }}>You cannot receive awards for sessions you host.</Text>
+          </View>
+
           <Text style={s.voteSubtitle}>Who won?</Text>
           <View style={{ flexDirection: "row", gap: 10, padding: 16, paddingTop: 8 }}>
             <Pressable onPress={() => setWinningTeam("A")}
@@ -837,7 +847,7 @@ export default function SessionDetailScreen() {
             <View key={label} style={{ paddingHorizontal: 16, marginBottom: 16 }}>
               <Text style={s.voteSubtitle}>{label}</Text>
               <View style={{ gap: 8 }}>
-                {attendees.map((a) => {
+                {attendees.filter((a) => a.user_id !== run.created_by).map((a) => {
                   const name = playerName(a);
                   const selected = state === a.user_id;
                   return (
