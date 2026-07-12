@@ -1,16 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
   ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import MapView, { Marker, Polygon, type Region } from "react-native-maps";
+import MapView, { Marker, type Region } from "react-native-maps";
 import Svg, { Circle } from "react-native-svg";
 import { Stack, useRouter } from "expo-router";
 import { format, isToday, isTomorrow } from "date-fns";
+import * as Location from "expo-location";
 import { useAuth } from "@/context/AuthContext";
 
 // ─── design tokens ──────────────────────────────────────────────────────────
@@ -33,102 +34,127 @@ const CT_REGION: Region = {
 
 // ─── ZIP centroid lookup ─────────────────────────────────────────────────────
 
-type ZipInfo = { lat: number; lon: number; city: string };
+type ZipInfo = { lat: number; lon: number; city: string; region: string };
 
 const ZIP_INFO: Record<string, ZipInfo> = {
-  // Hartford area
-  "06101": { lat: 41.7637, lon: -72.6851, city: "Hartford" },
-  "06103": { lat: 41.7637, lon: -72.6826, city: "Hartford" },
-  "06105": { lat: 41.7708, lon: -72.7010, city: "Hartford" },
-  "06106": { lat: 41.7550, lon: -72.6963, city: "Hartford" },
-  "06107": { lat: 41.7646, lon: -72.7329, city: "West Hartford" },
-  "06108": { lat: 41.7737, lon: -72.6537, city: "East Hartford" },
-  "06109": { lat: 41.7319, lon: -72.6480, city: "Wethersfield" },
-  "06110": { lat: 41.7477, lon: -72.7113, city: "West Hartford" },
-  "06111": { lat: 41.6975, lon: -72.7213, city: "Newington" },
-  "06112": { lat: 41.7902, lon: -72.7032, city: "Hartford" },
-  "06114": { lat: 41.7524, lon: -72.6695, city: "Hartford" },
-  "06118": { lat: 41.7741, lon: -72.6164, city: "East Hartford" },
-  "06120": { lat: 41.7902, lon: -72.6882, city: "Hartford" },
-  // New Haven area
-  "06510": { lat: 41.3083, lon: -72.9279, city: "New Haven" },
-  "06511": { lat: 41.3214, lon: -72.9298, city: "New Haven" },
-  "06512": { lat: 41.2806, lon: -72.9214, city: "East Haven" },
-  "06513": { lat: 41.3014, lon: -72.9094, city: "New Haven" },
-  "06514": { lat: 41.3614, lon: -72.9476, city: "Hamden" },
-  "06515": { lat: 41.3247, lon: -72.9668, city: "New Haven" },
-  "06516": { lat: 41.2870, lon: -72.9796, city: "West Haven" },
-  "06517": { lat: 41.3408, lon: -72.9073, city: "Hamden" },
-  "06518": { lat: 41.3975, lon: -72.9168, city: "Hamden" },
-  "06519": { lat: 41.3014, lon: -72.9396, city: "New Haven" },
-  // Bridgeport / Fairfield area
-  "06601": { lat: 41.1670, lon: -73.2048, city: "Bridgeport" },
-  "06604": { lat: 41.1814, lon: -73.1926, city: "Bridgeport" },
-  "06605": { lat: 41.1591, lon: -73.2148, city: "Bridgeport" },
-  "06606": { lat: 41.1959, lon: -73.2148, city: "Bridgeport" },
-  "06607": { lat: 41.1745, lon: -73.1982, city: "Bridgeport" },
-  "06608": { lat: 41.1892, lon: -73.1815, city: "Bridgeport" },
-  "06610": { lat: 41.2084, lon: -73.1926, city: "Bridgeport" },
-  "06611": { lat: 41.2542, lon: -73.1926, city: "Trumbull" },
-  "06612": { lat: 41.2681, lon: -73.2037, city: "Easton" },
-  "06614": { lat: 41.2170, lon: -73.1426, city: "Stratford" },
-  "06615": { lat: 41.1814, lon: -73.1370, city: "Stratford" },
-  // Fairfield / Westport / Norwalk
-  "06824": { lat: 41.1459, lon: -73.2587, city: "Fairfield" },
-  "06825": { lat: 41.1781, lon: -73.2365, city: "Fairfield" },
-  "06850": { lat: 41.1197, lon: -73.4282, city: "Norwalk" },
-  "06851": { lat: 41.1226, lon: -73.4643, city: "Norwalk" },
-  "06853": { lat: 41.0787, lon: -73.4393, city: "Norwalk" },
-  "06854": { lat: 41.1087, lon: -73.4199, city: "Norwalk" },
-  "06855": { lat: 41.1198, lon: -73.3893, city: "Norwalk" },
-  "06870": { lat: 41.0343, lon: -73.5799, city: "Old Greenwich" },
-  "06877": { lat: 41.1031, lon: -73.5965, city: "Ridgefield" },
-  "06878": { lat: 41.0670, lon: -73.5671, city: "Riverside" },
-  "06880": { lat: 41.1431, lon: -73.3632, city: "Westport" },
-  "06883": { lat: 41.1753, lon: -73.3846, city: "Weston" },
-  "06890": { lat: 41.1509, lon: -73.3282, city: "Southport" },
-  "06896": { lat: 41.2059, lon: -73.3893, city: "Redding" },
-  "06897": { lat: 41.2087, lon: -73.3726, city: "Wilton" },
+  // Hartford Metro
+  "06101": { lat: 41.7637, lon: -72.6851, city: "Hartford", region: "Hartford Metro" },
+  "06103": { lat: 41.7637, lon: -72.6826, city: "Hartford", region: "Hartford Metro" },
+  "06105": { lat: 41.7708, lon: -72.7010, city: "Hartford", region: "Hartford Metro" },
+  "06106": { lat: 41.7550, lon: -72.6963, city: "Hartford", region: "Hartford Metro" },
+  "06107": { lat: 41.7646, lon: -72.7329, city: "West Hartford", region: "Hartford Metro" },
+  "06108": { lat: 41.7737, lon: -72.6537, city: "East Hartford", region: "Hartford Metro" },
+  "06109": { lat: 41.7319, lon: -72.6480, city: "Wethersfield", region: "Hartford Metro" },
+  "06110": { lat: 41.7477, lon: -72.7113, city: "West Hartford", region: "Hartford Metro" },
+  "06111": { lat: 41.6975, lon: -72.7213, city: "Newington", region: "Hartford Metro" },
+  "06112": { lat: 41.7902, lon: -72.7032, city: "Hartford", region: "Hartford Metro" },
+  "06114": { lat: 41.7524, lon: -72.6695, city: "Hartford", region: "Hartford Metro" },
+  "06118": { lat: 41.7741, lon: -72.6164, city: "East Hartford", region: "Hartford Metro" },
+  "06120": { lat: 41.7902, lon: -72.6882, city: "Hartford", region: "Hartford Metro" },
+  // New Haven Area
+  "06510": { lat: 41.3083, lon: -72.9279, city: "New Haven", region: "New Haven Area" },
+  "06511": { lat: 41.3214, lon: -72.9298, city: "New Haven", region: "New Haven Area" },
+  "06512": { lat: 41.2806, lon: -72.9214, city: "East Haven", region: "New Haven Area" },
+  "06513": { lat: 41.3014, lon: -72.9094, city: "New Haven", region: "New Haven Area" },
+  "06514": { lat: 41.3614, lon: -72.9476, city: "Hamden", region: "New Haven Area" },
+  "06515": { lat: 41.3247, lon: -72.9668, city: "New Haven", region: "New Haven Area" },
+  "06516": { lat: 41.2870, lon: -72.9796, city: "West Haven", region: "New Haven Area" },
+  "06517": { lat: 41.3408, lon: -72.9073, city: "Hamden", region: "New Haven Area" },
+  "06518": { lat: 41.3975, lon: -72.9168, city: "Hamden", region: "New Haven Area" },
+  "06519": { lat: 41.3014, lon: -72.9396, city: "New Haven", region: "New Haven Area" },
+  "06460": { lat: 41.2237, lon: -73.0568, city: "Milford", region: "New Haven Area" },
+  "06461": { lat: 41.2515, lon: -73.0679, city: "Milford", region: "New Haven Area" },
+  "06477": { lat: 41.2737, lon: -73.0215, city: "Orange", region: "New Haven Area" },
+  "06418": { lat: 41.3114, lon: -73.0846, city: "Derby", region: "New Haven Area" },
+  // Bridgeport Area
+  "06601": { lat: 41.1670, lon: -73.2048, city: "Bridgeport", region: "Bridgeport Area" },
+  "06604": { lat: 41.1814, lon: -73.1926, city: "Bridgeport", region: "Bridgeport Area" },
+  "06605": { lat: 41.1591, lon: -73.2148, city: "Bridgeport", region: "Bridgeport Area" },
+  "06606": { lat: 41.1959, lon: -73.2148, city: "Bridgeport", region: "Bridgeport Area" },
+  "06607": { lat: 41.1745, lon: -73.1982, city: "Bridgeport", region: "Bridgeport Area" },
+  "06608": { lat: 41.1892, lon: -73.1815, city: "Bridgeport", region: "Bridgeport Area" },
+  "06610": { lat: 41.2084, lon: -73.1926, city: "Bridgeport", region: "Bridgeport Area" },
+  "06611": { lat: 41.2542, lon: -73.1926, city: "Trumbull", region: "Bridgeport Area" },
+  "06612": { lat: 41.2681, lon: -73.2037, city: "Easton", region: "Bridgeport Area" },
+  "06614": { lat: 41.2170, lon: -73.1426, city: "Stratford", region: "Bridgeport Area" },
+  "06615": { lat: 41.1814, lon: -73.1370, city: "Stratford", region: "Bridgeport Area" },
+  // Southwest CT
+  "06824": { lat: 41.1459, lon: -73.2587, city: "Fairfield", region: "Southwest CT" },
+  "06825": { lat: 41.1781, lon: -73.2365, city: "Fairfield", region: "Southwest CT" },
+  "06850": { lat: 41.1197, lon: -73.4282, city: "Norwalk", region: "Southwest CT" },
+  "06851": { lat: 41.1226, lon: -73.4643, city: "Norwalk", region: "Southwest CT" },
+  "06853": { lat: 41.0787, lon: -73.4393, city: "Norwalk", region: "Southwest CT" },
+  "06854": { lat: 41.1087, lon: -73.4199, city: "Norwalk", region: "Southwest CT" },
+  "06855": { lat: 41.1198, lon: -73.3893, city: "Norwalk", region: "Southwest CT" },
+  "06870": { lat: 41.0343, lon: -73.5799, city: "Old Greenwich", region: "Southwest CT" },
+  "06877": { lat: 41.1031, lon: -73.5965, city: "Ridgefield", region: "Southwest CT" },
+  "06878": { lat: 41.0670, lon: -73.5671, city: "Riverside", region: "Southwest CT" },
+  "06880": { lat: 41.1431, lon: -73.3632, city: "Westport", region: "Southwest CT" },
+  "06883": { lat: 41.1753, lon: -73.3846, city: "Weston", region: "Southwest CT" },
+  "06890": { lat: 41.1509, lon: -73.3282, city: "Southport", region: "Southwest CT" },
+  "06896": { lat: 41.2059, lon: -73.3893, city: "Redding", region: "Southwest CT" },
+  "06897": { lat: 41.2087, lon: -73.3726, city: "Wilton", region: "Southwest CT" },
+  "06820": { lat: 41.0598, lon: -73.6282, city: "Darien", region: "Southwest CT" },
   // Stamford / Greenwich
-  "06830": { lat: 41.0217, lon: -73.6282, city: "Greenwich" },
-  "06831": { lat: 41.0703, lon: -73.6393, city: "Greenwich" },
-  "06840": { lat: 41.0409, lon: -73.7221, city: "New Canaan" },
-  "06901": { lat: 41.0534, lon: -73.5387, city: "Stamford" },
-  "06902": { lat: 41.0487, lon: -73.5221, city: "Stamford" },
-  "06903": { lat: 41.1045, lon: -73.5554, city: "Stamford" },
-  "06905": { lat: 41.0762, lon: -73.5499, city: "Stamford" },
-  "06906": { lat: 41.0609, lon: -73.5276, city: "Stamford" },
-  "06907": { lat: 41.0956, lon: -73.5387, city: "Stamford" },
-  // Danbury area
-  "06810": { lat: 41.3948, lon: -73.4538, city: "Danbury" },
-  "06811": { lat: 41.4226, lon: -73.4760, city: "Danbury" },
-  "06812": { lat: 41.4643, lon: -73.4760, city: "Danbury" },
-  "06820": { lat: 41.0598, lon: -73.6282, city: "Darien" },
-  // Waterbury area
-  "06701": { lat: 41.5582, lon: -73.0515, city: "Waterbury" },
-  "06702": { lat: 41.5440, lon: -73.0349, city: "Waterbury" },
-  "06704": { lat: 41.5809, lon: -73.0349, city: "Waterbury" },
-  "06705": { lat: 41.5361, lon: -73.0182, city: "Waterbury" },
-  "06706": { lat: 41.5250, lon: -73.0737, city: "Waterbury" },
-  "06708": { lat: 41.5470, lon: -73.1237, city: "Watertown" },
-  "06710": { lat: 41.5692, lon: -73.0626, city: "Waterbury" },
-  // Milford / Orange / Derby
-  "06460": { lat: 41.2237, lon: -73.0568, city: "Milford" },
-  "06461": { lat: 41.2515, lon: -73.0679, city: "Milford" },
-  "06477": { lat: 41.2737, lon: -73.0215, city: "Orange" },
-  "06418": { lat: 41.3114, lon: -73.0846, city: "Derby" },
-  // Lower Westchester (border area)
-  "10601": { lat: 41.0340, lon: -73.7629, city: "White Plains" },
-  "10605": { lat: 41.0195, lon: -73.7737, city: "White Plains" },
-  "10701": { lat: 40.9312, lon: -73.8960, city: "Yonkers" },
-  "10710": { lat: 40.9812, lon: -73.8557, city: "Yonkers" },
+  "06830": { lat: 41.0217, lon: -73.6282, city: "Greenwich", region: "Southwest CT" },
+  "06831": { lat: 41.0703, lon: -73.6393, city: "Greenwich", region: "Southwest CT" },
+  "06840": { lat: 41.0409, lon: -73.7221, city: "New Canaan", region: "Southwest CT" },
+  "06901": { lat: 41.0534, lon: -73.5387, city: "Stamford", region: "Southwest CT" },
+  "06902": { lat: 41.0487, lon: -73.5221, city: "Stamford", region: "Southwest CT" },
+  "06903": { lat: 41.1045, lon: -73.5554, city: "Stamford", region: "Southwest CT" },
+  "06905": { lat: 41.0762, lon: -73.5499, city: "Stamford", region: "Southwest CT" },
+  "06906": { lat: 41.0609, lon: -73.5276, city: "Stamford", region: "Southwest CT" },
+  "06907": { lat: 41.0956, lon: -73.5387, city: "Stamford", region: "Southwest CT" },
+  // Danbury Area
+  "06810": { lat: 41.3948, lon: -73.4538, city: "Danbury", region: "Danbury Area" },
+  "06811": { lat: 41.4226, lon: -73.4760, city: "Danbury", region: "Danbury Area" },
+  "06812": { lat: 41.4643, lon: -73.4760, city: "Danbury", region: "Danbury Area" },
+  // Waterbury Area
+  "06701": { lat: 41.5582, lon: -73.0515, city: "Waterbury", region: "Waterbury Area" },
+  "06702": { lat: 41.5440, lon: -73.0349, city: "Waterbury", region: "Waterbury Area" },
+  "06704": { lat: 41.5809, lon: -73.0349, city: "Waterbury", region: "Waterbury Area" },
+  "06705": { lat: 41.5361, lon: -73.0182, city: "Waterbury", region: "Waterbury Area" },
+  "06706": { lat: 41.5250, lon: -73.0737, city: "Waterbury", region: "Waterbury Area" },
+  "06708": { lat: 41.5470, lon: -73.1237, city: "Watertown", region: "Waterbury Area" },
+  "06710": { lat: 41.5692, lon: -73.0626, city: "Waterbury", region: "Waterbury Area" },
+  // Lower Westchester
+  "10601": { lat: 41.0340, lon: -73.7629, city: "White Plains", region: "Lower Westchester" },
+  "10605": { lat: 41.0195, lon: -73.7737, city: "White Plains", region: "Lower Westchester" },
+  "10701": { lat: 40.9312, lon: -73.8960, city: "Yonkers", region: "Lower Westchester" },
+  "10710": { lat: 40.9812, lon: -73.8557, city: "Yonkers", region: "Lower Westchester" },
+};
+
+// Pre-compute city centroids (average of all ZIPs per city)
+const CITY_CENTER = (() => {
+  const acc: Record<string, { lat: number; lon: number; n: number; region: string }> = {};
+  for (const info of Object.values(ZIP_INFO)) {
+    if (!acc[info.city]) acc[info.city] = { lat: 0, lon: 0, n: 0, region: info.region };
+    acc[info.city].lat += info.lat;
+    acc[info.city].lon += info.lon;
+    acc[info.city].n++;
+  }
+  const out: Record<string, { lat: number; lon: number; region: string }> = {};
+  for (const [city, v] of Object.entries(acc)) {
+    out[city] = { lat: v.lat / v.n, lon: v.lon / v.n, region: v.region };
+  }
+  return out;
+})();
+
+// Regional hub centroids for zoomed-out clusters
+const REGIONAL_HUBS: Record<string, { lat: number; lon: number }> = {
+  "Southwest CT":    { lat: 41.09,  lon: -73.53 },
+  "Bridgeport Area": { lat: 41.19,  lon: -73.19 },
+  "New Haven Area":  { lat: 41.30,  lon: -72.97 },
+  "Hartford Metro":  { lat: 41.76,  lon: -72.69 },
+  "Danbury Area":    { lat: 41.40,  lon: -73.46 },
+  "Waterbury Area":  { lat: 41.56,  lon: -73.05 },
+  "Lower Westchester": { lat: 41.00, lon: -73.82 },
 };
 
 function resolveZip(zip: string): ZipInfo | null {
   const clean = zip.replace(/\D/g, "").slice(0, 5);
   if (!clean) return null;
   if (ZIP_INFO[clean]) return ZIP_INFO[clean];
-  // 3-digit prefix fallback (rough city match)
   const prefix = clean.slice(0, 3);
   for (const [z, info] of Object.entries(ZIP_INFO)) {
     if (z.startsWith(prefix)) return info;
@@ -136,100 +162,85 @@ function resolveZip(zip: string): ZipInfo | null {
   return null;
 }
 
-// ─── hex grid math ───────────────────────────────────────────────────────────
+const COS_REF = Math.cos((41.3 * Math.PI) / 180); // ≈ 0.748
 
-// Flat-top hexagonal grid in lat/lon space.
-// We project lon by cos(ref_lat) to approximate equal-area coordinates,
-// then apply standard axial hex math, then unproject back.
-
-const REF_LAT_RAD = (41.3 * Math.PI) / 180;
-const COS_REF = Math.cos(REF_LAT_RAD); // ≈ 0.748
-const SQ3 = Math.sqrt(3);
-const HEX_SIZE = 0.055; // in projected-degree units ≈ 6 km radius
-
-function latlonToHex(lat: number, lon: number): [number, number] {
-  const x = (lon * COS_REF) / HEX_SIZE;
-  const y = lat / HEX_SIZE;
-  const q = (2 / 3) * x;
-  const r = (-1 / 3) * x + (SQ3 / 3) * y;
-  return hexRound(q, r);
+function distSq(aLat: number, aLon: number, bLat: number, bLon: number): number {
+  const dLat = aLat - bLat;
+  const dLon = (aLon - bLon) * COS_REF;
+  return dLat * dLat + dLon * dLon;
 }
 
-function hexRound(q: number, r: number): [number, number] {
-  const s = -q - r;
-  let rq = Math.round(q);
-  let rr = Math.round(r);
-  const rs = Math.round(s);
-  const dq = Math.abs(rq - q);
-  const dr = Math.abs(rr - r);
-  const ds = Math.abs(rs - s);
-  if (dq > dr && dq > ds) rq = -rr - rs;
-  else if (dr > ds) rr = -rq - rs;
-  return [rq, rr];
-}
-
-function hexToCenter(q: number, r: number): { latitude: number; longitude: number } {
-  const x = HEX_SIZE * (3 / 2) * q;
-  const y = HEX_SIZE * ((SQ3 / 2) * q + SQ3 * r);
-  return { latitude: y, longitude: x / COS_REF };
-}
-
-function hexToCorners(q: number, r: number): Array<{ latitude: number; longitude: number }> {
-  const c = hexToCenter(q, r);
-  const corners: Array<{ latitude: number; longitude: number }> = [];
-  for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 3) * i; // flat-top: starts at 0°
-    corners.push({
-      latitude: c.latitude + HEX_SIZE * Math.sin(angle),
-      longitude: c.longitude + (HEX_SIZE / COS_REF) * Math.cos(angle),
-    });
+function nearestCityName(lat: number, lon: number): string | null {
+  let best: string | null = null;
+  let bestD = Infinity;
+  for (const [city, c] of Object.entries(CITY_CENTER)) {
+    const d = distSq(lat, lon, c.lat, c.lon);
+    if (d < bestD) { bestD = d; best = city; }
   }
-  return corners;
+  return best;
 }
 
-// ─── color helpers ───────────────────────────────────────────────────────────
+// ─── sizing & color helpers ──────────────────────────────────────────────────
 
-function hexFillColor(count: number): string {
-  if (count >= 150) return "rgba(163,230,53,0.68)";
-  if (count >= 50) return "rgba(163,230,53,0.42)";
-  if (count >= 10) return "rgba(74,124,89,0.52)";
-  return "rgba(100,110,100,0.28)";
-}
-
-function hexStrokeColor(count: number): string {
-  if (count >= 150) return "rgba(163,230,53,0.9)";
-  if (count >= 50) return "rgba(163,230,53,0.6)";
-  if (count >= 10) return "rgba(74,124,89,0.7)";
-  return "rgba(100,110,100,0.4)";
-}
-
-function clusterFill(count: number): string {
-  if (count >= 150) return LIME;
-  if (count >= 50) return "rgba(163,230,53,0.82)";
-  return GREEN_MED;
-}
-
-function clusterSize(count: number): number {
-  if (count >= 150) return 64;
-  if (count >= 50) return 52;
+function circleSize(count: number): number {
+  if (count >= 151) return 100;
+  if (count >= 51)  return 80;
+  if (count >= 16)  return 60;
   return 40;
+}
+
+function circleBg(count: number): string {
+  if (count >= 150) return LIME;
+  if (count >= 50)  return "rgba(163,230,53,0.80)";
+  if (count >= 10)  return GREEN_MED;
+  return "#3a3a3a";
+}
+
+function circleTextColor(count: number): string {
+  return count >= 50 ? BG : CHALK;
+}
+
+function circleCountColor(count: number): string {
+  // On dark backgrounds (< 50), count is lime; on lime backgrounds, count is dark
+  return count >= 50 ? BG : LIME;
+}
+
+// ─── personality label ───────────────────────────────────────────────────────
+
+function personalityLabel(cell: CityCell): string | null {
+  if (cell.count >= 150) return "🔥 Hotspot";
+  if (cell.count >= 50 && cell.newThisMonth > 10) return "🚀 Growing";
+  if (cell.diamondCount >= 30) return "👑 Elite Hub";
+  if (cell.firstSeen) {
+    const threeMonthsAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
+    if (new Date(cell.firstSeen).getTime() > threeMonthsAgo) return "⚡ New Community";
+  }
+  return null;
 }
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
 type Layer = "members" | "sessions" | "activity";
 
-type HexCell = {
-  key: string;
-  q: number;
-  r: number;
+type CityCell = {
+  city: string;
+  region: string;
+  lat: number;
+  lon: number;
   count: number;
   diamondCount: number;
   goldPlusCount: number;
   newThisMonth: number;
-  corners: Array<{ latitude: number; longitude: number }>;
-  center: { latitude: number; longitude: number };
-  cityLabel: string;
+  activeThisWeek: number;
+  sessionsThisWeek: number;
+  firstSeen: string | null;
+};
+
+type RegionalCluster = {
+  name: string;
+  lat: number;
+  lon: number;
+  count: number;
 };
 
 type SessionPin = {
@@ -254,83 +265,145 @@ type ActivityStats = {
 
 function useCommunityData() {
   const { supabase } = useAuth();
-  const [hexCells, setHexCells] = useState<HexCell[]>([]);
+  const [cities, setCities] = useState<CityCell[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
 
-    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const now = Date.now();
+    const monthAgo = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const weekAgo  = new Date(now - 7  * 24 * 60 * 60 * 1000).toISOString();
+    const weekNext = new Date(now + 7  * 24 * 60 * 60 * 1000).toISOString();
 
-    const [{ data: profiles }, { data: ratings }] = await Promise.all([
+    const [
+      { data: profiles },
+      { data: ratings },
+      { data: sessionRuns },
+    ] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, zip_code, created_at")
+        .select("id, zip_code, created_at, updated_at")
         .eq("approved", true)
         .not("zip_code", "is", null),
       supabase
         .from("player_ratings")
         .select("user_id, tier"),
+      supabase
+        .from("pickup_runs")
+        .select("latitude,longitude,start_at")
+        .in("status", ["planning", "likely_on", "active", "in_progress"])
+        .gte("start_at", weekAgo)
+        .lte("start_at", weekNext)
+        .not("latitude", "is", null)
+        .not("longitude", "is", null)
+        .limit(200),
     ]);
 
+    // Tier lookup
     const tierByUser = new Map<string, string>();
     for (const r of ratings ?? []) {
       if (r.user_id && r.tier) tierByUser.set(r.user_id, (r.tier as string).toLowerCase());
     }
 
-    type CellAgg = {
-      q: number; r: number;
+    // City aggregation
+    type CityAgg = {
       count: number; diamondCount: number; goldPlusCount: number;
-      newThisMonth: number; cities: Set<string>;
+      newThisMonth: number; activeThisWeek: number;
+      sessionsThisWeek: number; firstSeen: string | null;
     };
-    const hexMap = new Map<string, CellAgg>();
+    const cityMap = new Map<string, CityAgg>();
 
     for (const p of profiles ?? []) {
       const info = resolveZip(String(p.zip_code ?? ""));
       if (!info) continue;
+      const city = info.city;
 
-      const [q, r] = latlonToHex(info.lat, info.lon);
-      const key = `${q},${r}`;
-
-      if (!hexMap.has(key)) {
-        hexMap.set(key, { q, r, count: 0, diamondCount: 0, goldPlusCount: 0, newThisMonth: 0, cities: new Set() });
+      if (!cityMap.has(city)) {
+        cityMap.set(city, {
+          count: 0, diamondCount: 0, goldPlusCount: 0,
+          newThisMonth: 0, activeThisWeek: 0,
+          sessionsThisWeek: 0, firstSeen: null,
+        });
       }
-      const cell = hexMap.get(key)!;
-      cell.count++;
-      cell.cities.add(info.city);
+      const agg = cityMap.get(city)!;
+      agg.count++;
 
       const tier = tierByUser.get(p.id as string) ?? "";
-      if (tier === "diamond") { cell.diamondCount++; cell.goldPlusCount++; }
-      else if (tier === "platinum" || tier === "gold") { cell.goldPlusCount++; }
+      if (tier === "diamond") { agg.diamondCount++; agg.goldPlusCount++; }
+      else if (tier === "platinum" || tier === "gold") { agg.goldPlusCount++; }
 
-      if (p.created_at && (p.created_at as string) >= monthAgo) cell.newThisMonth++;
+      const createdAt = p.created_at as string | null;
+      if (createdAt && (agg.firstSeen === null || createdAt < agg.firstSeen)) {
+        agg.firstSeen = createdAt;
+      }
+      if (createdAt && createdAt >= monthAgo) agg.newThisMonth++;
+
+      const updatedAt = p.updated_at as string | null;
+      if (updatedAt && updatedAt >= weekAgo) agg.activeThisWeek++;
     }
 
-    const cells: HexCell[] = [];
-    for (const [key, cell] of hexMap.entries()) {
-      if (cell.count < 5) continue; // privacy minimum
-      cells.push({
-        key,
-        q: cell.q,
-        r: cell.r,
-        count: cell.count,
-        diamondCount: cell.diamondCount,
-        goldPlusCount: cell.goldPlusCount,
-        newThisMonth: cell.newThisMonth,
-        corners: hexToCorners(cell.q, cell.r),
-        center: hexToCenter(cell.q, cell.r),
-        cityLabel: [...cell.cities].slice(0, 2).join(" / "),
+    // Assign sessions to nearest city (within ~20 km, ≈ 0.18°)
+    const SESSION_RADIUS_SQ = 0.18 * 0.18;
+    for (const run of sessionRuns ?? []) {
+      const lat = run.latitude as number;
+      const lon = run.longitude as number;
+      let bestCity: string | null = null;
+      let bestD = SESSION_RADIUS_SQ;
+      for (const [city, c] of Object.entries(CITY_CENTER)) {
+        const d = distSq(lat, lon, c.lat, c.lon);
+        if (d < bestD) { bestD = d; bestCity = city; }
+      }
+      if (bestCity && cityMap.has(bestCity)) {
+        cityMap.get(bestCity)!.sessionsThisWeek++;
+      }
+    }
+
+    // Build CityCell array (min 5 members for privacy)
+    const result: CityCell[] = [];
+    for (const [city, agg] of cityMap.entries()) {
+      if (agg.count < 5) continue;
+      const center = CITY_CENTER[city];
+      if (!center) continue;
+      result.push({
+        city,
+        region: center.region,
+        lat: center.lat,
+        lon: center.lon,
+        count: agg.count,
+        diamondCount: agg.diamondCount,
+        goldPlusCount: agg.goldPlusCount,
+        newThisMonth: agg.newThisMonth,
+        activeThisWeek: agg.activeThisWeek,
+        sessionsThisWeek: agg.sessionsThisWeek,
+        firstSeen: agg.firstSeen,
       });
     }
 
-    setHexCells(cells);
+    setCities(result);
     setLoading(false);
   }, [supabase]);
 
   useEffect(() => { void load(); }, [load]);
 
-  return { hexCells, loading, reload: load };
+  // Compute regional clusters from city data
+  const regionalClusters = useMemo<RegionalCluster[]>(() => {
+    const regionMap = new Map<string, { count: number }>();
+    for (const city of cities) {
+      if (!regionMap.has(city.region)) regionMap.set(city.region, { count: 0 });
+      regionMap.get(city.region)!.count += city.count;
+    }
+    const result: RegionalCluster[] = [];
+    for (const [name, agg] of regionMap.entries()) {
+      const hub = REGIONAL_HUBS[name];
+      if (!hub || agg.count < 5) continue;
+      result.push({ name, lat: hub.lat, lon: hub.lon, count: agg.count });
+    }
+    return result;
+  }, [cities]);
+
+  return { cities, regionalClusters, loading, reload: load };
 }
 
 function useSessionPins() {
@@ -367,29 +440,17 @@ function useActivityStats() {
     if (!supabase) return;
     void (async () => {
       const now = new Date();
-      const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-      const sixHours = new Date(now.getTime() + 6 * 60 * 60 * 1000).toISOString();
+      const dayAgo  = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+      const sixHrs  = new Date(now.getTime() + 6  * 60 * 60 * 1000).toISOString();
 
       const [
         { count: recentlyActiveCount },
         { count: soonCount },
         { count: totalApproved },
       ] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("id", { count: "exact", head: true })
-          .eq("approved", true)
-          .gte("updated_at", dayAgo),
-        supabase
-          .from("pickup_runs")
-          .select("id", { count: "exact", head: true })
-          .in("status", ["planning", "likely_on", "active"])
-          .gte("start_at", now.toISOString())
-          .lte("start_at", sixHours),
-        supabase
-          .from("profiles")
-          .select("id", { count: "exact", head: true })
-          .eq("approved", true),
+        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("approved", true).gte("updated_at", dayAgo),
+        supabase.from("pickup_runs").select("id", { count: "exact", head: true }).in("status", ["planning", "likely_on", "active"]).gte("start_at", now.toISOString()).lte("start_at", sixHrs),
+        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("approved", true),
       ]);
 
       setStats({
@@ -403,41 +464,179 @@ function useActivityStats() {
   return stats;
 }
 
-// ─── sub-components ──────────────────────────────────────────────────────────
+// ─── city circle marker ──────────────────────────────────────────────────────
 
-function ClusterMarker({ cell, onPress }: { cell: HexCell; onPress: () => void }) {
-  const sz = clusterSize(cell.count);
-  const fill = clusterFill(cell.count);
+function CityCircleMarker({
+  cell,
+  onPress,
+}: {
+  cell: CityCell;
+  onPress: () => void;
+}) {
+  const sz = circleSize(cell.count);
+  const bg = circleBg(cell.count);
+  const textCol = circleTextColor(cell.count);
+  const countCol = circleCountColor(cell.count);
+  const hasPulse = cell.count >= 50;
+  const outerSz = sz + (hasPulse ? 18 : 0);
+
+  // Pulse animation for 50+ members
+  const pulseScale = useRef(new Animated.Value(1)).current;
+  const pulseOpacity = useRef(new Animated.Value(0.4)).current;
+  const [tracking, setTracking] = useState(true);
+
+  useEffect(() => {
+    if (!hasPulse) {
+      // Standard pattern: brief tracking then freeze
+      const t = setTimeout(() => setTracking(false), 400);
+      return () => clearTimeout(t);
+    }
+    // Animated circles stay tracking so the pulse is visible
+    const loop = Animated.loop(
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(pulseScale, { toValue: 1.18, duration: 1100, useNativeDriver: true }),
+          Animated.timing(pulseScale, { toValue: 1.0,  duration: 1100, useNativeDriver: true }),
+        ]),
+        Animated.sequence([
+          Animated.timing(pulseOpacity, { toValue: 0.0, duration: 1100, useNativeDriver: true }),
+          Animated.timing(pulseOpacity, { toValue: 0.4, duration: 1100, useNativeDriver: true }),
+        ]),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [hasPulse, pulseScale, pulseOpacity]);
+
+  // City name font size scales with circle
+  const cityFontSize = sz >= 80 ? 10 : sz >= 60 ? 9 : 8;
+  const countFontSize = sz >= 80 ? 16 : sz >= 60 ? 14 : 12;
+  const showCityLabel = sz >= 40;
+
+  return (
+    <Marker
+      coordinate={{ latitude: cell.lat, longitude: cell.lon }}
+      onPress={onPress}
+      tracksViewChanges={tracking}
+      anchor={{ x: 0.5, y: 0.5 }}
+      zIndex={cell.count}
+    >
+      <View
+        style={{ width: outerSz, height: outerSz, alignItems: "center", justifyContent: "center" }}
+      >
+        {/* Pulse ring */}
+        {hasPulse && (
+          <Animated.View
+            style={{
+              position: "absolute",
+              width: outerSz,
+              height: outerSz,
+              borderRadius: outerSz / 2,
+              backgroundColor: bg,
+              opacity: pulseOpacity,
+              transform: [{ scale: pulseScale }],
+            }}
+          />
+        )}
+
+        {/* Main circle */}
+        <View
+          style={{
+            width: sz,
+            height: sz,
+            borderRadius: sz / 2,
+            backgroundColor: bg,
+            alignItems: "center",
+            justifyContent: "center",
+            borderWidth: 1.5,
+            borderColor: "rgba(255,255,255,0.22)",
+          }}
+        >
+          {showCityLabel && (
+            <Text
+              style={{
+                color: textCol,
+                fontSize: cityFontSize,
+                fontWeight: "700",
+                lineHeight: cityFontSize + 3,
+                textAlign: "center",
+                paddingHorizontal: 2,
+              }}
+              allowFontScaling={false}
+              numberOfLines={1}
+            >
+              {cell.city}
+            </Text>
+          )}
+          <Text
+            style={{
+              color: countCol,
+              fontSize: countFontSize,
+              fontWeight: "800",
+              lineHeight: countFontSize + 2,
+            }}
+            allowFontScaling={false}
+          >
+            {cell.count}
+          </Text>
+        </View>
+      </View>
+    </Marker>
+  );
+}
+
+// ─── regional cluster marker ─────────────────────────────────────────────────
+
+function RegionalClusterMarker({
+  cluster,
+  onPress,
+}: {
+  cluster: RegionalCluster;
+  onPress: () => void;
+}) {
+  const sz = cluster.count >= 150 ? 90 : cluster.count >= 50 ? 70 : 54;
+  const bg = circleBg(cluster.count);
+  const textCol = circleTextColor(cluster.count);
+  const countCol = circleCountColor(cluster.count);
+
   const [tracking, setTracking] = useState(true);
   useEffect(() => {
     const t = setTimeout(() => setTracking(false), 400);
     return () => clearTimeout(t);
   }, []);
 
-  const label = cell.count >= 1000 ? `${(cell.count / 1000).toFixed(1)}k` : String(cell.count);
-  const textColor = cell.count >= 50 ? BG : CHALK;
-  const fontSize = sz >= 64 ? 16 : sz >= 52 ? 14 : 12;
+  // Shorten region name for display
+  const label = cluster.name.replace("Metro", "").replace("Area", "").replace("Lower ", "").trim();
+  const countLabel = cluster.count >= 1000 ? `${(cluster.count / 1000).toFixed(1)}k` : String(cluster.count);
 
   return (
     <Marker
-      coordinate={cell.center}
+      coordinate={{ latitude: cluster.lat, longitude: cluster.lon }}
       onPress={onPress}
       tracksViewChanges={tracking}
       anchor={{ x: 0.5, y: 0.5 }}
-      zIndex={cell.count}
+      zIndex={cluster.count}
     >
-      <View style={{ width: sz, height: sz, alignItems: "center", justifyContent: "center" }}>
-        <Svg width={sz} height={sz} style={StyleSheet.absoluteFill}>
-          <Circle cx={sz / 2} cy={sz / 2} r={sz / 2 - 2} fill={fill} opacity={0.9} />
-          <Circle cx={sz / 2} cy={sz / 2} r={sz / 2 - 2} stroke="rgba(255,255,255,0.25)" strokeWidth={1.5} fill="none" />
-        </Svg>
-        <Text style={{ color: textColor, fontWeight: "800", fontSize }} allowFontScaling={false}>
+      <View
+        style={{
+          width: sz, height: sz, borderRadius: sz / 2,
+          backgroundColor: bg,
+          alignItems: "center", justifyContent: "center",
+          borderWidth: 2, borderColor: "rgba(255,255,255,0.25)",
+        }}
+      >
+        <Text style={{ color: textCol, fontSize: 9, fontWeight: "700", textAlign: "center", paddingHorizontal: 4 }} allowFontScaling={false} numberOfLines={2}>
           {label}
+        </Text>
+        <Text style={{ color: countCol, fontSize: 18, fontWeight: "800" }} allowFontScaling={false}>
+          {countLabel}
         </Text>
       </View>
     </Marker>
   );
 }
+
+// ─── session marker ──────────────────────────────────────────────────────────
 
 function SessionMarker({
   session,
@@ -449,11 +648,11 @@ function SessionMarker({
   onPress: () => void;
 }) {
   const left = session.capacity - session.spots_taken;
-  const full = left <= 0;
-  const sz = selected ? 52 : 44;
-  const r = sz / 2 - 4;
-  const circ = 2 * Math.PI * r;
-  const pct = Math.min(session.spots_taken / session.capacity, 1);
+  const full  = left <= 0;
+  const sz    = selected ? 52 : 44;
+  const r     = sz / 2 - 4;
+  const circ  = 2 * Math.PI * r;
+  const pct   = Math.min(session.spots_taken / session.capacity, 1);
   const color = full ? MUTED : LIME;
 
   const [tracking, setTracking] = useState(true);
@@ -492,45 +691,124 @@ function SessionMarker({
   );
 }
 
-function HexPopupCard({ cell, onClose }: { cell: HexCell; onClose: () => void }) {
+// ─── city popup card ─────────────────────────────────────────────────────────
+
+function CityPopupCard({ cell, onClose }: { cell: CityCell; onClose: () => void }) {
+  const label = personalityLabel(cell);
+
   return (
     <View style={s.popupCard}>
       <View style={s.popupHeader}>
-        <View>
-          <Text style={s.popupCity}>{cell.cityLabel || "This area"}</Text>
-          <Text style={s.popupSub}>Community snapshot</Text>
+        <View style={{ flex: 1, marginRight: 10 }}>
+          <Text style={s.popupCity}>{cell.city}</Text>
+          {label ? (
+            <Text style={s.popupLabel}>{label}</Text>
+          ) : (
+            <Text style={s.popupSub}>{cell.region}</Text>
+          )}
         </View>
         <Pressable onPress={onClose} hitSlop={12} style={s.popupClose}>
           <Text style={s.popupCloseText}>✕</Text>
         </Pressable>
       </View>
 
-      <View style={s.popupGrid}>
-        <StatBox value={cell.count} label="Members" accent={LIME} />
-        <StatBox value={cell.diamondCount} label="Diamond" accent="#9B59B6" />
-        <StatBox value={cell.goldPlusCount} label="Gold+" accent="#E3B23C" />
-        <StatBox value={cell.newThisMonth} label="New / mo" accent={GREEN_MED} />
+      <View style={s.popupRows}>
+        <PopupRow icon="👥" label={`${cell.count} members`} />
+        <PopupRow icon="⚽" label={`${cell.sessionsThisWeek} upcoming sessions`} />
+        <PopupRow icon="🔥" label={`${cell.activeThisWeek} active this week`} />
+        <PopupRow icon="💎" label={`${cell.diamondCount} Diamond players`} />
+        {cell.newThisMonth > 0 && (
+          <PopupRow icon="📈" label={`+${cell.newThisMonth} new this month`} accent={LIME} />
+        )}
       </View>
 
       {cell.count < 15 && (
-        <View style={s.popupPrivacyNote}>
-          <Text style={s.popupPrivacyText}>
-            Exact breakdowns hidden to protect player privacy.
-          </Text>
-        </View>
+        <Text style={s.privacyNote}>
+          Exact breakdowns hidden to protect player privacy.
+        </Text>
       )}
     </View>
   );
 }
 
-function StatBox({ value, label, accent }: { value: number; label: string; accent: string }) {
+function PopupRow({ icon, label, accent }: { icon: string; label: string; accent?: string }) {
   return (
-    <View style={s.statBox}>
-      <Text style={[s.statValue, { color: accent }]}>{value}</Text>
-      <Text style={s.statLabel}>{label}</Text>
+    <View style={s.popupRow}>
+      <Text style={s.popupRowIcon}>{icon}</Text>
+      <Text style={[s.popupRowText, accent ? { color: accent } : null]}>{label}</Text>
     </View>
   );
 }
+
+// ─── session detail card ──────────────────────────────────────────────────────
+
+function SessionDetailCard({
+  session,
+  onClose,
+  onNavigate,
+}: {
+  session: SessionPin;
+  onClose: () => void;
+  onNavigate: () => void;
+}) {
+  const left = session.capacity - session.spots_taken;
+  const full  = left <= 0;
+  const d     = new Date(session.start_at);
+  const when  = isToday(d)
+    ? `Today · ${format(d, "h:mm a")}`
+    : isTomorrow(d)
+      ? `Tomorrow · ${format(d, "h:mm a")}`
+      : `${format(d, "EEE MMM d")} · ${format(d, "h:mm a")}`;
+
+  return (
+    <View style={s.popupCard}>
+      <View style={s.popupHeader}>
+        <View style={{ flex: 1, marginRight: 10 }}>
+          <Text style={s.popupCity} numberOfLines={1}>
+            {session.location_private?.trim() || "Location TBD"}
+          </Text>
+          <Text style={s.popupSub}>{when}</Text>
+        </View>
+        <Pressable onPress={onClose} hitSlop={12} style={s.popupClose}>
+          <Text style={s.popupCloseText}>✕</Text>
+        </Pressable>
+      </View>
+
+      <View style={s.popupRows}>
+        <PopupRow icon="👥" label={`${session.capacity} capacity`} />
+        <PopupRow icon="🎟" label={full ? "Full — join waitlist" : `${left} spots left`} accent={full ? MUTED : LIME} />
+        <PopupRow icon="💵" label={`$${(session.fee_cents / 100).toFixed(0)} entry`} />
+      </View>
+
+      <Pressable style={s.popupCta} onPress={onNavigate}>
+        <Text style={s.popupCtaText}>{full ? "View Waitlist →" : "Reserve Spot →"}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// ─── regional cluster popup ───────────────────────────────────────────────────
+
+function RegionalPopupCard({ cluster, onClose }: { cluster: RegionalCluster; onClose: () => void }) {
+  return (
+    <View style={s.popupCard}>
+      <View style={s.popupHeader}>
+        <View style={{ flex: 1, marginRight: 10 }}>
+          <Text style={s.popupCity}>{cluster.name}</Text>
+          <Text style={s.popupSub}>Regional cluster — zoom in to see cities</Text>
+        </View>
+        <Pressable onPress={onClose} hitSlop={12} style={s.popupClose}>
+          <Text style={s.popupCloseText}>✕</Text>
+        </Pressable>
+      </View>
+      <View style={s.popupRows}>
+        <PopupRow icon="👥" label={`${cluster.count} members across this region`} />
+      </View>
+    </View>
+  );
+}
+
+// ─── activity overlay ─────────────────────────────────────────────────────────
 
 function ActivityOverlay({ stats }: { stats: ActivityStats | null }) {
   if (!stats) {
@@ -543,50 +821,23 @@ function ActivityOverlay({ stats }: { stats: ActivityStats | null }) {
 
   return (
     <View style={s.activityOverlay}>
-      <Text style={s.activityTitle}>LIVE COMMUNITY</Text>
-      <Text style={s.activityHeadline}>Region Activity</Text>
+      <Text style={s.actKicker}>LIVE COMMUNITY</Text>
+      <Text style={s.actHeadline}>Region Activity</Text>
 
-      <View style={s.activityCards}>
-        <ActivityCard
-          value={stats.recentlyActiveCount}
-          label="Active today"
-          sub="Players who updated their profile in the last 24 h"
-          dot={LIME}
-        />
-        <ActivityCard
-          value={stats.soonCount}
-          label="Sessions soon"
-          sub="Starting in the next 6 hours"
-          dot="#4ADE80"
-        />
-        <ActivityCard
-          value={stats.totalApproved}
-          label="Total members"
-          sub="Approved CT Pickup players"
-          dot={GREEN_MED}
-        />
+      <View style={s.actCards}>
+        <ActCard value={stats.recentlyActiveCount} label="Active today" sub="Updated profile in last 24h" dot={LIME} />
+        <ActCard value={stats.soonCount} label="Sessions soon" sub="Starting in next 6 hours" dot="#4ADE80" />
+        <ActCard value={stats.totalApproved} label="Total members" sub="Approved CT Pickup players" dot={GREEN_MED} />
       </View>
 
-      <View style={s.activityNote}>
-        <Text style={s.activityNoteText}>
-          Data is aggregated and updated in real-time. Individual locations are never shown.
-        </Text>
-      </View>
+      <Text style={s.actNote}>
+        Aggregated data only — individual locations are never shown.
+      </Text>
     </View>
   );
 }
 
-function ActivityCard({
-  value,
-  label,
-  sub,
-  dot,
-}: {
-  value: number;
-  label: string;
-  sub: string;
-  dot: string;
-}) {
+function ActCard({ value, label, sub, dot }: { value: number; label: string; sub: string; dot: string }) {
   return (
     <View style={s.actCard}>
       <View style={[s.actDot, { backgroundColor: dot }]} />
@@ -599,48 +850,40 @@ function ActivityCard({
   );
 }
 
-function SessionDetailCard({
-  session,
-  onClose,
-  onNavigate,
+// ─── your area card ───────────────────────────────────────────────────────────
+
+function YourAreaCard({
+  cities,
+  userLat,
+  userLon,
+  onPress,
 }: {
-  session: SessionPin;
-  onClose: () => void;
-  onNavigate: () => void;
+  cities: CityCell[];
+  userLat: number;
+  userLon: number;
+  onPress: (city: CityCell) => void;
 }) {
-  const left = session.capacity - session.spots_taken;
-  const full = left <= 0;
-  const d = new Date(session.start_at);
-  const when = isToday(d)
-    ? `Today · ${format(d, "h:mm a")}`
-    : isTomorrow(d)
-      ? `Tomorrow · ${format(d, "h:mm a")}`
-      : `${format(d, "EEE MMM d")} · ${format(d, "h:mm a")}`;
+  const nearest = useMemo(() => {
+    if (cities.length === 0) return null;
+    let best: CityCell | null = null;
+    let bestD = Infinity;
+    for (const c of cities) {
+      const d = distSq(userLat, userLon, c.lat, c.lon);
+      if (d < bestD) { bestD = d; best = c; }
+    }
+    return best;
+  }, [cities, userLat, userLon]);
+
+  if (!nearest) return null;
 
   return (
-    <View style={s.popupCard}>
-      <View style={s.popupHeader}>
-        <View style={{ flex: 1, marginRight: 12 }}>
-          <Text style={s.popupCity} numberOfLines={1}>
-            {session.location_private?.trim() || "Location TBD"}
-          </Text>
-          <Text style={s.popupSub}>{when}</Text>
-        </View>
-        <Pressable onPress={onClose} hitSlop={12} style={s.popupClose}>
-          <Text style={s.popupCloseText}>✕</Text>
-        </Pressable>
-      </View>
-
-      <View style={s.popupGrid}>
-        <StatBox value={session.capacity} label="Capacity" accent={CHALK} />
-        <StatBox value={left >= 0 ? left : 0} label="Spots left" accent={full ? MUTED : LIME} />
-        <StatBox value={session.fee_cents / 100} label="Fee ($)" accent={CHALK} />
-      </View>
-
-      <Pressable style={s.popupCta} onPress={onNavigate}>
-        <Text style={s.popupCtaText}>{full ? "View Waitlist →" : "Reserve Spot →"}</Text>
-      </Pressable>
-    </View>
+    <Pressable style={s.yourArea} onPress={() => onPress(nearest)}>
+      <Text style={s.yourAreaKicker}>📍 Your area</Text>
+      <Text style={s.yourAreaCity}>{nearest.city}</Text>
+      <Text style={s.yourAreaStat}>
+        {nearest.count} members · {nearest.sessionsThisWeek} sessions this week
+      </Text>
+    </Pressable>
   );
 }
 
@@ -652,98 +895,109 @@ const LAYERS: Array<{ id: Layer; label: string }> = [
   { id: "activity", label: "Activity" },
 ];
 
-// Zoom thresholds for adaptive rendering
-const SHOW_CLUSTERS_DELTA = 0.9;  // zoomed out → show cluster circles
-const HIDE_HEX_DELTA = 0.04;       // too zoomed in → hide hex for privacy
+// Approximate zoom level from latitudeDelta:  zoom ≈ log2(360 / latDelta)
+function latDeltaToZoom(latDelta: number): number {
+  return Math.log2(360 / Math.max(latDelta, 0.001));
+}
 
 export default function CommunityMapScreen() {
   const router = useRouter();
   const [layer, setLayer] = useState<Layer>("members");
   const [region, setRegion] = useState<Region>(CT_REGION);
-  const [selectedHex, setSelectedHex] = useState<HexCell | null>(null);
+  const [selectedCity, setSelectedCity] = useState<CityCell | null>(null);
+  const [selectedRegion, setSelectedRegion] = useState<RegionalCluster | null>(null);
   const [selectedSession, setSelectedSession] = useState<SessionPin | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const mapRef = useRef<MapView>(null);
 
-  const { hexCells, loading: hexLoading } = useCommunityData();
+  const { cities, regionalClusters, loading: cityLoading } = useCommunityData();
   const { sessions, loading: sessionsLoading } = useSessionPins();
   const activityStats = useActivityStats();
 
-  const latDelta = region.latitudeDelta;
-  const showClusters = latDelta > SHOW_CLUSTERS_DELTA;
-  const showHex = latDelta <= SHOW_CLUSTERS_DELTA && latDelta > HIDE_HEX_DELTA;
-
-  const handleHexPress = useCallback((cell: HexCell) => {
-    setSelectedHex(cell);
-    setSelectedSession(null);
-    mapRef.current?.animateToRegion(
-      {
-        latitude: cell.center.latitude,
-        longitude: cell.center.longitude,
-        latitudeDelta: Math.min(latDelta, 0.5),
-        longitudeDelta: Math.min(latDelta, 0.5),
-      },
-      300,
-    );
-  }, [latDelta]);
-
-  const handleSessionPress = useCallback((session: SessionPin) => {
-    setSelectedSession(session);
-    setSelectedHex(null);
+  // Request location once
+  useEffect(() => {
+    void (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") return;
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setUserLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+      } catch {}
+    })();
   }, []);
 
-  const loading = layer === "members" ? hexLoading : layer === "sessions" ? sessionsLoading : false;
+  const zoom = latDeltaToZoom(region.latitudeDelta);
+  // zoom < 8  (~latDelta > 1.4): show regional clusters
+  // zoom 8-10 (~latDelta 0.35-1.4): show city circles
+  // zoom > 10 (~latDelta < 0.35): show city circles (hide below 0.03 for privacy)
+  const showRegional = zoom < 8;
+  const showCities   = zoom >= 8 && region.latitudeDelta > 0.03;
 
-  const popupCard = useMemo(() => {
-    if (selectedHex && layer === "members") {
-      return <HexPopupCard cell={selectedHex} onClose={() => setSelectedHex(null)} />;
-    }
-    if (selectedSession && layer === "sessions") {
-      return (
-        <SessionDetailCard
-          session={selectedSession}
-          onClose={() => setSelectedSession(null)}
-          onNavigate={() => router.push(`/session/${encodeURIComponent(selectedSession.id)}`)}
-        />
-      );
-    }
-    return null;
-  }, [selectedHex, selectedSession, layer, router]);
+  const dismiss = useCallback(() => {
+    setSelectedCity(null);
+    setSelectedRegion(null);
+    setSelectedSession(null);
+  }, []);
 
-  // Flat array of map overlays to avoid children type issues with MapView
+  const handleCityPress = useCallback((cell: CityCell) => {
+    dismiss();
+    setSelectedCity(cell);
+    mapRef.current?.animateToRegion(
+      { latitude: cell.lat, longitude: cell.lon, latitudeDelta: 0.25, longitudeDelta: 0.25 },
+      300,
+    );
+  }, [dismiss]);
+
+  const handleRegionalPress = useCallback((cluster: RegionalCluster) => {
+    dismiss();
+    setSelectedRegion(cluster);
+    // Zoom in to city level
+    mapRef.current?.animateToRegion(
+      { latitude: cluster.lat, longitude: cluster.lon, latitudeDelta: 0.7, longitudeDelta: 0.7 },
+      350,
+    );
+  }, [dismiss]);
+
+  const handleSessionPress = useCallback((session: SessionPin) => {
+    dismiss();
+    setSelectedSession(session);
+  }, [dismiss]);
+
+  const loading = layer === "members" ? cityLoading : layer === "sessions" ? sessionsLoading : false;
+
+  const hasPopup = !!(selectedCity || selectedRegion || selectedSession);
+
+  // Flat array of map markers
   const mapOverlays = useMemo(() => {
     if (layer === "members") {
-      if (showClusters) {
-        return hexCells.map((cell) => (
-          <ClusterMarker key={cell.key} cell={cell} onPress={() => handleHexPress(cell)} />
+      if (showRegional) {
+        return regionalClusters.map((c) => (
+          <RegionalClusterMarker key={c.name} cluster={c} onPress={() => handleRegionalPress(c)} />
         ));
       }
-      if (showHex) {
-        return hexCells.map((cell) => (
-          <Polygon
-            key={cell.key}
-            coordinates={cell.corners}
-            fillColor={hexFillColor(cell.count)}
-            strokeColor={hexStrokeColor(cell.count)}
-            strokeWidth={1}
-            onPress={() => handleHexPress(cell)}
-            tappable
-          />
+      if (showCities) {
+        return cities.map((c) => (
+          <CityCircleMarker key={c.city} cell={c} onPress={() => handleCityPress(c)} />
         ));
       }
       return [];
     }
     if (layer === "sessions") {
-      return sessions.map((session) => (
+      return sessions.map((s) => (
         <SessionMarker
-          key={session.id}
-          session={session}
-          selected={session.id === selectedSession?.id}
-          onPress={() => handleSessionPress(session)}
+          key={s.id}
+          session={s}
+          selected={s.id === selectedSession?.id}
+          onPress={() => handleSessionPress(s)}
         />
       ));
     }
     return [];
-  }, [layer, showClusters, showHex, hexCells, sessions, selectedSession, handleHexPress, handleSessionPress]);
+  }, [
+    layer, showRegional, showCities,
+    regionalClusters, cities, sessions, selectedSession,
+    handleRegionalPress, handleCityPress, handleSessionPress,
+  ]);
 
   return (
     <>
@@ -759,34 +1013,28 @@ export default function CommunityMapScreen() {
           showsUserLocation
           showsMyLocationButton={false}
           showsPointsOfInterest={false}
-          onRegionChange={setRegion}
+          onRegionChangeComplete={(r) => setRegion(r)}
         >
           {mapOverlays}
         </MapView>
 
-        {/* Transparent tap-to-dismiss overlay — sits below all controls */}
-        {(selectedHex ?? selectedSession) ? (
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => { setSelectedHex(null); setSelectedSession(null); }}
-            pointerEvents="box-only"
-          />
+        {/* Tap-to-dismiss transparent overlay */}
+        {hasPopup ? (
+          <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} pointerEvents="box-only" />
         ) : null}
 
-        {/* Top controls */}
+        {/* ── Top controls ─────────────────────────── */}
         <View style={s.topBar} pointerEvents="box-none">
           <Pressable onPress={() => router.back()} hitSlop={10} style={s.backBtn}>
             <Text style={s.backBtnText}>‹ Back</Text>
           </Pressable>
-
-          {/* Layer toggle */}
           <View style={s.layerToggle} pointerEvents="auto">
             {LAYERS.map(({ id, label }) => {
               const active = layer === id;
               return (
                 <Pressable
                   key={id}
-                  onPress={() => { setLayer(id); setSelectedHex(null); setSelectedSession(null); }}
+                  onPress={() => { setLayer(id); dismiss(); }}
                   style={[s.layerBtn, active && s.layerBtnActive]}
                   accessibilityRole="button"
                   accessibilityState={{ selected: active }}
@@ -798,48 +1046,51 @@ export default function CommunityMapScreen() {
           </View>
         </View>
 
-        {/* Privacy note when too zoomed in on members */}
-        {layer === "members" && !showHex && !showClusters && (
+        {/* Privacy notice when zoomed in too far */}
+        {layer === "members" && !showCities && !showRegional ? (
           <View style={s.privacyBanner} pointerEvents="none">
             <Text style={s.privacyBannerText}>Zoom out to see community density</Text>
           </View>
-        )}
-
-        {/* Legend for members layer */}
-        {layer === "members" && (showHex || showClusters) && (
-          <View style={s.legend} pointerEvents="none">
-            <LegendRow color="rgba(163,230,53,0.7)" label="150+ members" />
-            <LegendRow color="rgba(163,230,53,0.42)" label="50–150" />
-            <LegendRow color="rgba(74,124,89,0.52)" label="10–50" />
-            <LegendRow color="rgba(100,110,100,0.28)" label="Under 10" />
-          </View>
-        )}
+        ) : null}
 
         {/* Activity overlay */}
-        {layer === "activity" && <ActivityOverlay stats={activityStats} />}
+        {layer === "activity" ? <ActivityOverlay stats={activityStats} /> : null}
 
-        {/* Loading indicator */}
-        {loading && (
+        {/* Loading */}
+        {loading ? (
           <View style={s.loadingCenter} pointerEvents="none">
             <ActivityIndicator color={LIME} />
           </View>
-        )}
+        ) : null}
 
-        {/* Popup card (hex detail or session detail) */}
-        {popupCard && (
-          <View style={s.popupWrap}>{popupCard}</View>
-        )}
+        {/* Your Area card — bottom-left, only on Members layer when not showing a popup */}
+        {layer === "members" && !hasPopup && userLocation && showCities ? (
+          <YourAreaCard
+            cities={cities}
+            userLat={userLocation.lat}
+            userLon={userLocation.lon}
+            onPress={handleCityPress}
+          />
+        ) : null}
+
+        {/* Popup card */}
+        {hasPopup ? (
+          <View style={s.popupWrap}>
+            {selectedCity ? (
+              <CityPopupCard cell={selectedCity} onClose={dismiss} />
+            ) : selectedRegion ? (
+              <RegionalPopupCard cluster={selectedRegion} onClose={dismiss} />
+            ) : selectedSession ? (
+              <SessionDetailCard
+                session={selectedSession}
+                onClose={dismiss}
+                onNavigate={() => router.push(`/session/${encodeURIComponent(selectedSession.id)}`)}
+              />
+            ) : null}
+          </View>
+        ) : null}
       </View>
     </>
-  );
-}
-
-function LegendRow({ color, label }: { color: string; label: string }) {
-  return (
-    <View style={s.legendRow}>
-      <View style={[s.legendSwatch, { backgroundColor: color }]} />
-      <Text style={s.legendLabel}>{label}</Text>
-    </View>
   );
 }
 
@@ -848,7 +1099,6 @@ function LegendRow({ color, label }: { color: string; label: string }) {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
 
-  // Top controls
   topBar: {
     position: "absolute",
     top: 60,
@@ -859,7 +1109,7 @@ const s = StyleSheet.create({
   },
   backBtn: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(0,0,0,0.65)",
+    backgroundColor: "rgba(0,0,0,0.68)",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
@@ -869,46 +1119,24 @@ const s = StyleSheet.create({
   layerToggle: {
     flexDirection: "row",
     alignSelf: "center",
-    backgroundColor: "rgba(0,0,0,0.72)",
+    backgroundColor: "rgba(0,0,0,0.74)",
     borderRadius: 999,
     borderWidth: 1,
     borderColor: HAIRLINE,
     padding: 3,
     gap: 2,
   },
-  layerBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
+  layerBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999 },
   layerBtnActive: { backgroundColor: LIME },
   layerBtnText: { color: MUTED, fontWeight: "700", fontSize: 13 },
   layerBtnTextActive: { color: BG },
 
-  // Map pin helpers
   pinCenter: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
   pinNum: { fontSize: 15, fontWeight: "700" },
 
-  // Legend
-  legend: {
-    position: "absolute",
-    bottom: 200,
-    right: 14,
-    backgroundColor: "rgba(0,0,0,0.72)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: HAIRLINE,
-    padding: 10,
-    gap: 6,
-  },
-  legendRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  legendSwatch: { width: 12, height: 12, borderRadius: 3, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
-  legendLabel: { color: CHALK, fontSize: 11, fontWeight: "600" },
-
-  // Privacy notice
   privacyBanner: {
     position: "absolute",
-    bottom: 200,
+    bottom: 220,
     alignSelf: "center",
     backgroundColor: "rgba(0,0,0,0.72)",
     borderRadius: 999,
@@ -919,20 +1147,30 @@ const s = StyleSheet.create({
   },
   privacyBannerText: { color: MUTED, fontSize: 13 },
 
-  // Loading
   loadingCenter: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  // Popup card
-  popupWrap: {
+  // Your Area card
+  yourArea: {
     position: "absolute",
     bottom: 34,
     left: 14,
-    right: 14,
+    backgroundColor: "rgba(11,15,13,0.90)",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    padding: 12,
+    maxWidth: 180,
   },
+  yourAreaKicker: { color: MUTED, fontSize: 10, fontWeight: "700", letterSpacing: 1, marginBottom: 3 },
+  yourAreaCity: { color: CHALK, fontSize: 16, fontWeight: "800" },
+  yourAreaStat: { color: MUTED, fontSize: 11, marginTop: 3, lineHeight: 15 },
+
+  // Popup card
+  popupWrap: { position: "absolute", bottom: 34, left: 14, right: 14 },
   popupCard: {
     backgroundColor: SURFACE,
     borderRadius: 18,
@@ -944,23 +1182,23 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 14,
+    marginBottom: 12,
   },
-  popupCity: { color: CHALK, fontSize: 18, fontWeight: "700" },
-  popupSub: { color: MUTED, fontSize: 13, marginTop: 2 },
+  popupCity:  { color: CHALK, fontSize: 18, fontWeight: "700" },
+  popupLabel: { color: LIME,  fontSize: 13, fontWeight: "600", marginTop: 2 },
+  popupSub:   { color: MUTED, fontSize: 13, marginTop: 2 },
   popupClose: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 28, height: 28, borderRadius: 14,
     backgroundColor: SURFACE_LIFT,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center", justifyContent: "center",
   },
   popupCloseText: { color: MUTED, fontSize: 14, fontWeight: "700" },
-  popupGrid: {
-    flexDirection: "row",
-    gap: 8,
-  },
+
+  popupRows: { gap: 8 },
+  popupRow:  { flexDirection: "row", alignItems: "center", gap: 10 },
+  popupRowIcon: { fontSize: 16, width: 22, textAlign: "center" },
+  popupRowText: { color: CHALK, fontSize: 14, fontWeight: "500", flex: 1 },
+
   popupCta: {
     marginTop: 14,
     backgroundColor: LIME,
@@ -969,25 +1207,15 @@ const s = StyleSheet.create({
     alignItems: "center",
   },
   popupCtaText: { color: BG, fontSize: 14, fontWeight: "700" },
-  popupPrivacyNote: {
-    marginTop: 10,
-    padding: 10,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderRadius: 8,
-  },
-  popupPrivacyText: { color: MUTED, fontSize: 12 },
 
-  // Stat boxes
-  statBox: {
-    flex: 1,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderRadius: 12,
-    padding: 10,
-    alignItems: "center",
-    gap: 4,
+  privacyNote: {
+    color: MUTED,
+    fontSize: 11,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: HAIRLINE,
   },
-  statValue: { fontSize: 22, fontWeight: "800" },
-  statLabel: { color: MUTED, fontSize: 11, fontWeight: "600", textAlign: "center" },
 
   // Activity overlay
   activityOverlay: {
@@ -995,26 +1223,15 @@ const s = StyleSheet.create({
     bottom: 34,
     left: 14,
     right: 14,
-    backgroundColor: "rgba(11,15,13,0.92)",
+    backgroundColor: "rgba(11,15,13,0.93)",
     borderRadius: 20,
     borderWidth: 1,
     borderColor: HAIRLINE,
     padding: 20,
   },
-  activityTitle: {
-    color: LIME,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 2,
-    marginBottom: 4,
-  },
-  activityHeadline: {
-    color: CHALK,
-    fontSize: 22,
-    fontWeight: "800",
-    marginBottom: 16,
-  },
-  activityCards: { gap: 10 },
+  actKicker:   { color: LIME,  fontSize: 10, fontWeight: "800", letterSpacing: 2, marginBottom: 4 },
+  actHeadline: { color: CHALK, fontSize: 22, fontWeight: "800", marginBottom: 16 },
+  actCards:    { gap: 10 },
   actCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -1023,15 +1240,9 @@ const s = StyleSheet.create({
     padding: 12,
     gap: 12,
   },
-  actDot: { width: 10, height: 10, borderRadius: 5 },
+  actDot:   { width: 10, height: 10, borderRadius: 5 },
   actLabel: { color: CHALK, fontSize: 14, fontWeight: "700" },
-  actSub: { color: MUTED, fontSize: 12, marginTop: 1 },
+  actSub:   { color: MUTED, fontSize: 12, marginTop: 1 },
   actValue: { fontSize: 22, fontWeight: "800", minWidth: 40, textAlign: "right" },
-  activityNote: {
-    marginTop: 14,
-    padding: 10,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderRadius: 8,
-  },
-  activityNoteText: { color: MUTED, fontSize: 11 },
+  actNote:  { color: MUTED, fontSize: 11, marginTop: 14 },
 });
