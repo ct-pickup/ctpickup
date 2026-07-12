@@ -550,7 +550,7 @@ export default function HomeScreen() {
           <Text style={styles.matchEmptySub}>You have no confirmed matches coming up.</Text>
           <Pressable
             accessibilityRole="button"
-            onPress={() => push("/session-map")}
+            onPress={() => push("/community-map")}
             style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.9 }]}
           >
             <Text style={styles.primaryBtnText}>Find a Run →</Text>
@@ -560,11 +560,11 @@ export default function HomeScreen() {
 
       {/* 3. LIVE MAP */}
       <View style={{ marginTop: 12 }} pointerEvents="box-none">
-        <SectionHeader label="Live Map" actionLabel="View full map" onAction={() => push("/session-map")} />
+        <SectionHeader label="Live Map" actionLabel="View full map" onAction={() => push("/community-map")} />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Open session map"
-          onPress={() => push("/session-map")}
+          accessibilityLabel="Open community map"
+          onPress={() => push("/community-map")}
           style={styles.mapWrap}
         >
           <MapView
