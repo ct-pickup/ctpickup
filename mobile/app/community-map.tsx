@@ -715,7 +715,6 @@ function CityPopupCard({ cell, onClose }: { cell: CityCell; onClose: () => void 
       <View style={s.popupRows}>
         <PopupRow icon="👥" label={`${cell.count} members`} />
         <PopupRow icon="⚽" label={`${cell.sessionsThisWeek} upcoming sessions`} />
-        <PopupRow icon="🔥" label={`${cell.activeThisWeek} active this week`} />
         <PopupRow icon="💎" label={`${cell.diamondCount} Diamond players`} />
         {cell.newThisMonth > 0 && (
           <PopupRow icon="📈" label={`+${cell.newThisMonth} new this month`} accent={LIME} />

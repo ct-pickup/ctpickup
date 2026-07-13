@@ -555,21 +555,21 @@ export default function SessionMapScreen() {
       </MapView>
 
       <View style={styles.topBar} pointerEvents="box-none">
-        <View style={styles.topRow} pointerEvents="box-none">
-          <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
-            <Text style={styles.backBtnText}>{"‹"} Back</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => { setZipInput(zipCurrent ?? ""); setZipModalOpen(true); }}
-            style={styles.zipPill}
-          >
-            <Text style={styles.zipPillText}>
-              📍 {zipCurrent ? zipCurrent : "My Location"}
-            </Text>
-          </Pressable>
-        </View>
+        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
+          <Text style={styles.backBtnText}>{"‹"} Back</Text>
+        </Pressable>
         {header}
       </View>
+
+      {/* ZIP pill — floated independently so it can never be hidden by chips */}
+      <Pressable
+        onPress={() => { setZipInput(zipCurrent ?? ""); setZipModalOpen(true); }}
+        style={styles.zipPill}
+      >
+        <Text style={styles.zipPillText}>
+          📍 {zipCurrent ? zipCurrent : "My Location"}
+        </Text>
+      </Pressable>
 
       {loading && (
         <View style={styles.center} pointerEvents="none">
@@ -681,11 +681,10 @@ const styles = StyleSheet.create({
   center: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
 
   topBar: { position: "absolute", top: 60, left: 0, right: 0 },
-  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, marginBottom: 8 },
-  backBtn: { backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
+  backBtn: { marginLeft: 12, marginBottom: 8, backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, alignSelf: "flex-start" },
   backBtnText: { color: "#fff", fontWeight: "600", fontSize: 15 },
-  zipPill: { backgroundColor: "rgba(0,0,0,0.65)", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: "rgba(163,230,53,0.4)" },
-  zipPillText: { color: "#a3e635", fontWeight: "600", fontSize: 13 },
+  zipPill: { position: "absolute", top: 60, right: 12, zIndex: 999, backgroundColor: "rgba(0,0,0,0.75)", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: "rgba(163,230,53,0.5)" },
+  zipPillText: { color: "#a3e635", fontWeight: "700", fontSize: 13 },
   filterRow: { flexDirection: "row", paddingHorizontal: 16, gap: 8 },
 
   zipModal: { flex: 1, backgroundColor: "#0a0a0a", padding: 24 },
