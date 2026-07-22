@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { approvedUserIdsInRunServiceRegion } from "@/lib/pickup/pickupPushNotifications";
 import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
+import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 const ALLOWED_FORMATS = ["5v5", "6v6", "7v7", "Open"];
@@ -101,6 +103,39 @@ export async function POST(req: Request) {
   if (insertErr || !run) {
     console.error("[sessions/create] insert error", insertErr);
     return NextResponse.json({ error: insertErr?.message ?? "Failed to create session." }, { status: 500 });
+  }
+
+  // Public sessions: notify nearby approved players (exclude host).
+  // Invite-only sessions stay quiet — invitees get push from /api/sessions/invite.
+  if (!invite_only) {
+    try {
+      const recipientIds = (
+        await approvedUserIdsInRunServiceRegion(admin, service_region, {
+          serviceRegion: service_region,
+          locationPrivate: location_text,
+        })
+      ).filter((id) => id !== user.id);
+
+      if (recipientIds.length > 0) {
+        const sessionDate = start_at.toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        });
+        await sendPushToUsers(admin, recipientIds, {
+          title: "New session posted 🏃",
+          body: `${host_name} posted a ${format} session on ${sessionDate} in ${service_region}`,
+          data: {
+            screen: `session/${run.id}`,
+            run_id: run.id,
+            url: `ctpickup://session/${run.id}`,
+          },
+        });
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[sessions/create] region push failed:", msg);
+    }
   }
 
   return NextResponse.json({ ok: true, run_id: run.id });
