@@ -28,6 +28,8 @@ type LeaderboardPlayerRow = {
 function parseRegion(param: string | null): string | null {
   if (!param) return null;
   const u = param.trim().toUpperCase();
+  // "ALL" / empty → no filter (every hub: CT/NY/NJ/MD)
+  if (!u || u === "ALL") return null;
   return HUB_REGIONS.has(u) ? u : null;
 }
 

@@ -1,6 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import { hapticTap } from "@/lib/haptics";
+import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
 import { Ionicons } from "@expo/vector-icons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useNavigation, useRouter } from "expo-router";
@@ -279,12 +280,13 @@ export default function LeaderboardsScreen() {
     if (!supabase) return;
     setTierLoading(true);
     try {
+      // Show every player_ratings row (no sessions > 0 filter) so newly
+      // backfilled tiers still appear even with 0 sessions played.
       const { data: ratings } = await supabase
         .from("player_ratings")
         .select("user_id,tier,score,sessions,reliability")
-        .gt("sessions", 0)
         .order("score", { ascending: false })
-        .limit(20);
+        .limit(100);
       const ratingRows = (ratings ?? []) as Array<{
         user_id: string;
         tier: string | null;
@@ -345,7 +347,7 @@ export default function LeaderboardsScreen() {
           const myRow = mine as { tier: string | null; score: number | null; sessions: number | null };
           const myScore = myRow.score ?? 0;
           const [{ count: total }, { count: better }] = await Promise.all([
-            supabase.from("player_ratings").select("*", { count: "exact", head: true }).gt("sessions", 0),
+            supabase.from("player_ratings").select("*", { count: "exact", head: true }),
             supabase.from("player_ratings").select("*", { count: "exact", head: true }).gt("score", myScore),
           ]);
           const percentile =
@@ -401,6 +403,11 @@ export default function LeaderboardsScreen() {
           setPayload(null);
           return;
         }
+        console.log(
+          "leaderboards payload:",
+          JSON.stringify(parsed?.wins?.length),
+          JSON.stringify(parsed?.sessions?.length),
+        );
         setErr(null);
         setPayload(parsed);
       } catch (e) {
@@ -440,8 +447,7 @@ export default function LeaderboardsScreen() {
 
   const filteredTierPlayers = useMemo(() => {
     if (region === "ALL") return tierPlayers;
-    const key = region.toLowerCase();
-    return tierPlayers.filter((p) => (p.nearest_venue ?? "").toLowerCase().includes(key));
+    return tierPlayers.filter((p) => serviceRegionForVenueName(p.nearest_venue) === region);
   }, [tierPlayers, region]);
 
   const moreActive = MORE_TABS.some((m) => m.id === tab);
