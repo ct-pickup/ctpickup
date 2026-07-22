@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
+  Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -12,6 +15,7 @@ import { Stack, useRouter } from "expo-router";
 import { format, isToday, isTomorrow } from "date-fns";
 import * as Location from "expo-location";
 import { useAuth } from "@/context/AuthContext";
+import { siteOrigin } from "@/lib/env";
 
 // ─── design tokens ──────────────────────────────────────────────────────────
 
@@ -25,6 +29,15 @@ const MUTED = "#8A968F";
 const GREEN_MED = "#4a7c59";
 const GREEN_DARK = "#3a6b42";
 const GRAY = "#555555";
+const DIAMOND_PURPLE = "#9B59B6";
+
+const TIER_COLORS: Record<string, string> = {
+  diamond: "#9B59B6",
+  platinum: "#E8E8E8",
+  gold: "#E3B23C",
+  silver: "#A8B0B5",
+  bronze: "#B87333",
+};
 
 /** Tight service-area view: CT, NY metro, NJ, northern MD — no Canada / Carolinas. */
 const SERVICE_REGION: Region = {
@@ -365,8 +378,28 @@ type CountyCell = {
   lat: number;
   lon: number;
   count: number;
+  /** All diamond-tier members in the county (best-effort from client ratings). */
   diamondCount: number;
+  /** Verified (document/vouched) Diamond players — from API overview. */
+  verifiedDiamondCount: number;
   upcomingSessions: number;
+};
+
+type ElitePlayer = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+  playing_position: string | null;
+  tier: "diamond" | "platinum";
+};
+
+type TierCounts = {
+  diamond: number;
+  platinum: number;
+  gold: number;
+  silver: number;
+  bronze: number;
 };
 
 type SessionPin = {
@@ -390,7 +423,7 @@ type ActivityStats = {
 // ─── data hooks ──────────────────────────────────────────────────────────────
 
 function useCommunityData() {
-  const { supabase } = useAuth();
+  const { supabase, session } = useAuth();
   const [counties, setCounties] = useState<CountyCell[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -400,20 +433,45 @@ function useCommunityData() {
 
     const now = Date.now();
     const weekNext = new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const token = session?.access_token ?? null;
+    const origin = siteOrigin();
 
-    const [{ data: profiles }, { data: ratings }, { data: sessionRuns }] = await Promise.all([
-      supabase.from("profiles").select("id, zip_code, nearest_venue").eq("approved", true),
-      supabase.from("player_ratings").select("user_id, tier"),
-      supabase
-        .from("pickup_runs")
-        .select("latitude,longitude,start_at")
-        .in("status", ["planning", "likely_on", "active", "in_progress"])
-        .gte("start_at", new Date(now).toISOString())
-        .lte("start_at", weekNext)
-        .not("latitude", "is", null)
-        .not("longitude", "is", null)
-        .limit(200),
-    ]);
+    const [{ data: profiles }, { data: ratings }, { data: sessionRuns }, overviewRes] =
+      await Promise.all([
+        supabase.from("profiles").select("id, zip_code, nearest_venue").eq("approved", true),
+        supabase.from("player_ratings").select("user_id, tier"),
+        supabase
+          .from("pickup_runs")
+          .select("latitude,longitude,start_at")
+          .in("status", ["planning", "likely_on", "active", "in_progress"])
+          .gte("start_at", new Date(now).toISOString())
+          .lte("start_at", weekNext)
+          .not("latitude", "is", null)
+          .not("longitude", "is", null)
+          .limit(200),
+        token && origin
+          ? fetch(`${origin}/api/community-map/county?overview=1`, {
+              headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+            })
+              .then((r) => r.json().catch(() => null))
+              .catch(() => null)
+          : Promise.resolve(null),
+      ]);
+
+    const verifiedDiamondByCounty: Record<string, number> = {};
+    if (
+      overviewRes &&
+      typeof overviewRes === "object" &&
+      overviewRes.ok &&
+      overviewRes.verifiedDiamondByCounty &&
+      typeof overviewRes.verifiedDiamondByCounty === "object"
+    ) {
+      for (const [id, n] of Object.entries(
+        overviewRes.verifiedDiamondByCounty as Record<string, unknown>,
+      )) {
+        if (typeof n === "number" && n > 0) verifiedDiamondByCounty[id] = n;
+      }
+    }
 
     const tierByUser = new Map<string, string>();
     for (const r of ratings ?? []) {
@@ -469,13 +527,14 @@ function useCommunityData() {
         lon: def.lon,
         count: agg.count,
         diamondCount: agg.diamondCount,
+        verifiedDiamondCount: verifiedDiamondByCounty[id] ?? 0,
         upcomingSessions: agg.upcomingSessions,
       });
     }
 
     setCounties(result);
     setLoading(false);
-  }, [supabase]);
+  }, [supabase, session?.access_token]);
 
   useEffect(() => {
     void load();
@@ -557,7 +616,9 @@ function CountyCircleMarker({
   cell: CountyCell;
   onPress: () => void;
 }) {
-  const sz = circleSize(cell.count);
+  const hasDiamonds = cell.verifiedDiamondCount > 0;
+  const base = circleSize(cell.count);
+  const sz = hasDiamonds ? Math.max(base, base + 12) : base;
   const bg = circleBg(cell.count);
   const nameCol = circleNameColor(cell.count);
   const countCol = circleCountColor(cell.count);
@@ -613,6 +674,20 @@ function CountyCircleMarker({
         >
           {cell.count}
         </Text>
+        {hasDiamonds ? (
+          <Text
+            style={{
+              color: DIAMOND_PURPLE,
+              fontSize: 10,
+              fontWeight: "800",
+              lineHeight: 12,
+              marginTop: 1,
+            }}
+            allowFontScaling={false}
+          >
+            ◆{cell.verifiedDiamondCount}
+          </Text>
+        ) : null}
       </View>
     </Marker>
   );
@@ -679,24 +754,185 @@ function SessionMarker({
 
 // ─── county popup ────────────────────────────────────────────────────────────
 
-function CountyPopupCard({ cell, onClose }: { cell: CountyCell; onClose: () => void }) {
-  return (
-    <View style={s.popupCard}>
-      <View style={s.popupHeader}>
-        <View style={{ flex: 1, marginRight: 10 }}>
-          <Text style={s.popupCity}>{cell.name}</Text>
-        </View>
-        <Pressable onPress={onClose} hitSlop={12} style={s.popupClose}>
-          <Text style={s.popupCloseText}>✕</Text>
-        </Pressable>
-      </View>
+function displayShortName(first: string | null, last: string | null): string {
+  const f = (first ?? "").trim() || "Player";
+  const l = (last ?? "").trim();
+  if (!l) return f;
+  return `${f} ${l.charAt(0).toUpperCase()}.`;
+}
 
-      <View style={s.popupRows}>
-        <PopupRow icon="👥" label={`${cell.count} members`} />
-        <PopupRow icon="💎" label={`${cell.diamondCount} Diamond players`} />
-        <PopupRow icon="⚽" label={`${cell.upcomingSessions} upcoming sessions`} />
+function initialsFromName(first: string | null, last: string | null): string {
+  const a = (first ?? "").trim().charAt(0);
+  const b = (last ?? "").trim().charAt(0);
+  const s = `${a}${b}`.toUpperCase();
+  return s || "?";
+}
+
+function CountyPopupModal({
+  cell,
+  visible,
+  onClose,
+  onOpenPlayer,
+}: {
+  cell: CountyCell;
+  visible: boolean;
+  onClose: () => void;
+  onOpenPlayer: (userId: string) => void;
+}) {
+  const { session } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [tierCounts, setTierCounts] = useState<TierCounts | null>(null);
+  const [elite, setElite] = useState<ElitePlayer[]>([]);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    setLoading(true);
+    setExpanded(false);
+    setTierCounts(null);
+    setElite([]);
+
+    const token = session?.access_token;
+    const origin = siteOrigin();
+    if (!token || !origin) {
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetch(
+          `${origin}/api/community-map/county?county_id=${encodeURIComponent(cell.id)}`,
+          {
+            headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+          },
+        );
+        const json = (await r.json().catch(() => null)) as {
+          ok?: boolean;
+          tierCounts?: TierCounts;
+          elitePlayers?: ElitePlayer[];
+        } | null;
+        if (cancelled) return;
+        if (json?.ok) {
+          if (json.tierCounts) setTierCounts(json.tierCounts);
+          if (Array.isArray(json.elitePlayers)) setElite(json.elitePlayers);
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, cell.id, session?.access_token]);
+
+  const shown = expanded ? elite : elite.slice(0, 5);
+  const moreCount = elite.length > 5 ? elite.length - 5 : 0;
+
+  const tierParts: Array<{ key: keyof TierCounts; label: string; glyph: string }> = [
+    { key: "diamond", label: "Diamond", glyph: "◆" },
+    { key: "platinum", label: "Platinum", glyph: "●" },
+    { key: "gold", label: "Gold", glyph: "●" },
+    { key: "silver", label: "Silver", glyph: "●" },
+    { key: "bronze", label: "Bronze", glyph: "●" },
+  ];
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={s.modalRoot}>
+        <Pressable style={s.modalBackdrop} onPress={onClose} accessibilityLabel="Dismiss" />
+        <View style={s.modalCard}>
+          <ScrollView
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={s.modalScroll}
+          >
+            <Text style={s.popupCity}>{cell.name}</Text>
+            <Text style={s.popupMembersMuted}>👥 {cell.count} total members</Text>
+
+            {tierCounts ? (
+              <Text style={s.tierBreakdownRow}>
+                {tierParts
+                  .filter((t) => (tierCounts[t.key] ?? 0) > 0)
+                  .map((t) => (
+                    <Text key={t.key} style={{ color: TIER_COLORS[t.key], fontWeight: "700" }}>
+                      {t.glyph} {tierCounts[t.key]} {t.label}
+                    </Text>
+                  ))
+                  .reduce<React.ReactNode[]>((acc, node, i) => {
+                    if (i > 0) acc.push(<Text key={`sep-${i}`} style={{ color: MUTED }}> · </Text>);
+                    acc.push(node);
+                    return acc;
+                  }, [])}
+              </Text>
+            ) : null}
+
+            <View style={s.popupDivider} />
+
+            <Text style={s.eliteLabel}>ELITE PLAYERS</Text>
+
+            {loading ? (
+              <ActivityIndicator color={LIME} style={{ marginVertical: 16 }} />
+            ) : elite.length === 0 ? (
+              <Text style={s.eliteEmpty}>No verified Diamond or Platinum players in this county yet.</Text>
+            ) : (
+              <View style={s.eliteList}>
+                {shown.map((p) => {
+                  const color = TIER_COLORS[p.tier];
+                  const pos = (p.playing_position ?? "").trim();
+                  return (
+                    <Pressable
+                      key={p.id}
+                      style={s.eliteRow}
+                      onPress={() => onOpenPlayer(p.id)}
+                      accessibilityRole="button"
+                    >
+                      <View style={[s.eliteAvatarRing, { borderColor: color }]}>
+                        {p.avatar_url ? (
+                          <Image source={{ uri: p.avatar_url }} style={s.eliteAvatarImg} />
+                        ) : (
+                          <View style={[s.eliteAvatarFallback, { backgroundColor: `${color}22` }]}>
+                            <Text style={[s.eliteInitials, { color }]}>
+                              {initialsFromName(p.first_name, p.last_name)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={s.eliteName} numberOfLines={1}>
+                          {displayShortName(p.first_name, p.last_name)}
+                        </Text>
+                        <View style={s.eliteMetaRow}>
+                          <Text style={[s.eliteTierBadge, { color }]}>
+                            {p.tier === "diamond" ? "◆ Diamond" : "● Platinum"}
+                          </Text>
+                          {pos ? <Text style={s.elitePos}>{pos}</Text> : null}
+                        </View>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+                {!expanded && moreCount > 0 ? (
+                  <Pressable onPress={() => setExpanded(true)} hitSlop={8}>
+                    <Text style={s.eliteMore}>+ {moreCount} more</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            )}
+
+            <Text style={s.sessionsLine}>⚽ {cell.upcomingSessions} upcoming sessions in this area</Text>
+
+            <Pressable style={s.popupCloseBtn} onPress={onClose} accessibilityRole="button">
+              <Text style={s.popupCloseBtnText}>Close</Text>
+            </Pressable>
+          </ScrollView>
+        </View>
       </View>
-    </View>
+    </Modal>
   );
 }
 
@@ -929,7 +1165,8 @@ export default function CommunityMapScreen() {
   );
 
   const loading = layer === "members" ? countyLoading : layer === "sessions" ? sessionsLoading : false;
-  const hasPopup = !!(selectedCounty || selectedSession);
+  const hasSessionPopup = !!selectedSession;
+  const hasCountyPopup = !!selectedCounty;
 
   const mapOverlays = useMemo(() => {
     if (layer === "members") {
@@ -968,7 +1205,7 @@ export default function CommunityMapScreen() {
           {mapOverlays}
         </MapView>
 
-        {hasPopup ? (
+        {hasSessionPopup ? (
           <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} pointerEvents="box-only" />
         ) : null}
 
@@ -1005,7 +1242,7 @@ export default function CommunityMapScreen() {
           </View>
         ) : null}
 
-        {layer === "members" && !hasPopup && userLocation ? (
+        {layer === "members" && !hasCountyPopup && !hasSessionPopup && userLocation ? (
           <YourAreaCard
             counties={counties}
             userLat={userLocation.lat}
@@ -1014,20 +1251,28 @@ export default function CommunityMapScreen() {
           />
         ) : null}
 
-        {hasPopup ? (
+        {hasSessionPopup && selectedSession ? (
           <View style={s.popupWrap}>
-            {selectedCounty ? (
-              <CountyPopupCard cell={selectedCounty} onClose={dismiss} />
-            ) : selectedSession ? (
-              <SessionDetailCard
-                session={selectedSession}
-                onClose={dismiss}
-                onNavigate={() =>
-                  router.push(`/session/${encodeURIComponent(selectedSession.id)}`)
-                }
-              />
-            ) : null}
+            <SessionDetailCard
+              session={selectedSession}
+              onClose={dismiss}
+              onNavigate={() =>
+                router.push(`/session/${encodeURIComponent(selectedSession.id)}`)
+              }
+            />
           </View>
+        ) : null}
+
+        {selectedCounty ? (
+          <CountyPopupModal
+            cell={selectedCounty}
+            visible={hasCountyPopup}
+            onClose={dismiss}
+            onOpenPlayer={(userId) => {
+              dismiss();
+              router.push(`/player/${encodeURIComponent(userId)}`);
+            }}
+          />
         ) : null}
       </View>
     </>
@@ -1115,7 +1360,8 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  popupCity: { color: CHALK, fontSize: 18, fontWeight: "700" },
+  popupCity: { color: CHALK, fontSize: 20, fontWeight: "800" },
+  popupMembersMuted: { color: MUTED, fontSize: 14, marginTop: 6, fontWeight: "500" },
   popupSub: { color: MUTED, fontSize: 13, marginTop: 2 },
   popupClose: {
     width: 28,
@@ -1140,6 +1386,92 @@ const s = StyleSheet.create({
     alignItems: "center",
   },
   popupCtaText: { color: BG, fontSize: 14, fontWeight: "700" },
+
+  modalRoot: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.62)",
+  },
+  modalCard: {
+    marginHorizontal: 14,
+    marginBottom: 34,
+    maxHeight: "78%",
+    backgroundColor: SURFACE,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    overflow: "hidden",
+  },
+  modalScroll: {
+    padding: 18,
+    paddingBottom: 20,
+  },
+  tierBreakdownRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 10,
+    fontSize: 13,
+  },
+  tierBreakdownPart: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  popupDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: HAIRLINE,
+    marginVertical: 14,
+  },
+  eliteLabel: {
+    color: LIME,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.4,
+    marginBottom: 10,
+  },
+  eliteEmpty: { color: MUTED, fontSize: 13, marginBottom: 8 },
+  eliteList: { gap: 10 },
+  eliteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  eliteAvatarRing: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  eliteAvatarImg: { width: 36, height: 36, borderRadius: 18 },
+  eliteAvatarFallback: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  eliteInitials: { fontSize: 12, fontWeight: "800" },
+  eliteName: { color: CHALK, fontSize: 15, fontWeight: "700" },
+  eliteMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
+  eliteTierBadge: { fontSize: 12, fontWeight: "700" },
+  elitePos: { color: MUTED, fontSize: 12, fontWeight: "500" },
+  eliteMore: { color: LIME, fontSize: 13, fontWeight: "700", marginTop: 4 },
+  sessionsLine: { color: MUTED, fontSize: 14, marginTop: 16, fontWeight: "500" },
+  popupCloseBtn: {
+    marginTop: 16,
+    backgroundColor: SURFACE_LIFT,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  popupCloseBtnText: { color: CHALK, fontSize: 15, fontWeight: "700" },
 
   activityOverlay: {
     position: "absolute",
