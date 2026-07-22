@@ -26,10 +26,10 @@ const MUTED = "#8A968F";
 const GREEN_MED = "#4a7c59";
 
 const CT_REGION: Region = {
-  latitude: 41.28,
-  longitude: -73.08,
-  latitudeDelta: 1.6,
-  longitudeDelta: 1.6,
+  latitude: 39.5,
+  longitude: -75.5,
+  latitudeDelta: 8.0,
+  longitudeDelta: 8.0,
 };
 
 // ─── ZIP centroid lookup ─────────────────────────────────────────────────────
@@ -122,7 +122,190 @@ const ZIP_INFO: Record<string, ZipInfo> = {
   "10605": { lat: 41.0195, lon: -73.7737, city: "White Plains", region: "Lower Westchester" },
   "10701": { lat: 40.9312, lon: -73.8960, city: "Yonkers", region: "Lower Westchester" },
   "10710": { lat: 40.9812, lon: -73.8557, city: "Yonkers", region: "Lower Westchester" },
+
+  // Manhattan
+  "10001": { lat: 40.7505, lon: -73.9971, city: "Manhattan", region: "Manhattan" },
+  "10011": { lat: 40.7405, lon: -74.0007, city: "Manhattan", region: "Manhattan" },
+  "10023": { lat: 40.7769, lon: -73.9822, city: "Manhattan", region: "Manhattan" },
+  "10025": { lat: 40.7975, lon: -73.9662, city: "Manhattan", region: "Manhattan" },
+  "10128": { lat: 40.7808, lon: -73.9505, city: "Manhattan", region: "Manhattan" },
+
+  // Brooklyn
+  "11201": { lat: 40.6950, lon: -73.9903, city: "Brooklyn", region: "Brooklyn" },
+  "11211": { lat: 40.7143, lon: -73.9563, city: "Brooklyn", region: "Brooklyn" },
+  "11215": { lat: 40.6673, lon: -73.9854, city: "Brooklyn", region: "Brooklyn" },
+  "11221": { lat: 40.6912, lon: -73.9276, city: "Brooklyn", region: "Brooklyn" },
+  "11234": { lat: 40.6167, lon: -73.9235, city: "Brooklyn", region: "Brooklyn" },
+
+  // Queens
+  "11101": { lat: 40.7447, lon: -73.9485, city: "Queens", region: "Queens" },
+  "11354": { lat: 40.7674, lon: -73.8300, city: "Queens", region: "Queens" },
+  "11375": { lat: 40.7220, lon: -73.8448, city: "Queens", region: "Queens" },
+  "11434": { lat: 40.6764, lon: -73.7823, city: "Queens", region: "Queens" },
+  "11691": { lat: 40.6010, lon: -73.7566, city: "Queens", region: "Queens" },
+
+  // Bronx
+  "10451": { lat: 40.8200, lon: -73.9259, city: "Bronx", region: "Bronx" },
+  "10458": { lat: 40.8626, lon: -73.8901, city: "Bronx", region: "Bronx" },
+  "10466": { lat: 40.8912, lon: -73.8480, city: "Bronx", region: "Bronx" },
+  "10467": { lat: 40.8776, lon: -73.8687, city: "Bronx", region: "Bronx" },
+
+  // Westchester (beyond the Southwest CT-adjacent Lower Westchester cluster)
+  "10552": { lat: 40.9165, lon: -73.8288, city: "Mount Vernon", region: "Westchester" },
+  "10801": { lat: 40.9115, lon: -73.7823, city: "New Rochelle", region: "Westchester" },
+  "10528": { lat: 40.9601, lon: -73.7132, city: "Rye", region: "Westchester" },
+  "10583": { lat: 41.0084, lon: -73.8154, city: "Scarsdale", region: "Westchester" },
+  "10566": { lat: 41.2887, lon: -73.9223, city: "Peekskill", region: "Westchester" },
+
+  // Newark
+  "07102": { lat: 40.7357, lon: -74.1724, city: "Newark", region: "Newark" },
+  "07103": { lat: 40.7282, lon: -74.1990, city: "Newark", region: "Newark" },
+  "07104": { lat: 40.7645, lon: -74.1748, city: "Newark", region: "Newark" },
+  "07107": { lat: 40.7568, lon: -74.1935, city: "Newark", region: "Newark" },
+  "07108": { lat: 40.7239, lon: -74.2029, city: "Newark", region: "Newark" },
+
+  // Jersey City
+  "07302": { lat: 40.7178, lon: -74.0431, city: "Jersey City", region: "Jersey City" },
+  "07304": { lat: 40.7096, lon: -74.0776, city: "Jersey City", region: "Jersey City" },
+  "07305": { lat: 40.6890, lon: -74.0865, city: "Jersey City", region: "Jersey City" },
+  "07306": { lat: 40.7326, lon: -74.0640, city: "Jersey City", region: "Jersey City" },
+  "07310": { lat: 40.7255, lon: -74.0349, city: "Jersey City", region: "Jersey City" },
+
+  // Princeton
+  "08540": { lat: 40.3573, lon: -74.6672, city: "Princeton", region: "Princeton" },
+  "08542": { lat: 40.3487, lon: -74.6593, city: "Princeton", region: "Princeton" },
+  "08536": { lat: 40.3226, lon: -74.5460, city: "Plainsboro", region: "Princeton" },
+
+  // Cherry Hill
+  "08002": { lat: 39.9376, lon: -75.0296, city: "Cherry Hill", region: "Cherry Hill" },
+  "08003": { lat: 39.8993, lon: -74.9718, city: "Cherry Hill", region: "Cherry Hill" },
+  "08034": { lat: 39.9037, lon: -75.0621, city: "Cherry Hill", region: "Cherry Hill" },
+
+  // Meadowlands area (East Rutherford / Secaucus / Lyndhurst / Carlstadt)
+  "07072": { lat: 40.8401, lon: -74.0907, city: "Carlstadt", region: "Meadowlands" },
+  "07073": { lat: 40.8123, lon: -74.0765, city: "East Rutherford", region: "Meadowlands" },
+  "07094": { lat: 40.7895, lon: -74.0565, city: "Secaucus", region: "Meadowlands" },
+  "07071": { lat: 40.8123, lon: -74.1090, city: "Lyndhurst", region: "Meadowlands" },
+
+  // Baltimore
+  "21201": { lat: 39.2904, lon: -76.6122, city: "Baltimore", region: "Baltimore" },
+  "21202": { lat: 39.2969, lon: -76.6088, city: "Baltimore", region: "Baltimore" },
+  "21211": { lat: 39.3298, lon: -76.6300, city: "Baltimore", region: "Baltimore" },
+  "21218": { lat: 39.3255, lon: -76.6008, city: "Baltimore", region: "Baltimore" },
+  "21224": { lat: 39.2833, lon: -76.5674, city: "Baltimore", region: "Baltimore" },
+
+  // Rockville
+  "20850": { lat: 39.0840, lon: -77.1528, city: "Rockville", region: "Rockville" },
+  "20851": { lat: 39.0762, lon: -77.1153, city: "Rockville", region: "Rockville" },
+  "20852": { lat: 39.0553, lon: -77.1168, city: "Rockville", region: "Rockville" },
+
+  // Silver Spring
+  "20901": { lat: 39.0034, lon: -77.0199, city: "Silver Spring", region: "Silver Spring" },
+  "20902": { lat: 39.0403, lon: -77.0553, city: "Silver Spring", region: "Silver Spring" },
+  "20910": { lat: 38.9959, lon: -77.0281, city: "Silver Spring", region: "Silver Spring" },
+
+  // Bethesda
+  "20814": { lat: 38.9896, lon: -77.0989, city: "Bethesda", region: "Bethesda" },
+  "20816": { lat: 38.9556, lon: -77.1102, city: "Bethesda", region: "Bethesda" },
+  "20817": { lat: 39.0032, lon: -77.1276, city: "Bethesda", region: "Bethesda" },
+
+  // Annapolis
+  "21401": { lat: 38.9784, lon: -76.4922, city: "Annapolis", region: "Annapolis" },
+  "21403": { lat: 38.9506, lon: -76.4930, city: "Annapolis", region: "Annapolis" },
+  "21409": { lat: 39.0198, lon: -76.4577, city: "Annapolis", region: "Annapolis" },
 };
+
+// Broad prefix-range fallback so any CT/NY/NJ/MD zip that isn't an exact
+// or 3-digit match still buckets into the nearest named hub above.
+// Ranges: CT 060xx-069xx, NY 100xx-149xx, NJ 070xx-089xx, MD 206xx-219xx.
+const PREFIX_FALLBACK_RANGES: Array<{ min: number; max: number; zip: string }> = [
+  // CT 060xx-069xx
+  { min: 60, max: 61, zip: "06101" }, // Hartford Metro
+  { min: 62, max: 63, zip: "06510" }, // Eastern CT -> New Haven Area
+  { min: 64, max: 64, zip: "06510" }, // Shoreline / Valley -> New Haven Area
+  { min: 65, max: 65, zip: "06510" }, // New Haven Area
+  { min: 66, max: 66, zip: "06601" }, // Bridgeport Area
+  { min: 67, max: 67, zip: "06701" }, // Waterbury Area
+  { min: 68, max: 68, zip: "06810" }, // Danbury / Southwest CT (0681x → Danbury)
+  { min: 69, max: 69, zip: "06901" }, // Stamford / Southwest CT
+
+  // NY 100xx-149xx
+  { min: 100, max: 102, zip: "10001" }, // Manhattan
+  { min: 103, max: 103, zip: "10001" }, // Staten Island -> Manhattan
+  { min: 104, max: 104, zip: "10451" }, // Bronx
+  { min: 105, max: 109, zip: "10552" }, // Westchester
+  { min: 110, max: 111, zip: "11101" }, // Queens
+  { min: 112, max: 112, zip: "11201" }, // Brooklyn
+  { min: 113, max: 114, zip: "11375" }, // Queens
+  { min: 116, max: 116, zip: "11691" }, // Queens (Rockaways)
+  { min: 115, max: 149, zip: "10583" }, // Long Island / upstate NY -> Westchester
+
+  // NJ 070xx-089xx
+  { min: 70, max: 70, zip: "07073" }, // Meadowlands / North Hudson
+  { min: 71, max: 71, zip: "07102" }, // Newark
+  { min: 72, max: 72, zip: "07073" }, // Meadowlands corridor
+  { min: 73, max: 73, zip: "07302" }, // Jersey City
+  { min: 74, max: 79, zip: "07073" }, // North Jersey -> Meadowlands
+  { min: 85, max: 85, zip: "08540" }, // Princeton
+  { min: 80, max: 84, zip: "08002" }, // South Jersey -> Cherry Hill
+  { min: 86, max: 89, zip: "08002" }, // Central/South Jersey -> Cherry Hill
+
+  // MD 206xx-219xx
+  { min: 206, max: 207, zip: "20901" }, // Silver Spring / DC suburbs
+  { min: 208, max: 208, zip: "20850" }, // Rockville / Bethesda corridor
+  { min: 209, max: 209, zip: "20901" }, // Silver Spring
+  { min: 210, max: 213, zip: "21201" }, // Baltimore
+  { min: 214, max: 214, zip: "21401" }, // Annapolis
+  { min: 215, max: 219, zip: "21201" }, // Rest of MD -> Baltimore
+];
+
+function resolveZipPrefixFallback(clean: string): ZipInfo | null {
+  const num3 = Number(clean.slice(0, 3));
+  for (const r of PREFIX_FALLBACK_RANGES) {
+    if (num3 >= r.min && num3 <= r.max) return ZIP_INFO[r.zip] ?? null;
+  }
+  return null;
+}
+
+// Map profiles.nearest_venue → a representative ZIP so members without a
+// zip_code still land in the correct city/region cluster.
+const VENUE_TO_ZIP: Record<string, string> = {
+  "Sofive Meadowlands": "07072",
+  "Sofive Meadowlands 5v5": "07072",
+  "Sofive Meadowlands 7v7": "07072",
+  "Sofive Cherry Hill": "08034",
+  "Sofive Cherry Hill 5v5": "08034",
+  "Sofive Cherry Hill 7v7": "08034",
+  "Sofive Brooklyn": "11201",
+  "Hudson Sports Complex": "10990",
+  "Hudson Sports": "10990",
+  "New Rochelle SoccerRoof": "10801",
+  "New Rochelle": "10801",
+  "Sofive Rockville": "20850",
+  "Sofive Columbia": "20901",
+  "SoccerDome Jessup": "20901",
+  "SoccerDome Harmans": "21201",
+  "Baltimore SoccerRoof": "21201",
+  "DC SoccerRoof": "20910",
+  "New Haven SoccerRoof": "06510",
+};
+
+function resolveVenue(venue: string | null | undefined): ZipInfo | null {
+  if (venue == null) return null;
+  const key = String(venue).trim();
+  if (!key) return null;
+  const zip = VENUE_TO_ZIP[key];
+  return zip ? (ZIP_INFO[zip] ?? resolveZipPrefixFallback(zip)) : null;
+}
+
+function resolveMemberArea(
+  zipCode: string | null | undefined,
+  nearestVenue: string | null | undefined,
+): ZipInfo | null {
+  const fromZip = resolveZip(String(zipCode ?? ""));
+  if (fromZip) return fromZip;
+  return resolveVenue(nearestVenue);
+}
 
 // Pre-compute city centroids (average of all ZIPs per city)
 const CITY_CENTER = (() => {
@@ -149,17 +332,40 @@ const REGIONAL_HUBS: Record<string, { lat: number; lon: number }> = {
   "Danbury Area":    { lat: 41.40,  lon: -73.46 },
   "Waterbury Area":  { lat: 41.56,  lon: -73.05 },
   "Lower Westchester": { lat: 41.00, lon: -73.82 },
+
+  // NY
+  "Manhattan":  { lat: 40.7580, lon: -73.9855 },
+  "Brooklyn":   { lat: 40.6782, lon: -73.9442 },
+  "Queens":     { lat: 40.7282, lon: -73.7949 },
+  "Bronx":      { lat: 40.8448, lon: -73.8648 },
+  "Westchester": { lat: 41.0250, lon: -73.7900 },
+
+  // NJ
+  "Newark":      { lat: 40.7357, lon: -74.1724 },
+  "Jersey City": { lat: 40.7178, lon: -74.0431 },
+  "Princeton":   { lat: 40.3573, lon: -74.6672 },
+  "Cherry Hill": { lat: 39.9376, lon: -75.0296 },
+  "Meadowlands": { lat: 40.8123, lon: -74.0765 },
+
+  // MD
+  "Baltimore":    { lat: 39.2904, lon: -76.6122 },
+  "Rockville":    { lat: 39.0840, lon: -77.1528 },
+  "Silver Spring": { lat: 39.0034, lon: -77.0199 },
+  "Bethesda":     { lat: 38.9896, lon: -77.0989 },
+  "Annapolis":    { lat: 38.9784, lon: -76.4922 },
 };
 
 function resolveZip(zip: string): ZipInfo | null {
-  const clean = zip.replace(/\D/g, "").slice(0, 5);
-  if (!clean) return null;
+  const digits = String(zip ?? "").replace(/\D/g, "");
+  if (!digits) return null;
+  // Pad leading zeros so NJ/CT zips like "7102" / "6101" resolve correctly.
+  const clean = digits.length <= 5 ? digits.padStart(5, "0") : digits.slice(0, 5);
   if (ZIP_INFO[clean]) return ZIP_INFO[clean];
   const prefix = clean.slice(0, 3);
   for (const [z, info] of Object.entries(ZIP_INFO)) {
     if (z.startsWith(prefix)) return info;
   }
-  return null;
+  return resolveZipPrefixFallback(clean);
 }
 
 const COS_REF = Math.cos((41.3 * Math.PI) / 180); // ≈ 0.748
@@ -266,6 +472,7 @@ type ActivityStats = {
 function useCommunityData() {
   const { supabase } = useAuth();
   const [cities, setCities] = useState<CityCell[]>([]);
+  const [regionalClusters, setRegionalClusters] = useState<RegionalCluster[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -282,11 +489,11 @@ function useCommunityData() {
       { data: ratings },
       { data: sessionRuns },
     ] = await Promise.all([
+      // Fetch ALL approved profiles — no geographic / zip filters.
       supabase
         .from("profiles")
-        .select("id, zip_code, created_at, updated_at")
-        .eq("approved", true)
-        .not("zip_code", "is", null),
+        .select("id, zip_code, nearest_venue, created_at, updated_at")
+        .eq("approved", true),
       supabase
         .from("player_ratings")
         .select("user_id, tier"),
@@ -307,8 +514,9 @@ function useCommunityData() {
       if (r.user_id && r.tier) tierByUser.set(r.user_id, (r.tier as string).toLowerCase());
     }
 
-    // City aggregation
+    // City aggregation — every resolvable approved member counts
     type CityAgg = {
+      region: string;
       count: number; diamondCount: number; goldPlusCount: number;
       newThisMonth: number; activeThisWeek: number;
       sessionsThisWeek: number; firstSeen: string | null;
@@ -316,12 +524,16 @@ function useCommunityData() {
     const cityMap = new Map<string, CityAgg>();
 
     for (const p of profiles ?? []) {
-      const info = resolveZip(String(p.zip_code ?? ""));
+      const info = resolveMemberArea(
+        p.zip_code as string | null,
+        p.nearest_venue as string | null,
+      );
       if (!info) continue;
       const city = info.city;
 
       if (!cityMap.has(city)) {
         cityMap.set(city, {
+          region: info.region,
           count: 0, diamondCount: 0, goldPlusCount: 0,
           newThisMonth: 0, activeThisWeek: 0,
           sessionsThisWeek: 0, firstSeen: null,
@@ -360,13 +572,18 @@ function useCommunityData() {
       }
     }
 
-    // Build CityCell array (min 5 members for privacy)
-    const result: CityCell[] = [];
+    // City markers (min 5 members for privacy on the map)
+    const cityResult: CityCell[] = [];
+    // Regional totals include EVERY resolved member so cluster counts sum to all approved.
+    const regionMap = new Map<string, number>();
+
     for (const [city, agg] of cityMap.entries()) {
+      regionMap.set(agg.region, (regionMap.get(agg.region) ?? 0) + agg.count);
+
       if (agg.count < 5) continue;
       const center = CITY_CENTER[city];
       if (!center) continue;
-      result.push({
+      cityResult.push({
         city,
         region: center.region,
         lat: center.lat,
@@ -381,27 +598,19 @@ function useCommunityData() {
       });
     }
 
-    setCities(result);
+    const clusterResult: RegionalCluster[] = [];
+    for (const [name, count] of regionMap.entries()) {
+      const hub = REGIONAL_HUBS[name];
+      if (!hub || count < 1) continue;
+      clusterResult.push({ name, lat: hub.lat, lon: hub.lon, count });
+    }
+
+    setCities(cityResult);
+    setRegionalClusters(clusterResult);
     setLoading(false);
   }, [supabase]);
 
   useEffect(() => { void load(); }, [load]);
-
-  // Compute regional clusters from city data
-  const regionalClusters = useMemo<RegionalCluster[]>(() => {
-    const regionMap = new Map<string, { count: number }>();
-    for (const city of cities) {
-      if (!regionMap.has(city.region)) regionMap.set(city.region, { count: 0 });
-      regionMap.get(city.region)!.count += city.count;
-    }
-    const result: RegionalCluster[] = [];
-    for (const [name, agg] of regionMap.entries()) {
-      const hub = REGIONAL_HUBS[name];
-      if (!hub || agg.count < 5) continue;
-      result.push({ name, lat: hub.lat, lon: hub.lon, count: agg.count });
-    }
-    return result;
-  }, [cities]);
 
   return { cities, regionalClusters, loading, reload: load };
 }
