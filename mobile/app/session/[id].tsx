@@ -459,10 +459,10 @@ export default function SessionDetailScreen() {
         return;
       }
       setInvitedIds((prev) => new Set([...prev, player.id]));
-      // Share sheet as a secondary way to send the link
+      const left = run ? Math.max(0, run.capacity - run.spots_taken) : 0;
       await Share.share({
-        message: `Join my CT Pickup session: ${run?.title ?? "Soccer Session"} on ${fmtDate(run?.start_at ?? "")}`,
-        url: `https://ctpickup.net/session/${id}`,
+        message: `Join ${run?.title ?? "a CT Pickup session"} on ${fmtDate(run?.start_at ?? "")} at ${fmt12Hour(run?.start_at ?? "")} — ${left} spot${left === 1 ? "" : "s"} left. Download CT Pickup: https://apps.apple.com/app/id6766061001`,
+        url: `ctpickup://session/${id}`,
       });
     } catch {
       Alert.alert("Invite failed", "Could not invite that player.");
@@ -471,9 +471,10 @@ export default function SessionDetailScreen() {
 
   async function shareSession() {
     try {
+      const left = run ? Math.max(0, run.capacity - run.spots_taken) : 0;
       await Share.share({
-        message: `Join my CT Pickup session: ${run?.title ?? "Soccer Session"} on ${fmtDate(run?.start_at ?? "")} at ${fmt12Hour(run?.start_at ?? "")}`,
-        url: `https://ctpickup.net/session/${id}`,
+        message: `Join ${run?.title ?? "a CT Pickup session"} on ${fmtDate(run?.start_at ?? "")} at ${fmt12Hour(run?.start_at ?? "")} — ${left} spot${left === 1 ? "" : "s"} left. Download CT Pickup: https://apps.apple.com/app/id6766061001`,
+        url: `ctpickup://session/${id}`,
       });
     } catch {}
   }

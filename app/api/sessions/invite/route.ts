@@ -85,7 +85,7 @@ export async function POST(req: Request) {
   await sendPushToUsers(admin, [invitee_id], {
     title: "Session invite 🎯",
     body: `${hostName} invited you to their session on ${sessionDate}`,
-    data: { screen: `session/${run_id}`, run_id },
+    data: { screen: `session/${run_id}`, run_id, url: `ctpickup://session/${run_id}` },
   });
 
   return NextResponse.json({ ok: true, already_invited: !!existingInvite });
