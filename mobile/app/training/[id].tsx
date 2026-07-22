@@ -358,20 +358,26 @@ export default function TrainingDetailScreen() {
           </View>
         </View>
 
-        {/* Live timer */}
+        {/* Live timer + session info */}
         <View style={s.card}>
           <View style={s.liveRow}>
             <View style={[s.liveDot, isEnded && { backgroundColor: "rgba(255,255,255,0.3)" }]} />
             <Text style={[s.liveText, isEnded && { color: "rgba(255,255,255,0.4)" }]}>
-              {isEnded ? "Ended" : elapsed || "Live"}
+              {isEnded ? "Ended" : elapsed || "Just started"}
             </Text>
           </View>
-          {post.training_until && !isEnded && (
+          {post.started_at ? (
+            <View style={s.detailRow}>
+              <FontAwesome name="clock-o" size={14} color="rgba(255,255,255,0.4)" />
+              <Text style={s.detailText}>Started at {fmt12Hour(post.started_at)}</Text>
+            </View>
+          ) : null}
+          {post.training_until ? (
             <View style={s.detailRow}>
               <FontAwesome name="clock-o" size={14} color="rgba(255,255,255,0.4)" />
               <Text style={s.detailText}>Training until {fmt12Hour(post.training_until)}</Text>
             </View>
-          )}
+          ) : null}
           <View style={s.detailRow}>
             <FontAwesome name="map-marker" size={14} color="rgba(255,255,255,0.4)" />
             <Text style={s.detailText}>{post.field_name}</Text>
