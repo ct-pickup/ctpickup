@@ -45,6 +45,32 @@ function tierAtTimeForPickupRsvp(
   return pickupTierAtTimeFromRank(tierRank);
 }
 
+/**
+ * Host-created peer sessions from `/api/sessions/create` have `created_by` and never
+ * assign `final_slot_id` (admin Select runs do). Those sessions use status `planning`
+ * and should allow join/decline without the admin final-slot / availability gate.
+ */
+function isHostCreatedPeerSession(run: {
+  created_by?: string | null;
+  final_slot_id?: string | null;
+}): boolean {
+  const createdBy = run.created_by != null && String(run.created_by).trim().length > 0;
+  const hasFinalSlot = run.final_slot_id != null && String(run.final_slot_id).trim().length > 0;
+  return createdBy && !hasFinalSlot;
+}
+
+function assertPeerSessionOpen(run: { status?: string | null; is_completed?: boolean | null }) {
+  const st = String(run.status || "").trim().toLowerCase();
+  if (st === "canceled" || st === "cancelled") {
+    return { ok: false as const, error: "This run was canceled.", status: 403 };
+  }
+  const completed = run.is_completed === true || st === "completed";
+  if (completed) {
+    return { ok: false as const, error: "This run is already completed.", status: 403 };
+  }
+  return { ok: true as const };
+}
+
 type Body = {
   action: "join" | "decline";
   run_id: string;
@@ -94,16 +120,12 @@ export async function POST(req: Request) {
     if (!run) return NextResponse.json({ error: "Run not found." }, { status: 404 });
 
     const publicRun = isPublicPickupRunType(run.run_type);
+    const hostPeer = isHostCreatedPeerSession(run);
 
-    if (publicRun) {
-      const st = String(run.status || "").trim().toLowerCase();
-      if (st === "canceled" || st === "cancelled") {
-        return NextResponse.json({ error: "This run was canceled." }, { status: 403 });
-      }
-      const completed =
-        (run as { is_completed?: boolean | null }).is_completed === true || st === "completed";
-      if (completed) {
-        return NextResponse.json({ error: "This run is already completed." }, { status: 403 });
+    if (publicRun || hostPeer) {
+      const open = assertPeerSessionOpen(run as { status?: string | null; is_completed?: boolean | null });
+      if (!open.ok) {
+        return NextResponse.json({ error: open.error }, { status: open.status });
       }
     } else {
       if (run.status !== "active" || !run.start_at || !run.final_slot_id) {
@@ -123,32 +145,42 @@ export async function POST(req: Request) {
 
     let eligible = publicRun;
     if (!publicRun) {
-      const inviteRow = await admin
-        .from("pickup_run_invites")
-        .select("user_id")
-        .eq("run_id", run.id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!inviteRow.data) {
-        eligible = false;
+      if (hostPeer && String(run.created_by) === user.id) {
+        eligible = true;
       } else {
-        const myAvail = await admin
-          .from("pickup_run_availability")
-          .select("id")
+        const inviteRow = await admin
+          .from("pickup_run_invites")
+          .select("user_id")
           .eq("run_id", run.id)
           .eq("user_id", user.id)
-          .eq("state", "available")
-          .eq("slot_id", run.final_slot_id)
-          .limit(1)
           .maybeSingle();
 
-        eligible = !!myAvail.data?.id;
+        if (!inviteRow.data) {
+          eligible = false;
+        } else if (hostPeer) {
+          // Host peer select: invite row is enough (no final_slot availability).
+          eligible = true;
+        } else {
+          const myAvail = await admin
+            .from("pickup_run_availability")
+            .select("id")
+            .eq("run_id", run.id)
+            .eq("user_id", user.id)
+            .eq("state", "available")
+            .eq("slot_id", run.final_slot_id)
+            .limit(1)
+            .maybeSingle();
+
+          eligible = !!myAvail.data?.id;
+        }
       }
     }
 
     if (!eligible) {
-      return NextResponse.json({ error: "Not eligible for this final RSVP." }, { status: 403 });
+      return NextResponse.json(
+        { error: hostPeer ? "You're not invited to this session." : "Not eligible for this final RSVP." },
+        { status: 403 },
+      );
     }
 
     const existing = await admin
@@ -322,16 +354,12 @@ export async function POST(req: Request) {
   }
 
   const publicRun = isPublicPickupRunType(run.run_type);
+  const hostPeer = isHostCreatedPeerSession(run);
 
-  if (publicRun) {
-    const st = String(run.status || "").trim().toLowerCase();
-    if (st === "canceled" || st === "cancelled") {
-      return NextResponse.json({ error: "This run was canceled." }, { status: 403 });
-    }
-    const completed =
-      (run as { is_completed?: boolean | null }).is_completed === true || st === "completed";
-    if (completed) {
-      return NextResponse.json({ error: "This run is already completed." }, { status: 403 });
+  if (publicRun || hostPeer) {
+    const open = assertPeerSessionOpen(run as { status?: string | null; is_completed?: boolean | null });
+    if (!open.ok) {
+      return NextResponse.json({ error: open.error }, { status: open.status });
     }
   } else {
     if (run.status !== "active" || !run.start_at || !run.final_slot_id) {
@@ -367,32 +395,42 @@ export async function POST(req: Request) {
 
   let eligible = publicRun;
   if (!publicRun) {
-    const inviteRow = await admin
-      .from("pickup_run_invites")
-      .select("user_id")
-      .eq("run_id", run.id)
-      .eq("user_id", targetUserId)
-      .maybeSingle();
-
-    if (!inviteRow.data) {
-      eligible = false;
+    if (hostPeer && String(run.created_by) === targetUserId) {
+      eligible = true;
     } else {
-      const myAvail = await admin
-        .from("pickup_run_availability")
-        .select("id")
+      const inviteRow = await admin
+        .from("pickup_run_invites")
+        .select("user_id")
         .eq("run_id", run.id)
         .eq("user_id", targetUserId)
-        .eq("state", "available")
-        .eq("slot_id", run.final_slot_id)
-        .limit(1)
         .maybeSingle();
 
-      eligible = !!myAvail.data?.id;
+      if (!inviteRow.data) {
+        eligible = false;
+      } else if (hostPeer) {
+        // Host peer select: invite row is enough (no final_slot availability).
+        eligible = true;
+      } else {
+        const myAvail = await admin
+          .from("pickup_run_availability")
+          .select("id")
+          .eq("run_id", run.id)
+          .eq("user_id", targetUserId)
+          .eq("state", "available")
+          .eq("slot_id", run.final_slot_id)
+          .limit(1)
+          .maybeSingle();
+
+        eligible = !!myAvail.data?.id;
+      }
     }
   }
 
   if (!eligible) {
-    return NextResponse.json({ error: "Not eligible for this final RSVP." }, { status: 403 });
+    return NextResponse.json(
+      { error: hostPeer ? "You're not invited to this session." : "Not eligible for this final RSVP." },
+      { status: 403 },
+    );
   }
 
   // Tier gate — check player's tier against session minimum

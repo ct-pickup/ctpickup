@@ -441,24 +441,32 @@ export default function SessionDetailScreen() {
 
   async function sendInvite(player: PlayerResult) {
     if (invitedIds.has(player.id)) return;
-    setInvitedIds((prev) => new Set([...prev, player.id]));
     const origin = siteOrigin();
     const token = session?.access_token;
+    if (!origin || !token) {
+      Alert.alert("Error", "Not signed in.");
+      return;
+    }
     try {
-      // Send push notification to invitee
-      if (origin && token) {
-        await fetch(`${origin}/api/sessions/invite`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ run_id: id, invitee_id: player.id }),
-        });
+      const r = await fetch(`${origin}/api/sessions/invite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ run_id: id, invitee_id: player.id }),
+      });
+      const j = await r.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+      if (!r.ok || !j?.ok) {
+        Alert.alert("Invite failed", j?.error ?? "Could not invite that player.");
+        return;
       }
-      // Also open share sheet as fallback
+      setInvitedIds((prev) => new Set([...prev, player.id]));
+      // Share sheet as a secondary way to send the link
       await Share.share({
         message: `Join my CT Pickup session: ${run?.title ?? "Soccer Session"} on ${fmtDate(run?.start_at ?? "")}`,
         url: `https://ctpickup.net/session/${id}`,
       });
-    } catch {}
+    } catch {
+      Alert.alert("Invite failed", "Could not invite that player.");
+    }
   }
 
   async function shareSession() {
