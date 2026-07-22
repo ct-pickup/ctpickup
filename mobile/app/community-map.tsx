@@ -26,11 +26,14 @@ const MUTED = "#8A968F";
 const GREEN_MED = "#4a7c59";
 
 const CT_REGION: Region = {
-  latitude: 39.5,
-  longitude: -75.5,
-  latitudeDelta: 8.0,
-  longitudeDelta: 8.0,
+  latitude: 39.0,
+  longitude: -75.8,
+  latitudeDelta: 9.0,
+  longitudeDelta: 9.0,
 };
+
+/** Zoomed-out (latitudeDelta >= 4): merge nearby sub-regions into these mega-clusters. */
+const MACRO_LAT_DELTA = 4;
 
 // ─── ZIP centroid lookup ─────────────────────────────────────────────────────
 
@@ -187,29 +190,40 @@ const ZIP_INFO: Record<string, ZipInfo> = {
   "07094": { lat: 40.7895, lon: -74.0565, city: "Secaucus", region: "Meadowlands" },
   "07071": { lat: 40.8123, lon: -74.1090, city: "Lyndhurst", region: "Meadowlands" },
 
-  // Baltimore
+  // Baltimore area (212xx + nearby)
   "21201": { lat: 39.2904, lon: -76.6122, city: "Baltimore", region: "Baltimore" },
   "21202": { lat: 39.2969, lon: -76.6088, city: "Baltimore", region: "Baltimore" },
   "21211": { lat: 39.3298, lon: -76.6300, city: "Baltimore", region: "Baltimore" },
   "21218": { lat: 39.3255, lon: -76.6008, city: "Baltimore", region: "Baltimore" },
   "21224": { lat: 39.2833, lon: -76.5674, city: "Baltimore", region: "Baltimore" },
+  "21230": { lat: 39.2680, lon: -76.6250, city: "Baltimore", region: "Baltimore" },
+  "21215": { lat: 39.3440, lon: -76.6800, city: "Baltimore", region: "Baltimore" },
+  "21043": { lat: 39.2500, lon: -76.8000, city: "Ellicott City", region: "Baltimore" },
+  "21044": { lat: 39.2037, lon: -76.8610, city: "Columbia", region: "Baltimore" },
+  "21045": { lat: 39.2100, lon: -76.8400, city: "Columbia", region: "Baltimore" },
+  "21076": { lat: 39.1700, lon: -76.7000, city: "Harmans", region: "Baltimore" },
+  "21077": { lat: 39.1600, lon: -76.7000, city: "Harmans", region: "Baltimore" },
 
-  // Rockville
-  "20850": { lat: 39.0840, lon: -77.1528, city: "Rockville", region: "Rockville" },
-  "20851": { lat: 39.0762, lon: -77.1153, city: "Rockville", region: "Rockville" },
-  "20852": { lat: 39.0553, lon: -77.1168, city: "Rockville", region: "Rockville" },
+  // Rockville / DC suburbs (208xx, 209xx, 206–207)
+  "20850": { lat: 39.0840, lon: -77.1528, city: "Rockville", region: "Rockville/DC Suburbs" },
+  "20851": { lat: 39.0762, lon: -77.1153, city: "Rockville", region: "Rockville/DC Suburbs" },
+  "20852": { lat: 39.0553, lon: -77.1168, city: "Rockville", region: "Rockville/DC Suburbs" },
+  "20853": { lat: 39.1000, lon: -77.1000, city: "Rockville", region: "Rockville/DC Suburbs" },
+  "20854": { lat: 39.0500, lon: -77.2200, city: "Potomac", region: "Rockville/DC Suburbs" },
+  "20814": { lat: 38.9896, lon: -77.0989, city: "Bethesda", region: "Rockville/DC Suburbs" },
+  "20815": { lat: 38.9860, lon: -77.0900, city: "Chevy Chase", region: "Rockville/DC Suburbs" },
+  "20816": { lat: 38.9556, lon: -77.1102, city: "Bethesda", region: "Rockville/DC Suburbs" },
+  "20817": { lat: 39.0032, lon: -77.1276, city: "Bethesda", region: "Rockville/DC Suburbs" },
+  "20901": { lat: 39.0034, lon: -77.0199, city: "Silver Spring", region: "Rockville/DC Suburbs" },
+  "20902": { lat: 39.0403, lon: -77.0553, city: "Silver Spring", region: "Rockville/DC Suburbs" },
+  "20910": { lat: 38.9959, lon: -77.0281, city: "Silver Spring", region: "Rockville/DC Suburbs" },
+  "20705": { lat: 39.0400, lon: -76.9100, city: "Beltsville", region: "Rockville/DC Suburbs" },
+  "20740": { lat: 38.9900, lon: -76.9300, city: "College Park", region: "Rockville/DC Suburbs" },
+  "20770": { lat: 39.0000, lon: -76.8800, city: "Greenbelt", region: "Rockville/DC Suburbs" },
+  "20794": { lat: 39.1500, lon: -76.7800, city: "Jessup", region: "Rockville/DC Suburbs" },
+  "20601": { lat: 38.6400, lon: -76.9000, city: "Waldorf", region: "Rockville/DC Suburbs" },
 
-  // Silver Spring
-  "20901": { lat: 39.0034, lon: -77.0199, city: "Silver Spring", region: "Silver Spring" },
-  "20902": { lat: 39.0403, lon: -77.0553, city: "Silver Spring", region: "Silver Spring" },
-  "20910": { lat: 38.9959, lon: -77.0281, city: "Silver Spring", region: "Silver Spring" },
-
-  // Bethesda
-  "20814": { lat: 38.9896, lon: -77.0989, city: "Bethesda", region: "Bethesda" },
-  "20816": { lat: 38.9556, lon: -77.1102, city: "Bethesda", region: "Bethesda" },
-  "20817": { lat: 39.0032, lon: -77.1276, city: "Bethesda", region: "Bethesda" },
-
-  // Annapolis
+  // Annapolis (214xx)
   "21401": { lat: 38.9784, lon: -76.4922, city: "Annapolis", region: "Annapolis" },
   "21403": { lat: 38.9506, lon: -76.4930, city: "Annapolis", region: "Annapolis" },
   "21409": { lat: 39.0198, lon: -76.4577, city: "Annapolis", region: "Annapolis" },
@@ -250,13 +264,11 @@ const PREFIX_FALLBACK_RANGES: Array<{ min: number; max: number; zip: string }> =
   { min: 80, max: 84, zip: "08002" }, // South Jersey -> Cherry Hill
   { min: 86, max: 89, zip: "08002" }, // Central/South Jersey -> Cherry Hill
 
-  // MD 206xx-219xx
-  { min: 206, max: 207, zip: "20901" }, // Silver Spring / DC suburbs
-  { min: 208, max: 208, zip: "20850" }, // Rockville / Bethesda corridor
-  { min: 209, max: 209, zip: "20901" }, // Silver Spring
-  { min: 210, max: 213, zip: "21201" }, // Baltimore
+  // MD 206xx-219xx → three hubs (Baltimore / Rockville-DC / Annapolis)
+  { min: 206, max: 209, zip: "20850" }, // Rockville / DC suburbs
+  { min: 210, max: 213, zip: "21201" }, // Baltimore area
   { min: 214, max: 214, zip: "21401" }, // Annapolis
-  { min: 215, max: 219, zip: "21201" }, // Rest of MD -> Baltimore
+  { min: 215, max: 219, zip: "21201" }, // Rest of MD → Baltimore
 ];
 
 function resolveZipPrefixFallback(clean: string): ZipInfo | null {
@@ -282,9 +294,9 @@ const VENUE_TO_ZIP: Record<string, string> = {
   "New Rochelle SoccerRoof": "10801",
   "New Rochelle": "10801",
   "Sofive Rockville": "20850",
-  "Sofive Columbia": "20901",
-  "SoccerDome Jessup": "20901",
-  "SoccerDome Harmans": "21201",
+  "Sofive Columbia": "21044",
+  "SoccerDome Jessup": "20794",
+  "SoccerDome Harmans": "21077",
   "Baltimore SoccerRoof": "21201",
   "DC SoccerRoof": "20910",
   "New Haven SoccerRoof": "06510",
@@ -323,37 +335,63 @@ const CITY_CENTER = (() => {
   return out;
 })();
 
-// Regional hub centroids for zoomed-out clusters
-const REGIONAL_HUBS: Record<string, { lat: number; lon: number }> = {
-  "Southwest CT":    { lat: 41.09,  lon: -73.53 },
-  "Bridgeport Area": { lat: 41.19,  lon: -73.19 },
-  "New Haven Area":  { lat: 41.30,  lon: -72.97 },
-  "Hartford Metro":  { lat: 41.76,  lon: -72.69 },
-  "Danbury Area":    { lat: 41.40,  lon: -73.46 },
-  "Waterbury Area":  { lat: 41.56,  lon: -73.05 },
-  "Lower Westchester": { lat: 41.00, lon: -73.82 },
+/**
+ * Mega-clusters shown when latitudeDelta >= MACRO_LAT_DELTA.
+ * Nearby overlapping sub-regions (within ~50 mi of each other) collapse into one pin.
+ */
+const MACRO_CLUSTERS: Array<{
+  name: string;
+  lat: number;
+  lon: number;
+  regions: string[];
+}> = [
+  {
+    name: "Northeast CT/NY",
+    lat: 40.95,
+    lon: -73.75,
+    regions: [
+      "Southwest CT",
+      "Lower Westchester",
+      "Westchester",
+      "Manhattan",
+      "Bronx",
+      "Queens",
+      "Brooklyn",
+    ],
+  },
+  {
+    name: "Connecticut",
+    lat: 41.45,
+    lon: -72.90,
+    regions: [
+      "Hartford Metro",
+      "New Haven Area",
+      "Waterbury Area",
+      "Danbury Area",
+      "Bridgeport Area",
+    ],
+  },
+  {
+    name: "New Jersey",
+    lat: 40.45,
+    lon: -74.40,
+    regions: ["Newark", "Jersey City", "Princeton", "Cherry Hill", "Meadowlands"],
+  },
+  {
+    name: "Maryland",
+    lat: 39.15,
+    lon: -76.75,
+    regions: ["Baltimore", "Rockville/DC Suburbs", "Annapolis"],
+  },
+];
 
-  // NY
-  "Manhattan":  { lat: 40.7580, lon: -73.9855 },
-  "Brooklyn":   { lat: 40.6782, lon: -73.9442 },
-  "Queens":     { lat: 40.7282, lon: -73.7949 },
-  "Bronx":      { lat: 40.8448, lon: -73.8648 },
-  "Westchester": { lat: 41.0250, lon: -73.7900 },
-
-  // NJ
-  "Newark":      { lat: 40.7357, lon: -74.1724 },
-  "Jersey City": { lat: 40.7178, lon: -74.0431 },
-  "Princeton":   { lat: 40.3573, lon: -74.6672 },
-  "Cherry Hill": { lat: 39.9376, lon: -75.0296 },
-  "Meadowlands": { lat: 40.8123, lon: -74.0765 },
-
-  // MD
-  "Baltimore":    { lat: 39.2904, lon: -76.6122 },
-  "Rockville":    { lat: 39.0840, lon: -77.1528 },
-  "Silver Spring": { lat: 39.0034, lon: -77.0199 },
-  "Bethesda":     { lat: 38.9896, lon: -77.0989 },
-  "Annapolis":    { lat: 38.9784, lon: -76.4922 },
-};
+const REGION_TO_MACRO: Record<string, string> = (() => {
+  const out: Record<string, string> = {};
+  for (const m of MACRO_CLUSTERS) {
+    for (const r of m.regions) out[r] = m.name;
+  }
+  return out;
+})();
 
 function resolveZip(zip: string): ZipInfo | null {
   const digits = String(zip ?? "").replace(/\D/g, "");
@@ -374,16 +412,6 @@ function distSq(aLat: number, aLon: number, bLat: number, bLon: number): number 
   const dLat = aLat - bLat;
   const dLon = (aLon - bLon) * COS_REF;
   return dLat * dLat + dLon * dLon;
-}
-
-function nearestCityName(lat: number, lon: number): string | null {
-  let best: string | null = null;
-  let bestD = Infinity;
-  for (const [city, c] of Object.entries(CITY_CENTER)) {
-    const d = distSq(lat, lon, c.lat, c.lon);
-    if (d < bestD) { bestD = d; best = city; }
-  }
-  return best;
 }
 
 // ─── sizing & color helpers ──────────────────────────────────────────────────
@@ -472,7 +500,7 @@ type ActivityStats = {
 function useCommunityData() {
   const { supabase } = useAuth();
   const [cities, setCities] = useState<CityCell[]>([]);
-  const [regionalClusters, setRegionalClusters] = useState<RegionalCluster[]>([]);
+  const [macroClusters, setMacroClusters] = useState<RegionalCluster[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -574,7 +602,7 @@ function useCommunityData() {
 
     // City markers (min 5 members for privacy on the map)
     const cityResult: CityCell[] = [];
-    // Regional totals include EVERY resolved member so cluster counts sum to all approved.
+    // Sub-region totals include EVERY resolved member (feeds macro clusters).
     const regionMap = new Map<string, number>();
 
     for (const [city, agg] of cityMap.entries()) {
@@ -598,21 +626,28 @@ function useCommunityData() {
       });
     }
 
-    const clusterResult: RegionalCluster[] = [];
-    for (const [name, count] of regionMap.entries()) {
-      const hub = REGIONAL_HUBS[name];
-      if (!hub || count < 1) continue;
-      clusterResult.push({ name, lat: hub.lat, lon: hub.lon, count });
+    // Mega-clusters for zoomed-out view (no overlapping nearby pins)
+    const macroCounts = new Map<string, number>();
+    for (const [region, count] of regionMap.entries()) {
+      const macro = REGION_TO_MACRO[region];
+      if (!macro) continue;
+      macroCounts.set(macro, (macroCounts.get(macro) ?? 0) + count);
+    }
+    const macroResult: RegionalCluster[] = [];
+    for (const def of MACRO_CLUSTERS) {
+      const count = macroCounts.get(def.name) ?? 0;
+      if (count < 1) continue;
+      macroResult.push({ name: def.name, lat: def.lat, lon: def.lon, count });
     }
 
     setCities(cityResult);
-    setRegionalClusters(clusterResult);
+    setMacroClusters(macroResult);
     setLoading(false);
   }, [supabase]);
 
   useEffect(() => { void load(); }, [load]);
 
-  return { cities, regionalClusters, loading, reload: load };
+  return { cities, macroClusters, loading, reload: load };
 }
 
 function useSessionPins() {
@@ -998,12 +1033,15 @@ function SessionDetailCard({
 // ─── regional cluster popup ───────────────────────────────────────────────────
 
 function RegionalPopupCard({ cluster, onClose }: { cluster: RegionalCluster; onClose: () => void }) {
+  const isMacro = MACRO_CLUSTERS.some((m) => m.name === cluster.name);
   return (
     <View style={s.popupCard}>
       <View style={s.popupHeader}>
         <View style={{ flex: 1, marginRight: 10 }}>
           <Text style={s.popupCity}>{cluster.name}</Text>
-          <Text style={s.popupSub}>Regional cluster — zoom in to see cities</Text>
+          <Text style={s.popupSub}>
+            {isMacro ? "Zoom in to see cities" : "Regional cluster — zoom in for cities"}
+          </Text>
         </View>
         <Pressable onPress={onClose} hitSlop={12} style={s.popupClose}>
           <Text style={s.popupCloseText}>✕</Text>
@@ -1108,6 +1146,50 @@ function latDeltaToZoom(latDelta: number): number {
   return Math.log2(360 / Math.max(latDelta, 0.001));
 }
 
+/** ~50 miles in degrees of latitude (1° lat ≈ 69 mi). */
+const MERGE_RADIUS_DEG = 50 / 69; // ≈ 0.725°
+const MERGE_RADIUS_SQ = MERGE_RADIUS_DEG * MERGE_RADIUS_DEG;
+
+/**
+ * Greedy merge of nearby city cells so overlapping pins collapse when zoomed out.
+ * Anything within ~50 miles of a cluster centroid joins that cluster.
+ */
+function mergeNearbyCities(cells: CityCell[]): RegionalCluster[] {
+  type Acc = { name: string; lat: number; lon: number; count: number; n: number };
+  const clusters: Acc[] = [];
+
+  // Largest first so big hubs absorb nearby small cities
+  const sorted = [...cells].sort((a, b) => b.count - a.count);
+  for (const cell of sorted) {
+    let bestIdx = -1;
+    let bestD = MERGE_RADIUS_SQ;
+    for (let i = 0; i < clusters.length; i++) {
+      const c = clusters[i];
+      const d = distSq(cell.lat, cell.lon, c.lat, c.lon);
+      if (d < bestD) { bestD = d; bestIdx = i; }
+    }
+    if (bestIdx >= 0) {
+      const c = clusters[bestIdx];
+      const total = c.count + cell.count;
+      c.lat = (c.lat * c.count + cell.lat * cell.count) / total;
+      c.lon = (c.lon * c.count + cell.lon * cell.count) / total;
+      c.count = total;
+      c.n++;
+      // Keep the dominant city name for the label
+    } else {
+      clusters.push({
+        name: cell.city,
+        lat: cell.lat,
+        lon: cell.lon,
+        count: cell.count,
+        n: 1,
+      });
+    }
+  }
+
+  return clusters.map(({ name, lat, lon, count }) => ({ name, lat, lon, count }));
+}
+
 export default function CommunityMapScreen() {
   const router = useRouter();
   const [layer, setLayer] = useState<Layer>("members");
@@ -1118,7 +1200,7 @@ export default function CommunityMapScreen() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const mapRef = useRef<MapView>(null);
 
-  const { cities, regionalClusters, loading: cityLoading } = useCommunityData();
+  const { cities, macroClusters, loading: cityLoading } = useCommunityData();
   const { sessions, loading: sessionsLoading } = useSessionPins();
   const activityStats = useActivityStats();
 
@@ -1135,11 +1217,20 @@ export default function CommunityMapScreen() {
   }, []);
 
   const zoom = latDeltaToZoom(region.latitudeDelta);
-  // zoom < 8  (~latDelta > 1.4): show regional clusters
-  // zoom 8-10 (~latDelta 0.35-1.4): show city circles
-  // zoom > 10 (~latDelta < 0.35): show city circles (hide below 0.03 for privacy)
-  const showRegional = zoom < 8;
-  const showCities   = zoom >= 8 && region.latitudeDelta > 0.03;
+  // latitudeDelta >= 4: 4 mega-clusters (Northeast CT/NY, Connecticut, NJ, Maryland)
+  // zoom < 9 (still somewhat zoomed out): merge cities within ~50 miles
+  // zoom >= 9: individual city circles
+  const showMacro = region.latitudeDelta >= MACRO_LAT_DELTA;
+  const showMergedCities = !showMacro && zoom < 9 && region.latitudeDelta > 0.03;
+  const showCities = !showMacro && zoom >= 9 && region.latitudeDelta > 0.03;
+  const showRegional = showMacro || showMergedCities;
+
+  const mergedCityClusters = useMemo(
+    () => (showMergedCities ? mergeNearbyCities(cities) : []),
+    [showMergedCities, cities],
+  );
+
+  const regionalClusters = showMacro ? macroClusters : mergedCityClusters;
 
   const dismiss = useCallback(() => {
     setSelectedCity(null);
@@ -1159,12 +1250,13 @@ export default function CommunityMapScreen() {
   const handleRegionalPress = useCallback((cluster: RegionalCluster) => {
     dismiss();
     setSelectedRegion(cluster);
-    // Zoom in to city level
+    // Zoom in past the macro threshold so cities / mid-clusters appear
+    const nextDelta = showMacro ? 2.5 : 0.6;
     mapRef.current?.animateToRegion(
-      { latitude: cluster.lat, longitude: cluster.lon, latitudeDelta: 0.7, longitudeDelta: 0.7 },
+      { latitude: cluster.lat, longitude: cluster.lon, latitudeDelta: nextDelta, longitudeDelta: nextDelta },
       350,
     );
-  }, [dismiss]);
+  }, [dismiss, showMacro]);
 
   const handleSessionPress = useCallback((session: SessionPin) => {
     dismiss();
