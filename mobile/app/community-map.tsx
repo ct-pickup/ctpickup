@@ -39,17 +39,18 @@ const TIER_COLORS: Record<string, string> = {
   bronze: "#B87333",
 };
 
-/** Tight service-area view: CT, NY metro, NJ, northern MD — no Canada / Carolinas. */
+/** Northeast service area: CT, NY, NJ, and MD. */
 const SERVICE_REGION: Region = {
-  latitude: 40.5,
-  longitude: -74.2,
-  latitudeDelta: 4.5,
-  longitudeDelta: 4.5,
+  latitude: 39.5,
+  longitude: -75.5,
+  latitudeDelta: 8.0,
+  longitudeDelta: 8.0,
 };
 
-const MIN_MEMBERS_FOR_CIRCLE = 3;
+/** Show every non-empty cluster so circle counts sum to all grouped members. */
+const MIN_MEMBERS_FOR_CIRCLE = 1;
 
-// ─── county definitions (ZIP ranges → fixed centroids) ───────────────────────
+// ─── region definitions (ZIP ranges → fixed centroids) ───────────────────────
 
 type CountyDef = {
   id: string;
@@ -63,11 +64,12 @@ type CountyDef = {
 };
 
 /**
- * Order matters when ranges overlap (e.g. Middlesex CT 06400–06459 before New Haven
- * 06400–06599; Bronx 104xx before Manhattan 100–104; Westchester 107 before Rockland).
+ * Order matters when ranges overlap — list specific cities before state catch-alls.
+ * ZIP coverage: CT 060xx–069xx, NJ 070xx–089xx, NY 100xx–149xx, MD 206xx–219xx.
+ * Numeric ranges drop leading zeros (e.g. 07072 → 7072).
  */
 const COUNTY_DEFS: CountyDef[] = [
-  // Connecticut
+  // ── Connecticut (060xx–069xx) ──────────────────────────────────────────────
   {
     id: "ct-middlesex",
     name: "Middlesex County",
@@ -119,8 +121,16 @@ const COUNTY_DEFS: CountyDef[] = [
     lon: -72.2001,
     ranges: [{ min: 6200, max: 6399 }],
   },
+  {
+    id: "ct-other",
+    name: "Connecticut",
+    shortName: "CT",
+    lat: 41.6032,
+    lon: -73.0877,
+    ranges: [{ min: 6000, max: 6999 }],
+  },
 
-  // New York
+  // ── New York (100xx–149xx) — cities first, then LI / catch-all ─────────────
   {
     id: "ny-bronx",
     name: "Bronx",
@@ -131,35 +141,53 @@ const COUNTY_DEFS: CountyDef[] = [
   },
   {
     id: "ny-manhattan",
-    name: "Manhattan / NYC",
+    name: "Manhattan",
     shortName: "Manhattan",
     lat: 40.7831,
     lon: -73.9712,
-    ranges: [{ min: 10000, max: 10499 }],
+    ranges: [
+      { min: 10000, max: 10299 },
+      { min: 10300, max: 10399 }, // Staten Island → Manhattan hub
+    ],
+  },
+  {
+    id: "ny-brooklyn",
+    name: "Brooklyn",
+    shortName: "Brooklyn",
+    lat: 40.6782,
+    lon: -73.9442,
+    ranges: [{ min: 11200, max: 11299 }],
+  },
+  {
+    id: "ny-queens",
+    name: "Queens",
+    shortName: "Queens",
+    lat: 40.7282,
+    lon: -73.7949,
+    ranges: [
+      { min: 11000, max: 11199 },
+      { min: 11300, max: 11499 },
+      { min: 11600, max: 11699 },
+    ],
   },
   {
     id: "ny-westchester",
-    name: "Westchester County",
+    name: "Westchester",
     shortName: "Westchester",
     lat: 41.122,
     lon: -73.7949,
     ranges: [
-      { min: 10500, max: 10599 },
-      { min: 10700, max: 10799 },
-      { min: 10800, max: 10899 },
+      { min: 10500, max: 10699 },
+      { min: 10700, max: 10899 },
     ],
   },
   {
-    id: "ny-brooklyn-queens",
-    name: "Brooklyn / Queens",
-    shortName: "Brooklyn",
-    lat: 40.6501,
-    lon: -73.9496,
-    ranges: [
-      { min: 11200, max: 11299 },
-      { min: 11300, max: 11399 },
-      { min: 11400, max: 11499 },
-    ],
+    id: "ny-rockland-orange",
+    name: "Rockland / Orange",
+    shortName: "Rockland",
+    lat: 41.2809,
+    lon: -74.0121,
+    ranges: [{ min: 10900, max: 10999 }],
   },
   {
     id: "ny-nassau",
@@ -178,97 +206,144 @@ const COUNTY_DEFS: CountyDef[] = [
     ranges: [{ min: 11700, max: 11999 }],
   },
   {
-    id: "ny-rockland-orange",
-    name: "Rockland / Orange County",
-    shortName: "Rockland",
-    lat: 41.2809,
-    lon: -74.0121,
-    ranges: [
-      { min: 10900, max: 10999 },
-      { min: 10700, max: 10799 },
-    ],
+    id: "ny-other",
+    name: "New York",
+    shortName: "NY",
+    lat: 41.7003,
+    lon: -73.9209,
+    ranges: [{ min: 10000, max: 14999 }],
   },
 
-  // New Jersey
+  // ── New Jersey (070xx–089xx) ───────────────────────────────────────────────
   {
-    id: "nj-bergen",
-    name: "Bergen County",
-    shortName: "Bergen",
-    lat: 40.9584,
-    lon: -74.0735,
+    id: "nj-meadowlands",
+    name: "Meadowlands",
+    shortName: "Meadowlands",
+    lat: 40.8123,
+    lon: -74.0765,
     ranges: [
-      { min: 7400, max: 7499 },
-      { min: 7600, max: 7699 },
+      { min: 7071, max: 7073 }, // Lyndhurst / Carlstadt / E. Rutherford
+      { min: 7094, max: 7094 }, // Secaucus
+      { min: 7031, max: 7032 }, // Kearny / E. Rutherford corridor
     ],
   },
   {
-    id: "nj-essex-hudson",
-    name: "Essex / Hudson County",
-    shortName: "Essex",
+    id: "nj-newark",
+    name: "Newark",
+    shortName: "Newark",
     lat: 40.7357,
     lon: -74.1724,
+    ranges: [{ min: 7100, max: 7199 }],
+  },
+  {
+    id: "nj-jersey-city",
+    name: "Jersey City",
+    shortName: "Jersey City",
+    lat: 40.7178,
+    lon: -74.0431,
+    ranges: [{ min: 7300, max: 7399 }],
+  },
+  {
+    id: "nj-princeton",
+    name: "Princeton",
+    shortName: "Princeton",
+    lat: 40.3573,
+    lon: -74.6672,
+    ranges: [
+      { min: 8540, max: 8544 },
+      { min: 8536, max: 8536 },
+      { min: 8500, max: 8599 },
+    ],
+  },
+  {
+    id: "nj-cherry-hill",
+    name: "Cherry Hill",
+    shortName: "Cherry Hill",
+    lat: 39.9376,
+    lon: -75.0296,
+    ranges: [
+      { min: 8002, max: 8003 },
+      { min: 8034, max: 8034 },
+      { min: 8000, max: 8499 }, // South / Central Jersey catch → Cherry Hill
+    ],
+  },
+  {
+    id: "nj-north",
+    name: "North Jersey",
+    shortName: "N. Jersey",
+    lat: 40.9,
+    lon: -74.15,
     ranges: [
       { min: 7000, max: 7099 },
-      { min: 7100, max: 7199 },
       { min: 7200, max: 7299 },
+      { min: 7400, max: 7999 },
     ],
   },
   {
-    id: "nj-middlesex-union",
-    name: "Middlesex / Union County",
-    shortName: "Middlesex NJ",
-    lat: 40.5018,
-    lon: -74.2643,
-    ranges: [
-      { min: 7000, max: 7099 },
-      { min: 8800, max: 8899 },
-      { min: 8900, max: 8999 },
-    ],
-  },
-  {
-    id: "nj-monmouth-ocean",
-    name: "Monmouth / Ocean County",
-    shortName: "Monmouth",
-    lat: 40.2171,
-    lon: -74.006,
-    ranges: [
-      { min: 7700, max: 7799 },
-      { min: 7800, max: 7899 },
-    ],
+    id: "nj-other",
+    name: "New Jersey",
+    shortName: "NJ",
+    lat: 40.0583,
+    lon: -74.4057,
+    ranges: [{ min: 7000, max: 8999 }],
   },
 
-  // Maryland
+  // ── Maryland (206xx–219xx) ─────────────────────────────────────────────────
   {
-    id: "md-montgomery",
-    name: "Montgomery County",
-    shortName: "Montgomery",
+    id: "md-bethesda",
+    name: "Bethesda",
+    shortName: "Bethesda",
+    lat: 38.9896,
+    lon: -77.0989,
+    ranges: [{ min: 20814, max: 20817 }],
+  },
+  {
+    id: "md-rockville",
+    name: "Rockville",
+    shortName: "Rockville",
     lat: 39.084,
     lon: -77.1528,
-    ranges: [{ min: 20800, max: 20899 }],
+    ranges: [
+      { min: 20850, max: 20857 },
+      { min: 20847, max: 20849 },
+      { min: 20800, max: 20899 }, // remaining Montgomery → Rockville
+    ],
   },
   {
-    id: "md-baltimore",
-    name: "Baltimore County / City",
-    shortName: "Baltimore",
-    lat: 39.2904,
-    lon: -76.6122,
-    ranges: [{ min: 21200, max: 21299 }],
+    id: "md-silver-spring",
+    name: "Silver Spring",
+    shortName: "Silver Sp.",
+    lat: 39.0034,
+    lon: -77.0199,
+    ranges: [{ min: 20900, max: 20999 }],
   },
   {
-    id: "md-prince-georges",
-    name: "Prince George's County",
-    shortName: "Pr. George's",
-    lat: 38.8951,
-    lon: -76.8722,
-    ranges: [{ min: 20700, max: 20799 }],
-  },
-  {
-    id: "md-anne-arundel",
-    name: "Anne Arundel County",
-    shortName: "Anne Arundel",
+    id: "md-annapolis",
+    name: "Annapolis",
+    shortName: "Annapolis",
     lat: 38.9784,
     lon: -76.4922,
     ranges: [{ min: 21400, max: 21499 }],
+  },
+  {
+    id: "md-baltimore",
+    name: "Baltimore",
+    shortName: "Baltimore",
+    lat: 39.2904,
+    lon: -76.6122,
+    ranges: [
+      { min: 21200, max: 21299 },
+      { min: 21000, max: 21199 },
+      { min: 21300, max: 21399 },
+    ],
+  },
+  {
+    id: "md-other",
+    name: "Maryland",
+    shortName: "MD",
+    lat: 39.0458,
+    lon: -76.6413,
+    ranges: [{ min: 20600, max: 21999 }],
   },
 ];
 
@@ -303,18 +378,20 @@ const VENUE_TO_ZIP: Record<string, string> = {
   "Sofive Meadowlands": "07072",
   "Sofive Meadowlands 5v5": "07072",
   "Sofive Meadowlands 7v7": "07072",
+  "Sofive Cherry Hill": "08034",
+  "Sofive Cherry Hill 5v5": "08034",
+  "Sofive Cherry Hill 7v7": "08034",
   "Sofive Brooklyn": "11201",
   "Hudson Sports Complex": "10990",
   "Hudson Sports": "10990",
   "New Rochelle SoccerRoof": "10801",
   "New Rochelle": "10801",
   "Sofive Rockville": "20850",
-  // Columbia / Harmans sit just outside listed MD ZIP ranges → nearest hub county
-  "Sofive Columbia": "21201",
+  "Sofive Columbia": "20901",
   "SoccerDome Jessup": "20794",
   "SoccerDome Harmans": "21201",
   "Baltimore SoccerRoof": "21201",
-  "DC SoccerRoof": "20850",
+  "DC SoccerRoof": "20910",
   "New Haven SoccerRoof": "06510",
 };
 
@@ -333,7 +410,7 @@ function resolveMemberCounty(
   return countyForZip(zipCode) ?? countyForVenue(nearestVenue);
 }
 
-const COS_REF = Math.cos((40.5 * Math.PI) / 180);
+const COS_REF = Math.cos((39.5 * Math.PI) / 180);
 
 function distSq(aLat: number, aLon: number, bLat: number, bLon: number): number {
   const dLat = aLat - bLat;
@@ -436,7 +513,8 @@ function useCommunityData() {
     const token = session?.access_token ?? null;
     const origin = siteOrigin();
 
-    const [{ data: profiles }, { data: ratings }, { data: sessionRuns }, overviewRes] =
+    // Fetch ALL approved profiles — no geographic filter. Group every row by area.
+    const [{ data: profiles, error: profilesError }, { data: ratings }, { data: sessionRuns }, overviewRes] =
       await Promise.all([
         supabase.from("profiles").select("id, zip_code, nearest_venue").eq("approved", true),
         supabase.from("player_ratings").select("user_id, tier"),
@@ -457,6 +535,13 @@ function useCommunityData() {
               .catch(() => null)
           : Promise.resolve(null),
       ]);
+
+    if (profilesError) {
+      console.warn("[community-map] profiles query failed", profilesError.message);
+    }
+    if (__DEV__ && profiles) {
+      console.log(`[community-map] approved profiles fetched: ${profiles.length}`);
+    }
 
     const verifiedDiamondByCounty: Record<string, number> = {};
     if (
@@ -480,6 +565,7 @@ function useCommunityData() {
 
     type Agg = { count: number; diamondCount: number; upcomingSessions: number };
     const countyMap = new Map<string, Agg>();
+    let groupedCount = 0;
 
     for (const p of profiles ?? []) {
       const county = resolveMemberCounty(
@@ -493,7 +579,14 @@ function useCommunityData() {
       }
       const agg = countyMap.get(county.id)!;
       agg.count++;
+      groupedCount++;
       if ((tierByUser.get(p.id as string) ?? "") === "diamond") agg.diamondCount++;
+    }
+
+    if (__DEV__) {
+      console.log(
+        `[community-map] grouped ${groupedCount}/${profiles?.length ?? 0} members into ${countyMap.size} areas`,
+      );
     }
 
     // Assign upcoming sessions to nearest county centroid (~25 mi / ~0.36°)
