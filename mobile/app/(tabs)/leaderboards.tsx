@@ -85,6 +85,7 @@ type TierPlayer = {
   score: number;
   sessions: number;
   reliability: number;
+  points: number;
   name: string;
   username: string | null;
   avatar_url: string | null;
@@ -304,7 +305,7 @@ export default function LeaderboardsScreen() {
         bronze: 0,
       };
 
-      const mapped: TierPlayer[] = [];
+      const merged: Omit<TierPlayer, "points">[] = [];
       for (const item of tiersRaw) {
         if (!isRecord(item)) continue;
         const userId = typeof item.user_id === "string" ? item.user_id : null;
@@ -313,9 +314,10 @@ export default function LeaderboardsScreen() {
         const last = typeof item.last_name === "string" ? item.last_name : null;
         const username = typeof item.username === "string" ? item.username : null;
         const name = [first, last].filter(Boolean).join(" ").trim() || username || "Player";
-        mapped.push({
+        const tier = (typeof item.tier === "string" ? item.tier : "bronze").toLowerCase();
+        merged.push({
           user_id: userId,
-          tier: (typeof item.tier === "string" ? item.tier : "bronze").toLowerCase(),
+          tier,
           score: typeof item.score === "number" && Number.isFinite(item.score) ? item.score : 50,
           sessions: typeof item.sessions === "number" && Number.isFinite(item.sessions) ? item.sessions : 0,
           reliability:
@@ -329,16 +331,15 @@ export default function LeaderboardsScreen() {
         });
       }
 
-      // Rank by rating score (tier strength), not sessions played.
-      // Points (sessions × tierPts × 10) are display-only; score breaks ties / orders zeros.
-      mapped.sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        const ptsA = (a.sessions ?? 0) * (TIER_PTS[a.tier] ?? 0) * 10;
-        const ptsB = (b.sessions ?? 0) * (TIER_PTS[b.tier] ?? 0) * 10;
-        return ptsB - ptsA;
-      });
+      // Points = sessions × tierPtsPerSession × 10; rank by points (not raw score).
+      const sorted = merged
+        .map((r) => ({
+          ...r,
+          points: (r.sessions ?? 0) * (TIER_PTS[r.tier] ?? 0) * 10,
+        }))
+        .sort((a, b) => b.points - a.points || b.score - a.score);
 
-      setTierPlayers(mapped);
+      setTierPlayers(sorted);
 
       // My tier + percentile (own row is readable under RLS).
       if (myUserId && supabase) {
@@ -350,12 +351,14 @@ export default function LeaderboardsScreen() {
         if (mine) {
           const myRow = mine as { tier: string | null; score: number | null; sessions: number | null };
           const myScore = myRow.score ?? 0;
-          const total = mapped.length;
-          const better = mapped.filter((p) => p.score > myScore).length;
+          const myTier = (myRow.tier ?? "bronze").toLowerCase();
+          const myPoints = (myRow.sessions ?? 0) * (TIER_PTS[myTier] ?? 0) * 10;
+          const total = sorted.length;
+          const better = sorted.filter((p) => p.points > myPoints).length;
           const percentile =
             total > 0 ? Math.min(100, Math.max(1, Math.round((better / total) * 100))) : null;
           const resolved: MyTier = {
-            tier: (myRow.tier ?? "bronze").toLowerCase(),
+            tier: myTier,
             score: myScore,
             sessions: myRow.sessions ?? 0,
             percentile,
@@ -559,9 +562,7 @@ export default function LeaderboardsScreen() {
     const mine = myUserId != null && item.user_id === myUserId;
     const color = tierColor(item.tier);
     const top3 = rank <= 3;
-    const TIER_PTS: Record<string, number> = { diamond: 8, platinum: 6, gold: 4, silver: 2, bronze: 0 };
-    const tierPtsPerSession = TIER_PTS[(item.tier ?? "bronze").toLowerCase()] ?? 0;
-    const pts = (item.sessions ?? 0) * tierPtsPerSession * 10;
+    const pts = item.points ?? 0;
     return (
       <Pressable
         key={item.user_id}
