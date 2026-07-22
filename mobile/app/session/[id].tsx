@@ -43,7 +43,12 @@ type SessionDetail = {
 type Attendee = {
   user_id: string;
   status: string;
-  profiles: { first_name: string | null; last_name: string | null; username: string | null } | null;
+  profiles: {
+    first_name: string | null;
+    last_name: string | null;
+    username: string | null;
+    playing_position: string | null;
+  } | null;
 };
 
 type PlayerResult = {
@@ -75,6 +80,15 @@ function fmtDate(iso: string): string {
 
 function playerName(a: Attendee): string {
   return [a.profiles?.first_name, a.profiles?.last_name].filter(Boolean).join(" ") || a.profiles?.username || "Player";
+}
+
+function playerInitials(a: Attendee): string {
+  const first = a.profiles?.first_name?.trim()?.[0];
+  const last = a.profiles?.last_name?.trim()?.[0];
+  if (first && last) return (first + last).toUpperCase();
+  if (first) return first.toUpperCase();
+  const name = playerName(a);
+  return name[0]?.toUpperCase() ?? "?";
 }
 
 export default function SessionDetailScreen() {
@@ -133,12 +147,46 @@ export default function SessionDetailScreen() {
         .maybeSingle();
       if (runData) setRun(runData as SessionDetail);
 
+      // RSVP rows don't FK to profiles (user_id → auth.users), so join embedded
+      // profiles silently returns null. Fetch RSVPs + profiles separately and merge.
       const { data: rsvpData } = await supabase
         .from("pickup_run_rsvps")
-        .select("user_id,status,profiles(first_name,last_name,username)")
+        .select("user_id,status")
         .eq("run_id", id)
         .in("status", ["confirmed", "pending_payment"]);
-      if (rsvpData) setAttendees(rsvpData as Attendee[]);
+
+      const rsvps = (rsvpData ?? []) as Array<{ user_id: string; status: string }>;
+      const userIds = Array.from(new Set(rsvps.map((r) => r.user_id).filter(Boolean)));
+
+      const profileById = new Map<string, Attendee["profiles"]>();
+      if (userIds.length > 0) {
+        const { data: profileRows } = await supabase
+          .from("profiles")
+          .select("id,first_name,last_name,username,playing_position")
+          .in("id", userIds);
+        for (const p of (profileRows ?? []) as Array<{
+          id: string;
+          first_name: string | null;
+          last_name: string | null;
+          username: string | null;
+          playing_position: string | null;
+        }>) {
+          profileById.set(p.id, {
+            first_name: p.first_name,
+            last_name: p.last_name,
+            username: p.username,
+            playing_position: p.playing_position,
+          });
+        }
+      }
+
+      setAttendees(
+        rsvps.map((r) => ({
+          user_id: r.user_id,
+          status: r.status,
+          profiles: profileById.get(r.user_id) ?? null,
+        })),
+      );
 
       if (myUserId) {
         const { data: myRsvp } = await supabase
@@ -601,8 +649,16 @@ export default function SessionDetailScreen() {
                 const name = playerName(a);
                 return (
                   <View key={a.user_id} style={[s.attendeeRow, i > 0 && s.attendeeBorder]}>
-                    <View style={s.avatar}><Text style={s.avatarText}>{name[0]?.toUpperCase() ?? "?"}</Text></View>
-                    <Text style={s.attendeeName}>{name}</Text>
+                    <View style={s.avatar}><Text style={s.avatarText}>{playerInitials(a)}</Text></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.attendeeName}>{name}</Text>
+                      {a.profiles?.username ? (
+                        <Text style={s.playerUsername}>@{a.profiles.username}</Text>
+                      ) : null}
+                      {a.profiles?.playing_position ? (
+                        <Text style={s.playerPos}>{a.profiles.playing_position}</Text>
+                      ) : null}
+                    </View>
                     {a.user_id === run.created_by && <Text style={s.hostBadge}>Host</Text>}
                   </View>
                 );
@@ -680,7 +736,7 @@ export default function SessionDetailScreen() {
                 <Pressable onPress={() => toggleVotePick(item.user_id)} disabled={full}
                   style={[s.playerRow, picked && { borderWidth: 1, borderColor: LIME }, full && { opacity: 0.35 }]}>
                   <View style={[s.avatar, picked && { backgroundColor: LIME }]}>
-                    <Text style={[s.avatarText, picked && { color: "#0a0a0a" }]}>{picked ? rank + 1 : name[0]?.toUpperCase() ?? "?"}</Text>
+                    <Text style={[s.avatarText, picked && { color: "#0a0a0a" }]}>{picked ? rank + 1 : playerInitials(item)}</Text>
                   </View>
                   <Text style={s.playerName}>{name}</Text>
                   {picked && <FontAwesome name="check" size={14} color={LIME} />}
@@ -736,7 +792,7 @@ export default function SessionDetailScreen() {
               ];
               return (
                 <View key={a.user_id} style={s.scoreRow}>
-                  <View style={s.avatar}><Text style={s.avatarText}>{name[0]?.toUpperCase() ?? "?"}</Text></View>
+                  <View style={s.avatar}><Text style={s.avatarText}>{playerInitials(a)}</Text></View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.playerName}>{name}</Text>
                     <View style={{ flexDirection: "row", gap: 6, marginTop: 8 }}>
@@ -781,23 +837,46 @@ export default function SessionDetailScreen() {
             </Pressable>
           </View>
           <Text style={s.voteSubtitle}>Tap a player to toggle between Team A and Team B.</Text>
-          <View style={{ padding: 16, gap: 10 }}>
+          <View style={s.assignGrid}>
             {attendees.map((a) => {
               const name = playerName(a);
               const team = teamAssignments[a.user_id];
               return (
-                <Pressable key={a.user_id}
+                <Pressable
+                  key={a.user_id}
                   onPress={() => setTeamAssignments((prev) => ({
                     ...prev,
                     [a.user_id]: prev[a.user_id] === "A" ? "B" : "A",
                   }))}
-                  style={{ flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: team === "A" ? "#3B82F6" : team === "B" ? "#ef4444" : "rgba(255,255,255,0.1)" }}>
-                  <View style={[s.avatar, { backgroundColor: team === "A" ? "rgba(59,130,246,0.2)" : team === "B" ? "rgba(239,68,68,0.2)" : "rgba(163,230,53,0.1)" }]}>
-                    <Text style={[s.avatarText, { color: team === "A" ? "#3B82F6" : team === "B" ? "#ef4444" : LIME }]}>{name[0]?.toUpperCase() ?? "?"}</Text>
+                  style={[
+                    s.assignCard,
+                    team === "A" && s.assignCardA,
+                    team === "B" && s.assignCardB,
+                  ]}
+                >
+                  <View style={[
+                    s.assignAvatar,
+                    team === "A" && { backgroundColor: "rgba(59,130,246,0.25)" },
+                    team === "B" && { backgroundColor: "rgba(239,68,68,0.25)" },
+                  ]}>
+                    <Text style={[
+                      s.assignAvatarText,
+                      team === "A" && { color: "#3B82F6" },
+                      team === "B" && { color: "#ef4444" },
+                    ]}>
+                      {playerInitials(a)}
+                    </Text>
                   </View>
-                  <Text style={s.playerName}>{name}</Text>
-                  <View style={{ marginLeft: "auto", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: team === "A" ? "#3B82F6" : team === "B" ? "#ef4444" : "rgba(255,255,255,0.1)" }}>
-                    <Text style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>{team ?? "—"}</Text>
+                  <Text style={s.assignName} numberOfLines={2}>{name}</Text>
+                  {a.profiles?.username ? (
+                    <Text style={s.assignUsername} numberOfLines={1}>@{a.profiles.username}</Text>
+                  ) : null}
+                  <View style={[
+                    s.assignTeamBadge,
+                    team === "A" && { backgroundColor: "#3B82F6" },
+                    team === "B" && { backgroundColor: "#ef4444" },
+                  ]}>
+                    <Text style={s.assignTeamBadgeText}>{team ? `Team ${team}` : "Tap to assign"}</Text>
                   </View>
                 </Pressable>
               );
@@ -846,16 +925,30 @@ export default function SessionDetailScreen() {
           ].map(({ label, state, set }) => (
             <View key={label} style={{ paddingHorizontal: 16, marginBottom: 16 }}>
               <Text style={s.voteSubtitle}>{label}</Text>
-              <View style={{ gap: 8 }}>
+              <View style={s.assignGrid}>
                 {attendees.filter((a) => a.user_id !== run.created_by).map((a) => {
                   const name = playerName(a);
                   const selected = state === a.user_id;
                   return (
-                    <Pressable key={a.user_id} onPress={() => set(selected ? null : a.user_id)}
-                      style={{ flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: selected ? "rgba(163,230,53,0.08)" : "rgba(255,255,255,0.04)", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: selected ? LIME : "rgba(255,255,255,0.08)" }}>
-                      <View style={s.avatar}><Text style={s.avatarText}>{name[0]?.toUpperCase() ?? "?"}</Text></View>
-                      <Text style={[s.playerName, selected && { color: LIME }]}>{name}</Text>
-                      {selected && <FontAwesome name="star" size={14} color={LIME} style={{ marginLeft: "auto" }} />}
+                    <Pressable
+                      key={a.user_id}
+                      onPress={() => set(selected ? null : a.user_id)}
+                      style={[s.assignCard, selected && s.assignCardSelected]}
+                    >
+                      <View style={[s.assignAvatar, selected && { backgroundColor: "rgba(163,230,53,0.25)" }]}>
+                        <Text style={[s.assignAvatarText, selected && { color: LIME }]}>
+                          {playerInitials(a)}
+                        </Text>
+                      </View>
+                      <Text style={[s.assignName, selected && { color: LIME }]} numberOfLines={2}>
+                        {name}
+                      </Text>
+                      {a.profiles?.username ? (
+                        <Text style={s.assignUsername} numberOfLines={1}>@{a.profiles.username}</Text>
+                      ) : null}
+                      {selected ? (
+                        <FontAwesome name="star" size={14} color={LIME} style={{ marginTop: 4 }} />
+                      ) : null}
                     </Pressable>
                   );
                 })}
@@ -928,4 +1021,51 @@ const s = StyleSheet.create({
   scoreInput: { width: 56, backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", color: "#fff", textAlign: "center", fontSize: 16, fontWeight: "700", paddingVertical: 8 },
   publishBtn: { backgroundColor: LIME, borderRadius: 14, paddingVertical: 16, alignItems: "center" },
   publishBtnText: { color: "#0a0a0a", fontWeight: "800", fontSize: 16 },
+  assignGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  assignCard: {
+    width: "47%",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    gap: 6,
+  },
+  assignCardA: { borderColor: "#3B82F6", backgroundColor: "rgba(59,130,246,0.08)" },
+  assignCardB: { borderColor: "#ef4444", backgroundColor: "rgba(239,68,68,0.08)" },
+  assignCardSelected: { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.08)" },
+  assignAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(163,230,53,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  assignAvatarText: { color: LIME, fontWeight: "800", fontSize: 16 },
+  assignName: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "center",
+    lineHeight: 17,
+    minHeight: 34,
+  },
+  assignUsername: { color: "rgba(255,255,255,0.4)", fontSize: 11, textAlign: "center" },
+  assignTeamBadge: {
+    marginTop: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  assignTeamBadgeText: { color: "#fff", fontWeight: "800", fontSize: 11 },
 });
