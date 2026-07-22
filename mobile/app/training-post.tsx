@@ -45,6 +45,10 @@ export default function TrainingPostScreen() {
   const [workingOn, setWorkingOn] = useState("");
   const [spots, setSpots] = useState(2);
 
+  // Default start time to now (player can backdate up to 2 hours on the server).
+  const [startedAt, setStartedAt] = useState<Date>(() => new Date());
+  const [showStartPicker, setShowStartPicker] = useState(false);
+
   const [untilEnabled, setUntilEnabled] = useState(true);
   // Default the end time to exactly two hours from now (computed once at mount).
   const [trainingUntil, setTrainingUntil] = useState<Date>(() => new Date(Date.now() + 2 * 60 * 60 * 1000));
@@ -119,6 +123,7 @@ export default function TrainingPostScreen() {
         field_name: fieldSelected.display_name,
         latitude: parseFloat(fieldSelected.lat),
         longitude: parseFloat(fieldSelected.lon),
+        started_at: startedAt.toISOString(),
         training_until: untilEnabled ? trainingUntil.toISOString() : null,
         what_im_working_on: workingOn.trim() || null,
         spots_available: spots,
@@ -189,6 +194,30 @@ export default function TrainingPostScreen() {
                 {fieldSelected.display_name}
               </Text>
             </View>
+          )}
+
+          <Text style={[s.fieldLabel, { marginTop: 20 }]}>START TIME</Text>
+          <Pressable onPress={() => setShowStartPicker(true)} style={s.pickerBtn}>
+            <FontAwesome name="clock-o" size={15} color={LIME} />
+            <Text style={s.pickerBtnText}>{fmt12Hour(startedAt)}</Text>
+          </Pressable>
+          {showStartPicker && (
+            <DateTimePicker
+              value={startedAt}
+              mode="time"
+              is24Hour={false}
+              display="spinner"
+              themeVariant="dark"
+              onChange={(_, t) => {
+                if (t) {
+                  // Keep today's date; only apply the picked clock time.
+                  const next = new Date(startedAt);
+                  next.setHours(t.getHours(), t.getMinutes(), 0, 0);
+                  setStartedAt(next);
+                }
+                setShowStartPicker(false);
+              }}
+            />
           )}
 
           <Text style={[s.fieldLabel, { marginTop: 20 }]}>WHAT ARE YOU WORKING ON</Text>

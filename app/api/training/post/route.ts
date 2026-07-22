@@ -10,11 +10,14 @@ type Body = {
   field_name?: string;
   latitude?: number;
   longitude?: number;
+  started_at?: string | null;
   training_until?: string | null;
   what_im_working_on?: string | null;
   spots_available?: number;
   notes?: string | null;
 };
+
+const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
 export async function POST(req: Request) {
   const admin = getSupabaseAdmin();
@@ -50,6 +53,26 @@ export async function POST(req: Request) {
     ? body.training_until
     : null;
 
+  const now = Date.now();
+  let startedAtIso = new Date(now).toISOString();
+  if (typeof body.started_at === "string" && body.started_at.trim()) {
+    const parsed = new Date(body.started_at);
+    if (Number.isNaN(parsed.getTime())) {
+      return NextResponse.json({ error: "Invalid started_at." }, { status: 400 });
+    }
+    const ms = parsed.getTime();
+    if (ms > now + 5 * 60 * 1000) {
+      return NextResponse.json({ error: "Start time cannot be in the future." }, { status: 400 });
+    }
+    if (ms < now - TWO_HOURS_MS) {
+      return NextResponse.json(
+        { error: "Start time can't be more than 2 hours in the past." },
+        { status: 400 },
+      );
+    }
+    startedAtIso = parsed.toISOString();
+  }
+
   // Only one active training post per user — end any existing one first.
   await admin
     .from("training_posts")
@@ -64,6 +87,7 @@ export async function POST(req: Request) {
       field_name: fieldName,
       latitude: lat,
       longitude: lng,
+      started_at: startedAtIso,
       training_until: trainingUntil,
       what_im_working_on: workingOn,
       spots_available: spots,
