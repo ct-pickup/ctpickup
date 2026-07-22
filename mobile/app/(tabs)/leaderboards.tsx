@@ -1,7 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import { hapticTap } from "@/lib/haptics";
-import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
 import { Ionicons } from "@expo/vector-icons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useNavigation, useRouter } from "expo-router";
@@ -275,69 +274,74 @@ export default function LeaderboardsScreen() {
     return out;
   }, [payload, tab]);
 
-  // ── Tier data: two separate queries merged in JS (no relational joins). ──
+  // ── Tier data via /api/leaderboards (admin). Client RLS on player_ratings
+  // only allows auth.uid() = user_id, so a direct supabase select returns ~1 row.
   const loadTier = useCallback(async () => {
-    if (!supabase) return;
+    const origin = siteOrigin();
+    if (!origin) return;
     setTierLoading(true);
     try {
-      // Show every player_ratings row (no sessions > 0 filter) so newly
-      // backfilled tiers still appear even with 0 sessions played.
-      const { data: ratings } = await supabase
-        .from("player_ratings")
-        .select("user_id,tier,score,sessions,reliability")
-        .order("score", { ascending: false })
-        .limit(100);
-      const ratingRows = (ratings ?? []) as Array<{
-        user_id: string;
-        tier: string | null;
-        score: number | null;
-        sessions: number | null;
-        reliability: number | null;
-      }>;
+      const u = new URL(`${origin}/api/leaderboards`);
+      if (region !== "ALL") u.searchParams.set("region", region);
+      const r = await fetch(u.toString(), {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+      const json = (await r.json().catch(() => null)) as unknown;
+      const tiersRaw =
+        isRecord(json) && Array.isArray(json.tiers) ? (json.tiers as unknown[]) : [];
 
-      const ids = ratingRows.map((r) => r.user_id);
-      const profileById = new Map<
-        string,
-        { first_name: string | null; last_name: string | null; username: string | null; avatar_url: string | null; nearest_venue: string | null }
-      >();
-      if (ids.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id,first_name,last_name,username,avatar_url,nearest_venue")
-          .in("id", ids);
-        for (const p of (profiles ?? []) as Array<{
-          id: string;
-          first_name: string | null;
-          last_name: string | null;
-          username: string | null;
-          avatar_url: string | null;
-          nearest_venue: string | null;
-        }>) {
-          profileById.set(p.id, p);
-        }
+      // Debug: API returns full player_ratings list (bypasses RLS).
+      console.log("player_ratings count:", tiersRaw.length);
+      console.log("profiles count:", tiersRaw.length);
+
+      const TIER_PTS: Record<string, number> = {
+        diamond: 8,
+        platinum: 6,
+        gold: 4,
+        silver: 2,
+        bronze: 0,
+      };
+
+      const mapped: TierPlayer[] = [];
+      for (const item of tiersRaw) {
+        if (!isRecord(item)) continue;
+        const userId = typeof item.user_id === "string" ? item.user_id : null;
+        if (!userId) continue;
+        const first = typeof item.first_name === "string" ? item.first_name : null;
+        const last = typeof item.last_name === "string" ? item.last_name : null;
+        const username = typeof item.username === "string" ? item.username : null;
+        const name = [first, last].filter(Boolean).join(" ").trim() || username || "Player";
+        mapped.push({
+          user_id: userId,
+          tier: (typeof item.tier === "string" ? item.tier : "bronze").toLowerCase(),
+          score: typeof item.score === "number" && Number.isFinite(item.score) ? item.score : 50,
+          sessions: typeof item.sessions === "number" && Number.isFinite(item.sessions) ? item.sessions : 0,
+          reliability:
+            typeof item.reliability === "number" && Number.isFinite(item.reliability)
+              ? item.reliability
+              : 0,
+          name,
+          username,
+          avatar_url: typeof item.avatar_url === "string" ? item.avatar_url.trim() || null : null,
+          nearest_venue: typeof item.nearest_venue === "string" ? item.nearest_venue : null,
+        });
       }
 
-      setTierPlayers(
-        ratingRows.map((r) => {
-          const p = profileById.get(r.user_id);
-          const name =
-            [p?.first_name, p?.last_name].filter(Boolean).join(" ").trim() || p?.username || "Player";
-          return {
-            user_id: r.user_id,
-            tier: (r.tier ?? "bronze").toLowerCase(),
-            score: r.score ?? 50,
-            sessions: r.sessions ?? 0,
-            reliability: r.reliability ?? 0,
-            name,
-            username: p?.username ?? null,
-            avatar_url: p?.avatar_url?.trim() || null,
-            nearest_venue: p?.nearest_venue ?? null,
-          };
-        }),
-      );
+      // Rank by rating score (tier strength), not sessions played.
+      // Points (sessions × tierPts × 10) are display-only; score breaks ties / orders zeros.
+      mapped.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        const ptsA = (a.sessions ?? 0) * (TIER_PTS[a.tier] ?? 0) * 10;
+        const ptsB = (b.sessions ?? 0) * (TIER_PTS[b.tier] ?? 0) * 10;
+        return ptsB - ptsA;
+      });
 
-      // My tier + percentile.
-      if (myUserId) {
+      setTierPlayers(mapped);
+
+      // My tier + percentile (own row is readable under RLS).
+      if (myUserId && supabase) {
         const { data: mine } = await supabase
           .from("player_ratings")
           .select("tier,score,sessions")
@@ -346,12 +350,10 @@ export default function LeaderboardsScreen() {
         if (mine) {
           const myRow = mine as { tier: string | null; score: number | null; sessions: number | null };
           const myScore = myRow.score ?? 0;
-          const [{ count: total }, { count: better }] = await Promise.all([
-            supabase.from("player_ratings").select("*", { count: "exact", head: true }),
-            supabase.from("player_ratings").select("*", { count: "exact", head: true }).gt("score", myScore),
-          ]);
+          const total = mapped.length;
+          const better = mapped.filter((p) => p.score > myScore).length;
           const percentile =
-            total && total > 0 ? Math.min(100, Math.max(1, Math.round(((better ?? 0) / total) * 100))) : null;
+            total > 0 ? Math.min(100, Math.max(1, Math.round((better / total) * 100))) : null;
           const resolved: MyTier = {
             tier: (myRow.tier ?? "bronze").toLowerCase(),
             score: myScore,
@@ -365,10 +367,13 @@ export default function LeaderboardsScreen() {
           setMyTier(null);
         }
       }
+    } catch (e) {
+      console.error("[leaderboards] loadTier failed:", e);
+      setTierPlayers([]);
     } finally {
       setTierLoading(false);
     }
-  }, [supabase, myUserId]);
+  }, [myUserId, region, supabase]);
 
   useEffect(() => {
     if (tab === "tier") void loadTier();
@@ -445,10 +450,8 @@ export default function LeaderboardsScreen() {
 
   const regionLabel = region === "ALL" ? "All Regions" : region;
 
-  const filteredTierPlayers = useMemo(() => {
-    if (region === "ALL") return tierPlayers;
-    return tierPlayers.filter((p) => serviceRegionForVenueName(p.nearest_venue) === region);
-  }, [tierPlayers, region]);
+  // Region filtering is applied server-side in /api/leaderboards?region=.
+  const filteredTierPlayers = tierPlayers;
 
   const moreActive = MORE_TABS.some((m) => m.id === tab);
   const moreLabel = moreActive ? (MORE_TABS.find((m) => m.id === tab)?.label ?? "More") : "More";

@@ -280,6 +280,19 @@ async function fetchTournamentGoalNameCounts(admin: SupabaseClient): Promise<Map
   }
 }
 
+type TierLeaderboardRow = {
+  user_id: string;
+  tier: string;
+  score: number;
+  sessions: number;
+  reliability: number;
+  first_name: string | null;
+  last_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  nearest_venue: string | null;
+};
+
 const EMPTY_PAYLOAD = {
   ok: true as const,
   region: "ALL" as string,
@@ -292,7 +305,96 @@ const EMPTY_PAYLOAD = {
   midfielder: [] as LeaderboardPlayerRow[],
   attacker: [] as LeaderboardPlayerRow[],
   goals: [] as LeaderboardPlayerRow[],
+  tiers: [] as TierLeaderboardRow[],
 };
+
+/**
+ * Tier tab: all player_ratings (admin bypasses RLS own_rating), merged with profiles.
+ * Client-side selects on player_ratings only return the current user's row.
+ */
+async function fetchTierLeaderboard(
+  admin: SupabaseClient,
+  region: string | null,
+): Promise<TierLeaderboardRow[]> {
+  const { data: ratings, error } = await admin
+    .from("player_ratings")
+    .select("user_id,tier,score,sessions,reliability")
+    .order("score", { ascending: false })
+    .limit(253);
+
+  if (error) {
+    logSupabaseCategory("player_ratings.tier_leaderboard", error);
+    return [];
+  }
+
+  const ratingRows = (ratings ?? []) as Array<{
+    user_id: string;
+    tier: string | null;
+    score: number | null;
+    sessions: number | null;
+    reliability: number | null;
+  }>;
+  console.log(`[api/${ROUTE}] category=tiers ratings`, { count: ratingRows.length });
+
+  const ids = Array.from(new Set(ratingRows.map((r) => r.user_id).filter(Boolean)));
+  const profileById = new Map<
+    string,
+    {
+      first_name: string | null;
+      last_name: string | null;
+      username: string | null;
+      avatar_url: string | null;
+      nearest_venue: string | null;
+    }
+  >();
+
+  const CHUNK = 100;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const chunk = ids.slice(i, i + CHUNK);
+    const { data: profiles, error: pErr } = await admin
+      .from("profiles")
+      .select("id,first_name,last_name,username,avatar_url,nearest_venue")
+      .in("id", chunk);
+    if (pErr) {
+      logSupabaseCategory("profiles.tier_leaderboard", pErr);
+      continue;
+    }
+    for (const p of (profiles ?? []) as Array<{
+      id: string;
+      first_name: string | null;
+      last_name: string | null;
+      username: string | null;
+      avatar_url: string | null;
+      nearest_venue: string | null;
+    }>) {
+      profileById.set(p.id, p);
+    }
+  }
+  console.log(`[api/${ROUTE}] category=tiers profiles`, { count: profileById.size });
+
+  const out: TierLeaderboardRow[] = [];
+  for (const r of ratingRows) {
+    const p = profileById.get(r.user_id);
+    const nearest = p?.nearest_venue ?? null;
+    if (!passesRegionFilter(nearest, region)) continue;
+    out.push({
+      user_id: r.user_id,
+      tier: (r.tier ?? "bronze").toLowerCase(),
+      score: r.score ?? 50,
+      sessions: r.sessions ?? 0,
+      reliability: r.reliability ?? 0,
+      first_name: p?.first_name ?? null,
+      last_name: p?.last_name ?? null,
+      username: p?.username ?? null,
+      avatar_url: p?.avatar_url?.trim() || null,
+      nearest_venue: nearest,
+    });
+  }
+
+  // Keep score-desc order from the ratings query; region filter may drop some rows.
+  console.log(`[api/${ROUTE}] category=tiers result`, { rowCount: out.length });
+  return out;
+}
 
 export async function GET(req: Request) {
   console.log("[leaderboards] GET hit");
@@ -316,6 +418,7 @@ export async function GET(req: Request) {
   let midfielder: LeaderboardPlayerRow[] = [];
   let attacker: LeaderboardPlayerRow[] = [];
   let goals: LeaderboardPlayerRow[] = [];
+  let tiers: TierLeaderboardRow[] = [];
 
   try {
     let profiles: ProfileRow[] = [];
@@ -473,6 +576,15 @@ export async function GET(req: Request) {
       goals = [];
     }
 
+    try {
+      tiers = await fetchTierLeaderboard(admin, region);
+      console.log("[leaderboards] category tiers result", tiers.length);
+    } catch (err) {
+      console.log(`[api/${ROUTE}] category=tiers error`, err);
+      logPublicApiRouteError(ROUTE, "category_tiers", err);
+      tiers = [];
+    }
+
     return NextResponse.json({
       ok: true as const,
       region: region ?? "ALL",
@@ -485,6 +597,7 @@ export async function GET(req: Request) {
       midfielder,
       attacker,
       goals,
+      tiers,
     });
   } catch (err) {
     console.log(`[api/${ROUTE}] GET top-level failure — returning empty categories`, err);
