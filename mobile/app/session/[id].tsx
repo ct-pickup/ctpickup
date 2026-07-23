@@ -219,40 +219,121 @@ export default function SessionDetailScreen() {
 
   async function endSession() {
     if (endBusy) return;
-    Alert.alert("End session?", "This marks the session as complete and starts the rating process.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "End session", style: "destructive", onPress: async () => {
-          setEndBusy(true);
-          const origin = siteOrigin();
-          const token = session?.access_token;
-          if (!origin || !token) { setEndBusy(false); return; }
-          try {
-            const r = await fetch(`${origin}/api/sessions/end`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ run_id: id }),
-            });
-            const j = await r.json().catch(() => null) as {
-              ok?: boolean;
-              error?: string;
-              tier_session_id?: string;
-            } | null;
-            if (!r.ok || !j?.ok) {
-              Alert.alert("Error", j?.error ?? "Could not end session.");
-              return;
-            }
-            if (j.tier_session_id) {
-              setRun((cur) => (cur ? { ...cur, tier_session_id: j.tier_session_id!, status: "completed" } : cur));
-            }
-            await load();
-            setScoreOpen(true);
-          } finally {
-            setEndBusy(false);
-          }
-        }
+    Alert.alert(
+      "End session",
+      "Score players so their ratings update, or end without recording host ratings.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Score players",
+          onPress: () => {
+            void (async () => {
+              setEndBusy(true);
+              try {
+                const tid = await finalizeRunForRating();
+                if (!tid) return;
+                setScoreOpen(true);
+              } finally {
+                setEndBusy(false);
+              }
+            })();
+          },
+        },
+        {
+          text: "End without ratings",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              "End without ratings?",
+              "No host ratings will be recorded for this session. Peer votes may still count if players submitted them.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "End anyway",
+                  style: "destructive",
+                  onPress: () => {
+                    void (async () => {
+                      setEndBusy(true);
+                      try {
+                        await finalizeRunForRating({ skipScoreModal: true });
+                      } finally {
+                        setEndBusy(false);
+                      }
+                    })();
+                  },
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
+  }
+
+  /** Mark run completed + ensure tier_session (host-allowed end route, with admin end-run fallback). */
+  async function finalizeRunForRating(opts?: { skipScoreModal?: boolean }): Promise<string | null> {
+    const origin = siteOrigin();
+    const token = session?.access_token;
+    if (!origin || !token || !id) {
+      Alert.alert("Error", "Not signed in.");
+      return null;
+    }
+
+    // Prefer host-allowed end route; fall back to admin end-run if available.
+    let tierSessionId: string | null = run?.tier_session_id ?? null;
+    console.log("[endSession] starting finalize", { run_id: id, tier_session_id: tierSessionId });
+
+    const r = await fetch(`${origin}/api/sessions/end`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ run_id: id }),
+    });
+    const j = await r.json().catch(() => null) as {
+      ok?: boolean;
+      error?: string;
+      tier_session_id?: string;
+    } | null;
+    console.log("[endSession] /api/sessions/end response", { status: r.status, body: j });
+
+    if (r.ok && j?.ok && j.tier_session_id) {
+      tierSessionId = j.tier_session_id;
+    } else if (!tierSessionId) {
+      const adminR = await fetch(`${origin}/api/admin/pickup/end-run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ run_id: id }),
+      });
+      const adminJ = await adminR.json().catch(() => null) as {
+        ok?: boolean;
+        error?: string;
+        tier_session_id?: string;
+      } | null;
+      console.log("[endSession] /api/admin/pickup/end-run response", {
+        status: adminR.status,
+        body: adminJ,
+      });
+      if (!adminR.ok || !adminJ?.ok) {
+        Alert.alert("Error", j?.error ?? adminJ?.error ?? "Could not end session.");
+        return null;
       }
-    ]);
+      tierSessionId = adminJ.tier_session_id ?? null;
+    }
+
+    if (!tierSessionId) {
+      Alert.alert("Error", "Session ended but rating setup failed.");
+      return null;
+    }
+
+    setRun((cur) =>
+      cur ? { ...cur, tier_session_id: tierSessionId, status: "completed" } : cur,
+    );
+    await load();
+    if (!opts?.skipScoreModal) {
+      // caller opens score modal
+    } else {
+      Alert.alert("Session ended", "No host ratings were recorded.");
+    }
+    return tierSessionId;
   }
 
   async function leaveSession() {
@@ -417,10 +498,37 @@ export default function SessionDetailScreen() {
   }
 
   async function ensureTierSessionId(): Promise<string | null> {
-    if (run?.tier_session_id) return run.tier_session_id;
+    if (run?.tier_session_id) {
+      console.log("[ensureTierSessionId] using existing", run.tier_session_id);
+      return run.tier_session_id;
+    }
     const origin = siteOrigin();
     const token = session?.access_token;
     if (!origin || !token || !run) return null;
+
+    // Prefer admin end-run (creates tier_session + attendance) when host has admin; else ensure route.
+    console.log("[ensureTierSessionId] tier_session_id null — calling end-run / ensure");
+    const adminR = await fetch(`${origin}/api/admin/pickup/end-run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ run_id: run.id }),
+    });
+    const adminJ = await adminR.json().catch(() => null) as {
+      ok?: boolean;
+      error?: string;
+      tier_session_id?: string;
+    } | null;
+    console.log("[ensureTierSessionId] end-run response", { status: adminR.status, body: adminJ });
+
+    if (adminR.ok && adminJ?.ok && adminJ.tier_session_id) {
+      setRun((cur) =>
+        cur
+          ? { ...cur, tier_session_id: adminJ.tier_session_id!, status: "completed" }
+          : cur,
+      );
+      return adminJ.tier_session_id;
+    }
+
     const r = await fetch(`${origin}/api/sessions/ensure-tier-session`, {
       method: "POST",
       headers: {
@@ -434,8 +542,9 @@ export default function SessionDetailScreen() {
       tier_session_id?: string;
       error?: string;
     } | null;
+    console.log("[ensureTierSessionId] ensure-tier-session response", { status: r.status, body: j });
     if (!r.ok || !j?.ok || !j.tier_session_id) {
-      Alert.alert("Error", j?.error ?? "Could not open rating.");
+      Alert.alert("Error", j?.error ?? adminJ?.error ?? "Could not open rating.");
       return null;
     }
     setRun((cur) => (cur ? { ...cur, tier_session_id: j.tier_session_id! } : cur));
@@ -449,32 +558,94 @@ export default function SessionDetailScreen() {
   }
 
   async function submitScores() {
-    if (scoreBusy || !supabase) return;
-    setScoreBusy(true);
-    const TIER_TO_SCORE: Record<string, number> = {
-      bronze: 2, silver: 4, gold: 6, platinum: 8, diamond: 10,
-    };
-    try {
-      const tierSessionId = await ensureTierSessionId();
-      if (!tierSessionId) return;
+    if (scoreBusy || !run) return;
+    const origin = siteOrigin();
+    const token = session?.access_token;
+    if (!origin || !token) {
+      Alert.alert("Error", "Not signed in.");
+      return;
+    }
 
-      for (const [user_id, tierVal] of Object.entries(scores)) {
-        const score = TIER_TO_SCORE[tierVal];
-        if (!score) continue;
-        await supabase
-          .from("session_attendance")
-          .update({ organizer_score: score })
-          .eq("session_id", tierSessionId)
-          .eq("user_id", user_id);
+    const scoredCount = Object.values(scores).filter(Boolean).length;
+    if (scoredCount === 0) {
+      Alert.alert("Score players", "Pick a tier for at least one player before submitting.");
+      return;
+    }
+
+    setScoreBusy(true);
+    try {
+      let tierSessionId = run.tier_session_id;
+      console.log("[submitScores] initial tier_session_id", tierSessionId);
+
+      // If missing, create via admin end-run (creates tier_session + attendance rows).
+      if (!tierSessionId) {
+        const adminR = await fetch(`${origin}/api/admin/pickup/end-run`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ run_id: run.id }),
+        });
+        const adminJ = await adminR.json().catch(() => null) as {
+          ok?: boolean;
+          error?: string;
+          tier_session_id?: string;
+        } | null;
+        console.log("[submitScores] end-run response", { status: adminR.status, body: adminJ });
+
+        if (adminR.ok && adminJ?.ok && adminJ.tier_session_id) {
+          tierSessionId = adminJ.tier_session_id;
+        } else {
+          // Non-admin hosts: ensure-tier-session still creates the rating session.
+          const ensured = await ensureTierSessionId();
+          tierSessionId = ensured;
+        }
       }
 
-      // Settle the session via RPC
-      const { error } = await supabase.rpc("settle_session", { p_session_id: tierSessionId });
-      if (error) {
-        console.warn("[settle_session] error", error.message);
-        Alert.alert("Scores saved", "Ratings will be processed shortly.");
-      } else {
+      console.log("[submitScores] using tier_session_id", tierSessionId);
+      if (!tierSessionId) {
+        Alert.alert("Error", "Could not create a rating session.");
+        return;
+      }
+
+      setRun((cur) => (cur ? { ...cur, tier_session_id: tierSessionId! } : cur));
+
+      // Persist scores via admin API — session_attendance has no client UPDATE RLS policy.
+      const r = await fetch(`${origin}/api/sessions/host-scores`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          run_id: run.id,
+          tier_session_id: tierSessionId,
+          scores,
+        }),
+      });
+      const j = await r.json().catch(() => null) as {
+        ok?: boolean;
+        error?: string;
+        tier_session_id?: string;
+        settled?: boolean;
+        settle_error?: string;
+        updateResults?: unknown;
+      } | null;
+      console.log("[submitScores] host-scores response", { status: r.status, body: j });
+
+      if (!r.ok || !j?.ok) {
+        Alert.alert("Error", j?.error ?? "Could not save scores.");
+        return;
+      }
+
+      if (j.tier_session_id) {
+        setRun((cur) => (cur ? { ...cur, tier_session_id: j.tier_session_id! } : cur));
+      }
+
+      if (j.settled) {
         Alert.alert("Done!", "Player ratings have been updated.");
+      } else {
+        Alert.alert(
+          "Scores saved",
+          j.settle_error
+            ? `Ratings saved, but settle failed: ${j.settle_error}`
+            : "Ratings will be processed shortly.",
+        );
       }
       setScoreOpen(false);
     } finally {
