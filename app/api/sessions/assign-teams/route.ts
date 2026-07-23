@@ -31,12 +31,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Only the host can assign teams." }, { status: 403 });
   }
 
-  const now = new Date().toISOString();
   const rows = assignments.map((a) => ({
     run_id,
     user_id: a.user_id,
     team: a.team,
-    updated_at: now,
   }));
 
   const { error } = await admin.from("pickup_run_team_assignments")

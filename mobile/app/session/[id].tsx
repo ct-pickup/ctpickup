@@ -197,7 +197,7 @@ export default function SessionDetailScreen() {
           .maybeSingle();
         setMyStatus(myRsvp?.status ?? null);
 
-        // Check if already voted
+        // Check if already voted (tier_session may be created lazily on first vote)
         if (runData?.tier_session_id) {
           const { data: myVote } = await supabase
             .from("peer_votes")
@@ -206,6 +206,8 @@ export default function SessionDetailScreen() {
             .eq("voter_id", myUserId)
             .limit(1);
           setHasVoted((myVote?.length ?? 0) > 0);
+        } else {
+          setHasVoted(false);
         }
       }
     } finally {
@@ -226,15 +228,22 @@ export default function SessionDetailScreen() {
           const token = session?.access_token;
           if (!origin || !token) { setEndBusy(false); return; }
           try {
-            const r = await fetch(`${origin}/api/admin/pickup/end-run`, {
+            const r = await fetch(`${origin}/api/sessions/end`, {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
               body: JSON.stringify({ run_id: id }),
             });
-            const j = await r.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+            const j = await r.json().catch(() => null) as {
+              ok?: boolean;
+              error?: string;
+              tier_session_id?: string;
+            } | null;
             if (!r.ok || !j?.ok) {
               Alert.alert("Error", j?.error ?? "Could not end session.");
               return;
+            }
+            if (j.tier_session_id) {
+              setRun((cur) => (cur ? { ...cur, tier_session_id: j.tier_session_id!, status: "completed" } : cur));
             }
             await load();
             setScoreOpen(true);
@@ -366,48 +375,101 @@ export default function SessionDetailScreen() {
   }
 
   async function submitVotes() {
-    if (votePicks.length !== 3 || voteBusy || !run?.tier_session_id) return;
-    if (!supabase || !myUserId) return;
+    if (votePicks.length !== 3 || voteBusy || !run) return;
+    if (!session?.access_token) return;
+    const origin = siteOrigin();
+    if (!origin) {
+      Alert.alert("Error", "App is missing site URL configuration.");
+      return;
+    }
     setVoteBusy(true);
     try {
-      const rows = votePicks.map((votee_id, i) => ({
-        session_id: run.tier_session_id!,
-        voter_id: myUserId,
-        votee_id,
-        rank: i + 1,
-      }));
-      const { error } = await supabase.from("peer_votes").insert(rows);
-      if (error && error.code !== "23505") {
-        Alert.alert("Error", "Could not submit votes.");
+      const r = await fetch(`${origin}/api/sessions/peer-vote`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ run_id: run.id, picks: votePicks }),
+      });
+      const j = await r.json().catch(() => null) as {
+        ok?: boolean;
+        error?: string;
+        tier_session_id?: string;
+        already_voted?: boolean;
+      } | null;
+      if (!r.ok || !j?.ok) {
+        Alert.alert("Error", j?.error ?? "Could not submit votes.");
         return;
+      }
+      if (j.tier_session_id) {
+        setRun((cur) => (cur ? { ...cur, tier_session_id: j.tier_session_id! } : cur));
       }
       setHasVoted(true);
       setVoteOpen(false);
-      Alert.alert("Votes submitted!", "Thanks for rating your teammates.");
+      Alert.alert(
+        j.already_voted ? "Already voted" : "Votes submitted!",
+        j.already_voted ? "Your picks were already recorded." : "Thanks for rating your teammates.",
+      );
     } finally {
       setVoteBusy(false);
     }
   }
 
+  async function ensureTierSessionId(): Promise<string | null> {
+    if (run?.tier_session_id) return run.tier_session_id;
+    const origin = siteOrigin();
+    const token = session?.access_token;
+    if (!origin || !token || !run) return null;
+    const r = await fetch(`${origin}/api/sessions/ensure-tier-session`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ run_id: run.id }),
+    });
+    const j = await r.json().catch(() => null) as {
+      ok?: boolean;
+      tier_session_id?: string;
+      error?: string;
+    } | null;
+    if (!r.ok || !j?.ok || !j.tier_session_id) {
+      Alert.alert("Error", j?.error ?? "Could not open rating.");
+      return null;
+    }
+    setRun((cur) => (cur ? { ...cur, tier_session_id: j.tier_session_id! } : cur));
+    return j.tier_session_id;
+  }
+
+  async function openHostScore() {
+    const tid = await ensureTierSessionId();
+    if (!tid) return;
+    setScoreOpen(true);
+  }
+
   async function submitScores() {
-    if (scoreBusy || !run?.tier_session_id || !supabase) return;
+    if (scoreBusy || !supabase) return;
     setScoreBusy(true);
     const TIER_TO_SCORE: Record<string, number> = {
       bronze: 2, silver: 4, gold: 6, platinum: 8, diamond: 10,
     };
     try {
+      const tierSessionId = await ensureTierSessionId();
+      if (!tierSessionId) return;
+
       for (const [user_id, tierVal] of Object.entries(scores)) {
         const score = TIER_TO_SCORE[tierVal];
         if (!score) continue;
         await supabase
           .from("session_attendance")
           .update({ organizer_score: score })
-          .eq("session_id", run.tier_session_id)
+          .eq("session_id", tierSessionId)
           .eq("user_id", user_id);
       }
 
       // Settle the session via RPC
-      const { error } = await supabase.rpc("settle_session", { p_session_id: run.tier_session_id });
+      const { error } = await supabase.rpc("settle_session", { p_session_id: tierSessionId });
       if (error) {
         console.warn("[settle_session] error", error.message);
         Alert.alert("Scores saved", "Ratings will be processed shortly.");
@@ -529,7 +591,15 @@ export default function SessionDetailScreen() {
   const isJoined = myStatus === "confirmed" || myStatus === "pending_payment";
   const tierLabel = run.open_tier_rank != null ? TIER_LABELS[run.open_tier_rank] : "All levels";
   const formatLabel = run.format ?? run.run_type;
-  const canVote = isCompleted && isJoined && !isHost && !hasVoted && run.tier_session_id;
+  const sessionStarted = (() => {
+    const t = new Date(run.start_at).getTime();
+    return Number.isFinite(t) && t < Date.now();
+  })();
+  // Peer voting after kickoff (or once completed) — does not require tier_session_id upfront.
+  const canVote = isJoined && !isHost && !hasVoted && (isCompleted || sessionStarted);
+  const voteBtnLabel = isCompleted ? "Rate your teammates" : "Rate session";
+  const canHostScore = isHost && (isCompleted || sessionStarted);
+  const hostScoreLabel = isCompleted ? "Score players" : "Rate session";
 
   return (
     <>
@@ -603,11 +673,11 @@ export default function SessionDetailScreen() {
         {canVote && (
           <Pressable onPress={() => setVoteOpen(true)} style={s.voteBtn}>
             <FontAwesome name="star" size={14} color="#0a0a0a" />
-            <Text style={s.voteBtnText}>Rate your teammates</Text>
+            <Text style={s.voteBtnText}>{voteBtnLabel}</Text>
           </Pressable>
         )}
 
-        {isCompleted && isJoined && !isHost && hasVoted && (
+        {(isCompleted || sessionStarted) && isJoined && !isHost && hasVoted && (
           <View style={[s.rsvpBtn, s.rsvpBtnDisabled]}>
             <Text style={s.rsvpBtnText}>✓ Votes submitted</Text>
           </View>
@@ -643,10 +713,10 @@ export default function SessionDetailScreen() {
           </View>
         )}
 
-        {isHost && isCompleted && (
-          <Pressable onPress={() => setScoreOpen(true)} style={s.voteBtn}>
+        {canHostScore && (
+          <Pressable onPress={() => void openHostScore()} style={[s.voteBtn, { marginTop: isHost && !isCompleted ? 10 : 0 }]}>
             <FontAwesome name="star" size={14} color="#0a0a0a" />
-            <Text style={s.voteBtnText}>Score players</Text>
+            <Text style={s.voteBtnText}>{hostScoreLabel}</Text>
           </Pressable>
         )}
 
@@ -726,7 +796,7 @@ export default function SessionDetailScreen() {
       <Modal visible={voteOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setVoteOpen(false)}>
         <View style={s.modalRoot}>
           <View style={s.modalHeader}>
-            <Text style={s.modalTitle}>Rate your teammates</Text>
+            <Text style={s.modalTitle}>{isCompleted ? "Rate your teammates" : "Rate session"}</Text>
             <Pressable onPress={() => setVoteOpen(false)} hitSlop={10}>
               <FontAwesome name="times" size={18} color="rgba(255,255,255,0.6)" />
             </Pressable>
