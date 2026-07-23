@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import { applyPickupResultWinLossDeltas } from "@/lib/pickup/applyPickupResultWinLoss";
+import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
 
 type Team = "A" | "B" | "C";
+
+type AwardField =
+  | "potd_count"
+  | "goalie_potd_count"
+  | "defender_potd_count"
+  | "midfielder_potd_count"
+  | "attacker_potd_count";
 
 function bearer(req: Request) {
   const auth = req.headers.get("authorization") || "";
@@ -84,33 +92,46 @@ async function bumpAttendedAndSessions(
   }
 }
 
-async function applyGoalieAwardDelta(
+/** Apply ±1 to a profile award counter (idempotent across result edits). */
+async function applyAwardCountDelta(
   admin: ReturnType<typeof getSupabaseAdmin>,
-  oldGoalie: string | null,
-  newGoalie: string | null,
+  field: AwardField,
+  oldUserId: string | null,
+  newUserId: string | null,
   now: string,
 ): Promise<void> {
   const deltas = new Map<string, number>();
-  if (oldGoalie) deltas.set(oldGoalie, (deltas.get(oldGoalie) || 0) - 1);
-  if (newGoalie) deltas.set(newGoalie, (deltas.get(newGoalie) || 0) + 1);
+  if (oldUserId) deltas.set(oldUserId, (deltas.get(oldUserId) || 0) - 1);
+  if (newUserId) deltas.set(newUserId, (deltas.get(newUserId) || 0) + 1);
 
   for (const [uid, delta] of deltas.entries()) {
     if (!delta) continue;
-    const { data } = await admin
-      .from("profiles")
-      .select("goalie_of_the_day_count")
-      .eq("id", uid)
-      .maybeSingle();
-    const current = Number(
-      (data as { goalie_of_the_day_count?: number | null } | null)?.goalie_of_the_day_count ?? 0,
-    );
-    await admin
-      .from("profiles")
-      .update({
-        goalie_of_the_day_count: Math.max(0, current + delta),
-        updated_at: now,
-      })
-      .eq("id", uid);
+    const { data } = await admin.from("profiles").select(field).eq("id", uid).maybeSingle();
+    const current = Number((data as Record<string, unknown> | null)?.[field] ?? 0);
+    const patch: Record<string, unknown> = {
+      [field]: Math.max(0, current + delta),
+      updated_at: now,
+    };
+    // Keep legacy goalie column in sync with goalie_potd_count.
+    if (field === "goalie_potd_count") {
+      const { data: legacy } = await admin
+        .from("profiles")
+        .select("goalie_of_the_day_count")
+        .eq("id", uid)
+        .maybeSingle();
+      const legacyCurrent = Number(
+        (legacy as { goalie_of_the_day_count?: number | null } | null)?.goalie_of_the_day_count ?? 0,
+      );
+      patch.goalie_of_the_day_count = Math.max(0, legacyCurrent + delta);
+    }
+    const { error } = await admin.from("profiles").update(patch).eq("id", uid);
+    if (error) {
+      console.error("[sessions/result] award count update failed", {
+        field,
+        uid,
+        error: error.message,
+      });
+    }
   }
 }
 
@@ -148,7 +169,7 @@ export async function POST(req: Request) {
 
   const { data: run } = await admin
     .from("pickup_runs")
-    .select("created_by")
+    .select("created_by,title")
     .eq("id", run_id)
     .maybeSingle();
   const { data: prof } = await admin
@@ -162,10 +183,11 @@ export async function POST(req: Request) {
 
   const now = new Date().toISOString();
 
-  // Snapshot prior result + assignments so win/loss updates stay idempotent on re-save.
   const { data: oldResult } = await admin
     .from("pickup_run_results")
-    .select("winning_team,goalie_of_the_day")
+    .select(
+      "winning_team,player_of_day,defender_of_day,midfielder_of_day,attacker_of_day,goalie_of_the_day",
+    )
     .eq("run_id", run_id)
     .maybeSingle();
 
@@ -188,14 +210,13 @@ export async function POST(req: Request) {
   const oldAssignments: { user_id: string; team: Team }[] = isFirstResult
     ? []
     : assignments.map((a) => ({ ...a }));
-  // On re-save, assignments table is the source of truth both before and after
-  // (host edits teams separately). Re-apply net delta from old → new winner.
-  // If first result, oldAssignments empty → full credit for current teams.
 
-  const oldGoalie =
-    typeof oldResult?.goalie_of_the_day === "string" ? oldResult.goalie_of_the_day : null;
+  const oldPlayer = asUuid(oldResult?.player_of_day);
+  const oldDefender = asUuid(oldResult?.defender_of_day);
+  const oldMidfielder = asUuid(oldResult?.midfielder_of_day);
+  const oldAttacker = asUuid(oldResult?.attacker_of_day);
+  const oldGoalie = asUuid(oldResult?.goalie_of_the_day);
 
-  // Correct column names on pickup_run_results (not player_of_the_day / updated_at).
   const { error: upsertErr } = await admin.from("pickup_run_results").upsert(
     {
       run_id,
@@ -216,14 +237,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: upsertErr.message }, { status: 500 });
   }
 
-  // Mark completed so the session leaves the live board.
   await admin
     .from("pickup_runs")
     .update({ status: "completed", is_completed: true, updated_at: now })
     .eq("id", run_id);
 
-  // Win/loss on profiles.pickup_wins_count / pickup_losses_count.
-  // Unassigned players are skipped here (attendance handled separately).
   try {
     await applyPickupResultWinLossDeltas(admin, {
       oldWinningTeam: isFirstResult ? null : oldWinningTeam,
@@ -237,42 +255,107 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Win/loss update failed: ${msg}` }, { status: 500 });
   }
 
-  try {
-    await applyGoalieAwardDelta(admin, oldGoalie, goalie_of_the_day, now);
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error("[sessions/result] goalie award update failed", msg);
-  }
+  // Award counters on profiles (idempotent on re-save).
+  await applyAwardCountDelta(admin, "potd_count", oldPlayer, player_of_day, now);
+  await applyAwardCountDelta(admin, "goalie_potd_count", oldGoalie, goalie_of_the_day, now);
+  await applyAwardCountDelta(admin, "defender_potd_count", oldDefender, defender_of_day, now);
+  await applyAwardCountDelta(admin, "midfielder_potd_count", oldMidfielder, midfielder_of_day, now);
+  await applyAwardCountDelta(admin, "attacker_potd_count", oldAttacker, attacker_of_day, now);
 
-  // Confirmed RSVPs: attendance + rating sessions (first result only to avoid double-count).
-  // Players without a team still get attended_count / sessions — just no W/L.
+  const { data: rsvps } = await admin
+    .from("pickup_run_rsvps")
+    .select("user_id")
+    .eq("run_id", run_id)
+    .in("status", ["confirmed", "pending_payment"]);
+
+  const attendeeIds = Array.from(
+    new Set(
+      (rsvps ?? [])
+        .map((r) => (typeof r.user_id === "string" ? r.user_id : ""))
+        .filter(Boolean),
+    ),
+  );
+
   if (isFirstResult) {
-    const { data: rsvps } = await admin
-      .from("pickup_run_rsvps")
-      .select("user_id")
-      .eq("run_id", run_id)
-      .in("status", ["confirmed", "pending_payment"]);
-
-    const attendeeIds = Array.from(
-      new Set(
-        (rsvps ?? [])
-          .map((r) => (typeof r.user_id === "string" ? r.user_id : ""))
-          .filter(Boolean),
-      ),
-    );
-
     console.log("[sessions/result] bumping attended/sessions", {
       run_id,
       attendees: attendeeIds.length,
       assigned: assignments.length,
     });
-
     await bumpAttendedAndSessions(admin, attendeeIds, now);
   }
 
-  // Win rate is computed on the fly in /api/leaderboards from
-  // pickup_wins_count / (pickup_wins_count + pickup_losses_count).
-  // There is no profiles.pickup_win_rate column.
+  // Push: all attendees get the result summary.
+  if (attendeeIds.length > 0) {
+    try {
+      await sendPushToUsers(admin, attendeeIds, {
+        title: "Session results are in!",
+        body: `Team ${winning_team} won. Check who won the awards.`,
+        data: {
+          kind: "session_result",
+          screen: `session/${run_id}`,
+          run_id,
+          url: `ctpickup://session/${run_id}`,
+        },
+      });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[sessions/result] attendee push failed", msg);
+    }
+  }
+
+  // Push: individual award winners (only newly awarded on this save).
+  const awardPushes: Array<{ userId: string | null; title: string; body: string; kind: string }> = [
+    {
+      userId: player_of_day && player_of_day !== oldPlayer ? player_of_day : null,
+      title: "You won Player of the Day! 🏆",
+      body: "Congrats — you were named Player of the Day.",
+      kind: "pickup_award_player",
+    },
+    {
+      userId: goalie_of_the_day && goalie_of_the_day !== oldGoalie ? goalie_of_the_day : null,
+      title: "You won Goalie of the Day! 🧤",
+      body: "Congrats — you were named Goalie of the Day.",
+      kind: "pickup_award_goalie",
+    },
+    {
+      userId: defender_of_day && defender_of_day !== oldDefender ? defender_of_day : null,
+      title: "You won Defender of the Day! 🛡️",
+      body: "Congrats — you were named Defender of the Day.",
+      kind: "pickup_award_defender",
+    },
+    {
+      userId: midfielder_of_day && midfielder_of_day !== oldMidfielder ? midfielder_of_day : null,
+      title: "You won Midfielder of the Day! ⚽",
+      body: "Congrats — you were named Midfielder of the Day.",
+      kind: "pickup_award_midfielder",
+    },
+    {
+      userId: attacker_of_day && attacker_of_day !== oldAttacker ? attacker_of_day : null,
+      title: "You won Attacker of the Day! 🔥",
+      body: "Congrats — you were named Attacker of the Day.",
+      kind: "pickup_award_attacker",
+    },
+  ];
+
+  for (const a of awardPushes) {
+    if (!a.userId) continue;
+    try {
+      await sendPushToUsers(admin, [a.userId], {
+        title: a.title,
+        body: a.body,
+        data: {
+          kind: a.kind,
+          screen: `session/${run_id}`,
+          run_id,
+          url: `ctpickup://session/${run_id}`,
+        },
+      });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[sessions/result] award push failed", { kind: a.kind, error: msg });
+    }
+  }
 
   return NextResponse.json({
     ok: true,
