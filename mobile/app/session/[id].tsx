@@ -268,6 +268,28 @@ export default function SessionDetailScreen() {
           .eq("rater_id", myUserId)
           .maybeSingle();
         setHasRatedHost(!!existingRating);
+
+        // Lazily fire peer-voting pushes once kickoff + 30min has passed.
+        const joined =
+          myRsvp?.status === "confirmed" || myRsvp?.status === "pending_payment";
+        const host = resolved?.created_by === myUserId;
+        const startMs = resolved?.start_at ? new Date(resolved.start_at).getTime() : NaN;
+        const thirtyMinPassed =
+          Number.isFinite(startMs) && Date.now() >= startMs + 30 * 60 * 1000;
+        if (joined && !host && thirtyMinPassed) {
+          const origin = siteOrigin();
+          const token = session?.access_token;
+          if (origin && token) {
+            void fetch(`${origin}/api/sessions/check-voting`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ run_id: id }),
+            }).catch(() => {});
+          }
+        }
       } else {
         setHasRatedHost(false);
       }
@@ -896,6 +918,18 @@ export default function SessionDetailScreen() {
           </Pressable>
         </View>
 
+        {canVote ? (
+          <Pressable
+            onPress={() => setVoteOpen(true)}
+            style={s.rateBanner}
+            accessibilityRole="button"
+            accessibilityLabel="Rate your teammates"
+          >
+            <FontAwesome name="star" size={14} color="#0a0a0a" />
+            <Text style={s.rateBannerText}>Rate your teammates →</Text>
+          </Pressable>
+        ) : null}
+
         <View style={s.pillRow}>
           {isCompleted
             ? <View style={[s.pill, { borderColor: "rgba(255,255,255,0.3)" }]}><Text style={[s.pillText, { color: "rgba(255,255,255,0.5)" }]}>Completed</Text></View>
@@ -1431,6 +1465,18 @@ const s = StyleSheet.create({
   errorText: { color: "rgba(255,255,255,0.5)", fontSize: 16 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 16, marginBottom: 20 },
   headerTitle: { color: "#fff", fontSize: 17, fontWeight: "700", flex: 1, textAlign: "center", marginHorizontal: 12 },
+  rateBanner: {
+    backgroundColor: LIME,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 14,
+  },
+  rateBannerText: { color: "#0a0a0a", fontWeight: "800", fontSize: 15 },
   pillRow: { flexDirection: "row", gap: 8, marginBottom: 16, flexWrap: "wrap" },
   pill: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
   pillText: { fontSize: 12, fontWeight: "700" },
