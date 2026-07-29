@@ -109,11 +109,9 @@ const LIME = "#a3e635";
 const INACTIVE = "rgba(255,255,255,0.42)";
 
 /**
- * The redesigned 5-slot bar: Home · Tournaments · Host (elevated) · Rankings · Profile,
- * plus a conditional 6th Admin slot. Host / Rankings jump to root-level routes
- * (they aren't tab screens), so we drive navigation manually rather than rely on
- * the default tab bar. Home / Tournaments / Profile / Admin map to registered tab
- * screens and light up when active.
+ * The redesigned 5-slot bar: Home · Sessions · Host (elevated) · Rankings · Profile,
+ * plus a conditional 6th Admin slot. Host jumps via the create menu; Rankings /
+ * Home / Sessions / Profile / Admin map to registered tab screens.
  */
 function CTTabBar({ state, navigation, isAdmin }: BottomTabBarProps & { isAdmin: boolean }) {
   const router = useRouter();
@@ -126,14 +124,6 @@ function CTTabBar({ state, navigation, isAdmin }: BottomTabBarProps & { isAdmin:
       if (activeName !== name) navigation.navigate(name as never);
     },
     [navigation, activeName],
-  );
-
-  const goRoute = useCallback(
-    (href: string) => {
-      void hapticTap();
-      (router.push as (href: string) => void)(href);
-    },
-    [router],
   );
 
   const openCreateMenu = useCallback(() => {
@@ -161,10 +151,10 @@ function CTTabBar({ state, navigation, isAdmin }: BottomTabBarProps & { isAdmin:
         onPress={() => goTab("index")}
       />
       <TabItem
-        icon="trophy"
-        label="Tournaments"
-        active={activeName === "tournaments"}
-        onPress={() => goTab("tournaments")}
+        icon="soccer-ball-o"
+        label="Sessions"
+        active={activeName === "sessions"}
+        onPress={() => goTab("sessions")}
       />
       <HostButton onPress={openCreateMenu} />
       <TabItem icon="trophy" label="Rankings" active={activeName === "leaderboards"} onPress={() => goTab("leaderboards")} />
@@ -269,8 +259,9 @@ function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; isAdmin: bo
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Home", headerShown: false }} />
-      <Tabs.Screen name="runs" options={{ title: "Pickup" }} />
-      <Tabs.Screen name="tournaments" options={{ title: "Tournaments" }} />
+      <Tabs.Screen name="runs" options={{ title: "Pickup", href: null }} />
+      <Tabs.Screen name="sessions" options={{ title: "Sessions", headerShown: false }} />
+      <Tabs.Screen name="tournaments" options={{ title: "Tournaments", href: null }} />
       <Tabs.Screen name="messages" options={{ title: "Messages", headerShown: false }} />
       <Tabs.Screen name="account" options={{ title: "Profile" }} />
       <Tabs.Screen name="leaderboards" options={{ title: "Rankings" }} />
