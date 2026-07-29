@@ -167,6 +167,22 @@ export async function POST(req: Request) {
     .select("run_id")
     .single();
 
+  // Increment award counts on profiles
+  const awardFields = [
+    { field: 'potd_count', userId: player_of_day },
+    { field: 'goalie_potd_count', userId: goalie_of_the_day },
+    { field: 'defender_potd_count', userId: defender_of_day },
+    { field: 'midfielder_potd_count', userId: midfielder_of_day },
+    { field: 'attacker_potd_count', userId: attacker_of_day },
+  ];
+  for (const { field, userId } of awardFields) {
+    if (!userId) continue;
+    const { data: prof } = await supabase.from('profiles').select(field).eq('id', userId).maybeSingle();
+    if (!prof) continue;
+    const current = Number((prof as Record<string, unknown>)[field] ?? 0);
+    await supabase.from('profiles').update({ [field]: current + 1, updated_at: new Date().toISOString() }).eq('id', userId);
+  }
+
   if (upRes.error) {
     return NextResponse.json({ error: upRes.error.message }, { status: 500 });
   }
