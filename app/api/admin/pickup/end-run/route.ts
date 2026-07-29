@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { autoSettleTierSession } from "@/lib/pickup/autoSettleSession";
+import { resolvePotdFromVotes } from "@/lib/pickup/resolvePotdFromVotes";
 import { supabaseService } from "@/lib/supabase/service";
 
 export const runtime = "nodejs";
@@ -106,12 +107,46 @@ export async function POST(req: Request) {
     }
 
     const settle = await autoSettleTierSession(supabase, tier_session_id);
+
+    // If results already exist, refresh player_of_day from attendee POTD votes.
+    const { data: existingResult } = await supabase
+      .from("pickup_run_results")
+      .select("player_of_day")
+      .eq("run_id", run_id)
+      .maybeSingle();
+
+    let potd: Awaited<ReturnType<typeof resolvePotdFromVotes>> | null = null;
+    if (existingResult) {
+      const hostPick =
+        typeof existingResult.player_of_day === "string" ? existingResult.player_of_day : null;
+      potd = await resolvePotdFromVotes(supabase, run_id, hostPick);
+      if (potd.winnerId && potd.winnerId !== hostPick) {
+        await supabase
+          .from("pickup_run_results")
+          .update({ player_of_day: potd.winnerId })
+          .eq("run_id", run_id);
+      } else if (potd.winnerId && !hostPick) {
+        await supabase
+          .from("pickup_run_results")
+          .update({ player_of_day: potd.winnerId })
+          .eq("run_id", run_id);
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       run_id,
       tier_session_id,
       settled: settle.settled,
       settle_error: settle.error ?? null,
+      potd: potd
+        ? {
+            winner_id: potd.winnerId,
+            vote_count: potd.voteCount,
+            total_votes: potd.totalVotes,
+            tied: potd.tied,
+          }
+        : null,
     });
   }
 

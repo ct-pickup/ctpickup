@@ -123,6 +123,15 @@ export default function SessionDetailScreen() {
   const [votePicks, setVotePicks] = useState<string[]>([]);
   const [voteBusy, setVoteBusy] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
+  const [voteStep, setVoteStep] = useState<1 | 2>(1);
+  const [potdNominee, setPotdNominee] = useState<string | null>(null);
+  const [hasPotdVoted, setHasPotdVoted] = useState(false);
+  const [potdSummary, setPotdSummary] = useState<{
+    winnerId: string | null;
+    winnerName: string;
+    voteCount: number;
+    totalVotes: number;
+  } | null>(null);
 
   // Organizer score modal
   const [scoreOpen, setScoreOpen] = useState(false);
@@ -139,7 +148,6 @@ export default function SessionDetailScreen() {
   const [teamsBusy, setTeamsBusy] = useState(false);
   const [resultOpen, setResultOpen] = useState(false);
   const [winningTeam, setWinningTeam] = useState<"A" | "B" | null>(null);
-  const [potd, setPotd] = useState<string | null>(null);
   const [defenderPotd, setDefenderPotd] = useState<string | null>(null);
   const [midfielderPotd, setMidfielderPotd] = useState<string | null>(null);
   const [attackerPotd, setAttackerPotd] = useState<string | null>(null);
@@ -259,6 +267,74 @@ export default function SessionDetailScreen() {
           setHasVoted((myVote?.length ?? 0) > 0);
         } else {
           setHasVoted(false);
+        }
+
+        const { data: myPotd, error: myPotdErr } = await supabase
+          .from("potd_votes")
+          .select("nominee_id")
+          .eq("run_id", id)
+          .eq("voter_id", myUserId)
+          .maybeSingle();
+        if (myPotdErr) {
+          console.warn("[session] potd_votes read:", myPotdErr.message);
+          setHasPotdVoted(false);
+        } else {
+          setHasPotdVoted(Boolean(myPotd?.nominee_id));
+          if (myPotd?.nominee_id) setPotdNominee(String(myPotd.nominee_id));
+        }
+
+        // POTD tally for completed sessions (public read policy).
+        if (resolved?.status === "completed") {
+          const { data: potdRows, error: potdErr } = await supabase
+            .from("potd_votes")
+            .select("nominee_id")
+            .eq("run_id", id);
+          if (potdErr) {
+            console.warn("[session] potd tally:", potdErr.message);
+            setPotdSummary(null);
+          } else {
+          const counts = new Map<string, number>();
+          for (const row of potdRows ?? []) {
+            const nid = typeof row.nominee_id === "string" ? row.nominee_id : "";
+            if (!nid) continue;
+            counts.set(nid, (counts.get(nid) || 0) + 1);
+          }
+          let winnerId: string | null = null;
+          let voteCount = 0;
+          for (const [nid, n] of counts.entries()) {
+            if (n > voteCount) {
+              winnerId = nid;
+              voteCount = n;
+            }
+          }
+          const { data: resultRow } = await supabase
+            .from("pickup_run_results")
+            .select("player_of_day")
+            .eq("run_id", id)
+            .maybeSingle();
+          if (typeof resultRow?.player_of_day === "string" && resultRow.player_of_day) {
+            winnerId = resultRow.player_of_day;
+            voteCount = counts.get(winnerId) ?? voteCount;
+          }
+          if (winnerId && voteCount > 0) {
+            const winnerProfile = profileById.get(winnerId);
+            const winnerName = winnerProfile
+              ? [winnerProfile.first_name, winnerProfile.last_name].filter(Boolean).join(" ").trim() ||
+                winnerProfile.username ||
+                "Player"
+              : "Player";
+            setPotdSummary({
+              winnerId,
+              winnerName,
+              voteCount,
+              totalVotes: potdRows?.length ?? 0,
+            });
+          } else {
+            setPotdSummary(null);
+          }
+          }
+        } else {
+          setPotdSummary(null);
         }
 
         const { data: existingRating } = await supabase
@@ -492,7 +568,6 @@ export default function SessionDetailScreen() {
         body: JSON.stringify({
           run_id: id,
           winning_team: winningTeam,
-          player_of_the_day: potd,
           defender_of_the_day: defenderPotd,
           midfielder_of_the_day: midfielderPotd,
           attacker_of_the_day: attackerPotd,
@@ -527,25 +602,44 @@ export default function SessionDetailScreen() {
         },
         body: JSON.stringify({ run_id: run.id, picks: votePicks }),
       });
-      const j = await r.json().catch(() => null) as {
-        ok?: boolean;
-        error?: string;
-        tier_session_id?: string;
-        already_voted?: boolean;
-      } | null;
+      const j = (await r.json().catch(() => null)) as { ok?: boolean; error?: string; already_voted?: boolean } | null;
       if (!r.ok || !j?.ok) {
-        Alert.alert("Error", j?.error ?? "Could not submit votes.");
+        Alert.alert("Error", j?.error ?? "Failed to submit votes.");
         return;
       }
-      if (j.tier_session_id) {
-        setRun((cur) => (cur ? { ...cur, tier_session_id: j.tier_session_id! } : cur));
-      }
       setHasVoted(true);
+      setVoteStep(2);
+    } finally {
+      setVoteBusy(false);
+    }
+  }
+
+  async function submitPotdVote() {
+    if (!potdNominee || voteBusy || !run || !session?.access_token) return;
+    const origin = siteOrigin();
+    if (!origin) {
+      Alert.alert("Error", "App is missing site URL configuration.");
+      return;
+    }
+    setVoteBusy(true);
+    try {
+      const r = await fetch(`${origin}/api/sessions/potd-vote`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ run_id: run.id, nominee_id: potdNominee }),
+      });
+      const j = (await r.json().catch(() => null)) as { ok?: boolean; error?: string; already_voted?: boolean } | null;
+      if (!r.ok || !j?.ok) {
+        Alert.alert("Error", j?.error ?? "Failed to submit Player of the Day vote.");
+        return;
+      }
+      setHasPotdVoted(true);
       setVoteOpen(false);
-      Alert.alert(
-        j.already_voted ? "Already voted" : "Votes submitted!",
-        j.already_voted ? "Your picks were already recorded." : "Thanks for rating your teammates.",
-      );
+      Alert.alert("Thanks!", "Your Player of the Day vote was recorded.");
+      await load();
     } finally {
       setVoteBusy(false);
     }
@@ -871,10 +965,21 @@ export default function SessionDetailScreen() {
     return Number.isFinite(t) && t < Date.now();
   })();
   // Peer voting after kickoff (or once completed) — does not require tier_session_id upfront.
-  const canVote = isJoined && !isHost && !hasVoted && (isCompleted || sessionStarted);
-  const voteBtnLabel = isCompleted ? "Rate your teammates" : "Rate session";
+  const needsPeerVote = !hasVoted;
+  const needsPotdVote = !hasPotdVoted;
+  const canVote = isJoined && !isHost && (isCompleted || sessionStarted) && (needsPeerVote || needsPotdVote);
+  const voteBtnLabel = needsPeerVote
+    ? isCompleted
+      ? "Rate your teammates"
+      : "Rate session"
+    : "Vote Player of the Day";
   const canHostScore = isHost && (isCompleted || sessionStarted);
   const hostScoreLabel = isCompleted ? "Score players" : "Rate session";
+
+  function openVoteModal() {
+    setVoteStep(hasVoted && !hasPotdVoted ? 2 : 1);
+    setVoteOpen(true);
+  }
 
   return (
     <>
@@ -891,13 +996,13 @@ export default function SessionDetailScreen() {
 
         {canVote ? (
           <Pressable
-            onPress={() => setVoteOpen(true)}
+            onPress={openVoteModal}
             style={s.rateBanner}
             accessibilityRole="button"
-            accessibilityLabel="Rate your teammates"
+            accessibilityLabel={voteBtnLabel}
           >
             <FontAwesome name="star" size={14} color="#0a0a0a" />
-            <Text style={s.rateBannerText}>Rate your teammates →</Text>
+            <Text style={s.rateBannerText}>{voteBtnLabel} →</Text>
           </Pressable>
         ) : null}
 
@@ -958,11 +1063,21 @@ export default function SessionDetailScreen() {
         )}
 
         {canVote && (
-          <Pressable onPress={() => setVoteOpen(true)} style={s.voteBtn}>
+          <Pressable onPress={openVoteModal} style={s.voteBtn}>
             <FontAwesome name="star" size={14} color="#0a0a0a" />
             <Text style={s.voteBtnText}>{voteBtnLabel}</Text>
           </Pressable>
         )}
+
+        {potdSummary ? (
+          <View style={s.potdResultCard}>
+            <Text style={s.potdResultTitle}>Player of the Day</Text>
+            <Text style={s.potdResultBody}>
+              {potdSummary.voteCount} player{potdSummary.voteCount === 1 ? "" : "s"} voted{" "}
+              {potdSummary.winnerName} Player of the Day
+            </Text>
+          </View>
+        ) : null}
 
         {sessionStarted && isJoined && !isHost && !hasRatedHost && (
           <Pressable
@@ -1098,42 +1213,105 @@ export default function SessionDetailScreen() {
         </View>
       </Modal>
 
-      {/* Peer Vote Modal */}
+      {/* Peer Vote Modal — Step 1: top 3, Step 2: POTD */}
       <Modal visible={voteOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setVoteOpen(false)}>
         <View style={s.modalRoot}>
           <View style={s.modalHeader}>
-            <Text style={s.modalTitle}>{isCompleted ? "Rate your teammates" : "Rate session"}</Text>
+            <Text style={s.modalTitle}>
+              {voteStep === 1
+                ? isCompleted
+                  ? "Rate your teammates"
+                  : "Rate session"
+                : "Player of the Day"}
+            </Text>
             <Pressable onPress={() => setVoteOpen(false)} hitSlop={10}>
               <FontAwesome name="times" size={18} color="rgba(255,255,255,0.6)" />
             </Pressable>
           </View>
-          <Text style={s.voteSubtitle}>Pick the 3 best players on the pitch. Nobody sees your picks.</Text>
-          <FlatList
-            data={attendees.filter((a) => a.user_id !== myUserId && a.user_id !== run.created_by)}
-            keyExtractor={(a) => a.user_id}
-            contentContainerStyle={{ padding: 16, gap: 8 }}
-            renderItem={({ item }) => {
-              const name = playerName(item);
-              const rank = votePicks.indexOf(item.user_id);
-              const picked = rank >= 0;
-              const full = votePicks.length === 3 && !picked;
-              return (
-                <Pressable onPress={() => toggleVotePick(item.user_id)} disabled={full}
-                  style={[s.playerRow, picked && { borderWidth: 1, borderColor: LIME }, full && { opacity: 0.35 }]}>
-                  <View style={[s.avatar, picked && { backgroundColor: LIME }]}>
-                    <Text style={[s.avatarText, picked && { color: "#0a0a0a" }]}>{picked ? rank + 1 : playerInitials(item)}</Text>
-                  </View>
-                  <Text style={s.playerName}>{name}</Text>
-                  {picked && <FontAwesome name="check" size={14} color={LIME} />}
-                </Pressable>
-              );
-            }}
-          />
-          <Pressable onPress={() => void submitVotes()} disabled={votePicks.length !== 3 || voteBusy}
-            style={[s.publishBtn, votePicks.length !== 3 && { opacity: 0.4 }, { margin: 16 }]}>
-            {voteBusy ? <ActivityIndicator color="#0a0a0a" /> :
-              <Text style={s.publishBtnText}>Submit {votePicks.length}/3 votes</Text>}
-          </Pressable>
+          {voteStep === 1 ? (
+            <>
+              <Text style={s.voteSubtitle}>
+                Step 1 of 2 — Pick your top 3 players. Nobody sees your picks.
+              </Text>
+              <FlatList
+                data={attendees.filter((a) => a.user_id !== myUserId && a.user_id !== run.created_by)}
+                keyExtractor={(a) => a.user_id}
+                contentContainerStyle={{ padding: 16, gap: 8 }}
+                renderItem={({ item }) => {
+                  const name = playerName(item);
+                  const rank = votePicks.indexOf(item.user_id);
+                  const picked = rank >= 0;
+                  const full = votePicks.length === 3 && !picked;
+                  return (
+                    <Pressable
+                      onPress={() => toggleVotePick(item.user_id)}
+                      disabled={full}
+                      style={[s.playerRow, picked && { borderWidth: 1, borderColor: LIME }, full && { opacity: 0.35 }]}
+                    >
+                      <View style={[s.avatar, picked && { backgroundColor: LIME }]}>
+                        <Text style={[s.avatarText, picked && { color: "#0a0a0a" }]}>
+                          {picked ? rank + 1 : playerInitials(item)}
+                        </Text>
+                      </View>
+                      <Text style={s.playerName}>{name}</Text>
+                      {picked && <FontAwesome name="check" size={14} color={LIME} />}
+                    </Pressable>
+                  );
+                }}
+              />
+              <Pressable
+                onPress={() => void submitVotes()}
+                disabled={votePicks.length !== 3 || voteBusy}
+                style={[s.publishBtn, votePicks.length !== 3 && { opacity: 0.4 }, { margin: 16 }]}
+              >
+                {voteBusy ? (
+                  <ActivityIndicator color="#0a0a0a" />
+                ) : (
+                  <Text style={s.publishBtnText}>Continue · {votePicks.length}/3</Text>
+                )}
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={s.voteSubtitle}>
+                Step 2 of 2 — Who stood out most? Pick one Player of the Day.
+              </Text>
+              <FlatList
+                data={attendees.filter((a) => a.user_id !== myUserId && a.user_id !== run.created_by)}
+                keyExtractor={(a) => a.user_id}
+                contentContainerStyle={{ padding: 16, gap: 8 }}
+                renderItem={({ item }) => {
+                  const name = playerName(item);
+                  const selected = potdNominee === item.user_id;
+                  return (
+                    <Pressable
+                      onPress={() => setPotdNominee(selected ? null : item.user_id)}
+                      style={[s.playerRow, selected && { borderWidth: 1, borderColor: LIME }]}
+                    >
+                      <View style={[s.avatar, selected && { backgroundColor: LIME }]}>
+                        <Text style={[s.avatarText, selected && { color: "#0a0a0a" }]}>
+                          {selected ? "★" : playerInitials(item)}
+                        </Text>
+                      </View>
+                      <Text style={[s.playerName, selected && { color: LIME }]}>{name}</Text>
+                      {selected ? <FontAwesome name="star" size={14} color={LIME} /> : null}
+                    </Pressable>
+                  );
+                }}
+              />
+              <Pressable
+                onPress={() => void submitPotdVote()}
+                disabled={!potdNominee || voteBusy}
+                style={[s.publishBtn, !potdNominee && { opacity: 0.4 }, { margin: 16 }]}
+              >
+                {voteBusy ? (
+                  <ActivityIndicator color="#0a0a0a" />
+                ) : (
+                  <Text style={s.publishBtnText}>Submit Player of the Day</Text>
+                )}
+              </Pressable>
+            </>
+          )}
         </View>
       </Modal>
 
@@ -1288,6 +1466,11 @@ export default function SessionDetailScreen() {
           <View style={{ marginHorizontal: 16, marginTop: 12, marginBottom: 4, backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" }}>
             <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, lineHeight: 18 }}>You cannot receive awards for sessions you host.</Text>
           </View>
+          <View style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 4, backgroundColor: "rgba(163,230,53,0.08)", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "rgba(163,230,53,0.25)" }}>
+            <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, lineHeight: 18 }}>
+              Player of the Day is voted by attendees. Pick Defender, Midfielder, Attacker, and Goalie awards below.
+            </Text>
+          </View>
 
           <Text style={s.voteSubtitle}>Who won?</Text>
           <View style={{ flexDirection: "row", gap: 10, padding: 16, paddingTop: 8 }}>
@@ -1302,7 +1485,6 @@ export default function SessionDetailScreen() {
           </View>
 
           {[
-            { label: "Player of the Day", state: potd, set: setPotd },
             { label: "Defender of the Day", state: defenderPotd, set: setDefenderPotd },
             { label: "Midfielder of the Day", state: midfielderPotd, set: setMidfielderPotd },
             { label: "Attacker of the Day", state: attackerPotd, set: setAttackerPotd },
@@ -1536,6 +1718,17 @@ const s = StyleSheet.create({
   inviteRowBtnText: { color: LIME, fontWeight: "700", fontSize: 13 },
   inviteRowBtnTextDone: { color: "rgba(255,255,255,0.35)" },
   voteSubtitle: { color: "rgba(255,255,255,0.45)", fontSize: 13, padding: 16, paddingBottom: 8, lineHeight: 18 },
+  potdResultCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: "rgba(163,230,53,0.08)",
+  },
+  potdResultTitle: { color: LIME, fontWeight: "800", fontSize: 13, letterSpacing: 0.4, marginBottom: 6 },
+  potdResultBody: { color: "rgba(255,255,255,0.9)", fontSize: 15, lineHeight: 21, fontWeight: "600" },
   tierLegend: { margin: 16, padding: 14, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
   scoreRow: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 12 },
   scoreInput: { width: 56, backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", color: "#fff", textAlign: "center", fontSize: 16, fontWeight: "700", paddingVertical: 8 },

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { applyPickupResultWinLossDeltas } from "@/lib/pickup/applyPickupResultWinLoss";
+import { resolvePotdFromVotes } from "@/lib/pickup/resolvePotdFromVotes";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { supabaseService } from "@/lib/supabase/service";
 
@@ -99,7 +100,7 @@ export async function POST(req: Request) {
 
   const team_assignments = Array.isArray(b.team_assignments) ? b.team_assignments : null;
 
-  const player_of_day = b.player_of_day == null ? null : asUuid(b.player_of_day);
+  const player_of_day_host = b.player_of_day == null ? null : asUuid(b.player_of_day);
   const goalie_of_the_day = b.goalie_of_the_day == null ? null : asUuid(b.goalie_of_the_day);
   const defender_of_day = b.defender_of_day == null ? null : asUuid(b.defender_of_day);
   const midfielder_of_day = b.midfielder_of_day == null ? null : asUuid(b.midfielder_of_day);
@@ -129,7 +130,7 @@ export async function POST(req: Request) {
 
   const oldResultRes = await supabase
     .from("pickup_run_results")
-    .select("winning_team,goalie_of_the_day")
+    .select("winning_team,goalie_of_the_day,player_of_day")
     .eq("run_id", run_id)
     .maybeSingle();
   const oldAssignRes = await supabase.from("pickup_run_team_assignments").select("user_id,team").eq("run_id", run_id);
@@ -140,12 +141,17 @@ export async function POST(req: Request) {
       : null;
   const oldGoalieOfTheDay =
     typeof oldResultRes.data?.goalie_of_the_day === "string" ? oldResultRes.data.goalie_of_the_day : null;
+  const oldPlayerOfDay =
+    typeof oldResultRes.data?.player_of_day === "string" ? oldResultRes.data.player_of_day : null;
   const oldAssignments: { user_id: string; team: Team }[] = [];
   for (const row of oldAssignRes.data || []) {
     const r = row as { user_id: string; team: unknown };
     if (!r.user_id || !isTeam(r.team)) continue;
     oldAssignments.push({ user_id: r.user_id, team: r.team });
   }
+
+  const potdResolution = await resolvePotdFromVotes(supabase, run_id, player_of_day_host);
+  const player_of_day = potdResolution.winnerId;
 
   // 1) Upsert result row for the run.
   const upRes = await supabase
@@ -167,20 +173,35 @@ export async function POST(req: Request) {
     .select("run_id")
     .single();
 
-  // Increment award counts on profiles
+  // Increment award counts on profiles (skip POTD when unchanged on re-save).
   const awardFields = [
-    { field: 'potd_count', userId: player_of_day },
-    { field: 'goalie_potd_count', userId: goalie_of_the_day },
-    { field: 'defender_potd_count', userId: defender_of_day },
-    { field: 'midfielder_potd_count', userId: midfielder_of_day },
-    { field: 'attacker_potd_count', userId: attacker_of_day },
+    { field: "potd_count", userId: player_of_day, skip: Boolean(oldPlayerOfDay && oldPlayerOfDay === player_of_day) },
+    { field: "goalie_potd_count", userId: goalie_of_the_day, skip: false },
+    { field: "defender_potd_count", userId: defender_of_day, skip: false },
+    { field: "midfielder_potd_count", userId: midfielder_of_day, skip: false },
+    { field: "attacker_potd_count", userId: attacker_of_day, skip: false },
   ];
-  for (const { field, userId } of awardFields) {
-    if (!userId) continue;
-    const { data: prof } = await supabase.from('profiles').select(field).eq('id', userId).maybeSingle();
+  for (const { field, userId, skip } of awardFields) {
+    if (!userId || skip) continue;
+    // First result only for non-POTD to avoid double-count on re-save when old winner unknown.
+    if (field !== "potd_count" && oldResultRes.data) continue;
+    if (field === "potd_count" && oldPlayerOfDay && oldPlayerOfDay !== player_of_day) {
+      const { data: oldProf } = await supabase.from("profiles").select("potd_count").eq("id", oldPlayerOfDay).maybeSingle();
+      if (oldProf) {
+        const cur = Math.max(0, Number((oldProf as { potd_count?: number }).potd_count ?? 0) - 1);
+        await supabase
+          .from("profiles")
+          .update({ potd_count: cur, updated_at: new Date().toISOString() })
+          .eq("id", oldPlayerOfDay);
+      }
+    }
+    const { data: prof } = await supabase.from("profiles").select(field).eq("id", userId).maybeSingle();
     if (!prof) continue;
     const current = Number((prof as unknown as Record<string, unknown>)[field] ?? 0);
-    await supabase.from('profiles').update({ [field]: current + 1, updated_at: new Date().toISOString() }).eq('id', userId);
+    await supabase
+      .from("profiles")
+      .update({ [field]: current + 1, updated_at: new Date().toISOString() })
+      .eq("id", userId);
   }
 
   if (upRes.error) {

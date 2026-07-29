@@ -159,12 +159,17 @@ export default function AdminRunResultScreen() {
   const [defenderOfDay, setDefenderOfDay] = useState<string | null>(null);
   const [midfielderOfDay, setMidfielderOfDay] = useState<string | null>(null);
   const [attackerOfDay, setAttackerOfDay] = useState<string | null>(null);
+  const [potdVoteSummary, setPotdVoteSummary] = useState<{
+    winnerId: string | null;
+    voteCount: number;
+    totalVotes: number;
+  } | null>(null);
 
   const [picker, setPicker] = useState<
     | null
     | { kind: "team"; userId: string }
     | { kind: "winning" }
-    | { kind: "award"; which: "player" | "goalie" | "defender" | "midfielder" | "attacker" }
+    | { kind: "award"; which: "goalie" | "defender" | "midfielder" | "attacker" }
   >(null);
 
   const [teamsReadOnly, setTeamsReadOnly] = useState(false);
@@ -229,6 +234,38 @@ export default function AdminRunResultScreen() {
           }
         }
         if (!cancelled) setAttendanceByUser(attendanceMap);
+
+        // Load attendee POTD votes (winner resolved when posting results).
+        if (supabase) {
+          const { data: potdRows } = await supabase
+            .from("potd_votes")
+            .select("nominee_id")
+            .eq("run_id", runId);
+          if (!cancelled) {
+            const counts = new Map<string, number>();
+            for (const row of potdRows ?? []) {
+              const nid = typeof (row as { nominee_id?: unknown }).nominee_id === "string"
+                ? String((row as { nominee_id: string }).nominee_id)
+                : "";
+              if (!nid) continue;
+              counts.set(nid, (counts.get(nid) || 0) + 1);
+            }
+            let winnerId: string | null = null;
+            let voteCount = 0;
+            for (const [nid, n] of counts.entries()) {
+              if (n > voteCount) {
+                winnerId = nid;
+                voteCount = n;
+              }
+            }
+            setPotdVoteSummary({
+              winnerId,
+              voteCount,
+              totalVotes: potdRows?.length ?? 0,
+            });
+            if (winnerId && !isReadonly) setPlayerOfDay(winnerId);
+          }
+        }
 
         if (isReadonly) {
           const res = await fetchAdminPickupResult(token, runId);
@@ -367,7 +404,7 @@ export default function AdminRunResultScreen() {
       .filter((a) => allowedTeams.includes(a.team));
   }, [confirmed, teamByUser, allowedTeams, attendanceByUser]);
 
-  const awardWinners = uniq([playerOfDay, goalieOfTheDay, defenderOfDay, midfielderOfDay, attackerOfDay].filter(Boolean));
+  const awardWinners = uniq([goalieOfTheDay, defenderOfDay, midfielderOfDay, attackerOfDay].filter(Boolean));
   const awardWinnerNotInConfirmed = awardWinners.some(
     (id) => !id || !confirmed.some((p) => p.id === id) || !attendedIds.has(id),
   );
@@ -453,7 +490,7 @@ export default function AdminRunResultScreen() {
       total_teams: totalTeams,
       winning_team: winningTeam,
       team_assignments: filledAssignments,
-      player_of_day: playerOfDay,
+      player_of_day: null,
       goalie_of_the_day: goalieOfTheDay,
       defender_of_day: defenderOfDay,
       midfielder_of_day: midfielderOfDay,
@@ -637,20 +674,31 @@ export default function AdminRunResultScreen() {
       {/* 3) Awards */}
       <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Step 3: Awards</Text>
       <View style={styles.card}>
-        <AwardRow
-          label="Player of the Day 🏆"
-          valueLabel={playerOfDay ? nameFor(confirmed.find((p) => p.id === playerOfDay) || { id: playerOfDay, full_name: null }) : "None"}
-          hasValue={Boolean(playerOfDay)}
-          disabled={isReadonly}
-          onPress={() => {
-            void hapticTap();
-            setPicker({ kind: "award", which: "player" });
-          }}
-          onClear={() => {
-            void hapticTap();
-            setPlayerOfDay(null);
-          }}
-        />
+        <View style={styles.potdVoteCard}>
+          <Text style={styles.awardLabel}>Player of the Day 🏆 (attendee vote)</Text>
+          {potdVoteSummary && potdVoteSummary.totalVotes > 0 && potdVoteSummary.winnerId ? (
+            <Text style={styles.potdVoteBody}>
+              {potdVoteSummary.voteCount} player{potdVoteSummary.voteCount === 1 ? "" : "s"} voted{" "}
+              {nameFor(
+                confirmed.find((p) => p.id === potdVoteSummary.winnerId) || {
+                  id: potdVoteSummary.winnerId,
+                  full_name: null,
+                },
+              )}{" "}
+              Player of the Day
+              {potdVoteSummary.totalVotes !== potdVoteSummary.voteCount
+                ? ` · ${potdVoteSummary.totalVotes} total votes`
+                : ""}
+            </Text>
+          ) : playerOfDay ? (
+            <Text style={styles.potdVoteBody}>
+              {nameFor(confirmed.find((p) => p.id === playerOfDay) || { id: playerOfDay, full_name: null })}{" "}
+              (from posted result)
+            </Text>
+          ) : (
+            <Text style={styles.potdVoteMuted}>No POTD votes yet — winner is set automatically when you post.</Text>
+          )}
+        </View>
         <AwardRow
           label="Goalie of the Day 🧤"
           valueLabel={goalieOfTheDay ? nameFor(confirmed.find((p) => p.id === goalieOfTheDay) || { id: goalieOfTheDay, full_name: null }) : "None"}
@@ -748,10 +796,8 @@ export default function AdminRunResultScreen() {
       <SelectModal<string>
         visible={picker?.kind === "award"}
         title={
-          picker?.kind === "award" && picker.which === "player"
-            ? "Player of the Day 🏆"
-            : picker?.kind === "award" && picker.which === "goalie"
-              ? "Goalie of the Day 🧤"
+          picker?.kind === "award" && picker.which === "goalie"
+            ? "Goalie of the Day 🧤"
             : picker?.kind === "award" && picker.which === "attacker"
               ? "Attacker of the Day ⚡"
               : picker?.kind === "award" && picker.which === "midfielder"
@@ -762,10 +808,8 @@ export default function AdminRunResultScreen() {
         allowClear
         value={
           picker?.kind === "award"
-            ? picker.which === "player"
-              ? playerOfDay
-              : picker.which === "goalie"
-                ? goalieOfTheDay
+            ? picker.which === "goalie"
+              ? goalieOfTheDay
               : picker.which === "defender"
                 ? defenderOfDay
                 : picker.which === "midfielder"
@@ -776,8 +820,7 @@ export default function AdminRunResultScreen() {
         onSelect={(v) => {
           const next = v ? v : null;
           if (picker?.kind !== "award") return;
-          if (picker.which === "player") setPlayerOfDay(next);
-          else if (picker.which === "goalie") setGoalieOfTheDay(next);
+          if (picker.which === "goalie") setGoalieOfTheDay(next);
           else if (picker.which === "defender") setDefenderOfDay(next);
           else if (picker.which === "midfielder") setMidfielderOfDay(next);
           else setAttackerOfDay(next);
@@ -952,6 +995,13 @@ const styles = StyleSheet.create({
   awardLabel: { color: "rgba(255,255,255,0.65)", fontWeight: "800", fontSize: 12 },
   awardValue: { marginTop: 6, color: "#fff", fontWeight: "800", fontSize: 15 },
   awardValueSelected: { color: LIME },
+  potdVoteCard: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.06)",
+  },
+  potdVoteBody: { marginTop: 6, color: LIME, fontWeight: "800", fontSize: 15, lineHeight: 21 },
+  potdVoteMuted: { marginTop: 6, color: "rgba(255,255,255,0.45)", fontSize: 13, lineHeight: 18 },
   awardClearBtn: {
     width: 36,
     height: 36,

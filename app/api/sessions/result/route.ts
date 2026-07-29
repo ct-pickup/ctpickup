@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { applyPickupResultWinLossDeltas } from "@/lib/pickup/applyPickupResultWinLoss";
+import { resolvePotdFromVotes } from "@/lib/pickup/resolvePotdFromVotes";
 import {
   asAwardUserId,
   resolveSessionResultAwards,
@@ -203,24 +204,13 @@ export async function POST(req: Request) {
   const winning_team_raw = String(body.winning_team ?? "").trim().toUpperCase();
   const awards = resolveSessionResultAwards(body);
   const {
-    player_of_day,
     defender_of_day,
     midfielder_of_day,
     attacker_of_day,
     goalie_of_the_day,
   } = awards;
-
-  console.log("[sessions/result] awards resolved from body", {
-    run_id,
-    bodyKeys: Object.keys(body),
-    player_of_day,
-    defender_of_day,
-    midfielder_of_day,
-    attacker_of_day,
-    goalie_of_the_day,
-    raw_player_of_the_day: body.player_of_the_day ?? null,
-    raw_player_of_day: body.player_of_day ?? null,
-  });
+  // Host pick is optional tiebreaker only — POTD is resolved from attendee votes.
+  const hostPotdTiebreaker = awards.player_of_day;
 
   if (!run_id || !winning_team_raw) {
     return NextResponse.json({ error: "run_id and winning_team required" }, { status: 400 });
@@ -243,6 +233,21 @@ export async function POST(req: Request) {
   if (!run || (run.created_by !== user.id && !prof?.is_admin)) {
     return NextResponse.json({ error: "Only the host can record results." }, { status: 403 });
   }
+
+  const potdResolution = await resolvePotdFromVotes(admin, run_id, hostPotdTiebreaker);
+  const player_of_day = potdResolution.winnerId;
+
+  console.log("[sessions/result] awards resolved", {
+    run_id,
+    player_of_day,
+    potd_votes: potdResolution.totalVotes,
+    potd_tied: potdResolution.tied,
+    host_tiebreaker: hostPotdTiebreaker,
+    defender_of_day,
+    midfielder_of_day,
+    attacker_of_day,
+    goalie_of_the_day,
+  });
 
   const now = new Date().toISOString();
 
@@ -331,6 +336,8 @@ export async function POST(req: Request) {
     midfielder_of_day,
     attacker_of_day,
     goalie_of_the_day,
+    potd_vote_count: potdResolution.voteCount,
+    potd_total_votes: potdResolution.totalVotes,
   });
 
   const { data: rsvps } = await admin
@@ -438,6 +445,13 @@ export async function POST(req: Request) {
       midfielder_of_day,
       attacker_of_day,
       goalie_of_the_day,
+    },
+    potd: {
+      winner_id: player_of_day,
+      vote_count: potdResolution.voteCount,
+      total_votes: potdResolution.totalVotes,
+      tied: potdResolution.tied,
+      counts: potdResolution.counts,
     },
   });
 }
