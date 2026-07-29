@@ -646,9 +646,9 @@ export default function HomeScreen() {
           <Pressable
             accessibilityRole="button"
             onPress={() => push("/community-map")}
-            style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.9 }]}
+            style={({ pressed }) => [styles.findRunPill, pressed && { opacity: 0.85 }]}
           >
-            <Text style={styles.primaryBtnText}>Find a Run →</Text>
+            <Text style={styles.findRunPillText}>Find a Run →</Text>
           </Pressable>
         </View>
       )}
@@ -812,6 +812,17 @@ const styles = StyleSheet.create({
   matchEmpty: { alignItems: "flex-start" },
   matchEmptyTitle: { fontSize: 16, fontWeight: "800", color: "#fff", letterSpacing: 0.5 },
   matchEmptySub: { marginTop: 5, fontSize: 13, color: "rgba(255,255,255,0.55)" },
+  findRunPill: {
+    marginTop: 12,
+    alignSelf: "flex-start",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: LIME,
+    backgroundColor: "transparent",
+  },
+  findRunPillText: { color: LIME, fontSize: 14, fontWeight: "600" },
 
   /* map */
   mapWrap: {
