@@ -50,9 +50,9 @@ const SERVICE_REGION: Region = {
 /** Wider framing when members exist outside the Northeast corridor. */
 const WIDE_REGION: Region = {
   latitude: 39.5,
-  longitude: -98.35,
-  latitudeDelta: 42,
-  longitudeDelta: 55,
+  longitude: -95.0,
+  latitudeDelta: 25.0,
+  longitudeDelta: 25.0,
 };
 
 const NE_COUNTY_PREFIXES = ["ct-", "ny-", "nj-", "md-"] as const;
@@ -79,8 +79,7 @@ type CountyDef = {
 
 /**
  * Order matters when ranges overlap — list specific cities before state catch-alls.
- * ZIP coverage: CT 060xx–069xx, NJ 070xx–089xx, NY 100xx–149xx, MD 206xx–219xx,
- * plus MA / PA / FL / CA hubs. Unmatched ZIPs fall through to OTHER_COUNTY.
+ * ZIP coverage: CT / NJ / NY / MD plus MA, PA, FL, CA, VA, SC, AZ, CO, ME hubs.
  * Numeric ranges drop leading zeros (e.g. 07072 → 7072).
  */
 const COUNTY_DEFS: CountyDef[] = [
@@ -368,7 +367,10 @@ const COUNTY_DEFS: CountyDef[] = [
     shortName: "Boston",
     lat: 42.3601,
     lon: -71.0589,
-    ranges: [{ min: 2100, max: 2299 }],
+    ranges: [
+      { min: 2100, max: 2299 },
+      { min: 2400, max: 2499 },
+    ],
   },
   {
     id: "ma-western",
@@ -385,6 +387,35 @@ const COUNTY_DEFS: CountyDef[] = [
     lat: 42.2373,
     lon: -71.5314,
     ranges: [{ min: 1000, max: 2799 }],
+  },
+
+  // ── Virginia (22xxx–23xxx) ─────────────────────────────────────────────────
+  {
+    id: "va-northern",
+    name: "Northern Virginia",
+    shortName: "NoVA",
+    lat: 38.8816,
+    lon: -77.091,
+    ranges: [{ min: 22100, max: 22299 }],
+  },
+  {
+    id: "va-richmond",
+    name: "Richmond",
+    shortName: "Richmond",
+    lat: 37.5407,
+    lon: -77.436,
+    ranges: [{ min: 23200, max: 23299 }],
+  },
+  {
+    id: "va-other",
+    name: "Virginia",
+    shortName: "VA",
+    lat: 37.4316,
+    lon: -78.6569,
+    ranges: [
+      { min: 22000, max: 22999 },
+      { min: 23000, max: 23999 },
+    ],
   },
 
   // ── Pennsylvania (150xx–196xx) ──────────────────────────────────────────────
@@ -449,6 +480,14 @@ const COUNTY_DEFS: CountyDef[] = [
     ranges: [{ min: 90000, max: 90099 }],
   },
   {
+    id: "ca-orange",
+    name: "Orange County",
+    shortName: "OC",
+    lat: 33.6695,
+    lon: -117.823,
+    ranges: [{ min: 92600, max: 92699 }],
+  },
+  {
     id: "ca-other",
     name: "California",
     shortName: "CA",
@@ -456,21 +495,52 @@ const COUNTY_DEFS: CountyDef[] = [
     lon: -119.4179,
     ranges: [{ min: 90000, max: 96199 }],
   },
+
+  // ── South Carolina (29xxx) ─────────────────────────────────────────────────
+  {
+    id: "sc-columbia",
+    name: "Columbia",
+    shortName: "Columbia",
+    lat: 33.9999,
+    lon: -81.0456,
+    ranges: [{ min: 29200, max: 29299 }],
+  },
+
+  // ── Arizona (85xxx) ────────────────────────────────────────────────────────
+  {
+    id: "az-phoenix",
+    name: "Phoenix",
+    shortName: "Phoenix",
+    lat: 33.4484,
+    lon: -112.074,
+    ranges: [{ min: 85000, max: 85099 }],
+  },
+
+  // ── Colorado (80xxx) ───────────────────────────────────────────────────────
+  {
+    id: "co-denver",
+    name: "Denver",
+    shortName: "Denver",
+    lat: 39.7392,
+    lon: -104.9903,
+    ranges: [{ min: 80200, max: 80299 }],
+  },
+
+  // ── Maine (04xxx) ──────────────────────────────────────────────────────────
+  {
+    id: "me-maine",
+    name: "Maine",
+    shortName: "Maine",
+    lat: 44.3106,
+    lon: -69.7795,
+    ranges: [{ min: 4600, max: 4699 }],
+  },
 ];
 
-/** True catch-all for any ZIP that didn't match a defined range. */
-const OTHER_COUNTY: CountyDef = {
-  id: "other",
-  name: "Other",
-  shortName: "Other",
-  lat: 39.5,
-  lon: -98.35,
-  ranges: [],
-};
-
-const COUNTY_BY_ID = Object.fromEntries(
-  [...COUNTY_DEFS, OTHER_COUNTY].map((c) => [c.id, c]),
-) as Record<string, CountyDef>;
+const COUNTY_BY_ID = Object.fromEntries(COUNTY_DEFS.map((c) => [c.id, c])) as Record<
+  string,
+  CountyDef
+>;
 
 function normalizeZipDigits(zip: string | null | undefined): string | null {
   if (zip == null) return null;
@@ -490,7 +560,7 @@ function countyForZip(zip: string | null | undefined): CountyDef | null {
       if (n >= r.min && n <= r.max) return county;
     }
   }
-  return OTHER_COUNTY;
+  return null;
 }
 
 /** Map profiles.nearest_venue → a representative ZIP so members without zip_code still cluster. */
@@ -1343,6 +1413,7 @@ export default function CommunityMapScreen() {
     () => counties.some((c) => !isNortheastCountyId(c.id)),
     [counties],
   );
+  const [wideView, setWideView] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -1360,9 +1431,23 @@ export default function CommunityMapScreen() {
   // Zoom out when members exist outside CT/NY/NJ/MD so distant clusters are visible.
   useEffect(() => {
     if (countyLoading || counties.length === 0) return;
-    if (!hasOutsideNortheast) return;
+    if (!hasOutsideNortheast) {
+      setWideView(false);
+      return;
+    }
+    setWideView(true);
     mapRef.current?.animateToRegion(WIDE_REGION, 450);
   }, [countyLoading, counties.length, hasOutsideNortheast]);
+
+  const focusNortheast = useCallback(() => {
+    setWideView(false);
+    mapRef.current?.animateToRegion(SERVICE_REGION, 400);
+  }, []);
+
+  const showFullUs = useCallback(() => {
+    setWideView(true);
+    mapRef.current?.animateToRegion(WIDE_REGION, 400);
+  }, []);
 
   const dismiss = useCallback(() => {
     setSelectedCounty(null);
@@ -1424,7 +1509,7 @@ export default function CommunityMapScreen() {
         <MapView
           ref={mapRef}
           style={StyleSheet.absoluteFill}
-          initialRegion={SERVICE_REGION}
+          initialRegion={hasOutsideNortheast ? WIDE_REGION : SERVICE_REGION}
           userInterfaceStyle="dark"
           backgroundColor="#1a2420"
           loadingBackgroundColor="#1a2420"
@@ -1463,6 +1548,17 @@ export default function CommunityMapScreen() {
             })}
           </View>
         </View>
+
+        {hasOutsideNortheast ? (
+          <Pressable
+            style={s.zoomBtn}
+            onPress={wideView ? focusNortheast : showFullUs}
+            accessibilityRole="button"
+            accessibilityLabel={wideView ? "Zoom to Northeast" : "Show full US"}
+          >
+            <Text style={s.zoomBtnText}>{wideView ? "Northeast" : "Full US"}</Text>
+          </Pressable>
+        ) : null}
 
         {layer === "activity" ? <ActivityOverlay stats={activityStats} /> : null}
 
@@ -1545,6 +1641,19 @@ const s = StyleSheet.create({
   layerBtnActive: { backgroundColor: LIME },
   layerBtnText: { color: MUTED, fontWeight: "700", fontSize: 13 },
   layerBtnTextActive: { color: BG },
+
+  zoomBtn: {
+    position: "absolute",
+    top: 120,
+    right: 14,
+    backgroundColor: "rgba(0,0,0,0.74)",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  zoomBtnText: { color: CHALK, fontWeight: "700", fontSize: 13 },
 
   pinCenter: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
   pinNum: { fontSize: 15, fontWeight: "700" },
