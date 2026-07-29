@@ -521,8 +521,10 @@ function useCommunityData() {
         supabase
           .from("pickup_runs")
           .select("latitude,longitude,start_at")
-          .in("status", ["planning", "likely_on", "active", "in_progress"])
-          .gte("start_at", new Date(now).toISOString())
+          .or(
+            `status.in.(planning,likely_on,active,in_progress),and(status.eq.completed,start_at.gte."${new Date(now - 2 * 60 * 60 * 1000).toISOString()}")")`,
+          )
+          .gte("start_at", new Date(now - 2 * 60 * 60 * 1000).toISOString())
           .lte("start_at", weekNext)
           .not("latitude", "is", null)
           .not("longitude", "is", null)
@@ -645,11 +647,14 @@ function useSessionPins() {
     if (!supabase) return;
     setLoading(true);
     void (async () => {
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
       const { data } = await supabase
         .from("pickup_runs")
         .select("id,latitude,longitude,level,spots_taken,capacity,start_at,location_private,fee_cents")
-        .in("status", ["planning", "likely_on", "active", "in_progress"])
-        .gte("start_at", new Date().toISOString())
+        .or(
+          `status.in.(planning,likely_on,active,in_progress),and(status.eq.completed,start_at.gte."${twoHoursAgo}")`,
+        )
+        .gte("start_at", twoHoursAgo)
         .not("latitude", "is", null)
         .not("longitude", "is", null)
         .order("start_at", { ascending: true })

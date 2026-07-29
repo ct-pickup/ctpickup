@@ -177,7 +177,26 @@ export default function SessionDetailScreen() {
         .select("id,title,location_text,latitude,longitude,start_at,capacity,spots_taken,fee_cents,level,open_tier_rank,run_type,format,status,created_by,service_region,tier_session_id,tiered_pricing")
         .eq("id", id)
         .maybeSingle();
-      if (runData) setRun(runData as SessionDetail);
+
+      let resolved = runData as SessionDetail | null;
+      if (
+        resolved?.status === "planning" &&
+        resolved.start_at &&
+        new Date(resolved.start_at).getTime() < Date.now()
+      ) {
+        const { data: updated } = await supabase
+          .from("pickup_runs")
+          .update({ status: "active" })
+          .eq("id", id)
+          .eq("status", "planning")
+          .select(
+            "id,title,location_text,latitude,longitude,start_at,capacity,spots_taken,fee_cents,level,open_tier_rank,run_type,format,status,created_by,service_region,tier_session_id,tiered_pricing",
+          )
+          .maybeSingle();
+        if (updated) resolved = updated as SessionDetail;
+        else resolved = { ...resolved, status: "active" };
+      }
+      if (resolved) setRun(resolved);
 
       // RSVP rows don't FK to profiles (user_id → auth.users), so join embedded
       // profiles silently returns null. Fetch RSVPs + profiles separately and merge.

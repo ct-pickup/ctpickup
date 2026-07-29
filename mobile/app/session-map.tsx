@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Dimensions,
   FlatList,
   KeyboardAvoidingView,
@@ -73,6 +74,39 @@ const FAIRFIELD: Region = {
   longitudeDelta: 3.5,
 };
 
+function isSessionLive(startAt: string | null | undefined): boolean {
+  if (!startAt) return false;
+  const start = Date.parse(startAt);
+  if (!Number.isFinite(start)) return false;
+  const now = Date.now();
+  return now >= start && now < start + 2 * 60 * 60 * 1000;
+}
+
+function LivePulseDot({ size = 8 }: { size?: number }) {
+  const opacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.25, duration: 700, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [opacity]);
+  return (
+    <Animated.View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: C.live,
+        opacity,
+      }}
+    />
+  );
+}
+
 function useSessions(level: Level | "all") {
   const { supabase } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -88,9 +122,11 @@ function useSessions(level: Level | "all") {
       .select(
         "id,title,location_private,latitude,longitude,start_at,run_type,level,capacity,spots_taken,fee_cents",
       )
-      .in("status", ["planning", "active", "in_progress", "completed"])
-      .gt("start_at", twoHoursAgo)
-      .not("latitude", "is", null)   // only show runs that have been geocoded
+      .or(
+        `status.in.(planning,likely_on,active,in_progress),and(status.eq.completed,start_at.gte."${twoHoursAgo}")`,
+      )
+      .gte("start_at", twoHoursAgo)
+      .not("latitude", "is", null) // only show runs that have been geocoded
       .not("longitude", "is", null)
       .order("start_at", { ascending: true })
       .limit(60);
@@ -120,10 +156,10 @@ function useSessions(level: Level | "all") {
         { event: "INSERT", schema: "public", table: "pickup_runs" },
         (payload) => {
           const next = payload.new as Session & { status: string };
-          const active = ["planning", "active", "in_progress", "completed"];
+          const active = ["planning", "likely_on", "active", "in_progress", "completed"];
           const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
           if (!active.includes(next.status) || !next.latitude || !next.longitude) return;
-          if (Date.parse(next.start_at) <= twoHoursAgo) return;
+          if (Date.parse(next.start_at) < twoHoursAgo) return;
           setSessions((prev) =>
             prev.some((s) => s.id === next.id)
               ? prev
@@ -216,11 +252,13 @@ function FillPin({
   taken,
   capacity,
   selected,
+  live,
 }: {
   level: Level;
   taken: number;
   capacity: number;
   selected: boolean;
+  live?: boolean;
 }) {
   const size = selected ? 52 : 44;
   const r = size / 2 - 4;
@@ -252,6 +290,11 @@ function FillPin({
           {full ? "—" : left}
         </Text>
       </View>
+      {live ? (
+        <View style={styles.livePinBadge}>
+          <LivePulseDot size={8} />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -264,11 +307,13 @@ function FillPin({
 function TrackingMarker({
   spots_taken,
   selected,
+  live,
   children,
   ...rest
 }: Omit<MapMarkerProps, "tracksViewChanges"> & {
   spots_taken: number;
   selected: boolean;
+  live?: boolean;
   children: React.ReactNode;
 }) {
   const [tracking, setTracking] = useState(true);
@@ -280,7 +325,7 @@ function TrackingMarker({
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [spots_taken, selected]);
+  }, [spots_taken, selected, live]);
 
   return (
     <Marker {...rest} tracksViewChanges={tracking}>
@@ -304,6 +349,7 @@ function SessionCard({ session, onPress }: { session: Session; onPress: (s: Sess
   const full = left <= 0;
   const venue = session.location_private?.trim() || "Location TBD";
   const levelColor = session.level ? LEVEL_COLOR[session.level] : C.muted;
+  const live = isSessionLive(session.start_at);
 
   return (
     <Pressable
@@ -317,6 +363,12 @@ function SessionCard({ session, onPress }: { session: Session; onPress: (s: Sess
         <Text style={styles.cardLevel}>
           {session.level ? session.level.toUpperCase() : "PICKUP"} · {session.run_type}
         </Text>
+        {live ? (
+          <View style={styles.liveBadge}>
+            <LivePulseDot size={7} />
+            <Text style={styles.liveBadgeText}>LIVE</Text>
+          </View>
+        ) : null}
         <Text style={styles.cardPrice}>${(session.fee_cents / 100).toFixed(0)}</Text>
       </View>
 
@@ -531,23 +583,28 @@ export default function SessionMapScreen() {
         showsPointsOfInterest={false}
         onPress={() => setSelectedId(null)}
       >
-        {sessions.map((s, i) => (
-          <TrackingMarker
-            key={s.id}
-            coordinate={{ latitude: s.latitude!, longitude: s.longitude! }}
-            onPress={() => focus(s, i)}
-            spots_taken={s.spots_taken}
-            selected={s.id === selectedId}
-            zIndex={s.id === selectedId ? 99 : 1}
-          >
-            <FillPin
-              level={s.level ?? "casual"}
-              taken={s.spots_taken}
-              capacity={s.capacity}
+        {sessions.map((s, i) => {
+          const live = isSessionLive(s.start_at);
+          return (
+            <TrackingMarker
+              key={s.id}
+              coordinate={{ latitude: s.latitude!, longitude: s.longitude! }}
+              onPress={() => focus(s, i)}
+              spots_taken={s.spots_taken}
               selected={s.id === selectedId}
-            />
-          </TrackingMarker>
-        ))}
+              live={live}
+              zIndex={s.id === selectedId ? 99 : 1}
+            >
+              <FillPin
+                level={s.level ?? "casual"}
+                taken={s.spots_taken}
+                capacity={s.capacity}
+                selected={s.id === selectedId}
+                live={live}
+              />
+            </TrackingMarker>
+          );
+        })}
         {trainingPosts.map((p) => (
           <TrainingMarkerPin
             key={p.id}
@@ -717,6 +774,33 @@ const styles = StyleSheet.create({
 
   pinLabel: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
   pinNum: { fontSize: 15, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  livePinBadge: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: C.bg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  liveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginLeft: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: "rgba(74,222,128,0.15)",
+  },
+  liveBadgeText: {
+    color: C.live,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+  },
   trainingPin: {
     width: 26,
     height: 26,

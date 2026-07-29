@@ -2,8 +2,8 @@ import { useAuth } from "@/context/AuthContext";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { format, isToday, isTomorrow } from "date-fns";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, type Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Line, Rect } from "react-native-svg";
@@ -87,7 +87,38 @@ const FAIRFIELD: Region = {
   longitudeDelta: 3.5,
 };
 
-const ACTIVE_STATUSES = ["planning", "likely_on", "active", "in_progress", "completed"];
+function isSessionLive(startAt: string | null | undefined): boolean {
+  if (!startAt) return false;
+  const start = Date.parse(startAt);
+  if (!Number.isFinite(start)) return false;
+  const now = Date.now();
+  return now >= start && now < start + 2 * 60 * 60 * 1000;
+}
+
+function LivePulseDot({ size = 8 }: { size?: number }) {
+  const opacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.25, duration: 700, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [opacity]);
+  return (
+    <Animated.View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: "#4ADE80",
+        opacity,
+      }}
+    />
+  );
+}
 
 type RateBanner = { run_id: string; title: string | null };
 
@@ -167,14 +198,16 @@ function useHomeData() {
       setNextMatch(null);
     }
 
-    // Map runs — visible from 2h before… actually keep on map for 2h after start.
+    // Map runs — keep visible for 2h after kickoff (including recently completed).
     const { data: mapData } = await supabase
       .from("pickup_runs")
       .select(
         "id,title,location_private,location_text,latitude,longitude,start_at,run_type,level,capacity,spots_taken,fee_cents,min_tier",
       )
-      .in("status", ACTIVE_STATUSES)
-      .gt("start_at", twoHoursAgo)
+      .or(
+        `status.in.(planning,likely_on,active,in_progress),and(status.eq.completed,start_at.gte."${twoHoursAgo}")`,
+      )
+      .gte("start_at", twoHoursAgo)
       .not("latitude", "is", null)
       .not("longitude", "is", null)
       .order("start_at", { ascending: true })
@@ -369,14 +402,21 @@ function MapDot({ run }: { run: MapRun }) {
   const left = run.capacity - run.spots_taken;
   const color = pinColor(left, run.min_tier);
   const area = (run.location_text ?? "").split(",")[0]?.trim() || "";
+  const live = isSessionLive(run.start_at);
   return (
     <Marker
       coordinate={{ latitude: run.latitude!, longitude: run.longitude! }}
-      tracksViewChanges={track}
+      tracksViewChanges={track || live}
       anchor={{ x: 0.5, y: 0.5 }}
     >
       <View style={styles.markerWrap}>
-        <View style={[styles.markerDot, { backgroundColor: color }]} />
+        <View style={[styles.markerDot, { backgroundColor: color }]}>
+          {live ? (
+            <View style={styles.markerLiveDot}>
+              <LivePulseDot size={7} />
+            </View>
+          ) : null}
+        </View>
         {area ? (
           <View style={styles.markerLabel}>
             <Text style={styles.markerLabelText} numberOfLines={1}>
@@ -803,6 +843,19 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 2,
     borderColor: "#0a0a0a",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  markerLiveDot: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#0a0a0a",
+    alignItems: "center",
+    justifyContent: "center",
   },
   markerLabel: {
     marginTop: 2,
