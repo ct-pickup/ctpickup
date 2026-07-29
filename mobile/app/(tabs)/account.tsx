@@ -735,35 +735,63 @@ export default function AccountScreen() {
   }, [isReady, supabase, session?.user?.id]);
 
   const loadRecentSessions = useCallback(async () => {
+    console.log("loading sessions");
     const uid = session?.user?.id;
     if (!isReady || !supabase || !uid) {
+      console.log("my sessions skip:", { isReady, hasSupabase: Boolean(supabase), uid: uid ?? null });
       setRecentSessions([]);
       return;
     }
     try {
       // Query 1: recent confirmed RSVPs (no relational join).
-      const { data: rsvpRows } = await supabase
+      let rsvpData: Array<{ run_id: string | null }> | null = null;
+      let rsvpError: { message?: string; code?: string } | null = null;
+
+      const rsvpRes = await supabase
         .from("pickup_run_rsvps")
-        .select("run_id")
+        .select("run_id,created_at")
         .eq("user_id", uid)
         .eq("status", "confirmed")
         .order("created_at", { ascending: false })
         .limit(5);
 
+      rsvpData = (rsvpRes.data as Array<{ run_id: string | null }> | null) ?? null;
+      rsvpError = rsvpRes.error;
+
+      // Fallback if created_at is missing / order fails.
+      if (rsvpError) {
+        console.log("my sessions rsvps order error, retrying without order:", rsvpError);
+        const retry = await supabase
+          .from("pickup_run_rsvps")
+          .select("run_id")
+          .eq("user_id", uid)
+          .eq("status", "confirmed")
+          .limit(5);
+        rsvpData = (retry.data as Array<{ run_id: string | null }> | null) ?? null;
+        rsvpError = retry.error;
+      }
+
+      console.log("my sessions rsvps:", rsvpData?.length, rsvpError);
+
       const runIds = Array.from(
         new Set(
-          ((rsvpRows ?? []) as Array<{ run_id: string | null }>)
+          (rsvpData ?? [])
             .map((r) => r.run_id)
             .filter((v): v is string => Boolean(v)),
         ),
       );
       if (!runIds.length) {
+        console.log("my sessions runs:", 0);
         setRecentSessions([]);
         return;
       }
 
       // Query 2: run details for those ids (+ team/result for win/loss badge).
-      const [{ data: runs }, { data: assigns }, { data: results }] = await Promise.all([
+      const [
+        { data: runsData, error: runsError },
+        { data: assigns },
+        { data: results },
+      ] = await Promise.all([
         supabase
           .from("pickup_runs")
           .select("id,title,start_at,location_text,status")
@@ -779,6 +807,8 @@ export default function AccountScreen() {
           .in("run_id", runIds),
       ]);
 
+      console.log("my sessions runs:", runsData?.length, runsError);
+
       const teamByRun = new Map<string, string>();
       for (const a of (assigns ?? []) as Array<{ run_id: string; team: string }>) {
         if (a?.run_id && a.team) teamByRun.set(a.run_id, a.team);
@@ -789,7 +819,7 @@ export default function AccountScreen() {
       }
 
       const runById = new Map(
-        ((runs ?? []) as Array<{
+        ((runsData ?? []) as Array<{
           id: string;
           title: string | null;
           start_at: string | null;
@@ -822,11 +852,19 @@ export default function AccountScreen() {
         .filter((r): r is NonNullable<typeof r> => r != null)
         .sort((a, b) => String(b.start_at ?? "").localeCompare(String(a.start_at ?? "")));
 
+      console.log("my sessions merged rows:", rows.length);
       setRecentSessions(rows);
     } catch (e) {
       console.error("[account loadRecentSessions]", e);
+      setRecentSessions([]);
     }
   }, [isReady, supabase, session?.user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadRecentSessions();
+    }, [loadRecentSessions]),
+  );
 
   const loadCredits = useCallback(async () => {
     const origin = siteOrigin();
@@ -2016,10 +2054,10 @@ export default function AccountScreen() {
             ) : null}
           </View>
 
-          {/* MY SESSIONS */}
-          <View style={s.blockCard}>
+          {/* MY SESSIONS — always visible (empty state when none). DEBUG: red bg to confirm layout. */}
+          <View style={[s.blockCard, { backgroundColor: "red" }]}>
             <View style={s.blockHeader}>
-              <Text style={s.blockTitle}>My Sessions</Text>
+              <Text style={s.blockTitle}>MY SESSIONS</Text>
               <Pressable
                 onPress={() => (router.push as (href: string) => void)("/run-history")}
                 hitSlop={8}
@@ -2080,6 +2118,23 @@ export default function AccountScreen() {
             )}
           </View>
 
+          {/* 4. ACCOUNT */}
+          <View style={s.blockCard}>
+            <Text style={[s.blockTitle, { marginBottom: 4 }]}>Account</Text>
+            {accountRows.map((row, i) => (
+              <Pressable
+                key={row.label}
+                onPress={openEdit}
+                style={[s.listRow, i === accountRows.length - 1 && s.listRowLast]}
+              >
+                <FontAwesome name={row.icon} size={17} color={LIME} style={s.listRowIcon} />
+                <Text style={s.listRowLabel}>{row.label}</Text>
+                <Text style={s.listRowValue} numberOfLines={1}>{row.value}</Text>
+                <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+              </Pressable>
+            ))}
+          </View>
+
           {hostRating ? (
             <View style={s.blockCard}>
               <View style={s.blockHeader}>
@@ -2137,23 +2192,6 @@ export default function AccountScreen() {
               })}
             </View>
           ) : null}
-
-          {/* 4. ACCOUNT */}
-          <View style={s.blockCard}>
-            <Text style={[s.blockTitle, { marginBottom: 4 }]}>Account</Text>
-            {accountRows.map((row, i) => (
-              <Pressable
-                key={row.label}
-                onPress={openEdit}
-                style={[s.listRow, i === accountRows.length - 1 && s.listRowLast]}
-              >
-                <FontAwesome name={row.icon} size={17} color={LIME} style={s.listRowIcon} />
-                <Text style={s.listRowLabel}>{row.label}</Text>
-                <Text style={s.listRowValue} numberOfLines={1}>{row.value}</Text>
-                <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
-              </Pressable>
-            ))}
-          </View>
 
         {/* 5. PREFERENCES */}
         <View
