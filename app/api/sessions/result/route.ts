@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { applyPickupResultWinLossDeltas } from "@/lib/pickup/applyPickupResultWinLoss";
+import {
+  asAwardUserId,
+  resolveSessionResultAwards,
+  type SessionAwardCountField,
+} from "@/lib/pickup/sessionResultAwards";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
@@ -7,12 +12,7 @@ export const runtime = "nodejs";
 
 type Team = "A" | "B" | "C";
 
-type AwardField =
-  | "potd_count"
-  | "goalie_potd_count"
-  | "defender_potd_count"
-  | "midfielder_potd_count"
-  | "attacker_potd_count";
+type AwardField = SessionAwardCountField;
 
 function bearer(req: Request) {
   const auth = req.headers.get("authorization") || "";
@@ -24,12 +24,7 @@ function isTeam(v: unknown): v is Team {
 }
 
 function asUuid(v: unknown): string | null {
-  if (v == null) return null;
-  const s = String(v).trim();
-  return s &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)
-    ? s
-    : null;
+  return asAwardUserId(v);
 }
 
 async function bumpAttendedAndSessions(
@@ -93,7 +88,7 @@ async function bumpAttendedAndSessions(
 }
 
 /** Apply ±1 to a profile award counter (idempotent across result edits). */
-async function applyAwardCountDelta(
+async function applyAwardDelta(
   admin: ReturnType<typeof getSupabaseAdmin>,
   field: AwardField,
   oldUserId: string | null,
@@ -104,34 +99,92 @@ async function applyAwardCountDelta(
   if (oldUserId) deltas.set(oldUserId, (deltas.get(oldUserId) || 0) - 1);
   if (newUserId) deltas.set(newUserId, (deltas.get(newUserId) || 0) + 1);
 
-  for (const [uid, delta] of deltas.entries()) {
+  console.log("[sessions/result] applyAwardDelta called", {
+    field,
+    oldUserId,
+    newUserId,
+    deltas: Object.fromEntries(deltas),
+  });
+
+  for (const [userId, delta] of deltas.entries()) {
     if (!delta) continue;
-    const { data } = await admin.from("profiles").select(field).eq("id", uid).maybeSingle();
-    const current = Number((data as Record<string, unknown> | null)?.[field] ?? 0);
+    console.log("[sessions/result] applyAwardDelta applying", { userId, field, delta });
+
+    const { data, error: selErr } = await admin
+      .from("profiles")
+      .select(field)
+      .eq("id", userId)
+      .maybeSingle();
+    if (selErr) {
+      console.error("[sessions/result] award count select failed", {
+        field,
+        userId,
+        error: selErr.message,
+      });
+      continue;
+    }
+    if (!data) {
+      console.error("[sessions/result] award count profile missing", { field, userId });
+      continue;
+    }
+
+    const raw = (data as Record<string, unknown>)[field];
+    const current = Number.isFinite(Number(raw)) ? Number(raw) : 0;
+    const next = Math.max(0, current + delta);
     const patch: Record<string, unknown> = {
-      [field]: Math.max(0, current + delta),
+      [field]: next,
       updated_at: now,
     };
     // Keep legacy goalie column in sync with goalie_potd_count.
     if (field === "goalie_potd_count") {
-      const { data: legacy } = await admin
+      const { data: legacy, error: legacyErr } = await admin
         .from("profiles")
         .select("goalie_of_the_day_count")
-        .eq("id", uid)
+        .eq("id", userId)
         .maybeSingle();
-      const legacyCurrent = Number(
-        (legacy as { goalie_of_the_day_count?: number | null } | null)?.goalie_of_the_day_count ?? 0,
-      );
-      patch.goalie_of_the_day_count = Math.max(0, legacyCurrent + delta);
+      if (legacyErr) {
+        console.error("[sessions/result] legacy goalie count select failed", {
+          userId,
+          error: legacyErr.message,
+        });
+      } else {
+        const legacyCurrent = Number(
+          (legacy as { goalie_of_the_day_count?: number | null } | null)?.goalie_of_the_day_count ?? 0,
+        );
+        patch.goalie_of_the_day_count = Math.max(
+          0,
+          (Number.isFinite(legacyCurrent) ? legacyCurrent : 0) + delta,
+        );
+      }
     }
-    const { error } = await admin.from("profiles").update(patch).eq("id", uid);
+
+    console.log("[sessions/result] updating award count", {
+      userId,
+      field,
+      current,
+      next,
+      delta,
+    });
+
+    const { data: updated, error } = await admin
+      .from("profiles")
+      .update(patch)
+      .eq("id", userId)
+      .select(`id,${field}`)
+      .maybeSingle();
     if (error) {
       console.error("[sessions/result] award count update failed", {
         field,
-        uid,
+        userId,
         error: error.message,
       });
+      continue;
     }
+    console.log("[sessions/result] award count updated", {
+      userId,
+      field,
+      saved: (updated as Record<string, unknown> | null)?.[field] ?? null,
+    });
   }
 }
 
@@ -148,16 +201,26 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const run_id = String(body.run_id ?? "").trim();
   const winning_team_raw = String(body.winning_team ?? "").trim().toUpperCase();
-  const player_of_day =
-    asUuid(body.player_of_the_day) ?? asUuid(body.player_of_day);
-  const defender_of_day =
-    asUuid(body.defender_of_the_day) ?? asUuid(body.defender_of_day);
-  const midfielder_of_day =
-    asUuid(body.midfielder_of_the_day) ?? asUuid(body.midfielder_of_day);
-  const attacker_of_day =
-    asUuid(body.attacker_of_the_day) ?? asUuid(body.attacker_of_day);
-  const goalie_of_the_day =
-    asUuid(body.goalie_of_the_day) ?? asUuid(body.goalie_of_day);
+  const awards = resolveSessionResultAwards(body);
+  const {
+    player_of_day,
+    defender_of_day,
+    midfielder_of_day,
+    attacker_of_day,
+    goalie_of_the_day,
+  } = awards;
+
+  console.log("[sessions/result] awards resolved from body", {
+    run_id,
+    bodyKeys: Object.keys(body),
+    player_of_day,
+    defender_of_day,
+    midfielder_of_day,
+    attacker_of_day,
+    goalie_of_the_day,
+    raw_player_of_the_day: body.player_of_the_day ?? null,
+    raw_player_of_day: body.player_of_day ?? null,
+  });
 
   if (!run_id || !winning_team_raw) {
     return NextResponse.json({ error: "run_id and winning_team required" }, { status: 400 });
@@ -256,11 +319,19 @@ export async function POST(req: Request) {
   }
 
   // Award counters on profiles (idempotent on re-save).
-  await applyAwardCountDelta(admin, "potd_count", oldPlayer, player_of_day, now);
-  await applyAwardCountDelta(admin, "goalie_potd_count", oldGoalie, goalie_of_the_day, now);
-  await applyAwardCountDelta(admin, "defender_potd_count", oldDefender, defender_of_day, now);
-  await applyAwardCountDelta(admin, "midfielder_potd_count", oldMidfielder, midfielder_of_day, now);
-  await applyAwardCountDelta(admin, "attacker_potd_count", oldAttacker, attacker_of_day, now);
+  await applyAwardDelta(admin, "potd_count", oldPlayer, player_of_day, now);
+  await applyAwardDelta(admin, "goalie_potd_count", oldGoalie, goalie_of_the_day, now);
+  await applyAwardDelta(admin, "defender_potd_count", oldDefender, defender_of_day, now);
+  await applyAwardDelta(admin, "midfielder_potd_count", oldMidfielder, midfielder_of_day, now);
+  await applyAwardDelta(admin, "attacker_potd_count", oldAttacker, attacker_of_day, now);
+
+  console.log("[sessions/result] awards applied", {
+    player_of_day,
+    defender_of_day,
+    midfielder_of_day,
+    attacker_of_day,
+    goalie_of_the_day,
+  });
 
   const { data: rsvps } = await admin
     .from("pickup_run_rsvps")
@@ -361,5 +432,12 @@ export async function POST(req: Request) {
     ok: true,
     first_result: isFirstResult,
     assigned_players: assignments.length,
+    awards: {
+      player_of_day,
+      defender_of_day,
+      midfielder_of_day,
+      attacker_of_day,
+      goalie_of_the_day,
+    },
   });
 }
