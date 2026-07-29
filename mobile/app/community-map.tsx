@@ -47,6 +47,20 @@ const SERVICE_REGION: Region = {
   longitudeDelta: 8.0,
 };
 
+/** Wider framing when members exist outside the Northeast corridor. */
+const WIDE_REGION: Region = {
+  latitude: 39.5,
+  longitude: -98.35,
+  latitudeDelta: 42,
+  longitudeDelta: 55,
+};
+
+const NE_COUNTY_PREFIXES = ["ct-", "ny-", "nj-", "md-"] as const;
+
+function isNortheastCountyId(id: string): boolean {
+  return NE_COUNTY_PREFIXES.some((p) => id.startsWith(p));
+}
+
 /** Show every non-empty cluster so circle counts sum to all grouped members. */
 const MIN_MEMBERS_FOR_CIRCLE = 1;
 
@@ -65,7 +79,8 @@ type CountyDef = {
 
 /**
  * Order matters when ranges overlap — list specific cities before state catch-alls.
- * ZIP coverage: CT 060xx–069xx, NJ 070xx–089xx, NY 100xx–149xx, MD 206xx–219xx.
+ * ZIP coverage: CT 060xx–069xx, NJ 070xx–089xx, NY 100xx–149xx, MD 206xx–219xx,
+ * plus MA / PA / FL / CA hubs. Unmatched ZIPs fall through to OTHER_COUNTY.
  * Numeric ranges drop leading zeros (e.g. 07072 → 7072).
  */
 const COUNTY_DEFS: CountyDef[] = [
@@ -345,12 +360,117 @@ const COUNTY_DEFS: CountyDef[] = [
     lon: -76.6413,
     ranges: [{ min: 20600, max: 21999 }],
   },
+
+  // ── Massachusetts (010xx–027xx) ────────────────────────────────────────────
+  {
+    id: "ma-boston",
+    name: "Boston",
+    shortName: "Boston",
+    lat: 42.3601,
+    lon: -71.0589,
+    ranges: [{ min: 2100, max: 2299 }],
+  },
+  {
+    id: "ma-western",
+    name: "Western MA",
+    shortName: "W. MA",
+    lat: 42.1015,
+    lon: -72.5898,
+    ranges: [{ min: 1000, max: 1099 }],
+  },
+  {
+    id: "ma-other",
+    name: "Massachusetts",
+    shortName: "MA",
+    lat: 42.2373,
+    lon: -71.5314,
+    ranges: [{ min: 1000, max: 2799 }],
+  },
+
+  // ── Pennsylvania (150xx–196xx) ──────────────────────────────────────────────
+  {
+    id: "pa-philadelphia",
+    name: "Philadelphia",
+    shortName: "Philly",
+    lat: 39.9526,
+    lon: -75.1652,
+    ranges: [{ min: 19100, max: 19199 }],
+  },
+  {
+    id: "pa-pittsburgh",
+    name: "Pittsburgh",
+    shortName: "Pittsburgh",
+    lat: 40.4406,
+    lon: -79.9959,
+    ranges: [{ min: 15200, max: 15299 }],
+  },
+  {
+    id: "pa-other",
+    name: "Pennsylvania",
+    shortName: "PA",
+    lat: 40.9698,
+    lon: -77.7278,
+    ranges: [{ min: 15000, max: 19699 }],
+  },
+
+  // ── Florida (320xx–349xx) ──────────────────────────────────────────────────
+  {
+    id: "fl-miami",
+    name: "Miami",
+    shortName: "Miami",
+    lat: 25.7617,
+    lon: -80.1918,
+    ranges: [{ min: 33100, max: 33199 }],
+  },
+  {
+    id: "fl-orlando",
+    name: "Orlando",
+    shortName: "Orlando",
+    lat: 28.5383,
+    lon: -81.3792,
+    ranges: [{ min: 32800, max: 32899 }],
+  },
+  {
+    id: "fl-other",
+    name: "Florida",
+    shortName: "FL",
+    lat: 27.6648,
+    lon: -81.5158,
+    ranges: [{ min: 32000, max: 34999 }],
+  },
+
+  // ── California (900xx–961xx) ───────────────────────────────────────────────
+  {
+    id: "ca-los-angeles",
+    name: "Los Angeles",
+    shortName: "LA",
+    lat: 34.0522,
+    lon: -118.2437,
+    ranges: [{ min: 90000, max: 90099 }],
+  },
+  {
+    id: "ca-other",
+    name: "California",
+    shortName: "CA",
+    lat: 36.7783,
+    lon: -119.4179,
+    ranges: [{ min: 90000, max: 96199 }],
+  },
 ];
 
-const COUNTY_BY_ID = Object.fromEntries(COUNTY_DEFS.map((c) => [c.id, c])) as Record<
-  string,
-  CountyDef
->;
+/** True catch-all for any ZIP that didn't match a defined range. */
+const OTHER_COUNTY: CountyDef = {
+  id: "other",
+  name: "Other",
+  shortName: "Other",
+  lat: 39.5,
+  lon: -98.35,
+  ranges: [],
+};
+
+const COUNTY_BY_ID = Object.fromEntries(
+  [...COUNTY_DEFS, OTHER_COUNTY].map((c) => [c.id, c]),
+) as Record<string, CountyDef>;
 
 function normalizeZipDigits(zip: string | null | undefined): string | null {
   if (zip == null) return null;
@@ -370,7 +490,7 @@ function countyForZip(zip: string | null | undefined): CountyDef | null {
       if (n >= r.min && n <= r.max) return county;
     }
   }
-  return null;
+  return OTHER_COUNTY;
 }
 
 /** Map profiles.nearest_venue → a representative ZIP so members without zip_code still cluster. */
@@ -1219,6 +1339,11 @@ export default function CommunityMapScreen() {
   const { sessions, loading: sessionsLoading } = useSessionPins();
   const activityStats = useActivityStats();
 
+  const hasOutsideNortheast = useMemo(
+    () => counties.some((c) => !isNortheastCountyId(c.id)),
+    [counties],
+  );
+
   useEffect(() => {
     void (async () => {
       try {
@@ -1231,6 +1356,13 @@ export default function CommunityMapScreen() {
       }
     })();
   }, []);
+
+  // Zoom out when members exist outside CT/NY/NJ/MD so distant clusters are visible.
+  useEffect(() => {
+    if (countyLoading || counties.length === 0) return;
+    if (!hasOutsideNortheast) return;
+    mapRef.current?.animateToRegion(WIDE_REGION, 450);
+  }, [countyLoading, counties.length, hasOutsideNortheast]);
 
   const dismiss = useCallback(() => {
     setSelectedCounty(null);
