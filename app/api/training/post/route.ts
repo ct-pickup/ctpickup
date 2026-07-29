@@ -66,8 +66,8 @@ export async function POST(req: Request) {
   }
 
   const spots = typeof body.spots_available === "number" ? Math.round(body.spots_available) : 2;
-  if (spots < 0 || spots > 5) {
-    return NextResponse.json({ error: "spots_available must be between 0 and 5" }, { status: 400 });
+  if (spots < 0 || spots > 20) {
+    return NextResponse.json({ error: "spots_available must be between 0 and 20" }, { status: 400 });
   }
 
   const workingOn =

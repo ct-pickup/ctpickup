@@ -19,8 +19,8 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const LIME = "#a3e635";
-
-const SPOTS_OPTIONS = [0, 1, 2, 3, 4, 5];
+const SPOTS_MIN = 0;
+const SPOTS_MAX = 20;
 
 type PhotonResult = { place_id: number; display_name: string; lat: string; lon: string };
 
@@ -43,7 +43,7 @@ export default function TrainingPostScreen() {
   const [fieldSearching, setFieldSearching] = useState(false);
 
   const [workingOn, setWorkingOn] = useState("");
-  const [spots, setSpots] = useState(2);
+  const [spotsText, setSpotsText] = useState("2");
 
   // Default start time to now (player can backdate up to 2 hours on the server).
   const [startedAt, setStartedAt] = useState<Date>(() => new Date());
@@ -117,6 +117,12 @@ export default function TrainingPostScreen() {
       return;
     }
 
+    const spotsParsed = Number.parseInt(spotsText.trim(), 10);
+    if (!Number.isFinite(spotsParsed) || spotsParsed < SPOTS_MIN || spotsParsed > SPOTS_MAX) {
+      Alert.alert("Spots available", `Enter a number between ${SPOTS_MIN} and ${SPOTS_MAX}.`);
+      return;
+    }
+
     setPublishing(true);
     try {
       const body = {
@@ -126,7 +132,7 @@ export default function TrainingPostScreen() {
         started_at: startedAt.toISOString(),
         training_until: untilEnabled ? trainingUntil.toISOString() : null,
         what_im_working_on: workingOn.trim() || null,
-        spots_available: spots,
+        spots_available: spotsParsed,
         notes: notes.trim() || null,
       };
       const r = await fetch(`${origin}/api/training/post`, {
@@ -230,13 +236,16 @@ export default function TrainingPostScreen() {
           />
 
           <Text style={[s.fieldLabel, { marginTop: 20 }]}>SPOTS AVAILABLE</Text>
-          <View style={s.chipRow}>
-            {SPOTS_OPTIONS.map((n) => (
-              <Pressable key={n} onPress={() => setSpots(n)} style={[s.chip, spots === n && s.chipActive]}>
-                <Text style={[s.chipText, spots === n && s.chipTextActive]}>{n === 0 ? "Solo" : n}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <Text style={s.fieldHint}>0 = solo training, up to 30</Text>
+          <TextInput
+            style={s.input}
+            value={spotsText}
+            onChangeText={(t) => setSpotsText(t.replace(/[^\d]/g, ""))}
+            placeholder="0"
+            placeholderTextColor="rgba(255,255,255,0.3)"
+            keyboardType="number-pad"
+            maxLength={2}
+          />
 
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 20 }}>
             <Text style={[s.fieldLabel, { marginBottom: 0 }]}>TRAINING UNTIL</Text>
@@ -313,6 +322,12 @@ const s = StyleSheet.create({
     marginBottom: 8,
     textTransform: "uppercase",
   },
+  fieldHint: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 12,
+    marginTop: -4,
+    marginBottom: 8,
+  },
   input: {
     backgroundColor: "rgba(255,255,255,0.07)",
     borderRadius: 10,
@@ -364,18 +379,6 @@ const s = StyleSheet.create({
     paddingVertical: 13,
   },
   pickerBtnText: { color: "#fff", fontSize: 16, fontWeight: "500" },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-    backgroundColor: "rgba(255,255,255,0.04)",
-  },
-  chipActive: { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.12)" },
-  chipText: { color: "rgba(255,255,255,0.55)", fontWeight: "600", fontSize: 14 },
-  chipTextActive: { color: LIME },
   toggleBtn: {
     paddingVertical: 12,
     paddingHorizontal: 14,

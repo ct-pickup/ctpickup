@@ -295,11 +295,17 @@ export default function TrainingDetailScreen() {
   const hostTier = host?.tier ?? null;
   const hostTierC = tierColor(hostTier);
   const isDiamond = (hostTier ?? "").toLowerCase() === "diamond";
-  const spotsOpen = post.spots_available;
+  const spotsOpen = Math.max(0, Math.trunc(Number(post.spots_available ?? 0)));
   const isFull = spotsOpen <= 0;
 
   const pending = requests.filter((r) => r.status === "pending");
   const accepted = requests.filter((r) => r.status === "accepted");
+  const spotsLabel =
+    spotsOpen <= 0
+      ? accepted.length > 0
+        ? "Full"
+        : "Solo training"
+      : `${spotsOpen} spot${spotsOpen === 1 ? "" : "s"} open`;
 
   return (
     <>
@@ -384,8 +390,8 @@ export default function TrainingDetailScreen() {
           </View>
           <View style={s.detailRow}>
             <FontAwesome name="users" size={14} color="rgba(255,255,255,0.4)" />
-            <Text style={[s.detailText, isFull && { color: "#ef4444" }]}>
-              {isFull ? "Full" : `${spotsOpen} spot${spotsOpen === 1 ? "" : "s"} open`}
+            <Text style={[s.detailText, isFull && accepted.length > 0 && { color: "#ef4444" }]}>
+              {spotsLabel}
             </Text>
           </View>
         </View>
