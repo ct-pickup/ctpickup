@@ -239,7 +239,7 @@ export async function POST(req: Request) {
 
   await admin
     .from("pickup_runs")
-    .update({ status: "completed", is_completed: true, updated_at: now })
+    .update({ status: "completed", updated_at: now })
     .eq("id", run_id);
 
   try {
