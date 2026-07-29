@@ -351,9 +351,9 @@ export default function AccountScreen() {
     Array<{
       run_id: string;
       start_at: string | null;
-      venue: string | null;
-      result: "Won" | "Lost" | null;
-      awards: string[];
+      title: string | null;
+      location: string | null;
+      result: "Won" | "Lost" | "Completed" | null;
     }>
   >([]);
   const [hostRating, setHostRating] = useState<{
@@ -741,12 +741,14 @@ export default function AccountScreen() {
       return;
     }
     try {
+      // Query 1: recent confirmed RSVPs (no relational join).
       const { data: rsvpRows } = await supabase
         .from("pickup_run_rsvps")
         .select("run_id")
         .eq("user_id", uid)
         .eq("status", "confirmed")
-        .limit(40);
+        .order("created_at", { ascending: false })
+        .limit(5);
 
       const runIds = Array.from(
         new Set(
@@ -760,10 +762,11 @@ export default function AccountScreen() {
         return;
       }
 
+      // Query 2: run details for those ids (+ team/result for win/loss badge).
       const [{ data: runs }, { data: assigns }, { data: results }] = await Promise.all([
         supabase
           .from("pickup_runs")
-          .select("id,start_at,location_text,location_private,title")
+          .select("id,title,start_at,location_text,status")
           .in("id", runIds),
         supabase
           .from("pickup_run_team_assignments")
@@ -772,9 +775,7 @@ export default function AccountScreen() {
           .in("run_id", runIds),
         supabase
           .from("pickup_run_results")
-          .select(
-            "run_id,winning_team,player_of_day,goalie_of_the_day,defender_of_day,midfielder_of_day,attacker_of_day",
-          )
+          .select("run_id,winning_team")
           .in("run_id", runIds),
       ]);
 
@@ -782,64 +783,44 @@ export default function AccountScreen() {
       for (const a of (assigns ?? []) as Array<{ run_id: string; team: string }>) {
         if (a?.run_id && a.team) teamByRun.set(a.run_id, a.team);
       }
-      const resultByRun = new Map<
-        string,
-        {
-          winning_team: string | null;
-          player_of_day: string | null;
-          goalie_of_the_day: string | null;
-          defender_of_day: string | null;
-          midfielder_of_day: string | null;
-          attacker_of_day: string | null;
-        }
-      >();
-      for (const r of (results ?? []) as Array<{
-        run_id: string;
-        winning_team: string | null;
-        player_of_day: string | null;
-        goalie_of_the_day: string | null;
-        defender_of_day: string | null;
-        midfielder_of_day: string | null;
-        attacker_of_day: string | null;
-      }>) {
-        if (r?.run_id) resultByRun.set(r.run_id, r);
+      const winningByRun = new Map<string, string>();
+      for (const r of (results ?? []) as Array<{ run_id: string; winning_team: string | null }>) {
+        if (r?.run_id && r.winning_team) winningByRun.set(r.run_id, r.winning_team);
       }
 
-      const rows = ((runs ?? []) as Array<{
-        id: string;
-        start_at: string | null;
-        location_text: string | null;
-        location_private: string | null;
-        title: string | null;
-      }>)
-        .map((run) => {
-          const res = resultByRun.get(run.id) ?? null;
-          const team = teamByRun.get(run.id) ?? null;
-          let result: "Won" | "Lost" | null = null;
-          if (res?.winning_team && team) {
-            result = team === res.winning_team ? "Won" : "Lost";
+      const runById = new Map(
+        ((runs ?? []) as Array<{
+          id: string;
+          title: string | null;
+          start_at: string | null;
+          location_text: string | null;
+          status: string | null;
+        }>).map((r) => [r.id, r]),
+      );
+
+      // Preserve RSVP order, then sort by start_at desc for display.
+      const rows = runIds
+        .map((id) => {
+          const run = runById.get(id);
+          if (!run) return null;
+          const team = teamByRun.get(id) ?? null;
+          const winning = winningByRun.get(id) ?? null;
+          let result: "Won" | "Lost" | "Completed" | null = null;
+          if (winning && team) {
+            result = team === winning ? "Won" : "Lost";
+          } else if (winning || run.status === "completed") {
+            result = "Completed";
           }
-          const awards: string[] = [];
-          if (res?.player_of_day === uid) awards.push("🏆 POTD");
-          if (res?.goalie_of_the_day === uid) awards.push("🧤 Goalie");
-          if (res?.defender_of_day === uid) awards.push("🛡️ Defender");
-          if (res?.midfielder_of_day === uid) awards.push("🎯 Mid");
-          if (res?.attacker_of_day === uid) awards.push("⚽ Attack");
-          const venue =
-            (run.location_text ?? "").trim() ||
-            (run.location_private ?? "").trim() ||
-            (run.title ?? "").trim() ||
-            null;
           return {
             run_id: run.id,
             start_at: run.start_at,
-            venue,
+            title: run.title,
+            location: (run.location_text ?? "").trim() || null,
             result,
-            awards,
           };
         })
-        .sort((a, b) => String(b.start_at ?? "").localeCompare(String(a.start_at ?? "")))
-        .slice(0, 5);
+        .filter((r): r is NonNullable<typeof r> => r != null)
+        .sort((a, b) => String(b.start_at ?? "").localeCompare(String(a.start_at ?? "")));
 
       setRecentSessions(rows);
     } catch (e) {
@@ -2035,6 +2016,70 @@ export default function AccountScreen() {
             ) : null}
           </View>
 
+          {/* MY SESSIONS */}
+          <View style={s.blockCard}>
+            <View style={s.blockHeader}>
+              <Text style={s.blockTitle}>My Sessions</Text>
+              <Pressable
+                onPress={() => (router.push as (href: string) => void)("/run-history")}
+                hitSlop={8}
+              >
+                <Text style={s.editLink}>View all →</Text>
+              </Pressable>
+            </View>
+            {recentSessions.length === 0 ? (
+              <Text style={s.emptyBackgroundText}>
+                No sessions yet. Join a run to get started.
+              </Text>
+            ) : (
+              <View style={{ gap: 10 }}>
+                {recentSessions.map((row) => {
+                  const when = row.start_at
+                    ? new Date(row.start_at).toLocaleDateString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })
+                    : "—";
+                  const badgeColor =
+                    row.result === "Won"
+                      ? LIME
+                      : row.result === "Lost"
+                        ? "#ef4444"
+                        : "rgba(255,255,255,0.45)";
+                  return (
+                    <Pressable
+                      key={row.run_id}
+                      onPress={() =>
+                        (router.push as (href: string) => void)(
+                          `/session/${encodeURIComponent(row.run_id)}`,
+                        )
+                      }
+                      style={s.sessionHistoryRow}
+                    >
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={s.sessionHistoryDate}>{when}</Text>
+                        <Text style={s.sessionHistoryVenue} numberOfLines={1}>
+                          {row.title || "Session"}
+                        </Text>
+                        {row.location ? (
+                          <Text style={s.sessionHistoryLocation} numberOfLines={1}>
+                            {row.location}
+                          </Text>
+                        ) : null}
+                      </View>
+                      {row.result ? (
+                        <Text style={[s.sessionHistoryResult, { color: badgeColor }]}>
+                          {row.result}
+                        </Text>
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+
           {hostRating ? (
             <View style={s.blockCard}>
               <View style={s.blockHeader}>
@@ -2092,71 +2137,6 @@ export default function AccountScreen() {
               })}
             </View>
           ) : null}
-
-          {/* MY SESSIONS */}
-          <View style={s.blockCard}>
-            <View style={s.blockHeader}>
-              <Text style={s.blockTitle}>My Sessions</Text>
-              <Pressable
-                onPress={() => (router.push as (href: string) => void)("/run-history")}
-                hitSlop={8}
-              >
-                <Text style={s.editLink}>View all →</Text>
-              </Pressable>
-            </View>
-            {recentSessions.length === 0 ? (
-              <Text style={s.emptyBackgroundText}>No confirmed sessions yet.</Text>
-            ) : (
-              <View style={{ gap: 10 }}>
-                {recentSessions.map((row) => {
-                  const when = row.start_at
-                    ? new Date(row.start_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })
-                    : "—";
-                  return (
-                    <Pressable
-                      key={row.run_id}
-                      onPress={() =>
-                        (router.push as (href: string) => void)(
-                          `/session/${encodeURIComponent(row.run_id)}`,
-                        )
-                      }
-                      style={s.sessionHistoryRow}
-                    >
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={s.sessionHistoryDate}>{when}</Text>
-                        <Text style={s.sessionHistoryVenue} numberOfLines={1}>
-                          {row.venue || "Session"}
-                        </Text>
-                        {row.awards.length > 0 ? (
-                          <Text style={s.sessionHistoryAwards} numberOfLines={1}>
-                            {row.awards.join(" · ")}
-                          </Text>
-                        ) : null}
-                      </View>
-                      {row.result ? (
-                        <Text
-                          style={[
-                            s.sessionHistoryResult,
-                            { color: row.result === "Won" ? LIME : "rgba(255,255,255,0.45)" },
-                          ]}
-                        >
-                          {row.result}
-                        </Text>
-                      ) : (
-                        <Text style={[s.sessionHistoryResult, { color: "rgba(255,255,255,0.35)" }]}>
-                          —
-                        </Text>
-                      )}
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
-          </View>
 
           {/* 4. ACCOUNT */}
           <View style={s.blockCard}>
@@ -2578,7 +2558,7 @@ const s = StyleSheet.create({
   },
   sessionHistoryDate: { color: "rgba(255,255,255,0.45)", fontSize: 12, fontWeight: "600" },
   sessionHistoryVenue: { color: "#fff", fontSize: 14, fontWeight: "700", marginTop: 2 },
-  sessionHistoryAwards: { color: LIME, fontSize: 11, fontWeight: "600", marginTop: 3 },
+  sessionHistoryLocation: { color: "rgba(255,255,255,0.45)", fontSize: 12, fontWeight: "500", marginTop: 2 },
   sessionHistoryResult: { fontSize: 13, fontWeight: "800" },
 
   /* list rows */
