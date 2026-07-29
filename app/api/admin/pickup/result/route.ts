@@ -179,7 +179,7 @@ export async function POST(req: Request) {
     if (!userId) continue;
     const { data: prof } = await supabase.from('profiles').select(field).eq('id', userId).maybeSingle();
     if (!prof) continue;
-    const current = Number((prof as Record<string, unknown>)[field] ?? 0);
+    const current = Number((prof as unknown as Record<string, unknown>)[field] ?? 0);
     await supabase.from('profiles').update({ [field]: current + 1, updated_at: new Date().toISOString() }).eq('id', userId);
   }
 
