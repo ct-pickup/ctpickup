@@ -175,7 +175,7 @@ export async function POST(req: Request) {
   // is_completed (boolean) must also be set — analytics queries filter on it, not status.
   const runUpdate = await supabase
     .from("pickup_runs")
-    .update({ status: "completed", is_completed: true })
+    .update({ status: "completed" })
     .eq("id", run_id);
 
   if (runUpdate.error) {
