@@ -96,7 +96,7 @@ const HOST_RATING_CATEGORIES: Array<{ key: string; label: string; hint: string }
   { key: "organization", label: "Organization", hint: "Did the host run the session well?" },
   { key: "player_quality", label: "Player quality", hint: "Did the skill level match what was advertised?" },
   { key: "safety", label: "Safety", hint: "Were issues handled appropriately?" },
-  { key: "would_play_again", label: "Would play again", hint: "Overall, would you join this host's session again?" },
+  { key: "would_play_again", label: "Would play again", hint: "Would you join this host's session again?" },
 ];
 
 export default function SessionDetailScreen() {
@@ -129,9 +129,9 @@ export default function SessionDetailScreen() {
   const [scores, setScores] = useState<Record<string, string>>({});
   const [scoreBusy, setScoreBusy] = useState(false);
 
-  // Host rating modal (attendee → host after completed)
+  // Host rating modal (attendee → host after kickoff)
   const [hostRatingOpen, setHostRatingOpen] = useState(false);
-  const [hostRatingScores, setHostRatingScores] = useState<Record<string, number>>({});
+  const [hostScores, setHostScores] = useState<Record<string, number>>({});
   const [hostRatingBusy, setHostRatingBusy] = useState(false);
   const [hasRatedHost, setHasRatedHost] = useState(false);
   const [teamsOpen, setTeamsOpen] = useState(false);
@@ -261,13 +261,13 @@ export default function SessionDetailScreen() {
           setHasVoted(false);
         }
 
-        const { data: myHostRating } = await supabase
+        const { data: existingRating } = await supabase
           .from("host_ratings")
           .select("id")
           .eq("run_id", id)
           .eq("rater_id", myUserId)
           .maybeSingle();
-        setHasRatedHost(Boolean(myHostRating?.id));
+        setHasRatedHost(!!existingRating);
       } else {
         setHasRatedHost(false);
       }
@@ -567,7 +567,7 @@ export default function SessionDetailScreen() {
       return;
     }
     for (const c of HOST_RATING_CATEGORIES) {
-      const v = hostRatingScores[c.key];
+      const v = hostScores[c.key];
       if (v == null || v < 1 || v > 5) {
         Alert.alert("Rate all categories", "Please give 1–5 stars for each category.");
         return;
@@ -583,11 +583,11 @@ export default function SessionDetailScreen() {
         },
         body: JSON.stringify({
           run_id: run.id,
-          field_secured: hostRatingScores.field_secured,
-          organization: hostRatingScores.organization,
-          player_quality: hostRatingScores.player_quality,
-          safety: hostRatingScores.safety,
-          would_play_again: hostRatingScores.would_play_again,
+          field_secured: hostScores.field_secured,
+          organization: hostScores.organization,
+          player_quality: hostScores.player_quality,
+          safety: hostScores.safety,
+          would_play_again: hostScores.would_play_again,
         }),
       });
       const j = (await r.json().catch(() => null)) as {
@@ -601,8 +601,8 @@ export default function SessionDetailScreen() {
       }
       setHasRatedHost(true);
       setHostRatingOpen(false);
-      setHostRatingScores({});
-      Alert.alert("Thanks for rating!", "Your host rating was submitted.");
+      setHostScores({});
+      Alert.alert("Thanks for rating the host!");
     } finally {
       setHostRatingBusy(false);
     }
@@ -959,22 +959,22 @@ export default function SessionDetailScreen() {
           </Pressable>
         )}
 
-        {isCompleted && isJoined && !isHost && !hasRatedHost && (
+        {sessionStarted && isJoined && !isHost && !hasRatedHost && (
           <Pressable
             onPress={() => {
-              setHostRatingScores({});
+              setHostScores({});
               setHostRatingOpen(true);
             }}
-            style={s.voteBtn}
+            style={s.hostRateBtn}
           >
-            <FontAwesome name="star" size={14} color="#0a0a0a" />
-            <Text style={s.voteBtnText}>Rate the host</Text>
+            <FontAwesome name="star-o" size={14} color={LIME} />
+            <Text style={s.hostRateBtnText}>Rate the host</Text>
           </Pressable>
         )}
 
-        {isCompleted && isJoined && !isHost && hasRatedHost && (
-          <View style={[s.rsvpBtn, s.rsvpBtnDisabled, { marginBottom: 12 }]}>
-            <Text style={s.rsvpBtnText}>✓ Host rated</Text>
+        {sessionStarted && isJoined && !isHost && hasRatedHost && (
+          <View style={s.hostRatedDone}>
+            <Text style={s.hostRatedDoneText}>✓ Host rated</Text>
           </View>
         )}
 
@@ -1357,7 +1357,8 @@ export default function SessionDetailScreen() {
               Rate{" "}
               {(() => {
                 const host = attendees.find((a) => a.user_id === run?.created_by);
-                return host ? playerName(host) : "the host";
+                const first = host?.profiles?.first_name?.trim();
+                return first || (host ? playerName(host) : "the host");
               })()}{" "}
               as a host
             </Text>
@@ -1365,10 +1366,11 @@ export default function SessionDetailScreen() {
               <FontAwesome name="times" size={18} color="rgba(255,255,255,0.6)" />
             </Pressable>
           </View>
+          <Text style={s.voteSubtitle}>Your rating is anonymous</Text>
 
           <View style={{ padding: 16, gap: 20 }}>
             {HOST_RATING_CATEGORIES.map((cat) => {
-              const selected = hostRatingScores[cat.key] ?? 0;
+              const selected = hostScores[cat.key] ?? 0;
               return (
                 <View key={cat.key} style={s.hostRatingCat}>
                   <Text style={s.hostRatingLabel}>{cat.label}</Text>
@@ -1378,7 +1380,7 @@ export default function SessionDetailScreen() {
                       <Pressable
                         key={n}
                         onPress={() =>
-                          setHostRatingScores((prev) => ({ ...prev, [cat.key]: n }))
+                          setHostScores((prev) => ({ ...prev, [cat.key]: n }))
                         }
                         hitSlop={6}
                         style={{ padding: 4 }}
@@ -1400,12 +1402,12 @@ export default function SessionDetailScreen() {
             onPress={() => void submitHostRating()}
             disabled={
               hostRatingBusy ||
-              HOST_RATING_CATEGORIES.some((c) => !hostRatingScores[c.key])
+              HOST_RATING_CATEGORIES.some((c) => !hostScores[c.key])
             }
             style={[
               s.publishBtn,
               (hostRatingBusy ||
-                HOST_RATING_CATEGORIES.some((c) => !hostRatingScores[c.key])) && {
+                HOST_RATING_CATEGORIES.some((c) => !hostScores[c.key])) && {
                 opacity: 0.4,
               },
               { margin: 16 },
@@ -1440,6 +1442,27 @@ const s = StyleSheet.create({
   rsvpBtnText: { color: "#0a0a0a", fontWeight: "800", fontSize: 16 },
   voteBtn: { backgroundColor: LIME, borderRadius: 14, paddingVertical: 16, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 10, marginBottom: 12 },
   voteBtnText: { color: "#0a0a0a", fontWeight: "800", fontSize: 16 },
+  hostRateBtn: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: LIME,
+    backgroundColor: "transparent",
+  },
+  hostRateBtnText: { color: LIME, fontWeight: "800", fontSize: 16 },
+  hostRatedDone: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginBottom: 12,
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  hostRatedDoneText: { color: "rgba(255,255,255,0.4)", fontWeight: "700", fontSize: 15 },
   hostRatingCat: {
     backgroundColor: "rgba(255,255,255,0.04)",
     borderRadius: 14,

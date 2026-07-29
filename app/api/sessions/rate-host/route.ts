@@ -15,7 +15,7 @@ function score1to5(v: unknown): number | null {
 }
 
 /**
- * Rate a session host after attending a completed pickup run.
+ * Rate a session host after attending a pickup run (opens after kickoff).
  * Body: { run_id, field_secured, organization, player_quality, safety, would_play_again }
  */
 export async function POST(req: Request) {
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
 
   const { data: run } = await admin
     .from("pickup_runs")
-    .select("id,created_by,status")
+    .select("id,created_by,status,start_at")
     .eq("id", run_id)
     .maybeSingle();
 
@@ -67,8 +67,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Hosts cannot rate themselves." }, { status: 403 });
   }
 
-  if (run.status !== "completed") {
-    return NextResponse.json({ error: "Session must be completed before rating the host." }, { status: 403 });
+  const startMs = run.start_at ? new Date(run.start_at).getTime() : NaN;
+  const started = Number.isFinite(startMs) && startMs < Date.now();
+  const completed = run.status === "completed";
+  if (!started && !completed) {
+    return NextResponse.json({ error: "Host rating opens after kickoff." }, { status: 403 });
   }
 
   const { data: rsvp } = await admin
@@ -78,8 +81,8 @@ export async function POST(req: Request) {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (rsvp?.status !== "confirmed") {
-    return NextResponse.json({ error: "Only confirmed attendees can rate the host." }, { status: 403 });
+  if (rsvp?.status !== "confirmed" && rsvp?.status !== "pending_payment") {
+    return NextResponse.json({ error: "Only joined attendees can rate the host." }, { status: 403 });
   }
 
   const { data: existing } = await admin
