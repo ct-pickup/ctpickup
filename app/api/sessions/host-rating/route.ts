@@ -3,11 +3,6 @@ import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
 
-function bearer(req: Request) {
-  const auth = req.headers.get("authorization") || "";
-  return auth.startsWith("Bearer ") ? auth.slice(7) : null;
-}
-
 function avg(nums: number[]): number | null {
   if (nums.length === 0) return null;
   const sum = nums.reduce((a, b) => a + b, 0);
@@ -15,24 +10,13 @@ function avg(nums: number[]): number | null {
 }
 
 /**
- * Aggregate host ratings for a host.
- * Public: hidden until total_ratings >= 3.
- * Host viewing self (Bearer auth): always returns aggregates.
+ * Aggregate host ratings for a host. Always returns averages (null when no ratings).
  */
 export async function GET(req: Request) {
   const admin = getSupabaseAdmin();
   const host_id = new URL(req.url).searchParams.get("host_id")?.trim() ?? "";
   if (!host_id) {
     return NextResponse.json({ error: "host_id required" }, { status: 400 });
-  }
-
-  let isSelf = false;
-  const token = bearer(req);
-  if (token) {
-    const {
-      data: { user },
-    } = await admin.auth.getUser(token);
-    if (user?.id === host_id) isSelf = true;
   }
 
   const { data: rows, error } = await admin
@@ -46,10 +30,6 @@ export async function GET(req: Request) {
 
   const list = rows ?? [];
   const total_ratings = list.length;
-
-  if (total_ratings < 3 && !isSelf) {
-    return NextResponse.json({ hidden: true, total_ratings });
-  }
 
   const { count: sessions_hosted } = await admin
     .from("pickup_runs")
@@ -67,7 +47,6 @@ export async function GET(req: Request) {
       .filter((n): n is number => n != null);
 
   return NextResponse.json({
-    hidden: false,
     avg_overall: avg(take("overall")),
     avg_field_secured: avg(take("field_secured")),
     avg_organization: avg(take("organization")),

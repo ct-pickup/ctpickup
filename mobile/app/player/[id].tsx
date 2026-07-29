@@ -23,7 +23,6 @@ const LIME = "#a3e635";
 const BG = "#0a0a0a";
 
 type HostRatingAgg = {
-  hidden: boolean;
   avg_overall: number | null;
   avg_field_secured: number | null;
   avg_organization: number | null;
@@ -222,12 +221,11 @@ export default function PlayerProfileScreen() {
           setHostRating(null);
           return;
         }
-        if (j.hidden === true || (j.total_ratings ?? 0) < 3) {
+        if ((j.total_ratings ?? 0) < 1) {
           setHostRating(null);
           return;
         }
         setHostRating({
-          hidden: false,
           avg_overall: typeof j.avg_overall === "number" ? j.avg_overall : null,
           avg_field_secured: typeof j.avg_field_secured === "number" ? j.avg_field_secured : null,
           avg_organization: typeof j.avg_organization === "number" ? j.avg_organization : null,
@@ -802,7 +800,7 @@ export default function PlayerProfileScreen() {
         </View>
       )}
 
-      {hostRating && !hostRating.hidden && hostRating.total_ratings >= 3 ? (
+      {hostRating && hostRating.total_ratings >= 1 ? (
         <View
           style={{
             marginHorizontal: 16,

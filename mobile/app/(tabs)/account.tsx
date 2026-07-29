@@ -899,8 +899,8 @@ export default function AccountScreen() {
       }
       const sessions_hosted = Number(j.sessions_hosted ?? 0);
       const total_ratings = Number(j.total_ratings ?? 0);
-      // Own profile: show whenever you've hosted (even with < 3 ratings).
-      if (sessions_hosted <= 0 && total_ratings <= 0) {
+      // Show after the first host rating.
+      if (total_ratings < 1) {
         setHostRating(null);
         return;
       }
@@ -2039,11 +2039,6 @@ export default function AccountScreen() {
             <View style={s.blockCard}>
               <View style={s.blockHeader}>
                 <Text style={s.blockTitle}>Host Rating</Text>
-                {hostRating.total_ratings < 3 ? (
-                  <Text style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
-                    {hostRating.total_ratings}/3 to publish
-                  </Text>
-                ) : null}
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 }}>
                 <Text style={{ color: "#fff", fontSize: 32, fontWeight: "800" }}>
