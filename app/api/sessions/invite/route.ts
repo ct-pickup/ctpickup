@@ -18,6 +18,15 @@ export async function POST(req: Request) {
   const { run_id, invitee_id } = await req.json() as { run_id: string; invitee_id: string };
   if (!run_id || !invitee_id) return NextResponse.json({ error: "run_id and invitee_id required" }, { status: 400 });
 
+  // Add invitee to pickup_run_invites so they can RSVP to select/invite-only sessions
+  await admin.from("pickup_run_invites").upsert({
+    run_id,
+    user_id: invitee_id,
+    wave: 0,
+    invited_tier_rank: 6,
+    invited_at: new Date().toISOString(),
+  }, { onConflict: "run_id,user_id", ignoreDuplicates: true });
+
   // Get run and host info
   const { data: run } = await admin
     .from("pickup_runs")
