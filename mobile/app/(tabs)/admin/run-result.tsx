@@ -58,13 +58,16 @@ function SelectModal<T extends string>({
   value,
   onSelect,
   onClose,
+  allowClear = false,
 }: {
   visible: boolean;
   title: string;
   options: readonly SelectOption<T>[];
   value: T | null;
-  onSelect: (v: T) => void;
+  onSelect: (v: T | null) => void;
   onClose: () => void;
+  /** When true, tapping the selected option clears the value (award deselection). */
+  allowClear?: boolean;
 }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -73,6 +76,20 @@ function SelectModal<T extends string>({
         <View style={styles.modalCardWrap} pointerEvents="box-none">
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>{title}</Text>
+            {allowClear && value ? (
+              <Pressable
+                onPress={() => {
+                  void hapticTap();
+                  onSelect(null);
+                  onClose();
+                }}
+                style={({ pressed }) => [styles.modalClearRow, pressed && { opacity: 0.85 }]}
+                accessibilityRole="button"
+                accessibilityLabel="Remove selection"
+              >
+                <Text style={styles.modalClearText}>✕ Remove selection</Text>
+              </Pressable>
+            ) : null}
             {options.map((opt) => {
               const selected = value === opt.value;
               return (
@@ -80,7 +97,11 @@ function SelectModal<T extends string>({
                   key={opt.value}
                   onPress={() => {
                     void hapticTap();
-                    onSelect(opt.value);
+                    if (allowClear && selected) {
+                      onSelect(null);
+                    } else {
+                      onSelect(opt.value);
+                    }
                     onClose();
                   }}
                   style={({ pressed }) => [
@@ -88,8 +109,14 @@ function SelectModal<T extends string>({
                     selected && styles.modalRowSelected,
                     pressed && { opacity: 0.85 },
                   ]}
+                  accessibilityState={{ selected }}
                 >
-                  <Text style={[styles.modalRowText, selected && styles.modalRowTextSelected]}>{opt.label}</Text>
+                  <Text style={[styles.modalRowText, selected && styles.modalRowTextSelected]} numberOfLines={1}>
+                    {opt.label}
+                  </Text>
+                  {selected ? (
+                    <Text style={styles.modalRowRemove}>{allowClear ? "✕" : "✓"}</Text>
+                  ) : null}
                 </Pressable>
               );
             })}
@@ -613,46 +640,71 @@ export default function AdminRunResultScreen() {
         <AwardRow
           label="Player of the Day 🏆"
           valueLabel={playerOfDay ? nameFor(confirmed.find((p) => p.id === playerOfDay) || { id: playerOfDay, full_name: null }) : "None"}
+          hasValue={Boolean(playerOfDay)}
           disabled={isReadonly}
           onPress={() => {
             void hapticTap();
             setPicker({ kind: "award", which: "player" });
           }}
+          onClear={() => {
+            void hapticTap();
+            setPlayerOfDay(null);
+          }}
         />
         <AwardRow
           label="Goalie of the Day 🧤"
           valueLabel={goalieOfTheDay ? nameFor(confirmed.find((p) => p.id === goalieOfTheDay) || { id: goalieOfTheDay, full_name: null }) : "None"}
+          hasValue={Boolean(goalieOfTheDay)}
           disabled={isReadonly}
           onPress={() => {
             void hapticTap();
             setPicker({ kind: "award", which: "goalie" });
           }}
+          onClear={() => {
+            void hapticTap();
+            setGoalieOfTheDay(null);
+          }}
         />
         <AwardRow
           label="Attacker of the Day ⚡"
           valueLabel={attackerOfDay ? nameFor(confirmed.find((p) => p.id === attackerOfDay) || { id: attackerOfDay, full_name: null }) : "None"}
+          hasValue={Boolean(attackerOfDay)}
           disabled={isReadonly}
           onPress={() => {
             void hapticTap();
             setPicker({ kind: "award", which: "attacker" });
           }}
+          onClear={() => {
+            void hapticTap();
+            setAttackerOfDay(null);
+          }}
         />
         <AwardRow
           label="Midfielder of the Day 🎯"
           valueLabel={midfielderOfDay ? nameFor(confirmed.find((p) => p.id === midfielderOfDay) || { id: midfielderOfDay, full_name: null }) : "None"}
+          hasValue={Boolean(midfielderOfDay)}
           disabled={isReadonly}
           onPress={() => {
             void hapticTap();
             setPicker({ kind: "award", which: "midfielder" });
           }}
+          onClear={() => {
+            void hapticTap();
+            setMidfielderOfDay(null);
+          }}
         />
         <AwardRow
           label="Defender of the Day 🛡️"
           valueLabel={defenderOfDay ? nameFor(confirmed.find((p) => p.id === defenderOfDay) || { id: defenderOfDay, full_name: null }) : "None"}
+          hasValue={Boolean(defenderOfDay)}
           disabled={isReadonly}
           onPress={() => {
             void hapticTap();
             setPicker({ kind: "award", which: "defender" });
+          }}
+          onClear={() => {
+            void hapticTap();
+            setDefenderOfDay(null);
           }}
         />
       </View>
@@ -707,17 +759,18 @@ export default function AdminRunResultScreen() {
                 : "Defender of the Day 🛡️"
         }
         options={awardOptions}
+        allowClear
         value={
           picker?.kind === "award"
             ? picker.which === "player"
-              ? playerOfDay ?? ""
+              ? playerOfDay
               : picker.which === "goalie"
-                ? goalieOfTheDay ?? ""
+                ? goalieOfTheDay
               : picker.which === "defender"
-                ? defenderOfDay ?? ""
+                ? defenderOfDay
                 : picker.which === "midfielder"
-                  ? midfielderOfDay ?? ""
-                  : attackerOfDay ?? ""
+                  ? midfielderOfDay
+                  : attackerOfDay
             : null
         }
         onSelect={(v) => {
@@ -738,24 +791,45 @@ export default function AdminRunResultScreen() {
 function AwardRow({
   label,
   valueLabel,
+  hasValue,
   onPress,
+  onClear,
   disabled,
 }: {
   label: string;
   valueLabel: string;
+  hasValue?: boolean;
   onPress: () => void;
+  onClear?: () => void;
   disabled?: boolean;
 }) {
   return (
-    <Pressable onPress={disabled ? undefined : onPress} disabled={disabled} style={({ pressed }) => [styles.awardRow, pressed && { opacity: 0.9 }, disabled && { opacity: 0.5 }]}>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={styles.awardLabel}>{label}</Text>
-        <Text style={styles.awardValue} numberOfLines={1}>
-          {valueLabel}
-        </Text>
-      </View>
-      <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
-    </Pressable>
+    <View style={[styles.awardRow, disabled && { opacity: 0.5 }]}>
+      <Pressable
+        onPress={disabled ? undefined : onPress}
+        disabled={disabled}
+        style={({ pressed }) => [{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center" }, pressed && !disabled && { opacity: 0.9 }]}
+      >
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.awardLabel}>{label}</Text>
+          <Text style={[styles.awardValue, hasValue && styles.awardValueSelected]} numberOfLines={1}>
+            {valueLabel}
+          </Text>
+        </View>
+        <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+      </Pressable>
+      {hasValue && !disabled && onClear ? (
+        <Pressable
+          onPress={onClear}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${label}`}
+          style={({ pressed }) => [styles.awardClearBtn, pressed && { opacity: 0.85 }]}
+        >
+          <Text style={styles.awardClearText}>✕</Text>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -877,6 +951,18 @@ const styles = StyleSheet.create({
   },
   awardLabel: { color: "rgba(255,255,255,0.65)", fontWeight: "800", fontSize: 12 },
   awardValue: { marginTop: 6, color: "#fff", fontWeight: "800", fontSize: 15 },
+  awardValueSelected: { color: LIME },
+  awardClearBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  awardClearText: { color: "rgba(255,255,255,0.75)", fontSize: 16, fontWeight: "700" },
 
   input: {
     marginTop: 10,
@@ -914,10 +1000,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   modalTitle: { fontSize: 15, fontWeight: "800", color: LIME, paddingHorizontal: 16, paddingVertical: 12 },
-  modalRow: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 10, marginHorizontal: 4 },
+  modalClearRow: {
+    marginHorizontal: 8,
+    marginBottom: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    alignItems: "center",
+  },
+  modalClearText: { color: "rgba(255,255,255,0.7)", fontWeight: "700", fontSize: 14 },
+  modalRow: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginHorizontal: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
   modalRowSelected: { backgroundColor: "rgba(163,230,53,0.12)" },
-  modalRowText: { fontSize: 16, color: "rgba(255,255,255,0.85)" },
+  modalRowText: { flex: 1, fontSize: 16, color: "rgba(255,255,255,0.85)" },
   modalRowTextSelected: { color: LIME, fontWeight: "700" },
+  modalRowRemove: { color: LIME, fontSize: 16, fontWeight: "800" },
   modalCancel: { marginTop: 4, paddingVertical: 14, alignItems: "center" },
   modalCancelText: { fontSize: 15, fontWeight: "600", color: "rgba(255,255,255,0.45)" },
 });

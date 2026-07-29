@@ -1310,6 +1310,9 @@ export default function SessionDetailScreen() {
           ].map(({ label, state, set }) => (
             <View key={label} style={{ paddingHorizontal: 16, marginBottom: 16 }}>
               <Text style={s.voteSubtitle}>{label}</Text>
+              {state ? (
+                <Text style={s.awardToggleHint}>Tap selected player again to remove</Text>
+              ) : null}
               <View style={s.assignGrid}>
                 {attendees.filter((a) => a.user_id !== run.created_by).map((a) => {
                   const name = playerName(a);
@@ -1318,10 +1321,15 @@ export default function SessionDetailScreen() {
                     <Pressable
                       key={a.user_id}
                       onPress={() => set(selected ? null : a.user_id)}
-                      style={[s.assignCard, selected && s.assignCardSelected]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={
+                        selected ? `${name}, selected. Tap to remove` : `Select ${name} for ${label}`
+                      }
+                      style={[s.assignCard, selected ? s.assignCardSelected : s.assignCardIdle]}
                     >
-                      <View style={[s.assignAvatar, selected && { backgroundColor: "rgba(163,230,53,0.25)" }]}>
-                        <Text style={[s.assignAvatarText, selected && { color: LIME }]}>
+                      <View style={[s.assignAvatar, selected ? s.assignAvatarSelected : s.assignAvatarIdle]}>
+                        <Text style={[s.assignAvatarText, !selected && { color: "rgba(255,255,255,0.65)" }]}>
                           {playerInitials(a)}
                         </Text>
                       </View>
@@ -1332,8 +1340,13 @@ export default function SessionDetailScreen() {
                         <Text style={s.assignUsername} numberOfLines={1}>@{a.profiles.username}</Text>
                       ) : null}
                       {selected ? (
-                        <FontAwesome name="star" size={14} color={LIME} style={{ marginTop: 4 }} />
-                      ) : null}
+                        <View style={s.awardSelectedBadge}>
+                          <FontAwesome name="star" size={12} color={LIME} />
+                          <Text style={s.awardSelectedBadgeText}>Selected · tap ✕</Text>
+                        </View>
+                      ) : (
+                        <Text style={s.awardIdleHint}>Tap to select</Text>
+                      )}
                     </Pressable>
                   );
                 })}
@@ -1546,9 +1559,17 @@ const s = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.1)",
     gap: 6,
   },
+  assignCardIdle: {
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
   assignCardA: { borderColor: "#3B82F6", backgroundColor: "rgba(59,130,246,0.08)" },
   assignCardB: { borderColor: "#ef4444", backgroundColor: "rgba(239,68,68,0.08)" },
-  assignCardSelected: { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.08)" },
+  assignCardSelected: {
+    borderColor: LIME,
+    borderWidth: 2,
+    backgroundColor: "rgba(163,230,53,0.12)",
+  },
   assignAvatar: {
     width: 48,
     height: 48,
@@ -1557,6 +1578,8 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  assignAvatarSelected: { backgroundColor: "rgba(163,230,53,0.25)" },
+  assignAvatarIdle: { backgroundColor: "rgba(255,255,255,0.08)" },
   assignAvatarText: { color: LIME, fontWeight: "800", fontSize: 16 },
   assignName: {
     color: "#fff",
@@ -1567,6 +1590,30 @@ const s = StyleSheet.create({
     minHeight: 34,
   },
   assignUsername: { color: "rgba(255,255,255,0.4)", fontSize: 11, textAlign: "center" },
+  awardToggleHint: {
+    marginTop: -4,
+    marginBottom: 8,
+    color: "rgba(163,230,53,0.75)",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  awardSelectedBadge: {
+    marginTop: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(163,230,53,0.15)",
+  },
+  awardSelectedBadgeText: { color: LIME, fontSize: 11, fontWeight: "700" },
+  awardIdleHint: {
+    marginTop: 2,
+    color: "rgba(255,255,255,0.35)",
+    fontSize: 11,
+    fontWeight: "600",
+  },
   assignTeamBadge: {
     marginTop: 2,
     paddingHorizontal: 10,
