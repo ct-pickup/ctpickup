@@ -3,14 +3,15 @@ import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
 
-function avg(nums: number[]): number | null {
+function avg1(nums: number[]): number | null {
   if (nums.length === 0) return null;
   const sum = nums.reduce((a, b) => a + b, 0);
   return Math.round((sum / nums.length) * 10) / 10;
 }
 
 /**
- * Aggregate host ratings for a host. Always returns averages (null when no ratings).
+ * Aggregate host ratings for a host.
+ * GET ?host_id=xxx
  */
 export async function GET(req: Request) {
   const admin = getSupabaseAdmin();
@@ -31,11 +32,6 @@ export async function GET(req: Request) {
   const list = rows ?? [];
   const total_ratings = list.length;
 
-  const { count: sessions_hosted } = await admin
-    .from("pickup_runs")
-    .select("id", { count: "exact", head: true })
-    .eq("created_by", host_id);
-
   const num = (v: unknown) => {
     const n = typeof v === "number" ? v : Number(v);
     return Number.isFinite(n) ? n : null;
@@ -46,13 +42,18 @@ export async function GET(req: Request) {
       .map((r) => num((r as Record<string, unknown>)[key]))
       .filter((n): n is number => n != null);
 
+  const { count: sessions_hosted } = await admin
+    .from("pickup_runs")
+    .select("id", { count: "exact", head: true })
+    .eq("created_by", host_id);
+
   return NextResponse.json({
-    avg_overall: avg(take("overall")),
-    avg_field_secured: avg(take("field_secured")),
-    avg_organization: avg(take("organization")),
-    avg_player_quality: avg(take("player_quality")),
-    avg_safety: avg(take("safety")),
-    avg_would_play_again: avg(take("would_play_again")),
+    avg_overall: avg1(take("overall")),
+    avg_field_secured: avg1(take("field_secured")),
+    avg_organization: avg1(take("organization")),
+    avg_player_quality: avg1(take("player_quality")),
+    avg_safety: avg1(take("safety")),
+    avg_would_play_again: avg1(take("would_play_again")),
     total_ratings,
     sessions_hosted: sessions_hosted ?? 0,
   });

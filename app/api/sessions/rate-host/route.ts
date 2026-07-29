@@ -14,9 +14,14 @@ function score1to5(v: unknown): number | null {
   return n;
 }
 
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
 /**
- * Rate a session host after attending a pickup run (opens after kickoff).
+ * Rate a session host.
  * Body: { run_id, field_secured, organization, player_quality, safety, would_play_again }
+ * Upserts on (run_id, rater_id) so re-rating is allowed.
  */
 export async function POST(req: Request) {
   const admin = getSupabaseAdmin();
@@ -52,7 +57,7 @@ export async function POST(req: Request) {
 
   const { data: run } = await admin
     .from("pickup_runs")
-    .select("id,created_by,status,start_at")
+    .select("id,created_by")
     .eq("id", run_id)
     .maybeSingle();
 
@@ -64,14 +69,7 @@ export async function POST(req: Request) {
   }
 
   if (host_id === user.id) {
-    return NextResponse.json({ error: "Hosts cannot rate themselves." }, { status: 403 });
-  }
-
-  const startMs = run.start_at ? new Date(run.start_at).getTime() : NaN;
-  const started = Number.isFinite(startMs) && startMs < Date.now();
-  const completed = run.status === "completed";
-  if (!started && !completed) {
-    return NextResponse.json({ error: "Host rating opens after kickoff." }, { status: 403 });
+    return NextResponse.json({ error: "You cannot rate your own session" }, { status: 403 });
   }
 
   const { data: rsvp } = await admin
@@ -79,61 +77,97 @@ export async function POST(req: Request) {
     .select("status")
     .eq("run_id", run_id)
     .eq("user_id", user.id)
+    .eq("status", "confirmed")
     .maybeSingle();
 
-  if (rsvp?.status !== "confirmed" && rsvp?.status !== "pending_payment") {
-    return NextResponse.json({ error: "Only joined attendees can rate the host." }, { status: 403 });
+  if (!rsvp) {
+    return NextResponse.json({ error: "You must attend a session to rate it" }, { status: 403 });
   }
 
-  const { data: existing } = await admin
-    .from("host_ratings")
-    .select("id,overall")
-    .eq("run_id", run_id)
-    .eq("rater_id", user.id)
-    .maybeSingle();
+  const overall = round1(
+    (field_secured + organization + player_quality + safety + would_play_again) / 5,
+  );
 
-  if (existing) {
-    return NextResponse.json({
-      ok: true,
-      overall: existing.overall != null ? Number(existing.overall) : null,
-      already_rated: true,
-    });
-  }
-
-  const { data: inserted, error: insErr } = await admin
+  const { data: saved, error: upsertErr } = await admin
     .from("host_ratings")
-    .insert({
-      run_id,
-      rater_id: user.id,
-      host_id,
-      field_secured,
-      organization,
-      player_quality,
-      safety,
-      would_play_again,
-    })
+    .upsert(
+      {
+        run_id,
+        rater_id: user.id,
+        host_id,
+        field_secured,
+        organization,
+        player_quality,
+        safety,
+        would_play_again,
+      },
+      { onConflict: "run_id,rater_id" },
+    )
     .select("overall")
-    .single();
+    .maybeSingle();
 
-  if (insErr) {
-    if (insErr.code === "23505") {
-      const { data: again } = await admin
+  if (upsertErr) {
+    // Fallback if unique constraint name/shape differs: update then insert.
+    const { data: existing } = await admin
+      .from("host_ratings")
+      .select("id")
+      .eq("run_id", run_id)
+      .eq("rater_id", user.id)
+      .maybeSingle();
+
+    if (existing?.id) {
+      const { data: updated, error: updErr } = await admin
         .from("host_ratings")
+        .update({
+          host_id,
+          field_secured,
+          organization,
+          player_quality,
+          safety,
+          would_play_again,
+        })
+        .eq("id", existing.id)
         .select("overall")
-        .eq("run_id", run_id)
-        .eq("rater_id", user.id)
         .maybeSingle();
+      if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
       return NextResponse.json({
         ok: true,
-        overall: again?.overall != null ? Number(again.overall) : null,
-        already_rated: true,
+        overall:
+          updated?.overall != null && Number.isFinite(Number(updated.overall))
+            ? round1(Number(updated.overall))
+            : overall,
       });
     }
-    return NextResponse.json({ error: insErr.message }, { status: 500 });
+
+    const { data: inserted, error: insErr } = await admin
+      .from("host_ratings")
+      .insert({
+        run_id,
+        rater_id: user.id,
+        host_id,
+        field_secured,
+        organization,
+        player_quality,
+        safety,
+        would_play_again,
+      })
+      .select("overall")
+      .maybeSingle();
+    if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
+    return NextResponse.json({
+      ok: true,
+      overall:
+        inserted?.overall != null && Number.isFinite(Number(inserted.overall))
+          ? round1(Number(inserted.overall))
+          : overall,
+    });
   }
 
   return NextResponse.json({
     ok: true,
-    overall: inserted?.overall != null ? Number(inserted.overall) : null,
+    overall:
+      saved?.overall != null && Number.isFinite(Number(saved.overall))
+        ? round1(Number(saved.overall))
+        : overall,
   });
 }
