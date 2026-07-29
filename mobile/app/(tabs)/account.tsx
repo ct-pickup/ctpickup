@@ -356,6 +356,15 @@ export default function AccountScreen() {
       awards: string[];
     }>
   >([]);
+  const [hostRating, setHostRating] = useState<{
+    avg_overall: number | null;
+    avg_field_secured: number | null;
+    avg_organization: number | null;
+    avg_player_quality: number | null;
+    avg_safety: number | null;
+    total_ratings: number;
+    sessions_hosted: number;
+  } | null>(null);
   const [creditsCount, setCreditsCount] = useState<number | null>(null);
   const settingsSectionY = useRef<number>(0);
   const openEdit = useCallback(() => setEditModalOpen(true), []);
@@ -862,6 +871,53 @@ export default function AccountScreen() {
     }
   }, [accessToken]);
 
+  const loadHostRating = useCallback(async () => {
+    const origin = siteOrigin();
+    const uid = session?.user?.id;
+    if (!origin || !accessToken || !uid) {
+      setHostRating(null);
+      return;
+    }
+    try {
+      const r = await fetch(
+        `${origin}/api/sessions/host-rating?host_id=${encodeURIComponent(uid)}`,
+        { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } },
+      );
+      const j = (await r.json().catch(() => null)) as {
+        hidden?: boolean;
+        avg_overall?: number | null;
+        avg_field_secured?: number | null;
+        avg_organization?: number | null;
+        avg_player_quality?: number | null;
+        avg_safety?: number | null;
+        total_ratings?: number;
+        sessions_hosted?: number;
+      } | null;
+      if (!r.ok || !j) {
+        setHostRating(null);
+        return;
+      }
+      const sessions_hosted = Number(j.sessions_hosted ?? 0);
+      const total_ratings = Number(j.total_ratings ?? 0);
+      // Own profile: show whenever you've hosted (even with < 3 ratings).
+      if (sessions_hosted <= 0 && total_ratings <= 0) {
+        setHostRating(null);
+        return;
+      }
+      setHostRating({
+        avg_overall: typeof j.avg_overall === "number" ? j.avg_overall : null,
+        avg_field_secured: typeof j.avg_field_secured === "number" ? j.avg_field_secured : null,
+        avg_organization: typeof j.avg_organization === "number" ? j.avg_organization : null,
+        avg_player_quality: typeof j.avg_player_quality === "number" ? j.avg_player_quality : null,
+        avg_safety: typeof j.avg_safety === "number" ? j.avg_safety : null,
+        total_ratings,
+        sessions_hosted,
+      });
+    } catch {
+      setHostRating(null);
+    }
+  }, [accessToken, session?.user?.id]);
+
   // Load cached tier + stats from AsyncStorage on mount so the UI shows
   // correct values instantly before the Supabase query completes.
   useEffect(() => {
@@ -893,7 +949,8 @@ export default function AccountScreen() {
     void loadStats();
     void loadCredits();
     void loadRecentSessions();
-  }, [loadStats, loadCredits, loadRecentSessions]);
+    void loadHostRating();
+  }, [loadStats, loadCredits, loadRecentSessions, loadHostRating]);
 
   useEffect(() => {
     setHubVenueResolveDone(false);
@@ -1119,11 +1176,12 @@ export default function AccountScreen() {
         loadStats(),
         loadCredits(),
         loadRecentSessions(),
+        loadHostRating(),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [loadProfile, loadWaiverStatus, loadReliability, loadStats, loadCredits, loadRecentSessions]);
+  }, [loadProfile, loadWaiverStatus, loadReliability, loadStats, loadCredits, loadRecentSessions, loadHostRating]);
 
   async function onSaveProfile() {
     setEditMsg(null);
@@ -1976,6 +2034,69 @@ export default function AccountScreen() {
               </Pressable>
             ) : null}
           </View>
+
+          {hostRating ? (
+            <View style={s.blockCard}>
+              <View style={s.blockHeader}>
+                <Text style={s.blockTitle}>Host Rating</Text>
+                {hostRating.total_ratings < 3 ? (
+                  <Text style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+                    {hostRating.total_ratings}/3 to publish
+                  </Text>
+                ) : null}
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                <Text style={{ color: "#fff", fontSize: 32, fontWeight: "800" }}>
+                  {hostRating.avg_overall != null ? hostRating.avg_overall.toFixed(1) : "—"}
+                </Text>
+                <FontAwesome name="star" size={20} color={LIME} />
+              </View>
+              <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, marginBottom: 12 }}>
+                {hostRating.sessions_hosted} session{hostRating.sessions_hosted === 1 ? "" : "s"} hosted
+                {hostRating.total_ratings > 0
+                  ? ` · ${hostRating.total_ratings} rating${hostRating.total_ratings === 1 ? "" : "s"}`
+                  : ""}
+              </Text>
+              {(
+                [
+                  { label: "Field", avg: hostRating.avg_field_secured },
+                  { label: "Organization", avg: hostRating.avg_organization },
+                  { label: "Player Quality", avg: hostRating.avg_player_quality },
+                  { label: "Safety", avg: hostRating.avg_safety },
+                ] as const
+              ).map((row) => {
+                const filled = Math.max(0, Math.min(5, Math.floor(row.avg ?? 0)));
+                const dots = `${"●".repeat(filled)}${"○".repeat(5 - filled)}`;
+                return (
+                  <View
+                    key={row.label}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      paddingVertical: 4,
+                    }}
+                  >
+                    <Text style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, width: 110 }}>
+                      {row.label}
+                    </Text>
+                    <Text style={{ color: LIME, fontSize: 13, letterSpacing: 1, flex: 1 }}>{dots}</Text>
+                    <Text
+                      style={{
+                        color: "#fff",
+                        fontSize: 13,
+                        fontWeight: "700",
+                        width: 36,
+                        textAlign: "right",
+                      }}
+                    >
+                      {row.avg != null ? row.avg.toFixed(1) : "—"}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
 
           {/* MY SESSIONS */}
           <View style={s.blockCard}>

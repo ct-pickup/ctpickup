@@ -2,6 +2,7 @@ import { useAuth } from "@/context/AuthContext";
 import { postPlayerProfileReportViaApi } from "@/lib/chatApi";
 import { displayRegionNameFromZip } from "@/lib/zipRegion";
 import { fetchPlayerFollowStats, fetchPublicPlayerProfile, togglePlayerFollow, type PublicPlayerProfile } from "@/lib/siteApi";
+import { siteOrigin } from "@/lib/env";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Stack, useLocalSearchParams, useNavigation, useRouter, type Href } from "expo-router";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -20,6 +21,28 @@ import {
 
 const LIME = "#a3e635";
 const BG = "#0a0a0a";
+
+type HostRatingAgg = {
+  hidden: boolean;
+  avg_overall: number | null;
+  avg_field_secured: number | null;
+  avg_organization: number | null;
+  avg_player_quality: number | null;
+  avg_safety: number | null;
+  avg_would_play_again: number | null;
+  total_ratings: number;
+  sessions_hosted: number;
+};
+
+function ratingDots(avg: number | null): string {
+  const n = Math.max(0, Math.min(5, Math.floor(avg ?? 0)));
+  return `${"●".repeat(n)}${"○".repeat(5 - n)}`;
+}
+
+function fmtAvg(avg: number | null): string {
+  if (avg == null || !Number.isFinite(avg)) return "—";
+  return avg.toFixed(1);
+}
 
 const TIER_COLORS: Record<string, string> = {
   bronze: "#B87333",
@@ -116,6 +139,7 @@ export default function PlayerProfileScreen() {
   const [followingCount, setFollowingCount] = useState<number | null>(null);
   const [isFollowingThem, setIsFollowingThem] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
+  const [hostRating, setHostRating] = useState<HostRatingAgg | null>(null);
 
   useEffect(() => {
     if (!userId || !token) {
@@ -167,6 +191,56 @@ export default function PlayerProfileScreen() {
         setIsFollowingThem(false);
       }
       setFollowStatsLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, token]);
+
+  useEffect(() => {
+    if (!userId) {
+      setHostRating(null);
+      return;
+    }
+    const origin = siteOrigin();
+    if (!origin) {
+      setHostRating(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const headers: Record<string, string> = {};
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const r = await fetch(
+          `${origin}/api/sessions/host-rating?host_id=${encodeURIComponent(userId)}`,
+          { headers },
+        );
+        const j = (await r.json().catch(() => null)) as Partial<HostRatingAgg> | null;
+        if (cancelled) return;
+        if (!r.ok || !j) {
+          setHostRating(null);
+          return;
+        }
+        if (j.hidden === true || (j.total_ratings ?? 0) < 3) {
+          setHostRating(null);
+          return;
+        }
+        setHostRating({
+          hidden: false,
+          avg_overall: typeof j.avg_overall === "number" ? j.avg_overall : null,
+          avg_field_secured: typeof j.avg_field_secured === "number" ? j.avg_field_secured : null,
+          avg_organization: typeof j.avg_organization === "number" ? j.avg_organization : null,
+          avg_player_quality: typeof j.avg_player_quality === "number" ? j.avg_player_quality : null,
+          avg_safety: typeof j.avg_safety === "number" ? j.avg_safety : null,
+          avg_would_play_again:
+            typeof j.avg_would_play_again === "number" ? j.avg_would_play_again : null,
+          total_ratings: Number(j.total_ratings ?? 0),
+          sessions_hosted: Number(j.sessions_hosted ?? 0),
+        });
+      } catch {
+        if (!cancelled) setHostRating(null);
+      }
     })();
     return () => {
       cancelled = true;
@@ -727,6 +801,70 @@ export default function PlayerProfileScreen() {
           </View>
         </View>
       )}
+
+      {hostRating && !hostRating.hidden && hostRating.total_ratings >= 3 ? (
+        <View
+          style={{
+            marginHorizontal: 16,
+            marginBottom: 16,
+            backgroundColor: "rgba(255,255,255,0.04)",
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: "rgba(255,255,255,0.08)",
+            padding: 16,
+          }}
+        >
+          <Text
+            style={{
+              color: "rgba(255,255,255,0.5)",
+              fontSize: 11,
+              fontWeight: "700",
+              letterSpacing: 1.2,
+              textTransform: "uppercase",
+              marginBottom: 12,
+            }}
+          >
+            Host Rating
+          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <Text style={{ color: "#fff", fontSize: 36, fontWeight: "800" }}>
+              {fmtAvg(hostRating.avg_overall)}
+            </Text>
+            <FontAwesome name="star" size={22} color={LIME} />
+          </View>
+          <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, marginBottom: 14 }}>
+            {hostRating.sessions_hosted} session{hostRating.sessions_hosted === 1 ? "" : "s"} hosted
+          </Text>
+          {(
+            [
+              { label: "Field", avg: hostRating.avg_field_secured },
+              { label: "Organization", avg: hostRating.avg_organization },
+              { label: "Player Quality", avg: hostRating.avg_player_quality },
+              { label: "Safety", avg: hostRating.avg_safety },
+            ] as const
+          ).map((row) => (
+            <View
+              key={row.label}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingVertical: 5,
+              }}
+            >
+              <Text style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, width: 110 }}>
+                {row.label}
+              </Text>
+              <Text style={{ color: LIME, fontSize: 13, letterSpacing: 1, flex: 1 }}>
+                {ratingDots(row.avg)}
+              </Text>
+              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700", width: 36, textAlign: "right" }}>
+                {fmtAvg(row.avg)}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
 
       <View style={styles.block}>
         <Text style={styles.label}>Username</Text>
