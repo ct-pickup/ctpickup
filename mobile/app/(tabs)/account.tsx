@@ -2054,15 +2054,15 @@ export default function AccountScreen() {
             ) : null}
           </View>
 
-          {/* MY SESSIONS — always visible (empty state when none). DEBUG: red bg to confirm layout. */}
-          <View style={[s.blockCard, { backgroundColor: "red" }]}>
-            <View style={s.blockHeader}>
-              <Text style={s.blockTitle}>MY SESSIONS</Text>
+          {/* MY SESSIONS */}
+          <View style={s.mySessionsCard}>
+            <View style={s.mySessionsHeader}>
+              <Text style={s.mySessionsTitle}>MY SESSIONS</Text>
               <Pressable
                 onPress={() => (router.push as (href: string) => void)("/run-history")}
                 hitSlop={8}
               >
-                <Text style={s.editLink}>View all →</Text>
+                <Text style={s.mySessionsViewAll}>View all →</Text>
               </Pressable>
             </View>
             {recentSessions.length === 0 ? (
@@ -2070,8 +2070,8 @@ export default function AccountScreen() {
                 No sessions yet. Join a run to get started.
               </Text>
             ) : (
-              <View style={{ gap: 10 }}>
-                {recentSessions.map((row) => {
+              <View>
+                {recentSessions.map((row, i) => {
                   const when = row.start_at
                     ? new Date(row.start_at).toLocaleDateString("en-US", {
                         weekday: "short",
@@ -2084,7 +2084,7 @@ export default function AccountScreen() {
                       ? LIME
                       : row.result === "Lost"
                         ? "#ef4444"
-                        : "rgba(255,255,255,0.45)";
+                        : "rgba(255,255,255,0.4)";
                   return (
                     <Pressable
                       key={row.run_id}
@@ -2093,7 +2093,10 @@ export default function AccountScreen() {
                           `/session/${encodeURIComponent(row.run_id)}`,
                         )
                       }
-                      style={s.sessionHistoryRow}
+                      style={[
+                        s.sessionHistoryRow,
+                        i === recentSessions.length - 1 && s.sessionHistoryRowLast,
+                      ]}
                     >
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={s.sessionHistoryDate}>{when}</Text>
@@ -2590,14 +2593,37 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255,255,255,0.08)",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.06)",
   },
+  sessionHistoryRowLast: { borderBottomWidth: 0 },
   sessionHistoryDate: { color: "rgba(255,255,255,0.45)", fontSize: 12, fontWeight: "600" },
   sessionHistoryVenue: { color: "#fff", fontSize: 14, fontWeight: "700", marginTop: 2 },
   sessionHistoryLocation: { color: "rgba(255,255,255,0.45)", fontSize: 12, fontWeight: "500", marginTop: 2 },
   sessionHistoryResult: { fontSize: 13, fontWeight: "800" },
+  mySessionsCard: {
+    marginTop: 16,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    padding: 16,
+  },
+  mySessionsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  mySessionsTitle: {
+    color: LIME,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  mySessionsViewAll: { color: LIME, fontSize: 13, fontWeight: "700" },
 
   /* list rows */
   listRow: {
