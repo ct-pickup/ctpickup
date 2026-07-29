@@ -140,6 +140,24 @@ export default function SessionDetailScreen() {
     if (!supabase || !id) return;
     setLoading(true);
     try {
+      // Promote planning → active once kickoff has passed (best-effort).
+      try {
+        const origin = siteOrigin();
+        const token = session?.access_token;
+        if (origin && token) {
+          await fetch(`${origin}/api/sessions/activate-if-started`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ run_id: id }),
+          });
+        }
+      } catch {
+        /* ignore */
+      }
+
       const { data: runData } = await supabase
         .from("pickup_runs")
         .select("id,title,location_text,latitude,longitude,start_at,capacity,spots_taken,fee_cents,level,open_tier_rank,run_type,format,status,created_by,service_region,tier_session_id,tiered_pricing")
@@ -213,7 +231,7 @@ export default function SessionDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [supabase, id, myUserId]);
+  }, [supabase, id, myUserId, session?.access_token]);
 
   useEffect(() => { void load(); }, [load]);
 

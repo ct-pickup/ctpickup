@@ -28,6 +28,18 @@ export async function GET(req: Request) {
   const admin = createClient(url, key);
   const nowIso = new Date().toISOString();
 
+  // Keep planning runs that have kicked off on the map as "active".
+  try {
+    const { promotePlanningRunsPastStart, ensureUpcomingSessionRateReminders } = await import(
+      "@/lib/pickup/sessionLifecycle"
+    );
+    await promotePlanningRunsPastStart(admin);
+    await ensureUpcomingSessionRateReminders(admin);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[cron/push-scheduled] session lifecycle:", msg);
+  }
+
   const { data: rows, error } = await admin
     .from("pickup_push_scheduled")
     .select("id,user_id,title,body,kind,data")

@@ -82,13 +82,14 @@ function useSessions(level: Level | "all") {
   const load = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     let q = supabase
       .from("pickup_runs")
       .select(
         "id,title,location_private,latitude,longitude,start_at,run_type,level,capacity,spots_taken,fee_cents",
       )
-      .in("status", ["planning", "likely_on", "active", "in_progress"])
-      .gte("start_at", new Date().toISOString())
+      .in("status", ["planning", "active", "in_progress", "completed"])
+      .gt("start_at", twoHoursAgo)
       .not("latitude", "is", null)   // only show runs that have been geocoded
       .not("longitude", "is", null)
       .order("start_at", { ascending: true })
@@ -119,8 +120,10 @@ function useSessions(level: Level | "all") {
         { event: "INSERT", schema: "public", table: "pickup_runs" },
         (payload) => {
           const next = payload.new as Session & { status: string };
-          const active = ["planning", "likely_on", "active", "in_progress"];
+          const active = ["planning", "active", "in_progress", "completed"];
+          const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
           if (!active.includes(next.status) || !next.latitude || !next.longitude) return;
+          if (Date.parse(next.start_at) <= twoHoursAgo) return;
           setSessions((prev) =>
             prev.some((s) => s.id === next.id)
               ? prev

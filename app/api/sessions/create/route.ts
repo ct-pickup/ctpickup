@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { approvedUserIdsInRunServiceRegion } from "@/lib/pickup/pickupPushNotifications";
+import {
+  promotePlanningRunsPastStart,
+  scheduleSessionRateRemindersForRun,
+} from "@/lib/pickup/sessionLifecycle";
 import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
@@ -103,6 +107,16 @@ export async function POST(req: Request) {
   if (insertErr || !run) {
     console.error("[sessions/create] insert error", insertErr);
     return NextResponse.json({ error: insertErr?.message ?? "Failed to create session." }, { status: 500 });
+  }
+
+  // If kickoff already passed (shouldn't for new creates), flip planning → active.
+  // Also queue rate-reminder pushes for any confirmed attendees (host joins later via RSVP).
+  try {
+    await promotePlanningRunsPastStart(admin, { runId: run.id });
+    await scheduleSessionRateRemindersForRun(admin, run.id);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[sessions/create] lifecycle hooks failed:", msg);
   }
 
   // Public sessions: notify nearby approved players (exclude host).

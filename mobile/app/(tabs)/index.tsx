@@ -87,7 +87,9 @@ const FAIRFIELD: Region = {
   longitudeDelta: 3.5,
 };
 
-const ACTIVE_STATUSES = ["planning", "likely_on", "active", "in_progress"];
+const ACTIVE_STATUSES = ["planning", "likely_on", "active", "in_progress", "completed"];
+
+type RateBanner = { run_id: string; title: string | null };
 
 function pinColor(left: number, minTier: string | null): string {
   if (left >= 1 && left <= 2) return "#ef4444"; // almost full
@@ -109,10 +111,13 @@ function useHomeData() {
   const [nextMatch, setNextMatch] = useState<NextMatch | null>(null);
   const [mapRuns, setMapRuns] = useState<MapRun[]>([]);
   const [friendsPlaying, setFriendsPlaying] = useState<FriendPlaying[]>([]);
+  const [rateBanner, setRateBanner] = useState<RateBanner | null>(null);
 
   const load = useCallback(async () => {
     if (!supabase || !myUserId) return;
     const nowIso = new Date().toISOString();
+    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
     // Profile (name, avatar, verification) + tier — independent, run together.
     const [profileRes, tierRes] = await Promise.all([
@@ -162,19 +167,57 @@ function useHomeData() {
       setNextMatch(null);
     }
 
-    // Map runs (nearby, geocoded, upcoming) — same shape as the session map.
+    // Map runs — visible from 2h before… actually keep on map for 2h after start.
     const { data: mapData } = await supabase
       .from("pickup_runs")
       .select(
         "id,title,location_private,location_text,latitude,longitude,start_at,run_type,level,capacity,spots_taken,fee_cents,min_tier",
       )
       .in("status", ACTIVE_STATUSES)
-      .gte("start_at", nowIso)
+      .gt("start_at", twoHoursAgo)
       .not("latitude", "is", null)
       .not("longitude", "is", null)
       .order("start_at", { ascending: true })
       .limit(40);
     setMapRuns((mapData as MapRun[]) ?? []);
+
+    // Unrated recent session banner (started within last 3h, confirmed, not host, no vote yet).
+    setRateBanner(null);
+    if (myRunIds.length > 0) {
+      const { data: recentRuns } = await supabase
+        .from("pickup_runs")
+        .select("id,title,start_at,created_by,tier_session_id,status")
+        .in("id", myRunIds)
+        .gt("start_at", threeHoursAgo)
+        .lt("start_at", nowIso)
+        .in("status", ["planning", "active", "in_progress", "completed"])
+        .order("start_at", { ascending: false })
+        .limit(8);
+
+      for (const run of (recentRuns ?? []) as Array<{
+        id: string;
+        title: string | null;
+        start_at: string;
+        created_by: string | null;
+        tier_session_id: string | null;
+      }>) {
+        if (run.created_by === myUserId) continue;
+        let voted = false;
+        if (run.tier_session_id) {
+          const { data: votes } = await supabase
+            .from("peer_votes")
+            .select("voter_id")
+            .eq("session_id", run.tier_session_id)
+            .eq("voter_id", myUserId)
+            .limit(1);
+          voted = (votes?.length ?? 0) > 0;
+        }
+        if (!voted) {
+          setRateBanner({ run_id: run.id, title: run.title });
+          break;
+        }
+      }
+    }
 
     // Friends playing tonight — people I follow with a confirmed RSVP today.
     const { data: follows } = await supabase
@@ -254,7 +297,7 @@ function useHomeData() {
     void load();
   }, [load]);
 
-  return { myUserId, firstName, avatarUrl, verificationLevel, tier, nextMatch, mapRuns, friendsPlaying };
+  return { myUserId, firstName, avatarUrl, verificationLevel, tier, nextMatch, mapRuns, friendsPlaying, rateBanner };
 }
 
 /* --------------------------------------------------------------- pieces */
@@ -451,7 +494,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const push = router.push as (href: string) => void;
-  const { myUserId, firstName, avatarUrl, verificationLevel, tier, nextMatch, mapRuns, friendsPlaying } = useHomeData();
+  const { myUserId, firstName, avatarUrl, verificationLevel, tier, nextMatch, mapRuns, friendsPlaying, rateBanner } = useHomeData();
   const { session } = useAuth();
 
   const name = firstName || firstNameFromEmail(session?.user?.email ?? undefined);
@@ -504,6 +547,18 @@ export default function HomeScreen() {
       <Text style={styles.greeting} numberOfLines={1}>
         {greeting()}, <Text style={styles.greetingName}>{name}</Text> 👋
       </Text>
+
+      {rateBanner ? (
+        <Pressable
+          onPress={() => push(`/session/${encodeURIComponent(rateBanner.run_id)}`)}
+          style={({ pressed }) => [styles.rateBanner, pressed && { opacity: 0.88 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Rate your recent session"
+        >
+          <FontAwesome name="star" size={14} color="#0a0a0a" />
+          <Text style={styles.rateBannerText}>You have a session to rate →</Text>
+        </Pressable>
+      ) : null}
 
       {/* 2. YOUR NEXT MATCH */}
       <SectionLabel>Your Next Match</SectionLabel>
@@ -639,6 +694,17 @@ const styles = StyleSheet.create({
 
   greeting: { marginTop: 10, fontSize: 20, fontWeight: "800", color: "#fff", letterSpacing: -0.3 },
   greetingName: { color: LIME },
+  rateBanner: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: LIME,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  rateBannerText: { color: "#0a0a0a", fontWeight: "800", fontSize: 14, flex: 1 },
 
   /* section labels */
   sectionLabel: {

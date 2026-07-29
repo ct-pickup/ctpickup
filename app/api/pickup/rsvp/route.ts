@@ -11,6 +11,7 @@ import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { addUserToRunBanterRoom, removeUserFromRunBanterRoom } from "@/lib/chat/runBanterRoom";
 import { notifyFollowersWhenFollowedPlayerConfirmsRun } from "@/lib/pickup/notifyFollowersOnPickupConfirm";
 import { sendPickupRsvpConfirmedPush } from "@/lib/pickup/pickupPushNotifications";
+import { scheduleSessionRateRemindersForRun } from "@/lib/pickup/sessionLifecycle";
 import {
   countAcceptedPickupRsvps,
   deletePendingWaitlistExpiringReminders,
@@ -605,6 +606,12 @@ export async function POST(req: Request) {
         runId: String(run.id),
         runTitle: String(run.title || ""),
       });
+      try {
+        await scheduleSessionRateRemindersForRun(admin, String(run.id));
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("pickup_rsvp_rate_reminder_schedule_error:", msg);
+      }
       try {
         await notifyFollowersWhenFollowedPlayerConfirmsRun(admin, {
           runId: String(run.id),
