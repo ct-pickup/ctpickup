@@ -665,7 +665,7 @@ export default function AccountScreen() {
   // - Tier/score come from player_ratings.
   // - Avatar + wins/losses come from a profiles query (avatar_url not in the main profile select).
   // - MOTM count comes from pickup_run_results where player_of_day = uid.
-  // - Points = (sessions × tierPts) + (score × 10), using player_ratings.score — same source as leaderboard.
+  // - Points = sessions × tierPtsPerSession × 10 (diamond=8 … bronze=0).
   const loadStats = useCallback(async () => {
     const uid = session?.user?.id;
     if (!isReady || !supabase || !uid) return;
@@ -1685,8 +1685,7 @@ export default function AccountScreen() {
   const sessionsCount = tierInfo?.sessions ?? 0;
   // MOTM: count from pickup_run_results (loaded in loadStats).
   const potdCount = motmCount ?? 0;
-  // Points = (sessions × tierPts) + (player_ratings.score × 10).
-  // Uses the same data source as the leaderboard so both screens show identical values.
+  // Points = sessions × tierPtsPerSession × 10 (diamond=8, platinum=6, gold=4, silver=2, bronze=0).
   const TIER_PTS_PER_SESSION: Record<string, number> = { diamond: 8, platinum: 6, gold: 4, silver: 2, bronze: 0 };
   const tierPtsPerSession = TIER_PTS_PER_SESSION[currentTier] ?? 0;
   const points = sessionsCount * tierPtsPerSession * 10;

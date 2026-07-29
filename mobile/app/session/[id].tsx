@@ -269,14 +269,16 @@ export default function SessionDetailScreen() {
           .maybeSingle();
         setHasRatedHost(!!existingRating);
 
-        // Lazily fire peer-voting pushes once kickoff + 30min has passed.
+        // Lazily fire voting pushes (+30m) and auto-settle ratings (+2h).
         const joined =
           myRsvp?.status === "confirmed" || myRsvp?.status === "pending_payment";
         const host = resolved?.created_by === myUserId;
         const startMs = resolved?.start_at ? new Date(resolved.start_at).getTime() : NaN;
         const thirtyMinPassed =
           Number.isFinite(startMs) && Date.now() >= startMs + 30 * 60 * 1000;
-        if (joined && !host && thirtyMinPassed) {
+        const twoHoursPassed =
+          Number.isFinite(startMs) && Date.now() >= startMs + 2 * 60 * 60 * 1000;
+        if ((joined || host) && (thirtyMinPassed || twoHoursPassed)) {
           const origin = siteOrigin();
           const token = session?.access_token;
           if (origin && token) {
@@ -304,17 +306,18 @@ export default function SessionDetailScreen() {
     if (endBusy) return;
     Alert.alert(
       "End session",
-      "Score players so their ratings update, or end without recording host ratings.",
+      "This closes the session and updates player ratings. You can adjust scores next.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Score players",
+          text: "End session",
           onPress: () => {
             void (async () => {
               setEndBusy(true);
               try {
                 const tid = await finalizeRunForRating();
                 if (!tid) return;
+                // Prompt host to override default scores immediately.
                 setScoreOpen(true);
               } finally {
                 setEndBusy(false);
@@ -322,39 +325,12 @@ export default function SessionDetailScreen() {
             })();
           },
         },
-        {
-          text: "End without ratings",
-          style: "destructive",
-          onPress: () => {
-            Alert.alert(
-              "End without ratings?",
-              "No host ratings will be recorded for this session. Peer votes may still count if players submitted them.",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "End anyway",
-                  style: "destructive",
-                  onPress: () => {
-                    void (async () => {
-                      setEndBusy(true);
-                      try {
-                        await finalizeRunForRating({ skipScoreModal: true });
-                      } finally {
-                        setEndBusy(false);
-                      }
-                    })();
-                  },
-                },
-              ],
-            );
-          },
-        },
       ],
     );
   }
 
   /** Mark run completed + ensure tier_session (host-allowed end route, with admin end-run fallback). */
-  async function finalizeRunForRating(opts?: { skipScoreModal?: boolean }): Promise<string | null> {
+  async function finalizeRunForRating(): Promise<string | null> {
     const origin = siteOrigin();
     const token = session?.access_token;
     if (!origin || !token || !id) {
@@ -411,11 +387,6 @@ export default function SessionDetailScreen() {
       cur ? { ...cur, tier_session_id: tierSessionId, status: "completed" } : cur,
     );
     await load();
-    if (!opts?.skipScoreModal) {
-      // caller opens score modal
-    } else {
-      Alert.alert("Session ended", "No host ratings were recorded.");
-    }
     return tierSessionId;
   }
 

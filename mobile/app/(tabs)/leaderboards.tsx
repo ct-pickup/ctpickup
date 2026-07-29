@@ -774,14 +774,14 @@ export default function LeaderboardsScreen() {
             {/* Points */}
             <Text style={styles.howSectionHeader}>EARNING POINTS</Text>
             <Text style={styles.howBody}>
-              Points are earned every time you play a rated session. The higher your tier, the more points you earn per session.
+              Points = sessions × tier points × 10. Higher tiers earn more points per rated session.
             </Text>
             <View style={styles.howCard}>
               {([
-                { tier: "diamond", label: "Diamond", pts: 8, color: "#9B59B6", dot: "◆" },
-                { tier: "platinum", label: "Platinum", pts: 6, color: "#E8E8E8", dot: "●" },
-                { tier: "gold", label: "Gold", pts: 4, color: "#E3B23C", dot: "●" },
-                { tier: "silver", label: "Silver", pts: 2, color: "#A8B0B5", dot: "●" },
+                { tier: "diamond", label: "Diamond", pts: 80, color: "#9B59B6", dot: "◆" },
+                { tier: "platinum", label: "Platinum", pts: 60, color: "#E8E8E8", dot: "●" },
+                { tier: "gold", label: "Gold", pts: 40, color: "#E3B23C", dot: "●" },
+                { tier: "silver", label: "Silver", pts: 20, color: "#A8B0B5", dot: "●" },
                 { tier: "bronze", label: "Bronze", pts: 0, color: "#B87333", dot: "●" },
               ] as const).map(({ tier, label, pts, color, dot }) => (
                 <View key={tier} style={styles.howRow}>

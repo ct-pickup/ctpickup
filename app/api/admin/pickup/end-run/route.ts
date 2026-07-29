@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
+import { autoSettleTierSession } from "@/lib/pickup/autoSettleSession";
 import { supabaseService } from "@/lib/supabase/service";
 
 export const runtime = "nodejs";
@@ -18,8 +19,11 @@ export async function POST(req: Request) {
   const supabase = supabaseService();
 
   let body: unknown;
-  try { body = await req.json(); }
-  catch { return NextResponse.json({ error: "Bad request" }, { status: 400 }); }
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Bad request" }, { status: 400 });
+  }
 
   const b = (body ?? {}) as Record<string, unknown>;
   const run_id = asUuid(b.run_id);
@@ -27,7 +31,6 @@ export async function POST(req: Request) {
 
   const now = new Date().toISOString();
 
-  // Fetch the run to get metadata for tier session
   const { data: run, error: runErr } = await supabase
     .from("pickup_runs")
     .select("id,title,location_text,start_at,created_by,open_tier_rank,tier_session_id")
@@ -36,7 +39,6 @@ export async function POST(req: Request) {
 
   if (runErr || !run) return NextResponse.json({ error: "Run not found" }, { status: 404 });
 
-  // Mark run as completed
   const { error: updateErr } = await supabase
     .from("pickup_runs")
     .update({ status: "completed", updated_at: now })
@@ -44,11 +46,15 @@ export async function POST(req: Request) {
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
-  // Create tier session if not already created
   let tier_session_id = asUuid(run.tier_session_id);
   if (!tier_session_id) {
     const TIER_RANK_TO_NAME: Record<number, string> = {
-      0: "bronze", 1: "bronze", 2: "silver", 3: "gold", 4: "platinum", 5: "diamond",
+      0: "bronze",
+      1: "bronze",
+      2: "silver",
+      3: "gold",
+      4: "platinum",
+      5: "diamond",
     };
     const min_tier = TIER_RANK_TO_NAME[Number(run.open_tier_rank ?? 0)] ?? "bronze";
 
@@ -70,16 +76,10 @@ export async function POST(req: Request) {
       console.error("[end-run] tier_session insert error", tsErr);
     } else {
       tier_session_id = ts.id;
-
-      // Link tier session back to pickup run
-      await supabase
-        .from("pickup_runs")
-        .update({ tier_session_id })
-        .eq("id", run_id);
+      await supabase.from("pickup_runs").update({ tier_session_id }).eq("id", run_id);
     }
   }
 
-  // Mark all confirmed RSVPs as attended in tier_session
   if (tier_session_id) {
     const { data: rsvps } = await supabase
       .from("pickup_run_rsvps")
@@ -98,13 +98,21 @@ export async function POST(req: Request) {
         .from("session_attendance")
         .upsert(attendanceRows, { onConflict: "session_id,user_id" });
 
-      // Ensure each attendee has a player_ratings row
       for (const r of rsvps) {
         await supabase
           .from("player_ratings")
           .upsert({ user_id: r.user_id }, { onConflict: "user_id", ignoreDuplicates: true });
       }
     }
+
+    const settle = await autoSettleTierSession(supabase, tier_session_id);
+    return NextResponse.json({
+      ok: true,
+      run_id,
+      tier_session_id,
+      settled: settle.settled,
+      settle_error: settle.error ?? null,
+    });
   }
 
   return NextResponse.json({ ok: true, run_id, tier_session_id });

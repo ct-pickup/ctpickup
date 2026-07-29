@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { autoSettleTierSession } from "@/lib/pickup/autoSettleSession";
 import { ensureTierSessionForRun } from "@/lib/pickup/ensureTierSessionForRun";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
@@ -48,10 +49,6 @@ export async function POST(req: Request) {
     }))
     .filter((e) => e.user_id && TIER_TO_SCORE[e.tier] != null);
 
-  if (entries.length === 0) {
-    return NextResponse.json({ error: "Score at least one player before submitting." }, { status: 400 });
-  }
-
   const { data: run } = await admin
     .from("pickup_runs")
     .select("id,title,location_text,start_at,created_by,open_tier_rank,tier_session_id,status")
@@ -82,12 +79,15 @@ export async function POST(req: Request) {
     }
   }
 
-  // Make sure attendance rows exist before writing organizer_score.
-  await ensureTierSessionForRun(
-    admin,
-    { ...run, tier_session_id },
-    user.id,
-  );
+  await ensureTierSessionForRun(admin, { ...run, tier_session_id }, user.id);
+
+  // Neutral defaults for anyone the host didn't score, then apply overrides.
+  await admin
+    .from("session_attendance")
+    .update({ organizer_score: 5 })
+    .eq("session_id", tier_session_id)
+    .eq("status", "attended")
+    .is("organizer_score", null);
 
   const updateResults: Array<{
     user_id: string;
@@ -113,34 +113,15 @@ export async function POST(req: Request) {
     });
   }
 
-  const { data: settleRows, error: settleErr } = await admin.rpc("settle_session", {
-    p_session_id: tier_session_id,
-  });
-
-  if (settleErr) {
-    console.error("[host-scores] settle_session error", settleErr.message, {
-      tier_session_id,
-      updateResults,
-    });
-    return NextResponse.json(
-      {
-        ok: true,
-        tier_session_id,
-        scores_saved: true,
-        settled: false,
-        settle_error: settleErr.message,
-        updateResults,
-      },
-      { status: 200 },
-    );
-  }
+  const settle = await autoSettleTierSession(admin, tier_session_id);
 
   return NextResponse.json({
     ok: true,
     tier_session_id,
     scores_saved: true,
-    settled: true,
-    settle_rows: settleRows,
+    settled: settle.settled || Boolean(settle.already_settled),
+    already_settled: settle.already_settled ?? false,
+    settle_error: settle.error ?? null,
     updateResults,
   });
 }

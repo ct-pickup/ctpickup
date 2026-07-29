@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { autoSettleTierSession } from "@/lib/pickup/autoSettleSession";
 import { ensureTierSessionForRun } from "@/lib/pickup/ensureTierSessionForRun";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
@@ -44,11 +45,20 @@ export async function POST(req: Request) {
 
   if (run.status === "completed") {
     const ensured = await ensureTierSessionForRun(admin, run, user.id);
+    let settled = false;
+    let settle_error: string | null = null;
+    if (ensured.tier_session_id) {
+      const settle = await autoSettleTierSession(admin, ensured.tier_session_id);
+      settled = settle.settled;
+      settle_error = settle.error ?? null;
+    }
     return NextResponse.json({
       ok: true,
       run_id,
       tier_session_id: ensured.tier_session_id,
       already_completed: true,
+      settled,
+      settle_error,
     });
   }
 
@@ -72,5 +82,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: ensured.error ?? "Ended but rating setup failed." }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, run_id, tier_session_id: ensured.tier_session_id });
+  const settle = await autoSettleTierSession(admin, ensured.tier_session_id);
+
+  return NextResponse.json({
+    ok: true,
+    run_id,
+    tier_session_id: ensured.tier_session_id,
+    settled: settle.settled,
+    settle_error: settle.error ?? null,
+  });
 }
