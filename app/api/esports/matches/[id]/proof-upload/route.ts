@@ -8,6 +8,7 @@ import {
 } from "@/lib/esports/matchWorkflowConstants";
 import { maybeEscalateConfirmationDeadline, requireEsportsService } from "@/lib/esports/matchWorkflowServer";
 import type { EsportsMatchWorkflowStatus } from "@/lib/esports/matchWorkflowTypes";
+import { reportPhotoUploadError } from "@/lib/reportPhotoUploadError";
 
 export const runtime = "nodejs";
 
@@ -89,7 +90,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       contentType: mime,
       upsert: false,
     });
-    if (upErr) return NextResponse.json({ error: "Upload failed." }, { status: 500 });
+    if (upErr) {
+      const error = reportPhotoUploadError(upErr, {
+        stage: "upload",
+        bucket: ESPORTS_MATCH_PROOFS_BUCKET,
+        path: objectPath,
+      });
+      return NextResponse.json({ error }, { status: 500 });
+    }
 
     return NextResponse.json({ ok: true, screenshot_storage_path: objectPath });
   } catch (e) {

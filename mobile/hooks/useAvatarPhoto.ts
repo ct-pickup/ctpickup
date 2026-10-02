@@ -3,6 +3,8 @@ import { useCallback, useState } from "react";
 import { Alert } from "react-native";
 
 import { useAuth } from "@/context/AuthContext";
+import { reportPhotoUploadError } from "@/lib/reportPhotoUploadError";
+import { PhotoUploadError } from "@shared/photoUploadError";
 
 /** Profile photo state plus the Take / Choose / Remove picker that uploads to the avatars bucket. */
 export function useAvatarPhoto() {
@@ -14,38 +16,29 @@ export function useAvatarPhoto() {
     async (uri: string, userId: string, prevAvatarUrl: string | null) => {
       setAvatarUploading(true);
       setAvatarUrl(uri);
+      const path = `${userId}/avatar.jpg`;
       try {
         const response = await fetch(uri);
         const arrayBuffer = await response.arrayBuffer();
-        const path = `${userId}/avatar.jpg`;
-
-        let publicUrl: string | null = null;
-        try {
-          const { error: uploadError } = await supabase!.storage
-            .from("avatars")
-            .upload(path, arrayBuffer, { contentType: "image/jpeg", upsert: true });
-          if (!uploadError) {
-            const { data: urlData } = supabase!.storage.from("avatars").getPublicUrl(path);
-            publicUrl = urlData.publicUrl + `?t=${Date.now()}`;
-          }
-        } catch {
-          // Storage bucket missing or network error — skip silently.
+        const { error: uploadError } = await supabase!.storage
+          .from("avatars")
+          .upload(path, arrayBuffer, { contentType: "image/jpeg", upsert: true });
+        if (uploadError) {
+          const status = (uploadError as { statusCode?: string | number }).statusCode;
+          throw new PhotoUploadError(uploadError.message, { status: status == null ? undefined : Number(status) });
         }
-
-        if (publicUrl) {
-          const { error: updateError } = await supabase!
-            .from("profiles")
-            .update({ avatar_url: publicUrl })
-            .eq("id", userId);
-          if (!updateError) {
-            setAvatarUrl(publicUrl);
-          } else {
-            console.warn("[avatar] profiles.update error:", updateError.message);
-          }
+        const { data: urlData } = supabase!.storage.from("avatars").getPublicUrl(path);
+        const publicUrl = urlData.publicUrl + `?t=${Date.now()}`;
+        const { error: updateError } = await supabase!.from("profiles").update({ avatar_url: publicUrl }).eq("id", userId);
+        if (updateError) {
+          setAvatarUrl(prevAvatarUrl);
+          Alert.alert("Photo not saved", reportPhotoUploadError(updateError, { stage: "save", bucket: "avatars", path }));
+          return;
         }
-      } catch {
-        Alert.alert("Upload failed", "Could not upload photo. Please try again.");
+        setAvatarUrl(publicUrl);
+      } catch (e) {
         setAvatarUrl(prevAvatarUrl);
+        Alert.alert("Photo not uploaded", reportPhotoUploadError(e, { stage: "upload", bucket: "avatars", path }));
       } finally {
         setAvatarUploading(false);
       }

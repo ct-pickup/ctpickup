@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "rea
 
 import { useAuth } from "@/context/AuthContext";
 import { pickPhoto, preparePhoto, uploadPhoto, type PhotoBucket } from "@/lib/photoUpload";
+import { reportPhotoUploadError } from "@/lib/reportPhotoUploadError";
 import { themeColor, useThemedStyles } from "@/theme";
 
 import PhotoHeader, { type PhotoAspect } from "./PhotoHeader";
@@ -63,9 +64,15 @@ export default function PhotoUploadField({
       setStage("uploading");
       setProgress(0);
       const url = await uploadPhoto({ supabase, bucket, userId, fileUri, name, onProgress: setProgress });
-      await onChange(url);
+      try {
+        await onChange(url);
+      } catch (e) {
+        const message = reportPhotoUploadError(e, { stage: "save", bucket });
+        setError(message);
+        Alert.alert("Photo not uploaded", message);
+      }
     } catch (e) {
-      const message = e instanceof Error && e.message ? e.message : "Could not upload the photo.";
+      const message = reportPhotoUploadError(e, { stage: "upload", bucket });
       setError(message);
       Alert.alert("Photo not uploaded", message);
     } finally {
@@ -79,7 +86,8 @@ export default function PhotoUploadField({
     try {
       await onChange(null);
     } catch (e) {
-      const message = e instanceof Error && e.message ? e.message : "Could not remove the photo.";
+      reportPhotoUploadError(e, { stage: "remove", bucket });
+      const message = "Couldn't remove your photo. Try again in a moment.";
       setError(message);
       Alert.alert("Photo not removed", message);
     }
