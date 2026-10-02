@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { applyPickupResultWinLossDeltas } from "@/lib/pickup/applyPickupResultWinLoss";
 import { resolvePotdFromVotes } from "@/lib/pickup/resolvePotdFromVotes";
+import { parseResultSubmission } from "@/lib/pickup/resultOutcome";
+import { isNotNullViolation, loadExistingResult, logResultEdit } from "@/lib/results/resultStore";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { supabaseService } from "@/lib/supabase/service";
 
@@ -96,7 +98,6 @@ export async function POST(req: Request) {
 
   const run_id = asUuid(b.run_id);
   const total_teams = Number(b.total_teams);
-  const winning_team = b.winning_team;
 
   const team_assignments = Array.isArray(b.team_assignments) ? b.team_assignments : null;
 
@@ -110,9 +111,11 @@ export async function POST(req: Request) {
   if (![2, 3].includes(total_teams)) {
     return NextResponse.json({ error: "total_teams must be 2 or 3" }, { status: 400 });
   }
-  if (!isTeam(winning_team)) {
-    return NextResponse.json({ error: "winning_team must be A, B, or C" }, { status: 400 });
+  const parsed = parseResultSubmission(b, total_teams);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
+  const { winning_team, score_a, score_b } = parsed;
   if (!team_assignments) {
     return NextResponse.json({ error: "team_assignments required" }, { status: 400 });
   }
@@ -128,11 +131,18 @@ export async function POST(req: Request) {
     assignments.push({ user_id, team });
   }
 
-  const oldResultRes = await supabase
-    .from("pickup_run_results")
-    .select("winning_team,goalie_of_the_day,player_of_day")
-    .eq("run_id", run_id)
-    .maybeSingle();
+  const existing = await loadExistingResult(supabase, run_id);
+  if (existing.error) return NextResponse.json({ error: existing.error }, { status: 500 });
+  if (score_a != null && !existing.scoresSupported) {
+    return NextResponse.json(
+      {
+        error: "Scores can't be saved yet. Choose \"Didn't track the score\" and pick the winner.",
+        code: "scores_unavailable",
+      },
+      { status: 409 },
+    );
+  }
+  const oldResultRes = { data: existing.result };
   const oldAssignRes = await supabase.from("pickup_run_team_assignments").select("user_id,team").eq("run_id", run_id);
 
   const oldWinningTeam =
@@ -161,6 +171,7 @@ export async function POST(req: Request) {
         run_id,
         total_teams,
         winning_team,
+        ...(existing.scoresSupported ? { score_a, score_b } : {}),
         player_of_day,
         goalie_of_the_day,
         defender_of_day,
@@ -172,6 +183,47 @@ export async function POST(req: Request) {
     )
     .select("run_id")
     .single();
+
+  if (upRes.error) {
+    if (winning_team == null && isNotNullViolation(upRes.error)) {
+      return NextResponse.json(
+        { error: "Draws can't be saved yet. Pick the winning team for now.", code: "draws_unavailable" },
+        { status: 409 },
+      );
+    }
+    return NextResponse.json({ error: upRes.error.message }, { status: 500 });
+  }
+
+  if (existing.result) {
+    const old = existing.result;
+    await logResultEdit(supabase, {
+      run_id,
+      edited_by: guard.userId,
+      editor_role: "admin",
+      old_values: {
+        winning_team: old.winning_team,
+        score_a: old.score_a,
+        score_b: old.score_b,
+        player_of_day: old.player_of_day,
+        defender_of_day: old.defender_of_day,
+        midfielder_of_day: old.midfielder_of_day,
+        attacker_of_day: old.attacker_of_day,
+        goalie_of_the_day: old.goalie_of_the_day,
+        team_assignments: oldAssignments,
+      },
+      new_values: {
+        winning_team,
+        score_a,
+        score_b,
+        player_of_day,
+        defender_of_day,
+        midfielder_of_day,
+        attacker_of_day,
+        goalie_of_the_day,
+        team_assignments: assignments,
+      },
+    });
+  }
 
   // Increment award counts on profiles (skip POTD when unchanged on re-save).
   const awardFields = [
@@ -202,10 +254,6 @@ export async function POST(req: Request) {
       .from("profiles")
       .update({ [field]: current + 1, updated_at: new Date().toISOString() })
       .eq("id", userId);
-  }
-
-  if (upRes.error) {
-    return NextResponse.json({ error: upRes.error.message }, { status: 500 });
   }
 
   // Mark the run completed so it never stays stuck in_progress.

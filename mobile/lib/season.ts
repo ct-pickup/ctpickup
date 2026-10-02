@@ -1,4 +1,5 @@
 /** Pure helpers for the Games tab ("Your season") and the match recap. No React, no Supabase. */
+import { outcomeForTeam, scoreLineForTeam, type StoredResult } from "@/lib/pickup/resultOutcome";
 
 export type Outcome = "W" | "L" | "D";
 
@@ -6,43 +7,35 @@ export type TeamScores = Partial<Record<"A" | "B" | "C", number>>;
 
 const ET = "America/New_York";
 
+function toStored(winningTeam: string | null, scores: TeamScores | null | undefined): StoredResult {
+  const two = scores != null && scores.C == null && typeof scores.A === "number" && typeof scores.B === "number";
+  return { winning_team: winningTeam, score_a: two ? scores.A : null, score_b: two ? scores.B : null };
+}
+
 /**
- * Result for the viewer. `winningTeam` comes from pickup_run_results; a posted result with no
- * winner, or equal recorded scores, is a draw. Null when no result is posted or the viewer had no team.
+ * Result for the viewer, by the shared result rules: a recorded score decides it (equal is a draw);
+ * otherwise `winning_team`, where a posted result with no winner is a draw. Null without a result or a team.
  */
 export function outcomeFor(
   myTeam: string | null | undefined,
   result: { winning_team: string | null; scores?: TeamScores | null } | null | undefined,
 ): Outcome | null {
-  if (!result || !myTeam) return null;
-  const mine = result.scores?.[myTeam as "A"];
-  const others = Object.entries(result.scores ?? {})
-    .filter(([team]) => team !== myTeam)
-    .map(([, v]) => v)
-    .filter((v): v is number => typeof v === "number");
-  if (typeof mine === "number" && others.length > 0 && others.every((v) => v === mine)) return "D";
-  if (!result.winning_team) return "D";
-  return result.winning_team === myTeam ? "W" : "L";
+  if (!result) return null;
+  return outcomeForTeam(myTeam, toStored(result.winning_team, result.scores));
 }
 
 /** "5–3" from the viewer's side (their team first), only for two-team games with both scores recorded. */
 export function scoreLine(myTeam: string | null | undefined, scores: TeamScores | null | undefined): string | null {
-  if (!myTeam || !scores) return null;
-  const entries = Object.entries(scores).filter((e): e is [string, number] => typeof e[1] === "number");
-  if (entries.length !== 2) return null;
-  const mine = entries.find(([t]) => t === myTeam)?.[1];
-  const theirs = entries.find(([t]) => t !== myTeam)?.[1];
-  if (mine == null || theirs == null) return null;
-  return `${mine}\u2013${theirs}`;
+  return scoreLineForTeam(myTeam, toStored(null, scores));
 }
 
-/** Season record with an en dash: "2–1", or "2–1–1" once a draw exists. */
+/** Season record with en dashes: wins–losses ("2–1"), or wins–draws–losses ("2–1–1") once a draw exists. */
 export function recordLine(wins: number, losses: number, draws = 0): string {
-  return draws > 0 ? `${wins}\u2013${losses}\u2013${draws}` : `${wins}\u2013${losses}`;
+  return draws > 0 ? `${wins}\u2013${draws}\u2013${losses}` : `${wins}\u2013${losses}`;
 }
 
 export function recordCaption(draws = 0): string {
-  return draws > 0 ? "Wins \u00b7 Losses \u00b7 Draws" : "Wins \u00b7 Losses";
+  return draws > 0 ? "Wins \u00b7 Draws \u00b7 Losses" : "Wins \u00b7 Losses";
 }
 
 /** Last `n` decided games, oldest on the left and most recent on the right. Input is any order. */

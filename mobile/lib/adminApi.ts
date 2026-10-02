@@ -371,7 +371,10 @@ export function postAdminPickupResult(
   body: {
     run_id: string;
     total_teams: 2 | 3;
-    winning_team: "A" | "B" | "C";
+    winning_team?: "A" | "B" | "C";
+    outcome?: "draw";
+    score_a?: number;
+    score_b?: number;
     team_assignments: { user_id: string; team: "A" | "B" | "C" }[];
     player_of_day?: string | null;
     goalie_of_the_day?: string | null;

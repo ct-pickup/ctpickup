@@ -25,7 +25,18 @@ import PlayerAvatar from "@/components/PlayerAvatar";
 import { PhotoHeader, PhotoUploadField, useFieldPhotos } from "@/components/photo";
 import FillYourGameCard from "@/components/pickup/FillYourGameCard";
 import PlayedWithRow, { usePlayedWith } from "@/components/pickup/PlayedWithRow";
+import { ResultScoreFields } from "@/components/pickup/ResultScoreFields";
 import SpotsBadge from "@/components/pickup/SpotsBadge";
+import { canEditResult } from "@/lib/pickup/resultOutcome";
+import {
+  EMPTY_RESULT_FORM,
+  fetchPostedResult,
+  probeResultScoresSupported,
+  resultFormBody,
+  resultFormFromStored,
+  type PostedResult,
+  type ResultFormState,
+} from "@/lib/resultForm";
 import { fmtPickupSlotChipEt, fmtPickupTimeEt } from "@/lib/pickup/runStartAtDisplay";
 import { setRunFieldPhoto } from "@/lib/photoUpload";
 import {
@@ -243,7 +254,10 @@ export default function SessionDetailScreen() {
   const [teamAssignments, setTeamAssignments] = useState<Record<string, "A" | "B">>({});
   const [teamsBusy, setTeamsBusy] = useState(false);
   const [resultOpen, setResultOpen] = useState(false);
-  const [winningTeam, setWinningTeam] = useState<"A" | "B" | null>(null);
+  const [resultMode, setResultMode] = useState<"record" | "edit">("record");
+  const [resultForm, setResultForm] = useState<ResultFormState>(EMPTY_RESULT_FORM);
+  const [scoresAvailable, setScoresAvailable] = useState(false);
+  const [postedResult, setPostedResult] = useState<PostedResult | null>(null);
   const [defenderPotd, setDefenderPotd] = useState<string | null>(null);
   const [midfielderPotd, setMidfielderPotd] = useState<string | null>(null);
   const [attackerPotd, setAttackerPotd] = useState<string | null>(null);
@@ -784,10 +798,38 @@ export default function SessionDetailScreen() {
     }
   }
 
+  useEffect(() => {
+    if (!supabase || !id || fixture) return;
+    let cancelled = false;
+    void Promise.all([probeResultScoresSupported(supabase), fetchPostedResult(supabase, id)]).then(([ok, posted]) => {
+      if (cancelled) return;
+      setScoresAvailable(ok);
+      setPostedResult(posted);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, id, fixture, isCompleted]);
+
+  const canEditScore =
+    Boolean(postedResult) &&
+    !fixture &&
+    (isAdmin ||
+      (isHost && canEditResult({ isAdmin: false, isHost: true, postedAt: postedResult?.created_at }).ok));
+
+  function openResult(mode: "record" | "edit") {
+    setResultMode(mode);
+    setResultForm(mode === "edit" && postedResult ? resultFormFromStored(postedResult) : EMPTY_RESULT_FORM);
+    setResultOpen(true);
+  }
+
   async function submitResult() {
-    if (resultBusy || !session?.access_token || !winningTeam) return;
+    if (resultBusy || !session?.access_token) return;
+    const fields = resultFormBody(resultForm, scoresAvailable);
+    if (!fields.ok) { Alert.alert("Result", fields.error); return; }
     const origin = siteOrigin();
     if (!origin) return;
+    const editing = resultMode === "edit";
     setResultBusy(true);
     try {
       const r = await fetch(`${origin}/api/sessions/result`, {
@@ -795,17 +837,29 @@ export default function SessionDetailScreen() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
           run_id: id,
-          winning_team: winningTeam,
-          defender_of_the_day: defenderPotd,
-          midfielder_of_the_day: midfielderPotd,
-          attacker_of_the_day: attackerPotd,
-          goalie_of_the_day: goaliePotd,
+          ...fields.body,
+          ...(editing
+            ? { score_only: true }
+            : {
+                defender_of_the_day: defenderPotd,
+                midfielder_of_the_day: midfielderPotd,
+                attacker_of_the_day: attackerPotd,
+                goalie_of_the_day: goaliePotd,
+              }),
         }),
       });
-      const j = await r.json().catch(() => null) as { ok?: boolean; error?: string } | null;
-      if (!r.ok || !j?.ok) { Alert.alert("Error", j?.error ?? "Failed to save result."); return; }
+      const j = await r.json().catch(() => null) as { ok?: boolean; error?: string; code?: string } | null;
+      if (!r.ok || !j?.ok) {
+        if (j?.code === "scores_unavailable" || j?.code === "draws_unavailable") {
+          setScoresAvailable(false);
+          setResultForm((f) => ({ ...f, tracked: false, pick: f.pick === "draw" ? null : f.pick }));
+        }
+        Alert.alert("Error", j?.error ?? "Failed to save result.");
+        return;
+      }
       setResultOpen(false);
-      Alert.alert("Result recorded!", "Win/loss stats and awards have been updated.");
+      Alert.alert(editing ? "Result updated" : "Result recorded!", editing ? "The score has been changed." : "Results and awards have been updated.");
+      if (supabase && id) setPostedResult(await fetchPostedResult(supabase, id));
       await load();
     } finally {
       setResultBusy(false);
@@ -1481,7 +1535,7 @@ export default function SessionDetailScreen() {
                     <FontAwesome name="users" size={14} color={themeColor().accent} />
                     <Text style={s.shareBtnText}>Assign teams</Text>
                   </Pressable>
-                  <Pressable onPress={() => setResultOpen(true)} style={s.shareBtn}>
+                  <Pressable onPress={() => openResult(postedResult ? "edit" : "record")} style={s.shareBtn}>
                     <FontAwesome name="trophy" size={14} color={themeColor().accent} />
                     <Text style={s.shareBtnText}>Record result</Text>
                   </Pressable>
@@ -1496,6 +1550,13 @@ export default function SessionDetailScreen() {
                   </Pressable>
                 </View>
               </>
+            )}
+
+            {isCompleted && canEditScore && (
+              <Pressable onPress={() => openResult("edit")} style={[s.shareBtn, { marginTop: 16 }]}>
+                <FontAwesome name="pencil" size={14} color={themeColor().accent} />
+                <Text style={s.shareBtnText}>Edit score</Text>
+              </Pressable>
             )}
 
             {canHostScore && (
@@ -1842,34 +1903,34 @@ export default function SessionDetailScreen() {
       <Modal visible={resultOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setResultOpen(false)}>
         <ScrollView style={s.modalRoot}>
           <View style={s.modalHeader}>
-            <Text style={s.modalTitle}>Record result</Text>
+            <Text style={s.modalTitle}>{resultMode === "edit" ? "Edit score" : "Record result"}</Text>
             <Pressable onPress={() => setResultOpen(false)} hitSlop={10}>
               <FontAwesome name="times" size={18} color={themeColor().muted} />
             </Pressable>
           </View>
 
-          <View style={{ marginHorizontal: 16, marginTop: 12, marginBottom: 4, backgroundColor: themeColor().overlaySubtle, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: themeColor().line }}>
-            <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 }}>You cannot receive awards for sessions you host.</Text>
-          </View>
-          <View style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 4, backgroundColor: themeColor().pitch, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: themeColor().pitch }}>
-            <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 }}>
-              Player of the Day is voted by attendees. Pick Defender, Midfielder, Attacker, and Goalie awards below.
+          {resultMode === "record" ? (
+            <>
+              <View style={{ marginHorizontal: 16, marginTop: 12, marginBottom: 4, backgroundColor: themeColor().overlaySubtle, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: themeColor().line }}>
+                <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 }}>You cannot receive awards for sessions you host.</Text>
+              </View>
+              <View style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 4, backgroundColor: themeColor().pitch, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: themeColor().pitch }}>
+                <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 }}>
+                  Player of the Day is voted by attendees. Pick Defender, Midfielder, Attacker, and Goalie awards below.
+                </Text>
+              </View>
+            </>
+          ) : (
+            <Text style={s.voteSubtitle}>
+              {isAdmin ? "Admins can change the score anytime." : "You can change the score for 24 hours after posting."} Awards stay as posted.
             </Text>
+          )}
+
+          <View style={{ padding: 16, paddingTop: 8 }}>
+            <ResultScoreFields value={resultForm} onChange={setResultForm} scoresAvailable={scoresAvailable} disabled={resultBusy} />
           </View>
 
-          <Text style={s.voteSubtitle}>Who won?</Text>
-          <View style={{ flexDirection: "row", gap: 8, padding: 16, paddingTop: 8 }}>
-            <Pressable onPress={() => setWinningTeam("A")}
-              style={{ flex: 1, paddingVertical: 16, borderRadius: 12, borderWidth: 2, borderColor: winningTeam === "A" ? themeColor().pitch : themeColor().overlay, backgroundColor: winningTeam === "A" ? themeColor().pitch : "transparent", alignItems: "center" }}>
-              <Text style={{ color: winningTeam === "A" ? themeColor().onPitch : themeColor().text, fontSize: 20, ...headline }}>Team A</Text>
-            </Pressable>
-            <Pressable onPress={() => setWinningTeam("B")}
-              style={{ flex: 1, paddingVertical: 16, borderRadius: 12, borderWidth: 2, borderColor: winningTeam === "B" ? themeColor().text : themeColor().overlay, backgroundColor: winningTeam === "B" ? themeColor().text : "transparent", alignItems: "center" }}>
-              <Text style={{ color: winningTeam === "B" ? themeColor().bg : themeColor().text, fontSize: 20, ...headline }}>Team B</Text>
-            </Pressable>
-          </View>
-
-          {[
+          {resultMode === "record" && [
             { label: "Defender of the Day", state: defenderPotd, set: setDefenderPotd },
             { label: "Midfielder of the Day", state: midfielderPotd, set: setMidfielderPotd },
             { label: "Attacker of the Day", state: attackerPotd, set: setAttackerPotd },
@@ -1921,10 +1982,10 @@ export default function SessionDetailScreen() {
             </View>
           ))}
 
-          <Pressable onPress={() => void submitResult()} disabled={resultBusy || !winningTeam}
-            style={[s.publishBtn, (resultBusy || !winningTeam) && { opacity: 0.4 }, { margin: 16 }]}>
+          <Pressable onPress={() => void submitResult()} disabled={resultBusy || !resultFormBody(resultForm, scoresAvailable).ok}
+            style={[s.publishBtn, (resultBusy || !resultFormBody(resultForm, scoresAvailable).ok) && { opacity: 0.4 }, { margin: 16 }]}>
             {resultBusy ? <ActivityIndicator color={themeColor().onPitch} /> :
-              <Text style={s.publishBtnText}>Save result & awards</Text>}
+              <Text style={s.publishBtnText}>{resultMode === "edit" ? "Save score" : "Save result & awards"}</Text>}
           </Pressable>
         </ScrollView>
       </Modal>

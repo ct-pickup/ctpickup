@@ -6,20 +6,23 @@ function isTeam(v: unknown): v is Team {
   return v === "A" || v === "B" || v === "C";
 }
 
-export function winLossForTeamAssignment(winningTeam: Team, playerTeam: Team): { w: number; l: number } {
+/** A null winner is a draw: neither a win nor a loss. */
+export function winLossForTeamAssignment(winningTeam: Team | null, playerTeam: Team): { w: number; l: number } {
+  if (winningTeam == null) return { w: 0, l: 0 };
   return playerTeam === winningTeam ? { w: 1, l: 0 } : { w: 0, l: 1 };
 }
 
 /**
  * Applies net win/loss deltas to `profiles.pickup_wins_count` / `pickup_losses_count` when a run result
  * is posted or edited. Old state is subtracted, new state is added (idempotent for unchanged rows).
+ * Pass null for no previous result, or for a draw (draws add nothing to either counter).
  */
 export async function applyPickupResultWinLossDeltas(
   admin: SupabaseClient,
   args: {
     oldWinningTeam: Team | null;
     oldAssignments: { user_id: string; team: Team }[];
-    newWinningTeam: Team;
+    newWinningTeam: Team | null;
     newAssignments: { user_id: string; team: Team }[];
   },
 ): Promise<void> {
@@ -41,7 +44,7 @@ export async function applyPickupResultWinLossDeltas(
   }
 
   for (const row of args.newAssignments) {
-    if (!isTeam(row.team)) continue;
+    if (!args.newWinningTeam || !isTeam(row.team)) continue;
     const { w, l } = winLossForTeamAssignment(args.newWinningTeam, row.team);
     add(row.user_id, w, l);
   }

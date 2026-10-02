@@ -8,6 +8,14 @@ import {
   postAdminPickupResult,
 } from "@/lib/adminApi";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
+import { ResultScoreFields } from "@/components/pickup/ResultScoreFields";
+import {
+  EMPTY_RESULT_FORM,
+  probeResultScoresSupported,
+  resultFormBody,
+  resultFormFromStored,
+  type ResultFormState,
+} from "@/lib/resultForm";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
@@ -153,7 +161,8 @@ export default function AdminRunResultScreen() {
   const [confirmed, setConfirmed] = useState<ConfirmedRow[]>([]);
 
   const [totalTeams, setTotalTeams] = useState<2 | 3>(2);
-  const [winningTeam, setWinningTeam] = useState<Team>("A");
+  const [resultForm, setResultForm] = useState<ResultFormState>(EMPTY_RESULT_FORM);
+  const [scoresAvailable, setScoresAvailable] = useState(false);
   const [teamByUser, setTeamByUser] = useState<Record<string, Team>>({});
 
   const [playerOfDay, setPlayerOfDay] = useState<string | null>(null);
@@ -170,7 +179,6 @@ export default function AdminRunResultScreen() {
   const [picker, setPicker] = useState<
     | null
     | { kind: "team"; userId: string }
-    | { kind: "winning" }
     | { kind: "award"; which: "goalie" | "defender" | "midfielder" | "attacker" }
   >(null);
 
@@ -283,7 +291,13 @@ export default function AdminRunResultScreen() {
           }
           const row = resultRow as Record<string, unknown>;
           setTotalTeams(Number(row.total_teams) === 3 ? 3 : 2);
-          if (isTeam(row.winning_team)) setWinningTeam(row.winning_team);
+          setResultForm(
+            resultFormFromStored({
+              winning_team: isTeam(row.winning_team) ? row.winning_team : null,
+              score_a: typeof row.score_a === "number" ? row.score_a : null,
+              score_b: typeof row.score_b === "number" ? row.score_b : null,
+            }),
+          );
           setPlayerOfDay(typeof row.player_of_day === "string" ? row.player_of_day : null);
           setGoalieOfTheDay(typeof row.goalie_of_the_day === "string" ? row.goalie_of_the_day : null);
           setDefenderOfDay(typeof row.defender_of_day === "string" ? row.defender_of_day : null);
@@ -354,9 +368,19 @@ export default function AdminRunResultScreen() {
   const allowedTeams = totalTeams === 3 ? TEAMS_3 : TEAMS_2;
 
   useEffect(() => {
-    if (allowedTeams.includes(winningTeam)) return;
-    setWinningTeam("A");
-  }, [totalTeams, winningTeam, allowedTeams]);
+    if (!supabase) return;
+    let cancelled = false;
+    void probeResultScoresSupported(supabase).then((ok) => {
+      if (!cancelled) setScoresAvailable(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase]);
+
+  useEffect(() => {
+    setResultForm((f) => (f.pick === "C" && totalTeams !== 3 ? { ...f, pick: null } : f));
+  }, [totalTeams]);
 
   useEffect(() => {
     setTeamByUser((cur) => {
@@ -393,8 +417,6 @@ export default function AdminRunResultScreen() {
     () => allowedTeams.map((t) => ({ value: t, label: labelTeam(t) })),
     [allowedTeams],
   );
-
-  const winningOptions = teamOptions;
 
   const filledAssignments = useMemo(() => {
     return confirmed
@@ -485,12 +507,18 @@ export default function AdminRunResultScreen() {
       return Alert.alert("Awards must be from roster", "Award winners must be selected from players marked as attended.");
     }
 
+    const fields = resultFormBody(totalTeams === 3 ? { ...resultForm, tracked: false } : resultForm, scoresAvailable);
+    if (!fields.ok) {
+      void hapticError();
+      return Alert.alert("Result", fields.error);
+    }
+
     void hapticGoal();
     setSubmitting(true);
     const r = await postAdminPickupResult(token, {
       run_id: runId,
       total_teams: totalTeams,
-      winning_team: winningTeam,
+      ...fields.body,
       team_assignments: filledAssignments,
       player_of_day: null,
       goalie_of_the_day: goalieOfTheDay,
@@ -658,20 +686,15 @@ export default function AdminRunResultScreen() {
         })}
       </View>
 
-      {/* 2) Winning team */}
-      <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Winning team</Text>
-      <Pressable
-        onPress={() => {
-          if (isReadonly) return;
-          void hapticTap();
-          setPicker({ kind: "winning" });
-        }}
+      {/* 2) Result */}
+      <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Result</Text>
+      <ResultScoreFields
+        value={resultForm}
+        onChange={setResultForm}
+        scoresAvailable={scoresAvailable}
+        teams={allowedTeams}
         disabled={isReadonly}
-        style={({ pressed }) => [styles.input, styles.selectTrigger, pressed && { opacity: 0.9 }, isReadonly && { opacity: 0.5 }]}
-      >
-        <Text style={styles.selectValue}>{labelTeam(winningTeam)}</Text>
-        <Text style={styles.selectChevron}>▾</Text>
-      </Pressable>
+      />
 
       {/* 3) Awards */}
       <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Step 3: Awards</Text>
@@ -772,15 +795,6 @@ export default function AdminRunResultScreen() {
           </View>
         </Pressable>
       ) : null}
-
-      <SelectModal<Team>
-        visible={picker?.kind === "winning"}
-        title="Winning team"
-        options={winningOptions}
-        value={winningTeam}
-        onSelect={setWinningTeam}
-        onClose={() => setPicker(null)}
-      />
 
       <SelectModal<Team>
         visible={!teamsReadOnly && picker?.kind === "team" && attendanceByUser[picker.userId] !== false}
