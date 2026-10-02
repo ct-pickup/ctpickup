@@ -302,8 +302,24 @@ export function postAdminMarkAttendance(
   });
 }
 
-export function postAdminLateCancel(accessToken: string, body: { run_id: string; user_id: string; note?: string | null }) {
-  return adminFetch<{ ok: boolean; error?: string }>("/api/admin/pickup/late-cancel", accessToken, {
+export function postAdminLateCancel(
+  accessToken: string,
+  body: { run_id: string; user_id: string; note?: string | null; cancelled_at?: string | null },
+) {
+  return adminFetch<{
+    ok: boolean;
+    error?: string;
+    message?: string;
+    status?: string | null;
+    cancelled_at?: string;
+    within_24h?: boolean;
+    standing_recorded?: boolean;
+    credit_issued?: boolean;
+    amount_cents?: number;
+    payer_credited?: boolean;
+    payer_credit_cents?: number;
+    warnings?: string[];
+  }>("/api/admin/pickup/late-cancel", accessToken, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

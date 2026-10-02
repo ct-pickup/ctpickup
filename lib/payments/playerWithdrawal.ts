@@ -63,6 +63,8 @@ type Ctx = {
   getStripe: () => Stripe;
   run: WithdrawalRun;
   userId: string;
+  /** When the player gave up the spot, for the 24-hour decision; an admin recording a cancellation sets it. Defaults to now. */
+  cancelledAtMs?: number;
   sentryCtx: { tags: Record<string, string>; extra: Record<string, unknown> };
 };
 
@@ -85,7 +87,8 @@ export async function planPlayerWithdrawal(
 ): Promise<{ ok: true; plan: WithdrawalPlan } | WithdrawalFailure> {
   const { admin, getStripe, run, userId, sentryCtx } = ctx;
   const now = Date.now();
-  const earlyEnough = refundWindowOpen({ kickoffAt: run.start_at, refundCutoffAt: pickupRefundCutoffMs(run), now });
+  const cancelledAt = ctx.cancelledAtMs ?? now;
+  const earlyEnough = refundWindowOpen({ kickoffAt: run.start_at, refundCutoffAt: pickupRefundCutoffMs(run), now: cancelledAt });
   const prevStatus = String(rsvp.status);
   const checkoutSessionId = rsvp.checkout_session_id || null;
   let paidAt = rsvp.paid_at || null;
@@ -173,7 +176,7 @@ export async function planPlayerWithdrawal(
     trigger: "leave",
     kickoffAt: run.start_at,
     refundCutoffAt: pickupRefundCutoffMs(run),
-    now,
+    now: cancelledAt,
     paymentPending: checkoutReleased,
     hasCardCharge: cardCents > 0,
     cardNetCents: cardCents,

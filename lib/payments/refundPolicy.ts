@@ -68,6 +68,11 @@ function cents(n: number): number {
  *   paid becomes credit, never a card refund. The card portion goes to whoever paid it (a friend who paid gets a credit
  *   marked as being for this player's spot), the credit-covered portion to the player. Within 24 hours nothing comes
  *   back. Declining an invite or a waitlist spot involves no money.
+ * - Admin late cancel (admin/pickup/late-cancel): the player's own cancellation, recorded by an admin when the player
+ *   asked them to cancel; it is not a removal. It is settled exactly like the player leaving (initiator "player",
+ *   trigger "leave"), with the 24-hour window measured from cancelled_at (when the player asked; defaults to now, never
+ *   in the future or after kickoff) instead of now. Only a cancellation inside 24 hours counts as a late cancel for
+ *   standing. There is no admin removal-for-conduct path today; if one is added it gives no refund or credit.
  * - Run switch: there is no flow that moves a player from one run to another (pickup/switch is the admin run
  *   switchboard). A switch must not be settled through this function; it should carry the payment to the new run.
  *
