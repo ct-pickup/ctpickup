@@ -1,4 +1,8 @@
 import Link from "next/link";
+import {
+  PICKUP_CANCELLATION_POLICY_HEADING,
+  PICKUP_CANCELLATION_POLICY_POINTS,
+} from "@/lib/fees/refundPolicyCopy";
 
 /**
  * Canonical waiver copy — bump `CURRENT_WAIVER_VERSION` in `lib/waiver/constants.ts` when this changes.
@@ -201,8 +205,7 @@ export function WaiverDocumentBody() {
           <span className="text-ink">
             Tournament and pickup fees are generally non-refundable except as stated in the applicable
             refund policy: for in-person tournaments, refunds must be requested more than 48 hours before
-            the tournament begins; for pickups, refunds are available if you cancel more than 24 hours before
-            the run&apos;s scheduled start time. Full refund if the organizer cancels the run.
+            the tournament begins; for pickups, see Cancellations and refunds below.
           </span>{"  "}
           Online esports entry fees and refunds are in the{"  "}
           <Link
@@ -221,6 +224,12 @@ export function WaiverDocumentBody() {
           </Link>
           . Prizes are subject to verification and eligibility requirements.
         </p>
+        <h3 className="font-semibold text-ink">{PICKUP_CANCELLATION_POLICY_HEADING}</h3>
+        <ul className="list-disc space-y-2 pl-5 text-muted">
+          {PICKUP_CANCELLATION_POLICY_POINTS.map((point) => (
+            <li key={point}>{point}</li>
+          ))}
+        </ul>
       </section>
 
       <section className="space-y-3">

@@ -9,6 +9,7 @@ import {
 } from "@/components/layout";
 import { SupportEmailLink } from "@/components/SupportEmailLink";
 import { LiabilityWaiverReturnBack } from "@/components/waiver/LiabilityWaiverReturnBack";
+import { LEGAL_POLICY_LAST_UPDATED } from "@/lib/fees/refundPolicyCopy";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 import { safeWaiverReturnTo } from "@/lib/waiver/safeReturnTo";
 
@@ -40,7 +41,7 @@ export default async function LiabilityWaiverPage({ searchParams }: PageProps) {
 
       <header className="mt-6">
         <p className="text-caption font-semibold text-muted">
-          Version {CURRENT_WAIVER_VERSION}
+          Version {CURRENT_WAIVER_VERSION} · {LEGAL_POLICY_LAST_UPDATED}
         </p>
         <h1 className="mt-3 text-h1 font-serif font-semibold text-ink md:text-display">
           Liability Waiver &amp; Participation Agreement

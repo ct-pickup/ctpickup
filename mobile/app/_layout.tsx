@@ -11,6 +11,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { AppOpeningTheme, clearAppOpeningThemeFlag } from "@/components/AppOpeningTheme";
 import { AppLockOverlay } from "@/components/AppLockOverlay";
+import { CancellationPolicyNotice } from "@/components/CancellationPolicyNotice";
 import { PushRegistrar } from "@/components/PushRegistrar";
 import { ReviewModeBanner } from "@/components/ReviewModeBanner";
 import { AppLockProvider } from "@/context/AppLockContext";
@@ -421,6 +422,7 @@ function RootLayoutNav() {
                           />
                           </Stack>
                         </ThemeProvider>
+                        {minVersionBlocked ? null : <CancellationPolicyNotice />}
                         <AppOpeningTheme key={openingThemeKey} />
                         <AppLockOverlay />
                       </View>

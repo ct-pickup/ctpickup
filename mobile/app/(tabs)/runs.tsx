@@ -889,8 +889,8 @@ export default function RunsScreen() {
   }, [run]);
 
   const cancelSpotLabel = cancelSpotRefundEligible
-    ? "Cancel spot — get credit for amount paid"
-    : "Cancel spot — no refund available";
+    ? "Cancel spot: get credit for what you paid"
+    : "Cancel spot: no refund or credit";
 
   const onRefresh = useCallback(() => {
     void loadRegionRuns();

@@ -4,10 +4,21 @@
  */
 
 export const FEES_CROSS_REFERENCE_SUMMARY =
-  "Tournament and pickup fees are generally non-refundable except as stated in the applicable refund policy: for in-person tournaments, refunds must be requested more than 48 hours before the tournament begins; for pickups, refunds are available if you cancel more than 24 hours before the run's scheduled start time, and you receive a full refund if the organizer cancels the run.";
+  "Tournament and pickup fees are generally non-refundable except as stated in the applicable refund policy: for in-person tournaments, refunds must be requested more than 48 hours before the tournament begins; for pickups, leaving more than 24 hours before kickoff gives you a credit for what you paid, and you receive a full refund if the host or CT Pickup cancels the game.";
 
 export const PICKUP_REFUND_AVAILABILITY_SENTENCE =
-  "Refunds are available if you cancel more than 24 hours before the run's scheduled start time.";
+  "If you leave a game more than 24 hours before kickoff, you get a credit for what you paid, usable on any future game.";
+
+export const PICKUP_CANCELLATION_POLICY_HEADING = "Cancellations and refunds";
+
+export const PICKUP_CANCELLATION_POLICY_POINTS = [
+  "If you leave a game more than 24 hours before kickoff, you get a credit for what you paid, usable on any future game. Credits aren't cash and can't be refunded.",
+  "If you leave within 24 hours of kickoff, there's no refund or credit.",
+  "If the host or CT Pickup cancels a game, or removes you from it, you get a full refund to your original payment method.",
+  "If someone else paid for your spot, any credit goes to them.",
+] as const;
+
+export const LEGAL_POLICY_LAST_UPDATED = "Last updated: October 2, 2026";
 
 /** Pickup page / how-it-works — full plain-English pickup refund summary */
 export const PICKUP_REFUND_UI_NOTICE =
