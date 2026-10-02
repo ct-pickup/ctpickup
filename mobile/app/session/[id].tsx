@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
+import { PhotoHeader, useFieldPhotos } from "@/components/photo";
 import { themeColor } from "@/theme";
 type SessionDetail = {
   id: string;
@@ -102,6 +103,8 @@ export default function SessionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { session, supabase } = useAuth();
+  const fieldPhotos = useFieldPhotos(id ? [id] : []);
+  const heroPhoto = id ? fieldPhotos[id] : undefined;
 
   const [run, setRun] = useState<SessionDetail | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
@@ -993,6 +996,17 @@ export default function SessionDetailScreen() {
           </Pressable>
         </View>
 
+        <PhotoHeader uri={heroPhoto} aspect="tall" chalkSize="md" style={s.hero} accessibilityLabel="Field photo">
+          {heroPhoto ? (
+            <>
+              <Text style={s.heroTitle} numberOfLines={2}>{run.title}</Text>
+              {run.location_text ? (
+                <Text style={s.heroSub} numberOfLines={1}>{run.location_text}</Text>
+              ) : null}
+            </>
+          ) : null}
+        </PhotoHeader>
+
         {canVote ? (
           <Pressable
             onPress={openVoteModal}
@@ -1630,6 +1644,9 @@ function make_s() {
   center: { flex: 1, backgroundColor: themeColor().bg, alignItems: "center", justifyContent: "center", padding: 24 },
   errorText: { color: themeColor().muted, fontSize: 16, fontFamily: "Inter_400Regular" },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 16, marginBottom: 20 },
+  hero: { marginHorizontal: -20, marginTop: -4, marginBottom: 16 },
+  heroTitle: { color: themeColor().onPhoto, fontSize: 24, fontFamily: "InstrumentSerif_400Regular" },
+  heroSub: { color: themeColor().onPhoto, fontSize: 14, fontFamily: "Inter_500Medium", fontWeight: "500", marginTop: 4 },
   headerTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", flex: 1, textAlign: "center", marginHorizontal: 12 },
   rateBanner: {
     backgroundColor: themeColor().pitch,

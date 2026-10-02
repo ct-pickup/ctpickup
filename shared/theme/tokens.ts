@@ -85,6 +85,10 @@ export type ThemeColors = {
   overlay: string;
   overlayStrong: string;
   scrim: string;
+  /** Band under text on photos. Dark enough that onPhoto passes 4.5:1 even over a white photo. */
+  photoScrim: string;
+  /** Text and icons on photoScrim. */
+  onPhoto: string;
 };
 
 /** Semantic colors. `bg` is chalk in light and ink in dark. */
@@ -106,6 +110,8 @@ export const lightColor: ThemeColors = {
   overlay: "rgba(17,17,17,0.08)",
   overlayStrong: "rgba(17,17,17,0.14)",
   scrim: "rgba(17,17,17,0.45)",
+  photoScrim: "rgba(17,17,17,0.72)",
+  onPhoto: palette.paper,
 };
 
 export const darkColor: ThemeColors = {
@@ -126,6 +132,8 @@ export const darkColor: ThemeColors = {
   overlay: "rgba(255,255,255,0.08)",
   overlayStrong: "rgba(255,255,255,0.14)",
   scrim: "rgba(0,0,0,0.55)",
+  photoScrim: "rgba(17,17,17,0.72)",
+  onPhoto: palette.paper,
 };
 
 export type Theme = {

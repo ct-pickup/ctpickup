@@ -7,6 +7,8 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Stack, useLocalSearchParams, useNavigation, useRouter, type Href } from "expo-router";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { useEffect, useLayoutEffect, useState } from "react";
+import { PhotoHeader } from "@/components/photo";
+import { fetchActionPhotoUrl } from "@/lib/photoUpload";
 import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
@@ -114,6 +116,18 @@ export default function PlayerProfileScreen() {
   const token = session?.access_token ?? null;
   const viewerId = session?.user?.id ?? null;
   const isOwnProfile = viewerId !== null && viewerId === userId;
+  const [actionPhotoUrl, setActionPhotoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!supabase || !userId) return;
+    let cancelled = false;
+    void fetchActionPhotoUrl(supabase, userId).then((url) => {
+      if (!cancelled) setActionPhotoUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, userId]);
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -655,9 +669,12 @@ export default function PlayerProfileScreen() {
         }}
       />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      {actionPhotoUrl ? (
+        <PhotoHeader uri={actionPhotoUrl} aspect="wide" style={styles.banner} accessibilityLabel="Action photo" />
+      ) : null}
       <View style={styles.hero}>
         {/* Avatar — fixed 96×96 container for all tiers */}
-        <View style={styles.avatarContainer}>
+        <View style={[styles.avatarContainer, actionPhotoUrl ? styles.avatarOverBanner : null]}>
           {isDiamond && (
             /* Diamond border ring: 80×80 square rotated 45°, inscribes the 80px circle */
             <View style={[styles.diamondRing, { borderColor: tColor }]} />
@@ -1094,6 +1111,8 @@ function make_styles() {
   },
   errText: { color: themeColor().coralText, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center" },
   hero: { alignItems: "center", marginBottom: 28 },
+  banner: { marginTop: -20, marginHorizontal: -20 },
+  avatarOverBanner: { marginTop: -AVATAR_SIZE / 2 },
 
   /* Avatar — same container size for all tiers */
   avatarContainer: {

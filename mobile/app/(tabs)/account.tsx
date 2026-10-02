@@ -50,6 +50,8 @@ import { ProfileSection } from "@/components/account/ProfileSection";
 import { ReferralSection } from "@/components/account/ReferralSection";
 import { VerificationRequestModal } from "@/components/account/VerificationRequestModal";
 import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
+import { PhotoHeader, PhotoUploadField } from "@/components/photo";
+import { fetchActionPhotoUrl } from "@/lib/photoUpload";
 import { themeColor, useThemedStyles } from "@/theme";
 import {
   accountStyles as styles, publish_accountStyles,
@@ -327,6 +329,7 @@ export default function AccountScreen() {
 
   // Profile-view extras (tier, avatar, stats, credits). Additive — existing data flow untouched.
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [actionPhotoUrl, setActionPhotoUrl] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [tierInfo, setTierInfo] = useState<TierInfoCache>(_cachedTierInfo);
@@ -397,6 +400,17 @@ export default function AccountScreen() {
       }
     },
     [supabase],
+  );
+
+  const saveActionPhoto = useCallback(
+    async (url: string | null) => {
+      const userId = session?.user?.id;
+      if (!supabase || !userId) throw new Error("Please sign in again.");
+      const { error } = await supabase.from("profiles").update({ action_photo_url: url }).eq("id", userId);
+      if (error) throw new Error(error.message || "Could not save the action photo.");
+      setActionPhotoUrl(url);
+    },
+    [supabase, session?.user?.id],
   );
 
   const pickAndUploadAvatar = useCallback(() => {
@@ -709,6 +723,7 @@ export default function AccountScreen() {
         const { data: av } = await supabase.from("profiles").select("avatar_url").eq("id", uid).maybeSingle();
         setAvatarUrl((av as { avatar_url: string | null } | null)?.avatar_url?.trim() || null);
       }
+      setActionPhotoUrl(await fetchActionPhotoUrl(supabase, uid));
 
       // MOTM count.
       const motm = motmRes.count ?? 0;
@@ -1811,6 +1826,17 @@ export default function AccountScreen() {
           </View>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
             <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 80 }} keyboardShouldPersistTaps="handled">
+              <View style={s.actionPhotoField}>
+                <PhotoUploadField
+                  bucket="action-photos"
+                  name="action"
+                  label="Action photo"
+                  hint="Optional. A shot of you playing, shown as a banner on your profile."
+                  aspect="wide"
+                  value={actionPhotoUrl}
+                  onChange={saveActionPhoto}
+                />
+              </View>
               <ProfileSection
                 editFirstName={editFirstName}
                 setEditFirstName={setEditFirstName}
@@ -1892,14 +1918,17 @@ export default function AccountScreen() {
 
           {/* 2. PROFILE HERO CARD */}
           <View style={s.heroCard}>
-            <View style={s.heroTop}>
+            {actionPhotoUrl ? (
+              <PhotoHeader uri={actionPhotoUrl} aspect="wide" style={s.heroBanner} accessibilityLabel="Action photo" />
+            ) : null}
+            <View style={[s.heroTop, actionPhotoUrl ? s.heroTopOverBanner : null]}>
               <Pressable
                 onPress={() => void pickAndUploadAvatar()}
-                style={s.avatarWrap}
+                style={[s.avatarWrap, actionPhotoUrl ? s.avatarWrapOverBanner : null]}
                 accessibilityLabel="Change profile photo"
                 disabled={avatarUploading}
               >
-                <View style={[s.avatarRing, { borderColor: tColor }]}>
+                <View style={[s.avatarRing, { borderColor: tColor }, actionPhotoUrl ? s.avatarRingOverBanner : null]}>
                   {avatarUrl ? (
                     <Image source={{ uri: avatarUrl }} style={s.avatarImg} />
                   ) : (
@@ -1918,7 +1947,7 @@ export default function AccountScreen() {
                 </View>
               </Pressable>
 
-              <View style={s.heroInfo}>
+              <View style={[s.heroInfo, actionPhotoUrl ? s.heroInfoOverBanner : null]}>
                 <Text style={s.heroName} numberOfLines={2}>{fullName}</Text>
                 {uname ? <Text style={s.heroUsername} numberOfLines={1}>@{uname}</Text> : null}
                 {tierInfo !== null ? (
@@ -2462,12 +2491,19 @@ function make_s() {
   heroCard: {
     marginTop: 12,
     backgroundColor: themeColor().card,
-    borderRadius: 999,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().overlay,
     padding: 16,
+    overflow: "hidden",
   },
+  heroBanner: { marginTop: -16, marginHorizontal: -16 },
   heroTop: { flexDirection: "row", alignItems: "center", gap: 16 },
+  heroTopOverBanner: { alignItems: "flex-start" },
+  avatarWrapOverBanner: { marginTop: -42 },
+  heroInfoOverBanner: { paddingTop: 12 },
+  avatarRingOverBanner: { backgroundColor: themeColor().card },
+  actionPhotoField: { marginBottom: 24 },
   avatarWrap: { width: 84, height: 84 },
   avatarRing: { width: 84, height: 84, borderRadius: 999, borderWidth: 2.5, padding: 4 },
   avatarImg: { width: "100%", height: "100%", borderRadius: 999 },

@@ -2,7 +2,7 @@ import { useTheme } from "@/theme";
 
 export const CHALK_STROKE = 1.5;
 
-export type ChalkColor = "line" | "pitchText";
+export type ChalkColor = "line" | "pitchText" | "onPitchPanel";
 
 export type ChalkSize = "sm" | "md" | "lg";
 

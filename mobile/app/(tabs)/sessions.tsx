@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
+import { PhotoHeader, useFieldPhotos } from "@/components/photo";
 import { themeColor, useThemedStyles } from "@/theme";
 type AvatarPreview = { id: string; initials: string };
 
@@ -181,6 +182,7 @@ export default function SessionsTabScreen() {
   const [live, setLive] = useState<LiveRow[]>([]);
   const [upcoming, setUpcoming] = useState<UpcomingRow[]>([]);
   const [past, setPast] = useState<PastRow[]>([]);
+  const fieldPhotos = useFieldPhotos([...live, ...upcoming].map((r) => r.run_id));
   const [nearbyOpenCount, setNearbyOpenCount] = useState(0);
   const [sessionsPlayed, setSessionsPlayed] = useState(0);
   const [wins, setWins] = useState(0);
@@ -539,6 +541,7 @@ export default function SessionsTabScreen() {
                         accessibilityRole="button"
                         accessibilityLabel={`Live session ${row.title || "Session"}`}
                       >
+                        <PhotoHeader uri={fieldPhotos[row.run_id]} style={styles.cardPhoto} />
                         <View style={styles.liveTop}>
                           <LivePulseDot />
                           <Text style={styles.liveTime}>{fmtStarted(row.start_at)}</Text>
@@ -629,6 +632,7 @@ export default function SessionsTabScreen() {
                       }
                       style={styles.card}
                     >
+                      <PhotoHeader uri={fieldPhotos[row.run_id]} style={styles.cardPhoto} />
                       <Text style={styles.cardMeta}>{fmtDateTime(row.start_at)}</Text>
                       <Text style={styles.cardTitle} numberOfLines={2}>
                         {row.title || "Session"}
@@ -775,7 +779,9 @@ function make_styles() {
     borderColor: themeColor().pitch,
     padding: 12,
     gap: 4,
+    overflow: "hidden",
   },
+  cardPhoto: { marginTop: -12, marginHorizontal: -12, marginBottom: 8 },
   liveTop: {
     flexDirection: "row",
     alignItems: "center",
@@ -837,6 +843,7 @@ function make_styles() {
     borderColor: themeColor().overlay,
     padding: 12,
     gap: 4,
+    overflow: "hidden",
   },
   cardMeta: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   cardTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 4 },

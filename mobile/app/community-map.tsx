@@ -18,6 +18,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 
+import { PhotoHeader, useFieldPhotos } from "@/components/photo";
 import { themeColor, useThemedStyles } from "@/theme";
 // ─── design tokens ──────────────────────────────────────────────────────────
 
@@ -1265,6 +1266,7 @@ function SessionDetailCard({
   onNavigate: () => void;
 }) {
   useThemedStyles(publish_s);
+  const fieldPhotos = useFieldPhotos([session.id]);
 
   const left = session.capacity - session.spots_taken;
   const full = left <= 0;
@@ -1277,6 +1279,7 @@ function SessionDetailCard({
 
   return (
     <View style={s.popupCard}>
+      <PhotoHeader uri={fieldPhotos[session.id]} style={s.popupPhoto} />
       <View style={s.popupHeader}>
         <View style={{ flex: 1, marginRight: 8 }}>
           <Text style={s.popupCity} numberOfLines={1}>
@@ -1722,7 +1725,9 @@ function make_s() {
     borderWidth: 1,
     borderColor: themeColor().overlay,
     padding: 16,
+    overflow: "hidden",
   },
+  popupPhoto: { marginTop: -16, marginHorizontal: -16, marginBottom: 12 },
   popupHeader: {
     flexDirection: "row",
     alignItems: "flex-start",

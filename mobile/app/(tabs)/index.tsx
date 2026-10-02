@@ -9,7 +9,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { Session } from "../session-map";
 
-import { ChalkCenterCircle, ChalkDivider, ChalkEmptyState } from "@/components/chalk";
+import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
+import { PhotoHeader, useFieldPhotos } from "@/components/photo";
 import { themeColor, useThemedStyles } from "@/theme";
 /* ----------------------------------------------------------------- tiers */
 
@@ -542,6 +543,7 @@ export default function HomeScreen() {
   const avatarBorderColor = notVerified ? themeColor().line : (myTierMeta?.color ?? themeColor().pitch);
 
   const nextTierMeta = tierMeta(nextMatch?.min_tier);
+  const fieldPhotos = useFieldPhotos(nextMatch ? [nextMatch.id] : []);
   const isDiamondRun = nextTierMeta?.diamond === true;
 
   const mapRegion: Region = mapRuns[0]?.latitude
@@ -603,9 +605,7 @@ export default function HomeScreen() {
       <SectionLabel>Your Next Match</SectionLabel>
       {nextMatch ? (
         <View style={[styles.matchCard, { borderLeftColor: isDiamondRun ? themeColor().line : themeColor().pitch }]}>
-          <View style={styles.matchMark} pointerEvents="none">
-            <ChalkCenterCircle size="sm" />
-          </View>
+          <PhotoHeader uri={fieldPhotos[nextMatch.id]} style={styles.matchPhoto} />
           <TierBadge tier={nextMatch.min_tier} />
           <Text style={styles.matchTitle} numberOfLines={1}>
             {nextMatch.title || "Pickup run"}
@@ -791,7 +791,7 @@ function make_styles() {
     padding: 8,
     overflow: "hidden",
   },
-  matchMark: { position: "absolute", top: 8, right: 8 },
+  matchPhoto: { marginTop: -8, marginHorizontal: -8, marginBottom: 8 },
   matchTitle: { marginTop: 4, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text,},
   matchMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   matchMeta: { fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, flexShrink: 1 },

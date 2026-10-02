@@ -18,6 +18,8 @@ import {
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
+import { PhotoUploadField } from "@/components/photo";
+import { setRunFieldPhoto } from "@/lib/photoUpload";
 import { themeColor } from "@/theme";
 const CAPACITY_MIN = 4;
 const CAPACITY_MAX = 30;
@@ -32,7 +34,7 @@ const SKILL_LEVELS = [
 ];
 
 type NominatimResult = { place_id: number; display_name: string; lat: string; lon: string };
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
 
 function fmt12Hour(date: Date): string {
   let h = date.getHours();
@@ -48,7 +50,7 @@ function fmtDate(date: Date): string {
 
 export default function SessionCreateScreen() {
   const router = useRouter();
-  const { session } = useAuth();
+  const { session, supabase } = useAuth();
   const [step, setStep] = useState<Step>(1);
 
   // Location
@@ -82,6 +84,8 @@ export default function SessionCreateScreen() {
   // Step 3
   const [isInviteOnly, setIsInviteOnly] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [fieldPhotoUrl, setFieldPhotoUrl] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   async function searchLocation(q: string) {
     setLocationQuery(q);
@@ -158,6 +162,9 @@ export default function SessionCreateScreen() {
       const err = validateStep2();
       if (err) { Alert.alert("Invalid", err); return; }
       setStep(3);
+    } else if (step === 3) {
+      if (photoBusy) { Alert.alert("Photo uploading", "Wait for the photo to finish uploading."); return; }
+      setStep(4);
     }
   }
 
@@ -214,6 +221,17 @@ export default function SessionCreateScreen() {
         return;
       }
 
+      if (fieldPhotoUrl && j.run_id && supabase) {
+        try {
+          await setRunFieldPhoto(supabase, j.run_id, fieldPhotoUrl);
+        } catch (e) {
+          Alert.alert(
+            "Field photo not saved",
+            `Your session is live, but the photo could not be attached. ${e instanceof Error ? e.message : ""}`.trim(),
+          );
+        }
+      }
+
       Alert.alert("Session created!", "Your session is now live on the map.", [
         { text: "View map", onPress: () => router.replace("/session-map") },
         { text: "Done", onPress: () => router.back() },
@@ -225,7 +243,7 @@ export default function SessionCreateScreen() {
     }
   }
 
-  const stepTitles = ["The basics", "Pricing", "Review & publish"];
+  const stepTitles = ["The basics", "Pricing", "Field photo", "Review & publish"];
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -242,7 +260,7 @@ export default function SessionCreateScreen() {
 
         {/* Step indicator */}
         <View style={s.stepRow}>
-          {[1, 2, 3].map((n) => (
+          {[1, 2, 3, 4].map((n) => (
             <View key={n} style={[s.stepDot, step >= n && s.stepDotActive]} />
           ))}
         </View>
@@ -455,6 +473,22 @@ export default function SessionCreateScreen() {
         {/* ── STEP 3 ── */}
         {step === 3 && (
           <View style={s.card}>
+            <PhotoUploadField
+              bucket="field-photos"
+              name="field"
+              label="Add a photo of the field"
+              hint="Optional. A wide shot of the pitch helps players find it and shows up on your session card."
+              aspect="wide"
+              value={fieldPhotoUrl}
+              onChange={setFieldPhotoUrl}
+              onBusyChange={setPhotoBusy}
+            />
+          </View>
+        )}
+
+        {/* ── STEP 4 ── */}
+        {step === 4 && (
+          <View style={s.card}>
             <Text style={s.reviewTitle}>Session summary</Text>
             <View style={s.reviewRow}>
               <Text style={s.reviewLabel}>Location</Text>
@@ -484,6 +518,10 @@ export default function SessionCreateScreen() {
               <Text style={s.reviewLabel}>Pricing</Text>
               <Text style={s.reviewValue}>{isPaid ? `$${buyIn} buy-in` : "Free"}</Text>
             </View>
+            <View style={s.reviewRow}>
+              <Text style={s.reviewLabel}>Field photo</Text>
+              <Text style={s.reviewValue}>{fieldPhotoUrl ? "Added" : "None"}</Text>
+            </View>
 
             <View style={[s.reviewRow, { marginTop: 20, alignItems: "center" }]}>
               <Text style={s.reviewLabel}>Invite only</Text>
@@ -507,9 +545,9 @@ export default function SessionCreateScreen() {
           </View>
         )}
 
-        {step < 3 && (
-          <Pressable onPress={nextStep} style={s.nextBtn}>
-            <Text style={s.nextBtnText}>Continue →</Text>
+        {step < 4 && (
+          <Pressable onPress={nextStep} disabled={step === 3 && photoBusy} style={[s.nextBtn, step === 3 && photoBusy && { opacity: 0.5 }]}>
+            <Text style={s.nextBtnText}>{step === 3 && !fieldPhotoUrl ? "Skip →" : "Continue →"}</Text>
           </Pressable>
         )}
       </ScrollView>
