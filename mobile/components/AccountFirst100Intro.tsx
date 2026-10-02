@@ -2,7 +2,7 @@ import { appAsyncStorage } from "@/lib/appAsyncStorage";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 /** AsyncStorage key — remove this value to show the intro again (or use `clearAccountFirstIntroFlag`). */
 export const ACCOUNT_FIRST_INTRO_STORAGE_KEY = "ctpickup_account_100_intro_v1";
 
@@ -199,7 +199,7 @@ function make_styles() {
     alignItems: "center",
     paddingVertical: 32,
     paddingHorizontal: 44,
-    borderRadius: 999,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: themeColor().pitch,
     backgroundColor: themeColor().pitchPanel,
@@ -212,15 +212,14 @@ function make_styles() {
     marginBottom: 8,
   },
   fractionRow: { flexDirection: "row", alignItems: "baseline" },
-  numLeft: { fontSize: 56, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().pitchText, fontVariant: ["tabular-nums"] },
+  numLeft: { fontSize: 56, ...headline, color: themeColor().pitchText, fontVariant: ["tabular-nums"] },
   slash: {
-    fontSize: 56, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "300",
+    fontSize: 56, ...headline,
     color: themeColor().muted,
     marginHorizontal: 4,
     marginBottom: 4,
   },
-  numRight: { fontSize: 56, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text, fontVariant: ["tabular-nums"] },
+  numRight: { fontSize: 56, ...headline, color: themeColor().text, fontVariant: ["tabular-nums"] },
   hint: { marginTop: 20, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
 });
 }

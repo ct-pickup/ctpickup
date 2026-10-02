@@ -2,7 +2,7 @@ import { useRouter, type Href } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 export default function AdminMenuScreen() {
   useThemedStyles(publish_styles);
 
@@ -124,7 +124,7 @@ function make_styles() {
   screen: { flex: 1, backgroundColor: themeColor().bg },
   scroll: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 20, paddingBottom: 40 },
-  title: { fontSize: 40, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text,},
+  title: { fontSize: 40, ...headline, color: themeColor().text,},
   sub: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   card: {
     marginTop: 12,

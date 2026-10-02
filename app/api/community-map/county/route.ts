@@ -5,6 +5,7 @@ import {
   countyForZip,
   zipMatchesCountyRanges,
 } from "@/lib/communityMap/counties";
+import { isLegacyMobileClient, legacyCommunityCountyPayload } from "@/lib/api/appVersion";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -31,10 +32,23 @@ const VENUE_TO_ZIP: Record<string, string> = {
   "New Haven SoccerRoof": "06510",
 };
 
-type TierKey = "diamond" | "platinum" | "gold" | "silver" | "bronze";
+const TOP_RATED_MIN_STAR = 4.5;
+const LIST_MIN_STAR = 3.5;
 
-function emptyTierCounts(): Record<TierKey, number> {
-  return { diamond: 0, platinum: 0, gold: 0, silver: 0, bronze: 0 };
+type StarBucket = "5" | "4" | "3" | "2" | "1";
+
+function emptyStarCounts(): Record<StarBucket, number> {
+  return { "5": 0, "4": 0, "3": 0, "2": 0, "1": 0 };
+}
+
+/** Whole-star bucket; half stars round down, and 0.5 lands in the 1★ bucket. */
+function starBucket(star: number): StarBucket {
+  return String(Math.min(5, Math.max(1, Math.floor(star)))) as StarBucket;
+}
+
+function toStar(v: unknown): number | null {
+  const n = v == null ? NaN : Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 function resolveCountyId(
@@ -77,7 +91,7 @@ async function requireApprovedUser(req: Request) {
   return { admin, user };
 }
 
-/** Verified diamond counts per county — used for map circle ◆ badges. */
+/** Top-rated player counts per county — used for map circle ★ badges. */
 export async function GET(req: Request) {
   const gate = await requireApprovedUser(req);
   if ("error" in gate && gate.error) return gate.error;
@@ -87,31 +101,36 @@ export async function GET(req: Request) {
   const countyId = url.searchParams.get("county_id")?.trim() ?? "";
   const overview = url.searchParams.get("overview") === "1";
 
+  // TODO: Remove after v1.3.5 usage drops to near zero once the new build ships; target 2026-12-01.
+  if (isLegacyMobileClient(req)) {
+    const legacy = await legacyCommunityCountyPayload(admin, { countyId, overview, resolveCountyId });
+    return NextResponse.json(legacy.body, { status: legacy.status });
+  }
+
   if (overview || !countyId) {
     const [{ data: profiles }, { data: ratings }] = await Promise.all([
       admin.from("profiles").select("id,zip_code,nearest_venue").eq("approved", true),
       admin
         .from("player_ratings")
-        .select("user_id,tier,verification")
-        .eq("tier", "diamond")
-        .in("verification", ["document", "vouched"]),
+        .select("user_id,star_rating")
+        .gte("star_rating", TOP_RATED_MIN_STAR),
     ]);
 
-    const verifiedDiamondIds = new Set(
+    const topRatedIds = new Set(
       (ratings ?? []).map((r) => r.user_id as string).filter(Boolean),
     );
-    const verifiedDiamondByCounty: Record<string, number> = {};
-    for (const c of COMMUNITY_COUNTIES) verifiedDiamondByCounty[c.id] = 0;
+    const topRatedByCounty: Record<string, number> = {};
+    for (const c of COMMUNITY_COUNTIES) topRatedByCounty[c.id] = 0;
 
     for (const p of profiles ?? []) {
-      if (!verifiedDiamondIds.has(p.id as string)) continue;
-      // Match circle badge to elite list: ZIP must fall in the county range.
+      if (!topRatedIds.has(p.id as string)) continue;
+      // Match circle badge to the top-rated list: ZIP must fall in the county range.
       const fromZip = countyForZip(p.zip_code as string | null);
       if (!fromZip) continue;
-      verifiedDiamondByCounty[fromZip.id] = (verifiedDiamondByCounty[fromZip.id] ?? 0) + 1;
+      topRatedByCounty[fromZip.id] = (topRatedByCounty[fromZip.id] ?? 0) + 1;
     }
 
-    return NextResponse.json({ ok: true, verifiedDiamondByCounty });
+    return NextResponse.json({ ok: true, topRatedByCounty });
   }
 
   const county = COMMUNITY_COUNTY_BY_ID[countyId];
@@ -124,31 +143,28 @@ export async function GET(req: Request) {
       .from("profiles")
       .select("id,zip_code,nearest_venue,first_name,last_name,avatar_url,playing_position")
       .eq("approved", true),
-    admin.from("player_ratings").select("user_id,tier,verification"),
+    admin.from("player_ratings").select("user_id,star_rating,score"),
   ]);
 
-  const ratingByUser = new Map<
-    string,
-    { tier: string; verification: string }
-  >();
+  const ratingByUser = new Map<string, { star: number | null; score: number }>();
   for (const r of ratings ?? []) {
     if (!r.user_id) continue;
+    const score = Number(r.score);
     ratingByUser.set(r.user_id as string, {
-      tier: String(r.tier ?? "").toLowerCase(),
-      verification: String(r.verification ?? "self").toLowerCase(),
+      star: toStar(r.star_rating),
+      score: Number.isFinite(score) ? score : 0,
     });
   }
 
-  const tierCounts = emptyTierCounts();
-  type EliteRow = {
+  const starCounts = emptyStarCounts();
+  type TopRatedRow = {
     id: string;
     first_name: string | null;
     last_name: string | null;
     avatar_url: string | null;
     playing_position: string | null;
-    tier: "diamond" | "platinum";
   };
-  const eliteCandidates: EliteRow[] = [];
+  const candidates: Array<{ row: TopRatedRow; star: number; score: number }> = [];
 
   for (const p of profiles ?? []) {
     const memberCountyId = resolveCountyId(
@@ -158,44 +174,38 @@ export async function GET(req: Request) {
     if (memberCountyId !== county.id) continue;
 
     const rating = ratingByUser.get(p.id as string);
-    const tier = (rating?.tier ?? "bronze") as TierKey;
-    if (tier in tierCounts) tierCounts[tier] += 1;
+    const star = rating?.star ?? null;
+    if (star == null) continue;
+    starCounts[starBucket(star)] += 1;
 
-    const verified =
-      rating?.verification === "document" || rating?.verification === "vouched";
-    const eliteTier = rating?.tier === "diamond" || rating?.tier === "platinum";
-    // Elite list: ZIP must fall in this county's ranges (not venue fallback).
-    if (
-      verified &&
-      eliteTier &&
-      zipMatchesCountyRanges(p.zip_code as string | null, county.ranges)
-    ) {
-      eliteCandidates.push({
-        id: p.id as string,
-        first_name: (p.first_name as string | null) ?? null,
-        last_name: (p.last_name as string | null) ?? null,
-        avatar_url: (p.avatar_url as string | null) ?? null,
-        playing_position: (p.playing_position as string | null) ?? null,
-        tier: rating!.tier as "diamond" | "platinum",
+    // Top-rated list: ZIP must fall in this county's ranges (not venue fallback).
+    if (star >= LIST_MIN_STAR && zipMatchesCountyRanges(p.zip_code as string | null, county.ranges)) {
+      candidates.push({
+        row: {
+          id: p.id as string,
+          first_name: (p.first_name as string | null) ?? null,
+          last_name: (p.last_name as string | null) ?? null,
+          avatar_url: (p.avatar_url as string | null) ?? null,
+          playing_position: (p.playing_position as string | null) ?? null,
+        },
+        star,
+        score: rating?.score ?? 0,
       });
     }
   }
 
-  eliteCandidates.sort((a, b) => {
-    if (a.tier !== b.tier) return a.tier === "diamond" ? -1 : 1;
-    const an = `${a.first_name ?? ""} ${a.last_name ?? ""}`.trim().toLowerCase();
-    const bn = `${b.first_name ?? ""} ${b.last_name ?? ""}`.trim().toLowerCase();
+  candidates.sort((a, b) => {
+    if (a.star !== b.star) return b.star - a.star;
+    if (a.score !== b.score) return b.score - a.score;
+    const an = `${a.row.first_name ?? ""} ${a.row.last_name ?? ""}`.trim().toLowerCase();
+    const bn = `${b.row.first_name ?? ""} ${b.row.last_name ?? ""}`.trim().toLowerCase();
     return an.localeCompare(bn);
   });
-
-  const elitePlayers = eliteCandidates.slice(0, 10);
-  const verifiedDiamondCount = eliteCandidates.filter((e) => e.tier === "diamond").length;
 
   return NextResponse.json({
     ok: true,
     county_id: county.id,
-    tierCounts,
-    verifiedDiamondCount,
-    elitePlayers,
+    starCounts,
+    topRatedPlayers: candidates.slice(0, 10).map((c) => c.row),
   });
 }

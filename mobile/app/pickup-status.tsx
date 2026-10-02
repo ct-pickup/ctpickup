@@ -2,7 +2,7 @@ import { useAuth } from "@/context/AuthContext";
 import { fmtPickupDt } from "@/lib/pickupPublic";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -330,8 +330,7 @@ function make_styles() {
   },
   runTitle: {
     marginTop: 12,
-    fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "700",
+    fontSize: 20, ...headline,
     color: themeColor().text,
   },
   feedList: { gap: 8 },
@@ -360,7 +359,7 @@ function make_styles() {
     gap: 8,
     marginBottom: 8,
   },
-  emptyTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text },
+  emptyTitle: { fontSize: 20, ...headline, color: themeColor().text },
   emptyBody: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 },
   errTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().coralText },
   errBody: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },

@@ -1,5 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
+import { fetchRecordSummaries, winPercent, type PlayerRecordSummary } from "@/lib/playerRecord";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -76,7 +77,7 @@ export default function PlayersScreen() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [rows, setRows] = useState<ProfileRow[]>([]);
-  const [winRateByUser, setWinRateByUser] = useState<Record<string, number | null>>({});
+  const [recordByUser, setRecordByUser] = useState<Record<string, PlayerRecordSummary>>({});
   const [awardsByUser, setAwardsByUser] = useState<Record<string, { potd: number; gk: number; def: number; mid: number; att: number }>>({});
 
   const profilesLoadSeq = useRef(0);
@@ -166,29 +167,33 @@ export default function PlayersScreen() {
     if (!supabase) return;
     const ids = rows.map((r) => r.id).filter(Boolean);
     if (ids.length === 0) {
-      setWinRateByUser({});
+      setRecordByUser({});
       setAwardsByUser({});
       return;
     }
     const seq = ++statsLoadSeq.current;
+    const token = session?.access_token ?? null;
     void (async () => {
+      if (token) {
+        void fetchRecordSummaries(token, ids).then((summaries) => {
+          if (statsLoadSeq.current === seq) setRecordByUser(summaries ?? {});
+        });
+      }
       const { data, error } = await supabase
         .from("pickup_run_team_assignments")
         .select("user_id,team,run_id,pickup_run_results(winning_team,player_of_day,goalie_of_the_day,defender_of_day,midfielder_of_day,attacker_of_day)")
         .in("user_id", ids);
       if (statsLoadSeq.current !== seq) return;
       if (error || !data) {
-        setWinRateByUser({});
         setAwardsByUser({});
         return;
       }
-      const totals: Record<string, { played: number; wins: number }> = {};
       const awards: Record<string, { potd: number; gk: number; def: number; mid: number; att: number }> = {};
       for (const row of data as unknown as Array<{
         user_id: string;
         team: "A" | "B" | "C";
         pickup_run_results?: {
-          winning_team: "A" | "B" | "C";
+          winning_team: "A" | "B" | "C" | null;
           player_of_day: string | null;
           goalie_of_the_day: string | null;
           defender_of_day: string | null;
@@ -198,10 +203,7 @@ export default function PlayersScreen() {
       }>) {
         const uid = row.user_id;
         const res = row.pickup_run_results;
-        if (!uid || !res?.winning_team) continue;
-        const t = (totals[uid] ??= { played: 0, wins: 0 });
-        t.played += 1;
-        if (row.team === res.winning_team) t.wins += 1;
+        if (!uid || !res) continue;
 
         const a = (awards[uid] ??= { potd: 0, gk: 0, def: 0, mid: 0, att: 0 });
         if (res.player_of_day === uid) a.potd += 1;
@@ -210,18 +212,13 @@ export default function PlayersScreen() {
         if (res.midfielder_of_day === uid) a.mid += 1;
         if (res.attacker_of_day === uid) a.att += 1;
       }
-      const by: Record<string, number | null> = {};
       const byAwards: Record<string, { potd: number; gk: number; def: number; mid: number; att: number }> = {};
       for (const uid of ids) {
-        const t = totals[uid];
-        if (!t || t.played === 0) by[uid] = null;
-        else by[uid] = Math.round((t.wins / t.played) * 100);
         byAwards[uid] = awards[uid] ?? { potd: 0, gk: 0, def: 0, mid: 0, att: 0 };
       }
-      setWinRateByUser(by);
       setAwardsByUser(byAwards);
     })();
-  }, [supabase, rows]);
+  }, [supabase, rows, session?.access_token]);
 
   const players: PlayerCard[] = useMemo(() => {
     return rows.map((r) => {
@@ -231,12 +228,12 @@ export default function PlayersScreen() {
         username: (r.username ?? "").trim() || null,
         position: parsePosition(r.playing_position),
         region: r.region ?? null,
-        gamesPlayed: Math.max(0, Number(r.attended_count ?? 0) || 0),
-        winRatePct: winRateByUser[r.id] ?? null,
+        gamesPlayed: recordByUser[r.id]?.games ?? 0,
+        winRatePct: winPercent(recordByUser[r.id]),
         awards: awardsByUser[r.id] ?? { potd: 0, gk: 0, def: 0, mid: 0, att: 0 },
       };
     });
-  }, [rows, winRateByUser, awardsByUser]);
+  }, [rows, recordByUser, awardsByUser]);
 
   return (
     <View style={styles.screen}>
@@ -342,7 +339,7 @@ export default function PlayersScreen() {
 
                   <View style={[styles.metaRow, { marginTop: 8 }]}>
                     <Text style={styles.meta}>
-                      <Text style={styles.metaK}>Sessions</Text> {p.gamesPlayed}
+                      <Text style={styles.metaK}>Games</Text> {p.gamesPlayed}
                     </Text>
                     <Text style={styles.metaSep}>·</Text>
                     <Text style={styles.meta}>

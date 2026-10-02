@@ -2,7 +2,7 @@ import { autoBalanceTeams, type PickupTeam } from "@/lib/pickupTeamBalance";
 import { hapticTap } from "@/lib/haptics";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useEffect, useState } from "react";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -178,7 +178,7 @@ function make_styles() {
   },
   teamsSheet: { minHeight: "55%" },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  sheetTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  sheetTitle: { color: themeColor().text, fontSize: 20, ...headline },
   subtitle: { color: themeColor().muted, lineHeight: 20, marginBottom: 12, fontSize: 13, fontFamily: "Inter_400Regular" },
   teamToggleRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12, alignItems: "center" },
   teamToggle: {
@@ -196,9 +196,9 @@ function make_styles() {
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().accent,
   },
-  rebalanceText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
+  rebalanceText: { color: themeColor().accent, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   teamList: { maxHeight: 360, marginBottom: 12 },
   teamPlayerRow: {
     paddingVertical: 8,

@@ -18,7 +18,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import {
   clearStoredPin,
   isValidPinFormat,
@@ -339,7 +339,7 @@ function make_styles() {
     width: "100%",
     maxWidth: 360,
     padding: 20,
-    borderRadius: 999,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: themeColor().line,
     backgroundColor: themeColor().bg,
@@ -364,7 +364,7 @@ function make_styles() {
     alignItems: "center",
     justifyContent: "center",
   },
-  title: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text, textAlign: "center" },
+  title: { fontSize: 24, ...headline, color: themeColor().text, textAlign: "center" },
   sub: { marginTop: 8, fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().muted, textAlign: "center", lineHeight: 21 },
   fieldLabel: {
     alignSelf: "flex-start",

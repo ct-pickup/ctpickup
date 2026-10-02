@@ -14,7 +14,9 @@ import {
 } from "@/lib/profileIdentityFields";
 import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
 import { getInstallationContext, resolveExpoPushTokenForApp, shouldRegisterPushToken } from "@/lib/pushToken";
-import { fetchPickupStanding, postMobilePushPreference, postMobilePushToken } from "@/lib/siteApi";
+import { fetchMyRecord, winPercent } from "@/lib/playerRecord";
+import { fetchMyRatingPoints, fetchPickupStanding, postMobilePushPreference, postMobilePushToken } from "@/lib/siteApi";
+import { fetchPlayerCard, formatStars, hostScore, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
 import * as ImagePicker from "expo-image-picker";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Notifications from "expo-notifications";
@@ -51,8 +53,9 @@ import { ReferralSection } from "@/components/account/ReferralSection";
 import { VerificationRequestModal } from "@/components/account/VerificationRequestModal";
 import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
 import { PhotoHeader, PhotoUploadField } from "@/components/photo";
+import { StarRating } from "@/components/StarRating";
 import { fetchActionPhotoUrl } from "@/lib/photoUpload";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   accountStyles as styles, publish_accountStyles,
   POSITION_OPTIONS,
@@ -103,9 +106,9 @@ type ProfileRow = {
   verification_level: string | null;
 };
 
-// Module-level cache — keeps the last loaded tier so re-mounts show it instantly.
-type TierInfoCache = { tier: string; score: number; sessions: number; percentile: number | null } | null;
-let _cachedTierInfo: TierInfoCache = null;
+// Module-level cache — keeps the last loaded rating so re-mounts show it instantly.
+type RatingCache = { card: PlayerCard | null; points: number | null } | null;
+let _cachedRating: RatingCache = null;
 
 const PROFILE_SELECT_WITH_PUSH =
   "first_name,last_name,approved,instagram,phone,zip_code,nearest_venue,playing_position,username,push_notifications_enabled,marketing_push_enabled,max_drive_minutes,primary_position,secondary_positions,experience_level,date_of_birth,club_name,roster_url,verification_level";
@@ -133,54 +136,6 @@ function formatProfileSaveError(err: unknown): string {
   }
   if (err instanceof Error) return err.message;
   return String(err);
-}
-
-/* ----------------------------------------------------------- tier + gems */
-
-function TIER_COLORS(): Record<string, string> {
-  return {
-  diamond: themeColor().muted,
-  platinum: themeColor().muted,
-  gold: themeColor().muted,
-  silver: themeColor().muted,
-  bronze: themeColor().muted,
-};
-}
-
-function tierColor(tier: string | null | undefined): string {
-  return tier ? (TIER_COLORS()[tier.toLowerCase()] ?? themeColor().pitch) : themeColor().pitch;
-}
-
-function tierLabel(tier: string | null | undefined): string {
-  if (!tier) return "Unranked";
-  return tier.charAt(0).toUpperCase() + tier.slice(1).toLowerCase();
-}
-
-// pts/session per tier (negative means the player pays); subtitle = tier percentile band.
-const TIER_META: Record<string, { pts: number; topPct: string }> = {
-  diamond: { pts: 8, topPct: "Top 5% of all players" },
-  platinum: { pts: 0, topPct: "Top 10% of all players" },
-  gold: { pts: -6, topPct: "Top 25% of all players" },
-  silver: { pts: -9, topPct: "Top 50% of all players" },
-  bronze: { pts: -12, topPct: "Entry tier — keep climbing" },
-};
-
-function TierGem({ size }: { tier: string; size: number; gid?: string }) {
-  useThemedStyles(publish_s);
-  useThemedStyles(publish_accountStyles);
-
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 999,
-        backgroundColor: themeColor().overlay,
-        borderWidth: 1,
-        borderColor: themeColor().line,
-      }}
-    />
-  );
 }
 
 function initialsFromName(name: string): string {
@@ -307,6 +262,8 @@ export default function AccountScreen() {
   const [deleteAccountBusy, setDeleteAccountBusy] = useState(false);
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
   const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
+  /** Server preview warning (upcoming games, hosted runs); set means the delete request carries confirm_upcoming. */
+  const [deleteUpcomingWarning, setDeleteUpcomingWarning] = useState<string | null>(null);
 
   const [pushEnabled, setPushEnabled] = useState(true);
   const [pushBusy, setPushBusy] = useState(false);
@@ -314,6 +271,9 @@ export default function AccountScreen() {
   const [marketingPushEnabled, setMarketingPushEnabled] = useState(false);
   const [marketingPushBusy, setMarketingPushBusy] = useState(false);
   const [marketingPushMsg, setMarketingPushMsg] = useState<string | null>(null);
+  const [hostInvitesEnabled, setHostInvitesEnabled] = useState(true);
+  const [hostInvitesBusy, setHostInvitesBusy] = useState(false);
+  const [hostInvitesMsg, setHostInvitesMsg] = useState<string | null>(null);
   const [maxDriveMinutes, setMaxDriveMinutes] = useState(DEFAULT_MAX_DRIVE_MINUTES);
   const [maxDriveBusy, setMaxDriveBusy] = useState(false);
   const [maxDriveMsg, setMaxDriveMsg] = useState<string | null>(null);
@@ -327,23 +287,21 @@ export default function AccountScreen() {
   const [reviewCodeModalOpen, setReviewCodeModalOpen] = useState(false);
   const [reviewCodeInput, setReviewCodeInput] = useState("");
 
-  // Profile-view extras (tier, avatar, stats, credits). Additive — existing data flow untouched.
+  // Profile-view extras (rating, avatar, stats, credits). Additive — existing data flow untouched.
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [actionPhotoUrl, setActionPhotoUrl] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
-  const [tierInfo, setTierInfo] = useState<TierInfoCache>(_cachedTierInfo);
-  const [winsCount, setWinsCount] = useState<number | null>(null);
-  const [lossesCount, setLossesCount] = useState<number | null>(null);
+  const [rating, setRating] = useState<RatingCache>(_cachedRating);
+  const [recordStats, setRecordStats] = useState<{ games: number; wins: number; winPct: number | null; motm: number } | null>(null);
   // MOTM count from pickup_run_results (player_of_day matches).
-  const [motmCount, setMotmCount] = useState<number | null>(null);
   const [recentSessions, setRecentSessions] = useState<
     Array<{
       run_id: string;
       start_at: string | null;
       title: string | null;
       location: string | null;
-      result: "Won" | "Lost" | "Completed" | null;
+      result: "Won" | "Lost" | "Draw" | "Completed" | null;
     }>
   >([]);
   const [hostRating, setHostRating] = useState<{
@@ -522,6 +480,7 @@ export default function AccountScreen() {
   const closeDeleteConfirmModal = useCallback(() => {
     setDeleteConfirmModalOpen(false);
     setDeleteConfirmInput("");
+    setDeleteUpcomingWarning(null);
   }, []);
 
   const performDeleteAccount = useCallback(async () => {
@@ -537,16 +496,22 @@ export default function AccountScreen() {
         method: "DELETE",
         headers: {
           Accept: "application/json",
+          "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
+        body: JSON.stringify({ confirm_upcoming: deleteUpcomingWarning != null }),
         cache: "no-store",
       });
       if (!r.ok) {
-        const j = (await r.json().catch(() => null)) as { error?: string } | null;
-        Alert.alert(
-          "Couldn’t delete account",
-          typeof j?.error === "string" ? j.error : "Something went wrong. Try again later.",
-        );
+        const j = (await r.json().catch(() => null)) as {
+          error?: string;
+          failures?: { name?: string | null; error?: string }[];
+        } | null;
+        const failed = (j?.failures ?? [])
+          .map((f) => (f.name ? `${f.name}: ${f.error ?? "not settled"}` : f.error ?? ""))
+          .filter(Boolean);
+        const base = typeof j?.error === "string" ? j.error : "Something went wrong. Try again later.";
+        Alert.alert("Couldn’t delete account", failed.length ? `${base}\n\n${failed.join("\n")}` : base);
         return;
       }
       closeDeleteConfirmModal();
@@ -557,12 +522,50 @@ export default function AccountScreen() {
     } finally {
       setDeleteAccountBusy(false);
     }
-  }, [accessToken, closeDeleteConfirmModal, deleteConfirmInput, router, signOut]);
+  }, [accessToken, closeDeleteConfirmModal, deleteConfirmInput, deleteUpcomingWarning, router, signOut]);
 
-  const startDeleteAccountFlow = useCallback(() => {
+  const startDeleteAccountFlow = useCallback(async () => {
     const origin = siteOrigin();
     if (!origin || !accessToken) {
       Alert.alert("Can’t delete account", "Missing server URL or session. Try again after signing in.");
+      return;
+    }
+    let warning: string | null = null;
+    setDeleteAccountBusy(true);
+    try {
+      const r = await fetch(`${origin}/api/account/delete`, {
+        headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` },
+        cache: "no-store",
+      });
+      const j = (await r.json().catch(() => null)) as {
+        error?: string;
+        preview?: { confirmation_required?: boolean; message?: string | null };
+      } | null;
+      if (!r.ok || !j?.preview) {
+        Alert.alert("Couldn’t delete account", typeof j?.error === "string" ? j.error : "Something went wrong. Try again later.");
+        return;
+      }
+      if (j.preview.confirmation_required) warning = j.preview.message || "You have upcoming games.";
+    } catch {
+      Alert.alert("Couldn’t delete account", "Check your connection and try again.");
+      return;
+    } finally {
+      setDeleteAccountBusy(false);
+    }
+    if (warning) {
+      const upcoming = warning;
+      Alert.alert("Before you delete your account", upcoming, [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Give up and continue",
+          style: "destructive",
+          onPress: () => {
+            setDeleteConfirmInput("");
+            setDeleteUpcomingWarning(upcoming);
+            setDeleteConfirmModalOpen(true);
+          },
+        },
+      ]);
       return;
     }
     Alert.alert(
@@ -650,91 +653,73 @@ export default function AccountScreen() {
     }
   }, [isReady, supabase, session?.user?.id]);
 
+  // Separate from loadProfile so a pending allow_host_invites migration cannot break the main profile load.
+  const loadHostInvitePref = useCallback(async () => {
+    const uid = session?.user?.id;
+    if (!isReady || !supabase || !uid) return;
+    const { data, error } = await supabase.from("profiles").select("allow_host_invites").eq("id", uid).maybeSingle();
+    if (error) {
+      if (!supabaseLooksLikeMissingColumn(error, "allow_host_invites")) {
+        console.error("[account] allow_host_invites load error", JSON.stringify(error));
+        setHostInvitesMsg(formatProfileSaveError(error));
+      }
+      setHostInvitesEnabled(true);
+      return;
+    }
+    setHostInvitesEnabled((data as { allow_host_invites?: boolean | null } | null)?.allow_host_invites !== false);
+  }, [isReady, supabase, session?.user?.id]);
+
   useFocusEffect(
     useCallback(() => {
       void loadProfile();
-    }, [loadProfile]),
+      void loadHostInvitePref();
+    }, [loadProfile, loadHostInvitePref]),
   );
 
   // Re-fetch when auth/session becomes available after focus (useFocusEffect does not re-run when loadProfile's deps update).
   useEffect(() => {
     void loadProfile();
-  }, [loadProfile]);
+    void loadHostInvitePref();
+  }, [loadProfile, loadHostInvitePref]);
 
   // Profile-view stats.
-  // - Sessions come from player_ratings.sessions (rated sessions count).
-  // - Tier/score come from player_ratings.
-  // - Avatar + wins/losses come from a profiles query (avatar_url not in the main profile select).
-  // - MOTM count comes from pickup_run_results where player_of_day = uid.
-  // - Points = sessions × tierPtsPerSession × 10 (diamond=8 … bronze=0).
+  // - Stars and percentile come from player_cards; points are computed server side.
+  // - Avatar comes from a profiles query (avatar_url not in the main profile select).
+  // - Games, wins, win % and MOTM come from /api/player/record (computed from posted results).
   const loadStats = useCallback(async () => {
     const uid = session?.user?.id;
     if (!isReady || !supabase || !uid) return;
     try {
-      const [ratingRes, extrasRes, motmRes] = await Promise.all([
-        supabase.from("player_ratings").select("tier,score,sessions").eq("user_id", uid).maybeSingle(),
-        supabase.from("profiles").select("avatar_url,pickup_wins_count,pickup_losses_count").eq("id", uid).maybeSingle(),
-        supabase.from("pickup_run_results").select("player_of_day", { count: "exact", head: true }).eq("player_of_day", uid),
+      const [card, pointsRes, extrasRes, record] = await Promise.all([
+        fetchPlayerCard(supabase, uid),
+        accessToken ? fetchMyRatingPoints(accessToken) : Promise.resolve(null),
+        supabase.from("profiles").select("avatar_url").eq("id", uid).maybeSingle(),
+        accessToken ? fetchMyRecord(accessToken) : Promise.resolve(null),
       ]);
 
-      // Tier info (for the tier badge and percentile display).
-      const mine = ratingRes.data as
-        | { tier: string | null; score: number | null; sessions: number | null }
-        | null;
-      if (mine) {
-        const myScore = mine.score ?? 0;
-        const [{ count: total }, { count: better }] = await Promise.all([
-          supabase.from("player_ratings").select("*", { count: "exact", head: true }).gt("sessions", 0),
-          supabase.from("player_ratings").select("*", { count: "exact", head: true }).gt("score", myScore),
-        ]);
-        const percentile =
-          total && total > 0 ? Math.min(100, Math.max(1, Math.round(((better ?? 0) / total) * 100))) : null;
-        const resolved: TierInfoCache = {
-          tier: (mine.tier ?? "bronze").toLowerCase(),
-          score: myScore,
-          sessions: mine.sessions ?? 0,
-          percentile,
-        };
-        _cachedTierInfo = resolved;
-        setTierInfo(resolved);
-        AsyncStorage.setItem("cached_tier_info", JSON.stringify(resolved)).catch(() => {});
-      } else {
-        _cachedTierInfo = null;
-        setTierInfo(null);
-        AsyncStorage.removeItem("cached_tier_info").catch(() => {});
-      }
+      const resolved: RatingCache = {
+        card,
+        points: pointsRes?.points ?? null,
+      };
+      _cachedRating = resolved;
+      setRating(resolved);
+      AsyncStorage.setItem("cached_rating_info", JSON.stringify(resolved)).catch(() => {});
 
-      // Avatar + wins/losses (not in the main profile select).
-      let wins = 0;
-      let losses = 0;
       if (!extrasRes.error && extrasRes.data) {
-        const row = extrasRes.data as {
-          avatar_url: string | null;
-          pickup_wins_count: unknown;
-          pickup_losses_count: unknown;
-        };
-        setAvatarUrl(row.avatar_url?.trim() || null);
-        wins = Math.max(0, Math.trunc(Number(row.pickup_wins_count ?? 0)));
-        losses = Math.max(0, Math.trunc(Number(row.pickup_losses_count ?? 0)));
-        setWinsCount(wins);
-        setLossesCount(losses);
-      } else if (extrasRes.error) {
-        // Fallback: at least get the avatar.
-        const { data: av } = await supabase.from("profiles").select("avatar_url").eq("id", uid).maybeSingle();
-        setAvatarUrl((av as { avatar_url: string | null } | null)?.avatar_url?.trim() || null);
+        setAvatarUrl((extrasRes.data as { avatar_url: string | null }).avatar_url?.trim() || null);
       }
       setActionPhotoUrl(await fetchActionPhotoUrl(supabase, uid));
 
-      // MOTM count.
-      const motm = motmRes.count ?? 0;
-      setMotmCount(motm);
-
-      // Persist stats so next mount shows correct values instantly.
-      AsyncStorage.setItem("cached_stats", JSON.stringify({ wins, losses, motm })).catch(() => {});
+      // Record (games, wins, win %, POTD) from posted results via the shared record helper.
+      if (record) {
+        const stats = { games: record.games, wins: record.wins, winPct: winPercent(record), motm: record.potd_count };
+        setRecordStats(stats);
+        AsyncStorage.setItem("cached_record_stats", JSON.stringify(stats)).catch(() => {});
+      }
     } catch (e) {
       console.error("[account loadStats] exception", e);
     }
-  }, [isReady, supabase, session?.user?.id]);
+  }, [isReady, supabase, session?.user?.id, accessToken]);
 
   const loadRecentSessions = useCallback(async () => {
     console.log("loading sessions");
@@ -789,36 +774,17 @@ export default function AccountScreen() {
       }
 
       // Query 2: run details for those ids (+ team/result for win/loss badge).
-      const [
-        { data: runsData, error: runsError },
-        { data: assigns },
-        { data: results },
-      ] = await Promise.all([
+      const [{ data: runsData, error: runsError }, record] = await Promise.all([
         supabase
           .from("pickup_runs")
           .select("id,title,start_at,location_text,status")
           .in("id", runIds),
-        supabase
-          .from("pickup_run_team_assignments")
-          .select("run_id,team")
-          .eq("user_id", uid)
-          .in("run_id", runIds),
-        supabase
-          .from("pickup_run_results")
-          .select("run_id,winning_team")
-          .in("run_id", runIds),
+        accessToken ? fetchMyRecord(accessToken) : Promise.resolve(null),
       ]);
 
       console.log("my sessions runs:", runsData?.length, runsError);
 
-      const teamByRun = new Map<string, string>();
-      for (const a of (assigns ?? []) as Array<{ run_id: string; team: string }>) {
-        if (a?.run_id && a.team) teamByRun.set(a.run_id, a.team);
-      }
-      const winningByRun = new Map<string, string>();
-      for (const r of (results ?? []) as Array<{ run_id: string; winning_team: string | null }>) {
-        if (r?.run_id && r.winning_team) winningByRun.set(r.run_id, r.winning_team);
-      }
+      const outcomeByRun = new Map((record?.log ?? []).map((g) => [g.run_id, g.outcome] as const));
 
       const runById = new Map(
         ((runsData ?? []) as Array<{
@@ -835,12 +801,11 @@ export default function AccountScreen() {
         .map((id) => {
           const run = runById.get(id);
           if (!run) return null;
-          const team = teamByRun.get(id) ?? null;
-          const winning = winningByRun.get(id) ?? null;
-          let result: "Won" | "Lost" | "Completed" | null = null;
-          if (winning && team) {
-            result = team === winning ? "Won" : "Lost";
-          } else if (winning || run.status === "completed") {
+          const outcome = outcomeByRun.get(id) ?? null;
+          let result: "Won" | "Lost" | "Draw" | "Completed" | null = null;
+          if (outcome) {
+            result = outcome === "W" ? "Won" : outcome === "L" ? "Lost" : "Draw";
+          } else if (outcomeByRun.has(id) || run.status === "completed") {
             result = "Completed";
           }
           return {
@@ -860,7 +825,7 @@ export default function AccountScreen() {
       console.error("[account loadRecentSessions]", e);
       setRecentSessions([]);
     }
-  }, [isReady, supabase, session?.user?.id]);
+  }, [isReady, supabase, session?.user?.id, accessToken]);
 
   useFocusEffect(
     useCallback(() => {
@@ -939,28 +904,27 @@ export default function AccountScreen() {
     }
   }, [accessToken, session?.user?.id]);
 
-  // Load cached tier + stats from AsyncStorage on mount so the UI shows
+  // Load cached rating + stats from AsyncStorage on mount so the UI shows
   // correct values instantly before the Supabase query completes.
   useEffect(() => {
-    AsyncStorage.getItem("cached_tier_info").then((raw) => {
+    AsyncStorage.removeItem("cached_tier_info").catch(() => {});
+    AsyncStorage.getItem("cached_rating_info").then((raw) => {
       if (!raw) return;
       try {
-        const parsed = JSON.parse(raw) as TierInfoCache;
-        if (parsed && typeof parsed.tier === "string") {
-          _cachedTierInfo = parsed;
-          setTierInfo(parsed);
+        const parsed = JSON.parse(raw) as RatingCache;
+        if (parsed && typeof parsed === "object" && "points" in parsed) {
+          _cachedRating = parsed;
+          setRating(parsed);
         }
       } catch {}
     }).catch(() => {});
 
-    AsyncStorage.getItem("cached_stats").then((raw) => {
+    AsyncStorage.getItem("cached_record_stats").then((raw) => {
       if (!raw) return;
       try {
-        const parsed = JSON.parse(raw) as { wins?: number; losses?: number; motm?: number };
-        if (parsed && typeof parsed === "object") {
-          if (typeof parsed.wins === "number") setWinsCount(parsed.wins);
-          if (typeof parsed.losses === "number") setLossesCount(parsed.losses);
-          if (typeof parsed.motm === "number") setMotmCount(parsed.motm);
+        const parsed = JSON.parse(raw) as { games?: number; wins?: number; winPct?: number | null; motm?: number };
+        if (parsed && typeof parsed.games === "number" && typeof parsed.wins === "number" && typeof parsed.motm === "number") {
+          setRecordStats({ games: parsed.games, wins: parsed.wins, winPct: parsed.winPct ?? null, motm: parsed.motm });
         }
       } catch {}
     }).catch(() => {});
@@ -1637,6 +1601,44 @@ export default function AccountScreen() {
     }
   }
 
+  async function onToggleHostInvites(next: boolean) {
+    if (hostInvitesBusy) return;
+    setHostInvitesMsg(null);
+    const uid = session?.user?.id;
+    if (!supabase || !uid) {
+      setHostInvitesMsg("Sign in again to change this.");
+      return;
+    }
+    const prev = hostInvitesEnabled;
+    setHostInvitesEnabled(next);
+    setHostInvitesBusy(true);
+    try {
+      const res = await supabase
+        .from("profiles")
+        .update({ allow_host_invites: next, updated_at: new Date().toISOString() })
+        .eq("id", uid)
+        .select("id");
+      if (res.error) {
+        setHostInvitesEnabled(prev);
+        setHostInvitesMsg(
+          supabaseLooksLikeMissingColumn(res.error, "allow_host_invites")
+            ? "Host invite setting is not available yet. Apply the latest database migration."
+            : formatProfileSaveError(res.error),
+        );
+        return;
+      }
+      if (!res.data?.length) {
+        setHostInvitesEnabled(prev);
+        setHostInvitesMsg("Save did not update any profile row.");
+      }
+    } catch (e) {
+      setHostInvitesEnabled(prev);
+      setHostInvitesMsg(formatProfileSaveError(e));
+    } finally {
+      setHostInvitesBusy(false);
+    }
+  }
+
   async function onToggleBiometrics(next: boolean) {
     setLockMsg(null);
     if (!next) {
@@ -1671,26 +1673,17 @@ export default function AccountScreen() {
     );
   }
 
-  const myUserId = session?.user?.id ?? null;
   const fullName =
     [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim() ||
     (profile?.username ? `@${profile.username}` : "Player");
   const uname = (profile?.username ?? "").trim();
-  const currentTier = tierInfo?.tier ?? "bronze";
-  const tColor = tierColor(currentTier);
-  const tMeta = TIER_META[currentTier] ?? TIER_META.bronze;
-  const ptsPerSession = tMeta.pts;
-  const ptsPerSessionLabel = `${ptsPerSession > 0 ? "+" : ""}${ptsPerSession} pts / session`;
-  const gamesPlayed = (winsCount ?? 0) + (lossesCount ?? 0);
-  const winPct = gamesPlayed > 0 ? Math.round(((winsCount ?? 0) / gamesPlayed) * 100) : null;
-  // Sessions: rated sessions from player_ratings (already loaded in loadStats).
-  const sessionsCount = tierInfo?.sessions ?? 0;
-  // MOTM: count from pickup_run_results (loaded in loadStats).
-  const potdCount = motmCount ?? 0;
-  // Points = sessions × tierPtsPerSession × 10 (diamond=8, platinum=6, gold=4, silver=2, bronze=0).
-  const TIER_PTS_PER_SESSION: Record<string, number> = { diamond: 8, platinum: 6, gold: 4, silver: 2, bronze: 0 };
-  const tierPtsPerSession = TIER_PTS_PER_SESSION[currentTier] ?? 0;
-  const points = sessionsCount * tierPtsPerSession * 10;
+  const ratingCard = rating?.card ?? null;
+  const ratingTopPct = topPercentLabel(ratingCard);
+  // Games, win % (draws count as games), wins and MOTM all come from the record helper.
+  const sessionsCount = recordStats?.games ?? 0;
+  const winPct = recordStats?.winPct ?? null;
+  const potdCount = recordStats?.motm ?? 0;
+  const points = rating?.points ?? null;
 
   const primaryPos = (profile?.primary_position ?? "").trim() || null;
   const secondaryPos = Array.isArray(profile?.secondary_positions)
@@ -1770,6 +1763,7 @@ export default function AccountScreen() {
         <View style={styles.reviewModalBackdrop}>
           <View style={styles.reviewModalCard}>
             <Text style={styles.reviewModalTitle}>Confirm account deletion</Text>
+            {deleteUpcomingWarning ? <Text style={styles.reviewModalSub}>{deleteUpcomingWarning}</Text> : null}
             <Text style={styles.reviewModalSub}>
               Type <Text style={{ fontWeight: "800", color: themeColor().text }}>{DELETE_CONFIRM_WORD}</Text> below to permanently
               delete your account.
@@ -1928,12 +1922,12 @@ export default function AccountScreen() {
                 accessibilityLabel="Change profile photo"
                 disabled={avatarUploading}
               >
-                <View style={[s.avatarRing, { borderColor: tColor }, actionPhotoUrl ? s.avatarRingOverBanner : null]}>
+                <View style={[s.avatarRing, actionPhotoUrl ? s.avatarRingOverBanner : null]}>
                   {avatarUrl ? (
                     <Image source={{ uri: avatarUrl }} style={s.avatarImg} />
                   ) : (
                     <View style={[s.avatarImg, s.avatarFallback]}>
-                      <Text style={[s.avatarFallbackText, { color: tColor }]}>{initialsFromName(fullName)}</Text>
+                      <Text style={[s.avatarFallbackText, { color: themeColor().text }]}>{initialsFromName(fullName)}</Text>
                     </View>
                   )}
                   {avatarUploading && (
@@ -1950,20 +1944,6 @@ export default function AccountScreen() {
               <View style={[s.heroInfo, actionPhotoUrl ? s.heroInfoOverBanner : null]}>
                 <Text style={s.heroName} numberOfLines={2}>{fullName}</Text>
                 {uname ? <Text style={s.heroUsername} numberOfLines={1}>@{uname}</Text> : null}
-                {tierInfo !== null ? (
-                  <View style={s.heroBadgeRow}>
-                    <View style={[s.tierBadge, { backgroundColor: `${tColor}33`, borderColor: `${tColor}88` }]}>
-                      <Text style={[s.tierBadgeDiamond, { color: tColor }]}>◆</Text>
-                      <Text style={[s.tierBadgeText, { color: tColor }]}>{tierLabel(currentTier)}</Text>
-                    </View>
-                    <Text
-                      style={[s.ptsPerSession, { color: ptsPerSession >= 0 ? themeColor().pitchText : themeColor().coralText }]}
-                      numberOfLines={1}
-                    >
-                      {ptsPerSessionLabel}
-                    </Text>
-                  </View>
-                ) : null}
               </View>
             </View>
 
@@ -1972,7 +1952,7 @@ export default function AccountScreen() {
               <View style={s.statCell}>
                 <FontAwesome name="futbol-o" size={20} color={themeColor().pitchText} />
                 <Text style={s.statValue}>{sessionsCount}</Text>
-                <Text style={s.statLabel}>Sessions</Text>
+                <Text style={s.statLabel}>Games</Text>
               </View>
               <View style={s.statCell}>
                 <FontAwesome name="percent" size={18} color={themeColor().pitchText} />
@@ -1981,7 +1961,7 @@ export default function AccountScreen() {
               </View>
               <View style={s.statCell}>
                 <FontAwesome name="trophy" size={20} color={themeColor().pitchText} />
-                <Text style={s.statValue}>{winsCount ?? 0}</Text>
+                <Text style={s.statValue}>{recordStats?.wins ?? 0}</Text>
                 <Text style={s.statLabel}>Wins</Text>
               </View>
               <View style={s.statCell}>
@@ -1992,32 +1972,25 @@ export default function AccountScreen() {
               <View style={s.statCell}>
                 <FontAwesome name="star" size={19} color={themeColor().pitchText} />
                 <Text style={s.statValue} numberOfLines={1} adjustsFontSizeToFit>
-                  {points.toLocaleString()}
+                  {points == null ? "—" : points.toLocaleString()}
                 </Text>
                 <Text style={s.statLabel}>Points</Text>
               </View>
             </View>
 
-            {/* Tier progress card */}
-            {tierInfo !== null ? (
-              <View style={s.tierProgress}>
-                <TierGem tier={currentTier} size={54} gid="accountTierGem" />
+            {ratingCard ? (
+              <View style={s.ratingCard}>
+                <StarRating value={ratingCard.star} provisional={ratingCard.provisional} size="md" showValue={false} />
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={s.tierProgressTitle} numberOfLines={1} adjustsFontSizeToFit>
-                    {tierLabel(currentTier)} Tier
+                  <Text style={s.ratingCardTitle} numberOfLines={1} adjustsFontSizeToFit>
+                    {ratingTopPct ? `${formatStars(ratingCard.star)} · ${ratingTopPct}` : formatStars(ratingCard.star)}
                   </Text>
-                  <Text style={s.tierProgressSub}>{tMeta.topPct}</Text>
+                  <Text style={s.ratingCardSub}>Play more verified games to move up.</Text>
                 </View>
-                <Pressable
-                  onPress={() => myUserId && (router.push as (h: string) => void)(`/player/${myUserId}`)}
-                  style={({ pressed }) => [s.viewProgressBtn, pressed && { opacity: 0.85 }]}
-                >
-                  <Text style={s.viewProgressBtnText}>View progress →</Text>
-                </Pressable>
               </View>
-            ) : (
-              <View style={[s.tierProgress, s.tierProgressSkeleton]} />
-            )}
+            ) : rating === null ? (
+              <View style={[s.ratingCard, s.ratingCardSkeleton]} />
+            ) : null}
           </View>
 
           {/* 3. SOCCER BACKGROUND */}
@@ -2063,7 +2036,7 @@ export default function AccountScreen() {
                   <Text style={s.verifyPromptTitle}>NOT VERIFIED</Text>
                 </View>
                 <Text style={s.verifyPromptSub}>
-                  Self-declared players are capped at Gold tier. Submit for verification to unlock Platinum and Diamond. →
+                  Your playing background is self-declared. Submit proof or get vouched to confirm your level. →
                 </Text>
               </Pressable>
             ) : null}
@@ -2160,13 +2133,13 @@ export default function AccountScreen() {
           {hostRating ? (
             <View style={s.blockCard}>
               <View style={s.blockHeader}>
-                <Text style={s.blockTitle}>Host Rating</Text>
+                <Text style={s.blockTitle}>Host score</Text>
               </View>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <Text style={{ color: themeColor().text, fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" }}>
-                  {hostRating.avg_overall != null ? hostRating.avg_overall.toFixed(1) : "—"}
+              <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
+                <Text style={{ color: themeColor().text, fontSize: 32, ...headline }}>
+                  {hostScore(hostRating.avg_overall) ?? "—"}
                 </Text>
-                <FontAwesome name="star" size={20} color={themeColor().pitchText} />
+                <Text style={{ color: themeColor().muted, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" }}>/100</Text>
               </View>
               <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 12 }}>
                 {hostRating.sessions_hosted} session{hostRating.sessions_hosted === 1 ? "" : "s"} hosted
@@ -2182,8 +2155,7 @@ export default function AccountScreen() {
                   { label: "Safety", avg: hostRating.avg_safety },
                 ] as const
               ).map((row) => {
-                const filled = Math.max(0, Math.min(5, Math.floor(row.avg ?? 0)));
-                const dots = `${"●".repeat(filled)}${"○".repeat(5 - filled)}`;
+                const score = hostScore(row.avg);
                 return (
                   <View
                     key={row.label}
@@ -2197,17 +2169,15 @@ export default function AccountScreen() {
                     <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", width: 110 }}>
                       {row.label}
                     </Text>
-                    <Text style={{ color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 }}>{dots}</Text>
                     <Text
                       style={{
                         color: themeColor().text,
                         fontSize: 13, fontFamily: "Inter_700Bold",
                         fontWeight: "700",
-                        width: 36,
                         textAlign: "right",
                       }}
                     >
-                      {row.avg != null ? row.avg.toFixed(1) : "—"}
+                      {score != null ? `${score}/100` : "—"}
                     </Text>
                   </View>
                 );
@@ -2233,6 +2203,11 @@ export default function AccountScreen() {
           marketingPushMsg={marketingPushMsg}
           onToggleMarketingPush={(v) => void onToggleMarketingPush(v)}
           marketingPushDisabled={!accessToken}
+          hostInvitesEnabled={hostInvitesEnabled}
+          hostInvitesBusy={hostInvitesBusy}
+          hostInvitesMsg={hostInvitesMsg}
+          onToggleHostInvites={(v) => void onToggleHostInvites(v)}
+          hostInvitesDisabled={!accessToken}
           maxDriveMinutes={maxDriveMinutes}
           maxDriveBusy={maxDriveBusy}
           maxDriveMsg={maxDriveMsg}
@@ -2439,7 +2414,7 @@ export default function AccountScreen() {
         <Pressable
           style={[styles.deleteAccountBtn, deleteAccountBusy && styles.disabled]}
           disabled={deleteAccountBusy || !accessToken}
-          onPress={startDeleteAccountFlow}
+          onPress={() => void startDeleteAccountFlow()}
         >
           {deleteAccountBusy ? (
             <View style={styles.deleteAccountBtnBusy}>
@@ -2471,7 +2446,7 @@ function make_s() {
     marginBottom: 8,
   },
   headerSide: { width: 40, justifyContent: "center" },
-  headerTitle: { flex: 1, textAlign: "center", color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800",},
+  headerTitle: { flex: 1, textAlign: "center", color: themeColor().text, fontSize: 20, ...headline, },
   gearBtn: { padding: 4 },
 
   actionBanner: {
@@ -2508,7 +2483,7 @@ function make_s() {
   avatarRing: { width: 84, height: 84, borderRadius: 999, borderWidth: 2.5, padding: 4 },
   avatarImg: { width: "100%", height: "100%", borderRadius: 999 },
   avatarFallback: { backgroundColor: themeColor().overlaySubtle, alignItems: "center", justifyContent: "center" },
-  avatarFallbackText: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  avatarFallbackText: { fontSize: 24, ...headline },
   cameraBadge: {
     position: "absolute",
     bottom: 0,
@@ -2522,21 +2497,8 @@ function make_s() {
     borderColor: themeColor().line,
   },
   heroInfo: { flex: 1, minWidth: 0 },
-  heroName: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900",},
+  heroName: { color: themeColor().text, fontSize: 24, ...headline, },
   heroUsername: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 4 },
-  heroBadgeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" },
-  tierBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  tierBadgeDiamond: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  tierBadgeText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
-  ptsPerSession: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", flexShrink: 1 },
 
   /* stats */
   statsRow: {
@@ -2547,11 +2509,11 @@ function make_s() {
     borderTopColor: themeColor().overlay,
   },
   statCell: { flex: 1, alignItems: "center", gap: 4 },
-  statValue: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900",},
+  statValue: { color: themeColor().text, fontSize: 20, ...headline, },
   statLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
 
-  /* tier progress */
-  tierProgress: {
+  /* rating card */
+  ratingCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -2562,17 +2524,9 @@ function make_s() {
     borderWidth: 1,
     borderColor: themeColor().overlay,
   },
-  tierProgressSkeleton: { minHeight: 68, backgroundColor: themeColor().overlaySubtle },
-  tierProgressTitle: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "800" },
-  tierProgressSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 15, marginTop: 4 },
-  viewProgressBtn: {
-    flexShrink: 0,
-    borderWidth: 1,
-    borderColor: themeColor().pitch, borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  viewProgressBtnText: { color: themeColor().pitchText, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
+  ratingCardSkeleton: { minHeight: 68, backgroundColor: themeColor().overlaySubtle },
+  ratingCardTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  ratingCardSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 15, marginTop: 4 },
 
   /* generic block card */
   blockCard: {
@@ -2585,7 +2539,7 @@ function make_s() {
   },
   blockHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   blockTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800",},
-  editLink: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  editLink: { color: themeColor().accent, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "800" },
 
   /* soccer tile grid */
   tileGrid: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: -6 },
@@ -2644,7 +2598,7 @@ function make_s() {
     color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
   },
-  mySessionsViewAll: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  mySessionsViewAll: { color: themeColor().accent, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
 
   /* list rows */
   listRow: {
@@ -2669,7 +2623,7 @@ function make_s() {
     borderBottomWidth: 1,
     borderBottomColor: themeColor().overlay,
   },
-  editModalTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  editModalTitle: { color: themeColor().text, fontSize: 20, ...headline },
   editModalClose: { padding: 4 },
 });
 }

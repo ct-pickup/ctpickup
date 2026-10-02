@@ -28,7 +28,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 const GENDER_OPTIONS = [
   { value: "male" as const, label: "Male" },
   { value: "female" as const, label: "Female" },
@@ -773,8 +773,7 @@ function make_styles() {
     alignSelf: "center",
   },
   title: {
-    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "800",
+    fontSize: 32, ...headline,
     color: themeColor().text,
   },
   subtitle: {

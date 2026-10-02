@@ -258,8 +258,17 @@ export function postAdminPickupInvitePlayers(
   );
 }
 
+export type AdminCancelRunResponse = {
+  ok: boolean;
+  refunded?: number;
+  credited?: number;
+  cancelled?: number;
+  failures?: { user_id: string; name: string | null; error: string }[];
+  error?: string;
+};
+
 export function postAdminCancelRun(accessToken: string, body: { run_id: string; reason?: string | null }) {
-  return adminFetch<{ ok: boolean; credited?: string[]; creditFailed?: unknown; error?: string }>(
+  return adminFetch<AdminCancelRunResponse>(
     "/api/admin/pickup/cancel",
     accessToken,
     {
@@ -293,8 +302,26 @@ export function postAdminMarkAttendance(
   });
 }
 
-export function postAdminLateCancel(accessToken: string, body: { run_id: string; user_id: string; note?: string | null }) {
-  return adminFetch<{ ok: boolean; error?: string }>("/api/admin/pickup/late-cancel", accessToken, {
+export function postAdminLateCancel(
+  accessToken: string,
+  body: { run_id: string; user_id: string; note?: string | null; cancelled_at?: string | null },
+) {
+  return adminFetch<{
+    ok: boolean;
+    error?: string;
+    message?: string;
+    status?: string | null;
+    cancelled_at?: string;
+    within_24h?: boolean;
+    standing_recorded?: boolean;
+    refunded_to_card?: boolean;
+    refund_cents?: number;
+    credit_issued?: boolean;
+    amount_cents?: number;
+    payer_credited?: boolean;
+    payer_credit_cents?: number;
+    warnings?: string[];
+  }>("/api/admin/pickup/late-cancel", accessToken, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -344,7 +371,10 @@ export function postAdminPickupResult(
   body: {
     run_id: string;
     total_teams: 2 | 3;
-    winning_team: "A" | "B" | "C";
+    winning_team?: "A" | "B" | "C";
+    outcome?: "draw";
+    score_a?: number;
+    score_b?: number;
     team_assignments: { user_id: string; team: "A" | "B" | "C" }[];
     player_of_day?: string | null;
     goalie_of_the_day?: string | null;
@@ -900,6 +930,16 @@ export function postAdminPickupSwitch(accessToken: string, body: Record<string, 
   });
 }
 
+export type AdminRunDeletableResponse = { rsvps: number; payments: number; deletable: boolean };
+
+export function fetchAdminRunDeletable(accessToken: string, runId: string) {
+  return adminFetch<AdminRunDeletableResponse>(
+    `/api/admin/pickup/delete-run?run_id=${encodeURIComponent(runId)}`,
+    accessToken,
+    { method: "GET" },
+  );
+}
+
 export function postAdminDeleteRun(accessToken: string, runId: string) {
   return adminFetch<{ ok: boolean; error?: string }>(
     "/api/admin/pickup/delete-run",
@@ -967,3 +1007,21 @@ export function fetchAdminPlayersProximity(
   });
 }
 
+export type AdminPlayerRating = {
+  user_id: string;
+  tier: string | null;
+  score: number | null;
+  verification: string | null;
+  star_rating: number | null;
+  star_provisional: boolean | null;
+};
+
+/** Admin-only tier and score. Never read these through player_cards. */
+export function fetchAdminPlayerRatings(accessToken: string, opts: { userIds?: string[]; tier?: string }) {
+  const q = new URLSearchParams();
+  if (opts.userIds?.length) q.set("user_ids", opts.userIds.join(","));
+  if (opts.tier) q.set("tier", opts.tier);
+  return adminFetch<{ ok: true; ratings: AdminPlayerRating[] }>(`/api/admin/player-ratings?${q.toString()}`, accessToken, {
+    method: "GET",
+  });
+}

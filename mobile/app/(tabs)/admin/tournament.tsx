@@ -35,7 +35,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 const DECISIONS = ["pending", "confirmed", "standby", "rejected"] as const;
 type Decision = (typeof DECISIONS)[number];
 
@@ -1012,7 +1012,7 @@ export default function AdminTournamentScreen() {
         ]}
         accessibilityLabel="Create tournament"
       >
-        <FontAwesome name="plus" size={22} color={themeColor().onPitch} />
+        <FontAwesome name="plus" size={22} color={themeColor().onAccent} />
       </Pressable>
 
       <Modal
@@ -1310,7 +1310,7 @@ function make_styles() {
     width: 56,
     height: 56,
     borderRadius: 999,
-    backgroundColor: themeColor().pitch,
+    backgroundColor: themeColor().accent,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1324,7 +1324,7 @@ function make_styles() {
     borderBottomWidth: 1,
     borderBottomColor: themeColor().line,
   },
-  modalTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
+  modalTitle: { fontSize: 20, ...headline, color: themeColor().text },
   modalClose: { padding: 4 },
   modalScroll: { flex: 1 },
   modalContent: { padding: 16, paddingBottom: 24 },

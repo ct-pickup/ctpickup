@@ -4,7 +4,7 @@ import { hapticGoal, hapticTap } from "@/lib/haptics";
 import { fetchPickupFindPlayers, type PickupFindPlayerResult } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useCallback, useEffect, useState } from "react";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -324,7 +324,7 @@ function make_styles() {
     padding: 16,
     gap: 8,
   },
-  title: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  title: { color: themeColor().text, fontSize: 20, ...headline },
   hint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   input: {
     marginTop: 4,

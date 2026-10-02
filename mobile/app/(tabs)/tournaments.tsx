@@ -21,7 +21,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 export default function TournamentsScreen() {
   useThemedStyles(publish_styles);
 
@@ -312,8 +312,7 @@ function make_styles() {
     marginBottom: 8,
   },
   headline: {
-    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "800",
+    fontSize: 32, ...headline,
     color: themeColor().text,
     marginBottom: 28,
   },
@@ -356,7 +355,7 @@ function make_styles() {
     justifyContent: "center",
   },
   cardBody: { flex: 1, marginLeft: 16 },
-  stateName: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text },
+  stateName: { fontSize: 20, ...headline, color: themeColor().text },
   stateHint: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
 
   sessionBadge: {
@@ -419,8 +418,7 @@ function make_styles() {
     marginBottom: 4,
   },
   title: {
-    fontSize: 24, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "800",
+    fontSize: 24, ...headline,
     color: themeColor().text,
     flex: 1,
     minWidth: 0,

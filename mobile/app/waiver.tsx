@@ -1,5 +1,10 @@
 import { useAuth } from "@/context/AuthContext";
 import { useWaiver } from "@/context/WaiverContext";
+import {
+  LEGAL_POLICY_LAST_UPDATED,
+  PICKUP_CANCELLATION_POLICY_HEADING,
+  PICKUP_CANCELLATION_POLICY_POINTS,
+} from "@/lib/cancellationPolicyCopy";
 import { siteOrigin } from "@/lib/env";
 import { Redirect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -16,7 +21,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 const WAIVER_VERSION = "v1.5";
 
 export default function WaiverScreen() {
@@ -118,7 +123,9 @@ export default function WaiverScreen() {
           />
         </View>
         <Text style={styles.docTitle}>Liability Waiver & Participation Agreement</Text>
-        <Text style={styles.version}>Version {WAIVER_VERSION}</Text>
+        <Text style={styles.version}>
+          Version {WAIVER_VERSION} · {LEGAL_POLICY_LAST_UPDATED}
+        </Text>
 
         <View style={styles.section}>
           <Text style={styles.h2}>1. Assumption of Risk</Text>
@@ -271,8 +278,7 @@ export default function WaiverScreen() {
             <Text style={styles.emphasis}>
               Tournament and pickup fees are generally non-refundable except as stated in the applicable refund policy:
               for in-person tournaments, refunds must be requested more than 48 hours before the tournament begins; for
-              pickups, refunds are available if you cancel more than 24 hours before the run&apos;s scheduled start time.
-              Full refund if the organizer cancels the run.
+              pickups, see Cancellations and refunds below.
             </Text>{" "}
             Pickup fee details appear on{" "}
             <Text style={styles.link} onPress={() => openUrl("/pickup/how-it-works")}>
@@ -284,6 +290,12 @@ export default function WaiverScreen() {
             </Text>
             . Prizes are subject to verification and eligibility requirements.
           </Text>
+          <Text style={styles.h3}>{PICKUP_CANCELLATION_POLICY_HEADING}</Text>
+          {PICKUP_CANCELLATION_POLICY_POINTS.map((point) => (
+            <Text key={point} style={styles.li}>
+              • {point}
+            </Text>
+          ))}
         </View>
 
         <View style={[styles.section, { marginBottom: 8 }]}>
@@ -323,8 +335,7 @@ function make_styles() {
   wordmark: { width: 220, height: 48 },
   docTitle: {
     color: themeColor().text,
-    fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "600",
+    fontSize: 20, ...headline,
     textAlign: "center",
     marginBottom: 4,
   },
@@ -336,6 +347,7 @@ function make_styles() {
   },
   section: { marginBottom: 20 },
   h2: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600", marginBottom: 8 },
+  h3: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", marginTop: 4, marginBottom: 6 },
   p: {
     color: themeColor().text,
     fontSize: 14, fontFamily: "Inter_400Regular",
@@ -351,7 +363,7 @@ function make_styles() {
   },
   strong: { color: themeColor().text, fontWeight: "600" },
   emphasis: { color: themeColor().text },
-  link: { color: themeColor().pitchText, textDecorationLine: "underline", fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22 },
+  link: { color: themeColor().accent, textDecorationLine: "underline", fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22 },
   stickyBar: {
     position: "absolute",
     left: 0,

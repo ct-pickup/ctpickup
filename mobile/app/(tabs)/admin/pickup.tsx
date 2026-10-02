@@ -18,6 +18,7 @@ import {
 import {
   fetchAdminPickupSwitchDetail,
   fetchAdminPickupSwitchList,
+  fetchAdminRunDeletable,
   fetchAdminTierSuggestions,
   postAdminCreateRun,
   postAdminDeleteRun,
@@ -27,6 +28,7 @@ import {
 } from "@/lib/adminApi";
 import { goToAdminMenu } from "@/lib/adminNavigation";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
+import { confirmAdminCancelRun } from "@/lib/pickup/adminCancelRun";
 import { fmtPickupRunScheduleEt } from "@/lib/pickupPublic";
 import { fmtPickupSlotWindowEt } from "@/lib/pickup/fmtPickupSlotWindowEt";
 import { isPublicPickupRunType } from "@/lib/pickupRunType";
@@ -57,7 +59,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 type WorkflowTab = "planning" | "active" | "past";
 
 /** Field cost presets by venue name (whole dollars). */
@@ -171,6 +173,7 @@ export default function AdminPickupOpsScreen() {
   const [detail, setDetail] = useState<PickupSwitchDetailResponse | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [detailDeletable, setDetailDeletable] = useState<boolean | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
 
   const isCreateCustomVenue = createVenue === CUSTOM_VENUE_OPTION;
@@ -265,8 +268,12 @@ export default function AdminPickupOpsScreen() {
     }
     setDetailLoading(true);
     setDetailError(null);
-    const r = await fetchAdminPickupSwitchDetail(token, detailRunId);
+    const [r, del] = await Promise.all([
+      fetchAdminPickupSwitchDetail(token, detailRunId),
+      fetchAdminRunDeletable(token, detailRunId),
+    ]);
     setDetailLoading(false);
+    setDetailDeletable(del.ok ? del.data.deletable === true : false);
     if (!r.ok) {
       setDetailError(r.error);
       setDetail(null);
@@ -292,6 +299,7 @@ export default function AdminPickupOpsScreen() {
     setDetailRunId(id);
     setDetail(null);
     setDetailError(null);
+    setDetailDeletable(null);
     setDetailOpen(true);
   }
 
@@ -300,6 +308,7 @@ export default function AdminPickupOpsScreen() {
     setDetailRunId(null);
     setDetail(null);
     setDetailError(null);
+    setDetailDeletable(null);
   }
 
   function applyPollDateToTimeSlots(dateEt: string, slots: string[]): string[] {
@@ -616,15 +625,22 @@ export default function AdminPickupOpsScreen() {
     );
   }
 
+  function onCancelRunFromFooter() {
+    if (!token || !detailRun) return;
+    const runId = s(detailRun.id);
+    if (!runId) return;
+    confirmAdminCancelRun({ token, runId, setActionBusy, onCancelled: closeDetail, onRefresh: refreshDetailAndList });
+  }
+
   function onDeleteRun() {
     if (!token || !detailRun) return;
     const runId = s(detailRun.id);
     if (!runId) return;
     Alert.alert(
-      "Delete Run?",
-      "This permanently deletes the run and all its data. This cannot be undone.",
+      "Delete run?",
+      "Delete this run? It has no players.",
       [
-        { text: "Cancel", style: "cancel" },
+        { text: "Keep run", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
@@ -634,7 +650,8 @@ export default function AdminPickupOpsScreen() {
               const r = await postAdminDeleteRun(token, runId);
               setActionBusy(false);
               if (!r.ok) {
-                Alert.alert("Error", r.error);
+                Alert.alert(r.status === 409 ? "Run has players" : "Could not delete", r.error);
+                await refreshDetailAndList();
                 return;
               }
               closeDetail();
@@ -680,7 +697,7 @@ export default function AdminPickupOpsScreen() {
             }}
             style={({ pressed }) => [styles.refreshBtn, pressed && { opacity: 0.85 }]}
           >
-            <FontAwesome name="refresh" size={14} color={themeColor().pitchText} />
+            <FontAwesome name="refresh" size={14} color={themeColor().accent} />
           </Pressable>
         </View>
 
@@ -849,7 +866,7 @@ export default function AdminPickupOpsScreen() {
           pressed && { opacity: 0.9 },
         ]}
       >
-        <FontAwesome name="plus" size={22} color={themeColor().onPitch} />
+        <FontAwesome name="plus" size={22} color={themeColor().onAccent} />
       </Pressable>
 
       {/* Create run sheet */}
@@ -1224,17 +1241,33 @@ export default function AdminPickupOpsScreen() {
                   />
                 ) : null}
 
-                <Pressable
-                  disabled={actionBusy}
-                  onPress={onDeleteRun}
-                  style={({ pressed }) => [
-                    styles.deleteRunBtn,
-                    pressed && { opacity: 0.9 },
-                    actionBusy && { opacity: 0.55 },
-                  ]}
-                >
-                  <Text style={styles.deleteRunBtnText}>Delete Run</Text>
-                </Pressable>
+                {detailDeletable === true ? (
+                  <Pressable
+                    disabled={actionBusy}
+                    onPress={onDeleteRun}
+                    style={({ pressed }) => [
+                      styles.deleteRunBtn,
+                      pressed && { opacity: 0.9 },
+                      actionBusy && { opacity: 0.55 },
+                    ]}
+                  >
+                    <Text style={styles.deleteRunBtnText}>Delete run</Text>
+                  </Pressable>
+                ) : detailDeletable === false &&
+                  detailRun.is_completed !== true &&
+                  !["canceled", "completed"].includes(s(detailRun.status).trim()) ? (
+                  <Pressable
+                    disabled={actionBusy}
+                    onPress={onCancelRunFromFooter}
+                    style={({ pressed }) => [
+                      styles.deleteRunBtn,
+                      pressed && { opacity: 0.9 },
+                      actionBusy && { opacity: 0.55 },
+                    ]}
+                  >
+                    <Text style={styles.deleteRunBtnText}>Cancel run</Text>
+                  </Pressable>
+                ) : null}
               </ScrollView>
             ) : null}
           </View>
@@ -1256,8 +1289,8 @@ function make_styles() {
   },
   backBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4 },
   backBtnText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-  topTitle: { flex: 1, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text, textAlign: "center" },
-  h1: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
+  topTitle: { flex: 1, fontSize: 24, ...headline, color: themeColor().text, textAlign: "center" },
+  h1: { fontSize: 24, ...headline, color: themeColor().text },
   refreshBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -1266,7 +1299,7 @@ function make_styles() {
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().accent,
   },
   refreshText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   toolbar: { flexDirection: "row", gap: 8, marginBottom: 12 },
@@ -1379,7 +1412,7 @@ function make_styles() {
     width: 56,
     height: 56,
     borderRadius: 999,
-    backgroundColor: themeColor().pitch,
+    backgroundColor: themeColor().accent,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1394,7 +1427,7 @@ function make_styles() {
   },
   detailSheet: { minHeight: "50%" },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
-  sheetTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  sheetTitle: { color: themeColor().text, fontSize: 20, ...headline },
   label: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 12, marginBottom: 4 },
   typeToggleRow: { flexDirection: "row", gap: 8 },
   typeToggle: {
@@ -1447,10 +1480,10 @@ function make_styles() {
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().accent,
     marginBottom: 8,
   },
-  addSlotBtnText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
+  addSlotBtnText: { color: themeColor().accent, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
   regionDetectedHint: {
     marginTop: 8,
     fontSize: 13, fontFamily: "Inter_600SemiBold",
@@ -1472,11 +1505,11 @@ function make_styles() {
     marginTop: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().accent,
     paddingVertical: 8,
     alignItems: "center",
   },
-  usePriceBtnText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
+  usePriceBtnText: { color: themeColor().accent, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
   primaryBtn: {
     marginTop: 20,
     backgroundColor: themeColor().pitch,
@@ -1488,7 +1521,7 @@ function make_styles() {
   primaryBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   cancelLink: { alignItems: "center", marginTop: 12, paddingVertical: 8 },
   cancelLinkText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
-  detailTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  detailTitle: { color: themeColor().text, fontSize: 20, ...headline },
   detailEt: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 8 },
   detailVenue: { color: themeColor().text, marginTop: 8, lineHeight: 22 },
   detailMeta: { color: themeColor().muted, marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular" },

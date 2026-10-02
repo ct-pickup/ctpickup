@@ -11,7 +11,7 @@ import { useEffect, useLayoutEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 export default function RegionDetailScreen() {
   useThemedStyles(publish_styles);
 
@@ -90,8 +90,8 @@ function make_styles() {
     alignItems: "center",
     justifyContent: "center",
   },
-  heroCode: { fontSize: 40, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().pitchText,},
-  heroTitle: { marginTop: 20, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text, textAlign: "center" },
+  heroCode: { fontSize: 40, ...headline, color: themeColor().pitchText,},
+  heroTitle: { marginTop: 20, fontSize: 24, ...headline, color: themeColor().text, textAlign: "center" },
   heroSub: {
     marginTop: 12,
     fontSize: 16, fontFamily: "Inter_400Regular",

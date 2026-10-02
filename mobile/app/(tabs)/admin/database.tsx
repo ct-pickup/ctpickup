@@ -34,7 +34,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 type ViewMode = "grid" | "table";
 
 function StatusBadge({ status }: { status: string | null }) {
@@ -399,7 +399,7 @@ function make_styles() {
   safe: { flex: 1, backgroundColor: themeColor().bg },
   gridScroll: { paddingHorizontal: 16, paddingBottom: 48 },
   topRow: { marginTop: 4, marginBottom: 8 },
-  h1: { color: themeColor().text, fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900",},
+  h1: { color: themeColor().text, fontSize: 32, ...headline, },
   lead: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20, marginTop: 4, marginBottom: 20 },
   groupBlock: { marginBottom: 20 },
   groupLabel: {
@@ -417,7 +417,7 @@ function make_styles() {
     padding: 12,
     minHeight: 118,
   },
-  sectionEmoji: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", marginBottom: 4 },
+  sectionEmoji: { fontSize: 24, ...headline, marginBottom: 4 },
   sectionTitle: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", lineHeight: 17, marginBottom: 4 },
   sectionCount: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   sectionUpdated: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
@@ -449,7 +449,7 @@ function make_styles() {
     borderBottomColor: themeColor().line,
   },
   tableHeaderCenter: { flex: 1, alignItems: "center" },
-  tableHeaderEmoji: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular" },
+  tableHeaderEmoji: { fontSize: 20, ...headline },
   tableHeaderTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "900", marginTop: 4 },
   tableHeaderCount: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   backBtn: { flexDirection: "row", alignItems: "center", gap: 4, padding: 8, minWidth: 72 },

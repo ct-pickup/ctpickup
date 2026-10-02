@@ -23,7 +23,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 type Team = { id: string; team_name: string; captain_name: string };
 type Match = {
   id: string;
@@ -667,7 +667,7 @@ function make_styles() {
   root: { flex: 1, backgroundColor: themeColor().bg },
   centered: { justifyContent: "center", alignItems: "center", padding: 24 },
   content: { padding: 16, paddingBottom: 60 },
-  title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  title: { color: themeColor().text, fontSize: 24, ...headline },
   sub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4, marginBottom: 16 },
   muted: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   mutedSmall: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 8 },
@@ -722,7 +722,7 @@ function make_styles() {
     borderColor: themeColor().line,
   },
   modalScroll: { padding: 20, paddingBottom: 36 },
-  modalTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginBottom: 4 },
+  modalTitle: { color: themeColor().text, fontSize: 20, ...headline, marginBottom: 4 },
   modalMatchup: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 16 },
   scoreInputRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 20 },
   scoreInputBox: { alignItems: "center" },
@@ -733,13 +733,12 @@ function make_styles() {
     borderWidth: 1,
     borderColor: themeColor().line,
     color: themeColor().text,
-    fontSize: 24, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "800",
+    fontSize: 24, ...headline,
     textAlign: "center",
     width: 70,
     padding: 8,
   },
-  scoreDash: { color: themeColor().muted, fontSize: 24, fontFamily: "InstrumentSerif_400Regular" },
+  scoreDash: { color: themeColor().muted, fontSize: 24, ...headline },
   modalSubtitle: {
     color: themeColor().muted,
     fontSize: 13, fontFamily: "Inter_700Bold",
@@ -779,7 +778,7 @@ function make_styles() {
     alignItems: "center",
     justifyContent: "center",
   },
-  removeGoalText: { color: themeColor().muted, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "300" },
+  removeGoalText: { color: themeColor().muted, fontSize: 24, ...headline },
   pickerPanel: {
     marginBottom: 12,
     borderRadius: 10,

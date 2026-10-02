@@ -18,7 +18,7 @@ import {
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 const SPOTS_MIN = 0;
 const SPOTS_MAX = 20;
 
@@ -308,7 +308,7 @@ function make_s() {
   return StyleSheet.create({
   root: { flex: 1, backgroundColor: themeColor().bg, padding: 20 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 24 },
-  headerTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  headerTitle: { color: themeColor().text, fontSize: 20, ...headline },
   card: {
     backgroundColor: themeColor().card,
     borderRadius: 12,

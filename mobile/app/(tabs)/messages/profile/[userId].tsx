@@ -3,7 +3,7 @@ import { fetchPublicPlayerProfile, type PublicPlayerProfile } from "@/lib/siteAp
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useEffect, useLayoutEffect, useState } from "react";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Image,
@@ -160,8 +160,8 @@ function make_styles() {
     justifyContent: "center",
     marginBottom: 12,
   },
-  avatarPhText: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().onPitchPanel },
-  displayName: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text, textAlign: "center" },
+  avatarPhText: { fontSize: 32, ...headline, color: themeColor().onPitchPanel },
+  displayName: { fontSize: 24, ...headline, color: themeColor().text, textAlign: "center" },
   username: { marginTop: 4, fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().muted },
   block: {
     marginBottom: 20,
@@ -177,7 +177,7 @@ function make_styles() {
   },
   value: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().text },
   linkRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  linkText: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().pitchText },
+  linkText: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().accent },
   note: { marginTop: 8, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 18 },
 });
 }

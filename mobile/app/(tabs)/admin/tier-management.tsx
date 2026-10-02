@@ -1,8 +1,10 @@
 import { useAuth } from "@/context/AuthContext";
+import { fetchAdminPlayerRatings, type AdminPlayerRating } from "@/lib/adminApi";
 import { siteOrigin } from "@/lib/env";
+import { formatStars } from "@/lib/starRatings";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator, Alert, FlatList, Pressable,
   ScrollView, StyleSheet, Text, TextInput, View,
@@ -24,7 +26,7 @@ type Player = {
   last_name: string | null;
   username: string | null;
   verification_level: string | null;
-  rating?: { tier: string; score: number; verification: string } | null;
+  rating?: AdminPlayerRating | null;
 };
 
 export default function AdminTierManagementScreen() {
@@ -49,12 +51,11 @@ export default function AdminTierManagementScreen() {
 
       if (data && data.length > 0) {
         const ids = data.map((p: any) => p.id);
-        const { data: ratings } = await supabase
-          .from("player_ratings")
-          .select("user_id,tier,score,verification")
-          .in("user_id", ids);
+        const token = session?.access_token;
+        const res = token ? await fetchAdminPlayerRatings(token, { userIds: ids }) : null;
+        const ratings = res?.ok ? res.data.ratings : [];
 
-        const ratingMap = Object.fromEntries((ratings ?? []).map((r: any) => [r.user_id, r]));
+        const ratingMap = Object.fromEntries(ratings.map((r) => [r.user_id, r]));
         setPlayers(data.map((p: any) => ({ ...p, rating: ratingMap[p.id] ?? null })));
       } else {
         setPlayers([]);
@@ -136,7 +137,10 @@ export default function AdminTierManagementScreen() {
                 <Text style={s.name}>{name}</Text>
                 {player.username && <Text style={s.meta}>@{player.username}</Text>}
                 <Text style={s.meta}>
-                  Score: {player.rating?.score?.toFixed(1) ?? "—"} · {currentTier.charAt(0).toUpperCase() + currentTier.slice(1)}
+                  Score: {player.rating?.score != null ? Number(player.rating.score).toFixed(1) : "—"} · {currentTier.charAt(0).toUpperCase() + currentTier.slice(1)}
+                  {player.rating?.star_rating != null
+                    ? ` · ${formatStars(Number(player.rating.star_rating))}${player.rating.star_provisional ? " (provisional)" : ""}`
+                    : ""}
                 </Text>
               </View>
               {busy && <ActivityIndicator color={themeColor().pitchText} />}
@@ -182,7 +186,7 @@ export default function AdminTierManagementScreen() {
 function make_s() {
   return StyleSheet.create({
   root: { flex: 1, backgroundColor: themeColor().bg, padding: 16 },
-  title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginBottom: 16, marginTop: 8 },
+  title: { color: themeColor().text, fontSize: 24, ...headline, marginBottom: 16, marginTop: 8 },
   searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: themeColor().overlay, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 12, paddingVertical: 12, marginBottom: 16 },
   searchInput: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular" },
   card: { backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 12 },

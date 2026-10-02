@@ -1,5 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
+import { fetchPlayerCards, type PlayerCard } from "@/lib/starRatings";
+import { StarRating } from "@/components/StarRating";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -15,21 +17,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
-function TIER_COLORS(): Record<string, string> {
-  return {
-  bronze: themeColor().muted,
-  silver: themeColor().muted,
-  gold: themeColor().muted,
-  platinum: themeColor().muted,
-  diamond: themeColor().muted,
-};
-}
-
-function tierColor(tier: string | null | undefined): string {
-  return tier ? (TIER_COLORS()[tier] ?? themeColor().pitch) : themeColor().pitch;
-}
-
+import { headline, themeColor, useThemedStyles } from "@/theme";
 /** Live-updating elapsed-time string, refreshed every 60 seconds. */
 function useElapsedTime(startedAt: string | null): string {
   const [elapsed, setElapsed] = useState("");
@@ -82,7 +70,7 @@ type Person = {
   username: string | null;
   avatar_url: string | null;
   playing_position: string | null;
-  tier: string | null;
+  card: PlayerCard | null;
 };
 
 type JoinRequest = {
@@ -128,16 +116,12 @@ export default function TrainingDetailScreen() {
       const map = new Map<string, Person>();
       if (!supabase || ids.length === 0) return map;
       const uniq = Array.from(new Set(ids));
-      const [profilesRes, ratingsRes] = await Promise.all([
+      const [profilesRes, cards] = await Promise.all([
         supabase.from("profiles").select("id,first_name,last_name,username,avatar_url,playing_position").in("id", uniq),
-        supabase.from("player_ratings").select("user_id,tier").in("user_id", uniq),
+        fetchPlayerCards(supabase, uniq),
       ]);
-      const tierById = new Map<string, string | null>();
-      for (const row of (ratingsRes.data ?? []) as Array<{ user_id: string; tier: string | null }>) {
-        tierById.set(row.user_id, row.tier);
-      }
-      for (const row of (profilesRes.data ?? []) as Array<Omit<Person, "tier">>) {
-        map.set(row.id, { ...row, tier: tierById.get(row.id) ?? null });
+      for (const row of (profilesRes.data ?? []) as Array<Omit<Person, "card">>) {
+        map.set(row.id, { ...row, card: cards.get(row.id) ?? null });
       }
       return map;
     },
@@ -295,9 +279,7 @@ export default function TrainingDetailScreen() {
 
   const isHost = post.user_id === myUserId;
   const isEnded = post.status !== "active";
-  const hostTier = host?.tier ?? null;
-  const hostTierC = tierColor(hostTier);
-  const isDiamond = (hostTier ?? "").toLowerCase() === "diamond";
+  const hostCard = host?.card ?? null;
   const spotsOpen = Math.max(0, Math.trunc(Number(post.spots_available ?? 0)));
   const isFull = spotsOpen <= 0;
 
@@ -340,12 +322,12 @@ export default function TrainingDetailScreen() {
 
         {/* Host / person identity */}
         <View style={s.identityRow}>
-          <View style={[s.avatarRing, { borderColor: hostTierC }]}>
+          <View style={s.avatarRing}>
             {host?.avatar_url ? (
               <Image source={{ uri: host.avatar_url }} style={s.avatarImg} />
             ) : (
               <View style={[s.avatarImg, s.avatarFallback]}>
-                <Text style={[s.avatarFallbackText, { color: hostTierC }]}>{initials(personName(host))}</Text>
+                <Text style={s.avatarFallbackText}>{initials(personName(host))}</Text>
               </View>
             )}
           </View>
@@ -353,17 +335,10 @@ export default function TrainingDetailScreen() {
             <Text style={s.hostName} numberOfLines={1}>
               {personName(host)}
             </Text>
-            {hostTier ? (
-              <View style={[s.tierBadge, { borderColor: hostTierC, backgroundColor: `${hostTierC}22` }]}>
-                {isDiamond ? <Text style={[s.tierDiamond, { color: hostTierC }]}>◆ </Text> : null}
-                <Text style={[s.tierBadgeText, { color: hostTierC }]}>
-                  {hostTier.toUpperCase()}
-                  {host?.playing_position ? ` · ${host.playing_position}` : ""}
-                </Text>
-              </View>
-            ) : host?.playing_position ? (
-              <Text style={s.positionText}>{host.playing_position}</Text>
+            {hostCard ? (
+              <StarRating value={hostCard.star} provisional={hostCard.provisional} size="sm" style={s.hostStars} />
             ) : null}
+            {host?.playing_position ? <Text style={s.positionText}>{host.playing_position}</Text> : null}
           </View>
         </View>
 
@@ -458,25 +433,31 @@ export default function TrainingDetailScreen() {
               <View style={{ gap: 8 }}>
                 {pending.map((req) => {
                   const name = personName(req.person);
-                  const t = req.person?.tier ?? null;
-                  const tc = tierColor(t);
+                  const card = req.person?.card ?? null;
+                  const pos = req.person?.playing_position ?? null;
                   return (
                     <View key={req.id} style={s.requestRow}>
-                      <View style={[s.reqAvatar, { borderColor: tc }]}>
+                      <View style={s.reqAvatar}>
                         {req.person?.avatar_url ? (
                           <Image source={{ uri: req.person.avatar_url }} style={s.reqAvatarImg} />
                         ) : (
-                          <Text style={[s.reqAvatarText, { color: tc }]}>{initials(name)}</Text>
+                          <Text style={s.reqAvatarText}>{initials(name)}</Text>
                         )}
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={s.reqName} numberOfLines={1}>
                           {name}
                         </Text>
-                        <Text style={s.reqMeta} numberOfLines={1}>
-                          {t ? t.toUpperCase() : "Unrated"}
-                          {req.person?.playing_position ? ` · ${req.person.playing_position}` : ""}
-                        </Text>
+                        {card || pos ? (
+                          <View style={s.reqMetaRow}>
+                            {card ? <StarRating value={card.star} provisional={card.provisional} size="sm" /> : null}
+                            {pos ? (
+                              <Text style={s.reqMeta} numberOfLines={1}>
+                                {pos}
+                              </Text>
+                            ) : null}
+                          </View>
+                        ) : null}
                       </View>
                       <Pressable
                         onPress={() => void respond(req.id, "declined")}
@@ -504,14 +485,13 @@ export default function TrainingDetailScreen() {
                 <View style={s.card}>
                   {accepted.map((req, i) => {
                     const name = personName(req.person);
-                    const tc = tierColor(req.person?.tier ?? null);
                     return (
                       <View key={req.id} style={[s.attendeeRow, i > 0 && s.attendeeBorder]}>
-                        <View style={[s.reqAvatar, { borderColor: tc, width: 32, height: 32 }]}>
+                        <View style={[s.reqAvatar, { width: 32, height: 32 }]}>
                           {req.person?.avatar_url ? (
                             <Image source={{ uri: req.person.avatar_url }} style={s.reqAvatarImg} />
                           ) : (
-                            <Text style={[s.reqAvatarText, { color: tc, fontSize: 13, fontFamily: "Inter_400Regular" }]}>{initials(name)}</Text>
+                            <Text style={[s.reqAvatarText, { fontSize: 13, fontFamily: "Inter_400Regular" }]}>{initials(name)}</Text>
                           )}
                         </View>
                         <Text style={s.attendeeName}>{name}</Text>
@@ -549,23 +529,12 @@ function make_s() {
   },
   endedBannerText: { color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   identityRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 },
-  avatarRing: { width: 64, height: 64, borderRadius: 999, borderWidth: 2, padding: 4, alignItems: "center", justifyContent: "center" },
+  avatarRing: { width: 64, height: 64, borderRadius: 999, borderWidth: 2, borderColor: themeColor().line, padding: 4, alignItems: "center", justifyContent: "center" },
   avatarImg: { width: "100%", height: "100%", borderRadius: 999 },
   avatarFallback: { backgroundColor: themeColor().overlaySubtle, alignItems: "center", justifyContent: "center" },
-  avatarFallbackText: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
-  hostName: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800",},
-  tierBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    marginTop: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  tierBadgeText: { fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "800",},
-  tierDiamond: { fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  avatarFallbackText: { color: themeColor().muted, fontSize: 20, ...headline },
+  hostName: { color: themeColor().text, fontSize: 24, ...headline, },
+  hostStars: { marginTop: 4 },
   positionText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   card: {
     backgroundColor: themeColor().card,
@@ -581,7 +550,7 @@ function make_s() {
   detailRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
   detailText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", flex: 1 },
   sectionTitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 8 },
-  workingOnText: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "600", lineHeight: 24 },
+  workingOnText: { color: themeColor().text, fontSize: 20, ...headline, lineHeight: 24 },
   notesText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 21 },
   actionBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", marginTop: 4 },
   actionBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
@@ -611,15 +580,17 @@ function make_s() {
     height: 42,
     borderRadius: 999,
     borderWidth: 2,
+    borderColor: themeColor().line,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
     backgroundColor: themeColor().overlaySubtle,
   },
   reqAvatarImg: { width: "100%", height: "100%" },
-  reqAvatarText: { fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  reqAvatarText: { color: themeColor().muted, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   reqName: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
-  reqMeta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
+  reqMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
+  reqMeta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", flexShrink: 1 },
   declineBtn: {
     width: 40,
     height: 40,

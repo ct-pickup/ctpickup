@@ -267,7 +267,13 @@ export default function PickupOperatorClient() {
       const j = await r.json();
       if (!r.ok) {
         console.error("[PickupOperatorClient] POST /api/pickup/switch failed", r.status, j);
-        setMsg(j?.error || "Action failed.");
+        const failures = Array.isArray(j?.failures) ? (j.failures as { name: string | null; error: string }[]) : [];
+        setMsg(
+          failures.length > 0
+            ? [j?.error, ...failures.map((f) => `${f.name ?? "A player"}: ${f.error}`)].filter(Boolean).join(" ")
+            : j?.error || "Action failed.",
+        );
+        if (payload?.action === "cancel_run" && selectedRunId) await loadDetail(selectedRunId);
         return;
       }
       if (payload?.action === "add_slot") {
@@ -297,7 +303,15 @@ export default function PickupOperatorClient() {
       else if (action === "finalize_slot") success = "Time finalized — run is active for RSVP.";
       else if (action === "add_slot") success = "Kickoff slot saved.";
       else if (action === "launch_outreach") success = "Outreach phase marked. For Select runs, invite players from the mobile admin Invite players screen.";
-      else if (action === "cancel_run") success = "Run canceled.";
+      else if (action === "cancel_run") {
+        const refunded = Number(j?.refunded || 0);
+        const credited = Number(j?.credited || 0);
+        success = [
+          "Run canceled. All players have been notified.",
+          refunded ? `${refunded} card refund${refunded === 1 ? "" : "s"} issued.` : "",
+          credited ? `${credited} credit${credited === 1 ? "" : "s"} issued.` : "",
+        ].filter(Boolean).join(" ");
+      }
       else if (action === "start_run_now") success = "Pickup started.";
       setMsg(success);
       await loadOperatorCtx();

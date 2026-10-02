@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
@@ -8,6 +9,12 @@ const VALID_VERIF = ["self", "document", "vouched"];
 const TIER_SCORE: Record<string, number> = {
   bronze: 30, silver: 50, gold: 65, platinum: 82, diamond: 93,
 };
+
+function writeFailed(phase: string, err: unknown) {
+  Sentry.captureException(err);
+  console.error(`[admin/tier POST] ${phase}`, err);
+  return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+}
 
 export async function POST(req: Request) {
   const guard = await requireAdminBearer(req);
@@ -29,10 +36,12 @@ export async function POST(req: Request) {
   if (tier) ratingUpdate.score = TIER_SCORE[tier];
   if (verification) ratingUpdate.verification = verification;
 
-  await admin.from("player_ratings").upsert(ratingUpdate, { onConflict: "user_id" });
+  const rating = await admin.from("player_ratings").upsert(ratingUpdate, { onConflict: "user_id" });
+  if (rating.error) return writeFailed("player_ratings upsert", rating.error);
 
   if (verification) {
-    await admin.from("profiles").update({ verification_level: verification }).eq("id", user_id);
+    const prof = await admin.from("profiles").update({ verification_level: verification }).eq("id", user_id);
+    if (prof.error) return writeFailed("profiles update", prof.error);
   }
 
   return NextResponse.json({ ok: true });

@@ -1,16 +1,16 @@
 import { Platform, StyleSheet } from "react-native";
 
 
-import { themeColor } from "@/theme";
+import { headline, themeColor } from "@/theme";
 function make_accountStyles() {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: themeColor().bg },
   scroll: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 20, paddingBottom: 40 },
   center: { flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center" },
-  title: { fontSize: 40, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text,},
+  title: { fontSize: 40, ...headline, color: themeColor().text,},
   sub: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
-  sectionTitle: { marginTop: 28, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
+  sectionTitle: { marginTop: 28, fontSize: 20, ...headline, color: themeColor().text },
   sectionSub: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   card: {
     marginTop: 12,
@@ -25,7 +25,7 @@ function make_accountStyles() {
     backgroundColor: themeColor().pitchPanel,
   },
   signedLabel: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().pitchText },
-  email: { marginTop: 8, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text },
+  email: { marginTop: 8, fontSize: 20, ...headline, color: themeColor().text },
   signedAssist: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 20 },
   fieldLabel: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
   fieldLabelStrong: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
@@ -59,11 +59,11 @@ function make_accountStyles() {
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().accent,
     backgroundColor: themeColor().pitchPanel,
     alignItems: "center",
   },
-  outlineBtnLimeText: { color: themeColor().onPitchPanel, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
+  outlineBtnLimeText: { color: themeColor().accent, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
   bioHint: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
   zipLabelRow: {
     marginTop: 12,
@@ -138,7 +138,7 @@ function make_accountStyles() {
   statusPillText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
   statusPillTextGreen: { color: themeColor().pitchText },
   statusPillTextAmber: { color: themeColor().muted },
-  referralCode: { marginTop: 8, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().pitchText },
+  referralCode: { marginTop: 8, fontSize: 24, ...headline, color: themeColor().pitchText },
   regionValue: { marginTop: 8, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().text },
   regionMuted: { marginTop: 8, fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 20 },
   regionResolvingRow: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 8 },
@@ -214,7 +214,7 @@ function make_accountStyles() {
     backgroundColor: themeColor().card,
     padding: 20,
   },
-  reviewModalTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
+  reviewModalTitle: { fontSize: 20, ...headline, color: themeColor().text },
   reviewModalSub: { fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted, marginTop: 4, marginBottom: 12 },
   reviewModalInput: {
     borderRadius: 10,

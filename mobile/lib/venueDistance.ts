@@ -30,7 +30,7 @@ const CT_PICKUP_VENUE_COORDS: readonly { venue: string; address: string; lat: nu
   { venue: "New Haven SoccerRoof", address: "1018 Sherman Ave, Hamden, CT", lat: 41.3839, lng: -72.9028 },
 ];
 
-function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
+export function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 3959;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
@@ -42,10 +42,56 @@ function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number):
 }
 
 /** Rough drive minutes from crow-flies miles (fallback only). */
+const ROAD_FACTOR = 1.28;
+const DRIVE_MPH = 42;
+
 function driveMinutesFromStraightLineMiles(mi: number): number {
-  const roadFactor = 1.28;
-  const mph = 42;
-  return Math.max(1, Math.round(((mi * roadFactor) / mph) * 60));
+  return Math.max(1, Math.round(((mi * ROAD_FACTOR) / DRIVE_MPH) * 60));
+}
+
+export type ZipDriveRegion = { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number };
+
+export function zipCentroid(zipCode: string | null | undefined): { latitude: number; longitude: number } | null {
+  const digits = String(zipCode ?? "").replace(/\D/g, "").slice(0, 5);
+  if (digits.length !== 5) return null;
+  const loc = zipcodes.lookup(digits);
+  if (!loc || !Number.isFinite(loc.latitude) || !Number.isFinite(loc.longitude)) return null;
+  return { latitude: loc.latitude, longitude: loc.longitude };
+}
+
+/** USPS state code for a 5-digit ZIP, or null when unknown. */
+export function zipState(zipCode: string | null | undefined): string | null {
+  const digits = String(zipCode ?? "").replace(/\D/g, "").slice(0, 5);
+  if (digits.length !== 5) return null;
+  return normalizeZipState(zipcodes.lookup(digits)?.state);
+}
+
+/** Straight-line miles reachable in `maxDriveMinutes` by road. */
+export function driveRadiusMiles(maxDriveMinutes: number): number {
+  return ((maxDriveMinutes / 60) * DRIVE_MPH) / ROAD_FACTOR;
+}
+
+/** Straight-line miles from a ZIP centroid to a point, or null when either is unknown. */
+export function milesFromZip(
+  zipCode: string | null | undefined,
+  latitude: number | null | undefined,
+  longitude: number | null | undefined,
+): number | null {
+  const loc = zipCentroid(zipCode);
+  if (!loc || latitude == null || longitude == null || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+  return haversineMiles(loc.latitude, loc.longitude, latitude, longitude);
+}
+
+/** Map region centered on a ZIP centroid whose edges sit about `maxDriveMinutes` away by road. */
+export function regionForZipDrive(zipCode: string | null | undefined, maxDriveMinutes: number): ZipDriveRegion | null {
+  const loc = zipCentroid(zipCode);
+  if (!loc) return null;
+  const radiusMiles = driveRadiusMiles(maxDriveMinutes);
+  const latitudeDelta = (radiusMiles * 2) / 69;
+  const longitudeDelta = latitudeDelta / Math.max(0.2, Math.cos((loc.latitude * Math.PI) / 180));
+  return { latitude: loc.latitude, longitude: loc.longitude, latitudeDelta, longitudeDelta };
 }
 
 function stateCodeFromVenueAddress(address: string): string | null {

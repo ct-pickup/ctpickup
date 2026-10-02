@@ -9,12 +9,22 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
+import { StarRating } from "@/components/StarRating";
+import { fetchPlayerCards, type PlayerCard } from "@/lib/starRatings";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 type AttendeeRow = {
   user_id: string;
-  profiles: { display_name: string | null; avatar_url: string | null } | null;
-  player_cards: { tier: string | null } | null;
+  name: string;
+  avatar_url: string | null;
+  card: PlayerCard | null;
+};
+
+type ProfileRow = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
 };
 
 export default function PeerVoteScreen() {
@@ -36,17 +46,40 @@ export default function PeerVoteScreen() {
     void (async () => {
       const { data, error: qErr } = await supabase
         .from("session_attendance")
-        .select("user_id, profiles(display_name, avatar_url), player_cards(tier)")
+        .select("user_id")
         .eq("session_id", sessionId)
         .eq("status", "attended");
 
       if (qErr) {
         setError("Couldn't load the roster. Pull to retry.");
-      } else {
-        setPlayers(
-          ((data ?? []) as unknown as AttendeeRow[]).filter((p) => p.user_id !== me),
-        );
+        setLoading(false);
+        return;
       }
+
+      const ids = ((data ?? []) as { user_id: string }[])
+        .map((r) => r.user_id)
+        .filter((uid) => uid && uid !== me);
+      const [{ data: profRows, error: profErr }, cards] = await Promise.all([
+        ids.length
+          ? supabase.from("profiles").select("id,first_name,last_name,avatar_url").in("id", ids)
+          : Promise.resolve({ data: [] as ProfileRow[], error: null }),
+        fetchPlayerCards(supabase, ids),
+      ]);
+      if (profErr) console.warn("[peer-vote] profiles:", profErr.message);
+
+      const profById = new Map(((profRows ?? []) as ProfileRow[]).map((p) => [p.id, p]));
+      setPlayers(
+        ids.map((uid) => {
+          const p = profById.get(uid);
+          const name = `${p?.first_name ?? ""} ${p?.last_name ?? ""}`.trim();
+          return {
+            user_id: uid,
+            name: name || "Player",
+            avatar_url: p?.avatar_url ?? null,
+            card: cards.get(uid) ?? null,
+          };
+        }),
+      );
       setLoading(false);
     })();
   }, [supabase, me, sessionId]);
@@ -122,12 +155,15 @@ export default function PeerVoteScreen() {
                 </Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.name}>
-                  {item.profiles?.display_name ?? "Player"}
-                </Text>
-                <Text style={s.tier}>
-                  {(item.player_cards?.tier ?? "unrated").toUpperCase()}
-                </Text>
+                <Text style={s.name}>{item.name}</Text>
+                {item.card ? (
+                  <StarRating
+                    value={item.card.star}
+                    provisional={item.card.provisional}
+                    size="sm"
+                    style={s.stars}
+                  />
+                ) : null}
               </View>
             </Pressable>
           );
@@ -154,7 +190,7 @@ function make_s() {
   screen: { flex: 1, backgroundColor: themeColor().card, padding: 20, paddingTop: 56 },
   center: { alignItems: "center", justifyContent: "center" },
   eyebrow: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-  title: { color: themeColor().text, fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", marginTop: 4 },
+  title: { color: themeColor().text, fontSize: 32, ...headline, marginTop: 4 },
   sub: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", marginTop: 8, lineHeight: 20 },
   row: {
     flexDirection: "row",
@@ -179,7 +215,7 @@ function make_s() {
   slotText: { color: themeColor().muted, fontWeight: "700" },
   slotTextPicked: { color: themeColor().onPitch },
   name: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-  tier: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
+  stars: { marginTop: 4 },
   error: { color: themeColor().coralText, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 8 },
   cta: {
     backgroundColor: themeColor().pitch,

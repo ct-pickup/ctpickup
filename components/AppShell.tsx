@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { CancellationPolicyNotice } from "@/components/CancellationPolicyNotice";
 import { SiteFooter } from "@/components/SiteFooter";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -13,6 +14,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <>
       {children}
       <SiteFooter />
+      <CancellationPolicyNotice />
       {!hideHelp ? (
         <Link
           href="/help"

@@ -6,7 +6,7 @@ import { fetchTournamentPublic } from "@/lib/siteApi";
 import { siteOrigin } from "@/lib/env";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useCallback, useEffect, useState } from "react";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -167,8 +167,7 @@ function make_styles() {
   content: { padding: 20, paddingBottom: 36 },
   spinner: { marginTop: 32 },
   headline: {
-    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "800",
+    fontSize: 32, ...headline,
     color: themeColor().text,
     lineHeight: 34,
     marginBottom: 16,
@@ -189,8 +188,7 @@ function make_styles() {
   },
   cardEyebrowNoMb: { marginBottom: 0 },
   tournamentTitle: {
-    fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "700",
+    fontSize: 20, ...headline,
     color: themeColor().text,
     lineHeight: 26,
     marginBottom: 8,
@@ -246,7 +244,7 @@ function make_styles() {
     gap: 8,
     marginBottom: 8,
   },
-  emptyTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text },
+  emptyTitle: { fontSize: 20, ...headline, color: themeColor().text },
   emptyBody: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 },
   errTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().coralText },
   errBody: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },

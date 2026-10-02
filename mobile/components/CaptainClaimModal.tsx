@@ -1,7 +1,7 @@
 import { postTournamentCaptainSubmitClaim, postTournamentConsent } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useEffect, useMemo, useState } from "react";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -617,7 +617,7 @@ function make_styles() {
     fontWeight: "800",
     color: themeColor().pitchText,
   },
-  title: { marginTop: 4, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
+  title: { marginTop: 4, fontSize: 20, ...headline, color: themeColor().text },
   rulesScroll: { flex: 1 },
   rulesContent: { padding: 20, paddingBottom: 32, gap: 8 },
   sectionHeading: {

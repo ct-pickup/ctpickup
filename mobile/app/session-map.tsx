@@ -23,7 +23,9 @@ import { useAuth } from "@/context/AuthContext";
 
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { ChalkEmptyState } from "@/components/chalk";
-import { themeColor, useThemedStyles } from "@/theme";
+import PlayedWithRow, { usePlayedWith } from "@/components/pickup/PlayedWithRow";
+import type { PlayedWithSummary } from "@/lib/matchApi";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 /* ---------------------------------------------------------------- tokens */
 
 function C() {
@@ -361,7 +363,15 @@ function whenLabel(iso: string) {
   return `${format(d, "EEE MMM d")} · ${t}`;
 }
 
-function SessionCard({ session, onPress }: { session: Session; onPress: (s: Session) => void }) {
+function SessionCard({
+  session,
+  playedWith,
+  onPress,
+}: {
+  session: Session;
+  playedWith: PlayedWithSummary | undefined;
+  onPress: (s: Session) => void;
+}) {
   useThemedStyles(publish_styles);
 
   const left = session.capacity - session.spots_taken;
@@ -395,6 +405,7 @@ function SessionCard({ session, onPress }: { session: Session; onPress: (s: Sess
         {venue}
       </Text>
       <Text style={styles.cardWhen}>{whenLabel(session.start_at)}</Text>
+      <PlayedWithRow summary={playedWith} style={styles.cardPlayedWith} />
 
       <View style={styles.cardBottomRow}>
         <Text style={[styles.cardSpots, full && { color: C().muted }]}>
@@ -420,6 +431,7 @@ export default function SessionMapScreen() {
   const [filter, setFilter] = useState<Level | "all">("all");
 
   const { sessions, loading, error, reload } = useSessions(filter);
+  const playedWith = usePlayedWith(sessions.map((s) => s.id)).byRun;
   const trainingPosts = useTrainingPosts();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const mapRef = useRef<MapView>(null);
@@ -692,6 +704,7 @@ export default function SessionMapScreen() {
           renderItem={({ item }) => (
             <SessionCard
               session={item}
+              playedWith={playedWith[item.id]}
               onPress={(s) => router.push(`/session/${encodeURIComponent(s.id)}`)}
             />
           )}
@@ -772,10 +785,10 @@ function make_styles() {
 
   zipModal: { flex: 1, backgroundColor: themeColor().bg, padding: 24 },
   zipModalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 28, paddingTop: 8 },
-  zipModalTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700" },
-  zipModalClose: { color: themeColor().muted, fontSize: 20, fontFamily: "InstrumentSerif_400Regular" },
+  zipModalTitle: { color: themeColor().text, fontSize: 20, ...headline },
+  zipModalClose: { color: themeColor().muted, fontSize: 20, ...headline },
   zipModalLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 8 },
-  zipInput: { backgroundColor: themeColor().overlay, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", paddingHorizontal: 16, paddingVertical: 12, textAlign: "center", marginBottom: 16 },
+  zipInput: { backgroundColor: themeColor().overlay, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, fontSize: 24, ...headline, paddingHorizontal: 16, paddingVertical: 12, textAlign: "center", marginBottom: 16 },
   zipGpsBtn: { backgroundColor: themeColor().overlay, borderRadius: 12, paddingVertical: 16, alignItems: "center", marginBottom: 12, borderWidth: 1, borderColor: themeColor().line },
   zipGpsBtnText: { color: themeColor().text, fontWeight: "600", fontSize: 16, fontFamily: "Inter_600SemiBold" },
   zipSaveBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center" },
@@ -850,8 +863,9 @@ function make_styles() {
   levelDot: { width: 7, height: 7, borderRadius: 10 },
   cardLevel: { color: C().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", flex: 1 },
   cardPrice: { color: C().chalk, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
-  cardVenue: { color: C().chalk, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", marginTop: 8 },
+  cardVenue: { color: C().chalk, fontSize: 20, ...headline, marginTop: 8 },
   cardWhen: { color: C().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
+  cardPlayedWith: { marginTop: 8 },
   cardBottomRow: {
     flexDirection: "row",
     alignItems: "center",

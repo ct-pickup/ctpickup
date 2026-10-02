@@ -1,11 +1,18 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import {
+  LEGAL_POLICY_LAST_UPDATED,
+  PICKUP_CANCELLATION_POLICY_HEADING,
+  PICKUP_CANCELLATION_POLICY_POINTS,
+} from "@/lib/cancellationPolicyCopy";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 type Rule = {
   number: number;
   title: string;
   body: string;
+  bulletsTitle?: string;
+  bullets?: string[];
 };
 
 const RULES: Rule[] = [
@@ -78,8 +85,9 @@ const RULES: Rule[] = [
   {
     number: 12,
     title: "No-Shows and Refunds",
-    body:
-      "Confirmed players who do not show up forfeit their spot and their fee. Cancellations more than 24 hours before the run start are eligible for a refund; cancellations within 24 hours of the start time are not refunded.",
+    body: "Confirmed players who do not show up forfeit their spot and their fee, with no refund or credit.",
+    bulletsTitle: PICKUP_CANCELLATION_POLICY_HEADING,
+    bullets: [...PICKUP_CANCELLATION_POLICY_POINTS],
   },
   {
     number: 13,
@@ -129,6 +137,7 @@ export default function RulesScreen() {
         <Text style={styles.docSubtitle}>
           The standard we play by. Read them. Live them. Protect them.
         </Text>
+        <Text style={styles.lastUpdated}>{LEGAL_POLICY_LAST_UPDATED}</Text>
 
         <View style={styles.list}>
           {RULES.map((rule) => (
@@ -137,6 +146,12 @@ export default function RulesScreen() {
                 {rule.number}. {rule.title}
               </Text>
               <Text style={styles.cardBody}>{rule.body}</Text>
+              {rule.bulletsTitle ? <Text style={styles.bulletsTitle}>{rule.bulletsTitle}</Text> : null}
+              {rule.bullets?.map((b) => (
+                <Text key={b} style={[styles.cardBody, styles.bulletLine]}>
+                  • {b}
+                </Text>
+              ))}
             </View>
           ))}
         </View>
@@ -156,14 +171,18 @@ function make_styles() {
   scrollContent: { paddingHorizontal: 20, paddingTop: 20 },
   docTitle: {
     color: themeColor().text,
-    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "800",
+    fontSize: 32, ...headline,
     marginBottom: 8,
   },
   docSubtitle: {
     color: themeColor().muted,
     fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 20,
+    marginBottom: 4,
+  },
+  lastUpdated: {
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     marginBottom: 24,
   },
   list: { gap: 12 },
@@ -186,6 +205,13 @@ function make_styles() {
     fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 21,
   },
+  bulletsTitle: {
+    color: themeColor().text,
+    fontSize: 14, fontFamily: "Inter_700Bold",
+    fontWeight: "700",
+    marginTop: 12,
+  },
+  bulletLine: { marginTop: 8 },
   closing: {
     marginTop: 28,
     padding: 16,

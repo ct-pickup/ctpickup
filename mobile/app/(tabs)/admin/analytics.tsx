@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { fetchAdminAnalyticsDashboard, type AdminAnalyticsDashboardResponse } from "@/lib/adminApi";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Pressable,
@@ -406,8 +406,8 @@ function make_styles() {
     justifyContent: "center",
     backgroundColor: themeColor().overlaySubtle,
   },
-  monthArrowText: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", marginTop: -2 },
-  monthTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", minWidth: 160, textAlign: "center" },
+  monthArrowText: { color: themeColor().text, fontSize: 24, ...headline, marginTop: -2 },
+  monthTitle: { color: themeColor().text, fontSize: 20, ...headline, minWidth: 160, textAlign: "center" },
   errSubtitle: {
     marginTop: 8,
     paddingHorizontal: 12,
@@ -438,9 +438,9 @@ function make_styles() {
   },
   cardTitle: { color: themeColor().text, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
   muted: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
-  revenueMain: { marginTop: 8, color: themeColor().pitchText, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900" },
+  revenueMain: { marginTop: 8, color: themeColor().pitchText, fontSize: 24, ...headline },
   revenueSub: { marginTop: 8, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
-  attBig: { marginTop: 8, color: themeColor().text, fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900" },
+  attBig: { marginTop: 8, color: themeColor().text, fontSize: 32, ...headline },
   attSub: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
   barRow: { marginTop: 12, gap: 8 },
   barLeft: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },

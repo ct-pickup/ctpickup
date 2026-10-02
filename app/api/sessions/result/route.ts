@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { applyPickupResultWinLossDeltas } from "@/lib/pickup/applyPickupResultWinLoss";
 import { resolvePotdFromVotes } from "@/lib/pickup/resolvePotdFromVotes";
+import { canEditResult, parseResultSubmission, resultSummary } from "@/lib/pickup/resultOutcome";
+import { isNotNullViolation, loadExistingResult, logResultEdit } from "@/lib/results/resultStore";
 import {
   asAwardUserId,
   resolveSessionResultAwards,
@@ -28,7 +30,7 @@ function asUuid(v: unknown): string | null {
   return asAwardUserId(v);
 }
 
-async function bumpAttendedAndSessions(
+async function bumpAttendedAndEnsureRating(
   admin: ReturnType<typeof getSupabaseAdmin>,
   userIds: string[],
   now: string,
@@ -53,36 +55,15 @@ async function bumpAttendedAndSessions(
       });
     }
 
-    const { data: rating } = await admin
+    // settle_session only rates players with a player_ratings row and is the only
+    // writer of player_ratings.sessions (+1 per rated game). Never increment it here.
+    const { error: insErr } = await admin
       .from("player_ratings")
-      .select("sessions")
-      .eq("user_id", user_id)
-      .maybeSingle();
-
-    if (!rating) {
-      const { error: insErr } = await admin.from("player_ratings").upsert(
-        { user_id, sessions: 1, updated_at: now },
-        { onConflict: "user_id", ignoreDuplicates: false },
-      );
-      if (insErr) {
-        console.error("[sessions/result] player_ratings insert failed", {
-          user_id,
-          error: insErr.message,
-        });
-      }
-      continue;
-    }
-
-    const nextSessions = Math.max(0, Number(rating.sessions ?? 0)) + 1;
-    const { error: rateErr } = await admin
-      .from("player_ratings")
-      .update({ sessions: nextSessions, updated_at: now })
-      .eq("user_id", user_id);
-
-    if (rateErr) {
-      console.error("[sessions/result] player_ratings.sessions update failed", {
+      .upsert({ user_id }, { onConflict: "user_id", ignoreDuplicates: true });
+    if (insErr) {
+      console.error("[sessions/result] player_ratings row create failed", {
         user_id,
-        error: rateErr.message,
+        error: insErr.message,
       });
     }
   }
@@ -201,24 +182,9 @@ export async function POST(req: Request) {
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const run_id = String(body.run_id ?? "").trim();
-  const winning_team_raw = String(body.winning_team ?? "").trim().toUpperCase();
-  const awards = resolveSessionResultAwards(body);
-  const {
-    defender_of_day,
-    midfielder_of_day,
-    attacker_of_day,
-    goalie_of_the_day,
-  } = awards;
-  // Host pick is optional tiebreaker only — POTD is resolved from attendee votes.
-  const hostPotdTiebreaker = awards.player_of_day;
-
-  if (!run_id || !winning_team_raw) {
-    return NextResponse.json({ error: "run_id and winning_team required" }, { status: 400 });
+  if (!run_id) {
+    return NextResponse.json({ error: "run_id required" }, { status: 400 });
   }
-  if (!isTeam(winning_team_raw)) {
-    return NextResponse.json({ error: "winning_team must be A, B, or C" }, { status: 400 });
-  }
-  const winning_team = winning_team_raw;
 
   const { data: run } = await admin
     .from("pickup_runs")
@@ -230,12 +196,60 @@ export async function POST(req: Request) {
     .select("is_admin")
     .eq("id", user.id)
     .maybeSingle();
-  if (!run || (run.created_by !== user.id && !prof?.is_admin)) {
+  const isAdmin = prof?.is_admin === true;
+  const isHost = Boolean(run) && run?.created_by === user.id;
+  if (!run || (!isHost && !isAdmin)) {
     return NextResponse.json({ error: "Only the host can record results." }, { status: 403 });
   }
 
-  const potdResolution = await resolvePotdFromVotes(admin, run_id, hostPotdTiebreaker);
+  const existing = await loadExistingResult(admin, run_id);
+  if (existing.error) {
+    return NextResponse.json({ error: existing.error }, { status: 500 });
+  }
+  const oldResult = existing.result;
+  const isFirstResult = !oldResult;
+
+  const parsed = parseResultSubmission(body, 2);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
+  if (parsed.score_a != null && !existing.scoresSupported) {
+    return NextResponse.json(
+      {
+        error: "Scores can't be saved yet. Choose \"Didn't track the score\" and pick the winner.",
+        code: "scores_unavailable",
+      },
+      { status: 409 },
+    );
+  }
+
+  let editorRole: "host" | "admin" = isAdmin ? "admin" : "host";
+  if (oldResult) {
+    const edit = canEditResult({ isAdmin, isHost, postedAt: oldResult.created_at });
+    if (!edit.ok) return NextResponse.json({ error: edit.error }, { status: 403 });
+    editorRole = edit.role;
+  }
+  const { winning_team, score_a, score_b } = parsed;
+
+  // score_only: change the outcome/score and keep the posted awards untouched.
+  const scoreOnly = body.score_only === true && Boolean(oldResult);
+  const awards = scoreOnly
+    ? {
+        player_of_day: asUuid(oldResult?.player_of_day),
+        defender_of_day: asUuid(oldResult?.defender_of_day),
+        midfielder_of_day: asUuid(oldResult?.midfielder_of_day),
+        attacker_of_day: asUuid(oldResult?.attacker_of_day),
+        goalie_of_the_day: asUuid(oldResult?.goalie_of_the_day),
+      }
+    : resolveSessionResultAwards(body);
+  const { defender_of_day, midfielder_of_day, attacker_of_day, goalie_of_the_day } = awards;
+
+  // Host pick is optional tiebreaker only — POTD is resolved from attendee votes.
+  const potdResolution = scoreOnly
+    ? { winnerId: awards.player_of_day, voteCount: 0, totalVotes: 0, tied: false, counts: {} }
+    : await resolvePotdFromVotes(admin, run_id, awards.player_of_day);
   const player_of_day = potdResolution.winnerId;
+  const hostPotdTiebreaker = awards.player_of_day;
 
   console.log("[sessions/result] awards resolved", {
     run_id,
@@ -250,16 +264,6 @@ export async function POST(req: Request) {
   });
 
   const now = new Date().toISOString();
-
-  const { data: oldResult } = await admin
-    .from("pickup_run_results")
-    .select(
-      "winning_team,player_of_day,defender_of_day,midfielder_of_day,attacker_of_day,goalie_of_the_day",
-    )
-    .eq("run_id", run_id)
-    .maybeSingle();
-
-  const isFirstResult = !oldResult;
 
   const { data: assignmentRows } = await admin
     .from("pickup_run_team_assignments")
@@ -285,24 +289,53 @@ export async function POST(req: Request) {
   const oldAttacker = asUuid(oldResult?.attacker_of_day);
   const oldGoalie = asUuid(oldResult?.goalie_of_the_day);
 
+  const newValues = {
+    winning_team,
+    player_of_day: player_of_day ?? null,
+    defender_of_day: defender_of_day ?? null,
+    midfielder_of_day: midfielder_of_day ?? null,
+    attacker_of_day: attacker_of_day ?? null,
+    goalie_of_the_day: goalie_of_the_day ?? null,
+  };
   const { error: upsertErr } = await admin.from("pickup_run_results").upsert(
     {
       run_id,
       total_teams: 2,
-      winning_team,
-      player_of_day: player_of_day ?? null,
-      defender_of_day: defender_of_day ?? null,
-      midfielder_of_day: midfielder_of_day ?? null,
-      attacker_of_day: attacker_of_day ?? null,
-      goalie_of_the_day: goalie_of_the_day ?? null,
+      ...newValues,
+      ...(existing.scoresSupported ? { score_a, score_b } : {}),
       created_by: user.id,
     },
     { onConflict: "run_id" },
   );
 
   if (upsertErr) {
+    if (winning_team == null && isNotNullViolation(upsertErr)) {
+      return NextResponse.json(
+        { error: "Draws can't be saved yet. Pick the winning team for now.", code: "draws_unavailable" },
+        { status: 409 },
+      );
+    }
     console.error("[sessions/result] upsert failed", upsertErr.message);
     return NextResponse.json({ error: upsertErr.message }, { status: 500 });
+  }
+
+  if (oldResult) {
+    await logResultEdit(admin, {
+      run_id,
+      edited_by: user.id,
+      editor_role: editorRole,
+      old_values: {
+        winning_team: oldResult.winning_team,
+        score_a: oldResult.score_a,
+        score_b: oldResult.score_b,
+        player_of_day: oldResult.player_of_day,
+        defender_of_day: oldResult.defender_of_day,
+        midfielder_of_day: oldResult.midfielder_of_day,
+        attacker_of_day: oldResult.attacker_of_day,
+        goalie_of_the_day: oldResult.goalie_of_the_day,
+      },
+      new_values: { ...newValues, score_a, score_b },
+    });
   }
 
   await admin
@@ -360,15 +393,15 @@ export async function POST(req: Request) {
       attendees: attendeeIds.length,
       assigned: assignments.length,
     });
-    await bumpAttendedAndSessions(admin, attendeeIds, now);
+    await bumpAttendedAndEnsureRating(admin, attendeeIds, now);
   }
 
-  // Push: all attendees get the result summary.
-  if (attendeeIds.length > 0) {
+  // Push: all attendees get the result summary once, not on every edit.
+  if (isFirstResult && attendeeIds.length > 0) {
     try {
       await sendPushToUsers(admin, attendeeIds, {
         title: "Session results are in!",
-        body: `Team ${winning_team} won. Check who won the awards.`,
+        body: `${resultSummary({ winning_team, score_a, score_b })} Check who won the awards.`,
         data: {
           kind: "session_result",
           screen: `session/${run_id}`,
@@ -438,6 +471,7 @@ export async function POST(req: Request) {
   return NextResponse.json({
     ok: true,
     first_result: isFirstResult,
+    result: { winning_team, score_a, score_b },
     assigned_players: assignments.length,
     awards: {
       player_of_day,

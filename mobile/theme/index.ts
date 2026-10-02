@@ -4,10 +4,52 @@ import { useColorScheme } from "react-native";
 import {
   darkTheme,
   lightTheme,
+  radius,
   themeForScheme,
   type Theme,
   type ThemeColors,
 } from "@theme/tokens";
+
+/**
+ * Headline face for every serif-style title. Swap this one line to change it,
+ * e.g. { fontFamily: "InstrumentSerif_400Regular" } restores Instrument Serif.
+ * The family file already carries the weight, so styles must not add fontWeight.
+ */
+export const headline = { fontFamily: "Archivo_700Bold", letterSpacing: -0.5 } as const;
+
+/** Season record numeral ("2–1"). */
+export const recordNumeral = { ...headline, fontSize: 40, lineHeight: 44 } as const;
+
+/** Archivo display type for large numerals; tracking tightens with size so big scores stay compact. */
+export function displayNumeral(size: number) {
+  return {
+    fontFamily: headline.fontFamily,
+    fontSize: size,
+    lineHeight: Math.round(size * 0.96),
+    letterSpacing: -Math.round(size * 0.035 * 10) / 10,
+  } as const;
+}
+
+/** Small tracked label for the share card (sentence case, never uppercased). */
+export function trackedLabel(size: number) {
+  return { fontFamily: "Inter_700Bold", fontSize: size, letterSpacing: Math.round(size * 0.06 * 10) / 10 } as const;
+}
+
+/**
+ * Share card palette. The story image is always dark, whatever the app scheme,
+ * so it reads the same on Instagram and in the camera roll.
+ */
+export const shareCardColor = {
+  bg: darkTheme.color.bg,
+  fallbackBg: darkTheme.color.pitchPanel,
+  text: darkTheme.color.onPhoto,
+  muted: "rgba(255,255,255,0.72)",
+  faint: "rgba(255,255,255,0.22)",
+  accent: darkTheme.color.accent,
+  onAccent: darkTheme.color.onAccent,
+  scrim: "#111111",
+  starOff: "rgba(255,255,255,0.28)",
+} as const;
 
 let current: Theme = lightTheme;
 
@@ -46,5 +88,5 @@ export function useThemedStyles(refresh: () => void): void {
   }, [theme, refresh]);
 }
 
-export { darkTheme, lightTheme };
+export { darkTheme, lightTheme, radius };
 export type { Theme, ThemeColors };

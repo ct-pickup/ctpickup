@@ -6,6 +6,11 @@ import {
   SectionEyebrow,
   TopNav,
 } from "@/components/layout";
+import {
+  LEGAL_POLICY_LAST_UPDATED,
+  PICKUP_CANCELLATION_POLICY_HEADING,
+  PICKUP_CANCELLATION_POLICY_POINTS,
+} from "@/lib/fees/refundPolicyCopy";
 const SIDE_VIDEO = "/rules/side.mp4";
 
 export default function RulesPage() {
@@ -23,6 +28,7 @@ export default function RulesPage() {
             <h1 className="mt-4 text-h1 font-serif font-semibold text-ink md:text-display">
               CT Pickup Rules
             </h1>
+            <p className="mt-2 text-small text-muted">{LEGAL_POLICY_LAST_UPDATED}</p>
 
             <div className="mt-8 max-w-[540px] space-y-8 border-l border-line pl-5 text-body leading-relaxed text-ink md:pl-8 md:text-h3 font-serif">
               <p>
@@ -121,11 +127,15 @@ export default function RulesPage() {
 
                 <div>
                   <p className="font-semibold text-ink">12. No-Shows and Refunds (pickups)</p>
+                  <p className="mt-2 font-semibold text-ink">{PICKUP_CANCELLATION_POLICY_HEADING}</p>
+                  <ul className="mt-2 list-disc space-y-2 pl-5">
+                    {PICKUP_CANCELLATION_POLICY_POINTS.map((point) => (
+                      <li key={point}>{point}</li>
+                    ))}
+                  </ul>
                   <p className="mt-2">
-                    Refunds are available if you cancel more than 24 hours before the run&apos;s scheduled start time. If
-                    you cancel within 24 hours of the start time or you no-show, your pickup fee is not refunded. Full
-                    refund if the Organizer cancels the pickup. Verified duplicate or erroneous charges will be corrected.
-                    Spots are limited,
+                    If you no-show, there&apos;s no refund or credit. Verified duplicate or erroneous charges will be
+                    corrected. Spots are limited,
                     and last-minute no-shows prevent other players from joining. No-shows may also affect
                     future eligibility. For tournament fees (in-person captain registration and online
                     esports), see checkout and the{"  "}

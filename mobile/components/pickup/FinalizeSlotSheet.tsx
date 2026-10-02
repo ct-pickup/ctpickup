@@ -5,7 +5,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useMemo, useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 function s(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
@@ -218,7 +218,7 @@ function make_styles() {
     padding: 20,
   },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  sheetTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  sheetTitle: { color: themeColor().text, fontSize: 20, ...headline },
   subtitle: { color: themeColor().muted, lineHeight: 20, marginBottom: 12, fontSize: 13, fontFamily: "Inter_400Regular" },
   hint: { color: themeColor().muted, lineHeight: 20, marginBottom: 12 },
   slotList: { maxHeight: 340, marginBottom: 12 },

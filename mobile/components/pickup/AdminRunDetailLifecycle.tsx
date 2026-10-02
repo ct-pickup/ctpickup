@@ -4,12 +4,12 @@ import RunLifecycleActions, { type RunLifecycleAction } from "@/components/picku
 import TeamAssignmentSheet from "@/components/pickup/TeamAssignmentSheet";
 import {
   postAdminAssignPickupTeams,
-  postAdminCancelRun,
   postAdminPickupSwitch,
   postAdminSetHubPickup,
   type PickupSwitchDetailResponse,
 } from "@/lib/adminApi";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
+import { confirmAdminCancelRun } from "@/lib/pickup/adminCancelRun";
 import { isPublicPickupRunType } from "@/lib/pickupRunType";
 import type { PickupTeam } from "@/lib/pickupTeamBalance";
 import type { useRouter } from "expo-router";
@@ -239,36 +239,9 @@ export default function AdminRunDetailLifecycle({
     await onRefresh();
   }
 
-  async function onCancelRun() {
+  function onCancelRun() {
     if (!token || !runId) return;
-    Alert.alert(
-      "Cancel run?",
-      "Paid players receive a full run credit (valid 3 months). No Stripe refunds are issued.",
-      [
-        { text: "Keep run", style: "cancel" },
-        {
-          text: "Cancel run",
-          style: "destructive",
-          onPress: () => {
-            void (async () => {
-              setActionBusy(true);
-              const r = await postAdminCancelRun(token, {
-                run_id: runId,
-                reason: "Canceled from mobile admin",
-              });
-              setActionBusy(false);
-              if (!r.ok) {
-                Alert.alert("Could not cancel", r.error);
-                return;
-              }
-              void hapticTap();
-              onCloseDetail();
-              await onRefresh();
-            })();
-          },
-        },
-      ],
-    );
+    confirmAdminCancelRun({ token, runId, setActionBusy, onCancelled: onCloseDetail, onRefresh });
   }
 
   function onLifecycleAction(action: RunLifecycleAction) {

@@ -19,7 +19,7 @@ import { ANNOUNCEMENTS_CHAT_SLUG, isAdminDmGroupSlug } from "@/lib/teamChat";
 import { useFocusEffect } from "expo-router/react-navigation";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -773,8 +773,7 @@ function make_styles() {
     marginBottom: 20,
   },
   title: {
-    fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "800",
+    fontSize: 20, ...headline,
     color: themeColor().text,
     textAlign: "center",
     marginBottom: 12,
@@ -943,7 +942,7 @@ function make_styles() {
     gap: 4,
   },
   reactionPickerEmojiBtn: { paddingHorizontal: 4, paddingVertical: 4 },
-  reactionPickerEmoji: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", lineHeight: 32 },
+  reactionPickerEmoji: { fontSize: 24, ...headline, lineHeight: 32 },
   reactionPickerMoreBtn: { paddingHorizontal: 8, paddingVertical: 4 },
   reactionPillsRow: {
     flexDirection: "row",

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 type Props = {
   value: string;
   onChange: (iso: string) => void;
@@ -588,8 +588,7 @@ function make_styles() {
   scroll: { flex: 1 },
   preview: {
     color: themeColor().pitchText,
-    fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "900",
+    fontSize: 20, ...headline,
     textAlign: "center",
     marginTop: 16,
     marginBottom: 8,

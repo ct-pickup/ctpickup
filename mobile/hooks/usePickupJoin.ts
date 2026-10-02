@@ -15,7 +15,7 @@ function confirmCancellationPolicy(): Promise<boolean> {
   return new Promise((resolve) => {
     Alert.alert(
       "Cancellation Policy",
-      "If this run is cancelled, you will receive a credit for the exact amount you paid, valid for 3 months — no fees deducted.",
+      "If the host or CT Pickup cancels this run, what you paid by card is refunded to your card and any credit you used comes back as a credit. If you cancel more than 24 hours before kickoff, what you paid becomes a credit.",
       [
         {
           text: "OK",
@@ -336,17 +336,22 @@ export function usePickupJoin() {
       }
       if (!id) return;
 
-      const refundEligible = pickupPlayerRefundEligibleClient(run ?? {});
-      const title = "Cancel your spot?";
-      const message = refundEligible
-        ? "You will receive a full refund since you are canceling more than 24 hours before the run."
-        : "The 24-hour cancellation window has passed. You will not receive a refund.";
-      const proceedLabel = refundEligible ? "Cancel & get refund" : "Cancel spot";
+      const preview = await postPickupRsvp(accessToken, id, "decline", { preview: true }).catch(() => null);
+      const previewJson = (preview?.json ?? {}) as { preview?: { message?: unknown }; error?: unknown };
+      if (preview && !preview.ok) {
+        void hapticError();
+        Alert.alert("Could not cancel", typeof previewJson.error === "string" ? previewJson.error : `Could not cancel spot (${preview.status}).`);
+        return;
+      }
+      const fallback = pickupPlayerRefundEligibleClient(run ?? {})
+        ? "Canceling more than 24 hours before kickoff gives back what you paid, as a refund or credit depending on when you paid. Within 24 hours: no refund or credit."
+        : "No refund or credit applies within 24 hours of kickoff.";
+      const message = typeof previewJson.preview?.message === "string" ? previewJson.preview.message : fallback;
 
-      Alert.alert(title, message, [
+      Alert.alert("Cancel your spot?", message, [
         { text: "Keep my spot", style: "cancel" },
         {
-          text: proceedLabel,
+          text: "Cancel spot",
           style: "destructive",
           onPress: () => {
             void (async () => {
@@ -356,6 +361,7 @@ export function usePickupJoin() {
                 const j = r.json as Record<string, unknown>;
                 if (r.ok) {
                   await reload();
+                  if (typeof j.message === "string") Alert.alert("Spot cancelled", j.message);
                   return;
                 }
                 const msg = typeof j.error === "string" ? j.error : `Could not cancel spot (${r.status}).`;

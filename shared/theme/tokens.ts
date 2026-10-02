@@ -11,6 +11,8 @@ export const palette = {
   inkCard: "#1A1A1A",
   pitch: "#1F4D3A",
   pitchSoft: "#E3ECE6",
+  /** Dark mode accent only. Never on light surfaces. */
+  pitchBright: "#6FD3A0",
   coral: "#FF6B4A",
   coralDeep: "#B33A1E",
   pitchPanelDark: "#1C2E25",
@@ -72,6 +74,10 @@ export type ThemeColors = {
   /** Pitch used as text or icon color. Pitch in light; pitch-soft in dark so it stays readable on ink. */
   pitchText: string;
   pitchSoft: string;
+  /** Interactive accent: + button, outline buttons, links, active tab, Open dot. Pitch in light; pitchBright in dark. */
+  accent: string;
+  /** Text and icons on an accent fill. Paper in light; ink in dark. */
+  onAccent: string;
   /** Tinted panel surface. Pitch-soft in light; deep green in dark so it does not glow. */
   pitchPanel: string;
   /** Text and icons on a pitchPanel surface. */
@@ -101,6 +107,8 @@ export const lightColor: ThemeColors = {
   pitch: palette.pitch,
   pitchText: palette.pitch,
   pitchSoft: palette.pitchSoft,
+  accent: palette.pitch,
+  onAccent: palette.paper,
   pitchPanel: palette.pitchSoft,
   onPitchPanel: palette.pitch,
   coral: palette.coral,
@@ -123,6 +131,8 @@ export const darkColor: ThemeColors = {
   pitch: palette.pitch,
   pitchText: palette.pitchSoft,
   pitchSoft: palette.pitchSoft,
+  accent: palette.pitchBright,
+  onAccent: palette.ink,
   pitchPanel: palette.pitchPanelDark,
   onPitchPanel: palette.onPitchPanelDark,
   coral: palette.coral,

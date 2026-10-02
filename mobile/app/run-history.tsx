@@ -1,10 +1,11 @@
 import { useAuth } from "@/context/AuthContext";
+import { fetchMyRecord, winPercent, type PlayerRecord } from "@/lib/playerRecord";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from "react-native";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 type Team = "A" | "B" | "C";
 
 type AwardSlot = "player" | "goalie" | "attacker" | "midfielder" | "defender";
@@ -24,6 +25,9 @@ type HistoryRow = {
   start_at: string | null;
   venue_label: string | null;
   winning_team: Team | null;
+  has_result: boolean;
+  outcome: "W" | "D" | "L" | null;
+  score_line: string | null;
   /** Full lines like "🏆 Player of the Day" for awards the viewer won */
   myAwardLines: string[];
 };
@@ -90,6 +94,8 @@ export default function RunHistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [rows, setRows] = useState<HistoryRow[]>([]);
+  const [record, setRecord] = useState<PlayerRecord | null>(null);
+  const accessToken = session?.access_token ?? null;
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -258,6 +264,10 @@ export default function RunHistoryScreen() {
         }
       }
 
+      const myRecord = accessToken ? await fetchMyRecord(accessToken) : null;
+      if (cancelled) return;
+      const logByRun = new Map((myRecord?.log ?? []).map((g) => [g.run_id, g]));
+
       const out: HistoryRow[] = runIdsOrdered.map((run_id) => {
         const run = runsById.get(run_id) ?? null;
         const res = resultsByRunId.get(run_id) ?? null;
@@ -285,32 +295,34 @@ export default function RunHistoryScreen() {
           start_at: run?.start_at ?? null,
           venue_label: run?.venue_label ?? null,
           winning_team: (res?.winning_team ?? null) as Team | null,
+          has_result: res != null,
+          outcome: logByRun.get(run_id)?.outcome ?? null,
+          score_line: logByRun.get(run_id)?.score ?? null,
           myAwardLines,
         };
       });
 
       out.sort((a, b) => (s(b.start_at) || "0").localeCompare(s(a.start_at) || "0"));
       setRows(out);
+      setRecord(myRecord);
       setLoading(false);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [isReady, supabase, tokenUserId]);
+  }, [isReady, supabase, tokenUserId, accessToken]);
 
-  const stats = useMemo(() => {
-    let wins = 0;
-    let losses = 0;
-    for (const r of rows) {
-      if (r.winning_team == null || r.team == null) continue;
-      if (r.team === r.winning_team) wins++;
-      else losses++;
-    }
-    const decided = wins + losses;
-    const winRatePct = decided > 0 ? Math.round((wins / decided) * 100) : null;
-    return { total: rows.length, wins, losses, winRatePct };
-  }, [rows]);
+  const stats = useMemo(
+    () => ({
+      games: record?.games ?? 0,
+      wins: record?.wins ?? 0,
+      draws: record?.draws ?? 0,
+      losses: record?.losses ?? 0,
+      winRatePct: winPercent(record),
+    }),
+    [record],
+  );
 
   const empty = useMemo(() => !loading && !err && rows.length === 0, [loading, err, rows.length]);
 
@@ -340,13 +352,19 @@ export default function RunHistoryScreen() {
           <Text style={styles.statsTitle}>Summary</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statCell}>
-              <Text style={styles.statValue}>{stats.total}</Text>
-              <Text style={styles.statLabel}>Sessions</Text>
+              <Text style={styles.statValue}>{stats.games}</Text>
+              <Text style={styles.statLabel}>Games</Text>
             </View>
             <View style={styles.statCell}>
               <Text style={[styles.statValue, { color: themeColor().pitchText }]}>{stats.wins}</Text>
               <Text style={styles.statLabel}>Wins</Text>
             </View>
+            {stats.draws > 0 ? (
+              <View style={styles.statCell}>
+                <Text style={styles.statValue}>{stats.draws}</Text>
+                <Text style={styles.statLabel}>Draws</Text>
+              </View>
+            ) : null}
             <View style={styles.statCell}>
               <Text style={[styles.statValue, { color: themeColor().text }]}>{stats.losses}</Text>
               <Text style={styles.statLabel}>Losses</Text>
@@ -359,7 +377,7 @@ export default function RunHistoryScreen() {
             </View>
           </View>
           <Text style={styles.statsFoot}>
-            Win rate uses games with a posted result and a team assignment for you.
+            Games count every posted result you played in, including draws. Win rate is wins divided by games.
           </Text>
         </View>
       ) : null}
@@ -368,23 +386,24 @@ export default function RunHistoryScreen() {
 
       <View style={styles.list}>
         {rows.map((r) => {
-          const hasResult = r.winning_team != null;
-          const canScore = hasResult && r.team != null;
-          const won = canScore ? r.team === r.winning_team : null;
+          const score = r.score_line ? ` ${r.score_line}` : "";
 
           let resultLabel: string;
           let resultExtraStyle: TextStyle;
-          if (!hasResult) {
+          if (!r.has_result) {
             resultLabel = "Result pending";
             resultExtraStyle = styles.resultPending;
-          } else if (r.team == null) {
-            resultLabel = "—";
-            resultExtraStyle = styles.resultLoss;
-          } else if (won) {
-            resultLabel = "Win 🏆";
+          } else if (r.outcome === "W") {
+            resultLabel = `Win${score} 🏆`;
             resultExtraStyle = styles.resultWin;
+          } else if (r.outcome === "D") {
+            resultLabel = `Draw${score}`;
+            resultExtraStyle = styles.resultPending;
+          } else if (r.outcome === "L") {
+            resultLabel = `Loss${score}`;
+            resultExtraStyle = styles.resultLoss;
           } else {
-            resultLabel = "Loss";
+            resultLabel = "—";
             resultExtraStyle = styles.resultLoss;
           }
 
@@ -440,7 +459,7 @@ function make_styles() {
   center: { flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center", padding: 24 },
   errText: { color: themeColor().coralText, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center" },
 
-  h1: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().text },
+  h1: { fontSize: 24, ...headline, color: themeColor().text },
   sub: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
 
   statsCard: {
@@ -454,7 +473,7 @@ function make_styles() {
   statsTitle: { color: themeColor().text, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 12 },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   statCell: { flexGrow: 1, minWidth: "42%", paddingVertical: 4 },
-  statValue: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900" },
+  statValue: { color: themeColor().text, fontSize: 24, ...headline },
   statLabel: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   statsFoot: { marginTop: 12, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 17 },
 

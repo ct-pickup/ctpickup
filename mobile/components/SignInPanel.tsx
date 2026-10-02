@@ -15,7 +15,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -826,8 +826,7 @@ function make_styles() {
     borderRadius: 12,
   },
   brandTitle: {
-    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "900",
+    fontSize: 32, ...headline,
     color: themeColor().text,
   },
   brandTagline: {
@@ -836,7 +835,7 @@ function make_styles() {
     color: themeColor().muted,
     textAlign: "center",
   },
-  sectionTitle: { marginTop: 28, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text },
+  sectionTitle: { marginTop: 28, fontSize: 20, ...headline, color: themeColor().text },
   sectionAboveAuth: { marginTop: 20 },
   segmentRow: {
     flexDirection: "row",
@@ -921,7 +920,7 @@ function make_styles() {
     marginTop: 20,
     padding: 20,
     paddingLeft: 24,
-    borderRadius: 999,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: themeColor().line,
     borderLeftWidth: 4,
@@ -931,7 +930,7 @@ function make_styles() {
   cardPremium: {
     padding: 24,
     paddingLeft: 28,
-    borderRadius: 999,
+    borderRadius: radius.card,
     borderColor: themeColor().line,
     backgroundColor: themeColor().card,
   },

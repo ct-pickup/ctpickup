@@ -21,7 +21,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 type ReliabilityFilter = "all" | "good" | "building" | "below";
 type ManualOverride = "" | "good" | "warning" | "suspended" | "banned";
 
@@ -503,7 +503,7 @@ function make_styles() {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 16, paddingBottom: 40 },
-  h1: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
+  h1: { fontSize: 32, ...headline, color: themeColor().text },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
   intro: { marginTop: 8, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   chip: {
@@ -606,7 +606,7 @@ function make_styles() {
   modalGrabRow: { alignItems: "center", paddingVertical: 4 },
   modalGrab: { width: 40, height: 4, borderRadius: 999, backgroundColor: themeColor().overlayStrong },
   modalHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 8 },
-  modalTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
+  modalTitle: { fontSize: 20, ...headline, color: themeColor().text },
   modalSub: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
   closeBtn: {
     width: 36,
@@ -618,7 +618,7 @@ function make_styles() {
     justifyContent: "center",
     backgroundColor: themeColor().overlaySubtle,
   },
-  closeBtnText: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", lineHeight: 24, fontWeight: "700" },
+  closeBtnText: { color: themeColor().text, fontSize: 24, ...headline, lineHeight: 24 },
   modalSection: { marginTop: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: themeColor().line },
   sectionTitle: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text,},
 

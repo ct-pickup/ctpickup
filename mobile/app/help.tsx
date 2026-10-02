@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 const WORD_LIMIT = 50;
 const SUPPORT_EMAIL = "pickupct@gmail.com";
 const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}`;
@@ -343,8 +343,7 @@ function make_styles() {
   title: {
     flex: 1,
     flexShrink: 1,
-    fontSize: 24, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "800",
+    fontSize: 24, ...headline,
     color: themeColor().text,
   },
   aiBadge: {
@@ -423,11 +422,10 @@ function make_styles() {
     paddingVertical: 4,
   },
   dot: {
-    fontSize: 24, fontFamily: "InstrumentSerif_400Regular",
+    fontSize: 24, ...headline,
     lineHeight: 22,
     color: themeColor().pitchText,
-    fontWeight: "900",
-  },
+    },
   composer: {
     paddingHorizontal: 20,
     paddingTop: 12,

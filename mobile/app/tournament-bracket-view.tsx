@@ -9,7 +9,7 @@ import { siteOrigin } from "@/lib/env";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -696,7 +696,7 @@ function make_styles() {
   },
   tabText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", textAlign: "center" },
   tabTextActive: { color: themeColor().text },
-  title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  title: { color: themeColor().text, fontSize: 24, ...headline },
   sub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4, marginBottom: 16 },
   muted: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   err: { color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20, marginBottom: 12 },
@@ -756,7 +756,7 @@ function make_styles() {
     borderColor: themeColor().line,
     maxHeight: "72%",
   },
-  mvpModalTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginBottom: 4 },
+  mvpModalTitle: { color: themeColor().text, fontSize: 20, ...headline, marginBottom: 4 },
   mvpModalHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 12 },
   mvpModalList: { maxHeight: 320, marginBottom: 12 },
   mvpNameRow: {

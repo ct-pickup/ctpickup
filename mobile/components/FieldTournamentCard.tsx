@@ -5,7 +5,7 @@ import { formatTournamentStartDisplay } from "@/lib/formatTournament";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 function tournamentStatusLabel(payload: FieldTournamentPayload): string {
   if (payload.full) return "Full";
   if (payload.official) return "Official";
@@ -191,7 +191,7 @@ function make_styles() {
     fontWeight: "800",
     color: themeColor().text,
   },
-  title: { flex: 1, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text, lineHeight: 24, minWidth: 0 },
+  title: { flex: 1, fontSize: 20, ...headline, color: themeColor().text, lineHeight: 24, minWidth: 0 },
   meta: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 20 },
   when: { marginTop: 4, fontSize: 14, fontFamily: "Inter_600SemiBold", color: themeColor().text, lineHeight: 20, fontWeight: "600" },
   announce: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 21 },

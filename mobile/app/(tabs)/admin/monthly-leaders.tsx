@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 function winnerLabel(reason: string, discountPct: number | null): string {
   if (reason === "monthly_pod") return "POD winner · Free run";
   if (reason === "monthly_attendance") {
@@ -203,7 +203,7 @@ function make_styles() {
     paddingRight: 8,
   },
   backBtnText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-  topTitle: { flex: 1, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
+  topTitle: { flex: 1, fontSize: 24, ...headline, color: themeColor().text },
   scroll: { flex: 1 },
   content: { padding: 16, paddingBottom: 40, gap: 12 },
   err: { color: themeColor().coralText, lineHeight: 20, marginBottom: 8 },

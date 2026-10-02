@@ -71,6 +71,31 @@ export function fmtPickupSlotChipEt(iso: string | null | undefined): string {
   }
 }
 
+/** Eastern kickoff time only: "7:30 PM". */
+export function fmtPickupTimeEt(iso: string | null | undefined): string {
+  if (!iso) return "Time TBD";
+  try {
+    return new Date(iso).toLocaleString("en-US", {
+      timeZone: "America/New_York",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return "Time TBD";
+  }
+}
+
+/** Current hour (0 to 23) in Eastern time. */
+export function currentHourEt(): number {
+  const hour = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "numeric",
+    hourCycle: "h23",
+  }).format(new Date());
+  const n = Number(hour);
+  return Number.isFinite(n) ? n : new Date().getHours();
+}
+
 export function isPickupRunTimeTbd(
   status: string | null | undefined,
   finalSlotId: string | null | undefined,

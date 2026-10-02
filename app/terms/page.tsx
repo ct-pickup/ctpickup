@@ -8,6 +8,11 @@ import {
   TopNav,
 } from "@/components/layout";
 import { SupportEmailLink } from "@/components/SupportEmailLink";
+import {
+  LEGAL_POLICY_LAST_UPDATED,
+  PICKUP_CANCELLATION_POLICY_HEADING,
+  PICKUP_CANCELLATION_POLICY_POINTS,
+} from "@/lib/fees/refundPolicyCopy";
 
 export const metadata: Metadata = {
   title: "Terms of Service | CT Pickup",
@@ -32,6 +37,7 @@ export default function TermsPage() {
       <h1 className="mt-6 text-h1 font-serif font-semibold text-ink md:text-display">
         Terms of Service
       </h1>
+      <p className="mt-2 text-small text-muted">{LEGAL_POLICY_LAST_UPDATED}</p>
       <Panel className="mt-6 p-6 md:p-8">
         <div className="space-y-8 text-small leading-relaxed text-muted md:text-body">
           <section>
@@ -114,6 +120,12 @@ export default function TermsPage() {
               eligibility is determined by the cancellation policy displayed at the time of
               payment. CT Pickup reserves the right to modify pricing at any time.
             </p>
+            <h3 className="mt-4 font-semibold text-ink">{PICKUP_CANCELLATION_POLICY_HEADING}</h3>
+            <ul className="mt-3 list-disc space-y-2 pl-5">
+              {PICKUP_CANCELLATION_POLICY_POINTS.map((point) => (
+                <li key={point}>{point}</li>
+              ))}
+            </ul>
           </section>
 
           <section>

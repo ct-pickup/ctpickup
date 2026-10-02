@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import PageTop from "@/components/PageTop";
+import { SCORE_MAX, SCORE_MIN, winnerFromScore } from "@/lib/pickup/resultOutcome";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
@@ -25,7 +26,10 @@ export default function RunResultClient({ runId }: { runId: string }) {
   const [confirmed, setConfirmed] = useState<ConfirmedRow[]>([]);
 
   const [totalTeams, setTotalTeams] = useState<2 | 3>(2);
-  const [winningTeam, setWinningTeam] = useState<Team>("A");
+  const [winningTeam, setWinningTeam] = useState<Team | "draw">("A");
+  const [tracked, setTracked] = useState(true);
+  const [scoreA, setScoreA] = useState("");
+  const [scoreB, setScoreB] = useState("");
   const [teamByUser, setTeamByUser] = useState<Record<string, Team>>({});
 
   const [playerOfDay, setPlayerOfDay] = useState<string>("");
@@ -96,7 +100,14 @@ export default function RunResultClient({ runId }: { runId: string }) {
 
   const allowedTeams = useMemo<Team[]>(() => (totalTeams === 3 ? ["A", "B", "C"] : ["A", "B"]), [totalTeams]);
 
-  const winningTeamEffective = allowedTeams.includes(winningTeam) ? winningTeam : "A";
+  const canScore = totalTeams === 2;
+  const useScore = canScore && tracked;
+  const winningTeamEffective: Team | "draw" =
+    winningTeam === "draw" ? (canScore ? "draw" : "A") : allowedTeams.includes(winningTeam) ? winningTeam : "A";
+  const parsedA = /^\d{1,2}$/.test(scoreA.trim()) ? Number(scoreA) : NaN;
+  const parsedB = /^\d{1,2}$/.test(scoreB.trim()) ? Number(scoreB) : NaN;
+  const scoreValid = [parsedA, parsedB].every((n) => Number.isInteger(n) && n >= SCORE_MIN && n <= SCORE_MAX);
+  const scoreWinner = scoreValid ? winnerFromScore(parsedA, parsedB) : undefined;
 
   const filledAssignments = useMemo(() => {
     return confirmed
@@ -126,14 +137,24 @@ export default function RunResultClient({ runId }: { runId: string }) {
       return;
     }
 
+    if (useScore && !scoreValid) {
+      setMsg(`Enter both scores (${SCORE_MIN} to ${SCORE_MAX}), or tick "Didn't track the score".`);
+      return;
+    }
+
     setSubmitting(true);
+    const outcomeFields = useScore
+      ? { score_a: parsedA, score_b: parsedB }
+      : winningTeamEffective === "draw"
+        ? { outcome: "draw" }
+        : { winning_team: winningTeamEffective };
     const r = await fetch("/api/admin/pickup/result", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         run_id: runId,
         total_teams: totalTeams,
-        winning_team: winningTeamEffective,
+        ...outcomeFields,
         team_assignments: filledAssignments,
         player_of_day: playerOfDay || null,
         goalie_of_the_day: goalieOfTheDay || null,
@@ -240,18 +261,61 @@ export default function RunResultClient({ runId }: { runId: string }) {
         </section>
 
         <section className="space-y-2">
-          <label className="text-caption font-semibold text-muted">Winning team</label>
-          <select
-            value={winningTeamEffective}
-            onChange={(e) => setWinningTeam(e.target.value as Team)}
-            className="w-full rounded-card border border-line bg-card px-4 py-3 text-small text-ink"
-          >
-            {allowedTeams.map((t) => (
-              <option key={t} value={t}>
-                Team {t}
-              </option>
-            ))}
-          </select>
+          {useScore ? (
+            <>
+              <p className="text-caption font-semibold text-muted">Final score</p>
+              <div className="flex gap-3">
+                {(
+                  [
+                    ["A", scoreA, setScoreA],
+                    ["B", scoreB, setScoreB],
+                  ] as const
+                ).map(([team, val, setVal]) => (
+                  <label key={team} className="flex-1 space-y-1">
+                    <span className="text-caption font-semibold text-muted">Team {team}</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={SCORE_MIN}
+                      max={SCORE_MAX}
+                      value={val}
+                      onChange={(e) => setVal(e.target.value.replace(/[^0-9]/g, "").slice(0, 2))}
+                      className="w-full rounded-card border border-line bg-card px-4 py-3 text-center text-small text-ink"
+                    />
+                  </label>
+                ))}
+              </div>
+              <p className="text-caption text-muted">
+                {scoreWinner === undefined
+                  ? `Scores from ${SCORE_MIN} to ${SCORE_MAX}. The higher score wins; equal is a draw.`
+                  : scoreWinner
+                    ? `Team ${scoreWinner} wins`
+                    : "Draw"}
+              </p>
+            </>
+          ) : (
+            <>
+              <label className="text-caption font-semibold text-muted">Winning team</label>
+              <select
+                value={winningTeamEffective}
+                onChange={(e) => setWinningTeam(e.target.value as Team | "draw")}
+                className="w-full rounded-card border border-line bg-card px-4 py-3 text-small text-ink"
+              >
+                {allowedTeams.map((t) => (
+                  <option key={t} value={t}>
+                    Team {t}
+                  </option>
+                ))}
+                {canScore ? <option value="draw">Draw</option> : null}
+              </select>
+            </>
+          )}
+          {canScore ? (
+            <label className="flex items-center gap-2 text-small text-ink">
+              <input type="checkbox" checked={!tracked} onChange={(e) => setTracked(!e.target.checked)} />
+              Didn&apos;t track the score
+            </label>
+          ) : null}
         </section>
 
         <section className="space-y-3">

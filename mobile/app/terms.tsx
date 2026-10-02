@@ -1,7 +1,12 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import {
+  LEGAL_POLICY_LAST_UPDATED,
+  PICKUP_CANCELLATION_POLICY_HEADING,
+  PICKUP_CANCELLATION_POLICY_POINTS,
+} from "@/lib/cancellationPolicyCopy";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 const SUPPORT_EMAIL = "pickupct@gmail.com";
 
 type TermSection = {
@@ -59,6 +64,10 @@ const TERMS_SECTIONS: TermSection[] = [
       "All pickup run and tournament fees are processed securely through Stripe. Refund eligibility is determined by the cancellation policy displayed at the time of payment. CT Pickup reserves the right to modify pricing at any time.",
       "Referral credits have no cash value and are non-transferable.",
     ],
+  },
+  {
+    title: PICKUP_CANCELLATION_POLICY_HEADING,
+    bullets: [...PICKUP_CANCELLATION_POLICY_POINTS],
   },
   {
     title: "Referral Credits",
@@ -124,6 +133,7 @@ export default function TermsOfServiceScreen() {
         <Text style={styles.docSubtitle}>
           Rules and conditions for using the CT Pickup platform.
         </Text>
+        <Text style={styles.lastUpdated}>{LEGAL_POLICY_LAST_UPDATED}</Text>
 
         <View style={styles.list}>
           {TERMS_SECTIONS.map((s) => (
@@ -156,14 +166,18 @@ function make_styles() {
   scrollContent: { paddingHorizontal: 20, paddingTop: 20 },
   docTitle: {
     color: themeColor().text,
-    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "800",
+    fontSize: 32, ...headline,
     marginBottom: 8,
   },
   docSubtitle: {
     color: themeColor().muted,
     fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 20,
+    marginBottom: 4,
+  },
+  lastUpdated: {
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     marginBottom: 24,
   },
   list: { gap: 12 },
