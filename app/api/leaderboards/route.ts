@@ -283,9 +283,7 @@ async function fetchTournamentGoalNameCounts(admin: SupabaseClient): Promise<Map
 type TierLeaderboardRow = {
   user_id: string;
   tier: string;
-  score: number;
   sessions: number;
-  reliability: number;
   first_name: string | null;
   last_name: string | null;
   username: string | null;
@@ -318,7 +316,7 @@ async function fetchTierLeaderboard(
 ): Promise<TierLeaderboardRow[]> {
   const { data: ratings, error } = await admin
     .from("player_ratings")
-    .select("user_id,tier,score,sessions,reliability")
+    .select("user_id,tier,sessions")
     .order("score", { ascending: false })
     .limit(253);
 
@@ -330,9 +328,7 @@ async function fetchTierLeaderboard(
   const ratingRows = (ratings ?? []) as Array<{
     user_id: string;
     tier: string | null;
-    score: number | null;
     sessions: number | null;
-    reliability: number | null;
   }>;
   console.log(`[api/${ROUTE}] category=tiers ratings`, { count: ratingRows.length });
 
@@ -380,9 +376,7 @@ async function fetchTierLeaderboard(
     out.push({
       user_id: r.user_id,
       tier: (r.tier ?? "bronze").toLowerCase(),
-      score: r.score ?? 50,
       sessions: r.sessions ?? 0,
-      reliability: r.reliability ?? 0,
       first_name: p?.first_name ?? null,
       last_name: p?.last_name ?? null,
       username: p?.username ?? null,

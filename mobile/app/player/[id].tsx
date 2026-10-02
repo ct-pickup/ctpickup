@@ -640,7 +640,7 @@ export default function PlayerProfileScreen() {
     })();
   }
 
-  const verified = !!profile.verification && profile.verification !== "self";
+  const verified = !!profile.verification_level && profile.verification_level !== "self";
   const isDiamond = (profile.tier ?? "").toLowerCase() === "diamond";
   const tColor = tierColor(profile.tier);
 

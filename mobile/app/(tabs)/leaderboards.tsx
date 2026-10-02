@@ -79,9 +79,7 @@ type LeaderboardsPayload = {
 type TierPlayer = {
   user_id: string;
   tier: string;
-  score: number;
   sessions: number;
-  reliability: number;
   points: number;
   name: string;
   username: string | null;
@@ -295,12 +293,7 @@ export default function LeaderboardsScreen() {
         merged.push({
           user_id: userId,
           tier,
-          score: typeof item.score === "number" && Number.isFinite(item.score) ? item.score : 50,
           sessions: typeof item.sessions === "number" && Number.isFinite(item.sessions) ? item.sessions : 0,
-          reliability:
-            typeof item.reliability === "number" && Number.isFinite(item.reliability)
-              ? item.reliability
-              : 0,
           name,
           username,
           avatar_url: typeof item.avatar_url === "string" ? item.avatar_url.trim() || null : null,
@@ -308,13 +301,13 @@ export default function LeaderboardsScreen() {
         });
       }
 
-      // Points = sessions × tierPtsPerSession × 10; rank by points (not raw score).
+      // Points = sessions × tierPtsPerSession × 10; ties keep the server's order.
       const sorted = merged
         .map((r) => ({
           ...r,
           points: (r.sessions ?? 0) * (TIER_PTS[r.tier] ?? 0) * 10,
         }))
-        .sort((a, b) => b.points - a.points || b.score - a.score);
+        .sort((a, b) => b.points - a.points);
 
       setTierPlayers(sorted);
 
@@ -560,7 +553,7 @@ export default function LeaderboardsScreen() {
             {tierLabel(item.tier)}
           </Text>
           <Text style={[styles.playerStats, mine && styles.onPanelText]} numberOfLines={1}>
-            {item.sessions} sessions · {Math.round(item.reliability)}% reliable
+            {item.sessions} sessions
           </Text>
         </View>
 

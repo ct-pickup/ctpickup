@@ -626,7 +626,6 @@ export type PublicPlayerProfile = {
   /** Hub region display name (e.g. Connecticut), derived server-side from ZIP / nearest venue. */
   region: string | null;
   verification_level: string | null;
-  verification: string | null;
   primary_position: string | null;
   secondary_positions: string[];
   experience_level: string | null;
@@ -634,7 +633,6 @@ export type PublicPlayerProfile = {
   club_name: string | null;
   roster_url: string | null;
   rating_sessions: number;
-  reliability: number | null;
   attended_count: number | null;
 };
 

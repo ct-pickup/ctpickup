@@ -18,16 +18,6 @@ export async function POST(req: Request) {
   const { run_id, invitee_id } = await req.json() as { run_id: string; invitee_id: string };
   if (!run_id || !invitee_id) return NextResponse.json({ error: "run_id and invitee_id required" }, { status: 400 });
 
-  // Add invitee to pickup_run_invites so they can RSVP to select/invite-only sessions
-  await admin.from("pickup_run_invites").upsert({
-    run_id,
-    user_id: invitee_id,
-    wave: 0,
-    invited_tier_rank: 6,
-    invited_at: new Date().toISOString(),
-  }, { onConflict: "run_id,user_id", ignoreDuplicates: true });
-
-  // Get run and host info
   const { data: run } = await admin
     .from("pickup_runs")
     .select("id, title, start_at, created_by, run_type, status")
@@ -35,7 +25,12 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   if (!run) return NextResponse.json({ error: "Session not found" }, { status: 404 });
-  if (run.created_by !== user.id) return NextResponse.json({ error: "Only the host can invite players" }, { status: 403 });
+  if (run.created_by !== user.id) {
+    const { data: caller } = await admin.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
+    if (caller?.is_admin !== true) {
+      return NextResponse.json({ error: "Only the host can invite players" }, { status: 403 });
+    }
+  }
 
   const st = String(run.status || "").trim().toLowerCase();
   if (st === "canceled" || st === "cancelled" || st === "completed" || st === "in_progress") {
