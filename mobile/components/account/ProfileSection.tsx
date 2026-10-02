@@ -134,8 +134,7 @@ export function ProfileSection({
 
   return (
     <>
-      <Text style={styles.sectionTitle}>Edit profile</Text>
-      <View style={styles.card}>
+      <View style={[styles.card, { marginTop: 0 }]}>
         <Text style={styles.fieldLabel}>First name</Text>
         <TextInput style={styles.input} value={editFirstName} onChangeText={setEditFirstName}
           autoCapitalize="words" autoCorrect={false} placeholder="First name"

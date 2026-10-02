@@ -54,6 +54,7 @@ import {
   type EsportsPlatform,
 } from "@/lib/profilePreferences";
 import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
+import { reportPhotoUploadError } from "@/lib/reportPhotoUploadError";
 
 const AVATAR_STORAGE_PATH = "avatar.jpg";
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -241,7 +242,7 @@ export default function ProfilePage() {
       });
     if (upErr) {
       setUploadBusy(false);
-      setMsg(upErr.message);
+      setMsg(reportPhotoUploadError(upErr, { stage: "upload", bucket: "avatars", path }));
       return;
     }
 
@@ -257,7 +258,7 @@ export default function ProfilePage() {
       setMsg(
         isMissingProfileColumnError(dbErr.message)
           ? profileSchemaMismatchUserMessage()
-          : dbErr.message,
+          : reportPhotoUploadError(dbErr, { stage: "save", bucket: "avatars", path }),
       );
       return;
     }

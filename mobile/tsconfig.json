@@ -8,6 +8,9 @@
       ],
       "@theme/*": [
         "../shared/theme/*"
+      ],
+      "@shared/*": [
+        "../shared/*"
       ]
     }
   },

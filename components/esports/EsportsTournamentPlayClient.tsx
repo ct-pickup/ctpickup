@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { matchWorkflowUiLabel } from "@/lib/esports/matchWorkflowCore";
 import type { EsportsMatchReportRow } from "@/lib/esports/matchWorkflowTypes";
 import type { EsportsMatchWorkflowStatus } from "@/lib/esports/matchWorkflowTypes";
+import { ESPORTS_MATCH_PROOFS_BUCKET } from "@/lib/esports/matchWorkflowConstants";
+import { reportPhotoUploadError } from "@/lib/reportPhotoUploadError";
+import { PhotoUploadError } from "@/shared/photoUploadError";
 
 export type PlayEntry = {
   matchId: string;
@@ -119,13 +122,20 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
       const r = await fetch(`/api/esports/matches/${matchId}/proof-upload`, { method: "POST", body: fd });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) {
-        setMsg(typeof j?.error === "string" ? j.error : "Upload failed.");
+        setMsg(
+          r.status < 500 && typeof j?.error === "string"
+            ? j.error
+            : reportPhotoUploadError(new PhotoUploadError(typeof j?.error === "string" ? j.error : "proof-upload failed", { status: r.status }), {
+                stage: "upload",
+                bucket: ESPORTS_MATCH_PROOFS_BUCKET,
+              }),
+        );
         return;
       }
       setProofPath(typeof j?.screenshot_storage_path === "string" ? j.screenshot_storage_path : null);
       setMsg("Screenshot uploaded. Submit the result to attach it.");
-    } catch {
-      setMsg("Upload failed.");
+    } catch (e) {
+      setMsg(reportPhotoUploadError(e, { stage: "upload", bucket: ESPORTS_MATCH_PROOFS_BUCKET }));
     } finally {
       setBusyId(null);
     }

@@ -3,6 +3,8 @@ import { createUploadTask, FileSystemUploadType } from "expo-file-system/legacy"
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 
+import { PhotoUploadError, PhotoUserError } from "@shared/photoUploadError";
+
 export type PhotoBucket = "field-photos" | "action-photos";
 
 const MAX_EDGE = 1600;
@@ -14,7 +16,7 @@ export type PickedPhoto = { uri: string; width: number; height: number };
 export async function pickPhoto(aspect?: [number, number]): Promise<PickedPhoto | null> {
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (status !== "granted") {
-    throw new Error("Photo library access is needed to choose a photo. You can allow it in Settings.");
+    throw new PhotoUserError("Photo library access is needed to choose a photo. You can allow it in Settings.");
   }
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"],
@@ -41,7 +43,7 @@ export async function preparePhoto(photo: PickedPhoto): Promise<string> {
 
 /**
  * Uploads a prepared JPEG into `<bucket>/<userId>/<name>.jpg` and returns its public URL.
- * `onProgress` receives 0..1. Throws with a user-facing message on failure.
+ * `onProgress` receives 0..1. Throws PhotoUserError (message for the user) or PhotoUploadError (detail for Sentry).
  */
 export async function uploadPhoto(opts: {
   supabase: SupabaseClient;
@@ -54,11 +56,11 @@ export async function uploadPhoto(opts: {
   const { supabase, bucket, userId, fileUri, name, onProgress } = opts;
   const baseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
   const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim();
-  if (!baseUrl || !anonKey) throw new Error("Uploads are not configured in this build.");
+  if (!baseUrl || !anonKey) throw new PhotoUploadError("EXPO_PUBLIC_SUPABASE_URL or ANON_KEY missing in this build", { bucket });
 
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
-  if (!token) throw new Error("Please sign in again to upload a photo.");
+  if (!token) throw new PhotoUserError("Please sign in again to upload a photo.");
 
   const path = `${userId}/${name}-${Date.now()}.jpg`;
   const task = createUploadTask(
@@ -82,7 +84,7 @@ export async function uploadPhoto(opts: {
   );
 
   const res = await task.uploadAsync();
-  if (!res) throw new Error("Upload was cancelled.");
+  if (!res) throw new PhotoUploadError("Upload task returned no response", { bucket, path });
   if (res.status < 200 || res.status >= 300) {
     let detail = "";
     try {
@@ -91,7 +93,7 @@ export async function uploadPhoto(opts: {
     } catch {
       detail = res.body?.slice(0, 120) ?? "";
     }
-    throw new Error(`Upload failed (${res.status})${detail ? `: ${detail}` : ""}`);
+    throw new PhotoUploadError(detail || "Storage upload failed", { status: res.status, bucket, path });
   }
   onProgress?.(1);
   return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
@@ -127,5 +129,5 @@ export async function fetchActionPhotoUrl(supabase: SupabaseClient, userId: stri
 /** Sets a run's field photo through the host/admin-checked RPC. */
 export async function setRunFieldPhoto(supabase: SupabaseClient, runId: string, url: string | null): Promise<void> {
   const { error } = await supabase.rpc("set_run_field_photo", { p_run_id: runId, p_url: url });
-  if (error) throw new Error(error.message || "Could not save the field photo.");
+  if (error) throw new PhotoUploadError(`set_run_field_photo: ${error.message || error.code || "failed"}`);
 }

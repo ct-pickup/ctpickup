@@ -20,6 +20,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 import { PhotoUploadField } from "@/components/photo";
 import { setRunFieldPhoto } from "@/lib/photoUpload";
+import { reportPhotoUploadError } from "@/lib/reportPhotoUploadError";
 import { SKILL_STAR_RANGE } from "@/lib/starRatings";
 import { headline, themeColor } from "@/theme";
 const CAPACITY_MIN = 4;
@@ -246,10 +247,8 @@ export default function SessionCreateScreen() {
         try {
           await setRunFieldPhoto(supabase, j.run_id, fieldPhotoUrl);
         } catch (e) {
-          Alert.alert(
-            "Field photo not saved",
-            `Your session is live, but the photo could not be attached. ${e instanceof Error ? e.message : ""}`.trim(),
-          );
+          const message = reportPhotoUploadError(e, { stage: "save", bucket: "field-photos" });
+          Alert.alert("Field photo not saved", `Your session is live. ${message}`);
         }
       }
 
