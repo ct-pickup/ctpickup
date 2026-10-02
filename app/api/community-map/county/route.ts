@@ -5,6 +5,7 @@ import {
   countyForZip,
   zipMatchesCountyRanges,
 } from "@/lib/communityMap/counties";
+import { isLegacyMobileClient, legacyCommunityCountyPayload } from "@/lib/api/appVersion";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -99,6 +100,12 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const countyId = url.searchParams.get("county_id")?.trim() ?? "";
   const overview = url.searchParams.get("overview") === "1";
+
+  // TODO: Remove after v1.3.5 usage drops to near zero once the new build ships; target 2026-12-01.
+  if (isLegacyMobileClient(req)) {
+    const legacy = await legacyCommunityCountyPayload(admin, { countyId, overview, resolveCountyId });
+    return NextResponse.json(legacy.body, { status: legacy.status });
+  }
 
   if (overview || !countyId) {
     const [{ data: profiles }, { data: ratings }] = await Promise.all([

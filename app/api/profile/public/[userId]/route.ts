@@ -1,3 +1,4 @@
+import { isLegacyMobileClient, LEGACY_PROFILE_RATING_COLUMNS, legacyProfileFields } from "@/lib/api/appVersion";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { displayRegionNameFromZip } from "@/lib/zipRegion";
 import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
@@ -99,11 +100,13 @@ export async function GET(req: Request, ctx: { params: Promise<{ userId: string 
   );
   const region = fromZip ?? (venueRegion ? serviceRegionName(venueRegion) : null);
 
+  // TODO: Remove after v1.3.5 usage drops to near zero once the new build ships; target 2026-12-01.
+  const legacy = isLegacyMobileClient(req);
   const { data: rating } = await admin
     .from("player_ratings")
-    .select("sessions")
+    .select(legacy ? LEGACY_PROFILE_RATING_COLUMNS : "sessions")
     .eq("user_id", targetId)
-    .maybeSingle();
+    .maybeSingle<{ sessions: number | null; tier?: string | null; verification?: string | null }>();
 
   function ageFromDob(dob: string | null): number | null {
     if (!dob) return null;
@@ -134,5 +137,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ userId: string 
     roster_url: p.roster_url ?? null,
     rating_sessions: rating?.sessions ?? 0,
     attended_count: typeof p.attended_count === "number" ? p.attended_count : null,
+    ...(legacy ? legacyProfileFields(rating) : {}),
   });
 }

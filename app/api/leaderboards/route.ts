@@ -5,6 +5,7 @@ import { jsonConfigErrorResponse, logPublicApiRouteError } from "@/lib/server/pu
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 import { ratingPoints } from "@/lib/ratings/points";
+import { isLegacyMobileClient, LEGACY_TIER_RATING_COLUMNS, legacyTierRowFields } from "@/lib/api/appVersion";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -285,7 +286,10 @@ type TierLeaderboardRow = {
   user_id: string;
   sessions: number;
   /** Server-computed from player_ratings.tier; tier itself is never sent. */
-  points: number;
+  points?: number;
+  tier?: string;
+  score?: number;
+  reliability?: number;
   first_name: string | null;
   last_name: string | null;
   username: string | null;
@@ -315,10 +319,11 @@ const EMPTY_PAYLOAD = {
 async function fetchTierLeaderboard(
   admin: SupabaseClient,
   region: string | null,
+  legacy: boolean,
 ): Promise<TierLeaderboardRow[]> {
   const { data: ratings, error } = await admin
     .from("player_ratings")
-    .select("user_id,tier,sessions")
+    .select(legacy ? LEGACY_TIER_RATING_COLUMNS : "user_id,tier,sessions")
     .order("score", { ascending: false })
     .limit(253);
 
@@ -327,10 +332,12 @@ async function fetchTierLeaderboard(
     return [];
   }
 
-  const ratingRows = (ratings ?? []) as Array<{
+  const ratingRows = (ratings ?? []) as unknown as Array<{
     user_id: string;
     tier: string | null;
     sessions: number | null;
+    score?: number | null;
+    reliability?: number | null;
   }>;
   console.log(`[api/${ROUTE}] category=tiers ratings`, { count: ratingRows.length });
 
@@ -378,7 +385,7 @@ async function fetchTierLeaderboard(
     out.push({
       user_id: r.user_id,
       sessions: r.sessions ?? 0,
-      points: ratingPoints(r.tier, r.sessions),
+      ...(legacy ? legacyTierRowFields(r) : { points: ratingPoints(r.tier, r.sessions) }),
       first_name: p?.first_name ?? null,
       last_name: p?.last_name ?? null,
       username: p?.username ?? null,
@@ -573,7 +580,8 @@ export async function GET(req: Request) {
     }
 
     try {
-      tiers = await fetchTierLeaderboard(admin, region);
+      // TODO: Remove after v1.3.5 usage drops to near zero once the new build ships; target 2026-12-01.
+      tiers = await fetchTierLeaderboard(admin, region, isLegacyMobileClient(req));
       console.log("[leaderboards] category tiers result", tiers.length);
     } catch (err) {
       console.log(`[api/${ROUTE}] category=tiers error`, err);

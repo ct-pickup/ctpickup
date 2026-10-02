@@ -5,6 +5,7 @@ import {
   deleteUserAccount,
   previewAccountDeletion,
 } from "@/lib/account/deleteUserAccount";
+import { isLegacyMobileClient, legacyAccountDeletionMessage } from "@/lib/api/appVersion";
 import { supabaseService } from "@/lib/supabase/service";
 
 export const runtime = "nodejs";
@@ -52,7 +53,12 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {
     if (e instanceof AccountDeletionError) {
-      return NextResponse.json({ ok: false, code: e.code, error: e.message, ...e.extra }, { status: e.status });
+      // TODO: Remove after v1.3.5 usage drops to near zero once the new build ships; target 2026-12-01.
+      const error =
+        e.code === "confirmation_required" && isLegacyMobileClient(req)
+          ? legacyAccountDeletionMessage(e.extra.preview?.message ?? null)
+          : e.message;
+      return NextResponse.json({ ok: false, code: e.code, error, ...e.extra }, { status: e.status });
     }
     console.error("[account/delete]", e);
     return NextResponse.json({ ok: false, error: ACCOUNT_DELETE_SUPPORT_ERROR }, { status: 500 });
