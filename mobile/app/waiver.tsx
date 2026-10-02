@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 const WAIVER_VERSION = "v1.5";
 
 export default function WaiverScreen() {
@@ -323,8 +323,7 @@ function make_styles() {
   wordmark: { width: 220, height: 48 },
   docTitle: {
     color: themeColor().text,
-    fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "600",
+    fontSize: 20, ...headline,
     textAlign: "center",
     marginBottom: 4,
   },
@@ -351,7 +350,7 @@ function make_styles() {
   },
   strong: { color: themeColor().text, fontWeight: "600" },
   emphasis: { color: themeColor().text },
-  link: { color: themeColor().pitchText, textDecorationLine: "underline", fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22 },
+  link: { color: themeColor().accent, textDecorationLine: "underline", fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22 },
   stickyBar: {
     position: "absolute",
     left: 0,

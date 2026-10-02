@@ -186,7 +186,7 @@ function TabItem(props: {
 }) {
   useThemedStyles(publish_tabStyles);
 
-  const color = props.active ? themeColor().pitchText : themeColor().text;
+  const color = props.active ? themeColor().accent : themeColor().muted;
   return (
     <Pressable
       accessibilityRole="button"
@@ -215,7 +215,7 @@ function HostButton({ onPress }: { onPress: () => void }) {
         onPress={onPress}
         style={({ pressed }) => [tabStyles.hostBtn, pressed && { transform: [{ scale: 0.94 }] }]}
       >
-        <FontAwesome name="plus" size={26} color={themeColor().onPitch} />
+        <FontAwesome name="plus" size={26} color={themeColor().onAccent} />
       </Pressable>
     </View>
   );
@@ -240,7 +240,7 @@ function make_tabStyles() {
     width: 56,
     height: 56,
     borderRadius: 999,
-    backgroundColor: themeColor().pitch,
+    backgroundColor: themeColor().accent,
     alignItems: "center",
     justifyContent: "center",
   },

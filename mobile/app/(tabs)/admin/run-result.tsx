@@ -11,7 +11,7 @@ import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions"
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -895,7 +895,7 @@ function make_styles() {
     backgroundColor: themeColor().pitchPanel,
     marginBottom: 12,
   },
-  h1: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().text },
+  h1: { fontSize: 24, ...headline, color: themeColor().text },
   sub: { marginTop: 8, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, color: themeColor().muted },
 
   sectionTitle: { marginTop: 16, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "900", color: themeColor().muted, },

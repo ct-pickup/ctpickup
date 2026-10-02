@@ -10,7 +10,7 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 function pct01(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return "—";
   return `${Math.round(v * 100)}%`;
@@ -187,7 +187,7 @@ function make_styles() {
   screen: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 16, paddingBottom: 48 },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  h1: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900" },
+  h1: { color: themeColor().text, fontSize: 24, ...headline },
   sub: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   chip: {
     paddingHorizontal: 12,

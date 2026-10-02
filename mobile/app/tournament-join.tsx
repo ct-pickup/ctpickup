@@ -10,7 +10,7 @@ import { siteOrigin } from "@/lib/env";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -297,7 +297,7 @@ function make_styles() {
     borderColor: themeColor().line,
     backgroundColor: themeColor().card,
   },
-  detailTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
+  detailTitle: { fontSize: 20, ...headline, color: themeColor().text },
   detailSub: { marginTop: 4, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
   pendingBox: {
     marginTop: 12,

@@ -9,7 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { PhotoHeader } from "@/components/photo";
 import { fetchActionPhotoUrl } from "@/lib/photoUpload";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -842,7 +842,7 @@ export default function PlayerProfileScreen() {
             Host Rating
           </Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <Text style={{ color: themeColor().text, fontSize: 40, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" }}>
+            <Text style={{ color: themeColor().text, fontSize: 40, ...headline }}>
               {fmtAvg(hostRating.avg_overall)}
             </Text>
             <FontAwesome name="star" size={22} color={themeColor().pitchText} />
@@ -1162,7 +1162,7 @@ function make_styles() {
     justifyContent: "center",
   },
   checkBadgeText: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "900" },
-  avatarInitialsText: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  avatarInitialsText: { fontSize: 24, ...headline },
 
   /* Legacy — kept to avoid removing referenced styles elsewhere */
   avatarImg: { width: 96, height: 96, borderRadius: 999, marginBottom: 12 },
@@ -1175,7 +1175,7 @@ function make_styles() {
     justifyContent: "center",
     marginBottom: 12,
   },
-  avatarPhText: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().onPitchPanel },
+  avatarPhText: { fontSize: 32, ...headline, color: themeColor().onPitchPanel },
   heroLabel: {
     marginTop: 4,
     fontSize: 13, fontFamily: "Inter_700Bold",
@@ -1183,7 +1183,7 @@ function make_styles() {
     color: themeColor().muted,
     marginBottom: 4,
   },
-  displayName: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text, textAlign: "center" },
+  displayName: { fontSize: 24, ...headline, color: themeColor().text, textAlign: "center" },
   followCountsMuted: {
     marginTop: 8,
     fontSize: 13, fontFamily: "Inter_400Regular",
@@ -1245,7 +1245,7 @@ function make_styles() {
   },
   valueK: { color: themeColor().muted, fontWeight: "900" },
   linkRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  linkText: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().pitchText },
+  linkText: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().accent },
   h2hHairline: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: themeColor().overlay,

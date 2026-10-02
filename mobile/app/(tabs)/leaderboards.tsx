@@ -19,7 +19,7 @@ import {
 } from "react-native";
 
 import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
-import { radius, themeColor, useThemedStyles } from "@/theme";
+import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 function TIER_COLORS(): Record<string, string> {
   return {
   diamond: themeColor().muted,
@@ -879,18 +879,18 @@ function make_styles() {
   },
   heroLeft: { flex: 1, minWidth: 0 },
   heroLabel: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
-  heroTier: { color: themeColor().text, fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", marginTop: 4 },
+  heroTier: { color: themeColor().text, fontSize: 32, ...headline, marginTop: 4 },
   heroSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   heroBtn: {
     alignSelf: "flex-start",
     marginTop: 12,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().accent,
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
-  heroBtnText: { color: themeColor().pitchText, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
+  heroBtnText: { color: themeColor().accent, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
   heroGem: { width: 100, alignItems: "center", justifyContent: "center" },
 
   /* section header */
@@ -950,7 +950,7 @@ function make_styles() {
   playerTier: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 4 },
   playerStats: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   ptsBlock: { alignItems: "flex-end", minWidth: 52 },
-  ptsValue: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900",},
+  ptsValue: { color: themeColor().text, fontSize: 24, ...headline, },
   ptsLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700",},
 
   /* climb card */
@@ -975,8 +975,8 @@ function make_styles() {
   },
   climbTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
   climbSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4, lineHeight: 16 },
-  climbBtn: { borderWidth: 1, borderColor: themeColor().pitch, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12 },
-  climbBtnText: { color: themeColor().pitchText, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
+  climbBtn: { borderWidth: 1, borderColor: themeColor().accent, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12 },
+  climbBtnText: { color: themeColor().accent, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
 
   /* empty / error */
   emptyStateBlock: { alignItems: "center", justifyContent: "center", gap: 16, paddingVertical: 24 },
@@ -1006,7 +1006,7 @@ function make_styles() {
     paddingBottom: 28,
   },
   modalHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 10, backgroundColor: themeColor().overlay, marginBottom: 16 },
-  modalTitle: { color: themeColor().text, fontWeight: "800", fontSize: 20, fontFamily: "InstrumentSerif_400Regular", marginBottom: 16, textAlign: "center" },
+  modalTitle: { color: themeColor().text, fontSize: 20, ...headline, marginBottom: 16, textAlign: "center" },
   modalChips: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 20 },
   modalChip: {
     minWidth: 72,

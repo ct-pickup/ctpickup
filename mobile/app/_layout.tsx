@@ -31,6 +31,7 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
+import { Archivo_700Bold } from "@expo-google-fonts/archivo";
 import { InstrumentSerif_400Regular } from "@expo-google-fonts/instrument-serif";
 import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -43,7 +44,7 @@ import * as Linking from "expo-linking";
 import { useColorScheme } from "@/components/useColorScheme";
 import { siteOrigin } from "@/lib/env";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
@@ -73,6 +74,7 @@ function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
     InstrumentSerif_400Regular,
+    Archivo_700Bold,
     ...FontAwesome.font,
   });
 
@@ -500,7 +502,7 @@ function make_stylesUpdateGate() {
     backgroundColor: themeColor().card,
     padding: 20,
   },
-  title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", textAlign: "center" },
+  title: { color: themeColor().text, fontSize: 24, ...headline, textAlign: "center" },
   body: {
     marginTop: 8,
     color: themeColor().muted,

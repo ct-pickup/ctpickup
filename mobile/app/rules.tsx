@@ -1,7 +1,7 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 type Rule = {
   number: number;
   title: string;
@@ -156,8 +156,7 @@ function make_styles() {
   scrollContent: { paddingHorizontal: 20, paddingTop: 20 },
   docTitle: {
     color: themeColor().text,
-    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "800",
+    fontSize: 32, ...headline,
     marginBottom: 8,
   },
   docSubtitle: {

@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 const MIN_MINUTES = 15;
 const MAX_MINUTES = 90;
 const SLIDER_STEP = 5;
@@ -215,7 +215,7 @@ function make_styles() {
   },
   backBtn: { flexDirection: "row", alignItems: "center", gap: 4, padding: 8 },
   backBtnText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-  topTitle: { flex: 1, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
+  topTitle: { flex: 1, fontSize: 20, ...headline, color: themeColor().text },
   scroll: { flex: 1 },
   content: { padding: 20, paddingBottom: 40 },
   label: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted, },

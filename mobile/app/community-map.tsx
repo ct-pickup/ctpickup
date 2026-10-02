@@ -19,7 +19,7 @@ import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 
 import { PhotoHeader, useFieldPhotos } from "@/components/photo";
-import { radius, themeColor, useThemedStyles } from "@/theme";
+import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 // ─── design tokens ──────────────────────────────────────────────────────────
 
 function TIER_COLORS(): Record<string, string> {
@@ -1734,7 +1734,7 @@ function make_s() {
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  popupCity: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  popupCity: { color: themeColor().text, fontSize: 20, ...headline },
   popupMembersMuted: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_500Medium", marginTop: 4, fontWeight: "500" },
   popupSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   popupClose: {
@@ -1858,7 +1858,7 @@ function make_s() {
     padding: 20,
   },
   actKicker: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", marginBottom: 4 },
-  actHeadline: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginBottom: 16 },
+  actHeadline: { color: themeColor().text, fontSize: 24, ...headline, marginBottom: 16 },
   actCards: { gap: 8 },
   actCard: {
     flexDirection: "row",
@@ -1871,7 +1871,7 @@ function make_s() {
   actDot: { width: 10, height: 10, borderRadius: 10 },
   actLabel: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
   actSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 1 },
-  actValue: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", minWidth: 40, textAlign: "right" },
+  actValue: { fontSize: 24, ...headline, minWidth: 40, textAlign: "right" },
   actNote: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 12 },
 });
 }

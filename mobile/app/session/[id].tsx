@@ -20,7 +20,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 import { PhotoHeader, PhotoUploadField, useFieldPhotos } from "@/components/photo";
 import { setRunFieldPhoto } from "@/lib/photoUpload";
-import { themeColor } from "@/theme";
+import { headline, themeColor } from "@/theme";
 type SessionDetail = {
   id: string;
   title: string;
@@ -501,16 +501,18 @@ export default function SessionDetailScreen() {
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${session!.access_token}` },
               body: JSON.stringify({ run_id: id }),
             });
-            const j = await r.json().catch(() => null) as { ok?: boolean; credit_issued?: boolean; amount_cents?: number } | null;
-            if (j?.ok) {
-              await load();
-              if (j.credit_issued && j.amount_cents) {
-                const dollars = (j.amount_cents / 100).toFixed(2);
-                Alert.alert("Left session", `A platform credit of $${dollars} has been added to your account.`);
-              } else if (isPaid) {
-                Alert.alert("Left session", "No refund applies within 24 hours of kickoff.");
-              }
-            }
+            const j = await r.json().catch(() => null) as {
+              ok?: boolean; error?: string; credit_issued?: boolean; amount_cents?: number;
+              credit_restored?: boolean; already_credited?: boolean;
+            } | null;
+            if (!r.ok || !j?.ok) { Alert.alert("Could not leave", j?.error ?? "Something went wrong. Try again."); return; }
+            await load();
+            const lines: string[] = [];
+            if (j.credit_issued && j.amount_cents) lines.push(`A platform credit of $${(j.amount_cents / 100).toFixed(2)} has been added to your account.`);
+            if (j.credit_restored) lines.push("The credit you used to join has been restored.");
+            if (j.already_credited) lines.push("A credit for this session was already issued to your account earlier.");
+            if (lines.length > 0) Alert.alert("Left session", lines.join(" "));
+            else if (isPaid) Alert.alert("Left session", "No refund applies within 24 hours of kickoff.");
           } finally {
             setRsvpBusy(false);
           }
@@ -523,7 +525,7 @@ export default function SessionDetailScreen() {
     if (endBusy || !session?.access_token) return;
     Alert.alert(
       "Cancel session?",
-      "All players will be notified and refunded if they paid. This cannot be undone.",
+      "All players will be notified. Card payments are refunded in full and credits used to join are restored. This cannot be undone.",
       [
         { text: "Keep it", style: "cancel" },
         {
@@ -537,9 +539,20 @@ export default function SessionDetailScreen() {
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${session!.access_token}` },
                 body: JSON.stringify({ run_id: id }),
               });
-              const j = await r.json().catch(() => null) as { ok?: boolean; error?: string } | null;
-              if (!r.ok || !j?.ok) { Alert.alert("Error", j?.error ?? "Could not cancel."); return; }
-              Alert.alert("Session cancelled", "All players have been notified.");
+              const j = await r.json().catch(() => null) as {
+                ok?: boolean; error?: string; refunded?: number; credits_restored?: number;
+                failures?: { user_id: string | null; error: string }[];
+              } | null;
+              if (!r.ok || !j?.ok) {
+                const failed = j?.failures?.length ?? 0;
+                Alert.alert(failed > 0 ? "Refunds not finished" : "Error", j?.error ?? "Could not cancel.");
+                await load();
+                return;
+              }
+              const parts = ["All players have been notified."];
+              if (j.refunded) parts.push(`${j.refunded} card refund${j.refunded === 1 ? "" : "s"} issued.`);
+              if (j.credits_restored) parts.push(`${j.credits_restored} credit${j.credits_restored === 1 ? "" : "s"} restored.`);
+              Alert.alert("Session cancelled", parts.join(" "));
               await load();
             } finally {
               setEndBusy(false);
@@ -1129,7 +1142,7 @@ export default function SessionDetailScreen() {
             }}
             style={s.hostRateBtn}
           >
-            <FontAwesome name="star-o" size={14} color={themeColor().pitchText} />
+            <FontAwesome name="star-o" size={14} color={themeColor().accent} />
             <Text style={s.hostRateBtnText}>Rate the host</Text>
           </Pressable>
         )}
@@ -1153,15 +1166,15 @@ export default function SessionDetailScreen() {
               <Text style={s.inviteBtnText}>Invite players</Text>
             </Pressable>
             <Pressable onPress={() => void shareSession()} style={s.shareBtn}>
-              <FontAwesome name="share" size={14} color={themeColor().pitchText} />
+              <FontAwesome name="share" size={14} color={themeColor().accent} />
               <Text style={s.shareBtnText}>Share link</Text>
             </Pressable>
             <Pressable onPress={() => setTeamsOpen(true)} style={s.shareBtn}>
-              <FontAwesome name="users" size={14} color={themeColor().pitchText} />
+              <FontAwesome name="users" size={14} color={themeColor().accent} />
               <Text style={s.shareBtnText}>Assign teams</Text>
             </Pressable>
             <Pressable onPress={() => setResultOpen(true)} style={s.shareBtn}>
-              <FontAwesome name="trophy" size={14} color={themeColor().pitchText} />
+              <FontAwesome name="trophy" size={14} color={themeColor().accent} />
               <Text style={s.shareBtnText}>Record result</Text>
             </Pressable>
             <Pressable onPress={() => void cancelSession()} disabled={endBusy}
@@ -1518,11 +1531,11 @@ export default function SessionDetailScreen() {
           <View style={{ flexDirection: "row", gap: 8, padding: 16, paddingTop: 8 }}>
             <Pressable onPress={() => setWinningTeam("A")}
               style={{ flex: 1, paddingVertical: 16, borderRadius: 12, borderWidth: 2, borderColor: winningTeam === "A" ? themeColor().pitch : themeColor().overlay, backgroundColor: winningTeam === "A" ? themeColor().pitch : "transparent", alignItems: "center" }}>
-              <Text style={{ color: winningTeam === "A" ? themeColor().onPitch : themeColor().text, fontWeight: "800", fontSize: 20, fontFamily: "InstrumentSerif_400Regular" }}>Team A</Text>
+              <Text style={{ color: winningTeam === "A" ? themeColor().onPitch : themeColor().text, fontSize: 20, ...headline }}>Team A</Text>
             </Pressable>
             <Pressable onPress={() => setWinningTeam("B")}
               style={{ flex: 1, paddingVertical: 16, borderRadius: 12, borderWidth: 2, borderColor: winningTeam === "B" ? themeColor().text : themeColor().overlay, backgroundColor: winningTeam === "B" ? themeColor().text : "transparent", alignItems: "center" }}>
-              <Text style={{ color: winningTeam === "B" ? themeColor().bg : themeColor().text, fontWeight: "800", fontSize: 20, fontFamily: "InstrumentSerif_400Regular" }}>Team B</Text>
+              <Text style={{ color: winningTeam === "B" ? themeColor().bg : themeColor().text, fontSize: 20, ...headline }}>Team B</Text>
             </Pressable>
           </View>
 
@@ -1675,7 +1688,7 @@ function make_s() {
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 16, marginBottom: 20 },
   hero: { marginHorizontal: -20, marginTop: -4, marginBottom: 16 },
   photoControls: { marginTop: -4, marginBottom: 16 },
-  heroTitle: { color: themeColor().onPhoto, fontSize: 24, fontFamily: "InstrumentSerif_400Regular" },
+  heroTitle: { color: themeColor().onPhoto, fontSize: 24, ...headline },
   heroSub: { color: themeColor().onPhoto, fontSize: 14, fontFamily: "Inter_500Medium", fontWeight: "500", marginTop: 4 },
   headerTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", flex: 1, textAlign: "center", marginHorizontal: 12 },
   rateBanner: {
@@ -1710,10 +1723,10 @@ function make_s() {
     gap: 8,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().accent,
     backgroundColor: "transparent",
   },
-  hostRateBtnText: { color: themeColor().pitchText, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  hostRateBtnText: { color: themeColor().accent, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   hostRatedDone: {
     borderRadius: 12,
     paddingVertical: 12,
@@ -1735,8 +1748,8 @@ function make_s() {
   hostRatingStars: { flexDirection: "row", alignItems: "center", gap: 4 },
   inviteBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 },
   inviteBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
-  shareBtn: { borderRadius: 12, paddingVertical: 12, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8, borderWidth: 1, borderColor: themeColor().pitch },
-  shareBtnText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
+  shareBtn: { borderRadius: 12, paddingVertical: 12, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8, borderWidth: 1, borderColor: themeColor().accent },
+  shareBtnText: { color: themeColor().accent, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
   endBtn: { borderRadius: 12, paddingVertical: 12, alignItems: "center", borderWidth: 1, borderColor: themeColor().coral },
   endBtnText: { color: themeColor().coralText, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
   sectionTitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 8 },
@@ -1750,7 +1763,7 @@ function make_s() {
   backBtnText: { color: themeColor().onPitch, fontWeight: "800" },
   modalRoot: { flex: 1, backgroundColor: themeColor().bg },
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, paddingTop: 24, borderBottomWidth: 1, borderBottomColor: themeColor().line },
-  modalTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700" },
+  modalTitle: { color: themeColor().text, fontSize: 20, ...headline },
   modalSearch: { flexDirection: "row", alignItems: "center", gap: 8, margin: 16, backgroundColor: themeColor().overlay, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 12, paddingVertical: 12 },
   modalSearchInput: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular" },
   shareLinkRow: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 16, marginBottom: 8, padding: 12, backgroundColor: themeColor().pitchPanel, borderRadius: 12, borderWidth: 1, borderColor: themeColor().pitch },
@@ -1760,9 +1773,9 @@ function make_s() {
   playerName: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   playerUsername: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   playerPos: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
-  inviteRowBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: themeColor().pitch },
+  inviteRowBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: themeColor().accent },
   inviteRowBtnDone: { borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
-  inviteRowBtnText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
+  inviteRowBtnText: { color: themeColor().accent, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   inviteRowBtnTextDone: { color: themeColor().muted },
   voteSubtitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", padding: 16, paddingBottom: 8, lineHeight: 18 },
   potdResultCard: {

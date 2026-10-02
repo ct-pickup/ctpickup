@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 function TIER_COLORS(): Record<string, string> {
   return {
   bronze: themeColor().muted,
@@ -552,8 +552,8 @@ function make_s() {
   avatarRing: { width: 64, height: 64, borderRadius: 999, borderWidth: 2, padding: 4, alignItems: "center", justifyContent: "center" },
   avatarImg: { width: "100%", height: "100%", borderRadius: 999 },
   avatarFallback: { backgroundColor: themeColor().overlaySubtle, alignItems: "center", justifyContent: "center" },
-  avatarFallbackText: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
-  hostName: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800",},
+  avatarFallbackText: { fontSize: 20, ...headline },
+  hostName: { color: themeColor().text, fontSize: 24, ...headline, },
   tierBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -581,7 +581,7 @@ function make_s() {
   detailRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
   detailText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", flex: 1 },
   sectionTitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 8 },
-  workingOnText: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "600", lineHeight: 24 },
+  workingOnText: { color: themeColor().text, fontSize: 20, ...headline, lineHeight: 24 },
   notesText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 21 },
   actionBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", marginTop: 4 },
   actionBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },

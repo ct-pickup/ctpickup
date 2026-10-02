@@ -4,7 +4,7 @@ import { SERVICE_REGIONS, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 type Props = {
   /** Called after the row’s region is chosen (caller may also persist hub region). */
   onSelectState: (code: ServiceRegionCode) => void;
@@ -70,7 +70,7 @@ function make_styles() {
     color: themeColor().pitchText,
     marginBottom: 8,
   },
-  headline: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text,},
+  headline: { fontSize: 32, ...headline, color: themeColor().text,},
   headlineAccent: { color: themeColor().pitchText },
   lead: {
     marginTop: 12,
@@ -116,7 +116,7 @@ function make_styles() {
   },
   codeText: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "900", color: themeColor().pitchText,},
   cardBody: { flex: 1, marginLeft: 16 },
-  stateName: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text },
+  stateName: { fontSize: 20, ...headline, color: themeColor().text },
   stateHint: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
   footerNote: {
     marginTop: 28,

@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 
 import ChalkBox from "./ChalkBox";
 import ChalkCenterCircle from "./ChalkCenterCircle";
@@ -50,7 +50,7 @@ function make_styles() {
     title: {
       marginTop: 8,
       fontSize: 24,
-      fontFamily: "InstrumentSerif_400Regular",
+      ...headline,
       color: themeColor().text,
       textAlign: "center",
     },
@@ -67,9 +67,9 @@ function make_styles() {
       paddingVertical: 8,
       borderRadius: 999,
       borderWidth: 1,
-      borderColor: themeColor().pitch,
+      borderColor: themeColor().accent,
     },
-    actionText: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().pitchText },
+    actionText: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().accent },
   });
 }
 let styles = make_styles();

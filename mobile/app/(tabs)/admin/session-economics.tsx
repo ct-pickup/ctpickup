@@ -2,7 +2,7 @@ import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import { Stack, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator, Pressable, ScrollView,
   StyleSheet, Text, View,
@@ -67,7 +67,7 @@ export default function SessionEconomicsScreen() {
         .select("id,user_id,amount_cents,lifecycle_status,product_entity_id,created_at")
         .in("product_entity_id", runIds)
         .eq("product_type", "pickup")
-        .in("lifecycle_status", ["captured", "completed"]);
+        .eq("lifecycle_status", "payment_received");
 
       const payerIds = [...new Set((payments ?? []).map((p: any) => p.user_id))];
       const allProfileIds = [...new Set([...hostIds, ...payerIds])];
@@ -284,7 +284,7 @@ function make_s() {
   return StyleSheet.create({
   root: { flex: 1, backgroundColor: themeColor().bg, padding: 16 },
   center: { flex: 1, backgroundColor: themeColor().bg, alignItems: "center", justifyContent: "center" },
-  title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginBottom: 4, marginTop: 8 },
+  title: { color: themeColor().text, fontSize: 24, ...headline, marginBottom: 4, marginTop: 8 },
   sub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 20 },
   emptyCard: { backgroundColor: themeColor().card, borderRadius: 12, padding: 20, alignItems: "center" },
   emptyText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },

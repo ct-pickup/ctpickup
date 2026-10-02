@@ -3,15 +3,17 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { format, isToday, isTomorrow } from "date-fns";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, type Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { Session } from "../session-map";
 
-import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
+import { ChalkDivider } from "@/components/chalk";
 import { PhotoHeader, useFieldPhotos } from "@/components/photo";
-import { themeColor, useThemedStyles } from "@/theme";
+import { effectiveMaxDriveMinutes } from "@/lib/pickup/profileMaxDriveFilter";
+import { regionForZipDrive } from "@/lib/venueDistance";
+import { headline, radius, themeColor, useTheme, useThemedStyles } from "@/theme";
 /* ----------------------------------------------------------------- tiers */
 
 type TierMeta = { label: string; color: string; diamond?: boolean };
@@ -34,9 +36,9 @@ function tierMeta(raw: string | null | undefined): TierMeta | null {
 
 function greeting(): string {
   const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
+  if (h < 12) return "Morning";
+  if (h < 17) return "Afternoon";
+  return "Evening";
 }
 
 function firstNameFromEmail(email: string | undefined): string {
@@ -126,8 +128,8 @@ type RateBanner = { run_id: string; title: string | null };
 function pinColor(left: number, minTier: string | null): string {
   if (left >= 1 && left <= 2) return themeColor().coral; // almost full
   const t = (minTier ?? "").toLowerCase();
-  if (t === "gold" || t === "diamond" || t === "platinum") return themeColor().muted; // Gold+
-  return themeColor().pitch; // open
+  if (t === "gold" || t === "diamond" || t === "platinum") return themeColor().muted; // 3.0+
+  return themeColor().accent; // open
 }
 
 /* --------------------------------------------------------------- data */
@@ -142,6 +144,8 @@ function useHomeData() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [verificationLevel, setVerificationLevel] = useState<string>("self");
   const [tier, setTier] = useState<string | null>(null);
+  const [homeZip, setHomeZip] = useState<string | null>(null);
+  const [maxDriveMinutes, setMaxDriveMinutes] = useState<number | null>(null);
   const [nextMatch, setNextMatch] = useState<NextMatch | null>(null);
   const [mapRuns, setMapRuns] = useState<MapRun[]>([]);
   const [friendsPlaying, setFriendsPlaying] = useState<FriendPlaying[]>([]);
@@ -157,7 +161,7 @@ function useHomeData() {
     const [profileRes, tierRes] = await Promise.all([
       supabase
         .from("profiles")
-        .select("first_name,avatar_url,verification_level")
+        .select("first_name,avatar_url,verification_level,zip_code,max_drive_minutes")
         .eq("id", myUserId)
         .maybeSingle(),
       supabase.from("player_ratings").select("tier").eq("user_id", myUserId).maybeSingle(),
@@ -167,7 +171,11 @@ function useHomeData() {
         first_name?: string | null;
         avatar_url?: string | null;
         verification_level?: string | null;
+        zip_code?: string | null;
+        max_drive_minutes?: number | null;
       };
+      setHomeZip(p.zip_code?.trim() || null);
+      setMaxDriveMinutes(p.max_drive_minutes ?? null);
       setFirstName(p.first_name?.trim() || null);
       setAvatarUrl(p.avatar_url?.trim() || null);
       if (p.verification_level) setVerificationLevel(p.verification_level);
@@ -333,7 +341,7 @@ function useHomeData() {
     void load();
   }, [load]);
 
-  return { myUserId, firstName, avatarUrl, verificationLevel, tier, nextMatch, mapRuns, friendsPlaying, rateBanner };
+  return { myUserId, firstName, avatarUrl, verificationLevel, tier, homeZip, maxDriveMinutes, nextMatch, mapRuns, friendsPlaying, rateBanner };
 }
 
 /* --------------------------------------------------------------- pieces */
@@ -381,7 +389,7 @@ function TierBadge({ tier, size = "sm" }: { tier: string | null; size?: "sm" | "
       ]}
     >
       {meta.diamond ? <Text style={[styles.tierDiamond, { color: meta.color }]}>◆ </Text> : null}
-      <Text style={[styles.tierBadgeText, { color: meta.color }]}>{meta.label.toUpperCase()}</Text>
+      <Text style={[styles.tierBadgeText, { color: meta.color }]}>{meta.label}</Text>
     </View>
   );
 }
@@ -482,9 +490,9 @@ function FriendsPlayingSection({
 
   return (
     <View>
-      <SectionHeader label="Friends Playing Tonight" actionLabel="See all" onAction={onSeeAll} />
+      <SectionHeader label="Teammates out tonight" actionLabel="See all" onAction={onSeeAll} />
       {friends.length === 0 ? (
-        <ChalkEmptyState graphic="circle" size="sm" title="No friends playing tonight" />
+        <Text style={styles.emptyLine}>None of your teammates are out tonight.</Text>
       ) : (
         <ScrollView
           horizontal
@@ -534,7 +542,9 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const push = router.push as (href: string) => void;
-  const { myUserId, firstName, avatarUrl, verificationLevel, tier, nextMatch, mapRuns, friendsPlaying, rateBanner } = useHomeData();
+  const { myUserId, firstName, avatarUrl, verificationLevel, tier, homeZip, maxDriveMinutes, nextMatch, mapRuns, friendsPlaying, rateBanner } =
+    useHomeData();
+  const theme = useTheme();
   const { session } = useAuth();
 
   const name = firstName || firstNameFromEmail(session?.user?.email ?? undefined);
@@ -546,14 +556,16 @@ export default function HomeScreen() {
   const fieldPhotos = useFieldPhotos(nextMatch ? [nextMatch.id] : []);
   const isDiamondRun = nextTierMeta?.diamond === true;
 
-  const mapRegion: Region = mapRuns[0]?.latitude
+  const mapRegion: Region =
+    regionForZipDrive(homeZip, effectiveMaxDriveMinutes(maxDriveMinutes)) ??
+    (mapRuns[0]?.latitude
     ? {
         latitude: mapRuns[0].latitude!,
         longitude: mapRuns[0].longitude!,
         latitudeDelta: 0.6,
         longitudeDelta: 0.6,
       }
-    : FAIRFIELD;
+    : FAIRFIELD);
 
   return (
     <View style={[styles.root, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
@@ -601,8 +613,8 @@ export default function HomeScreen() {
         </Pressable>
       ) : null}
 
-      {/* 2. YOUR NEXT MATCH */}
-      <SectionLabel>Your Next Match</SectionLabel>
+      {/* 2. UP NEXT */}
+      <SectionLabel>Up next</SectionLabel>
       {nextMatch ? (
         <View style={[styles.matchCard, { borderLeftColor: isDiamondRun ? themeColor().line : themeColor().pitch }]}>
           {fieldPhotos[nextMatch.id] ? (
@@ -639,18 +651,19 @@ export default function HomeScreen() {
             onPress={() => push(`/session/${encodeURIComponent(nextMatch.id)}`)}
             style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.9 }]}
           >
-            <Text style={styles.primaryBtnText}>JOIN MATCH →</Text>
+            <Text style={styles.primaryBtnText}>Join</Text>
           </Pressable>
         </View>
       ) : (
         <View style={[styles.matchCard, styles.matchEmpty]}>
-          <ChalkEmptyState
-            graphic="box"
-            title="NO UPCOMING SESSIONS"
-            body="You have no confirmed matches coming up."
-            actionLabel="Find a Run →"
-            onAction={() => push("/community-map")}
-          />
+          <Text style={styles.emptyTitle}>Nothing on your calendar.</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => push("/community-map")}
+            style={({ pressed }) => [styles.accentBtn, pressed && { opacity: 0.9 }]}
+          >
+            <Text style={styles.accentBtnText}>Get a game</Text>
+          </Pressable>
         </View>
       )}
 
@@ -668,8 +681,9 @@ export default function HomeScreen() {
           <MapView
             style={StyleSheet.absoluteFill}
             pointerEvents="none"
-            initialRegion={mapRegion}
-            userInterfaceStyle="dark"
+            region={mapRegion}
+            mapType={Platform.OS === "ios" ? "mutedStandard" : "standard"}
+            userInterfaceStyle={theme.mode}
             backgroundColor={themeColor().card}
             loadingBackgroundColor={themeColor().card}
             scrollEnabled={false}
@@ -685,12 +699,12 @@ export default function HomeScreen() {
           </MapView>
           <View style={styles.mapLegend} pointerEvents="none">
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: themeColor().pitch }]} />
+              <View style={[styles.legendDot, { backgroundColor: themeColor().accent }]} />
               <Text style={styles.legendText}>Open</Text>
             </View>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: themeColor().muted }]} />
-              <Text style={styles.legendText}>Gold+</Text>
+              <Text style={styles.legendText}>3.0+</Text>
             </View>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: themeColor().coral }]} />
@@ -738,7 +752,7 @@ function make_styles() {
   },
   avatarUnverified: { borderWidth: 2, borderColor: themeColor().line },
 
-  greeting: { marginTop: 8, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text,},
+  greeting: { marginTop: 8, fontSize: 20, ...headline, color: themeColor().text,},
   greetingName: { color: themeColor().pitchText },
   rateBanner: {
     marginTop: 12,
@@ -805,7 +819,7 @@ function make_styles() {
   },
   matchSpots: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().text, flexShrink: 1 },
   priceBox: { alignItems: "flex-end" },
-  priceText: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text,},
+  priceText: { fontSize: 20, ...headline, color: themeColor().text,},
   priceTier: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().muted },
   primaryBtn: {
     marginTop: 8,
@@ -815,7 +829,23 @@ function make_styles() {
     alignItems: "center",
   },
   primaryBtnText: { color: themeColor().onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800",},
-  matchEmpty: { borderLeftWidth: 1 },
+  matchEmpty: {
+    borderLeftWidth: 1,
+    minHeight: 120,
+    padding: 16,
+    justifyContent: "center",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  emptyTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: themeColor().text },
+  emptyLine: { fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted, paddingVertical: 8 },
+  accentBtn: {
+    backgroundColor: themeColor().accent,
+    borderRadius: radius.button,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  accentBtnText: { color: themeColor().onAccent, fontSize: 16, fontFamily: "Inter_700Bold" },
 
   /* map */
   mapWrap: {
@@ -887,7 +917,7 @@ function make_styles() {
     alignItems: "center",
     justifyContent: "center",
   },
-  friendInitials: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text },
+  friendInitials: { fontSize: 20, ...headline, color: themeColor().text },
   friendDot: {
     position: "absolute",
     bottom: -1,

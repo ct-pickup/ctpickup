@@ -20,7 +20,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 const PROXIMITY_AUTO_SELECT_MIN = 30;
 const PROXIMITY_VISIBLE_MAX_MIN = 60;
 
@@ -381,7 +381,7 @@ function make_styles() {
   safe: { flex: 1, backgroundColor: themeColor().bg, paddingHorizontal: 16 },
   header: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: 8 },
   backIcon: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 8, paddingRight: 4 },
-  h1: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
+  h1: { fontSize: 24, ...headline, color: themeColor().text },
   sub: { marginTop: 4, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
   summary: {
     marginTop: 12,

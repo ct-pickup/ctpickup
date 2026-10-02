@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useAccountIntroReplay } from "@/context/AccountIntroReplayContext";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 type Props = {
   loading: boolean;
   scorePct: number | null;
@@ -114,8 +114,7 @@ function make_styles() {
     minWidth: 68,
   },
   loading: {
-    fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "700",
+    fontSize: 20, ...headline,
     color: themeColor().muted,
   },
   num: {

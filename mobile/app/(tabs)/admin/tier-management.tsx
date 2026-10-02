@@ -2,7 +2,7 @@ import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator, Alert, FlatList, Pressable,
   ScrollView, StyleSheet, Text, TextInput, View,
@@ -182,7 +182,7 @@ export default function AdminTierManagementScreen() {
 function make_s() {
   return StyleSheet.create({
   root: { flex: 1, backgroundColor: themeColor().bg, padding: 16 },
-  title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginBottom: 16, marginTop: 8 },
+  title: { color: themeColor().text, fontSize: 24, ...headline, marginBottom: 16, marginTop: 8 },
   searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: themeColor().overlay, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 12, paddingVertical: 12, marginBottom: 16 },
   searchInput: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular" },
   card: { backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 12 },

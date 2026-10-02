@@ -4,7 +4,7 @@ import { useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from "react-native";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 type Team = "A" | "B" | "C";
 
 type AwardSlot = "player" | "goalie" | "attacker" | "midfielder" | "defender";
@@ -440,7 +440,7 @@ function make_styles() {
   center: { flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center", padding: 24 },
   errText: { color: themeColor().coralText, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center" },
 
-  h1: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().text },
+  h1: { fontSize: 24, ...headline, color: themeColor().text },
   sub: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
 
   statsCard: {
@@ -454,7 +454,7 @@ function make_styles() {
   statsTitle: { color: themeColor().text, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 12 },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   statCell: { flexGrow: 1, minWidth: "42%", paddingVertical: 4 },
-  statValue: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900" },
+  statValue: { color: themeColor().text, fontSize: 24, ...headline },
   statLabel: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   statsFoot: { marginTop: 12, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 17 },
 

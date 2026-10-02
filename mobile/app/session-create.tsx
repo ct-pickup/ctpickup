@@ -20,7 +20,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 import { PhotoUploadField } from "@/components/photo";
 import { setRunFieldPhoto } from "@/lib/photoUpload";
-import { themeColor } from "@/theme";
+import { headline, themeColor } from "@/theme";
 const CAPACITY_MIN = 4;
 const CAPACITY_MAX = 30;
 const FORMATS = ["5v5", "6v6", "7v7", "Open"];
@@ -579,7 +579,7 @@ function make_s() {
   chipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
   chipText: { color: themeColor().muted, fontWeight: "600", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   chipTextActive: { color: themeColor().pitchText },
-  capacityInput: { backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", paddingHorizontal: 16, paddingVertical: 12, textAlign: "center", width: 100 },
+  capacityInput: { backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, fontSize: 20, ...headline, paddingHorizontal: 16, paddingVertical: 12, textAlign: "center", width: 100 },
   capacityHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   radioRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, paddingHorizontal: 4, borderRadius: 10 },
   radioRowActive: { backgroundColor: themeColor().pitchPanel },

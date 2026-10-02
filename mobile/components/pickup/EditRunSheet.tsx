@@ -3,7 +3,7 @@ import { fmtPickupDtEt } from "@/lib/pickupPublic";
 import { hapticTap } from "@/lib/haptics";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useEffect, useState } from "react";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -117,7 +117,7 @@ function make_styles() {
     padding: 20,
   },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
-  sheetTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  sheetTitle: { color: themeColor().text, fontSize: 20, ...headline },
   label: {
     color: themeColor().muted,
     fontSize: 13, fontFamily: "Inter_700Bold",

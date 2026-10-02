@@ -5,7 +5,7 @@ import type { ComponentProps } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 type ToolDef = {
   id: string;
   title: string;
@@ -112,11 +112,11 @@ function make_styles() {
   },
   backBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 8 },
   backBtnText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-  topTitle: { flex: 1, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text, textAlign: "center" },
+  topTitle: { flex: 1, fontSize: 20, ...headline, color: themeColor().text, textAlign: "center" },
   topBarSpacer: { width: 72 },
   scroll: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 20, paddingBottom: 40 },
-  h1: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text,},
+  h1: { fontSize: 32, ...headline, color: themeColor().text,},
   sub: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 20 },
   list: { marginTop: 20, gap: 12 },
   card: {

@@ -10,7 +10,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 type AttendeeRow = {
   user_id: string;
   profiles: { display_name: string | null; avatar_url: string | null } | null;
@@ -154,7 +154,7 @@ function make_s() {
   screen: { flex: 1, backgroundColor: themeColor().card, padding: 20, paddingTop: 56 },
   center: { alignItems: "center", justifyContent: "center" },
   eyebrow: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-  title: { color: themeColor().text, fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", marginTop: 4 },
+  title: { color: themeColor().text, fontSize: 32, ...headline, marginTop: 4 },
   sub: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", marginTop: 8, lineHeight: 20 },
   row: {
     flexDirection: "row",

@@ -2,7 +2,7 @@ import { hapticTap } from "@/lib/haptics";
 import { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 const TZ = "America/New_York";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
@@ -126,7 +126,7 @@ function make_styles() {
   },
   weekday: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", },
   weekdayActive: { color: themeColor().pitchText },
-  dayNum: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginTop: 4 },
+  dayNum: { color: themeColor().text, fontSize: 20, ...headline, marginTop: 4 },
   dayNumActive: { color: themeColor().pitchText },
   month: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", marginTop: 4 },
   monthActive: { color: themeColor().pitchText },

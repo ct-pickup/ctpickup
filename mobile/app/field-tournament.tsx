@@ -19,7 +19,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useNavigation, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -886,8 +886,7 @@ function make_styles() {
   },
   chipValue: {
     marginTop: 4,
-    fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "800",
+    fontSize: 20, ...headline,
     color: themeColor().text,
   },
   claimBtn: {
@@ -1070,7 +1069,7 @@ function make_styles() {
     borderTopWidth: 1,
     borderColor: themeColor().line,
   },
-  inviteModalTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
+  inviteModalTitle: { fontSize: 20, ...headline, color: themeColor().text },
   inviteModalHint: { marginTop: 8, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 18 },
   inviteInput: {
     marginTop: 12,

@@ -20,7 +20,7 @@ import { fetchAdminAnalyticsDashboard } from "@/lib/adminApi";
 import { hapticError, hapticGoal, hapticTap } from "@/lib/haptics";
 import { siteOrigin } from "@/lib/env";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 function utcMonthKey(d = new Date()): string {
   const y = d.getUTCFullYear();
   const m = d.getUTCMonth() + 1;
@@ -717,7 +717,7 @@ export default function AdminMembersScreen() {
 function make_styles() {
   return StyleSheet.create({
   root: { flex: 1, backgroundColor: themeColor().bg },
-  title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", paddingHorizontal: 16, paddingVertical: 12 },
+  title: { color: themeColor().text, fontSize: 24, ...headline, paddingHorizontal: 16, paddingVertical: 12 },
   card: { backgroundColor: themeColor().bg, borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: themeColor().line },
   cardBanned: { borderColor: themeColor().coral, backgroundColor: themeColor().card },
   cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
@@ -780,7 +780,7 @@ function make_styles() {
   actionBtnText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   actionBtnTextActive: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   actionBtnTextDanger: { color: themeColor().coralText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
-  actionBtnLimeOutline: { borderColor: themeColor().pitch },
+  actionBtnLimeOutline: { borderColor: themeColor().accent },
   actionBtnTextLime: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   modalBackdrop: {
     flex: 1,

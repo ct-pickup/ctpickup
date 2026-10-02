@@ -42,10 +42,25 @@ function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number):
 }
 
 /** Rough drive minutes from crow-flies miles (fallback only). */
+const ROAD_FACTOR = 1.28;
+const DRIVE_MPH = 42;
+
 function driveMinutesFromStraightLineMiles(mi: number): number {
-  const roadFactor = 1.28;
-  const mph = 42;
-  return Math.max(1, Math.round(((mi * roadFactor) / mph) * 60));
+  return Math.max(1, Math.round(((mi * ROAD_FACTOR) / DRIVE_MPH) * 60));
+}
+
+export type ZipDriveRegion = { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number };
+
+/** Map region centered on a ZIP centroid whose edges sit about `maxDriveMinutes` away by road. */
+export function regionForZipDrive(zipCode: string | null | undefined, maxDriveMinutes: number): ZipDriveRegion | null {
+  const digits = String(zipCode ?? "").replace(/\D/g, "").slice(0, 5);
+  if (digits.length !== 5) return null;
+  const loc = zipcodes.lookup(digits);
+  if (!loc || !Number.isFinite(loc.latitude) || !Number.isFinite(loc.longitude)) return null;
+  const radiusMiles = ((maxDriveMinutes / 60) * DRIVE_MPH) / ROAD_FACTOR;
+  const latitudeDelta = (radiusMiles * 2) / 69;
+  const longitudeDelta = latitudeDelta / Math.max(0.2, Math.cos((loc.latitude * Math.PI) / 180));
+  return { latitude: loc.latitude, longitude: loc.longitude, latitudeDelta, longitudeDelta };
 }
 
 function stateCodeFromVenueAddress(address: string): string | null {

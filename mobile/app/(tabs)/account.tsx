@@ -52,7 +52,7 @@ import { VerificationRequestModal } from "@/components/account/VerificationReque
 import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
 import { PhotoHeader, PhotoUploadField } from "@/components/photo";
 import { fetchActionPhotoUrl } from "@/lib/photoUpload";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   accountStyles as styles, publish_accountStyles,
   POSITION_OPTIONS,
@@ -2163,7 +2163,7 @@ export default function AccountScreen() {
                 <Text style={s.blockTitle}>Host Rating</Text>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <Text style={{ color: themeColor().text, fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" }}>
+                <Text style={{ color: themeColor().text, fontSize: 32, ...headline }}>
                   {hostRating.avg_overall != null ? hostRating.avg_overall.toFixed(1) : "—"}
                 </Text>
                 <FontAwesome name="star" size={20} color={themeColor().pitchText} />
@@ -2471,7 +2471,7 @@ function make_s() {
     marginBottom: 8,
   },
   headerSide: { width: 40, justifyContent: "center" },
-  headerTitle: { flex: 1, textAlign: "center", color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800",},
+  headerTitle: { flex: 1, textAlign: "center", color: themeColor().text, fontSize: 20, ...headline, },
   gearBtn: { padding: 4 },
 
   actionBanner: {
@@ -2508,7 +2508,7 @@ function make_s() {
   avatarRing: { width: 84, height: 84, borderRadius: 999, borderWidth: 2.5, padding: 4 },
   avatarImg: { width: "100%", height: "100%", borderRadius: 999 },
   avatarFallback: { backgroundColor: themeColor().overlaySubtle, alignItems: "center", justifyContent: "center" },
-  avatarFallbackText: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  avatarFallbackText: { fontSize: 24, ...headline },
   cameraBadge: {
     position: "absolute",
     bottom: 0,
@@ -2522,7 +2522,7 @@ function make_s() {
     borderColor: themeColor().line,
   },
   heroInfo: { flex: 1, minWidth: 0 },
-  heroName: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900",},
+  heroName: { color: themeColor().text, fontSize: 24, ...headline, },
   heroUsername: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 4 },
   heroBadgeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" },
   tierBadge: {
@@ -2547,7 +2547,7 @@ function make_s() {
     borderTopColor: themeColor().overlay,
   },
   statCell: { flex: 1, alignItems: "center", gap: 4 },
-  statValue: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900",},
+  statValue: { color: themeColor().text, fontSize: 20, ...headline, },
   statLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
 
   /* tier progress */
@@ -2568,11 +2568,11 @@ function make_s() {
   viewProgressBtn: {
     flexShrink: 0,
     borderWidth: 1,
-    borderColor: themeColor().pitch, borderRadius: 999,
+    borderColor: themeColor().accent, borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
-  viewProgressBtnText: { color: themeColor().pitchText, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
+  viewProgressBtnText: { color: themeColor().accent, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
 
   /* generic block card */
   blockCard: {
@@ -2585,7 +2585,7 @@ function make_s() {
   },
   blockHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   blockTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800",},
-  editLink: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  editLink: { color: themeColor().accent, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "800" },
 
   /* soccer tile grid */
   tileGrid: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: -6 },
@@ -2644,7 +2644,7 @@ function make_s() {
     color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
   },
-  mySessionsViewAll: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  mySessionsViewAll: { color: themeColor().accent, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
 
   /* list rows */
   listRow: {
@@ -2669,7 +2669,7 @@ function make_s() {
     borderBottomWidth: 1,
     borderBottomColor: themeColor().overlay,
   },
-  editModalTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  editModalTitle: { color: themeColor().text, fontSize: 20, ...headline },
   editModalClose: { padding: 4 },
 });
 }

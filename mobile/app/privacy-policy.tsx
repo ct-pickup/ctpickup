@@ -1,7 +1,7 @@
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 const SUPPORT_EMAIL = "pickupct@gmail.com";
 
 type PolicyLink = {
@@ -159,8 +159,7 @@ function make_styles() {
   scrollContent: { paddingHorizontal: 20, paddingTop: 20 },
   docTitle: {
     color: themeColor().text,
-    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "800",
+    fontSize: 32, ...headline,
     marginBottom: 8,
   },
   docSubtitle: {
@@ -195,7 +194,7 @@ function make_styles() {
   linkText: {
     fontSize: 14, fontFamily: "Inter_600SemiBold",
     lineHeight: 20,
-    color: themeColor().pitchText,
+    color: themeColor().accent,
     fontWeight: "600",
     textDecorationLine: "underline",
   },

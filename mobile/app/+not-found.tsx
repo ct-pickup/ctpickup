@@ -3,7 +3,7 @@ import { Stack, useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 export default function NotFoundScreen() {
   useThemedStyles(publish_styles);
 
@@ -50,14 +50,12 @@ function make_styles() {
     gap: 12,
   },
   code: {
-    fontSize: 56, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "900",
+    fontSize: 56, ...headline,
     color: themeColor().pitchText,
     lineHeight: 88,
   },
   title: {
-    fontSize: 24, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "800",
+    fontSize: 24, ...headline,
     color: themeColor().text,
   },
   body: {

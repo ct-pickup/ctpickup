@@ -10,7 +10,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -490,7 +490,7 @@ function make_styles() {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 16, paddingBottom: 40 },
-  h1: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
+  h1: { fontSize: 32, ...headline, color: themeColor().text },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
   chip: {
     paddingHorizontal: 12,

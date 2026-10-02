@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 const PASSWORD_MIN_LEN = 8;
 
 export default function ResetPasswordScreen() {
@@ -181,7 +181,7 @@ function make_styles() {
   screen: { flex: 1, backgroundColor: themeColor().bg },
   centered: { justifyContent: "center", alignItems: "stretch" },
   content: { paddingHorizontal: 20 },
-  title: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().text, lineHeight: 36 },
+  title: { fontSize: 32, ...headline, color: themeColor().text, lineHeight: 36 },
   lead: { marginTop: 8, color: themeColor().muted, fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 22 },
   errorText: {
     marginTop: 12,

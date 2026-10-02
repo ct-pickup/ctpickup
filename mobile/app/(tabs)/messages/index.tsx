@@ -13,7 +13,7 @@ import {
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Pressable,
@@ -298,10 +298,9 @@ function make_styles() {
     alignItems: "center",
   },
   pad: { flex: 1, backgroundColor: themeColor().bg, padding: 16 },
-  heading: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", marginBottom: 4 },
+  heading: { color: themeColor().text, fontSize: 24, ...headline, marginBottom: 4 },
   title: {
-    fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "800",
+    fontSize: 20, ...headline,
     color: themeColor().text,
     textAlign: "center",
     marginBottom: 12,

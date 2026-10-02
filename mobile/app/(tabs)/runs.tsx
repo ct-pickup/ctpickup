@@ -42,7 +42,7 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChalkEmptyState } from "@/components/chalk";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 type PickupCreditItem = {
   id: string;
   reason: string;
@@ -1351,7 +1351,7 @@ function make_styles() {
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0 },
-  h1: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().text, flex: 1, minWidth: 0 },
+  h1: { fontSize: 32, ...headline, color: themeColor().text, flex: 1, minWidth: 0 },
   reliabilityPill: {
     paddingHorizontal: 12,
     paddingVertical: 4,
@@ -1404,7 +1404,7 @@ function make_styles() {
     borderColor: themeColor().line,
     backgroundColor: themeColor().card,
   },
-  emptyTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  emptyTitle: { color: themeColor().text, fontSize: 20, ...headline },
   emptyBody: { color: themeColor().muted, marginTop: 8, lineHeight: 22 },
   retryBtn: {
     marginTop: 16,
@@ -1413,9 +1413,9 @@ function make_styles() {
     paddingHorizontal: 16,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().accent,
   },
-  retryBtnText: { color: themeColor().pitchText, fontWeight: "700" },
+  retryBtnText: { color: themeColor().accent, fontWeight: "700" },
   card: {
     padding: 20,
     borderRadius: 12,
@@ -1461,7 +1461,7 @@ function make_styles() {
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  sheetTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  sheetTitle: { color: themeColor().text, fontSize: 20, ...headline },
   sheetScroll: { paddingBottom: 24 },
   cardHeader: {
     flexDirection: "row",
@@ -1472,7 +1472,7 @@ function make_styles() {
   cardHeaderRight: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0 },
   titleBlock: { flex: 1, minWidth: 0 },
   titleRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", gap: 8 },
-  cardTitle: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", lineHeight: 28 },
+  cardTitle: { color: themeColor().text, fontSize: 24, ...headline, lineHeight: 28 },
   typeLabel: {
     color: themeColor().muted,
     fontSize: 13, fontFamily: "Inter_600SemiBold",
@@ -1489,8 +1489,8 @@ function make_styles() {
   },
   statusPillText: { color: themeColor().muted, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700",},
   dateTimeRow: { gap: 4 },
-  dateEt: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700",},
-  datePlanning: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700",},
+  dateEt: { color: themeColor().text, fontSize: 20, ...headline, },
+  datePlanning: { color: themeColor().text, fontSize: 20, ...headline, },
   planningTimeHint: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_500Medium", fontWeight: "500", lineHeight: 20 },
   timeEt: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
   locationRow: {

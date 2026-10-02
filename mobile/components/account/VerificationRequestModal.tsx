@@ -1,7 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import { useState } from "react";
-import { themeColor } from "@/theme";
+import { headline, themeColor } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -137,8 +137,8 @@ function make_s() {
   return StyleSheet.create({
   root: { flex: 1, backgroundColor: themeColor().bg, padding: 20 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 16, marginBottom: 24 },
-  title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
-  close: { color: themeColor().muted, fontSize: 20, fontFamily: "InstrumentSerif_400Regular" },
+  title: { color: themeColor().text, fontSize: 24, ...headline },
+  close: { color: themeColor().muted, fontSize: 20, ...headline },
   tierCard: { backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 24 },
   tierTitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 12 },
   tierRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 },

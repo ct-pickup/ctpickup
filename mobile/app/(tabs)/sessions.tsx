@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
 import { PhotoHeader, useFieldPhotos } from "@/components/photo";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 type AvatarPreview = { id: string; initials: string };
 
 type LiveRow = {
@@ -612,7 +612,7 @@ export default function SessionsTabScreen() {
                   graphic="box"
                   size="sm"
                   title={live.length > 0 ? "No other upcoming sessions." : "No upcoming sessions yet."}
-                  actionLabel={!showJoinCard ? "Find a run →" : undefined}
+                  actionLabel={!showJoinCard ? "Get a game" : undefined}
                   onAction={
                     !showJoinCard
                       ? () => (router.push as (href: string) => void)("/session-map")
@@ -720,7 +720,7 @@ export default function SessionsTabScreen() {
         accessibilityRole="button"
         accessibilityLabel="Host a Session"
       >
-        <FontAwesome name="plus" size={22} color={themeColor().onPitch} />
+        <FontAwesome name="plus" size={22} color={themeColor().onAccent} />
       </Pressable>
     </View>
   );
@@ -731,8 +731,7 @@ function make_styles() {
   root: { flex: 1, backgroundColor: themeColor().bg },
   header: {
     color: themeColor().text,
-    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "800",
+    fontSize: 32, ...headline,
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 8,
@@ -748,7 +747,7 @@ function make_styles() {
     marginBottom: 20,
   },
   statCell: { flex: 1, alignItems: "center", gap: 4 },
-  statValue: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  statValue: { color: themeColor().text, fontSize: 20, ...headline },
   statLabel: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   sectionTitle: {
     color: themeColor().pitchText,
@@ -868,7 +867,7 @@ function make_styles() {
     width: 56,
     height: 56,
     borderRadius: 999,
-    backgroundColor: themeColor().pitch,
+    backgroundColor: themeColor().accent,
     alignItems: "center",
     justifyContent: "center",
   },

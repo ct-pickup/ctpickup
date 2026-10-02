@@ -20,7 +20,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChalkBox, ChalkCenterCircle } from "@/components/chalk";
-import { themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, useThemedStyles } from "@/theme";
 type Slide =
   | { kind: "logo"; title: string; body: string }
   | { kind: "chalk"; graphic: "circle" | "box"; title: string; body: string };
@@ -268,8 +268,7 @@ function make_styles() {
   chalkMark: { height: 96, justifyContent: "center", marginBottom: 28 },
   title: {
     color: themeColor().text,
-    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
-    fontWeight: "900",
+    fontSize: 32, ...headline,
     textAlign: "center",
     marginBottom: 16,
   },
