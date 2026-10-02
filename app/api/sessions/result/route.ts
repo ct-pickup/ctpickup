@@ -30,7 +30,7 @@ function asUuid(v: unknown): string | null {
   return asAwardUserId(v);
 }
 
-async function bumpAttendedAndSessions(
+async function bumpAttendedAndEnsureRating(
   admin: ReturnType<typeof getSupabaseAdmin>,
   userIds: string[],
   now: string,
@@ -55,36 +55,15 @@ async function bumpAttendedAndSessions(
       });
     }
 
-    const { data: rating } = await admin
+    // settle_session only rates players with a player_ratings row and is the only
+    // writer of player_ratings.sessions (+1 per rated game). Never increment it here.
+    const { error: insErr } = await admin
       .from("player_ratings")
-      .select("sessions")
-      .eq("user_id", user_id)
-      .maybeSingle();
-
-    if (!rating) {
-      const { error: insErr } = await admin.from("player_ratings").upsert(
-        { user_id, sessions: 1, updated_at: now },
-        { onConflict: "user_id", ignoreDuplicates: false },
-      );
-      if (insErr) {
-        console.error("[sessions/result] player_ratings insert failed", {
-          user_id,
-          error: insErr.message,
-        });
-      }
-      continue;
-    }
-
-    const nextSessions = Math.max(0, Number(rating.sessions ?? 0)) + 1;
-    const { error: rateErr } = await admin
-      .from("player_ratings")
-      .update({ sessions: nextSessions, updated_at: now })
-      .eq("user_id", user_id);
-
-    if (rateErr) {
-      console.error("[sessions/result] player_ratings.sessions update failed", {
+      .upsert({ user_id }, { onConflict: "user_id", ignoreDuplicates: true });
+    if (insErr) {
+      console.error("[sessions/result] player_ratings row create failed", {
         user_id,
-        error: rateErr.message,
+        error: insErr.message,
       });
     }
   }
@@ -414,7 +393,7 @@ export async function POST(req: Request) {
       attendees: attendeeIds.length,
       assigned: assignments.length,
     });
-    await bumpAttendedAndSessions(admin, attendeeIds, now);
+    await bumpAttendedAndEnsureRating(admin, attendeeIds, now);
   }
 
   // Push: all attendees get the result summary once, not on every edit.

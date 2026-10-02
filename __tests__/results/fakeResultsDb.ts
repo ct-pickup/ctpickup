@@ -54,6 +54,7 @@ class FakeQuery implements PromiseLike<Result> {
   private max: number | null = null;
   private orderBy: { col: string; asc: boolean } | null = null;
   private onConflict: string | null = null;
+  private ignoreDuplicates = false;
 
   constructor(private db: FakeResultsDb, private table: string) {}
 
@@ -68,10 +69,11 @@ class FakeQuery implements PromiseLike<Result> {
     this.payload = row;
     return this;
   }
-  upsert(row: Row | Row[], opts?: { onConflict?: string }) {
+  upsert(row: Row | Row[], opts?: { onConflict?: string; ignoreDuplicates?: boolean }) {
     this.op = "upsert";
     this.payload = row;
     this.onConflict = opts?.onConflict ?? null;
+    this.ignoreDuplicates = opts?.ignoreDuplicates === true;
     return this;
   }
   update(patch: Row) {
@@ -157,6 +159,7 @@ class FakeQuery implements PromiseLike<Result> {
       for (const raw of list) {
         const existing = this.op === "upsert" && keys ? rows.find((r) => keys.every((k) => r[k] === raw[k])) : undefined;
         if (existing) {
+          if (this.ignoreDuplicates) continue;
           Object.assign(existing, raw);
           written.push(existing);
         } else {
