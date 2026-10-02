@@ -26,7 +26,7 @@ import PlayedWithRow, { usePlayedWith } from "@/components/pickup/PlayedWithRow"
 import type { PlayedWithSummary } from "@/lib/matchApi";
 import { fmtPickupWhenEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
 import { withRunTimeTbd } from "@/lib/pickup/runTimeTbd";
-import { headline, themeColor, useThemedStyles } from "@/theme";
+import { headline, themeColor, themeNow, useThemedStyles } from "@/theme";
 /* ---------------------------------------------------------------- tokens */
 
 function C() {
@@ -601,7 +601,7 @@ export default function SessionMapScreen() {
         ref={mapRef}
         style={StyleSheet.absoluteFill}
         initialRegion={FAIRFIELD}
-        userInterfaceStyle="dark"
+        userInterfaceStyle={themeNow().mode}
         backgroundColor={themeColor().card}
         loadingBackgroundColor={themeColor().card}
         showsUserLocation

@@ -272,7 +272,7 @@ function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; isAdmin: bo
       <Tabs.Screen name="sessions" options={{ title: "Games", headerShown: false }} />
       <Tabs.Screen name="tournaments" options={{ title: "Tournaments", href: null }} />
       <Tabs.Screen name="messages" options={{ title: "Messages", headerShown: false }} />
-      <Tabs.Screen name="account" options={{ title: "Profile" }} />
+      <Tabs.Screen name="account" options={{ title: "Profile", headerShown: false }} />
       <Tabs.Screen name="leaderboards" options={{ title: "Rankings" }} />
       <Tabs.Screen name="admin" options={{ title: "Admin", headerShown: false }} />
     </Tabs>

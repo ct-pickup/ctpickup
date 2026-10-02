@@ -22,7 +22,7 @@ import { fetchPlayerCards, type PlayerCard } from "@/lib/starRatings";
 import { StarRating } from "@/components/StarRating";
 
 import { PhotoHeader, useFieldPhotos } from "@/components/photo";
-import { headline, radius, themeColor, useThemedStyles } from "@/theme";
+import { headline, radius, themeColor, themeNow, useThemedStyles } from "@/theme";
 // ─── design tokens ──────────────────────────────────────────────────────────
 
 /** Northeast service area: CT, NY, NJ, and MD. */
@@ -1522,7 +1522,7 @@ export default function CommunityMapScreen() {
           ref={mapRef}
           style={StyleSheet.absoluteFill}
           initialRegion={hasOutsideNortheast ? WIDE_REGION : SERVICE_REGION}
-          userInterfaceStyle="dark"
+          userInterfaceStyle={themeNow().mode}
           backgroundColor={themeColor().card}
           loadingBackgroundColor={themeColor().card}
           showsUserLocation

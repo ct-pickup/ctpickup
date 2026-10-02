@@ -628,7 +628,6 @@ export type PublicPlayerProfile = {
   primary_position: string | null;
   secondary_positions: string[];
   experience_level: string | null;
-  age: number | null;
   club_name: string | null;
   roster_url: string | null;
   attended_count: number | null;

@@ -244,7 +244,7 @@ export function ProfileSection({
             keyboardType="numeric" maxLength={4} autoCorrect={false} editable={!editBusy}
           />
         </View>
-        <Text style={styles.bioHint}>Used to display your age on your profile. Never shown as a full date.</Text>
+        <Text style={styles.bioHint}>Only kept for eligibility. Never shown to other players.</Text>
 
         <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Club / team</Text>
         <TextInput style={styles.input} value={editClubName} onChangeText={setEditClubName}

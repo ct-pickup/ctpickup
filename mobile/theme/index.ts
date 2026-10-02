@@ -1,11 +1,13 @@
 import { useMemo } from "react";
-import { useColorScheme } from "react-native";
+
+import { useResolvedColorScheme } from "@/context/AppearanceContext";
 
 import {
   darkTheme,
   lightTheme,
   radius,
   themeForScheme,
+  typeScale,
   type Theme,
   type ThemeColors,
 } from "@theme/tokens";
@@ -16,6 +18,9 @@ import {
  * The family file already carries the weight, so styles must not add fontWeight.
  */
 export const headline = { fontFamily: "Archivo_700Bold", letterSpacing: -0.5 } as const;
+
+/** Player name on the Profile hero: Archivo 700 at 28. */
+export const profileName = { ...headline, fontSize: typeScale.profileName, lineHeight: 32 } as const;
 
 /** Season record numeral ("2–1"). */
 export const recordNumeral = { ...headline, fontSize: 40, lineHeight: 44 } as const;
@@ -68,11 +73,11 @@ export function publishTheme(scheme: string | null | undefined): Theme {
 }
 
 /**
- * Light when the system scheme is light or unset. Dark only when the system
- * scheme is dark. Subscribes the caller so styles refresh on change.
+ * Theme for the user's Appearance setting (Light by default, Dark, or Match system).
+ * Subscribes the caller so styles refresh on change.
  */
 export function useTheme(): Theme {
-  const scheme = useColorScheme();
+  const scheme = useResolvedColorScheme();
   return useMemo(() => publishTheme(scheme), [scheme]);
 }
 
