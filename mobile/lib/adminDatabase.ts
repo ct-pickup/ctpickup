@@ -159,7 +159,7 @@ export function statusBadgeStyle(status: string | null | undefined): StatusBadge
     s === "invited" ||
     s === "pending_confirm"
   ) {
-    return { bg: themeColor().overlay, border: themeColor().overlayStrong, text: themeColor().text };
+    return { bg: themeColor().card, border: themeColor().line, text: themeColor().muted };
   }
   if (
     s === "active" ||
@@ -182,7 +182,7 @@ export function statusBadgeStyle(status: string | null | undefined): StatusBadge
     return { bg: themeColor().card, border: themeColor().line, text: themeColor().muted };
   }
   if (s === "pending_payment") {
-    return { bg: themeColor().overlaySubtle, border: themeColor().line, text: themeColor().muted };
+    return { bg: themeColor().card, border: themeColor().line, text: themeColor().muted };
   }
 
   return { bg: themeColor().overlaySubtle, border: themeColor().overlay, text: themeColor().text };

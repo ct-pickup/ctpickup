@@ -118,7 +118,7 @@ export default function AdminVerificationScreen() {
                 <Text style={s.name}>{name}</Text>
                 <Text style={s.meta}>@{req.profiles?.username ?? "—"} · {new Date(req.created_at).toLocaleDateString()}</Text>
               </View>
-              <View style={[s.statusPill, { borderColor: themeColor().line }]}>
+              <View style={[s.statusPill, { borderColor: themeColor().line, backgroundColor: themeColor().card }]}>
                 <Text style={[s.statusText, { color: themeColor().muted }]}>Pending</Text>
               </View>
             </View>

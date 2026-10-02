@@ -780,7 +780,7 @@ export default function AdminTournamentScreen() {
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={styles.captainTop}>
                       <View style={[styles.badge, statusBadgeStyle(c.status)]}>
-                        <Text style={styles.badgeText}>{c.status || "—"}</Text>
+                        <Text style={[styles.badgeText, statusBadgeStyle(c.status) === styles.badgeWarn && styles.badgeWarnText]}>{c.status || "—"}</Text>
                       </View>
                     </View>
                     <Text style={styles.captainName}>{c.captain_name || "—"}</Text>
@@ -1201,7 +1201,8 @@ function make_styles() {
   badge: { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
   badgeText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "900", color: themeColor().text },
   badgeOk: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
-  badgeWarn: { borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
+  badgeWarn: { borderColor: themeColor().line, backgroundColor: themeColor().card },
+  badgeWarnText: { color: themeColor().muted },
   badgeBad: { borderColor: themeColor().coral, backgroundColor: themeColor().overlaySubtle },
   badgeNeutral: { borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
   captainName: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },

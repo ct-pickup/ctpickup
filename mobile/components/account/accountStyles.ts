@@ -134,7 +134,7 @@ function make_accountStyles() {
   statusRow: { flexDirection: "row", marginBottom: 12 },
   statusPill: { paddingVertical: 4, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1 },
   statusPillGreen: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
-  statusPillAmber: { borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
+  statusPillAmber: { borderColor: themeColor().line, backgroundColor: themeColor().card },
   statusPillText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
   statusPillTextGreen: { color: themeColor().pitchText },
   statusPillTextAmber: { color: themeColor().muted },

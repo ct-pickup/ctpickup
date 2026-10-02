@@ -232,7 +232,7 @@ function make_tabStyles() {
     paddingTop: 8,
   },
   item: { flex: 1, alignItems: "center", justifyContent: "flex-start", gap: 4 },
-  label: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600",},
+  label: { fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600",},
   hostSlot: { flex: 1, alignItems: "center" },
   hostBtn: {
     position: "absolute",
