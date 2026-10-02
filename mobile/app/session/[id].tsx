@@ -1,13 +1,15 @@
 import { useAuth } from "@/context/AuthContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { siteOrigin } from "@/lib/env";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useState, type ComponentProps } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -17,10 +19,16 @@ import {
   View,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import PlayerAvatar from "@/components/PlayerAvatar";
 import { PhotoHeader, PhotoUploadField, useFieldPhotos } from "@/components/photo";
+import SpotsBadge from "@/components/pickup/SpotsBadge";
+import { fmtPickupSlotChipEt, fmtPickupTimeEt } from "@/lib/pickup/runStartAtDisplay";
 import { setRunFieldPhoto } from "@/lib/photoUpload";
-import { headline, themeColor } from "@/theme";
+import { averageStars, fetchPlayerStars, fetchRunMinStars, formatStars, levelLabel } from "@/lib/starRatings";
+import { milesFromZip } from "@/lib/venueDistance";
+import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 type SessionDetail = {
   id: string;
   title: string;
@@ -50,7 +58,16 @@ type Attendee = {
     last_name: string | null;
     username: string | null;
     playing_position: string | null;
+    avatar_url: string | null;
   } | null;
+};
+
+type HostInfo = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
 };
 
 type PlayerResult = {
@@ -61,9 +78,39 @@ type PlayerResult = {
   playing_position: string | null;
 };
 
-const TIER_LABELS: Record<number, string> = {
-  0: "All levels", 1: "Bronze+", 2: "Silver+", 3: "Gold+", 4: "Platinum+", 5: "Diamond only",
-};
+const GOING_SHOWN = 7;
+const JOIN_BAR_HEIGHT = 52;
+const TOAST_MS = 3000;
+
+function formatFee(cents: number): string {
+  if (cents <= 0) return "Free";
+  const dollars = cents / 100;
+  return `$${Number.isInteger(dollars) ? dollars : dollars.toFixed(2)} per player`;
+}
+
+function formatMiles(mi: number): string {
+  return `${mi < 10 ? mi.toFixed(1) : Math.round(mi)} mi away`;
+}
+
+function Toast({ message, id, bottom }: { message: string; id: number; bottom: number }) {
+  useThemedStyles(publish_s);
+  const [opacity] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    opacity.setValue(0);
+    const anim = Animated.sequence([
+      Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+      Animated.delay(TOAST_MS - 360),
+      Animated.timing(opacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+    ]);
+    anim.start();
+    return () => anim.stop();
+  }, [id, opacity]);
+  return (
+    <Animated.View pointerEvents="none" style={[s.toast, { bottom, opacity }]} accessibilityLiveRegion="polite">
+      <Text style={s.toastText}>{message}</Text>
+    </Animated.View>
+  );
+}
 
 function fmt12Hour(iso: string): string {
   const d = new Date(iso);
@@ -102,8 +149,10 @@ const HOST_RATING_CATEGORIES: Array<{ key: string; label: string; hint: string }
 ];
 
 export default function SessionDetailScreen() {
+  useThemedStyles(publish_s);
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { session, supabase } = useAuth();
   const { isAdmin } = useProfileAdmin();
   const fieldPhotos = useFieldPhotos(id ? [id] : []);
@@ -116,6 +165,14 @@ export default function SessionDetailScreen() {
   const [rsvpBusy, setRsvpBusy] = useState(false);
   const [myStatus, setMyStatus] = useState<string | null>(null);
   const [endBusy, setEndBusy] = useState(false);
+  const [stars, setStars] = useState<Map<string, number>>(new Map());
+  const [minStar, setMinStar] = useState<number | null>(null);
+  const [host, setHost] = useState<HostInfo | null>(null);
+  const [hostScore, setHostScore] = useState<number | null>(null);
+  const [myZip, setMyZip] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [photoEditorOpen, setPhotoEditorOpen] = useState(false);
+  const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
 
   // Invite modal
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -232,25 +289,30 @@ export default function SessionDetailScreen() {
 
       const rsvps = (rsvpData ?? []) as Array<{ user_id: string; status: string }>;
       const userIds = Array.from(new Set(rsvps.map((r) => r.user_id).filter(Boolean)));
+      const hostId = resolved?.created_by ?? null;
+      const profileIds = hostId && !userIds.includes(hostId) ? [...userIds, hostId] : userIds;
 
       const profileById = new Map<string, Attendee["profiles"]>();
-      if (userIds.length > 0) {
-        const { data: profileRows } = await supabase
+      if (profileIds.length > 0) {
+        const { data: profileRows, error: profileErr } = await supabase
           .from("profiles")
-          .select("id,first_name,last_name,username,playing_position")
-          .in("id", userIds);
+          .select("id,first_name,last_name,username,playing_position,avatar_url")
+          .in("id", profileIds);
+        if (profileErr) console.warn("[session] profiles read:", profileErr.message);
         for (const p of (profileRows ?? []) as Array<{
           id: string;
           first_name: string | null;
           last_name: string | null;
           username: string | null;
           playing_position: string | null;
+          avatar_url: string | null;
         }>) {
           profileById.set(p.id, {
             first_name: p.first_name,
             last_name: p.last_name,
             username: p.username,
             playing_position: p.playing_position,
+            avatar_url: p.avatar_url?.trim() || null,
           });
         }
       }
@@ -262,6 +324,26 @@ export default function SessionDetailScreen() {
           profiles: profileById.get(r.user_id) ?? null,
         })),
       );
+
+      const hostRow = hostId ? profileById.get(hostId) : null;
+      setHost(
+        hostId
+          ? {
+              id: hostId,
+              first_name: hostRow?.first_name ?? null,
+              last_name: hostRow?.last_name ?? null,
+              username: hostRow?.username ?? null,
+              avatar_url: hostRow?.avatar_url ?? null,
+            }
+          : null,
+      );
+
+      const [starMap, minStarMap] = await Promise.all([
+        fetchPlayerStars(supabase, userIds),
+        fetchRunMinStars(supabase, [id]),
+      ]);
+      setStars(starMap);
+      setMinStar(minStarMap.get(id) ?? null);
 
       if (myUserId) {
         const { data: myRsvp } = await supabase
@@ -393,6 +475,58 @@ export default function SessionDetailScreen() {
   }, [supabase, id, myUserId, session?.access_token]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const hostId = run?.created_by ?? null;
+  useEffect(() => {
+    setHostScore(null);
+    const origin = siteOrigin();
+    if (!hostId || !origin) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const headers: Record<string, string> = {};
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+        const r = await fetch(`${origin}/api/sessions/host-rating?host_id=${encodeURIComponent(hostId)}`, { headers });
+        const j = (await r.json().catch(() => null)) as { avg_overall?: number | null; total_ratings?: number } | null;
+        if (cancelled) return;
+        if (!r.ok || !j) {
+          console.warn("[session] host rating read failed:", r.status);
+          return;
+        }
+        if ((j.total_ratings ?? 0) >= 1 && typeof j.avg_overall === "number") {
+          setHostScore(Math.round((j.avg_overall / 5) * 100));
+        }
+      } catch (e) {
+        if (!cancelled) console.warn("[session] host rating read failed:", e instanceof Error ? e.message : String(e));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hostId, session?.access_token]);
+
+  useEffect(() => {
+    if (!supabase || !myUserId) {
+      setMyZip(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await supabase.from("profiles").select("zip_code").eq("id", myUserId).maybeSingle();
+      if (cancelled) return;
+      if (error) console.warn("[session] zip read:", error.message);
+      setMyZip((data as { zip_code?: string | null } | null)?.zip_code?.trim() || null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, myUserId]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), TOAST_MS);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   async function endSession() {
     if (endBusy) return;
@@ -960,6 +1094,11 @@ export default function SessionDetailScreen() {
       }
 
       await load();
+      if (j.status === "confirmed" && run) {
+        setToast({ id: Date.now(), text: `You're in. See you at ${fmtPickupTimeEt(run.start_at)}.` });
+      } else if (j.status === "waitlist") {
+        setToast({ id: Date.now(), text: "You're on the waitlist." });
+      }
     } finally {
       setRsvpBusy(false);
     }
@@ -972,12 +1111,18 @@ export default function SessionDetailScreen() {
   }
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator color={themeColor().pitchText} size="large" /></View>;
+    return (
+      <View style={s.center}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <ActivityIndicator color={themeColor().pitchText} size="large" />
+      </View>
+    );
   }
 
   if (!run) {
     return (
       <View style={s.center}>
+        <Stack.Screen options={{ headerShown: false }} />
         <Text style={s.errorText}>Session not found.</Text>
         <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={s.backBtnText}>Go back</Text></Pressable>
       </View>
@@ -987,8 +1132,7 @@ export default function SessionDetailScreen() {
   const spotsLeft = run.capacity - run.spots_taken;
   const isFull = spotsLeft <= 0;
   const isJoined = myStatus === "confirmed" || myStatus === "pending_payment";
-  const tierLabel = run.open_tier_rank != null ? TIER_LABELS[run.open_tier_rank] : "All levels";
-  const formatLabel = run.format ?? run.run_type;
+  const formatLabel = run.format?.trim() || null;
   const sessionStarted = (() => {
     const t = new Date(run.start_at).getTime();
     return Number.isFinite(t) && t < Date.now();
@@ -1005,6 +1149,54 @@ export default function SessionDetailScreen() {
   const canHostScore = isHost && (isCompleted || sessionStarted);
   const hostScoreLabel = isCompleted ? "Score players" : "Rate session";
 
+  const locationParts = (run.location_text ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+  const fieldName = locationParts[0] || run.title || "Pickup game";
+  const town = locationParts[1] ?? null;
+  const miles = milesFromZip(myZip, run.latitude, run.longitude);
+  const placeLine = [town, miles != null ? formatMiles(miles) : null].filter(Boolean).join(" · ");
+  const fillPct = run.capacity > 0 ? Math.min(100, Math.max(0, (run.spots_taken / run.capacity) * 100)) : 0;
+  const goingShown = attendees.slice(0, GOING_SHOWN);
+  const goingExtra = attendees.length - goingShown.length;
+  const avgStar = averageStars(attendees.map((a) => stars.get(a.user_id)));
+  const hostName = host
+    ? [host.first_name, host.last_name].filter(Boolean).join(" ").trim() || host.username || "Host"
+    : null;
+
+  const showJoinBar = !isHost && !isCompleted;
+  const join: { label: string; variant: "filled" | "outline"; onPress?: () => void } =
+    myStatus === "confirmed"
+      ? { label: "You're in · Leave", variant: "outline", onPress: () => void leaveSession() }
+      : myStatus === "pending_payment"
+        ? { label: "Payment pending · Leave", variant: "outline", onPress: () => void leaveSession() }
+        : myStatus === "waitlist"
+          ? { label: "On the waitlist", variant: "outline" }
+          : isFull
+            ? { label: "Full · Join waitlist", variant: "filled", onPress: () => void rsvp() }
+            : { label: "Join game", variant: "filled", onPress: () => void rsvp() };
+  const joinBarBottom = Math.max(insets.bottom, 12);
+  const joinBarTotal = JOIN_BAR_HEIGHT + 12 + joinBarBottom;
+
+  const menuItems: Array<{ key: string; label: string; icon: ComponentProps<typeof FontAwesome>["name"]; onPress: () => void }> = [
+    { key: "share", label: "Share session", icon: "share", onPress: () => void shareSession() },
+  ];
+  if (isHost && !isCompleted) {
+    menuItems.push({ key: "invite", label: "Invite players", icon: "user-plus", onPress: () => setInviteOpen(true) });
+  }
+  if (canEditPhoto) {
+    menuItems.push({
+      key: "photo",
+      label: heroPhoto ? "Change field photo" : "Add field photo",
+      icon: "camera",
+      onPress: () => setPhotoEditorOpen(true),
+    });
+  }
+
+  function runMenuItem(action: () => void) {
+    setMenuOpen(false);
+    // iOS cannot present a sheet while the menu modal is still dismissing.
+    setTimeout(action, Platform.OS === "ios" ? 350 : 0);
+  }
+
   function openVoteModal() {
     setVoteStep(hasVoted && !hasPotdVoted ? 2 : 1);
     setVoteOpen(true);
@@ -1012,216 +1204,292 @@ export default function SessionDetailScreen() {
 
   return (
     <>
-      <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 60 }}>
-        <View style={s.header}>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
-            <FontAwesome name="chevron-left" size={16} color={themeColor().muted} />
-          </Pressable>
-          <Text style={s.headerTitle} numberOfLines={1}>{run.title}</Text>
-          <Pressable onPress={() => void shareSession()} hitSlop={10}>
-            <FontAwesome name="share" size={16} color={themeColor().pitchText} />
-          </Pressable>
-        </View>
+      <View style={s.screen}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <ScrollView
+          style={s.root}
+          contentContainerStyle={{ paddingBottom: (showJoinBar ? joinBarTotal : insets.bottom) + 32 }}
+        >
+          <View>
+            <PhotoHeader uri={heroPhoto} aspect="tall" chalkSize="md" accessibilityLabel="Field photo" />
+            <View style={[s.heroBar, { top: insets.top + 8 }]}>
+              <Pressable
+                onPress={() => router.back()}
+                style={s.heroBtn}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
+              >
+                <FontAwesome name="chevron-left" size={16} color={themeColor().onPhoto} />
+              </Pressable>
+              <Pressable
+                onPress={() => setMenuOpen(true)}
+                style={s.heroBtn}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Session options"
+              >
+                <FontAwesome name="ellipsis-h" size={18} color={themeColor().onPhoto} />
+              </Pressable>
+            </View>
+            {!isCompleted ? <SpotsBadge spotsLeft={spotsLeft} style={s.heroBadge} /> : null}
+          </View>
 
-        <PhotoHeader uri={heroPhoto} aspect="tall" chalkSize="md" style={s.hero} accessibilityLabel="Field photo">
-          {heroPhoto ? (
-            <>
-              <Text style={s.heroTitle} numberOfLines={2}>{run.title}</Text>
-              {run.location_text ? (
-                <Text style={s.heroSub} numberOfLines={1}>{run.location_text}</Text>
+          <View style={s.body}>
+            {canEditPhoto && photoEditorOpen ? (
+              <View style={s.photoControls}>
+                <PhotoUploadField
+                  bucket="field-photos"
+                  name="field"
+                  label="Field photo"
+                  aspect="wide"
+                  preview={false}
+                  addLabel="Add field photo"
+                  value={heroPhoto ?? null}
+                  onChange={saveFieldPhoto}
+                />
+                <Pressable onPress={() => setPhotoEditorOpen(false)} hitSlop={8} accessibilityRole="button">
+                  <Text style={s.linkText}>Done</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            <Text style={s.when}>{fmtPickupSlotChipEt(run.start_at)}</Text>
+            <Text style={s.fieldName}>{fieldName}</Text>
+            {placeLine ? <Text style={s.place}>{placeLine}</Text> : null}
+
+            <View style={s.chipRow}>
+              {formatLabel ? (
+                <View style={s.chip}><Text style={s.chipText}>{formatLabel}</Text></View>
               ) : null}
-            </>
-          ) : null}
-        </PhotoHeader>
-
-        {canEditPhoto ? (
-          <View style={s.photoControls}>
-            <PhotoUploadField
-              bucket="field-photos"
-              name="field"
-              label="Field photo"
-              aspect="wide"
-              preview={false}
-              addLabel="Add field photo"
-              value={heroPhoto ?? null}
-              onChange={saveFieldPhoto}
-            />
-          </View>
-        ) : null}
-
-        {canVote ? (
-          <Pressable
-            onPress={openVoteModal}
-            style={s.rateBanner}
-            accessibilityRole="button"
-            accessibilityLabel={voteBtnLabel}
-          >
-            <FontAwesome name="star" size={14} color={themeColor().onPitch} />
-            <Text style={s.rateBannerText}>{voteBtnLabel} →</Text>
-          </Pressable>
-        ) : null}
-
-        <View style={s.pillRow}>
-          {isCompleted
-            ? <View style={[s.pill, { borderColor: themeColor().line }]}><Text style={[s.pillText, { color: themeColor().muted }]}>Completed</Text></View>
-            : <View style={[s.pill, { borderColor: isFull ? themeColor().coral : themeColor().pitch }]}><Text style={[s.pillText, { color: isFull ? themeColor().coralText : themeColor().onPitchPanel }]}>{isFull ? "Full" : `${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left`}</Text></View>
-          }
-          {isHost && <View style={[s.pill, { borderColor: themeColor().line }]}><Text style={[s.pillText, { color: themeColor().muted }]}>You're hosting</Text></View>}
-          {isJoined && !isHost && <View style={[s.pill, { borderColor: themeColor().pitch }]}><Text style={[s.pillText, { color: themeColor().pitchText }]}>You're in</Text></View>}
-        </View>
-
-        <View style={s.card}>
-          <View style={s.detailRow}>
-            <FontAwesome name="calendar" size={14} color={themeColor().muted} />
-            <Text style={s.detailText}>{fmtDate(run.start_at)}</Text>
-          </View>
-          <View style={s.detailRow}>
-            <FontAwesome name="clock-o" size={14} color={themeColor().muted} />
-            <Text style={s.detailText}>{fmt12Hour(run.start_at)}</Text>
-          </View>
-          {run.location_text && (
-            <View style={s.detailRow}>
-              <FontAwesome name="map-marker" size={14} color={themeColor().muted} />
-              <Text style={s.detailText}>{run.location_text}</Text>
+              <View style={s.chip}><Text style={s.chipText}>{levelLabel(minStar)}</Text></View>
+              {isCompleted ? (
+                <View style={s.chipMuted}><Text style={s.chipMutedText}>Completed</Text></View>
+              ) : null}
+              {isHost ? (
+                <View style={s.chipMuted}><Text style={s.chipMutedText}>You&apos;re hosting</Text></View>
+              ) : null}
             </View>
-          )}
-          <View style={s.detailRow}>
-            <FontAwesome name="users" size={14} color={themeColor().muted} />
-            <Text style={s.detailText}>{run.spots_taken} / {run.capacity} players</Text>
-          </View>
-          <View style={s.detailRow}>
-            <FontAwesome name="soccer-ball-o" size={14} color={themeColor().muted} />
-            <Text style={s.detailText}>{formatLabel} · {tierLabel}</Text>
-          </View>
-          {run.fee_cents > 0 && (
-            <View style={s.detailRow}>
-              <FontAwesome name="dollar" size={14} color={themeColor().muted} />
-              <Text style={s.detailText}>${(run.fee_cents / 100).toFixed(2)} buy-in</Text>
+
+            <View style={s.progressWrap}>
+              <View style={s.progressTrack}>
+                <View style={[s.progressFill, { width: `${fillPct}%` }]} />
+              </View>
+              <Text style={s.progressText}>{run.spots_taken}/{run.capacity} spots</Text>
             </View>
-          )}
-        </View>
 
-        {/* Actions */}
-        {!isHost && !isCompleted && (
-          <Pressable onPress={() => void rsvp()} disabled={rsvpBusy || isFull || isJoined}
-            style={[s.rsvpBtn, (isFull || isJoined) && s.rsvpBtnDisabled]}>
-            {rsvpBusy ? <ActivityIndicator color={themeColor().onPitch} /> :
-              <Text style={s.rsvpBtnText}>{isJoined ? "✓ You're in" : isFull ? "Session full" : run.fee_cents > 0 ? `Join · $${(run.fee_cents / 100).toFixed(2)}` : "Join session"}</Text>}
-          </Pressable>
-        )}
+            {canVote ? (
+              <Pressable
+                onPress={openVoteModal}
+                style={s.rateBanner}
+                accessibilityRole="button"
+                accessibilityLabel={voteBtnLabel}
+              >
+                <FontAwesome name="star" size={14} color={themeColor().onAccent} />
+                <Text style={s.rateBannerText}>{voteBtnLabel}</Text>
+              </Pressable>
+            ) : null}
 
-        {isJoined && !isHost && !isCompleted && (
-          <Pressable onPress={() => void leaveSession()} disabled={rsvpBusy}
-            style={[s.endBtn, { marginBottom: 12 }, rsvpBusy && { opacity: 0.5 }]}>
-            <Text style={s.endBtnText}>Leave session</Text>
-          </Pressable>
-        )}
+            {potdSummary ? (
+              <View style={s.potdResultCard}>
+                <Text style={s.potdResultTitle}>Player of the Day</Text>
+                <Text style={s.potdResultBody}>
+                  {potdSummary.voteCount} player{potdSummary.voteCount === 1 ? "" : "s"} voted{" "}
+                  {potdSummary.winnerName} Player of the Day
+                </Text>
+              </View>
+            ) : null}
 
-        {canVote && (
-          <Pressable onPress={openVoteModal} style={s.voteBtn}>
-            <FontAwesome name="star" size={14} color={themeColor().onPitch} />
-            <Text style={s.voteBtnText}>{voteBtnLabel}</Text>
-          </Pressable>
-        )}
+            {sessionStarted && isJoined && !isHost && !hasRatedHost && (
+              <Pressable
+                onPress={() => {
+                  setHostScores({});
+                  setHostRatingOpen(true);
+                }}
+                style={s.hostRateBtn}
+              >
+                <FontAwesome name="star-o" size={14} color={themeColor().accent} />
+                <Text style={s.hostRateBtnText}>Rate the host</Text>
+              </Pressable>
+            )}
 
-        {potdSummary ? (
-          <View style={s.potdResultCard}>
-            <Text style={s.potdResultTitle}>Player of the Day</Text>
-            <Text style={s.potdResultBody}>
-              {potdSummary.voteCount} player{potdSummary.voteCount === 1 ? "" : "s"} voted{" "}
-              {potdSummary.winnerName} Player of the Day
-            </Text>
-          </View>
-        ) : null}
+            {sessionStarted && isJoined && !isHost && hasRatedHost && (
+              <View style={s.hostRatedDone}>
+                <Text style={s.hostRatedDoneText}>Host rated</Text>
+              </View>
+            )}
 
-        {sessionStarted && isJoined && !isHost && !hasRatedHost && (
-          <Pressable
-            onPress={() => {
-              setHostScores({});
-              setHostRatingOpen(true);
-            }}
-            style={s.hostRateBtn}
-          >
-            <FontAwesome name="star-o" size={14} color={themeColor().accent} />
-            <Text style={s.hostRateBtnText}>Rate the host</Text>
-          </Pressable>
-        )}
+            {(isCompleted || sessionStarted) && isJoined && !isHost && hasVoted && (
+              <View style={s.hostRatedDone}>
+                <Text style={s.hostRatedDoneText}>Votes submitted</Text>
+              </View>
+            )}
 
-        {sessionStarted && isJoined && !isHost && hasRatedHost && (
-          <View style={s.hostRatedDone}>
-            <Text style={s.hostRatedDoneText}>✓ Host rated</Text>
-          </View>
-        )}
-
-        {(isCompleted || sessionStarted) && isJoined && !isHost && hasVoted && (
-          <View style={[s.rsvpBtn, s.rsvpBtnDisabled]}>
-            <Text style={s.rsvpBtnText}>✓ Votes submitted</Text>
-          </View>
-        )}
-
-        {isHost && !isCompleted && (
-          <View style={{ gap: 8 }}>
-            <Pressable onPress={() => setInviteOpen(true)} style={s.inviteBtn}>
-              <FontAwesome name="user-plus" size={14} color={themeColor().onPitch} />
-              <Text style={s.inviteBtnText}>Invite players</Text>
-            </Pressable>
-            <Pressable onPress={() => void shareSession()} style={s.shareBtn}>
-              <FontAwesome name="share" size={14} color={themeColor().accent} />
-              <Text style={s.shareBtnText}>Share link</Text>
-            </Pressable>
-            <Pressable onPress={() => setTeamsOpen(true)} style={s.shareBtn}>
-              <FontAwesome name="users" size={14} color={themeColor().accent} />
-              <Text style={s.shareBtnText}>Assign teams</Text>
-            </Pressable>
-            <Pressable onPress={() => setResultOpen(true)} style={s.shareBtn}>
-              <FontAwesome name="trophy" size={14} color={themeColor().accent} />
-              <Text style={s.shareBtnText}>Record result</Text>
-            </Pressable>
-            <Pressable onPress={() => void cancelSession()} disabled={endBusy}
-              style={[s.endBtn, { borderColor: themeColor().coral }, endBusy && { opacity: 0.5 }]}>
-              <Text style={[s.endBtnText, { color: themeColor().coralText }]}>Cancel session</Text>
-            </Pressable>
-            <Pressable onPress={() => void endSession()} disabled={endBusy}
-              style={[s.endBtn, endBusy && { opacity: 0.5 }]}>
-              {endBusy ? <ActivityIndicator color={themeColor().coralText} /> :
-                <Text style={s.endBtnText}>End session</Text>}
-            </Pressable>
-          </View>
-        )}
-
-        {canHostScore && (
-          <Pressable onPress={() => void openHostScore()} style={[s.voteBtn, { marginTop: isHost && !isCompleted ? 10 : 0 }]}>
-            <FontAwesome name="star" size={14} color={themeColor().onPitch} />
-            <Text style={s.voteBtnText}>{hostScoreLabel}</Text>
-          </Pressable>
-        )}
-
-        {attendees.length > 0 && (
-          <>
-            <Text style={[s.sectionTitle, { marginTop: 24 }]}>Who's in ({attendees.length})</Text>
-            <View style={s.card}>
-              {attendees.map((a, i) => {
-                const name = playerName(a);
-                return (
-                  <View key={a.user_id} style={[s.attendeeRow, i > 0 && s.attendeeBorder]}>
-                    <View style={s.avatar}><Text style={s.avatarText}>{playerInitials(a)}</Text></View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.attendeeName}>{name}</Text>
-                      {a.profiles?.username ? (
-                        <Text style={s.playerUsername}>@{a.profiles.username}</Text>
-                      ) : null}
-                      {a.profiles?.playing_position ? (
-                        <Text style={s.playerPos}>{a.profiles.playing_position}</Text>
-                      ) : null}
-                    </View>
-                    {a.user_id === run.created_by && <Text style={s.hostBadge}>Host</Text>}
+            <View style={s.sectionHeaderRow}>
+              <Text style={s.sectionHeading}>Going ({attendees.length})</Text>
+              {avgStar != null ? <Text style={s.sectionMeta}>Avg level {formatStars(avgStar)}</Text> : null}
+            </View>
+            {attendees.length === 0 ? (
+              <Text style={s.emptyLine}>Nobody has joined yet.</Text>
+            ) : (
+              <View style={s.goingRow}>
+                {goingShown.map((a) => {
+                  const star = stars.get(a.user_id);
+                  return (
+                    <Pressable
+                      key={a.user_id}
+                      onPress={() => (router.push as (href: string) => void)(`/player/${a.user_id}`)}
+                      style={s.goingItem}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open ${playerName(a)} profile`}
+                    >
+                      <PlayerAvatar
+                        person={{
+                          first_name: a.profiles?.first_name ?? null,
+                          last_name: a.profiles?.last_name ?? null,
+                          avatar_url: a.profiles?.avatar_url ?? null,
+                        }}
+                        size={44}
+                      />
+                      <Text style={s.goingName} numberOfLines={1}>
+                        {a.profiles?.first_name?.trim() || playerName(a)}
+                      </Text>
+                      {star != null ? <Text style={s.goingStar}>{formatStars(star)}</Text> : null}
+                    </Pressable>
+                  );
+                })}
+                {goingExtra > 0 ? (
+                  <View style={s.goingItem}>
+                    <View style={s.moreBubble}><Text style={s.moreBubbleText}>+{goingExtra}</Text></View>
                   </View>
-                );
-              })}
+                ) : null}
+              </View>
+            )}
+
+            <View style={s.infoCard}>
+              {host && hostName ? (
+                <View style={s.infoRow}>
+                  <PlayerAvatar person={host} size={44} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.infoTitle} numberOfLines={1}>Hosted by {hostName}</Text>
+                    {hostScore != null ? <Text style={s.infoSub}>Host score {hostScore}</Text> : null}
+                  </View>
+                  <Pressable
+                    onPress={() => (router.push as (href: string) => void)(`/player/${host.id}`)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View ${hostName} profile`}
+                  >
+                    <Text style={s.linkText}>View profile</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+              <View style={[s.infoRow, host && hostName ? s.infoDivider : null]}>
+                <FontAwesome name="ticket" size={16} color={themeColor().muted} />
+                <Text style={[s.infoTitle, { flex: 1 }]}>{formatFee(run.fee_cents)}</Text>
+              </View>
             </View>
-          </>
-        )}
-      </ScrollView>
+
+            {isHost && !isCompleted && (
+              <>
+                <Text style={[s.sectionHeading, s.hostToolsHeading]}>Host tools</Text>
+                <View style={{ gap: 8 }}>
+                  <Pressable onPress={() => setInviteOpen(true)} style={s.inviteBtn}>
+                    <FontAwesome name="user-plus" size={14} color={themeColor().onAccent} />
+                    <Text style={s.inviteBtnText}>Invite players</Text>
+                  </Pressable>
+                  <Pressable onPress={() => void shareSession()} style={s.shareBtn}>
+                    <FontAwesome name="share" size={14} color={themeColor().accent} />
+                    <Text style={s.shareBtnText}>Share link</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setTeamsOpen(true)} style={s.shareBtn}>
+                    <FontAwesome name="users" size={14} color={themeColor().accent} />
+                    <Text style={s.shareBtnText}>Assign teams</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setResultOpen(true)} style={s.shareBtn}>
+                    <FontAwesome name="trophy" size={14} color={themeColor().accent} />
+                    <Text style={s.shareBtnText}>Record result</Text>
+                  </Pressable>
+                  <Pressable onPress={() => void cancelSession()} disabled={endBusy}
+                    style={[s.endBtn, { borderColor: themeColor().coral }, endBusy && { opacity: 0.5 }]}>
+                    <Text style={[s.endBtnText, { color: themeColor().coralText }]}>Cancel session</Text>
+                  </Pressable>
+                  <Pressable onPress={() => void endSession()} disabled={endBusy}
+                    style={[s.endBtn, endBusy && { opacity: 0.5 }]}>
+                    {endBusy ? <ActivityIndicator color={themeColor().coralText} /> :
+                      <Text style={s.endBtnText}>End session</Text>}
+                  </Pressable>
+                </View>
+              </>
+            )}
+
+            {canHostScore && (
+              <Pressable onPress={() => void openHostScore()} style={[s.voteBtn, { marginTop: isHost && !isCompleted ? 8 : 16 }]}>
+                <FontAwesome name="star" size={14} color={themeColor().onAccent} />
+                <Text style={s.voteBtnText}>{hostScoreLabel}</Text>
+              </Pressable>
+            )}
+          </View>
+        </ScrollView>
+
+        {toast ? (
+          <Toast
+            key={toast.id}
+            id={toast.id}
+            message={toast.text}
+            bottom={(showJoinBar ? joinBarTotal : insets.bottom) + 12}
+          />
+        ) : null}
+
+        {showJoinBar ? (
+          <View style={[s.joinBar, { paddingBottom: joinBarBottom }]}>
+            <Pressable
+              onPress={join.onPress}
+              disabled={rsvpBusy || !join.onPress}
+              accessibilityRole="button"
+              accessibilityLabel={join.label}
+              style={({ pressed }) => [
+                join.variant === "filled" ? s.joinFilled : s.joinOutline,
+                (pressed || rsvpBusy) && { opacity: 0.85 },
+              ]}
+            >
+              {rsvpBusy ? (
+                <ActivityIndicator color={join.variant === "filled" ? themeColor().onAccent : themeColor().accent} />
+              ) : (
+                <Text style={join.variant === "filled" ? s.joinFilledText : s.joinOutlineText}>{join.label}</Text>
+              )}
+            </Pressable>
+          </View>
+        ) : null}
+      </View>
+
+      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+        <Pressable style={s.menuBackdrop} onPress={() => setMenuOpen(false)} accessibilityLabel="Close menu">
+          <View
+            style={[s.menuSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}
+            onStartShouldSetResponder={() => true}
+          >
+            {menuItems.map((item) => (
+              <Pressable
+                key={item.key}
+                onPress={() => runMenuItem(item.onPress)}
+                style={({ pressed }) => [s.menuRow, pressed && { opacity: 0.7 }]}
+                accessibilityRole="button"
+              >
+                <FontAwesome name={item.icon} size={16} color={themeColor().text} />
+                <Text style={s.menuText}>{item.label}</Text>
+              </Pressable>
+            ))}
+            <Pressable
+              onPress={() => setMenuOpen(false)}
+              style={({ pressed }) => [s.menuRow, s.menuCancel, pressed && { opacity: 0.7 }]}
+              accessibilityRole="button"
+            >
+              <Text style={s.menuCancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* Invite Modal */}
       <Modal visible={inviteOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setInviteOpen(false)}>
@@ -1682,17 +1950,59 @@ export default function SessionDetailScreen() {
 
 function make_s() {
   return StyleSheet.create({
-  root: { flex: 1, backgroundColor: themeColor().bg, padding: 20 },
+  screen: { flex: 1, backgroundColor: themeColor().bg },
+  root: { flex: 1, backgroundColor: themeColor().bg },
+  body: { paddingHorizontal: 20, paddingTop: 16 },
+  heroBar: { position: "absolute", left: 16, right: 16, flexDirection: "row", justifyContent: "space-between" },
+  heroBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: themeColor().photoScrim, alignItems: "center", justifyContent: "center" },
+  heroBadge: { position: "absolute", left: 16, bottom: 16 },
+  when: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  fieldName: { color: themeColor().text, fontSize: 32, ...headline, marginTop: 4 },
+  place: { color: themeColor().muted, fontSize: 16, fontFamily: "Inter_400Regular", marginTop: 4 },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 },
+  chip: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: radius.pill, backgroundColor: themeColor().pitchPanel },
+  chipText: { color: themeColor().onPitchPanel, fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  chipMuted: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: radius.pill, borderWidth: 1, borderColor: themeColor().line },
+  chipMutedText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  progressWrap: { marginTop: 20, marginBottom: 16, gap: 8 },
+  progressTrack: { height: 8, borderRadius: radius.pill, backgroundColor: themeColor().overlay, overflow: "hidden" },
+  progressFill: { height: 8, borderRadius: radius.pill, backgroundColor: themeColor().accent },
+  progressText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  sectionHeaderRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginTop: 16, marginBottom: 12 },
+  sectionHeading: { color: themeColor().text, fontSize: 20, ...headline },
+  sectionMeta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  hostToolsHeading: { marginTop: 24, marginBottom: 12 },
+  emptyLine: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", paddingVertical: 8 },
+  goingRow: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  goingItem: { width: 56, alignItems: "center", gap: 4 },
+  goingName: { width: 56, color: themeColor().text, fontSize: 13, fontFamily: "Inter_600SemiBold", textAlign: "center" },
+  goingStar: { color: themeColor().muted, fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  moreBubble: { width: 44, height: 44, borderRadius: 22, backgroundColor: themeColor().line, alignItems: "center", justifyContent: "center" },
+  moreBubbleText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_700Bold" },
+  infoCard: { marginTop: 24, backgroundColor: themeColor().card, borderRadius: radius.card, borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 16 },
+  infoRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 },
+  infoDivider: { borderTopWidth: 1, borderTopColor: themeColor().line },
+  infoTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  infoSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  linkText: { color: themeColor().accent, fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  joinBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingTop: 12, paddingHorizontal: 20, backgroundColor: themeColor().bg, borderTopWidth: 1, borderTopColor: themeColor().line },
+  joinFilled: { height: 52, borderRadius: radius.button, backgroundColor: themeColor().accent, alignItems: "center", justifyContent: "center" },
+  joinFilledText: { color: themeColor().onAccent, fontSize: 16, fontFamily: "Inter_700Bold" },
+  joinOutline: { height: 52, borderRadius: radius.button, borderWidth: 1, borderColor: themeColor().accent, alignItems: "center", justifyContent: "center" },
+  joinOutlineText: { color: themeColor().accent, fontSize: 16, fontFamily: "Inter_700Bold" },
+  toast: { position: "absolute", left: 20, right: 20, borderRadius: radius.button, paddingVertical: 12, paddingHorizontal: 16, backgroundColor: themeColor().text },
+  toastText: { color: themeColor().bg, fontSize: 14, fontFamily: "Inter_600SemiBold", textAlign: "center" },
+  menuBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: themeColor().scrim },
+  menuSheet: { backgroundColor: themeColor().card, borderTopLeftRadius: radius.card, borderTopRightRadius: radius.card, paddingTop: 8, paddingHorizontal: 20 },
+  menuRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 16 },
+  menuText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_500Medium" },
+  menuCancel: { justifyContent: "center", borderTopWidth: 1, borderTopColor: themeColor().line },
+  menuCancelText: { color: themeColor().muted, fontSize: 16, fontFamily: "Inter_600SemiBold" },
   center: { flex: 1, backgroundColor: themeColor().bg, alignItems: "center", justifyContent: "center", padding: 24 },
   errorText: { color: themeColor().muted, fontSize: 16, fontFamily: "Inter_400Regular" },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 16, marginBottom: 20 },
-  hero: { marginHorizontal: -20, marginTop: -4, marginBottom: 16 },
-  photoControls: { marginTop: -4, marginBottom: 16 },
-  heroTitle: { color: themeColor().onPhoto, fontSize: 24, ...headline },
-  heroSub: { color: themeColor().onPhoto, fontSize: 14, fontFamily: "Inter_500Medium", fontWeight: "500", marginTop: 4 },
-  headerTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", flex: 1, textAlign: "center", marginHorizontal: 12 },
+  photoControls: { marginBottom: 16, gap: 8 },
   rateBanner: {
-    backgroundColor: themeColor().pitch,
+    backgroundColor: themeColor().accent,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 12,
@@ -1702,18 +2012,9 @@ function make_s() {
     gap: 8,
     marginBottom: 12,
   },
-  rateBannerText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
-  pillRow: { flexDirection: "row", gap: 8, marginBottom: 16, flexWrap: "wrap" },
-  pill: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
-  pillText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
-  card: { backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 16 },
-  detailRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
-  detailText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", flex: 1 },
-  rsvpBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", marginBottom: 12 },
-  rsvpBtnDisabled: { opacity: 0.5 },
-  rsvpBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
-  voteBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 12 },
-  voteBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  rateBannerText: { color: themeColor().onAccent, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  voteBtn: { backgroundColor: themeColor().accent, borderRadius: 12, paddingVertical: 16, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 12 },
+  voteBtnText: { color: themeColor().onAccent, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   hostRateBtn: {
     borderRadius: 12,
     paddingVertical: 12,
@@ -1746,19 +2047,15 @@ function make_s() {
   hostRatingLabel: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
   hostRatingHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 4 },
   hostRatingStars: { flexDirection: "row", alignItems: "center", gap: 4 },
-  inviteBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 },
-  inviteBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  inviteBtn: { backgroundColor: themeColor().accent, borderRadius: 12, paddingVertical: 16, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 },
+  inviteBtnText: { color: themeColor().onAccent, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   shareBtn: { borderRadius: 12, paddingVertical: 12, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8, borderWidth: 1, borderColor: themeColor().accent },
   shareBtnText: { color: themeColor().accent, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
   endBtn: { borderRadius: 12, paddingVertical: 12, alignItems: "center", borderWidth: 1, borderColor: themeColor().coral },
   endBtnText: { color: themeColor().coralText, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
   sectionTitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 8 },
-  attendeeRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
-  attendeeBorder: { borderTopWidth: 1, borderTopColor: themeColor().line },
   avatar: { width: 36, height: 36, borderRadius: 12, backgroundColor: themeColor().pitchPanel, alignItems: "center", justifyContent: "center" },
   avatarText: { color: themeColor().onPitchPanel, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
-  attendeeName: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_500Medium", fontWeight: "500" },
-  hostBadge: { color: themeColor().muted, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700", borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
   backBtn: { marginTop: 16, backgroundColor: themeColor().pitch, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
   backBtnText: { color: themeColor().onPitch, fontWeight: "800" },
   modalRoot: { flex: 1, backgroundColor: themeColor().bg },
