@@ -1,5 +1,5 @@
 /**
- * Dev-only preview data for Home and session detail.
+ * Dev-only preview data for Home, session detail, the Games tab and the match recap.
  * Only require() this module inside a `__DEV__` branch so production bundles drop it and its images.
  */
 /* eslint-disable @typescript-eslint/no-require-imports -- Metro image assets */
@@ -268,7 +268,144 @@ function session(id: string) {
   };
 }
 
-const devFixtures = { home, session };
+/* ------------------------------------------------------------ season + recap */
+
+export type SeasonFixtureVariant = "booked" | "empty-upcoming" | "new-player";
+
+type PastFixture = {
+  id: string;
+  daysAgo: number;
+  hour: number;
+  location_text: string;
+  format: string;
+  myTeam: "A" | "B";
+  winner: "A" | "B" | null;
+  /** [team A, team B]; null when no score was recorded. */
+  score: [number, number] | null;
+  potd: "me" | FixturePerson | null;
+  photo: number | null;
+  /** False for a past game whose result was never posted. */
+  posted: boolean;
+};
+
+const PAST: PastFixture[] = [
+  { id: "past-colt", daysAgo: 3, hour: 18, location_text: "Colt Park, Hartford", format: "7v7", myTeam: "A", winner: "A", score: [5, 3], potd: "me", photo: PHOTOS.hartford, posted: true },
+  { id: "past-fernridge", daysAgo: 10, hour: 18, location_text: "Fernridge Park, West Hartford", format: "6v6", myTeam: "B", winner: "A", score: null, potd: PEOPLE.kofi, photo: PHOTOS.westHartford, posted: true },
+  { id: "past-edgewood", daysAgo: 17, hour: 10, location_text: "Edgewood Park, New Haven", format: "7v7", myTeam: "A", winner: null, score: [2, 2], potd: PEOPLE.diego, photo: null, posted: true },
+  { id: "past-addison", daysAgo: 36, hour: 9, location_text: "Addison Park, Glastonbury", format: "8v8", myTeam: "B", winner: "B", score: null, potd: null, photo: null, posted: true },
+  { id: "past-riverside", daysAgo: 43, hour: 19, location_text: "Riverside Park, Hartford", format: "7v7", myTeam: "A", winner: "B", score: [1, 4], potd: PEOPLE.marcus, photo: PHOTOS.newHaven, posted: true },
+  { id: "past-elizabeth", daysAgo: 51, hour: 18, location_text: "Elizabeth Park, West Hartford", format: "6v6", myTeam: "A", winner: null, score: null, potd: null, photo: null, posted: false },
+  { id: "past-colt-early", daysAgo: 66, hour: 18, location_text: "Colt Park, Hartford", format: "7v7", myTeam: "B", winner: "B", score: [3, 2], potd: "me", photo: PHOTOS.glastonbury, posted: true },
+];
+
+const VIEWER_POSITION = "Midfielder";
+
+function pastOutcome(p: PastFixture): "W" | "L" | "D" | null {
+  if (!p.posted) return null;
+  if (!p.winner) return "D";
+  return p.winner === p.myTeam ? "W" : "L";
+}
+
+function pastScore(p: PastFixture): string | null {
+  if (!p.score) return null;
+  const [a, b] = p.score;
+  return p.myTeam === "A" ? `${a}\u2013${b}` : `${b}\u2013${a}`;
+}
+
+function splitFixtureLocation(text: string): { field: string; town: string | null } {
+  const [field, town] = text.split(",").map((s) => s.trim());
+  return { field: field ?? text, town: town ?? null };
+}
+
+function season(variant: SeasonFixtureVariant) {
+  const { upNext, nearby } = buildRuns();
+  const hasPast = variant !== "new-player";
+  const past = hasPast
+    ? PAST.map((p) => ({
+        run_id: `${FIXTURE_ID_PREFIX}${p.id}`,
+        start_at: at(-p.daysAgo, p.hour, 0),
+        ...splitFixtureLocation(p.location_text),
+        position: VIEWER_POSITION,
+        potd: p.potd === "me",
+        outcome: pastOutcome(p),
+        score: pastScore(p),
+      }))
+    : [];
+  const upcoming = variant === "booked" ? [upNext, nearby[1]!] : [];
+  const pw = playedWithByRun();
+  return {
+    wins: past.filter((g) => g.outcome === "W").length,
+    losses: past.filter((g) => g.outcome === "L").length,
+    draws: past.filter((g) => g.outcome === "D").length,
+    games: past.length,
+    potdCount: past.filter((g) => g.potd).length,
+    points: hasPast ? 1240 : 0,
+    card: hasPast ? { star: 3.5, provisional: false, percentile: 18 } : null,
+    upcoming,
+    crowds: new Map(
+      upcoming.map((r) => [r.id, { people: r.going, avgStar: averageFixtureStars(r.going) }] as const),
+    ),
+    past,
+    photos: Object.fromEntries([
+      ...upcoming.map((r) => [r.id, r.photo] as const),
+      ...PAST.filter((p) => p.photo != null).map((p) => [`${FIXTURE_ID_PREFIX}${p.id}`, photoUri(p.photo!)] as const),
+      ...nearby.map((r) => [r.id, r.photo] as const),
+    ]),
+    playedWith: pw,
+    bestGames: home().bestGames,
+  };
+}
+
+function averageFixtureStars(people: FixturePerson[]): number | null {
+  const known = people.map((p) => p.star).filter((s): s is number => s != null);
+  if (known.length === 0) return null;
+  return Math.round((known.reduce((a, b) => a + b, 0) / known.length) * 2) / 2;
+}
+
+const ROSTER_A = [PEOPLE.marcus, PEOPLE.priya, PEOPLE.liam, PEOPLE.ava, PEOPLE.noah, PEOPLE.elena];
+const ROSTER_B = [PEOPLE.diego, PEOPLE.kofi, PEOPLE.sam, PEOPLE.chris];
+
+function shortName(p: FixturePerson): string {
+  return `${p.first_name} ${p.last_name[0]}.`;
+}
+
+function recap(id: string) {
+  if (!id.startsWith(FIXTURE_ID_PREFIX)) return null;
+  const p = PAST.find((x) => `${FIXTURE_ID_PREFIX}${x.id}` === id);
+  if (!p) return null;
+  const { field, town } = splitFixtureLocation(p.location_text);
+  const teamPlayers = (team: "A" | "B") => {
+    const roster = (team === "A" ? ROSTER_A : ROSTER_B).map(shortName).sort();
+    return team === p.myTeam ? ["You", ...roster.slice(0, 5)] : roster;
+  };
+  return {
+    recap: {
+      run_id: id,
+      start_at: at(-p.daysAgo, p.hour, 0),
+      field,
+      town,
+      format: p.format,
+      outcome: pastOutcome(p),
+      score: pastScore(p),
+      myTeam: p.posted ? p.myTeam : null,
+      teams: p.posted
+        ? (["A", "B"] as const).map((team) => ({
+            team,
+            mine: team === p.myTeam,
+            won: p.winner === team,
+            players: teamPlayers(team),
+          }))
+        : [],
+      potd: p.potd === "me" ? { name: "You", isMe: true } : p.potd ? { name: shortName(p.potd), isMe: false } : null,
+      myAwards: p.id === "past-colt" ? ["Midfielder of the Day"] : [],
+      position: VIEWER_POSITION,
+      card: { star: 3.5, provisional: false, percentile: 18 },
+    },
+    photo: p.photo != null ? photoUri(p.photo) : null,
+  };
+}
+
+const devFixtures = { home, session, season, recap };
 
 export type DevFixtures = typeof devFixtures;
 

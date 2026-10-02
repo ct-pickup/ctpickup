@@ -22,13 +22,21 @@ import { AvatarStack, type AvatarPerson } from "@/components/PlayerAvatar";
 import { PhotoHeader, useFieldPhotos } from "@/components/photo";
 import PlayedWithRow, { usePlayedWith } from "@/components/pickup/PlayedWithRow";
 import SpotsBadge, { ALMOST_FULL_AT } from "@/components/pickup/SpotsBadge";
+import {
+  BestGamesCarousel,
+  crowdLine,
+  EMPTY_CROWD,
+  GameCard,
+  splitLocation,
+  type RunCrowd,
+} from "@/components/games/GameCards";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { toggleDevPreview, useDevPreview } from "@/lib/devPreview";
 import { fetchBestGames, type BestGame, type PlayedWithSummary } from "@/lib/matchApi";
 import { effectiveMaxDriveMinutes } from "@/lib/pickup/profileMaxDriveFilter";
 import { currentHourEt, fmtPickupSlotChipEt } from "@/lib/pickup/runStartAtDisplay";
 import { isServiceRegionCode, serviceRegionName } from "@/lib/serviceRegions";
-import { averageStars, fetchPlayerCards, formatStars, type PlayerCard } from "@/lib/starRatings";
+import { averageStars, fetchPlayerCards, type PlayerCard } from "@/lib/starRatings";
 import { StarRating } from "@/components/StarRating";
 import { driveRadiusMiles, milesFromZip, zipCentroid, zipState } from "@/lib/venueDistance";
 import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
@@ -53,18 +61,6 @@ function firstNameFromEmail(email: string | undefined): string {
   const word = local.replace(/[._-]+/g, " ").trim().split(" ")[0] ?? "";
   if (!word) return "there";
   return word.charAt(0).toUpperCase() + word.slice(1);
-}
-
-function splitLocation(locationText: string | null, title: string | null): { field: string; town: string | null } {
-  const parts = (locationText ?? "").split(",").map((p) => p.trim()).filter(Boolean);
-  return { field: parts[0] || title?.trim() || "Pickup game", town: parts[1] ?? null };
-}
-
-function crowdLine(avgStar: number | null, going: number): string {
-  const parts: string[] = [];
-  if (avgStar != null) parts.push(`Avg level ${formatStars(avgStar)}`);
-  parts.push(`${going} going`);
-  return parts.join(" · ");
 }
 
 /* --------------------------------------------------------------- types */
@@ -95,8 +91,6 @@ type HomeRun = {
   status: string | null;
 };
 
-type RunCrowd = { people: AvatarPerson[]; avgStar: number | null };
-
 type RateBanner = { run_id: string; title: string | null };
 
 type ProfileRow = AvatarPerson & { id: string };
@@ -107,8 +101,6 @@ const FAIRFIELD: Region = {
   latitudeDelta: 3.5,
   longitudeDelta: 3.5,
 };
-
-const EMPTY_CROWD: RunCrowd = { people: [], avgStar: null };
 
 function isSessionLive(startAt: string | null | undefined): boolean {
   if (!startAt) return false;
@@ -552,115 +544,6 @@ function UpNextCard({
   );
 }
 
-function GameCard({
-  run,
-  photo,
-  crowd,
-  playedWith,
-  onPress,
-}: {
-  run: HomeRun;
-  photo: string | undefined;
-  crowd: RunCrowd;
-  playedWith: PlayedWithSummary | undefined;
-  onPress: () => void;
-}) {
-  useThemedStyles(publish_styles);
-
-  const left = Math.max(run.capacity - run.spots_taken, 0);
-  const going = Math.max(run.spots_taken, crowd.people.length);
-  const { field } = splitLocation(run.location_text, run.title);
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, styles.gameCard, pressed && styles.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel={`${field}, ${fmtPickupSlotChipEt(run.start_at)}`}
-    >
-      <View>
-        {photo ? (
-          <PhotoHeader uri={photo} accessibilityLabel={`${field} field photo`} />
-        ) : (
-          <View style={styles.thumbFallback} />
-        )}
-        <SpotsBadge spotsLeft={left} style={styles.photoBadge} />
-      </View>
-      <View style={styles.gameBody}>
-        <Text style={styles.when} numberOfLines={1}>
-          {fmtPickupSlotChipEt(run.start_at)}
-        </Text>
-        <Text style={styles.gameTitle} numberOfLines={1}>
-          {field}
-        </Text>
-        <View style={styles.gameMetaRow}>
-          {run.format ? (
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>{run.format}</Text>
-            </View>
-          ) : null}
-          <Text style={styles.gameMeta} numberOfLines={1}>
-            {crowdLine(crowd.avgStar, going)}
-          </Text>
-        </View>
-        <PlayedWithRow summary={playedWith} style={styles.playedWith} />
-      </View>
-    </Pressable>
-  );
-}
-
-function BestGameCard({
-  game,
-  photo,
-  onPress,
-}: {
-  game: BestGame;
-  photo: string | undefined;
-  onPress: () => void;
-}) {
-  useThemedStyles(publish_styles);
-
-  const left = Math.max(game.capacity - game.spots_taken, 0);
-  const { field } = splitLocation(game.location_text, game.title);
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, styles.gameCard, pressed && styles.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel={`${field}, ${fmtPickupSlotChipEt(game.start_at)}`}
-    >
-      {photo ? (
-        <View>
-          <PhotoHeader uri={photo} accessibilityLabel={`${field} field photo`} />
-          <SpotsBadge spotsLeft={left} style={styles.photoBadge} />
-        </View>
-      ) : null}
-      <View style={styles.gameBody}>
-        <View style={styles.cardTopRow}>
-          <Text style={styles.when} numberOfLines={1}>
-            {fmtPickupSlotChipEt(game.start_at)}
-          </Text>
-          {photo ? null : <SpotsBadge spotsLeft={left} />}
-        </View>
-        <Text style={styles.gameTitle} numberOfLines={1}>
-          {field}
-        </Text>
-        {game.reasons.length > 0 ? (
-          <View style={styles.reasonRow}>
-            {game.reasons.map((r) => (
-              <View key={r} style={styles.reasonChip}>
-                <Text style={styles.reasonText} numberOfLines={1}>
-                  {r}
-                </Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-        <PlayedWithRow summary={game.played_with} style={styles.playedWith} />
-      </View>
-    </Pressable>
-  );
-}
-
 /* --------------------------------------------------------------- screen */
 
 export default function HomeScreen() {
@@ -878,17 +761,7 @@ export default function HomeScreen() {
       {bestGames.length > 0 ? (
         <>
           <SectionHeader label="Best games for you" />
-          <FlatList
-            horizontal
-            data={bestGames}
-            keyExtractor={(g) => g.id}
-            showsHorizontalScrollIndicator={false}
-            style={styles.strip}
-            contentContainerStyle={styles.stripContent}
-            renderItem={({ item }) => (
-              <BestGameCard game={item} photo={fieldPhotos[item.id]} onPress={() => openRun(item.id)} />
-            )}
-          />
+          <BestGamesCarousel games={bestGames} photos={fieldPhotos} onOpen={openRun} bleed={20} />
         </>
       ) : null}
     </ScrollView>
@@ -972,19 +845,6 @@ function make_styles() {
     /* games strip */
     strip: { marginHorizontal: -20 },
     stripContent: { paddingHorizontal: 20, gap: 12 },
-    gameCard: { width: 232 },
-    thumbFallback: { aspectRatio: 16 / 9, backgroundColor: themeColor().pitchPanel },
-    gameBody: { padding: 12, gap: 4 },
-    gameTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: themeColor().text },
-    gameMetaRow: { marginTop: 4, flexDirection: "row", alignItems: "center", gap: 8 },
-    gameMeta: { flexShrink: 1, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
-    chip: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: radius.pill,
-      backgroundColor: themeColor().pitchPanel,
-    },
-    chipText: { fontSize: 11, fontFamily: "Inter_700Bold", color: themeColor().onPitchPanel },
 
     /* map */
     mapWrap: {
@@ -1026,16 +886,6 @@ function make_styles() {
     },
     markerLabelText: { fontSize: 11, fontFamily: "Inter_700Bold", color: themeColor().text },
 
-    /* best games */
-    reasonRow: { marginTop: 4, flexDirection: "row", flexWrap: "wrap", gap: 4 },
-    reasonChip: {
-      maxWidth: "100%",
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: radius.pill,
-      backgroundColor: themeColor().pitchPanel,
-    },
-    reasonText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: themeColor().onPitchPanel },
     playedWith: { marginTop: 8 },
   });
 }

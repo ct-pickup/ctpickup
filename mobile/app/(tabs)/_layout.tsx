@@ -109,9 +109,9 @@ export default function TabLayout() {
 }
 
 /**
- * The redesigned 5-slot bar: Home · Sessions · Host (elevated) · Rankings · Profile,
+ * The redesigned 5-slot bar: Home · Games · Host (elevated) · Rankings · Profile,
  * plus a conditional 6th Admin slot. Host jumps via the create menu; Rankings /
- * Home / Sessions / Profile / Admin map to registered tab screens.
+ * Home / Games / Profile / Admin map to registered tab screens.
  */
 function CTTabBar({ state, navigation, isAdmin }: BottomTabBarProps & { isAdmin: boolean }) {
   useThemedStyles(publish_tabStyles);
@@ -132,6 +132,7 @@ function CTTabBar({ state, navigation, isAdmin }: BottomTabBarProps & { isAdmin:
     void hapticTap();
     const push = router.push as (href: string) => void;
     Alert.alert("Menu", undefined, [
+      { text: "Host a game", onPress: () => push("/session-create") },
       { text: "Ask AI", onPress: () => push("/help") },
       { text: "Search Players", onPress: () => push("/players") },
       { text: "Messages", onPress: () => push("/(tabs)/messages") },
@@ -154,7 +155,7 @@ function CTTabBar({ state, navigation, isAdmin }: BottomTabBarProps & { isAdmin:
       />
       <TabItem
         icon="soccer-ball-o"
-        label="Sessions"
+        label="Games"
         active={activeName === "sessions"}
         onPress={() => goTab("sessions")}
       />
@@ -211,7 +212,7 @@ function HostButton({ onPress }: { onPress: () => void }) {
     <View style={tabStyles.hostSlot}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Host a session"
+        accessibilityLabel="Host a game"
         onPress={onPress}
         style={({ pressed }) => [tabStyles.hostBtn, pressed && { transform: [{ scale: 0.94 }] }]}
       >
@@ -268,7 +269,7 @@ function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; isAdmin: bo
     >
       <Tabs.Screen name="index" options={{ title: "Home", headerShown: false }} />
       <Tabs.Screen name="runs" options={{ title: "Pickup", href: null }} />
-      <Tabs.Screen name="sessions" options={{ title: "Sessions", headerShown: false }} />
+      <Tabs.Screen name="sessions" options={{ title: "Games", headerShown: false }} />
       <Tabs.Screen name="tournaments" options={{ title: "Tournaments", href: null }} />
       <Tabs.Screen name="messages" options={{ title: "Messages", headerShown: false }} />
       <Tabs.Screen name="account" options={{ title: "Profile" }} />

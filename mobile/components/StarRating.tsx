@@ -2,7 +2,7 @@ import { useId } from "react";
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { ClipPath, Defs, Path, Rect } from "react-native-svg";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { shareCardColor, themeColor, useThemedStyles } from "@/theme";
 
 export type StarRatingSize = "sm" | "md" | "lg";
 
@@ -11,6 +11,10 @@ type Props = {
   provisional?: boolean;
   size?: StarRatingSize;
   showValue?: boolean;
+  /** Fixed light-on-dark colors for photos and the share card. */
+  tone?: "theme" | "onPhoto";
+  /** Exact star size in points; overrides `size` for rendered images. */
+  px?: number;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -48,9 +52,19 @@ function roundedStarPath(): string {
 
 const STAR_PATH = roundedStarPath();
 
-function StarGlyph({ fill, px, clipId }: { fill: 0 | 0.5 | 1; px: number; clipId: string }) {
-  const on = themeColor().accent;
-  const off = themeColor().line;
+function StarGlyph({
+  fill,
+  px,
+  clipId,
+  tone,
+}: {
+  fill: 0 | 0.5 | 1;
+  px: number;
+  clipId: string;
+  tone: "theme" | "onPhoto";
+}) {
+  const on = tone === "onPhoto" ? shareCardColor.accent : themeColor().accent;
+  const off = tone === "onPhoto" ? shareCardColor.starOff : themeColor().line;
   return (
     <Svg width={px} height={px} viewBox="0 0 24 24">
       {fill === 0.5 ? (
@@ -66,26 +80,45 @@ function StarGlyph({ fill, px, clipId }: { fill: 0 | 0.5 | 1; px: number; clipId
   );
 }
 
-export function StarRating({ value, provisional = false, size = "md", showValue = true, style }: Props) {
+export function StarRating({
+  value,
+  provisional = false,
+  size = "md",
+  showValue = true,
+  tone = "theme",
+  px: pxOverride,
+  style,
+}: Props) {
   useThemedStyles(publish_styles);
   const baseId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   if (value == null || !Number.isFinite(value)) return null;
 
   const clamped = Math.min(5, Math.max(0, value));
   const halves = Math.round(clamped * 2);
-  const px = STAR_PX[size];
+  const px = pxOverride ?? STAR_PX[size];
+  const gap = pxOverride ? Math.max(1, Math.round(pxOverride * 0.12)) : GAP_PX[size];
+  const onPhoto = tone === "onPhoto";
+  const customText = pxOverride
+    ? { fontSize: Math.round(pxOverride * 0.78), marginLeft: Math.round(pxOverride * 0.35) }
+    : null;
   const label = `${clamped.toFixed(1)} stars${provisional ? ", new player" : ""}`;
 
   return (
     <View style={[styles.row, style]} accessible accessibilityRole="text" accessibilityLabel={label}>
-      <View style={[styles.row, { gap: GAP_PX[size] }, provisional && styles.provisional]}>
+      <View style={[styles.row, { gap }, provisional && styles.provisional]}>
         {[0, 1, 2, 3, 4].map((i) => {
           const fill: 0 | 0.5 | 1 = halves >= (i + 1) * 2 ? 1 : halves === i * 2 + 1 ? 0.5 : 0;
-          return <StarGlyph key={i} fill={fill} px={px} clipId={`star-half-${baseId}-${i}`} />;
+          return <StarGlyph key={i} fill={fill} px={px} clipId={`star-half-${baseId}-${i}`} tone={tone} />;
         })}
-        {showValue ? <Text style={[styles.value, styles[`value_${size}`]]}>{clamped.toFixed(1)}</Text> : null}
+        {showValue ? (
+          <Text style={[styles.value, styles[`value_${size}`], customText, onPhoto && styles.valueOnPhoto]}>
+            {clamped.toFixed(1)}
+          </Text>
+        ) : null}
       </View>
-      {provisional ? <Text style={[styles.newLabel, styles[`new_${size}`]]}>New</Text> : null}
+      {provisional ? (
+        <Text style={[styles.newLabel, styles[`new_${size}`], onPhoto && styles.newOnPhoto]}>New</Text>
+      ) : null}
     </View>
   );
 }
@@ -97,6 +130,8 @@ function make_styles() {
     row: { flexDirection: "row", alignItems: "center" },
     provisional: { opacity: 0.5 },
     value: { color: themeColor().text, fontFamily: "Inter_700Bold", fontWeight: "700", marginLeft: 4 },
+    valueOnPhoto: { color: shareCardColor.text },
+    newOnPhoto: { color: shareCardColor.muted, borderColor: shareCardColor.faint },
     value_sm: { fontSize: 12 },
     value_md: { fontSize: 14 },
     value_lg: { fontSize: 20, marginLeft: 8 },

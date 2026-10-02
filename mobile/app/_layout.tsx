@@ -391,6 +391,17 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
+                            name="recap/[id]"
+                            options={{
+                              headerShown: true,
+                              title: "Game recap",
+                              headerBackTitle: "Games",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
                             name="session-map"
                             options={{ headerShown: false }}
                           />
