@@ -3,7 +3,7 @@
     "name": "CT Pickup",
     "description": "Soccer pickup & tournaments",
     "slug": "ctpickup-mobile",
-    "version": "1.3.3",
+    "version": "1.4.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "ctpickup",
@@ -21,7 +21,7 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "Show pickup sessions near you."
       },
-      "buildNumber": "39"
+      "buildNumber": "47"
     },
     "android": {
       "package": "com.ctpickup.mobile",
@@ -31,7 +31,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "versionCode": 2,
+      "versionCode": 3,
       "permissions": [
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
@@ -57,11 +57,7 @@
         {
           "image": "./assets/splash-icon-light.png",
           "resizeMode": "contain",
-          "backgroundColor": "#F4F1EA",
-          "dark": {
-            "image": "./assets/images/splash-icon.png",
-            "backgroundColor": "#111111"
-          }
+          "backgroundColor": "#F4F1EA"
         }
       ],
       "expo-secure-store",

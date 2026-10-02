@@ -11,6 +11,8 @@ function make_accountStyles() {
   title: { fontSize: 40, ...headline, color: themeColor().text,},
   sub: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   sectionTitle: { marginTop: 28, fontSize: 20, ...headline, color: themeColor().text },
+  /** Sub-heading inside a Settings section: sentence case, Inter 600. */
+  settingsSubTitle: { marginTop: 12, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().text },
   sectionSub: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   card: {
     marginTop: 12,

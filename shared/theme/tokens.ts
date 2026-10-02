@@ -1,6 +1,6 @@
 /**
  * CT Pickup theme. Single source of truth for color, type, and radius.
- * Light is the default. Dark values apply when the system scheme is dark.
+ * Light is the default. Dark values apply when the user picks Dark, or Match system on a dark phone.
  * Hex and rgba belong in this file only.
  */
 
@@ -47,6 +47,8 @@ export const typeScale = {
   displayXL: 56,
   display: 40,
   h1: 32,
+  /** Player name on the Profile hero. */
+  profileName: 28,
   h2: 24,
   h3: 20,
   body: 16,

@@ -18,6 +18,7 @@ import { ReviewModeBanner } from "@/components/ReviewModeBanner";
 import { AppLockProvider } from "@/context/AppLockContext";
 import { AccountIntroReplayProvider } from "@/context/AccountIntroReplayContext";
 import { AdminModeProvider } from "@/context/AdminModeContext";
+import { AppearanceProvider, useAppearance } from "@/context/AppearanceContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { ProfileCompletionProvider } from "@/context/ProfileCompletionContext";
 import { ProfileAdminProvider } from "@/context/ProfileAdminContext";
@@ -37,6 +38,7 @@ import { Archivo_700Bold } from "@expo-google-fonts/archivo";
 import { InstrumentSerif_400Regular } from "@expo-google-fonts/instrument-serif";
 import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import "react-native-reanimated";
@@ -45,6 +47,7 @@ import * as Linking from "expo-linking";
 
 import { useColorScheme } from "@/components/useColorScheme";
 import { siteOrigin } from "@/lib/env";
+import { isUpdateRequired } from "@/lib/semver";
 
 import { headline, themeColor, useThemedStyles } from "@/theme";
 export { ErrorBoundary } from "expo-router";
@@ -84,19 +87,31 @@ function RootLayout() {
     if (error) throw error;
   }, [error]);
 
+  // Hold the splash until the stored Appearance choice is applied so a dark-preference user never sees a light frame and vice versa.
+  const { isReady: appearanceReady } = useAppearance();
+  const ready = loaded && appearanceReady;
+
   useEffect(() => {
-    if (loaded) {
+    if (ready) {
       void SplashScreen.hideAsync().catch(() => {
         // If splash isn't registered (rare), don't crash the app.
       });
     }
-  }, [loaded]);
+  }, [ready]);
 
-  if (!loaded) {
+  if (!ready) {
     return null;
   }
 
   return <RootLayoutNav />;
+}
+
+function RootLayoutWithAppearance() {
+  return (
+    <AppearanceProvider>
+      <RootLayout />
+    </AppearanceProvider>
+  );
 }
 
 function RootLayoutNav() {
@@ -127,8 +142,7 @@ function RootLayoutNav() {
         const curV = String(Constants.expoConfig?.version ?? "").trim();
         if (!minV || !curV) return;
 
-        const isBelow = compareSemver(curV, minV) < 0;
-        if (isBelow) setMinVersionBlocked(true);
+        if (isUpdateRequired(curV, minV)) setMinVersionBlocked(true);
       } catch {
         // If version check fails, don't block app launch.
       }
@@ -154,6 +168,7 @@ function RootLayoutNav() {
                         {minVersionBlocked ? <UpdateRequiredGate /> : null}
                         <ReviewModeBanner />
                         <PushRegistrar />
+                        <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
                         <ThemeProvider
                           value={{
                             ...(colorScheme === "dark" ? DarkTheme : DefaultTheme),
@@ -216,6 +231,17 @@ function RootLayoutNav() {
                               title: "Rules",
                               headerStyle: { backgroundColor: themeColor().bg },
                               headerTintColor: themeColor().text,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="settings"
+                            options={{
+                              headerShown: true,
+                              title: "Settings",
+                              headerBackTitle: "Profile",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
+                              headerShadowVisible: false,
                             }}
                           />
                           <Stack.Screen
@@ -451,28 +477,7 @@ function RootLayoutNav() {
   );
 }
 
-export default Sentry.wrap(RootLayout);
-
-function parseSemver(raw: string): [number, number, number] | null {
-  const s = raw.trim();
-  const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(s);
-  if (!m) return null;
-  const a = Number(m[1]);
-  const b = Number(m[2]);
-  const c = Number(m[3]);
-  if (!Number.isFinite(a) || !Number.isFinite(b) || !Number.isFinite(c)) return null;
-  return [a, b, c];
-}
-
-function compareSemver(aRaw: string, bRaw: string): -1 | 0 | 1 {
-  const a = parseSemver(aRaw);
-  const b = parseSemver(bRaw);
-  if (!a || !b) return 0;
-  if (a[0] !== b[0]) return a[0] < b[0] ? -1 : 1;
-  if (a[1] !== b[1]) return a[1] < b[1] ? -1 : 1;
-  if (a[2] !== b[2]) return a[2] < b[2] ? -1 : 1;
-  return 0;
-}
+export default Sentry.wrap(RootLayoutWithAppearance);
 
 function UpdateRequiredGate() {
   useThemedStyles(publish_stylesUpdateGate);

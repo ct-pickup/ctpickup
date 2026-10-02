@@ -64,7 +64,7 @@ export function AppLockSection({
   if (!hasPin) {
     return (
       <>
-        <Text style={styles.sectionTitle}>App lock</Text>
+        <Text style={[styles.settingsSubTitle, { marginTop: 0 }]}>App lock</Text>
         <Text style={styles.sectionSub}>
           Optional passcode when you leave the app. {PASSCODE_REQUIREMENTS} Face ID or Touch ID can unlock instead.
         </Text>
@@ -92,7 +92,7 @@ export function AppLockSection({
 
   return (
     <>
-      <Text style={styles.sectionTitle}>App passcode</Text>
+      <Text style={[styles.settingsSubTitle, { marginTop: 0 }]}>App passcode</Text>
       <Text style={styles.sectionSub}>
         A passcode is required on this device when you’re signed in. {PASSCODE_REQUIREMENTS} It locks the app when you
         leave. Face ID or Touch ID can unlock instead.

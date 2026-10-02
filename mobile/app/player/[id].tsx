@@ -12,7 +12,7 @@ import { PhotoHeader } from "@/components/photo";
 import { StarRating } from "@/components/StarRating";
 import { fetchActionPhotoUrl } from "@/lib/photoUpload";
 import { fetchPlayerCard, hostScore, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
-import { headline, themeColor, useThemedStyles } from "@/theme";
+import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -638,6 +638,19 @@ export default function PlayerProfileScreen() {
   }
 
   const topPercent = topPercentLabel(card);
+  const experienceChip = profile.experience_level
+    ? profile.experience_level === "hs_varsity"
+      ? "HS Varsity"
+      : profile.experience_level === "semi_pro"
+        ? "Semi-Pro"
+        : profile.experience_level.charAt(0).toUpperCase() + profile.experience_level.slice(1)
+    : null;
+  const soccerChips = [
+    profile.primary_position,
+    ...(profile.secondary_positions ?? []),
+    experienceChip,
+    profile.club_name?.trim() || null,
+  ].filter((v, i, all): v is string => Boolean(v) && all.indexOf(v) === i);
   const verified = !!profile.verification_level && profile.verification_level !== "self";
 
   return (
@@ -652,9 +665,9 @@ export default function PlayerProfileScreen() {
           headerRight: isOwnProfile
             ? () => (
                 <Pressable
-                  onPress={() => router.push("/(tabs)/account")}
+                  onPress={() => router.push("/settings")}
                   accessibilityRole="button"
-                  accessibilityLabel="Account settings"
+                  accessibilityLabel="Settings"
                   hitSlop={10}
                   style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1, paddingHorizontal: 12 })}
                 >
@@ -740,7 +753,7 @@ export default function PlayerProfileScreen() {
 
 
       {/* Soccer Background */}
-      {(profile.primary_position || profile.experience_level || profile.club_name || profile.age || card) && (
+      {(soccerChips.length > 0 || card) && (
         <View style={{ marginHorizontal: 16, marginBottom: 16, backgroundColor: themeColor().overlaySubtle, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, overflow: "hidden" }}>
           {card && (
             <View style={{ paddingHorizontal: 16, paddingVertical: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: themeColor().line }}>
@@ -755,37 +768,14 @@ export default function PlayerProfileScreen() {
               </View>
             </View>
           )}
-          {(profile.primary_position || profile.experience_level || profile.club_name || profile.age) ? (
-          <View style={{ padding: 12, gap: 8 }}>
-            {profile.primary_position && (
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={styles.label}>Position</Text>
-                <Text style={styles.value}>
-                  {profile.primary_position}{profile.secondary_positions?.length > 0 ? ` · ${profile.secondary_positions.join(" · ")}` : ""}
-                </Text>
-              </View>
-            )}
-            {profile.experience_level && (
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={styles.label}>Level</Text>
-                <Text style={styles.value}>
-                  {profile.experience_level === "hs_varsity" ? "HS Varsity" : profile.experience_level === "semi_pro" ? "Semi-Pro" : profile.experience_level.charAt(0).toUpperCase() + profile.experience_level.slice(1)}
-                </Text>
-              </View>
-            )}
-            {profile.age ? (
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={styles.label}>Age</Text>
-                <Text style={styles.value}>{profile.age}</Text>
-              </View>
-            ) : null}
-            {profile.club_name && (
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={styles.label}>Club</Text>
-                <Text style={styles.value}>{profile.club_name}</Text>
-              </View>
-            )}
-          </View>
+          {soccerChips.length > 0 ? (
+            <View style={styles.chipRow}>
+              {soccerChips.map((chip) => (
+                <View key={chip} style={styles.chip}>
+                  <Text style={styles.chipText}>{chip}</Text>
+                </View>
+              ))}
+            </View>
           ) : null}
         </View>
       )}
@@ -1149,6 +1139,14 @@ function make_styles() {
     marginBottom: 4,
   },
   value: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().text },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, padding: 12 },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    backgroundColor: themeColor().pitchPanel,
+  },
+  chipText: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().onPitchPanel },
   valueMuted: { fontSize: 16, fontFamily: "Inter_700Bold", color: themeColor().muted, fontWeight: "700" },
   valueLine: { fontSize: 16, fontFamily: "Inter_700Bold", color: themeColor().text, fontWeight: "700", marginTop: 8 },
   streakHotLime: {

@@ -62,7 +62,6 @@ export function PreferencesSection({
 
   return (
     <>
-      <Text style={styles.sectionTitle}>Preferences</Text>
       <View style={styles.card}>
         <View style={styles.rowBetween}>
           <View style={{ flex: 1, paddingRight: 12 }}>

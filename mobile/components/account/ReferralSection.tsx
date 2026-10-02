@@ -153,7 +153,6 @@ export function ReferralSection({ accessToken }: Props) {
 
   return (
     <>
-      <Text style={styles.sectionTitle}>Referrals</Text>
       <View style={styles.card}>
         {loading ? (
           <View style={styles.cardLoadingRow}>
@@ -206,7 +205,7 @@ export function ReferralSection({ accessToken }: Props) {
         )}
       </View>
 
-      <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Your credits</Text>
+      <Text style={styles.settingsSubTitle}>Your credits</Text>
       <View style={styles.card}>
         {loading ? (
           <View style={styles.cardLoadingRow}>
