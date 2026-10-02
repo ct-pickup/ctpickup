@@ -1167,7 +1167,7 @@ export default function SessionDetailScreen() {
       setInvitedIds((prev) => new Set([...prev, player.id]));
       const left = run ? Math.max(0, run.capacity - run.spots_taken) : 0;
       await Share.share({
-        message: `Join ${run?.title ?? "a CT Pickup session"} on ${fmtPickupSlotChipEt(run?.start_at, runTimeTbd(run))} — ${left} spot${left === 1 ? "" : "s"} left. Download CT Pickup: https://apps.apple.com/app/id6766061001`,
+        message: `Join ${run?.title ?? "a Competitive Together session"} on ${fmtPickupSlotChipEt(run?.start_at, runTimeTbd(run))} — ${left} spot${left === 1 ? "" : "s"} left. Download Competitive Together: https://apps.apple.com/app/id6766061001`,
         url: `ctpickup://session/${id}`,
       });
     } catch {
@@ -1179,7 +1179,7 @@ export default function SessionDetailScreen() {
     try {
       const left = run ? Math.max(0, run.capacity - run.spots_taken) : 0;
       await Share.share({
-        message: `Join ${run?.title ?? "a CT Pickup session"} on ${fmtPickupSlotChipEt(run?.start_at, runTimeTbd(run))} — ${left} spot${left === 1 ? "" : "s"} left. Download CT Pickup: https://apps.apple.com/app/id6766061001`,
+        message: `Join ${run?.title ?? "a Competitive Together session"} on ${fmtPickupSlotChipEt(run?.start_at, runTimeTbd(run))} — ${left} spot${left === 1 ? "" : "s"} left. Download Competitive Together: https://apps.apple.com/app/id6766061001`,
         url: `ctpickup://session/${id}`,
       });
     } catch {}

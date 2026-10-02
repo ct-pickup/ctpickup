@@ -1322,7 +1322,7 @@ function ActivityOverlay({ stats }: { stats: ActivityStats | null }) {
         <ActCard
           value={stats.totalApproved}
           label="Total members"
-          sub="Approved CT Pickup players"
+          sub="Approved Competitive Together players"
           dot={themeColor().muted}
         />
       </View>

@@ -363,7 +363,7 @@ describe("account deletion with upcoming games", () => {
     expect(body.code).toBe("confirmation_required");
     expect(body.error).toContain(preview.message);
     expect(body.error).toContain("Nothing was deleted");
-    expect(body.error).toContain("update CT Pickup");
+    expect(body.error).toContain("update Competitive Together");
   });
 
   it("keeps the confirm flow for the new app", async () => {

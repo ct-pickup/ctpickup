@@ -150,7 +150,7 @@ export async function POST(req: Request) {
             currency,
             unit_amount: unitAmount,
             product_data: {
-              name: `CT Pickup Field Fee`,
+              name: `Competitive Together Field Fee`,
               description: PICKUP_FIELD_FEE_STRIPE_DESCRIPTION,
             },
           },

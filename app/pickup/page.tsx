@@ -302,7 +302,7 @@ export default function PickupPage() {
             <EmptyStateMessage>No active pickup games</EmptyStateMessage>
           ) : !data?.me?.approved ? (
             <div className="text-ink">
-              Your account is pending approval. If you’re already known to CT Pickup, we’ll approve your account and tier.
+              Your account is pending approval. If you’re already known to Competitive Together, we’ll approve your account and tier.
             </div>
           ) : (
             <>

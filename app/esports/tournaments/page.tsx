@@ -13,9 +13,9 @@ import { EsportsSetupNudgeBar } from "@/components/profile/EsportsSetupNudgeBar"
 import { fetchPublicEsportsTournaments } from "@/lib/esports/fetchPublicEsportsTournaments";
 
 export const metadata: Metadata = {
-  title: "Esports Tournaments | CT Pickup",
+  title: "Esports Tournaments | Competitive Together",
   description:
-    "EA SPORTS FC online tournaments—$10 buy-in per player, brackets, schedules, and competition separate from outdoor CT Pickup events.",
+    "EA SPORTS FC online tournaments—$10 buy-in per player, brackets, schedules, and competition separate from outdoor Competitive Together events.",
 };
 
 export const dynamic = "force-dynamic";

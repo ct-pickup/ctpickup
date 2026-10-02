@@ -1,5 +1,5 @@
 /**
- * CT Pickup SMS domain — outbound campaign kinds and structured send results.
+ * Competitive Together SMS domain — outbound campaign kinds and structured send results.
  * Database joins (invite id, run id, player id) are added at call sites later via metadata/logging.
  */
 

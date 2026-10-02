@@ -181,7 +181,7 @@ export async function POST(req: Request) {
       const toRemind = previousInviteeIds.filter((id) => !responded.has(id));
       if (toRemind.length > 0) {
         await sendPushToUsers(admin, toRemind, {
-          title: "Last call — CT Pickup reminder",
+          title: "Last call — Competitive Together reminder",
           body: "More players have been invited to your run. Confirm your spot before it fills up.",
           data: { kind: "pickup_invite", run_id },
         });

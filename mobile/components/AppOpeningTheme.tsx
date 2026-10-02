@@ -1,9 +1,11 @@
 import { appAsyncStorage } from "@/lib/appAsyncStorage";
 import { useEffect, useState } from "react";
-import { Image, StyleSheet, useWindowDimensions, View } from "react-native";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming } from "react-native-reanimated";
 
 import { themeColor, useThemedStyles } from "@/theme";
+import { Monogram } from "@/components/brand/Monogram";
+import { Wordmark } from "@/components/brand/Wordmark";
 export const APP_OPENING_THEME_STORAGE_KEY = "ctpickup_app_opening_theme_v1";
 
 const RING = 108;
@@ -131,12 +133,8 @@ function AppOpeningThemeInner({ onDone }: { onDone: () => void }) {
           <Animated.View style={[styles.ring, r2Style]} />
         </View>
         <Animated.View style={[styles.brand, brandStyle]}>
-          <Image
-            source={require("../assets/images/icon.png")}
-            style={[styles.wordmark, { width: iconSize, height: iconSize }]}
-            resizeMode="contain"
-            accessibilityLabel="CT Pickup"
-          />
+          <Monogram size={iconSize} tile={false} color={themeColor().pitchText} />
+          <Wordmark size={24} style={styles.wordmark} />
         </Animated.View>
       </View>
     </Animated.View>
@@ -182,6 +180,7 @@ function make_styles() {
   },
   wordmark: {
     alignSelf: "center",
+    marginTop: 16,
   },
 });
 }

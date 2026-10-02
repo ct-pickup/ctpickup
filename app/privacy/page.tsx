@@ -8,10 +8,11 @@ import {
   TopNav,
 } from "@/components/layout";
 import { SupportEmailLink } from "@/components/SupportEmailLink";
+import { LEGAL_POLICY_LAST_UPDATED } from "@/lib/fees/refundPolicyCopy";
 
 export const metadata: Metadata = {
-  title: "Privacy | CT Pickup",
-  description: "Privacy information for CT Pickup.",
+  title: "Privacy | Competitive Together",
+  description: "Privacy information for Competitive Together.",
 };
 
 const PROCESSORS = [
@@ -60,12 +61,13 @@ export default function PrivacyPage() {
       <h1 className="mt-6 text-h1 font-serif font-semibold text-ink md:text-display">
         Privacy Policy
       </h1>
+      <p className="mt-2 text-small text-muted">{LEGAL_POLICY_LAST_UPDATED}</p>
       <Panel className="mt-6 p-6 md:p-8">
         <div className="space-y-6 text-small leading-relaxed text-muted md:text-body">
           <section>
             <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">Data we collect</h2>
             <p className="mt-2">
-              We collect information you provide when you use CT Pickup: your name, email,
+              We collect information you provide when you use Competitive Together (operated by CT Pickup LLC): your name, email,
               Instagram handle, playing position, ZIP code, nearest venue preference, and
               reliability score (based on attendance). We also collect account activity such
               as event registrations and messages you send within the app.
@@ -84,7 +86,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">Third-party processors</h2>
             <p className="mt-2">
-              We use trusted service providers to run CT Pickup. Each processes data only as
+              We use trusted service providers to run Competitive Together. Each processes data only as
               needed to provide their service:
             </p>
             <ul className="mt-3 list-disc space-y-3 pl-5">
@@ -133,14 +135,14 @@ export default function PrivacyPage() {
             <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">Account deletion</h2>
             <p className="mt-2">
               You can delete your account at any time. Go to Profile → scroll to bottom →
-              Delete Account. This permanently removes all your data from CT Pickup.
+              Delete Account. This permanently removes all your data from Competitive Together.
             </p>
           </section>
 
           <section>
             <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">Children</h2>
             <p className="mt-2">
-              CT Pickup is for users 13 and older. We do not knowingly collect data from
+              Competitive Together is for users 13 and older. We do not knowingly collect data from
               children under 13.
             </p>
           </section>

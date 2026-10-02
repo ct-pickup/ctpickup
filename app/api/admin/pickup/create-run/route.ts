@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   const service_region = regionRaw && HUB_REGIONS.has(regionRaw) ? regionRaw : null;
 
   const titleRaw = b.title != null ? String(b.title).trim() : "";
-  const title = titleRaw || "CT Pickup Run";
+  const title = titleRaw || "Competitive Together Run";
   const run_type = normalizePickupRunTypeForDb(b.run_type);
   const publicRun = isPublicPickupRunType(run_type);
 

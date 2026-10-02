@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Wordmark } from "@/components/brand/Wordmark";
 
 /** Workflow-first sections — URLs stay stable where pages already existed. */
 const SECTIONS = [
@@ -61,8 +62,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-canvas text-ink md:flex">
       <aside className="hidden shrink-0 border-b border-line md:flex md:w-56 md:flex-col md:border-b-0 md:border-r md:border-line md:py-8 md:pl-4 md:pr-3">
-        <div className="px-3 pb-1 text-caption font-semibold text-muted">
-          CT Pickup
+        <div className="px-3 pb-1 text-caption text-muted">
+          <Wordmark />
         </div>
         <div className="px-3 pb-5 text-caption font-medium text-muted">
           Staff control center

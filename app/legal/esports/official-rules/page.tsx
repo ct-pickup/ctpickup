@@ -10,9 +10,9 @@ import { EsportsOfficialRulesDocument } from "@/lib/legal/esportsOfficialRulesDo
 import { esportsDocVersionLabel } from "@/lib/legal/esportsDocVersions";
 
 export const metadata: Metadata = {
-  title: "Official Tournament Rules (Esports) | CT Pickup",
+  title: "Official Tournament Rules (Esports) | Competitive Together",
   description:
-    "Official rules for CT Pickup EA SPORTS FC online tournaments, including registration fees and refunds.",
+    "Official rules for Competitive Together EA SPORTS FC online tournaments, including registration fees and refunds.",
 };
 
 export default function EsportsOfficialRulesPage() {

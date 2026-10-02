@@ -14,9 +14,9 @@ import { CURRENT_WAIVER_VERSION } from "@/lib/waiver/constants";
 import { safeWaiverReturnTo } from "@/lib/waiver/safeReturnTo";
 
 export const metadata: Metadata = {
-  title: "Liability Waiver | CT Pickup",
+  title: "Liability Waiver | Competitive Together",
   description:
-    "Liability Waiver & Participation Agreement for CT Pickup soccer and association football activities, including pickup games, tournaments, training, and guidance.",
+    "Liability Waiver & Participation Agreement for Competitive Together soccer and association football activities, including pickup games, tournaments, training, and guidance.",
 };
 
 export const dynamic = "force-dynamic";

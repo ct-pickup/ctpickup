@@ -99,16 +99,16 @@ export function twimlEmptyResponse(): string {
 export function autoReplyForCommand(command: SmsReplyCommand): string {
   switch (command) {
     case "RSVP_YES":
-      return "CT Pickup: Thanks — we received YES. You'll get a confirmation in the app when your spot is locked in.";
+      return "Competitive Together: Thanks — we received YES. You'll get a confirmation in the app when your spot is locked in.";
     case "RSVP_NO":
-      return "CT Pickup: Thanks — we received NO. Hope to see you at the next run.";
+      return "Competitive Together: Thanks — we received NO. Hope to see you at the next run.";
     case "CONFIRM":
-      return "CT Pickup: Confirmed. See you on the court.";
+      return "Competitive Together: Confirmed. See you on the court.";
     case "OPT_OUT":
-      return "CT Pickup: You're opted out of SMS. Reply HELP for options or visit ctpickup.net.";
+      return "Competitive Together: You're opted out of SMS. Reply HELP for options or visit ctpickup.net.";
     case "HELP":
-      return "CT Pickup: Reply YES / NO / CONFIRM for runs, STOP to opt out, or use the app at ctpickup.net.";
+      return "Competitive Together: Reply YES / NO / CONFIRM for runs, STOP to opt out, or use the app at ctpickup.net.";
     default:
-      return "CT Pickup: Reply YES, NO, CONFIRM, HELP, or STOP. For more, visit ctpickup.net.";
+      return "Competitive Together: Reply YES, NO, CONFIRM, HELP, or STOP. For more, visit ctpickup.net.";
   }
 }

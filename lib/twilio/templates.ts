@@ -20,16 +20,16 @@ export function buildCtPickupSmsBody(kind: CtPickupSmsKind, vars: TemplateVars =
 
   switch (kind) {
     case "run_invite":
-      return `CT Pickup: Hi${name} — you're invited to pickup ${t} at ${loc}. Open the app or reply YES to RSVP if this run uses SMS RSVP.`;
+      return `Competitive Together: Hi${name} — you're invited to pickup ${t} at ${loc}. Open the app or reply YES to RSVP if this run uses SMS RSVP.`;
     case "confirmation":
-      return `CT Pickup: You're confirmed for ${t} at ${loc}. Bring water + a light/dark. See you there.`;
+      return `Competitive Together: You're confirmed for ${t} at ${loc}. Bring water + a light/dark. See you there.`;
     case "reminder":
-      return `CT Pickup reminder: ${t} at ${loc}. Check the app for any last-minute updates.`;
+      return `Competitive Together reminder: ${t} at ${loc}. Check the app for any last-minute updates.`;
     case "spot_opened":
-      return `CT Pickup: A spot opened for ${t} at ${loc}. Reply YES to claim it (first YES may win — final confirm in app).`;
+      return `Competitive Together: A spot opened for ${t} at ${loc}. Reply YES to claim it (first YES may win — final confirm in app).`;
     case "tournament_alert":
-      return `CT Pickup: ${tourney} update — check the app for bracket or check-in details.`;
+      return `Competitive Together: ${tourney} update — check the app for bracket or check-in details.`;
     default:
-      return `CT Pickup: You have an update. Open the app for details.`;
+      return `Competitive Together: You have an update. Open the app for details.`;
   }
 }

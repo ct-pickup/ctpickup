@@ -456,7 +456,7 @@ export default function SessionCreateScreen() {
                       <Text style={s.payoutValue}>${(parseFloat(buyIn) * playerLimit).toFixed(2)}</Text>
                     </View>
                     <View style={s.payoutRow}>
-                      <Text style={s.payoutLabel}>CT Pickup rake (20%)</Text>
+                      <Text style={s.payoutLabel}>Competitive Together rake (20%)</Text>
                       <Text style={s.payoutValue}>−${(parseFloat(buyIn) * playerLimit * 0.2).toFixed(2)}</Text>
                     </View>
                     <View style={[s.payoutRow, { borderTopWidth: 1, borderTopColor: themeColor().line, paddingTop: 8, marginTop: 4 }]}>
@@ -480,7 +480,7 @@ export default function SessionCreateScreen() {
                     </View>
                   ))}
                   <View style={[s.payoutRow, { borderTopWidth: 1, borderTopColor: themeColor().line, paddingTop: 8, marginTop: 4 }]}>
-                    <Text style={[s.payoutLabel, { color: themeColor().text, fontWeight: "700" }]}>CT Pickup rake</Text>
+                    <Text style={[s.payoutLabel, { color: themeColor().text, fontWeight: "700" }]}>Competitive Together rake</Text>
                     <Text style={[s.payoutValue, { color: themeColor().pitchText }]}>20% of collected</Text>
                   </View>
                 </View>

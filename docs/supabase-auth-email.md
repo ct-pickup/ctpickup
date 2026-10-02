@@ -1,4 +1,4 @@
-# Supabase Auth email (CT Pickup)
+# Supabase Auth email (Competitive Together)
 
 This app signs users in with **email OTP**: `signInWithOtp` + `verifyOtp` with an **8-digit code**. Templates and SMTP live in the **Supabase Dashboard**, not in this repo—keep them aligned with the UI copy in `app/login` and `app/signup`.
 
@@ -6,7 +6,7 @@ This app signs users in with **email OTP**: `signInWithOtp` + `verifyOtp` with a
 
 | Setting | Recommended |
 |--------|-------------|
-| **From name** | `CT Pickup` (title case; avoid ALL CAPS) |
+| **From name** | `Competitive Together` (title case; avoid ALL CAPS) |
 | **From address** | `login@ctpickup.net` (or your verified Resend domain sender) |
 | **SMTP / provider** | Resend SMTP credentials in **Supabase → Project Settings → Auth → SMTP Settings** |
 | **Site URL** | Match production: `https://ctpickup.net` (and Auth redirect URLs) |
@@ -21,7 +21,7 @@ In **Supabase → Authentication → Providers → Email**, set the **OTP length
 
 **Do**
 
-- Use **short, sentence-case subjects** (e.g. `Your CT Pickup sign-in code`).
+- Use **short, sentence-case subjects** (e.g. `Your Competitive Together sign-in code`).
 - Keep the body **transactional**: one clear purpose, code prominent, expiry line, ignore-if-not-you.
 - Prefer **simple HTML**: single column, system fonts or one web-safe font, no heavy images in auth mail.
 - Include **plain-text** part mirroring the HTML (Supabase sends multipart when you provide both).
@@ -41,8 +41,8 @@ Variables depend on Supabase version; common ones include `{{ .Token }}`, `{{ .C
 
 ### Suggested subject lines
 
-- Sign-in / magic-link style (OTP): `Your CT Pickup sign-in code`
-- Sign-up confirm (if used): `Confirm your CT Pickup account`
+- Sign-in / magic-link style (OTP): `Your Competitive Together sign-in code`
+- Sign-up confirm (if used): `Confirm your Competitive Together account`
 
 ### Minimal HTML body (OTP emphasis)
 
@@ -74,7 +74,7 @@ Use in **Supabase → Auth → Email Templates** for the **login code / OTP** em
                 <br />
                 <div style="margin:0;">This code expires shortly.</div>
                 <br />
-                <div style="margin:0;">– CT Pickup</div>
+                <div style="margin:0;">– Competitive Together</div>
               </td>
             </tr>
           </table>
@@ -96,7 +96,7 @@ Enter this code in the app to continue:
 
 This code expires shortly.
 
-– CT Pickup
+– Competitive Together
 ```
 
 ## Operational checks

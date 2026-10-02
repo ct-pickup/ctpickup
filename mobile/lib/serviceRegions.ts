@@ -1,5 +1,5 @@
 /**
- * US states where CT Pickup operates.
+ * US states where Competitive Together operates.
  *
  * **Storage / API:** use `code` (USPS uppercase: NY, CT, NJ, MD).
  * **UI:** use `name`, or helpers below for multi-state copy.

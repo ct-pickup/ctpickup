@@ -16,7 +16,7 @@ function confirmCancellationPolicy(): Promise<boolean> {
   return new Promise((resolve) => {
     Alert.alert(
       "Cancellation Policy",
-      "If the host or CT Pickup cancels this run, what you paid by card is refunded to your card and any credit you used comes back as a credit. If you cancel more than 24 hours before kickoff, what you paid becomes a credit.",
+      "If the host or Competitive Together cancels this run, what you paid by card is refunded to your card and any credit you used comes back as a credit. If you cancel more than 24 hours before kickoff, what you paid becomes a credit.",
       [
         {
           text: "OK",
@@ -32,7 +32,7 @@ function confirmCancellationPolicy(): Promise<boolean> {
 }
 
 /**
- * Field fees use Stripe Checkout (hosted). That is not the CT Pickup marketing site.
+ * Field fees use Stripe Checkout (hosted). That is not the Competitive Together marketing site.
  * Free RSVPs stay entirely inside the app.
  */
 function confirmPhysicalPaymentCheckout(venueLabel: string): Promise<boolean> {
@@ -87,7 +87,7 @@ function payErrorMessage(status: number, j: Record<string, unknown>): string {
   const error = typeof j.error === "string" ? j.error : "";
   const detail = typeof j.detail === "string" ? j.detail : "";
   if (error === "waiver_required") {
-    return "Please accept the waiver on the CT Pickup site, then return here to complete payment.";
+    return "Please accept the waiver on the Competitive Together site, then return here to complete payment.";
   }
   if (error === "standing_not_eligible") {
     return detail || "Pickup participation is not available for your account right now.";
@@ -102,7 +102,7 @@ function rsvpDeclineErrorMessage(status: number, j: Record<string, unknown>): st
   const error = typeof j.error === "string" ? j.error : "";
   const detail = typeof j.detail === "string" ? j.detail : "";
   if (error === "waiver_required") {
-    return "Please accept the waiver on the CT Pickup site, then try again.";
+    return "Please accept the waiver on the Competitive Together site, then try again.";
   }
   if (error === "standing_not_eligible") {
     return detail || "Pickup participation is not available for your account right now.";
@@ -117,7 +117,7 @@ function commitErrorMessage(status: number, j: Record<string, unknown>): string 
   const error = typeof j.error === "string" ? j.error : "";
   const detail = typeof j.detail === "string" ? j.detail : "";
   if (error === "waiver_required") {
-    return "Please accept the waiver on the CT Pickup site, then try again.";
+    return "Please accept the waiver on the Competitive Together site, then try again.";
   }
   if (error === "standing_not_eligible") {
     return detail || "Pickup participation is not available for your account right now.";

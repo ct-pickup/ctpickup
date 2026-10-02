@@ -504,9 +504,9 @@ export default function TournamentPage() {
                   </div>
 
                   <p>
-                    By participating in this tournament (and related CT Pickup activities),
+                    By participating in this tournament (and related Competitive Together activities),
                     you confirm you have accepted the current Liability Waiver &amp;
-                    Participation Agreement, including consent for CT Pickup to photograph,
+                    Participation Agreement, including consent for Competitive Together to photograph,
                     record audio and video, livestream, and publish your name, image,
                     likeness, and voice online and in other media as described there. That
                     consent is required and is not negotiable if you play.

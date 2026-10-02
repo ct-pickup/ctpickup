@@ -51,6 +51,7 @@ import { siteOrigin } from "@/lib/env";
 import { isUpdateRequired } from "@/lib/semver";
 
 import { headline, themeColor, useThemedStyles } from "@/theme";
+import { PRODUCT_NAME } from "@/lib/brand";
 export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
@@ -198,7 +199,7 @@ function RootLayoutNav() {
                             name="login"
                             options={{
                               headerShown: false,
-                              title: "CT Pickup",
+                              title: PRODUCT_NAME,
                             }}
                           />
                           <Stack.Screen
@@ -501,7 +502,7 @@ function UpdateRequiredGate() {
       <View style={stylesUpdateGate.card}>
         <Text style={stylesUpdateGate.title}>Update Required</Text>
         <Text style={stylesUpdateGate.body}>
-          A new version of CT Pickup is available. Please update to continue.
+          A new version of {PRODUCT_NAME} is available. Please update to continue.
         </Text>
         <Pressable
           onPress={() => {

@@ -37,7 +37,7 @@ export async function staffInsertChatMessageAndPush(
       .filter((u): u is string => typeof u === "string" && u.length > 0);
   }
 
-  const title = room.title || "CT Pickup";
+  const title = room.title || "Competitive Together";
   const bodyText = truncatePushBody(message);
   const pushPayload = {
     title,

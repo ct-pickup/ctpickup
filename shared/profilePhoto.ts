@@ -35,7 +35,7 @@ export const FRIEND_PHOTO_REQUIRED_CODE = "friend_photo_required";
 export const PHOTO_REQUIRED_MESSAGE =
   "Add a profile photo before you join or host a game. It helps players recognize each other.";
 export const PHOTO_REQUIRED_LEGACY_MESSAGE =
-  "Add a profile photo before you join or host a game. Update CT Pickup to the latest version, or add a photo on the CT Pickup website under Profile.";
+  "Add a profile photo before you join or host a game. Update Competitive Together to the latest version, or add a photo on the Competitive Together website under Profile.";
 export const FRIEND_PHOTO_REQUIRED_MESSAGE = "That player needs to add a profile photo before they can join a game.";
 
 export const PHOTO_REPORT_REASONS = [

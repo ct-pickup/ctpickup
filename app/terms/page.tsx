@@ -15,8 +15,8 @@ import {
 } from "@/lib/fees/refundPolicyCopy";
 
 export const metadata: Metadata = {
-  title: "Terms of Service | CT Pickup",
-  description: "Terms of Service for CT Pickup.",
+  title: "Terms of Service | Competitive Together",
+  description: "Terms of Service for Competitive Together.",
 };
 
 const linkClass =
@@ -45,7 +45,7 @@ export default function TermsPage() {
               1. Acceptance of Terms
             </h2>
             <p className="mt-3">
-              By downloading, accessing, or using CT Pickup you agree to be bound by these
+              By downloading, accessing, or using Competitive Together, operated by CT Pickup LLC, you agree to be bound by these
               Terms of Service. If you do not agree to these terms, do not use the platform.
             </p>
           </section>
@@ -55,8 +55,8 @@ export default function TermsPage() {
               2. Intellectual Property
             </h2>
             <p className="mt-3">
-              CT Pickup, including its name, logo, design, source code, software, content,
-              features, and functionality are the exclusive intellectual property of CT Pickup
+              Competitive Together, including its name, logo, design, source code, software, content,
+              features, and functionality are the exclusive intellectual property of Competitive Together
               and its founders and are protected by applicable intellectual property laws. All
               rights reserved. Unauthorized use of any part of the platform is strictly
               prohibited.
@@ -70,7 +70,7 @@ export default function TermsPage() {
             <p className="mt-3">Users may not:</p>
             <ul className="mt-3 list-disc space-y-2 pl-5">
               <li>
-                Copy, reproduce, distribute, or create derivative works based on CT Pickup or
+                Copy, reproduce, distribute, or create derivative works based on Competitive Together or
                 any part of it
               </li>
               <li>
@@ -81,7 +81,7 @@ export default function TermsPage() {
                 Use automated tools, bots, or scrapers to access any part of the platform
               </li>
               <li>
-                Use any information or insights gained from using CT Pickup to build, assist,
+                Use any information or insights gained from using Competitive Together to build, assist,
                 or advise any competing product or service
               </li>
               <li>
@@ -98,7 +98,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-body font-semibold text-ink">4. User Content</h2>
             <p className="mt-3">
-              By posting messages or content on CT Pickup you grant CT Pickup a non-exclusive
+              By posting messages or content on Competitive Together you grant Competitive Together a non-exclusive
               license to display your content within the platform. You retain ownership of your
               content. You are solely responsible for any content you post.
             </p>
@@ -107,7 +107,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-body font-semibold text-ink">5. Code of Conduct</h2>
             <p className="mt-3">
-              Users must treat all other players and staff with respect. CT Pickup reserves the
+              Users must treat all other players and staff with respect. Competitive Together reserves the
               right to suspend or permanently ban any user for harassment, abusive behavior,
               unsportsmanlike conduct, or any violation of these terms.
             </p>
@@ -118,7 +118,7 @@ export default function TermsPage() {
             <p className="mt-3">
               All pickup run and tournament fees are processed securely through Stripe. Refund
               eligibility is determined by the cancellation policy displayed at the time of
-              payment. CT Pickup reserves the right to modify pricing at any time.
+              payment. Competitive Together reserves the right to modify pricing at any time.
             </p>
             <h3 className="mt-4 font-semibold text-ink">{PICKUP_CANCELLATION_POLICY_HEADING}</h3>
             <ul className="mt-3 list-disc space-y-2 pl-5">
@@ -131,9 +131,9 @@ export default function TermsPage() {
           <section>
             <h2 className="text-body font-semibold text-ink">7. Assumption of Risk</h2>
             <p className="mt-3">
-              Participation in CT Pickup pickup runs and tournaments involves physical activity
+              Participation in Competitive Together pickup runs and tournaments involves physical activity
               and inherent risk of injury. By participating you acknowledge and accept these risks.
-              CT Pickup is not responsible for any injuries, losses, or damages that occur during
+              Competitive Together is not responsible for any injuries, losses, or damages that occur during
               or in connection with any event.
             </p>
           </section>
@@ -141,7 +141,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-body font-semibold text-ink">8. Termination</h2>
             <p className="mt-3">
-              CT Pickup reserves the right to suspend or terminate any account at any time, with
+              Competitive Together reserves the right to suspend or terminate any account at any time, with
               or without notice, for violation of these terms or for any other reason at our
               sole discretion.
             </p>
@@ -152,7 +152,7 @@ export default function TermsPage() {
               9. Disclaimer of Warranties
             </h2>
             <p className="mt-3">
-              CT Pickup is provided as-is and as-available without warranties of any kind,
+              Competitive Together is provided as-is and as-available without warranties of any kind,
               either express or implied. We do not guarantee that the platform will be
               uninterrupted, error-free, or free of harmful components.
             </p>
@@ -163,7 +163,7 @@ export default function TermsPage() {
               10. Limitation of Liability
             </h2>
             <p className="mt-3">
-              To the fullest extent permitted by law, CT Pickup and its founders shall not be
+              To the fullest extent permitted by law, Competitive Together and its founders shall not be
               liable for any indirect, incidental, special, or consequential damages arising
               from your use of the platform.
             </p>

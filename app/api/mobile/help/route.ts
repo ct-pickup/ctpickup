@@ -7,9 +7,9 @@ import { getOpenAI } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
 
-const MOBILE_HELP_SYSTEM = `You are a helpful assistant for the CT Pickup iOS mobile app. Answer questions about: joining public pickup runs, RSVPing and paying for pickup, in-person outdoor pickup tournaments (Tournaments tab, tournament status, captain claim and team entry, entry fees for field tournaments), the Messages tab (announcements and team chat), the Account screen (profile, waiver, reliability score), and app navigation.
+const MOBILE_HELP_SYSTEM = `You are a helpful assistant for the Competitive Together iOS mobile app. Answer questions about: joining public pickup runs, RSVPing and paying for pickup, in-person outdoor pickup tournaments (Tournaments tab, tournament status, captain claim and team entry, entry fees for field tournaments), the Messages tab (announcements and team chat), the Account screen (profile, waiver, reliability score), and app navigation.
 
-CT Pickup is a mobile app — all features are in the app itself, not a website. Do not tell users to use the website or browser for app features except where payment explicitly opens Stripe checkout (see PAYMENTS below).
+Competitive Together is a mobile app — all features are in the app itself, not a website. Do not tell users to use the website or browser for app features except where payment explicitly opens Stripe checkout (see PAYMENTS below).
 
 When explaining how to join a pickup run, describe public runs (open signup for approved players in the region) and mention that select runs are invite-only—you’ll get a push when invited. Do not describe tier waves, automatic tier gates, or priority queues.
 

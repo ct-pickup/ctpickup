@@ -68,7 +68,7 @@ export async function GET(req: Request) {
       const resolved = resolveRunVenueDestination({ locationPrivate: null, serviceRegion: null, venueName: venue });
       if (!resolved) {
         return NextResponse.json(
-          { error: "Unknown venue. Pick a CT Pickup venue name or paste a known venue label." },
+          { error: "Unknown venue. Pick a Competitive Together venue name or paste a known venue label." },
           { status: 400 },
         );
       }

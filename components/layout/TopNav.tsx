@@ -27,6 +27,9 @@ import {
   signupIntentForProtectedPath,
   signupUrlForProtectedNavFirstVisit,
 } from "@/lib/auth/signupIntent";
+import { Monogram } from "@/components/brand/Monogram";
+import { Wordmark } from "@/components/brand/Wordmark";
+import { PRODUCT_NAME } from "@/lib/brand";
 
 type NavMenu = "pickup" | "tournaments" | "about" | null;
 
@@ -204,7 +207,7 @@ export function TopNav({
   className = "",
   innerClassName = "",
 }: {
-  /** Logo “CT Pickup” target */
+  /** Logo wordmark target */
   brandHref?: string;
   /** Top-level Home link (default: `/`) */
   homeHref?: string;
@@ -610,9 +613,9 @@ export function TopNav({
         >
           <Link
             href={brandHref}
-            className="shrink-0 self-center whitespace-nowrap text-caption font-semibold text-ink xl:text-small"
+            className="shrink-0 self-center whitespace-nowrap text-caption text-ink xl:text-small"
           >
-            CT Pickup
+            <Wordmark />
           </Link>
 
           {showPrimaryNav ? (
@@ -779,9 +782,11 @@ export function TopNav({
           <div className="flex min-h-[44px] items-center justify-between gap-2">
             <Link
               href={brandHref}
-              className="min-w-0 -ml-0.5 py-2 pl-0.5 pr-2 text-caption font-semibold leading-none text-ink"
+              className="flex min-w-0 -ml-0.5 items-center gap-2 py-2 pl-0.5 pr-2 text-caption leading-none text-ink"
+              aria-label={PRODUCT_NAME}
             >
-              CT Pickup
+              <Monogram size={24} />
+              <Wordmark className="max-sm:hidden" />
             </Link>
             <div className="flex min-w-0 shrink-0 items-center gap-0.5 sm:gap-1">
               {showHistoryBack ? (

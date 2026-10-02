@@ -195,7 +195,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     if (!has || !enrolled) return { ok: false, error: "not_available" };
 
     const r = await LocalAuthentication.authenticateAsync({
-      promptMessage: "Unlock CT Pickup",
+      promptMessage: "Unlock Competitive Together",
       cancelLabel: "Cancel",
       // Let iOS fall back to device passcode if needed.
       disableDeviceFallback: false,
