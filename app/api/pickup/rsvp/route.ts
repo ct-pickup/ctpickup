@@ -20,7 +20,7 @@ import {
 } from "@/lib/pickup/waitlist";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
 import { pickupTierAtTimeFromRank } from "@/lib/pickup/pickupTierAtTime";
-import { pickupPlayerRefundEligibleNow } from "@/lib/pickup/runScheduling";
+import { pickupRefundCutoffMs } from "@/lib/pickup/runScheduling";
 import { tryApplyReferralCreditToPickupJoin } from "@/lib/referral/pickupReferralCredit";
 import {
   findPickupPayerUserId,
@@ -29,6 +29,7 @@ import {
   refundPickupCharge,
   remainingRefundableCents,
 } from "@/lib/payments/pickupRefunds";
+import { decidePickupRefund, refundWindowOpen } from "@/lib/payments/refundPolicy";
 import {
   isMobileCheckoutReturn,
   pickupCheckoutCancelUrl,
@@ -228,7 +229,9 @@ export async function POST(req: Request) {
     // host cancel, which may have issued credit instead), so unlike host cancel there is no replay path for the
     // cutoff to guard.
     let refund: { status: "refunded" | "already_refunded"; amount_cents: number } | null = null;
-    if (prev === "confirmed" && pi && pickupPlayerRefundEligibleNow(run)) {
+    const nowMs = Date.now();
+    const refundCutoffAt = pickupRefundCutoffMs(run);
+    if (prev === "confirmed" && pi && refundWindowOpen({ kickoffAt: run.start_at ?? null, refundCutoffAt, now: nowMs })) {
       try {
         const stripe = getStripePickup();
         const snap = await getPickupChargeSnapshot(stripe, pi);
@@ -246,7 +249,20 @@ export async function POST(req: Request) {
           if (match === "unmatched" && remainingRefundableCents(snap) > 0) {
             throw new Error(`Card payment ${pi} could not be matched to this spot; review manually.`);
           }
-          if (match === "current") {
+          const decision = decidePickupRefund({
+            initiator: "player",
+            trigger: "rsvp_decline",
+            kickoffAt: run.start_at ?? null,
+            refundCutoffAt,
+            now: nowMs,
+            paymentPending: false,
+            hasCardCharge: match === "current",
+            cardNetCents: match === "current" ? remainingRefundableCents(snap) : 0,
+            creditCoveredCents: 0,
+            playerId: user.id,
+            cardPayerId: payerId,
+          });
+          if (decision.kind === "settle" && decision.refundToCard) {
             const out = await refundPickupCharge(stripe, admin, {
               runId: String(run.id),
               userId: user.id,

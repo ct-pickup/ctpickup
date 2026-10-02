@@ -158,14 +158,21 @@ export async function matchChargeToCurrentJoin(
   const paidMs = opts.paidAtIso ? new Date(opts.paidAtIso).getTime() : NaN;
   if (chargeMs == null || !Number.isFinite(paidMs)) return "unmatched";
 
-  const { data, error } = await admin
-    .from("pickup_credits")
-    .select("id,awarded_at")
-    .eq("user_id", opts.creditUserId ?? opts.userId)
-    .eq("cancelled_run_id", opts.runId)
-    .eq("reason", "cancellation");
+  const ownerId = opts.creditUserId ?? opts.userId;
+  const lookup = (cols: string) =>
+    admin
+      .from("pickup_credits")
+      .select(cols)
+      .eq("user_id", ownerId)
+      .eq("cancelled_run_id", opts.runId)
+      .eq("reason", "cancellation");
+  let res = await lookup("id,awarded_at,credited_for_user_id");
+  if (res.error && isMissingColumnError(res.error)) res = await lookup("id,awarded_at");
+  const { data, error } = res;
   if (error) throw new Error(`pickup_credits lookup: ${error.message}`);
-  for (const c of data || []) {
+  for (const c of (data || []) as unknown as { awarded_at: unknown; credited_for_user_id?: string | null }[]) {
+    // Rows from before credited_for_user_id existed (null) may be for any spot the owner paid, so they still count.
+    if (c.credited_for_user_id && c.credited_for_user_id !== opts.userId) continue;
     const awardedMs = new Date(String(c.awarded_at)).getTime();
     if (Number.isFinite(awardedMs) && awardedMs >= chargeMs && awardedMs < paidMs) return "already_compensated";
   }
@@ -417,24 +424,74 @@ export async function pickupCreditCoverageForJoin(
   return none;
 }
 
-export type CancellationCreditResult = { kind: "issued"; amountCents: number } | { kind: "already_exists" };
+export type CancellationCreditResult =
+  | { kind: "issued"; amountCents: number }
+  | { kind: "already_exists" }
+  | { kind: "needs_review"; detail: string };
 
-/** One cancellation credit per (player, run), enforced by pickup_credits_user_cancelled_run_unique. */
+/** PostgREST reports an unknown column as PGRST204 on writes and 42703 on reads. */
+function isMissingColumnError(error: { code?: string } | null): boolean {
+  return error?.code === "PGRST204" || error?.code === "42703";
+}
+
+/**
+ * One cancellation credit per (credit owner, run, spot), enforced by pickup_credits_user_cancelled_run_player_unique on
+ * (user_id, cancelled_run_id, coalesce(credited_for_user_id, user_id)). Own-spot credits leave credited_for_user_id
+ * null. Until migration 20261002160000 has run, a credit for someone else's spot cannot be stored distinctly (no column,
+ * or the old (user_id, cancelled_run_id) index blocks it), so it comes back "needs_review" and is never reported issued.
+ */
 export async function issuePickupCancellationCredit(
   admin: SupabaseClient,
-  opts: { userId: string; runId: string; amountCents: number },
+  opts: { userId: string; runId: string; amountCents: number; creditedForUserId?: string | null },
 ): Promise<CancellationCreditResult> {
   const amountCents = Math.round(opts.amountCents);
   if (amountCents <= 0) throw new Error("Cancellation credit amount must be positive.");
-  const { error } = await admin.from("pickup_credits").insert({
+  const creditedFor = opts.creditedForUserId && opts.creditedForUserId !== opts.userId ? opts.creditedForUserId : null;
+  const row = {
     user_id: opts.userId,
     amount_cents: amountCents,
     discount_pct: null,
     reason: "cancellation",
     expires_at: new Date(Date.now() + THREE_MONTHS_MS).toISOString(),
     cancelled_run_id: opts.runId,
-  });
-  if (error?.code === "23505") return { kind: "already_exists" };
+  };
+
+  if (!creditedFor) {
+    const { error } = await admin.from("pickup_credits").insert(row);
+    if (error?.code === "23505") return { kind: "already_exists" };
+    if (error) throw new Error(`pickup_credits insert: ${error.message}`);
+    return { kind: "issued", amountCents };
+  }
+
+  const before = await cancellationCreditExistsForSpot(admin, opts.userId, opts.runId, creditedFor);
+  if (before === "column_missing") return { kind: "needs_review", detail: "pickup_credits.credited_for_user_id does not exist yet" };
+  if (before) return { kind: "already_exists" };
+
+  const { error } = await admin.from("pickup_credits").insert({ ...row, credited_for_user_id: creditedFor });
+  if (isMissingColumnError(error)) return { kind: "needs_review", detail: `pickup_credits.credited_for_user_id missing: ${error!.message}` };
+  if (error?.code === "23505") {
+    const after = await cancellationCreditExistsForSpot(admin, opts.userId, opts.runId, creditedFor);
+    if (after === true) return { kind: "already_exists" };
+    return { kind: "needs_review", detail: `another cancellation credit for this run blocks it: ${error.message}` };
+  }
   if (error) throw new Error(`pickup_credits insert: ${error.message}`);
   return { kind: "issued", amountCents };
+}
+
+async function cancellationCreditExistsForSpot(
+  admin: SupabaseClient,
+  ownerId: string,
+  runId: string,
+  playerId: string,
+): Promise<boolean | "column_missing"> {
+  const { data, error } = await admin
+    .from("pickup_credits")
+    .select("id,user_id,credited_for_user_id")
+    .eq("user_id", ownerId)
+    .eq("cancelled_run_id", runId);
+  if (isMissingColumnError(error)) return "column_missing";
+  if (error) throw new Error(`pickup_credits lookup: ${error.message}`);
+  return ((data || []) as { user_id: string; credited_for_user_id: string | null }[]).some(
+    (c) => (c.credited_for_user_id ?? c.user_id) === playerId,
+  );
 }

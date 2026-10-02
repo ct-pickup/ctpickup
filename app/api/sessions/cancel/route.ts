@@ -15,7 +15,9 @@ import {
   refundPickupCharge,
   remainingRefundableCents,
   settlePendingPickupCheckout,
+  type PickupChargeSnapshot,
 } from "@/lib/payments/pickupRefunds";
+import { decidePickupRefund, type RefundInitiator } from "@/lib/payments/refundPolicy";
 
 function bearer(req: Request) {
   const auth = req.headers.get("authorization") || "";
@@ -51,8 +53,9 @@ type Failure = { user_id: string; name: string | null; error: string };
 async function settleRsvp(
   admin: SupabaseClient,
   getStripe: () => Stripe,
-  run: { id: string; fee_cents: number | null },
+  run: { id: string; fee_cents: number | null; start_at: string | null },
   rsvp: RsvpRow,
+  initiator: RefundInitiator,
 ): Promise<Settlement> {
   const runId = run.id;
   const userId = rsvp.user_id;
@@ -60,8 +63,10 @@ async function settleRsvp(
 
   let paymentIntentId: string | null = null;
   let fromCurrentCheckout = false;
+  let checkoutReleased = false;
 
   if (rsvp.status === "pending_payment") {
+    checkoutReleased = true;
     if (rsvp.checkout_session_id || rsvp.payment_intent_id) {
       const settled = await settlePendingPickupCheckout(getStripe(), {
         checkoutSessionId: rsvp.checkout_session_id,
@@ -70,6 +75,7 @@ async function settleRsvp(
       if (settled.kind === "paid") {
         paymentIntentId = settled.paymentIntentId;
         fromCurrentCheckout = true;
+        checkoutReleased = false;
       } else if (rsvp.checkout_session_id) {
         await markPickupCheckoutExpired(admin, rsvp.checkout_session_id);
       }
@@ -83,10 +89,9 @@ async function settleRsvp(
     });
   }
 
-  let hasCardPayment = false;
+  let currentCharge: PickupChargeSnapshot | null = null;
   if (paymentIntentId) {
-    const stripe = getStripe();
-    const snap = await getPickupChargeSnapshot(stripe, paymentIntentId);
+    const snap = await getPickupChargeSnapshot(getStripe(), paymentIntentId);
     if (snap.amountReceivedCents > 0) {
       const match = await matchChargeToCurrentJoin(admin, {
         runId,
@@ -100,44 +105,67 @@ async function settleRsvp(
           `Card payment ${paymentIntentId} could not be matched to this player's current spot; refund it manually in Stripe after review.`,
         );
       }
-      if (match === "current") {
-        hasCardPayment = true;
-        out.paymentIntentId = paymentIntentId;
-        const outcome = await refundPickupCharge(stripe, admin, {
-          runId,
-          userId,
-          snap,
-          checkoutSessionId: rsvp.checkout_session_id,
-          existingRefundId: rsvp.refund_id,
-          trigger: "host_cancel",
-        });
-        if (outcome.kind !== "nothing_charged") {
-          out.refundedCents = outcome.amountCents;
-          if (outcome.recordError) {
-            Sentry.captureException(new Error(`Refund issued but not recorded: ${outcome.recordError}`), {
-              tags: { route: "sessions/cancel" },
-              extra: { run_id: runId, user_id: userId, payment_intent_id: paymentIntentId, refund_id: outcome.refundId },
-            });
-          }
-        }
-      } else if (match === "already_compensated") {
-        out.alreadyCredited = true;
-      }
+      if (match === "current") currentCharge = snap;
+      else if (match === "already_compensated") out.alreadyCredited = true;
     }
   }
 
+  let creditCoveredCents = 0;
   if (rsvp.status === "confirmed" && !out.alreadyCredited) {
     const coverage = await pickupCreditCoverageForJoin(admin, {
       runId,
       userId,
       paidAtIso: rsvp.paid_at,
       feeCents: Number(run.fee_cents ?? 0),
-      hasCardPayment,
+      hasCardPayment: currentCharge != null,
     });
-    if (coverage.cents > 0) {
-      const credit = await issuePickupCancellationCredit(admin, { userId, runId, amountCents: coverage.cents });
-      if (credit.kind === "issued") out.creditCents = credit.amountCents;
-      else out.alreadyCredited = true;
+    creditCoveredCents = coverage.cents;
+  }
+
+  const decision = decidePickupRefund({
+    initiator,
+    trigger: "run_cancel",
+    kickoffAt: run.start_at,
+    now: Date.now(),
+    paymentPending: checkoutReleased,
+    hasCardCharge: currentCharge != null,
+    cardNetCents: currentCharge ? remainingRefundableCents(currentCharge) : 0,
+    creditCoveredCents,
+    playerId: userId,
+    cardPayerId: userId,
+  });
+
+  if (decision.kind === "settle") {
+    if (decision.refundToCard && currentCharge) {
+      out.paymentIntentId = currentCharge.paymentIntentId;
+      const outcome = await refundPickupCharge(getStripe(), admin, {
+        runId,
+        userId,
+        snap: currentCharge,
+        checkoutSessionId: rsvp.checkout_session_id,
+        existingRefundId: rsvp.refund_id,
+        trigger: "host_cancel",
+      });
+      if (outcome.kind !== "nothing_charged") {
+        out.refundedCents = outcome.amountCents;
+        if (outcome.recordError) {
+          Sentry.captureException(new Error(`Refund issued but not recorded: ${outcome.recordError}`), {
+            tags: { route: "sessions/cancel" },
+            extra: { run_id: runId, user_id: userId, payment_intent_id: currentCharge.paymentIntentId, refund_id: outcome.refundId },
+          });
+        }
+      }
+    }
+    for (const c of decision.credits) {
+      const credit = await issuePickupCancellationCredit(admin, {
+        userId: c.userId,
+        runId,
+        amountCents: c.cents,
+        creditedForUserId: c.creditedForUserId,
+      });
+      if (credit.kind === "issued") out.creditCents += credit.amountCents;
+      else if (credit.kind === "already_exists") out.alreadyCredited = true;
+      else throw new Error(`Cancellation credit needs review: ${credit.detail}`);
     }
   }
 
@@ -189,7 +217,7 @@ export async function POST(req: Request) {
 
   const { data: run } = await admin
     .from("pickup_runs")
-    .select("id, title, created_by, fee_cents, status, canceled_at")
+    .select("id, title, created_by, fee_cents, start_at, status, canceled_at")
     .eq("id", run_id)
     .maybeSingle();
 
@@ -243,12 +271,13 @@ export async function POST(req: Request) {
     return stripe;
   };
 
+  const initiator: RefundInitiator = run.created_by === user.id ? "host" : "admin";
   const settled = new Map<string, Settlement>();
   const failedRows: { rsvp: RsvpRow; error: string }[] = [];
 
   for (const rsvp of rsvps) {
     try {
-      settled.set(rsvp.user_id, await settleRsvp(admin, getStripe, { id: run.id, fee_cents: run.fee_cents }, rsvp));
+      settled.set(rsvp.user_id, await settleRsvp(admin, getStripe, { id: run.id, fee_cents: run.fee_cents, start_at: run.start_at }, rsvp, initiator));
     } catch (e) {
       Sentry.captureException(e, {
         tags: { route: "sessions/cancel" },

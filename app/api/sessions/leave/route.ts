@@ -16,6 +16,7 @@ import {
   remainingRefundableCents,
   settlePendingPickupCheckout,
 } from "@/lib/payments/pickupRefunds";
+import { decidePickupRefund, refundWindowOpen } from "@/lib/payments/refundPolicy";
 
 function bearer(req: Request) {
   const auth = req.headers.get("authorization") || "";
@@ -81,7 +82,7 @@ export async function POST(req: Request) {
   }
 
   const now = new Date();
-  const earlyEnough = new Date(run.start_at).getTime() - now.getTime() > 24 * 60 * 60 * 1000;
+  const earlyEnough = refundWindowOpen({ kickoffAt: run.start_at ?? null, now: now.getTime() });
   const sentryCtx = { tags: { route: "sessions/leave" }, extra: { run_id, user_id: userId } };
 
   let stripe: Stripe | null = null;
@@ -170,11 +171,24 @@ export async function POST(req: Request) {
     }
   }
 
-  // The card portion goes back to whoever paid it; the credit-covered portion to the player whose credit was used
-  // (pickupCreditCoverageForJoin only looks at the player's own credits).
-  const friendPaid = cardCents > 0 && payerId !== userId;
-  const selfCreditCents = coverageCents + (friendPaid ? 0 : cardCents);
-  const payerCreditCents = friendPaid ? cardCents : 0;
+  const decision = decidePickupRefund({
+    initiator: "player",
+    trigger: "leave",
+    kickoffAt: run.start_at ?? null,
+    now: now.getTime(),
+    paymentPending: checkoutReleased,
+    hasCardCharge: cardCents > 0,
+    cardNetCents: cardCents,
+    creditCoveredCents: coverageCents,
+    playerId: userId,
+    cardPayerId: payerId,
+  });
+  const credits = decision.kind === "settle" ? decision.credits : [];
+  const selfCredit = credits.find((c) => c.userId === userId && c.creditedForUserId == null) ?? null;
+  const payerCredit = credits.find((c) => c.creditedForUserId === userId) ?? null;
+  const friendPaid = payerCredit != null;
+  const selfCreditCents = selfCredit?.cents ?? 0;
+  const payerCreditCents = payerCredit?.cents ?? 0;
 
   const { data: cancelledRows, error: cancelErr } = await admin
     .from("pickup_run_rsvps")
@@ -198,17 +212,25 @@ export async function POST(req: Request) {
   let creditIssuedCents = 0;
   let alreadyCredited = false;
   let payerCreditIssuedCents = 0;
-  let payerCreditNeedsReview = false;
+  let payerAlreadyCredited = false;
+  let payerCreditNeedsReview: string | null = null;
   try {
-    if (selfCreditCents > 0) {
-      const credit = await issuePickupCancellationCredit(admin, { userId, runId: run_id, amountCents: selfCreditCents });
+    if (selfCredit) {
+      const credit = await issuePickupCancellationCredit(admin, { userId, runId: run_id, amountCents: selfCredit.cents });
       if (credit.kind === "issued") creditIssuedCents = credit.amountCents;
-      else alreadyCredited = true;
+      else if (credit.kind === "already_exists") alreadyCredited = true;
+      else throw new Error(`Own cancellation credit needs review: ${credit.detail}`);
     }
-    if (payerCreditCents > 0) {
-      const credit = await issuePickupCancellationCredit(admin, { userId: payerId, runId: run_id, amountCents: payerCreditCents });
+    if (payerCredit) {
+      const credit = await issuePickupCancellationCredit(admin, {
+        userId: payerCredit.userId,
+        runId: run_id,
+        amountCents: payerCredit.cents,
+        creditedForUserId: payerCredit.creditedForUserId,
+      });
       if (credit.kind === "issued") payerCreditIssuedCents = credit.amountCents;
-      else payerCreditNeedsReview = true;
+      else if (credit.kind === "already_exists") payerAlreadyCredited = true;
+      else payerCreditNeedsReview = credit.detail;
     }
   } catch (e) {
     Sentry.captureException(e, { ...sentryCtx, extra: { ...sentryCtx.extra, self_credit_cents: selfCreditCents, payer_id: payerId, payer_credit_cents: payerCreditCents } });
@@ -232,9 +254,7 @@ export async function POST(req: Request) {
 
   const warnings: string[] = [];
   if (payerCreditNeedsReview) {
-    // The unique index allows one cancellation credit per (user, run), so a payer who already holds one for this
-    // run (their own spot or another friend's) cannot get a second row; support credits it by hand.
-    const msg = `Payer ${payerId} already has a cancellation credit for run ${run_id}; ${payerCreditCents} cents for player ${userId}'s spot must be credited manually.`;
+    const msg = `Payer ${payerId} could not be credited for run ${run_id} (${payerCreditNeedsReview}); ${payerCreditCents} cents for player ${userId}'s spot must be credited manually.`;
     Sentry.captureException(new Error(msg), { ...sentryCtx, extra: { ...sentryCtx.extra, payer_id: payerId, payer_credit_cents: payerCreditCents } });
     warnings.push(msg);
   }
@@ -297,6 +317,12 @@ export async function POST(req: Request) {
             body: `${playerName} left ${run.title}. A credit of $${dollars(payerCreditIssuedCents)} for the spot you paid for has been added to your account.`,
             data: { kind: "session_left_payer_credit", run_id },
           }
+        : payerAlreadyCredited
+        ? {
+            title: "Credit already added",
+            body: `${playerName} left ${run.title}. The credit for the spot you paid for was already added to your account earlier.`,
+            data: { kind: "session_left_payer_credit", run_id },
+          }
         : {
             title: "Credit on its way",
             body: `${playerName} left ${run.title}. We owe you a $${dollars(payerCreditCents)} credit for the spot you paid for; our team will add it to your account.`,
@@ -314,7 +340,8 @@ export async function POST(req: Request) {
     already_credited: alreadyCredited,
     payer_credited: payerCreditIssuedCents > 0,
     payer_credit_cents: friendPaid ? payerCreditCents : 0,
-    payer_credit_needs_review: payerCreditNeedsReview,
+    payer_already_credited: payerAlreadyCredited,
+    payer_credit_needs_review: payerCreditNeedsReview != null,
     ...(friendPaid ? { payer_name: names.get(payerId) ?? null } : {}),
     payment_cancelled: checkoutReleased && prevStatus === "pending_payment",
     paid_but_late: paid && !earlyEnough,

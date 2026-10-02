@@ -205,6 +205,16 @@ describe("host cancel: paid, credit-paid and free players", () => {
     expect([...h.stripe.refundsById.values()][0].amount).toBe(FEE);
   });
 
+  it("an admin cancelling someone else's run follows the same refund rule as the host", async () => {
+    seedRun();
+    h.db.rows("profiles").push({ id: "admin-1", is_admin: true });
+    seedCardPayer("paid-1", "Paula", "pi_paid", FEE);
+
+    const res = await cancelPOST(req("admin-1", { run_id: RUN }));
+    expect(res.status).toBe(200);
+    expect(h.stripe.pis.get("pi_paid")!.amount_refunded).toBe(FEE);
+  });
+
   it("expires an open checkout for a pending player without refunding or crediting", async () => {
     seedRun();
     seedPlayer("pend-1", "Pete", { status: "pending_payment", checkout_session_id: "cs_open" });
@@ -475,7 +485,9 @@ describe("leave: spot paid for by a friend", () => {
       payer_credit_needs_review: false, payer_name: "Fran Friend",
     });
     expect(cancellationCredits("player-1")).toHaveLength(0);
-    expect(cancellationCredits("friend-1")[0]).toMatchObject({ amount_cents: FEE + 500, cancelled_run_id: RUN });
+    expect(cancellationCredits("friend-1")[0]).toMatchObject({
+      amount_cents: FEE + 500, cancelled_run_id: RUN, credited_for_user_id: "player-1",
+    });
     expect(pushFor("player-1")[0].body).toBe("You left Tuesday Run. Fran Friend paid for your spot, so the $10.32 credit went to them.");
     expect(pushFor("friend-1")[0]).toMatchObject({
       title: "Credit added",
@@ -495,30 +507,104 @@ describe("leave: spot paid for by a friend", () => {
 
     const body = await (await leavePOST(req("player-1", { run_id: RUN }))).json();
     expect(body).toMatchObject({ credit_issued: true, amount_cents: 266, payer_credited: true, payer_credit_cents: 266 });
-    expect(cancellationCredits("player-1")[0].amount_cents).toBe(266);
-    expect(cancellationCredits("friend-1")[0].amount_cents).toBe(266);
+    expect(cancellationCredits("player-1")[0]).toMatchObject({ amount_cents: 266 });
+    expect(cancellationCredits("player-1")[0].credited_for_user_id).toBeUndefined();
+    expect(cancellationCredits("friend-1")[0]).toMatchObject({ amount_cents: 266, credited_for_user_id: "player-1" });
     expect(pushFor("player-1")[0].body).toContain("A credit of $2.66 has been added to your account.");
   });
 
-  it("payer who already holds a credit for this run: player still leaves, owed credit is flagged, nobody is told it was added", async () => {
-    seedRun();
-    seedFriendPaid("player-1", "friend-1", "pi_friend", FEE);
+  function seedPayerOwnCredit() {
     h.db.rows("pickup_credits").push({
       id: "payer_own", user_id: "friend-1", amount_cents: FEE, reason: "cancellation", cancelled_run_id: RUN,
       awarded_at: iso(-60_000), expires_at: iso(90 * 24 * HOUR), used_at: null, run_id: null,
     });
+  }
+
+  function expectNeedsReview(body: Record<string, unknown>) {
+    expect(body).toMatchObject({ ok: true, payer_credited: false, payer_credit_cents: FEE, payer_credit_needs_review: true });
+    expect((body.warnings as string[])[0]).toMatch(/must be credited manually/);
+    expect(h.sentry).toHaveLength(1);
+    expect(rsvpOf("player-1").status).toBe("canceled");
+    expect(pushFor("friend-1")[0]).toMatchObject({ title: "Credit on its way" });
+    expect(pushFor("friend-1")[0].body).toContain("our team will add it");
+    expect(pushFor("player-1")[0].body).toContain("the credit for it goes to them");
+  }
+
+  it("payer who already holds a credit for their own spot also gets one for the friend's spot", async () => {
+    seedRun();
+    seedFriendPaid("player-1", "friend-1", "pi_friend", FEE);
+    seedPayerOwnCredit();
 
     const res = await leavePOST(req("player-1", { run_id: RUN }));
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body).toMatchObject({ ok: true, payer_credited: false, payer_credit_cents: FEE, payer_credit_needs_review: true });
-    expect(body.warnings[0]).toMatch(/must be credited manually/);
-    expect(h.sentry).toHaveLength(1);
-    expect(rsvpOf("player-1").status).toBe("canceled");
+    expect(body).toMatchObject({ ok: true, payer_credited: true, payer_credit_cents: FEE, payer_credit_needs_review: false });
+    expect(body.warnings).toBeUndefined();
+    expect(h.sentry).toHaveLength(0);
+    const credits = cancellationCredits("friend-1");
+    expect(credits).toHaveLength(2);
+    expect(credits.find((c) => c.id !== "payer_own")).toMatchObject({ amount_cents: FEE, credited_for_user_id: "player-1" });
+    expect(pushFor("friend-1")[0]).toMatchObject({ title: "Credit added" });
+  });
+
+  it("payer already credited for this friend's spot is not credited again and nobody is sent to support", async () => {
+    seedRun();
+    seedFriendPaid("player-1", "friend-1", "pi_friend", FEE);
+    h.db.rows("pickup_credits").push({
+      id: "for_player", user_id: "friend-1", amount_cents: FEE, reason: "cancellation", cancelled_run_id: RUN,
+      credited_for_user_id: "player-1", awarded_at: iso(-30 * 24 * HOUR), expires_at: iso(90 * 24 * HOUR), used_at: null, run_id: null,
+    });
+
+    const body = await (await leavePOST(req("player-1", { run_id: RUN }))).json();
+    expect(body).toMatchObject({ ok: true, payer_credited: false, payer_already_credited: true, payer_credit_needs_review: false });
     expect(cancellationCredits("friend-1")).toHaveLength(1);
-    expect(pushFor("friend-1")[0]).toMatchObject({ title: "Credit on its way" });
-    expect(pushFor("friend-1")[0].body).toContain("our team will add it");
-    expect(pushFor("player-1")[0].body).toContain("the credit for it goes to them");
+    expect(h.sentry).toHaveLength(0);
+    expect(pushFor("friend-1")[0]).toMatchObject({ title: "Credit already added" });
+  });
+
+  it("before the migration: payer holding a credit for this run is flagged for review, never told it was added", async () => {
+    h.db.beforeCreditedForMigration();
+    seedRun();
+    seedFriendPaid("player-1", "friend-1", "pi_friend", FEE);
+    seedPayerOwnCredit();
+
+    const res = await leavePOST(req("player-1", { run_id: RUN }));
+    expect(res.status).toBe(200);
+    expectNeedsReview(await res.json());
+    expect(cancellationCredits("friend-1")).toHaveLength(1);
+  });
+
+  it("before the migration: even a payer with no other credit is flagged rather than given an unlabelled credit", async () => {
+    h.db.beforeCreditedForMigration();
+    seedRun();
+    seedFriendPaid("player-1", "friend-1", "pi_friend", FEE);
+
+    const res = await leavePOST(req("player-1", { run_id: RUN }));
+    expect(res.status).toBe(200);
+    expectNeedsReview(await res.json());
+    expect(cancellationCredits("friend-1")).toHaveLength(0);
+  });
+
+  it("old unique index still in place after the column exists: insert conflict is flagged for review", async () => {
+    h.db.beforeCreditedForMigration();
+    h.db.missingColumns = {};
+    seedRun();
+    seedFriendPaid("player-1", "friend-1", "pi_friend", FEE);
+    seedPayerOwnCredit();
+
+    const res = await leavePOST(req("player-1", { run_id: RUN }));
+    expectNeedsReview(await res.json());
+    expect(cancellationCredits("friend-1")).toHaveLength(1);
+  });
+
+  it("before the migration the player's own credit is unaffected", async () => {
+    h.db.beforeCreditedForMigration();
+    seedRun();
+    seedCardPayer("paid-1", "Paula", "pi_paid", FEE);
+
+    const body = await (await leavePOST(req("paid-1", { run_id: RUN }))).json();
+    expect(body).toMatchObject({ ok: true, credit_issued: true, amount_cents: FEE });
+    expect(h.sentry).toHaveLength(0);
   });
 
   it("a second leave call cannot credit the payer twice", async () => {

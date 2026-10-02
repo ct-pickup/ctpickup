@@ -203,6 +203,18 @@ describe("RSVP decline refunds", () => {
     expect(h.stripe.calls.refundsCreate).toBe(0);
   });
 
+  it("a payer's credit for a different player's spot does not count as compensating this charge", async () => {
+    seed({ payer: "friend-1", paidAgoMs: 10 * 24 * HOUR });
+    rsvp().paid_at = iso(-HOUR);
+    h.db.rows("pickup_credits").push({
+      id: "other", user_id: "friend-1", amount_cents: FEE, reason: "cancellation", cancelled_run_id: RUN,
+      credited_for_user_id: "player-2", awarded_at: iso(-9 * 24 * HOUR), expires_at: iso(60 * 24 * HOUR), used_at: null, run_id: null,
+    });
+    const res = await decline();
+    expect(res.status).toBe(502);
+    expect(h.stripe.calls.refundsCreate).toBe(0);
+  });
+
   it("flags an unmatched charge for manual review instead of refunding it", async () => {
     seed({ paidAgoMs: 10 * 24 * HOUR });
     rsvp().paid_at = iso(-HOUR);

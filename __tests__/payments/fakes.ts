@@ -1,15 +1,25 @@
 type Row = Record<string, unknown>;
 type Filter = (r: Row) => boolean;
 
-type UniqueIndex = { table: string; cols: string[]; where?: (r: Row) => boolean };
+type UniqueIndex = { table: string; key: (r: Row) => unknown[]; where?: (r: Row) => boolean };
+
+const CANCELLED_RUN_PLAYER_UNIQUE: UniqueIndex = {
+  table: "pickup_credits",
+  key: (r) => [r.user_id, r.cancelled_run_id, r.credited_for_user_id ?? r.user_id],
+  where: (r) => r.cancelled_run_id != null,
+};
+const CANCELLED_RUN_UNIQUE_BEFORE_MIGRATION: UniqueIndex = {
+  table: "pickup_credits",
+  key: (r) => [r.user_id, r.cancelled_run_id],
+  where: (r) => r.cancelled_run_id != null,
+};
 
 /** Minimal in-memory stand-in for the PostgREST builder surface the pickup payment routes use. */
 export class FakeSupabase {
   tables: Record<string, Row[]> = {};
   failUpdates: { table: string; message: string }[] = [];
-  uniques: UniqueIndex[] = [
-    { table: "pickup_credits", cols: ["user_id", "cancelled_run_id"], where: (r) => r.cancelled_run_id != null },
-  ];
+  uniques: UniqueIndex[] = [CANCELLED_RUN_PLAYER_UNIQUE];
+  missingColumns: Record<string, string[]> = {};
   auth = {
     getUser: async (token: string) => ({ data: { user: token ? { id: token } : null }, error: null }),
   };
@@ -22,6 +32,12 @@ export class FakeSupabase {
 
   from(table: string) {
     return new Query(this, table);
+  }
+
+  /** Schema as it is before 20261002160000_pickup_credits_credited_for.sql runs. */
+  beforeCreditedForMigration() {
+    this.uniques = [CANCELLED_RUN_UNIQUE_BEFORE_MIGRATION];
+    this.missingColumns.pickup_credits = ["credited_for_user_id"];
   }
 
   nextId(): string {
@@ -49,11 +65,13 @@ class Query implements PromiseLike<{ data: unknown; error: { message: string; co
   private orderBy: { col: string; asc: boolean } | null = null;
   private single = false;
   private returnRows = false;
+  private selectCols: string[] = [];
 
   constructor(private db: FakeSupabase, private table: string) {}
 
-  select() {
+  select(cols?: string) {
     if (this.op !== "select") this.returnRows = true;
+    else this.selectCols = (cols ?? "*").split(",").map((c) => c.trim());
     return this;
   }
   update(patch: Row) {
@@ -114,11 +132,17 @@ class Query implements PromiseLike<{ data: unknown; error: { message: string; co
 
   private exec(): { data: unknown; error: { message: string; code?: string } | null } {
     const rows = this.db.rows(this.table);
+    const missing = this.db.missingColumns[this.table] ?? [];
     if (this.op === "insert") {
+      const absent = Object.keys(this.inserted ?? {}).find((c) => missing.includes(c));
+      if (absent) {
+        return { data: null, error: { message: `Could not find the '${absent}' column of '${this.table}' in the schema cache`, code: "PGRST204" } };
+      }
       const row: Row = { id: this.db.nextId(), awarded_at: new Date().toISOString(), ...this.inserted };
       for (const u of this.db.uniques) {
         if (u.table !== this.table || (u.where && !u.where(row))) continue;
-        if (rows.some((r) => (!u.where || u.where(r)) && u.cols.every((c) => r[c] === row[c]))) {
+        const key = JSON.stringify(u.key(row));
+        if (rows.some((r) => (!u.where || u.where(r)) && JSON.stringify(u.key(r)) === key)) {
           return { data: null, error: { message: "duplicate key value violates unique constraint", code: "23505" } };
         }
       }
@@ -133,6 +157,10 @@ class Query implements PromiseLike<{ data: unknown; error: { message: string; co
       if (hit) Object.assign(hit, row);
       else rows.push({ ...row });
       return { data: null, error: null };
+    }
+    const absentSel = this.op === "select" ? this.selectCols.find((c) => missing.includes(c)) : undefined;
+    if (absentSel) {
+      return { data: null, error: { message: `column ${this.table}.${absentSel} does not exist`, code: "42703" } };
     }
     const matched = rows.filter((r) => this.filters.every((f) => f(r)));
     if (this.op === "update") {
