@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { requestIp } from "@/lib/server/rateLimit";
 
@@ -55,6 +56,50 @@ export async function checkPersistentRateLimit(opts: {
       }),
     );
     return { ok: true };
+  }
+}
+
+export type StrictRateLimitResult =
+  | { ok: true }
+  | { ok: false; reason: "limited"; retryAfterSeconds: number }
+  | { ok: false; reason: "unavailable"; error: string };
+
+/**
+ * Same store as {@link checkPersistentRateLimit} but fails closed: when the RPC
+ * is missing or errors, the caller must refuse the request.
+ */
+export async function checkPersistentRateLimitStrict(
+  admin: SupabaseClient,
+  opts: { bucketKey: string; limit: number; windowSeconds: number },
+): Promise<StrictRateLimitResult> {
+  try {
+    const { data, error } = await admin.rpc("api_rate_limit_check", {
+      p_bucket_key: opts.bucketKey,
+      p_limit: opts.limit,
+      p_window_seconds: opts.windowSeconds,
+    });
+    if (error) {
+      console.error(
+        JSON.stringify({
+          tag: "rate-limit",
+          message: "strict_rate_limit_rpc_failed",
+          data: { bucket: opts.bucketKey.split(":")[0], error: error.message },
+        }),
+      );
+      return { ok: false, reason: "unavailable", error: error.message };
+    }
+    const row = data as { allowed?: boolean; retry_after_seconds?: number } | null;
+    if (row?.allowed === true) return { ok: true };
+    if (row?.allowed === false) {
+      return { ok: false, reason: "limited", retryAfterSeconds: Math.max(1, Number(row.retry_after_seconds ?? 60)) };
+    }
+    return { ok: false, reason: "unavailable", error: "Unexpected rate limit response" };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(
+      JSON.stringify({ tag: "rate-limit", message: "strict_rate_limit_exception", data: { error: msg } }),
+    );
+    return { ok: false, reason: "unavailable", error: msg };
   }
 }
 

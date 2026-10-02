@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
-import { sendPushToUsers } from "@/lib/push/sendExpoPush";
+import { deliverRunInvite } from "@/lib/pickup/deliverRunInvite";
 
 function bearer(req: Request) {
   const auth = req.headers.get("authorization") || "";
@@ -57,45 +57,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "That player is not approved yet." }, { status: 400 });
   }
 
-  // pickup_run_invites columns: run_id, user_id, wave, invited_tier_rank, invited_at
-  // (no invited_by column — host is implied via pickup_runs.created_by)
-  const { data: existingInvite } = await admin
-    .from("pickup_run_invites")
-    .select("user_id")
-    .eq("run_id", run_id)
-    .eq("user_id", invitee_id)
-    .maybeSingle();
-
-  if (!existingInvite) {
-    const now = new Date().toISOString();
-    const { error: insErr } = await admin.from("pickup_run_invites").insert({
-      run_id,
-      user_id: invitee_id,
-      wave: 1,
-      invited_tier_rank: Number(invitee.tier_rank ?? 6),
-      invited_at: now,
-    });
-    if (insErr && !/duplicate|unique/i.test(insErr.message || "")) {
-      console.error("[sessions/invite] pickup_run_invites insert:", insErr.message);
-      return NextResponse.json({ error: "Could not save invite." }, { status: 500 });
-    }
-  }
-
-  const { data: host } = await admin
-    .from("profiles")
-    .select("first_name, last_name, username")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const hostName = [host?.first_name, host?.last_name].filter(Boolean).join(" ") || host?.username || "Someone";
-  const sessionDate = new Date(run.start_at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-
-  // Send push to invitee
-  await sendPushToUsers(admin, [invitee_id], {
-    title: "Session invite 🎯",
-    body: `${hostName} invited you to their session on ${sessionDate}`,
-    data: { screen: `session/${run_id}`, run_id, url: `ctpickup://session/${run_id}` },
+  const delivered = await deliverRunInvite(admin, {
+    run: { id: run_id, start_at: run.start_at },
+    inviteeId: invitee_id,
+    inviteeTierRank: invitee.tier_rank,
+    inviterId: user.id,
   });
+  if (!delivered.ok) return NextResponse.json({ error: delivered.error }, { status: 500 });
 
-  return NextResponse.json({ ok: true, already_invited: !!existingInvite });
+  return NextResponse.json({ ok: true, already_invited: delivered.alreadyLinked });
 }

@@ -161,6 +161,17 @@ function haversineMinutesFromZipToDestination(zip5: string, dest: VenueDestinati
   return driveMinutesFromStraightLineMiles(mi);
 }
 
+/** Offline drive-minute estimate from a ZIP centroid to a point (no Distance Matrix call). */
+export function estimateDriveMinutesFromZip(
+  zip: string | null | undefined,
+  lat: number | null | undefined,
+  lng: number | null | undefined,
+): number | null {
+  const zip5 = normalizeZip(zip);
+  if (!zip5 || lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return haversineMinutesFromZipToDestination(zip5, { venue: "", address: "", lat, lng });
+}
+
 /** Prefer canonical street address from `venueServiceRegion` when available. */
 export function enrichVenueDestination(dest: VenueDestination): VenueDestination {
   const better = venueAddress(dest.venue);
