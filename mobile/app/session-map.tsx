@@ -21,6 +21,7 @@ import { format, isToday, isTomorrow } from "date-fns";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { ChalkEmptyState } from "@/components/chalk";
 import { themeColor, useThemedStyles } from "@/theme";
 /* ---------------------------------------------------------------- tokens */
@@ -645,7 +646,8 @@ export default function SessionMapScreen() {
         style={styles.zipPill}
       >
         <Text style={styles.zipPillText}>
-          📍 {zipCurrent ? zipCurrent : "My Location"}
+          <FontAwesome name="map-marker" size={13} color={themeColor().pitchText} />{" "}
+          {zipCurrent ? zipCurrent : "My Location"}
         </Text>
       </Pressable>
 
@@ -734,7 +736,9 @@ export default function SessionMapScreen() {
           >
             {zipGpsLoading
               ? <ActivityIndicator color={themeColor().onPitch} size="small" />
-              : <Text style={styles.zipGpsBtnText}>📡 Use my GPS</Text>}
+              : <Text style={styles.zipGpsBtnText}>
+                  <FontAwesome name="location-arrow" size={16} color={themeColor().text} /> Use my GPS
+                </Text>}
           </Pressable>
 
           <Pressable

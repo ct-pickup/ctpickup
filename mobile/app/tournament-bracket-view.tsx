@@ -8,6 +8,7 @@ import {
 import { siteOrigin } from "@/lib/env";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
@@ -416,11 +417,13 @@ export default function TournamentBracketViewScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Vote for match MVP"
               >
-                <Text style={styles.mvpVoteBtnText}>Vote MVP ⭐</Text>
+                <Text style={styles.mvpVoteBtnText}>
+                  Vote MVP <FontAwesome name="star" size={13} color={themeColor().onPitchPanel} />
+                </Text>
               </Pressable>
             ) : top ? (
               <Text style={styles.mvpResultText}>
-                MVP: {top.name} ⭐ ({top.votes} {top.votes === 1 ? "vote" : "votes"})
+                MVP: {top.name} <FontAwesome name="star" size={13} color={themeColor().pitchText} /> ({top.votes} {top.votes === 1 ? "vote" : "votes"})
               </Text>
             ) : (
               <Text style={styles.mvpMutedSmall}>No MVP votes yet</Text>

@@ -14,6 +14,7 @@ import Svg, { Circle } from "react-native-svg";
 import { Stack, useRouter } from "expo-router";
 import { format, isToday, isTomorrow } from "date-fns";
 import * as Location from "expo-location";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 
@@ -1143,7 +1144,9 @@ function CountyPopupModal({
             contentContainerStyle={s.modalScroll}
           >
             <Text style={s.popupCity}>{cell.name}</Text>
-            <Text style={s.popupMembersMuted}>👥 {cell.count} total members</Text>
+            <Text style={s.popupMembersMuted}>
+              <FontAwesome name="users" size={14} color={themeColor().muted} /> {cell.count} total members
+            </Text>
 
             {tierCounts ? (
               <Text style={s.tierBreakdownRow}>
@@ -1215,7 +1218,9 @@ function CountyPopupModal({
               </View>
             )}
 
-            <Text style={s.sessionsLine}>⚽ {cell.upcomingSessions} upcoming sessions in this area</Text>
+            <Text style={s.sessionsLine}>
+              <FontAwesome name="futbol-o" size={14} color={themeColor().muted} /> {cell.upcomingSessions} upcoming sessions in this area
+            </Text>
 
             <Pressable style={s.popupCloseBtn} onPress={onClose} accessibilityRole="button">
               <Text style={s.popupCloseBtnText}>Close</Text>
@@ -1227,12 +1232,22 @@ function CountyPopupModal({
   );
 }
 
-function PopupRow({ icon, label, accent }: { icon: string; label: string; accent?: string }) {
+function PopupRow({
+  icon,
+  label,
+  accent,
+}: {
+  icon: React.ComponentProps<typeof FontAwesome>["name"];
+  label: string;
+  accent?: string;
+}) {
   useThemedStyles(publish_s);
 
   return (
     <View style={s.popupRow}>
-      <Text style={s.popupRowIcon}>{icon}</Text>
+      <View style={s.popupRowIcon}>
+        <FontAwesome name={icon} size={14} color={accent ?? themeColor().muted} />
+      </View>
       <Text style={[s.popupRowText, accent ? { color: accent } : null]}>{label}</Text>
     </View>
   );
@@ -1275,13 +1290,13 @@ function SessionDetailCard({
       </View>
 
       <View style={s.popupRows}>
-        <PopupRow icon="👥" label={`${session.capacity} capacity`} />
+        <PopupRow icon="users" label={`${session.capacity} capacity`} />
         <PopupRow
-          icon="🎟"
+          icon="ticket"
           label={full ? "Full — join waitlist" : `${left} spots left`}
           accent={full ? themeColor().muted : themeColor().pitch}
         />
-        <PopupRow icon="💵" label={`$${(session.fee_cents / 100).toFixed(0)} entry`} />
+        <PopupRow icon="money" label={`$${(session.fee_cents / 100).toFixed(0)} entry`} />
       </View>
 
       <Pressable style={s.popupCta} onPress={onNavigate}>
@@ -1729,7 +1744,7 @@ function make_s() {
 
   popupRows: { gap: 8 },
   popupRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  popupRowIcon: { fontSize: 16, fontFamily: "Inter_400Regular", width: 22, textAlign: "center" },
+  popupRowIcon: { width: 22, alignItems: "center" },
   popupRowText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_500Medium", fontWeight: "500", flex: 1 },
 
   popupCta: {

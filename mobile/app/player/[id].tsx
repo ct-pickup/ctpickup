@@ -960,11 +960,11 @@ export default function PlayerProfileScreen() {
               <>
                 {currentStreak >= 5 ? (
                   <Text style={styles.streakHotLime}>
-                    🔥 {currentStreak} run streak
+                    <FontAwesome name="fire" size={16} color={themeColor().pitchText} /> {currentStreak} run streak
                   </Text>
                 ) : currentStreak >= 1 ? (
                   <Text style={styles.streakHotWhite}>
-                    🔥 {currentStreak} run streak
+                    <FontAwesome name="fire" size={16} color={themeColor().text} /> {currentStreak} run streak
                   </Text>
                 ) : null}
                 {longestStreak > 0 ? (
