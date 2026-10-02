@@ -25,8 +25,8 @@ const shell = {
       "rounded-card border px-4 py-3 text-small font-medium text-center transition outline-none focus-visible:ring-2 focus-visible:ring-line",
     optOff: "border-line bg-canvas text-muted hover:border-line",
     optOn: "border-line bg-pitch text-on-pitch",
-    block: "space-y-3 rounded-card border border-line bg-overlay-subtle p-4",
-    callout: "rounded-button border border-coral bg-overlay-subtle px-3 py-2 text-caption text-coral leading-relaxed",
+    block: "space-y-3 rounded-card border border-line bg-card p-4",
+    callout: "rounded-button border border-line bg-card px-3 py-2 text-caption text-ink leading-relaxed",
     textInput: "",
   },
   light: {
@@ -37,7 +37,7 @@ const shell = {
     optOff: "border-line bg-card text-muted hover:border-line",
     optOn: "border-line bg-canvas text-ink",
     block: "space-y-3 rounded-button border border-line bg-overlay p-4",
-    callout: "rounded-button border border-coral bg-overlay-subtle px-3 py-2 text-caption text-coral leading-relaxed",
+    callout: "rounded-button border border-line bg-card px-3 py-2 text-caption text-ink leading-relaxed",
     textInput: "w-full rounded-button border border-line bg-card px-3 py-3 text-small text-muted placeholder:text-muted outline-none focus:border-line",
   },
 } as const;

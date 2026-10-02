@@ -90,7 +90,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   cardTitle: { color: themeColor().text, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
   cardHint: {

@@ -172,7 +172,7 @@ export default async function AdminDashboardPage() {
             {guidancePending > 0 ? (
               <Link
                 href="/admin/guidance"
-                className="rounded-card border border-line bg-overlay-subtle p-4 transition hover:border-line"
+                className="rounded-card border border-line bg-card p-4 transition hover:border-line"
               >
                 <div className="text-small font-semibold text-ink">Guidance requests</div>
                 <p className="mt-1 text-caption text-muted">{guidancePending} pending — review and update status.</p>
@@ -183,7 +183,7 @@ export default async function AdminDashboardPage() {
               <Link
                 key={r.id}
                 href="/admin/pickup"
-                className="rounded-card border border-coral bg-overlay-subtle p-4 transition hover:border-coral"
+                className="rounded-card border border-line bg-card p-4 transition hover:border-ink"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusChip tone="draft">Draft / planning</StatusChip>
@@ -200,7 +200,7 @@ export default async function AdminDashboardPage() {
                 <Link
                   key={r.id}
                   href="/admin/pickup"
-                  className="rounded-card border border-coral bg-overlay-subtle p-4 transition hover:border-coral"
+                  className="rounded-card border border-line bg-card p-4 transition hover:border-ink"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusChip tone="incomplete">Setup</StatusChip>
@@ -221,7 +221,7 @@ export default async function AdminDashboardPage() {
 
         {/* Live + upcoming */}
         <section className="mb-10 grid gap-4 lg:grid-cols-2">
-          <div className="rounded-card border border-line bg-overlay-subtle p-5 space-y-3">
+          <div className="rounded-card border border-line bg-card p-5 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-caption font-semibold text-muted">Pickup hub</div>
               {currentRunRes.data ? (
@@ -251,7 +251,7 @@ export default async function AdminDashboardPage() {
             </div>
           </div>
 
-          <div className="rounded-card border border-line bg-overlay-subtle p-5 space-y-3">
+          <div className="rounded-card border border-line bg-card p-5 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-caption font-semibold text-muted">Tournament hub</div>
               {activeTournamentRes.data ? (
@@ -318,7 +318,7 @@ export default async function AdminDashboardPage() {
               )}
             </div>
           ) : (
-            <p className="text-caption text-coral">
+            <p className="text-caption text-muted">
               Full publish logging isn’t on yet — updates still save, but you won’t see per-page delivery history here. Your
               developer can enable it with the latest staff database migration.
             </p>
@@ -333,7 +333,7 @@ export default async function AdminDashboardPage() {
 
         {/* Content + sync snapshot */}
         <section className="mb-10 grid gap-4 lg:grid-cols-2">
-          <div className="rounded-card border border-line bg-overlay-subtle p-5 space-y-3">
+          <div className="rounded-card border border-line bg-card p-5 space-y-3">
             <div className="text-caption font-semibold text-muted">Site-wide status copy</div>
             <div className="flex flex-wrap gap-2">
               {statusDraft ? <StatusChip tone="draft">Empty announcement</StatusChip> : null}
@@ -355,7 +355,7 @@ export default async function AdminDashboardPage() {
             </div>
           </div>
 
-          <div className="rounded-card border border-line bg-overlay-subtle p-5 space-y-3">
+          <div className="rounded-card border border-line bg-card p-5 space-y-3">
             <div className="text-caption font-semibold text-muted">Pickup auto-pipeline</div>
             {pendingSyncRows.length ? (
               <StatusChip tone="pending">Checkpoints due or waiting</StatusChip>
@@ -377,7 +377,7 @@ export default async function AdminDashboardPage() {
         </section>
 
         {/* Upcoming */}
-        <section className="mb-10 rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+        <section className="mb-10 rounded-card border border-line bg-card p-5 space-y-4">
           <div className="text-caption font-semibold text-muted">Upcoming kickoffs (pickup)</div>
           {upcomingPickups.length === 0 ? (
             <p className="text-small text-muted">No upcoming kickoffs on recent runs.</p>
@@ -398,7 +398,7 @@ export default async function AdminDashboardPage() {
         </section>
 
         {/* Quick actions */}
-        <section className="rounded-card border border-line bg-overlay-subtle p-5">
+        <section className="rounded-card border border-line bg-card p-5">
           <div className="text-caption font-semibold text-muted mb-3">Quick actions</div>
           <div className="flex flex-wrap gap-2">
             <Link

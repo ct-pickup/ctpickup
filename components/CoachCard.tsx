@@ -37,7 +37,7 @@ export default function CoachCard({ coach }: { coach: Coach }) {
   const href = "/training/coaches/" + encodeURIComponent(coach.slug);
 
   return (
-    <div className="w-full max-w-[320px] rounded-card border border-line bg-overlay-subtle p-5 relative">
+    <div className="w-full max-w-[320px] rounded-card border border-line bg-card p-5 relative">
       <div className="w-full aspect-[3/4] overflow-hidden rounded-card border border-line bg-overlay-subtle">
         {coach.photoSrc ? (
           <img

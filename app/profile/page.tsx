@@ -666,7 +666,7 @@ export default function ProfilePage() {
             />
 
             {basicsMsg ? (
-              <p className="text-small text-coral leading-relaxed whitespace-pre-line">
+              <p className="text-small text-muted leading-relaxed whitespace-pre-line">
                 {basicsMsg}
               </p>
             ) : null}
@@ -693,7 +693,7 @@ export default function ProfilePage() {
             </div>
 
             {!hasEsportsSchema ? (
-              <div className="rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral leading-relaxed whitespace-pre-line">
+              <div className="rounded-card border border-line bg-card px-4 py-3 text-small text-ink leading-relaxed whitespace-pre-line">
                 {profileSchemaMismatchUserMessage()}
               </div>
             ) : (
@@ -716,7 +716,7 @@ export default function ProfilePage() {
             )}
 
             {prefsMsg ? (
-              <p className="text-small text-coral leading-relaxed whitespace-pre-line">{prefsMsg}</p>
+              <p className="text-small text-muted leading-relaxed whitespace-pre-line">{prefsMsg}</p>
             ) : null}
 
             <button
@@ -760,7 +760,7 @@ export default function ProfilePage() {
             </div>
 
             {contactMsg ? (
-              <p className="text-small text-coral leading-relaxed whitespace-pre-line">
+              <p className="text-small text-muted leading-relaxed whitespace-pre-line">
                 {contactMsg}
               </p>
             ) : null}
@@ -776,7 +776,7 @@ export default function ProfilePage() {
           </div>
 
           {msg ? (
-            <p className="text-small text-coral leading-relaxed whitespace-pre-line">{msg}</p>
+            <p className="text-small text-muted leading-relaxed whitespace-pre-line">{msg}</p>
           ) : null}
 
           <div className="flex flex-col gap-3 border-t border-line pt-6 sm:flex-row sm:flex-wrap">

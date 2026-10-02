@@ -19,7 +19,7 @@ export function CoachHeadshot({
   loading = "lazy",
 }: CoachHeadshotProps) {
   return (
-    <div className={`relative overflow-hidden bg-canvas${className}`}>
+    <div className={`relative overflow-hidden bg-canvas ${className}`}>
       <img
         src={coachPhotoSrc(slug)}
         alt={name}

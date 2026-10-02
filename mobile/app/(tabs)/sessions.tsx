@@ -663,10 +663,8 @@ export default function SessionsTabScreen() {
                 {past.map((row) => {
                   const badgeColor =
                     row.result === "Won"
-                      ? themeColor().pitch
-                      : row.result === "Lost"
-                        ? themeColor().coral
-                        : themeColor().overlayStrong;
+                      ? themeColor().pitchText
+                      : themeColor().muted;
                   return (
                     <Pressable
                       key={row.run_id}
@@ -735,7 +733,7 @@ function make_styles() {
   content: { paddingHorizontal: 16, paddingBottom: 120 },
   statsBar: {
     flexDirection: "row",
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().overlay,
@@ -753,7 +751,7 @@ function make_styles() {
   },
   loadingWrap: { paddingVertical: 40, alignItems: "center" },
   emptyCard: {
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().overlay,
@@ -773,7 +771,7 @@ function make_styles() {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().pitch,
@@ -782,7 +780,7 @@ function make_styles() {
   joinTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
   joinSub: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   liveCard: {
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: themeColor().pitch,
@@ -802,7 +800,7 @@ function make_styles() {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     borderWidth: 1,
     borderColor: themeColor().pitch,
   },
@@ -820,7 +818,7 @@ function make_styles() {
     borderRadius: 10,
     backgroundColor: themeColor().pitch,
   },
-  liveBadgeText: { color: themeColor().pitch, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "900",},
+  liveBadgeText: { color: themeColor().onPitchPanel, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "900",},
   liveTime: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   liveTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", marginTop: 2 },
   liveFooter: {
@@ -834,17 +832,17 @@ function make_styles() {
     width: 28,
     height: 28,
     borderRadius: 12,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     borderWidth: 1.5,
     borderColor: themeColor().line,
     alignItems: "center",
     justifyContent: "center",
     marginRight: -8,
   },
-  avatarText: { color: themeColor().pitch, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  avatarText: { color: themeColor().onPitchPanel, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
   avatarMore: { marginLeft: 14, color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   card: {
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().overlay,

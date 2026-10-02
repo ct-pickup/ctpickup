@@ -123,7 +123,7 @@ export default function IntakeFlow() {
         </div>
 
         {!agreed ? (
-          <div className="rounded-card border border-line bg-overlay-subtle p-8 space-y-4">
+          <div className="rounded-card border border-line bg-card p-8 space-y-4">
             <div className="text-ink">
               Read <Link href="/rules" className="underline">Rules & Eligibility</Link> before submitting.
             </div>
@@ -140,7 +140,7 @@ export default function IntakeFlow() {
             </div>
           </div>
         ) : (
-          <div className="rounded-card border border-line bg-overlay-subtle p-6 space-y-4">
+          <div className="rounded-card border border-line bg-card p-6 space-y-4">
             <div className="space-y-3">
               {messages.map((m, i) => (
                 <div
@@ -236,7 +236,7 @@ export default function IntakeFlow() {
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        className="mt-5 h-72 overflow-y-auto rounded-card border border-line bg-overlay-subtle p-5 space-y-4 text-ink"
+        className="mt-5 h-72 overflow-y-auto rounded-card border border-line bg-card p-5 space-y-4 text-ink"
       >
         <div className="font-semibold text-ink">
           HOW THIS WORKS (READ BEFORE SUBMITTING)

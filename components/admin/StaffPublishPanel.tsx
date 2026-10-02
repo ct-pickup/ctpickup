@@ -221,7 +221,7 @@ export function StaffPublishPanel({
   }
 
   return (
-    <div className={`rounded-card border border-line bg-overlay-subtle p-5 space-y-5${className}`}>
+    <div className={`rounded-card border border-line bg-card p-5 space-y-5 ${className}`}>
       <div>
         <h3 className="text-small font-semibold text-ink">Publish</h3>
         <p className="mt-1 text-caption text-muted">
@@ -321,7 +321,7 @@ export function StaffPublishPanel({
       </details>
 
       {blockedReasons.length > 0 ? (
-        <p className="text-caption text-coral">{blockedReasons.join("  ")}</p>
+        <p className="text-caption text-muted">{blockedReasons.join("  ")}</p>
       ) : null}
 
       <button
@@ -334,7 +334,7 @@ export function StaffPublishPanel({
       </button>
 
       {!publishLayerOk ? (
-        <p className="text-caption text-coral">
+        <p className="text-caption text-muted">
           Full publish logging isn’t enabled in the database — publishes still apply, but you won’t get idempotent retries or
           per-destination history until migrations are applied.
         </p>

@@ -351,7 +351,7 @@ export default function TournamentPage() {
               {checkingWaiver ? "Checking…" : "CLAIM A TEAM"}
             </button>
             {waiverGateMessage ? (
-              <p className="text-caption font-medium text-coral">{waiverGateMessage}</p>
+              <p className="text-caption font-medium text-coral-text">{waiverGateMessage}</p>
             ) : null}
             {!publicLoading && t && claimsClosed ? (
               <p className="text-caption text-muted">Captain claim slots are currently full.</p>
@@ -366,7 +366,7 @@ export default function TournamentPage() {
         </div>
 
         <Panel className="p-6 md:p-8">
-          <h2 className="text-h2 font-serif font-bold text-ink md:text-h1">
+          <h2 className="text-h2 font-serif font-bold text-ink">
             Tournament Overview
           </h2>
           <p className="mt-4 max-w-2xl text-small leading-7 text-muted">
@@ -388,7 +388,7 @@ export default function TournamentPage() {
                 <p className="mt-4 text-small font-medium text-ink">{t.title}</p>
               ) : null}
               <div className="mt-8 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-card border border-line bg-overlay-subtle p-4">
+                <div className="rounded-card border border-line bg-card p-4">
                   <div className="text-caption font-semibold text-muted">
                     Minimum to Confirm
                   </div>
@@ -397,7 +397,7 @@ export default function TournamentPage() {
                   </div>
                 </div>
 
-                <div className="rounded-card border border-line bg-overlay-subtle p-4">
+                <div className="rounded-card border border-line bg-card p-4">
                   <div className="text-caption font-semibold text-muted">
                     Teams Claimed
                   </div>
@@ -406,7 +406,7 @@ export default function TournamentPage() {
                   </div>
                 </div>
 
-                <div className="rounded-card border border-line bg-overlay-subtle p-4">
+                <div className="rounded-card border border-line bg-card p-4">
                   <div className="text-caption font-semibold text-muted">
                     Spots Remaining
                   </div>
@@ -543,7 +543,7 @@ export default function TournamentPage() {
               </>
             ) : !claimDone ? (
               <div className="mt-6 space-y-6">
-                <div className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+                <div className="rounded-card border border-line bg-card p-5 space-y-4">
                   <div className="text-small font-semibold text-ink">
                     Captain Info
                   </div>
@@ -564,7 +564,7 @@ export default function TournamentPage() {
                   </div>
                 </div>
 
-                <div className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+                <div className="rounded-card border border-line bg-card p-5 space-y-4">
                   <div className="text-small font-semibold text-ink">
                     Team Info
                   </div>
@@ -651,15 +651,15 @@ export default function TournamentPage() {
                   </button>
                 </div>
 
-                {error ? <div className="text-small text-coral">{error}</div> : null}
+                {error ? <div className="text-small text-coral-text">{error}</div> : null}
               </div>
             ) : (
               <div className="mt-6 space-y-5">
-                <div className="rounded-card border border-line bg-overlay-subtle p-6 text-small text-ink whitespace-pre-line">
+                <div className="rounded-card border border-line bg-card p-6 text-small text-ink whitespace-pre-line">
                   Your captain interest has been recorded. Your team spot is not confirmed yet. Confirmation only happens after payment, eligibility review, roster verification, and final approval.
                 </div>
 
-                <div className="rounded-card border border-coral bg-overlay-subtle p-4 text-caption leading-relaxed text-ink">
+                <div className="rounded-card border border-line bg-card p-4 text-caption leading-relaxed text-ink">
                   <span className="font-semibold text-ink">Before you pay:</span>{"  "}
                   {IN_PERSON_TOURNAMENT_REFUND_NOTICE_UI}
                 </div>
@@ -683,7 +683,7 @@ export default function TournamentPage() {
                   </button>
                 </div>
 
-                {error ? <div className="text-small text-coral">{error}</div> : null}
+                {error ? <div className="text-small text-coral-text">{error}</div> : null}
               </div>
             )}
           </div>

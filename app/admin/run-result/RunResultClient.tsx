@@ -185,7 +185,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
           <PageTop flush title="Mark run result" fallbackHref="/admin/pickup" />
         </div>
         <div className="mx-auto max-w-2xl px-6 py-12">
-          <p className="text-coral">{err}</p>
+          <p className="text-coral-text">{err}</p>
           <Link href="/admin/pickup" className="mt-6 inline-block text-pitch-text underline-offset-4 hover:underline">
             Back to pickups
           </Link>
@@ -201,7 +201,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
       </div>
 
       <div className="mx-auto max-w-2xl space-y-6 px-4 py-8 sm:px-0">
-        <div className="rounded-card border border-pitch bg-pitch-soft p-5">
+        <div className="rounded-card border border-pitch bg-pitch-panel p-5">
           <p className="text-caption font-semibold text-muted">Run</p>
           <p className="mt-2 text-small text-muted">
             {region ? serviceRegionName(region) : "Region —"} · {confirmed.length} confirmed
@@ -222,7 +222,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
                 setTotalTeams(2);
                 setWinningTeam("A");
               }}
-              className={`flex-1 rounded-card border px-4 py-3 text-small font-semibold ${ totalTeams === 2 ? "border-pitch bg-pitch-soft text-pitch" : "border-line bg-overlay-subtle text-muted" }`}
+              className={`flex-1 rounded-card border px-4 py-3 text-small font-semibold ${ totalTeams === 2 ? "border-pitch bg-pitch-panel text-on-pitch-panel" : "border-line bg-card text-muted" }`}
             >
               2 teams
             </button>
@@ -232,7 +232,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
                 setTotalTeams(3);
                 setWinningTeam("A");
               }}
-              className={`flex-1 rounded-card border px-4 py-3 text-small font-semibold ${ totalTeams === 3 ? "border-pitch bg-pitch-soft text-pitch" : "border-line bg-overlay-subtle text-muted" }`}
+              className={`flex-1 rounded-card border px-4 py-3 text-small font-semibold ${ totalTeams === 3 ? "border-pitch bg-pitch-panel text-on-pitch-panel" : "border-line bg-card text-muted" }`}
             >
               3 teams
             </button>
@@ -244,7 +244,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
           <select
             value={winningTeamEffective}
             onChange={(e) => setWinningTeam(e.target.value as Team)}
-            className="w-full rounded-card border border-line bg-overlay-subtle px-4 py-3 text-small text-ink"
+            className="w-full rounded-card border border-line bg-card px-4 py-3 text-small text-ink"
           >
             {allowedTeams.map((t) => (
               <option key={t} value={t}>
@@ -256,14 +256,14 @@ export default function RunResultClient({ runId }: { runId: string }) {
 
         <section className="space-y-3">
           <p className="text-caption font-semibold text-muted">Roster</p>
-          <div className="rounded-card border border-line bg-overlay-subtle p-4 space-y-3">
+          <div className="rounded-card border border-line bg-card p-4 space-y-3">
             {confirmed.length === 0 ? <p className="text-small text-muted">No confirmed players.</p> : null}
             {confirmed.map((p) => (
               <div key={p.id} className="flex flex-wrap items-center gap-3">
                 <div className="min-w-0 flex-1 flex items-center gap-2 truncate">
                   <span className="text-small font-semibold text-ink truncate">{nameFor(p)}</span>
                   {p.photo_package ? (
-                    <span className="shrink-0 rounded-pill bg-pitch-soft border border-pitch px-2 py-0.5 text-caption font-semibold text-pitch">
+                    <span className="shrink-0 rounded-pill bg-pitch-panel border border-pitch px-2 py-0.5 text-caption font-semibold text-on-pitch-panel">
                       📸 Photos
                     </span>
                   ) : null}
@@ -273,7 +273,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
                   onChange={(e) =>
                     setTeamByUser((c) => ({ ...c, [p.id]: e.target.value as Team }))
                   }
-                  className="rounded-pill border border-pitch bg-pitch-soft px-3 py-2 text-caption font-bold text-pitch"
+                  className="rounded-pill border border-pitch bg-pitch-panel px-3 py-2 text-caption font-bold text-on-pitch-panel"
                 >
                   {allowedTeams.map((t) => (
                     <option key={t} value={t}>
@@ -288,7 +288,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
 
         <section className="space-y-3">
           <p className="text-caption font-semibold text-muted">Awards</p>
-          <div className="rounded-card border border-line bg-overlay-subtle p-4 space-y-4">
+          <div className="rounded-card border border-line bg-card p-4 space-y-4">
             {(
               [
                 ["player", "Player of the Day", playerOfDay, setPlayerOfDay],

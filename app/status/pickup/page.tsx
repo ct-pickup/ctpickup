@@ -43,12 +43,12 @@ function pillForRunStatus(status: string) {
   if (status === "in_progress")
     return {
       label: "In progress",
-      cls: "border-pitch bg-pitch-soft text-pitch",
+      cls: "border-pitch bg-pitch-panel text-on-pitch-panel",
     };
   if (status === "active")
     return {
       label: "Active",
-      cls: "border-pitch bg-pitch-soft text-pitch",
+      cls: "border-pitch bg-pitch-panel text-on-pitch-panel",
     };
   if (status === "likely_on")
     return {
@@ -165,7 +165,7 @@ export default async function PickupStatusPage() {
       <div className="mx-auto max-w-6xl px-6 py-14 space-y-10">
         {/* Neutral fallback if nothing exists */}
         {!hasSomething && (
-          <section className="rounded-card border border-line bg-overlay-subtle p-8">
+          <section className="rounded-card border border-line bg-card p-8">
             <div className="text-small font-semibold text-ink">
               Pickup Status
             </div>
@@ -180,7 +180,7 @@ export default async function PickupStatusPage() {
 
         {/* 1) Global update first */}
         {globalUpdate && (
-          <section className="rounded-card border border-line bg-overlay-subtle p-8 space-y-4">
+          <section className="rounded-card border border-line bg-card p-8 space-y-4">
             <div className="flex items-center justify-between gap-4">
               <div className="text-small font-semibold text-ink">
                 Everyone
@@ -198,7 +198,7 @@ export default async function PickupStatusPage() {
 
         {/* 2) Most relevant run update underneath */}
         {run && (
-          <section className="rounded-card border border-line bg-overlay-subtle p-8 space-y-5">
+          <section className="rounded-card border border-line bg-card p-8 space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div
@@ -236,7 +236,7 @@ export default async function PickupStatusPage() {
 
         {/* 3) Optional recent feed */}
         {feed.length > 0 && (
-          <section className="rounded-card border border-line bg-overlay-subtle p-8 space-y-4">
+          <section className="rounded-card border border-line bg-card p-8 space-y-4">
             <div className="text-small font-semibold text-muted">
               Recent
             </div>
@@ -245,7 +245,7 @@ export default async function PickupStatusPage() {
               {feed.map((u) => (
                 <div
                   key={String(u.id)}
-                  className="rounded-card border border-line bg-overlay-subtle p-4"
+                  className="rounded-card border border-line bg-card p-4"
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="text-caption text-muted">

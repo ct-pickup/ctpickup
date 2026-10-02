@@ -754,7 +754,7 @@ function make_styles() {
     width: 380,
     height: 380,
     borderRadius: 999,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
   bgGlowB: {
     position: "absolute",
@@ -763,7 +763,7 @@ function make_styles() {
     width: 480,
     height: 480,
     borderRadius: 999,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
   content: {
     flexGrow: 1,
@@ -851,7 +851,7 @@ function make_styles() {
   errText: {
     marginTop: 6,
     fontSize: 13, fontFamily: "Inter_400Regular",
-    color: themeColor().coral,
+    color: themeColor().coralText,
   },
   zipVenueInlineHint: {
     marginTop: 8,
@@ -893,7 +893,7 @@ function make_styles() {
   submitErr: {
     marginTop: 16,
     fontSize: 14, fontFamily: "Inter_400Regular",
-    color: themeColor().coral,
+    color: themeColor().coralText,
     lineHeight: 20,
   },
   primaryBtn: {
@@ -920,7 +920,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   nearestCardTitle: {
     fontSize: 16, fontFamily: "Inter_700Bold",
@@ -1011,7 +1011,7 @@ function make_styles() {
     marginHorizontal: 4,
   },
   modalRowSelected: {
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
   modalRowText: {
     fontSize: 16, fontFamily: "Inter_400Regular",

@@ -3,7 +3,7 @@ import type { RecentUpdateLine } from "@/lib/admin/recentOperatorContext";
 export function RecentOperatorActivity({ lines }: { lines: RecentUpdateLine[] }) {
   if (!lines.length) {
     return (
-      <section className="rounded-card border border-line bg-overlay-subtle p-5">
+      <section className="rounded-card border border-line bg-card p-5">
         <h3 className="text-caption font-semibold text-muted">Recent activity</h3>
         <p className="mt-2 text-small text-muted">Nothing recent to show yet.</p>
       </section>
@@ -11,7 +11,7 @@ export function RecentOperatorActivity({ lines }: { lines: RecentUpdateLine[] })
   }
 
   return (
-    <section className="rounded-card border border-line bg-overlay-subtle p-5">
+    <section className="rounded-card border border-line bg-card p-5">
       <h3 className="text-caption font-semibold text-muted">Recent activity</h3>
       <p className="mt-1 text-caption text-muted">
         From latest posts and edit times — not a full history log.

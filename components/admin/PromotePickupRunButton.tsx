@@ -50,7 +50,7 @@ export function PromotePickupRunButton({
   if (!isReady) return null;
 
   return (
-    <div className="rounded-card border border-line bg-overlay-subtle p-4 space-y-3">
+    <div className="rounded-card border border-line bg-card p-4 space-y-3">
       <div className="text-small font-semibold text-ink">Pickup hub</div>
       <p className="text-caption text-muted">
         Make <span className="text-ink">{title || runId}</span> the run players see on the pickup hub, RSVPs, and

@@ -645,7 +645,7 @@ export default function TeamChatThreadScreen() {
                 if (t) setReportTarget(t);
               }}
             >
-              <FontAwesome name="flag" size={16} color={themeColor().coral} />
+              <FontAwesome name="flag" size={16} color={themeColor().coralText} />
               <Text style={styles.sheetRowText}>Report message</Text>
             </Pressable>
             <Pressable
@@ -656,7 +656,7 @@ export default function TeamChatThreadScreen() {
                 if (t) confirmBlock(t);
               }}
             >
-              <FontAwesome name="ban" size={16} color={themeColor().coral} />
+              <FontAwesome name="ban" size={16} color={themeColor().coralText} />
               <Text style={styles.sheetRowText}>Block user</Text>
             </Pressable>
             <Pressable
@@ -800,7 +800,7 @@ function make_styles() {
   },
   noticeLime: {
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
   noticeText: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   runBanterBanner: {
@@ -810,7 +810,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   runBanterBannerText: {
     color: themeColor().muted,
@@ -849,7 +849,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
@@ -893,7 +893,7 @@ function make_styles() {
     borderColor: themeColor().line,
   },
   msgSenderAvatarAdmin: {
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     borderColor: themeColor().pitch,
   },
   msgSenderAvatarText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
@@ -920,7 +920,7 @@ function make_styles() {
   bubbleMine: { backgroundColor: themeColor().pitch, borderColor: themeColor().line },
   bubbleOther: { backgroundColor: themeColor().overlaySubtle, borderColor: themeColor().line },
   bubbleAdmin: {
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     borderColor: themeColor().line,
     borderLeftWidth: 3,
     borderLeftColor: themeColor().pitch,
@@ -966,7 +966,7 @@ function make_styles() {
     borderColor: themeColor().line,
   },
   reactionPillMine: {
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     borderColor: themeColor().pitch,
   },
   reactionPillEmoji: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 18 },

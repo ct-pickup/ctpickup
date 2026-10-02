@@ -332,7 +332,7 @@ function make_styles() {
   row: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -344,7 +344,7 @@ function make_styles() {
   rowIcon: { marginRight: 12 },
   rowTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
   rowSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
-  err: { color: themeColor().coral, marginBottom: 12, fontSize: 13, fontFamily: "Inter_400Regular" },
+  err: { color: themeColor().coralText, marginBottom: 12, fontSize: 13, fontFamily: "Inter_400Regular" },
   runTabRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
   runTab: {
     paddingVertical: 6,
@@ -356,7 +356,7 @@ function make_styles() {
   },
   runTabActive: {
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
   runTabText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
   runTabTextActive: { color: themeColor().pitchText },

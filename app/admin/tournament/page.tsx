@@ -127,7 +127,7 @@ export default async function AdminTournamentPage({
         <PageTop flush title="Staff · Tournaments" fallbackHref={APP_HOME_URL} />
 
         {sp.ok ? (
-          <div className="rounded-card border border-pitch bg-pitch-soft px-4 py-3 text-small text-pitch">
+          <div className="rounded-card border border-pitch bg-pitch-panel px-4 py-3 text-small text-on-pitch-panel">
             {sp.ok === "active" && "Live tournament updated."}
             {sp.ok === "cleared" && "No tournament is live."}
             {sp.ok === "created" && "Tournament created."}
@@ -135,12 +135,12 @@ export default async function AdminTournamentPage({
           </div>
         ) : null}
         {sp.e ? (
-          <div className="rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral">
+          <div className="rounded-card border border-coral bg-card px-4 py-3 text-small text-coral-text">
             {sp.e}
           </div>
         ) : null}
 
-        <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-2">
+        <section className="rounded-card border border-line bg-card p-5 space-y-2">
           <h2 className="text-small font-semibold text-ink">Live tournament</h2>
           <p className="text-small text-muted">
             The tournament marked Live is the one players currently see on the public tournament page and tournament hub.
@@ -181,11 +181,11 @@ export default async function AdminTournamentPage({
           <OperatorNextSteps items={nextSteps} />
         )}
 
-        <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-6">
+        <section className="rounded-card border border-line bg-card p-5 space-y-6">
           <div>
             <div className="text-small font-semibold text-ink">All tournaments</div>
-            {activeErr ? <p className="mt-2 text-small text-coral">{activeErr.message}</p> : null}
-            {tListErr ? <p className="mt-2 text-small text-coral">{tListErr.message}</p> : null}
+            {activeErr ? <p className="mt-2 text-small text-coral-text">{activeErr.message}</p> : null}
+            {tListErr ? <p className="mt-2 text-small text-coral-text">{tListErr.message}</p> : null}
             <div className="mt-3 overflow-x-auto rounded-button border border-line">
               <table className="w-full text-small min-w-[720px]">
                 <thead className="text-muted">
@@ -317,12 +317,12 @@ export default async function AdminTournamentPage({
           </div>
         </section>
 
-        <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-3">
+        <section className="rounded-card border border-line bg-card p-5 space-y-3">
           <div className="text-small font-semibold text-ink">Captain claims</div>
           {!active ? (
             <p className="text-small text-muted">Captain claims appear after a tournament is made live.</p>
           ) : captainsErr ? (
-            <p className="text-small text-coral">{captainsErr}</p>
+            <p className="text-small text-coral-text">{captainsErr}</p>
           ) : captains.length === 0 ? (
             <p className="text-small text-muted">No captain claims yet.</p>
           ) : (
@@ -376,7 +376,7 @@ export default async function AdminTournamentPage({
             </div>
           </div>
 
-          {subErr ? <p className="text-small text-coral">{subErr.message}</p> : null}
+          {subErr ? <p className="text-small text-coral-text">{subErr.message}</p> : null}
 
           <div className="overflow-x-auto rounded-card border border-line bg-overlay-subtle">
             <table className="w-full text-small min-w-[900px]">

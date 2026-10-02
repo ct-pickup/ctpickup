@@ -124,7 +124,7 @@ export default function U23Page() {
             {playerBenefits.map((item) => (
               <div
                 key={item.title}
-                className="rounded-card border border-line bg-overlay-subtle p-4 md:p-5"
+                className="rounded-card border border-line bg-card p-4 md:p-5"
               >
                 <h3 className="text-body font-semibold text-ink md:text-h3 font-serif">
                   {item.title}
@@ -140,7 +140,7 @@ export default function U23Page() {
         <Panel className="p-6 md:p-8">
           <div className="max-w-2xl">
             <SectionEyebrow>Video Highlights</SectionEyebrow>
-            <h2 className="mt-4 text-h2 font-serif font-semibold text-ink md:text-h1">
+            <h2 className="mt-4 text-h2 font-serif font-semibold text-ink">
               2025 Summer Season
             </h2>
             <p className="mt-4 text-body leading-7 text-muted">

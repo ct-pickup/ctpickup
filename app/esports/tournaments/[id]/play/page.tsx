@@ -53,7 +53,7 @@ export default async function EsportsTournamentPlayPage({ params }: Props) {
       <PageShell maxWidthClass="max-w-3xl" className="pb-16">
         <TopNav rightSlot={<AuthenticatedProfileMenu />} />
         <Panel className="mt-8 p-6 md:p-8">
-          <p className="text-small text-coral">Could not load your matches.</p>
+          <p className="text-small text-coral-text">Could not load your matches.</p>
         </Panel>
       </PageShell>
     );

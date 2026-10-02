@@ -195,9 +195,9 @@ function make_styles() {
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
-  chipText: { color: themeColor().pitch, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
+  chipText: { color: themeColor().onPitchPanel, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
   actionRow: { marginTop: 14 },
   primary: {
     backgroundColor: themeColor().pitch,
@@ -209,14 +209,14 @@ function make_styles() {
   },
   primaryText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 14, fontFamily: "Inter_700Bold" },
   disabled: { opacity: 0.55 },
-  err: { marginTop: 14, color: themeColor().coral },
+  err: { marginTop: 14, color: themeColor().coralText },
   emptyCard: {
     marginTop: 14,
     padding: 18,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   emptyTitle: { color: themeColor().text, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
   emptyBody: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
@@ -226,7 +226,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   cardTop: { flexDirection: "row", alignItems: "center", gap: 10 },
   cardName: { color: themeColor().text, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
@@ -261,7 +261,7 @@ function make_styles() {
     borderRadius: 12,
     alignItems: "center",
   },
-  rejectText: { color: themeColor().coral, fontWeight: "900" },
+  rejectText: { color: themeColor().coralText, fontWeight: "900" },
 });
 }
 let styles = make_styles();

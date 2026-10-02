@@ -5,7 +5,7 @@ import { forwardRef, type ComponentProps } from "react";
  * Use for `<Input />` or `className={inputFieldClassName}` on native inputs.
  */
 export const inputFieldClassName =
-  "ct-input-field box-border h-14 w-full min-h-[56px] rounded-card border border-line bg-overlay-subtle px-4 py-4 text-body font-medium leading-6 text-ink caret-ink ring-0 transition-[caret-color,color,background-color,border-color,box-shadow] duration-200 ease-out outline-none placeholder:text-muted focus:border-line focus:bg-overlay focus:caret-ink focus:ring-2 focus:ring-line focus:outline-none disabled:cursor-not-allowed disabled:opacity-50";
+  "ct-input-field box-border h-14 w-full min-h-[56px] rounded-card border border-line bg-card px-4 py-4 text-body font-medium leading-6 text-ink caret-ink ring-0 transition-[caret-color,color,background-color,border-color,box-shadow] duration-200 ease-out outline-none placeholder:text-muted focus:border-line focus:bg-overlay focus:caret-ink focus:ring-2 focus:ring-line focus:outline-none disabled:cursor-not-allowed disabled:opacity-50";
 
 /** Native `<select>` — same shell as inputs; keeps dropdown affordance. */
 export const selectFieldClassName = `${inputFieldClassName} cursor-pointer`;

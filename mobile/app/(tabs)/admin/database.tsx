@@ -410,7 +410,7 @@ function make_styles() {
   },
   cardGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   sectionCard: {
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderWidth: 1,
     borderColor: themeColor().line,
     borderRadius: 12,
@@ -423,14 +423,14 @@ function make_styles() {
   sectionUpdated: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   centered: { paddingVertical: 48, alignItems: "center", justifyContent: "center" },
   errorBanner: {
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderRadius: 12,
     padding: 14,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: themeColor().coral,
   },
-  errorText: { color: themeColor().coral, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  errorText: { color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
   retryBtn: {
     alignSelf: "center",
     marginTop: 12,
@@ -476,7 +476,7 @@ function make_styles() {
   tableList: { paddingHorizontal: 16, paddingBottom: 40 },
   emptyText: { color: themeColor().muted, textAlign: "center", marginTop: 32, fontSize: 14, fontFamily: "Inter_400Regular" },
   recordRow: {
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderWidth: 1,
     borderColor: themeColor().line,
     borderRadius: 12,
@@ -494,7 +494,7 @@ function make_styles() {
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  badgeText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", textTransform: "capitalize" },
+  badgeText: { fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "800", textTransform: "capitalize" },
   jsonModal: { flex: 1, backgroundColor: themeColor().bg },
   jsonHeader: {
     paddingHorizontal: 12,

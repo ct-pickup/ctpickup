@@ -102,7 +102,7 @@ export default async function AdminPublishPage({
           publishLayerOk={publishLayerOk}
         />
 
-        <details className="mt-10 rounded-card border border-line bg-overlay-subtle p-4">
+        <details className="mt-10 rounded-card border border-line bg-card p-4">
           <summary className="cursor-pointer text-small font-medium text-ink">
             Advanced — multiple runs, preview, extra targets
           </summary>

@@ -770,7 +770,7 @@ function make_styles() {
   zipModalTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700" },
   zipModalClose: { color: themeColor().muted, fontSize: 20, fontFamily: "InstrumentSerif_400Regular" },
   zipModalLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 8 },
-  zipInput: { backgroundColor: themeColor().overlay, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", paddingHorizontal: 18, paddingVertical: 14, textAlign: "center", marginBottom: 16 },
+  zipInput: { backgroundColor: themeColor().overlay, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", paddingHorizontal: 18, paddingVertical: 14, textAlign: "center", marginBottom: 16 },
   zipGpsBtn: { backgroundColor: themeColor().overlay, borderRadius: 12, paddingVertical: 16, alignItems: "center", marginBottom: 12, borderWidth: 1, borderColor: themeColor().line },
   zipGpsBtnText: { color: themeColor().text, fontWeight: "600", fontSize: 16, fontFamily: "Inter_600SemiBold" },
   zipSaveBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center" },
@@ -811,11 +811,11 @@ function make_styles() {
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 999,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
   liveBadgeText: {
     color: C().live,
-    fontSize: 13, fontFamily: "Inter_700Bold",
+    fontSize: 11, fontFamily: "Inter_700Bold",
     fontWeight: "800",
   },
   trainingPin: {

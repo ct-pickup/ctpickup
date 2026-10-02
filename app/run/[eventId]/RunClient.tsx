@@ -185,7 +185,7 @@ export default function RunClient({ event, counts: initialCounts }: { event: Eve
           </button>
         ) : null}
 
-        {msg ? <div className="text-small text-coral">{msg}</div> : null}
+        {msg ? <div className="text-small text-coral-text">{msg}</div> : null}
       </div>
     </main>
   );

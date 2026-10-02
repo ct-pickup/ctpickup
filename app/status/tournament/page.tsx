@@ -71,7 +71,7 @@ export default function TournamentStatusPage() {
         <PageTop flush title="STATUS" fallbackHref="/tournament" />
       </div>
       <div className="mx-auto max-w-6xl px-6 py-14 space-y-10">
-        <section className="rounded-card border border-line bg-overlay-subtle p-8">
+        <section className="rounded-card border border-line bg-card p-8">
           <div className="text-small font-semibold text-ink">
             Tournament Status
           </div>
@@ -96,7 +96,7 @@ export default function TournamentStatusPage() {
                 {data?.claimedTeams ?? 0}. Goes official at {t.officialThreshold} confirmed teams.
               </div>
               {t.announcement ? (
-                <div className="mt-5 rounded-card border border-line bg-overlay-subtle px-4 py-3 text-small text-ink whitespace-pre-wrap">
+                <div className="mt-5 rounded-card border border-line bg-card px-4 py-3 text-small text-ink whitespace-pre-wrap">
                   {t.announcement}
                 </div>
               ) : null}

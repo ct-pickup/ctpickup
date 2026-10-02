@@ -88,9 +88,9 @@ export function EsportsSetupNudgeBar() {
   if (!show || !message) return null;
 
   return (
-    <div className="mb-3 rounded-card border border-coral bg-overlay-subtle px-3 py-2.5 sm:px-4">
-      <p className="text-center text-caption leading-relaxed text-coral sm:text-left">
-        <span className="font-medium text-coral">Profile:</span> {message}{"  "}
+    <div className="mb-3 rounded-card border border-line bg-card px-3 py-2.5 sm:px-4">
+      <p className="text-center text-caption leading-relaxed text-ink sm:text-left">
+        <span className="font-medium text-ink">Profile:</span> {message}{"  "}
         <Link
           href="/profile"
           className="font-semibold text-ink underline-offset-4 hover:underline"

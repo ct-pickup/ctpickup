@@ -170,19 +170,19 @@ export function statusBadgeStyle(status: string | null | undefined): StatusBadge
     s === "succeeded" ||
     s === "in_progress"
   ) {
-    return { bg: themeColor().pitchSoft, border: themeColor().pitch, text: themeColor().pitch };
+    return { bg: themeColor().pitchPanel, border: themeColor().pitch, text: themeColor().onPitchPanel };
   }
   if (s === "completed" || s === "fulfillment_succeeded") {
-    return { bg: themeColor().pitchSoft, border: themeColor().pitch, text: themeColor().pitch };
+    return { bg: themeColor().pitchPanel, border: themeColor().pitch, text: themeColor().onPitchPanel };
   }
   if (s === "canceled" || s === "cancelled" || s === "declined" || s === "rejected" || s === "payment_failed") {
-    return { bg: themeColor().overlaySubtle, border: themeColor().coral, text: themeColor().coral };
+    return { bg: themeColor().overlaySubtle, border: themeColor().coral, text: themeColor().coralText };
   }
   if (s === "waitlist" || s === "standby") {
     return { bg: themeColor().card, border: themeColor().line, text: themeColor().muted };
   }
   if (s === "pending_payment") {
-    return { bg: themeColor().overlaySubtle, border: themeColor().coral, text: themeColor().coral };
+    return { bg: themeColor().overlaySubtle, border: themeColor().line, text: themeColor().muted };
   }
 
   return { bg: themeColor().overlaySubtle, border: themeColor().overlay, text: themeColor().text };

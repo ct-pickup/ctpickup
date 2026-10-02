@@ -195,7 +195,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   fieldLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().muted },
   fieldLabelSpaced: { marginTop: 14 },

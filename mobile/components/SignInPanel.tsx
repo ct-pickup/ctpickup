@@ -812,7 +812,7 @@ function make_styles() {
     width: 72,
     height: 72,
     borderRadius: 999,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     borderWidth: 1,
     borderColor: themeColor().pitch,
     alignItems: "center",
@@ -891,12 +891,12 @@ function make_styles() {
     marginBottom: 16,
     padding: 14,
     borderRadius: 12,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderWidth: 1,
-    borderColor: themeColor().coral,
+    borderColor: themeColor().line,
   },
   configBoxYellow: { marginBottom: 16 },
-  configBoxTitle: { fontWeight: "700", color: themeColor().coral, marginBottom: 8, fontSize: 16, fontFamily: "Inter_700Bold" },
+  configBoxTitle: { fontWeight: "700", color: themeColor().text, marginBottom: 8, fontSize: 16, fontFamily: "Inter_700Bold" },
   configBoxBody: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   configBody: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   configMono: {
@@ -926,14 +926,14 @@ function make_styles() {
     borderColor: themeColor().line,
     borderLeftWidth: 4,
     borderLeftColor: themeColor().pitch,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   cardPremium: {
     padding: 24,
     paddingLeft: 28,
     borderRadius: 999,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   fieldLabel: {
     fontSize: 13, fontFamily: "Inter_700Bold",
@@ -992,8 +992,8 @@ function make_styles() {
   textBtn: { marginTop: 16, alignItems: "center" },
   textBtnLabelStrong: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
   textBtnLabelMuted: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
-  msg: { marginTop: 16, color: themeColor().coral, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
-  msgMuted: { color: themeColor().coral },
+  msg: { marginTop: 16, color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  msgMuted: { color: themeColor().coralText },
 });
 }
 let styles = make_styles();

@@ -81,7 +81,7 @@ export default function TrainingPage() {
             ].map((cell) => (
               <div
                 key={cell.label}
-                className="rounded-card border border-line bg-overlay-subtle p-3 sm:p-4"
+                className="rounded-card border border-line bg-card p-3 sm:p-4"
               >
                 <div className="text-caption font-semibold text-muted">
                   {cell.label}

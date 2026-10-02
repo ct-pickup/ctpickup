@@ -90,7 +90,7 @@ export function WaiverAcceptanceModal({ token, onClose, onAccepted }: Props) {
           </span>
         </label>
         {error ? (
-          <p className="mt-4 text-small font-medium text-coral">{error}</p>
+          <p className="mt-4 text-small font-medium text-coral-text">{error}</p>
         ) : null}
         <div className="mt-6 flex flex-wrap gap-3">
           <button

@@ -7,7 +7,7 @@ export function SectionEyebrow({
 }) {
   return (
     <div
-      className={`text-caption font-semibold text-muted${className}`}
+      className={`text-caption font-semibold text-muted ${className}`}
     >
       {children}
     </div>

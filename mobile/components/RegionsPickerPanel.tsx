@@ -85,7 +85,7 @@ function make_styles() {
     overflow: "hidden",
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   cardAccent: {
     position: "absolute",
@@ -108,7 +108,7 @@ function make_styles() {
     width: 52,
     height: 52,
     borderRadius: 12,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     borderWidth: 1,
     borderColor: themeColor().pitch,
     alignItems: "center",

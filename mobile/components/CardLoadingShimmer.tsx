@@ -65,7 +65,7 @@ function make_styles() {
     padding: 18,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   row: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   iconWrap: {

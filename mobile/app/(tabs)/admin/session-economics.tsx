@@ -202,8 +202,8 @@ export default function SessionEconomicsScreen() {
                   {" · "}{run.status}
                 </Text>
               </View>
-              <View style={[s.statusPill, { borderColor: run.status === "completed" ? themeColor().pitch : themeColor().coral }]}>
-                <Text style={[s.statusText, { color: run.status === "completed" ? themeColor().pitch : themeColor().coral }]}>
+              <View style={[s.statusPill, { borderColor: run.status === "completed" ? themeColor().pitch : themeColor().muted }]}>
+                <Text style={[s.statusText, { color: run.status === "completed" ? themeColor().onPitchPanel : themeColor().muted }]}>
                   {run.payments.length} paid
                 </Text>
               </View>
@@ -225,12 +225,12 @@ export default function SessionEconomicsScreen() {
               {run.diamond_attendees.length > 0 && (
                 <View style={s.row}>
                   <Text style={s.rowLabel}>Diamond payouts ({run.diamond_attendees.length}×$8)</Text>
-                  <Text style={[s.rowValue, { color: themeColor().coral }]}>−${(diamondPayout / 100).toFixed(2)}</Text>
+                  <Text style={[s.rowValue, { color: themeColor().coralText }]}>−${(diamondPayout / 100).toFixed(2)}</Text>
                 </View>
               )}
               <View style={[s.row, s.rowTotal]}>
                 <Text style={[s.rowLabel, { color: themeColor().text, fontWeight: "700" }]}>Net to you</Text>
-                <Text style={[s.rowValue, { color: netToYou >= 0 ? themeColor().pitch : themeColor().coral, fontWeight: "800" }]}>
+                <Text style={[s.rowValue, { color: netToYou >= 0 ? themeColor().onPitchPanel : themeColor().coralText, fontWeight: "800" }]}>
                   ${(netToYou / 100).toFixed(2)}
                 </Text>
               </View>
@@ -286,14 +286,14 @@ function make_s() {
   center: { flex: 1, backgroundColor: themeColor().bg, alignItems: "center", justifyContent: "center" },
   title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginBottom: 4, marginTop: 8 },
   sub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 20 },
-  emptyCard: { backgroundColor: themeColor().overlaySubtle, borderRadius: 12, padding: 20, alignItems: "center" },
+  emptyCard: { backgroundColor: themeColor().card, borderRadius: 12, padding: 20, alignItems: "center" },
   emptyText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
-  card: { backgroundColor: themeColor().overlaySubtle, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 16 },
+  card: { backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 16 },
   cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 14 },
   runTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
   runMeta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1 },
-  statusText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  statusText: { fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700" },
   breakdownCard: { backgroundColor: themeColor().bg, borderRadius: 10, padding: 12, marginBottom: 14, gap: 8 },
   row: { flexDirection: "row", justifyContent: "space-between" },
   rowTotal: { borderTopWidth: 1, borderTopColor: themeColor().line, paddingTop: 8, marginTop: 4 },

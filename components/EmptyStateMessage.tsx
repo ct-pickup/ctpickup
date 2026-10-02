@@ -9,7 +9,7 @@ export function EmptyStateMessage({
   return (
     <p
       role="status"
-      className={`text-small font-medium text-coral${className}`.trim()}
+      className={`text-small font-medium text-coral-text ${className}`.trim()}
     >
       {children}
     </p>

@@ -228,7 +228,7 @@ function make_styles() {
   disabled: { opacity: 0.55 },
   primaryBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   secondaryBtnText: { color: themeColor().text, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
-  destructiveBtnText: { color: themeColor().coral, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
+  destructiveBtnText: { color: themeColor().coralText, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
 });
 }
 let styles = make_styles();

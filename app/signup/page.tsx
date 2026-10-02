@@ -598,11 +598,11 @@ function SignupForm({
           <SidePhoto src={LEFT_IMAGE} alt="CT Pickup left" />
 
           <div className="w-full max-w-[420px]">
-            <div className="rounded-[30px] border border-line bg-overlay-subtle p-5 md:p-6">
+            <div className="rounded-[30px] border border-line bg-card p-5 md:p-6">
               {showGateNotice ? (
                 <p
                   role="status"
-                  className="mb-5 rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small leading-relaxed text-coral"
+                  className="mb-5 rounded-card border border-line bg-card px-4 py-3 text-small leading-relaxed text-ink"
                 >
                   You must sign up first to get access.
                 </p>
@@ -624,7 +624,7 @@ function SignupForm({
                 </div>
               </div>
 
-              <div className="mt-7 rounded-card border border-line bg-overlay-subtle px-4 py-4">
+              <div className="mt-7 rounded-card border border-line bg-card px-4 py-4">
                 <div className="grid gap-4 sm:grid-cols-3">
                   <StepBadge number={1} label="Email" active={currentStep === 1} done={currentStep > 1} />
                   <StepBadge number={2} label="Verify" active={currentStep === 2} done={currentStep > 2} />
@@ -632,7 +632,7 @@ function SignupForm({
                 </div>
               </div>
 
-              <div className="mt-6 rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+              <div className="mt-6 rounded-card border border-line bg-card p-5 space-y-4">
                 {stage === "email" && (
                   <>
                     <Input
@@ -657,7 +657,7 @@ function SignupForm({
 
                 {stage === "code" && (
                   <>
-                    <div className="flex items-center justify-between gap-3 rounded-card border border-line bg-overlay-subtle px-4 py-3 text-small">
+                    <div className="flex items-center justify-between gap-3 rounded-card border border-line bg-card px-4 py-3 text-small">
                       <span className="min-w-0 truncate text-ink" title={emailClean}>
                         {emailClean}
                       </span>

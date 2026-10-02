@@ -179,7 +179,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   cardEyebrow: {
     fontSize: 13, fontFamily: "Inter_700Bold",
@@ -222,7 +222,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
   announceTop: {
     flexDirection: "row",
@@ -248,7 +248,7 @@ function make_styles() {
   },
   emptyTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text },
   emptyBody: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 },
-  errTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().coral },
+  errTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().coralText },
   errBody: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
 });
 }

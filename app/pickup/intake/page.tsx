@@ -113,7 +113,7 @@ export default function PickupIntakePage() {
           />
         </div>
 
-        <div className="rounded-card border border-line bg-overlay-subtle p-6 space-y-4">
+        <div className="rounded-card border border-line bg-card p-6 space-y-4">
           <div className="space-y-3">
             {messages.map((m, i) => (
               <div

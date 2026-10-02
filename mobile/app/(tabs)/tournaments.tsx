@@ -325,7 +325,7 @@ function make_styles() {
     overflow: "hidden",
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   cardAccent: {
     position: "absolute",
@@ -349,7 +349,7 @@ function make_styles() {
     width: 52,
     height: 52,
     borderRadius: 12,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     borderWidth: 1,
     borderColor: themeColor().pitch,
     alignItems: "center",
@@ -362,7 +362,7 @@ function make_styles() {
   sessionBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     borderWidth: 1,
     borderColor: themeColor().pitch,
     borderRadius: 999,
@@ -373,12 +373,12 @@ function make_styles() {
   sessionBadgeText: {
     fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    color: themeColor().pitch,
+    color: themeColor().onPitchPanel,
   },
   sessionBadgeLabel: {
-    fontSize: 13, fontFamily: "Inter_600SemiBold",
+    fontSize: 11, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
-    color: themeColor().pitch,
+    color: themeColor().onPitchPanel,
   },
   chevron: { marginLeft: 4 },
 
@@ -394,7 +394,7 @@ function make_styles() {
     borderRadius: 12,
     marginTop: 14,
     marginBottom: 4,
-    backgroundColor: themeColor().coral,
+    backgroundColor: themeColor().card,
   },
   offlineBannerIcon: { flexShrink: 0 },
   offlineBannerText: {
@@ -419,7 +419,7 @@ function make_styles() {
     marginBottom: 4,
   },
   title: {
-    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
+    fontSize: 24, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "800",
     color: themeColor().text,
     flex: 1,
@@ -433,9 +433,9 @@ function make_styles() {
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
-  statesChipText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().pitch },
+  statesChipText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().onPitchPanel },
   sub: {
     marginTop: 8,
     marginBottom: 4,

@@ -12,6 +12,9 @@ export const palette = {
   pitch: "#1F4D3A",
   pitchSoft: "#E3ECE6",
   coral: "#FF6B4A",
+  coralDeep: "#B33A1E",
+  pitchPanelDark: "#1C2E25",
+  onPitchPanelDark: "#A9CDB8",
   mutedLight: "#6B6B66",
   mutedDark: "#A3A39E",
   lineLight: "#E2DED4",
@@ -38,6 +41,8 @@ export const space = {
 } as const;
 
 export const typeScale = {
+  /** Hero moments only: not-found, onboarding, first-100 intro. */
+  displayXL: 56,
   display: 40,
   h1: 32,
   h2: 24,
@@ -45,6 +50,8 @@ export const typeScale = {
   body: 16,
   small: 14,
   caption: 13,
+  /** Badges, pills and chips only. Never body text. */
+  micro: 11,
 } as const;
 
 export const fontFamily = {
@@ -65,7 +72,14 @@ export type ThemeColors = {
   /** Pitch used as text or icon color. Pitch in light; pitch-soft in dark so it stays readable on ink. */
   pitchText: string;
   pitchSoft: string;
+  /** Tinted panel surface. Pitch-soft in light; deep green in dark so it does not glow. */
+  pitchPanel: string;
+  /** Text and icons on a pitchPanel surface. */
+  onPitchPanel: string;
+  /** Coral for fills, borders and dots. Urgency and errors only. */
   coral: string;
+  /** Coral used as text. Deeper in light so small text stays readable on chalk. */
+  coralText: string;
   onPitch: string;
   overlaySubtle: string;
   overlay: string;
@@ -83,7 +97,10 @@ export const lightColor: ThemeColors = {
   pitch: palette.pitch,
   pitchText: palette.pitch,
   pitchSoft: palette.pitchSoft,
+  pitchPanel: palette.pitchSoft,
+  onPitchPanel: palette.pitch,
   coral: palette.coral,
+  coralText: palette.coralDeep,
   onPitch: palette.paper,
   overlaySubtle: "rgba(17,17,17,0.04)",
   overlay: "rgba(17,17,17,0.08)",
@@ -100,7 +117,10 @@ export const darkColor: ThemeColors = {
   pitch: palette.pitch,
   pitchText: palette.pitchSoft,
   pitchSoft: palette.pitchSoft,
+  pitchPanel: palette.pitchPanelDark,
+  onPitchPanel: palette.onPitchPanelDark,
   coral: palette.coral,
+  coralText: palette.coral,
   onPitch: palette.paper,
   overlaySubtle: "rgba(255,255,255,0.04)",
   overlay: "rgba(255,255,255,0.08)",

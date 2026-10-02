@@ -71,7 +71,7 @@ function make_styles() {
     width: 420,
     height: 420,
     borderRadius: 999,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
   bgGlowB: {
     position: "absolute",
@@ -80,7 +80,7 @@ function make_styles() {
     width: 520,
     height: 520,
     borderRadius: 999,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
   content: {
     flexGrow: 1,
@@ -95,7 +95,7 @@ function make_styles() {
   },
   sessionExpiredNotice: {
     marginBottom: 16,
-    color: themeColor().coral,
+    color: themeColor().coralText,
     fontSize: 14, fontFamily: "Inter_400Regular",
     textAlign: "center",
     lineHeight: 20,

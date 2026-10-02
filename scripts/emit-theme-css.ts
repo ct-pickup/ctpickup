@@ -15,7 +15,10 @@ function vars(color: typeof lightColor): string {
     `  --pitch: ${color.pitch};`,
     `  --pitch-text: ${color.pitchText};`,
     `  --pitch-soft: ${color.pitchSoft};`,
+    `  --pitch-panel: ${color.pitchPanel};`,
+    `  --on-pitch-panel: ${color.onPitchPanel};`,
     `  --coral: ${color.coral};`,
+    `  --coral-text: ${color.coralText};`,
     `  --on-pitch: ${color.onPitch};`,
     `  --overlay-subtle: ${color.overlaySubtle};`,
     `  --overlay: ${color.overlay};`,
@@ -50,7 +53,10 @@ ${vars(darkColor)}
   --color-pitch: var(--pitch);
   --color-pitch-text: var(--pitch-text);
   --color-pitch-soft: var(--pitch-soft);
+  --color-pitch-panel: var(--pitch-panel);
+  --color-on-pitch-panel: var(--on-pitch-panel);
   --color-coral: var(--coral);
+  --color-coral-text: var(--coral-text);
   --color-on-pitch: var(--on-pitch);
   --color-overlay-subtle: var(--overlay-subtle);
   --color-overlay: var(--overlay);
@@ -65,6 +71,8 @@ ${vars(darkColor)}
   --radius-card: ${radius.card}px;
   --radius-button: ${radius.button}px;
   --radius-pill: ${radius.pill}px;
+  --text-micro: ${typeScale.micro}px;
+  --text-micro--line-height: 1.3;
   --text-caption: ${typeScale.caption}px;
   --text-caption--line-height: 1.35;
   --text-small: ${typeScale.small}px;
@@ -79,6 +87,8 @@ ${vars(darkColor)}
   --text-h1--line-height: 1.15;
   --text-display: ${typeScale.display}px;
   --text-display--line-height: 1.1;
+  --text-display-xl: ${typeScale.displayXL}px;
+  --text-display-xl--line-height: 1.05;
 }
 `;
 

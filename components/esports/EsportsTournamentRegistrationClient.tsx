@@ -395,7 +395,7 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
   return (
     <div className="space-y-8">
       {paidQuery ? (
-        <div className="space-y-2 rounded-card border border-line bg-overlay-subtle px-4 py-3 text-small text-ink">
+        <div className="space-y-2 rounded-card border border-line bg-card px-4 py-3 text-small text-ink">
           <p>Payment received—thank you. If this page does not update within a minute, refresh.</p>
           <p className="text-caption text-muted">
             Watch for tournament texts to your profile mobile number (opponents, group stage, schedule
@@ -414,7 +414,7 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
         </div>
       ) : null}
       {canceledQuery ? (
-        <p className="rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral">
+        <p className="rounded-card border border-line bg-card px-4 py-3 text-small text-ink">
           Checkout was canceled. You can try again when you are ready.
         </p>
       ) : null}
@@ -426,7 +426,7 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
           admin operations, and accurate bracket/participant identity.
         </p>
 
-        {profileMsg ? <p className="text-small text-coral">{profileMsg}</p> : null}
+        {profileMsg ? <p className="text-small text-coral-text">{profileMsg}</p> : null}
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
@@ -464,7 +464,7 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
               ))}
             </select>
             {stateBlocked ? (
-              <p className="text-caption text-coral">No CT residents are allowed.</p>
+              <p className="text-caption text-coral-text">No CT residents are allowed.</p>
             ) : null}
           </div>
 
@@ -630,7 +630,7 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
       </section>
 
       <section
-        className="space-y-2 rounded-card border border-line bg-overlay-subtle px-4 py-3"
+        className="space-y-2 rounded-card border border-line bg-card px-4 py-3"
         aria-labelledby="esports-refund-heading"
       >
         <h2 id="esports-refund-heading" className="text-small font-semibold text-ink">
@@ -657,7 +657,7 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
       </section>
 
       <section
-        className="space-y-2 rounded-card border border-line bg-overlay-subtle px-4 py-3"
+        className="space-y-2 rounded-card border border-line bg-card px-4 py-3"
         aria-labelledby="esports-sms-notice-heading"
       >
         <h2 id="esports-sms-notice-heading" className="text-small font-semibold text-ink">
@@ -719,7 +719,7 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
         </p>
       </section>
 
-      {msg ? <p className="text-small text-coral">{msg}</p> : null}
+      {msg ? <p className="text-small text-coral-text">{msg}</p> : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <button

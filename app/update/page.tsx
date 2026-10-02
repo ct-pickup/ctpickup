@@ -174,7 +174,7 @@ export default function UpdatePage() {
           {submitting ? "Submitting..." : "Submit update"}
         </button>
 
-        {msg ? <p className="text-small text-coral">Error: {msg}</p> : null}
+        {msg ? <p className="text-small text-coral-text">Error: {msg}</p> : null}
       </div>
     </main>
   );

@@ -50,7 +50,7 @@ function make_styles() {
     gap: 12,
   },
   code: {
-    fontSize: 40, fontFamily: "InstrumentSerif_400Regular",
+    fontSize: 56, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "900",
     color: themeColor().pitchText,
     lineHeight: 88,

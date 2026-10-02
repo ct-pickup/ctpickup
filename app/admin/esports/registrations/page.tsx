@@ -99,7 +99,7 @@ export default async function AdminEsportsRegistrationsPage({
           </div>
         </div>
 
-        <section className="rounded-card border border-line bg-overlay-subtle p-5 md:p-6">
+        <section className="rounded-card border border-line bg-card p-5 md:p-6">
           <h2 className="text-small font-semibold text-ink">Filters</h2>
           <p className="mt-2 text-small text-muted">
             Narrow by tournament, payment state, or whether the registration row is linked to an esports player
@@ -164,7 +164,7 @@ export default async function AdminEsportsRegistrationsPage({
         </section>
 
         {error ? (
-          <div className="rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral">
+          <div className="rounded-card border border-coral bg-card px-4 py-3 text-small text-coral-text">
             {error}
           </div>
         ) : null}

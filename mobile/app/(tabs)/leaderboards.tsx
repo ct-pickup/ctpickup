@@ -535,7 +535,7 @@ export default function LeaderboardsScreen() {
         style={({ pressed }) => [styles.playerRow, mine && styles.playerRowMine, pressed && { opacity: 0.85 }]}
       >
         <View style={[styles.rankCell, top3 && styles.rankCircleTop3]}>
-          <Text style={[styles.rankText, top3 && styles.rankTextTop3]}>{rank}</Text>
+          <Text style={[styles.rankText, top3 && styles.rankTextTop3, mine && styles.onPanelText]}>{rank}</Text>
         </View>
 
         <View style={[styles.avatarRing, { borderColor: color }]}>
@@ -550,22 +550,22 @@ export default function LeaderboardsScreen() {
 
         <View style={styles.playerInfo}>
           <View style={styles.playerNameRow}>
-            <Text style={[styles.playerName, mine && { color: themeColor().pitchText }]} numberOfLines={1}>
+            <Text style={[styles.playerName, mine && styles.onPanelText]} numberOfLines={1}>
               {item.name}
             </Text>
             <TierGem tier={item.tier} size={15} gid={`gem-${item.user_id}`} />
           </View>
-          <Text style={[styles.playerTier, { color }]} numberOfLines={1}>
+          <Text style={[styles.playerTier, { color }, mine && styles.onPanelText]} numberOfLines={1}>
             {tierLabel(item.tier)}
           </Text>
-          <Text style={styles.playerStats} numberOfLines={1}>
+          <Text style={[styles.playerStats, mine && styles.onPanelText]} numberOfLines={1}>
             {item.sessions} sessions · {Math.round(item.reliability)}% reliable
           </Text>
         </View>
 
         <View style={styles.ptsBlock}>
           <Text style={styles.ptsValue}>{pts.toLocaleString()}</Text>
-          <Text style={styles.ptsLabel}>PTS</Text>
+          <Text style={[styles.ptsLabel, mine && styles.onPanelText]}>PTS</Text>
         </View>
         <FontAwesome name="chevron-right" size={13} color={themeColor().muted} style={{ marginLeft: 4 }} />
       </Pressable>
@@ -596,7 +596,6 @@ export default function LeaderboardsScreen() {
           <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 32 }} />
         ) : filteredTierPlayers.length === 0 ? (
           <View style={styles.emptyStatsWrap}>
-            <Text style={styles.emptyEmoji}>🏆</Text>
             <Text style={styles.emptyTitle}>No rated players yet</Text>
             <Text style={styles.emptySubtitle}>Complete a session to earn a tier.</Text>
           </View>
@@ -646,7 +645,6 @@ export default function LeaderboardsScreen() {
             </View>
           ) : listEmpty ? (
             <View style={styles.emptyStatsWrap}>
-              <Text style={styles.emptyEmoji}>⚽</Text>
               <Text style={styles.emptyTitle}>No stats yet</Text>
               <Text style={styles.emptySubtitle}>Play some runs to appear here!</Text>
             </View>
@@ -663,7 +661,7 @@ export default function LeaderboardsScreen() {
               style={({ pressed }) => [styles.playerRow, mine && styles.playerRowMine, pressed && { opacity: 0.85 }]}
             >
               <View style={[styles.rankCell, top3 && styles.rankCircleTop3]}>
-                <Text style={[styles.rankText, top3 && styles.rankTextTop3]}>{rank}</Text>
+                <Text style={[styles.rankText, top3 && styles.rankTextTop3, mine && styles.onPanelText]}>{rank}</Text>
               </View>
               <View style={[styles.avatarRing, { borderColor: themeColor().line }]}>
                 <View style={[styles.avatarImg, styles.avatarFallback]}>
@@ -675,7 +673,7 @@ export default function LeaderboardsScreen() {
                   {name}
                 </Text>
                 {item.username ? (
-                  <Text style={styles.playerStats} numberOfLines={1}>
+                  <Text style={[styles.playerStats, mine && styles.onPanelText]} numberOfLines={1}>
                     @{item.username}
                   </Text>
                 ) : null}
@@ -745,9 +743,9 @@ export default function LeaderboardsScreen() {
               {([
                 { tier: "diamond", label: "Diamond", pts: 80, color: themeColor().muted, dot: "◆" },
                 { tier: "platinum", label: "Platinum", pts: 60, color: themeColor().text, dot: "●" },
-                { tier: "gold", label: "Gold", pts: 40, color: themeColor().coral, dot: "●" },
+                { tier: "gold", label: "Gold", pts: 40, color: themeColor().muted, dot: "●" },
                 { tier: "silver", label: "Silver", pts: 20, color: themeColor().muted, dot: "●" },
-                { tier: "bronze", label: "Bronze", pts: 0, color: themeColor().coral, dot: "●" },
+                { tier: "bronze", label: "Bronze", pts: 0, color: themeColor().muted, dot: "●" },
               ] as const).map(({ tier, label, pts, color, dot }) => (
                 <View key={tier} style={styles.howRow}>
                   <Text style={[styles.howDot, { color }]}>{dot}</Text>
@@ -764,9 +762,9 @@ export default function LeaderboardsScreen() {
             </Text>
             <View style={styles.howCard}>
               {([
-                { label: "Bronze", desc: "Score 0–39 · Self-declared players", color: themeColor().coral, dot: "●" },
+                { label: "Bronze", desc: "Score 0–39 · Self-declared players", color: themeColor().muted, dot: "●" },
                 { label: "Silver", desc: "Score 40–59 · Consistent rec level", color: themeColor().muted, dot: "●" },
-                { label: "Gold", desc: "Score 60–77 · Club / competitive level", color: themeColor().coral, dot: "●" },
+                { label: "Gold", desc: "Score 60–77 · Club / competitive level", color: themeColor().muted, dot: "●" },
                 { label: "Platinum", desc: "Score 78–89 · College / semi-pro · Verification required", color: themeColor().text, dot: "●" },
                 { label: "Diamond", desc: "Score 90+ · Elite level · Verification required · You earn $8/session", color: themeColor().muted, dot: "◆" },
               ] as const).map(({ label, desc, color, dot }) => (
@@ -916,13 +914,13 @@ function make_styles() {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().overlay,
     padding: 12,
   },
-  playerRowMine: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  playerRowMine: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
   rankCell: { width: 30, alignItems: "center", justifyContent: "center" },
   rankCircleTop3: {
     width: 30,
@@ -930,10 +928,11 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
   rankText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "800" },
-  rankTextTop3: { color: themeColor().pitchText },
+  rankTextTop3: { color: themeColor().onPitchPanel },
+  onPanelText: { color: themeColor().onPitchPanel },
   avatarRing: { width: 46, height: 46, borderRadius: 999, borderWidth: 2, padding: 2 },
   avatarImg: { width: "100%", height: "100%", borderRadius: 999 },
   avatarFallback: { backgroundColor: themeColor().overlaySubtle, alignItems: "center", justifyContent: "center" },
@@ -953,7 +952,7 @@ function make_styles() {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().overlay,
@@ -963,7 +962,7 @@ function make_styles() {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -975,19 +974,18 @@ function make_styles() {
   /* empty / error */
   emptyStateBlock: { alignItems: "center", justifyContent: "center", gap: 16, paddingVertical: 24 },
   emptyStatsWrap: { alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 48 },
-  emptyEmoji: { fontSize: 40, fontFamily: "InstrumentSerif_400Regular", lineHeight: 56 },
   emptyTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
   emptySubtitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22, paddingHorizontal: 24 },
-  errText: { color: themeColor().coral, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
+  errText: { color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
   retryBtn: {
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
-  retryBtnText: { color: themeColor().pitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
+  retryBtnText: { color: themeColor().onPitchPanel, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
 
   /* region modal */
   modalRoot: { flex: 1, justifyContent: "flex-end", backgroundColor: themeColor().scrim },
@@ -1039,7 +1037,7 @@ function make_styles() {
   },
   howBody: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20, marginBottom: 12 },
   howCard: {
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().overlay,

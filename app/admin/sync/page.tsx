@@ -133,25 +133,25 @@ export default async function AdminSyncPage({
 
       <AdminWorkArea question="Where is automation caught up, where is it waiting, and what page refresh or delivery still needs a retry?">
         {sp.ok ? (
-          <div className="mb-6 rounded-card border border-pitch bg-pitch-soft px-4 py-3 text-small text-pitch">
+          <div className="mb-6 rounded-card border border-pitch bg-pitch-panel px-4 py-3 text-small text-on-pitch-panel">
             {sp.ok === "job" && "Page refresh job ran again."}
             {sp.ok === "delivery" && "Delivery retried."}
           </div>
         ) : null}
         {sp.e ? (
-          <div className="mb-6 rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral">
+          <div className="mb-6 rounded-card border border-coral bg-card px-4 py-3 text-small text-coral-text">
             {sp.e}
           </div>
         ) : null}
 
         {layerMissing ? (
-          <div className="mb-6 rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral">
+          <div className="mb-6 rounded-card border border-line bg-card px-4 py-3 text-small text-ink">
             Publish and sync tracking aren’t set up on this database yet. Your developer should apply the latest staff
             migration, then redeploy or refresh the database cache.
           </div>
         ) : null}
 
-        <section className="mb-8 rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+        <section className="mb-8 rounded-card border border-line bg-card p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-small font-semibold text-ink">Content surfaces</h2>
             <Link href="/admin/publish" className="text-caption font-semibold text-muted hover:text-ink">
@@ -191,7 +191,7 @@ export default async function AdminSyncPage({
                         </StatusChip>
                       </td>
                       <td className="p-3 text-muted">{fmt(s.last_success_at)}</td>
-                      <td className="p-3 text-caption text-coral">{s.last_error || "—"}</td>
+                      <td className="p-3 text-caption text-coral-text">{s.last_error || "—"}</td>
                     </tr>
                   ))
                 )}
@@ -200,7 +200,7 @@ export default async function AdminSyncPage({
           </div>
         </section>
 
-        <section className="mb-8 rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+        <section className="mb-8 rounded-card border border-line bg-card p-5 space-y-4">
           <h2 className="text-small font-semibold text-ink">Page refresh jobs</h2>
           <p className="text-caption text-muted">
             After each publish, the site queues a job to refresh public pages. Failed jobs can be retried here.
@@ -250,7 +250,7 @@ export default async function AdminSyncPage({
                       <td className="p-3 text-caption text-muted font-mono">
                         {(j.payload?.paths || []).join(", ") || "—"}
                       </td>
-                      <td className="p-3 text-caption text-coral">{j.last_error || "—"}</td>
+                      <td className="p-3 text-caption text-coral-text">{j.last_error || "—"}</td>
                       <td className="p-3">
                         {j.status === "failed" && j.job_type === "revalidate" ? (
                           <form action={retrySyncJobAction}>
@@ -274,7 +274,7 @@ export default async function AdminSyncPage({
           </div>
         </section>
 
-        <section className="mb-8 rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+        <section className="mb-8 rounded-card border border-line bg-card p-5 space-y-4">
           <h2 className="text-small font-semibold text-ink">Failed publication deliveries</h2>
           <p className="text-caption text-muted">Sends the saved message again to the destination that failed — safe to run twice.</p>
           <div className="overflow-x-auto rounded-card border border-line">
@@ -301,7 +301,7 @@ export default async function AdminSyncPage({
                         {labelPublicationChannel(d.channel)}
                       </td>
                       <td className="p-3 text-caption font-mono text-muted">{d.entity_id || "—"}</td>
-                      <td className="p-3 text-caption text-coral">{d.last_error || "—"}</td>
+                      <td className="p-3 text-caption text-coral-text">{d.last_error || "—"}</td>
                       <td className="p-3">
                         <form action={retryDeliveryAction}>
                           <input type="hidden" name="delivery_id" value={d.id} />
@@ -321,7 +321,7 @@ export default async function AdminSyncPage({
           </div>
         </section>
 
-        <section className="mb-8 rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+        <section className="mb-8 rounded-card border border-line bg-card p-5 space-y-4">
           <h2 className="text-small font-semibold text-ink">Recent unified publications</h2>
           <ul className="space-y-3 text-small">
             {recentPubs.length === 0 ? (
@@ -331,7 +331,7 @@ export default async function AdminSyncPage({
                 const dels = p.deliveries || [];
                 const failed = dels.filter((x) => x.sync_state === "failed").length;
                 return (
-                  <li key={p.id} className="rounded-card border border-line bg-overlay-subtle px-4 py-3">
+                  <li key={p.id} className="rounded-card border border-line bg-card px-4 py-3">
                     <div className="text-caption text-muted">{fmt(p.created_at)}</div>
                     <p className="mt-1 text-ink line-clamp-3">{p.message}</p>
                     <div className="mt-2 flex flex-wrap gap-2">
@@ -353,7 +353,7 @@ export default async function AdminSyncPage({
           </ul>
         </section>
 
-        <section className="mb-8 rounded-card border border-line bg-overlay-subtle p-5 space-y-3">
+        <section className="mb-8 rounded-card border border-line bg-card p-5 space-y-3">
           <h2 className="text-caption font-semibold text-muted">Automation prerequisites</h2>
           <div className="flex flex-wrap gap-2">
             <StatusChip tone={cronSet ? "synced" : "incomplete"} title="Secret the cron job sends">
@@ -370,7 +370,7 @@ export default async function AdminSyncPage({
           </Link>
         </section>
 
-        <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+        <section className="rounded-card border border-line bg-card p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-small font-semibold text-ink">Pickup auto-pipeline</h2>
             <Link href="/admin/pickup" className="text-caption font-semibold text-muted hover:text-ink">

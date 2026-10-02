@@ -104,7 +104,7 @@ export default async function AdminContentPage() {
             publishLayerOk={publishLayerOk}
           />
           {publishLayerOk ? (
-            <details className="rounded-card border border-line bg-overlay-subtle p-4">
+            <details className="rounded-card border border-line bg-card p-4">
               <summary className="cursor-pointer text-small font-medium text-ink">
                 Advanced — multi-run &amp; preview
               </summary>
@@ -125,7 +125,7 @@ export default async function AdminContentPage() {
 
         <div className="grid gap-5 lg:grid-cols-2">
           {/* Site-wide status */}
-          <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+          <section className="rounded-card border border-line bg-card p-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-small font-semibold text-ink">Site-wide status card</h2>
               <div className="flex flex-wrap gap-2">
@@ -154,7 +154,7 @@ export default async function AdminContentPage() {
           </section>
 
           {/* Pickup feed posts */}
-          <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+          <section className="rounded-card border border-line bg-card p-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-small font-semibold text-ink">Pickup player posts</h2>
               <StatusChip tone="published">Immediate on send</StatusChip>
@@ -181,13 +181,13 @@ export default async function AdminContentPage() {
           </section>
 
           {/* Program surfaces */}
-          <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4 lg:col-span-2">
+          <section className="rounded-card border border-line bg-card p-5 space-y-4 lg:col-span-2">
             <h2 className="text-small font-semibold text-ink">Program pages</h2>
             <p className="text-small text-muted">
               These are edited on their own admin tools; they are separate from the status card and pickup posts.
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-card border border-line bg-overlay-subtle p-4 space-y-2">
+              <div className="rounded-card border border-line bg-card p-4 space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-ink">Guidance</span>
                   {(guidanceRes.count ?? 0) > 0 ? (
@@ -201,7 +201,7 @@ export default async function AdminContentPage() {
                   Manage requests
                 </Link>
               </div>
-              <div className="rounded-card border border-line bg-overlay-subtle p-4 space-y-2">
+              <div className="rounded-card border border-line bg-card p-4 space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-ink">Esports</span>
                   <StatusChip tone="neutral">{esportsRes.count ?? 0} listed</StatusChip>

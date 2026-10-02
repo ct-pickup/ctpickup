@@ -139,7 +139,7 @@ function make_s() {
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 16, marginBottom: 24 },
   title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
   close: { color: themeColor().muted, fontSize: 20, fontFamily: "InstrumentSerif_400Regular" },
-  tierCard: { backgroundColor: themeColor().overlaySubtle, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 24 },
+  tierCard: { backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 24 },
   tierTitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 12 },
   tierRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },
   tierBadge: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold", borderWidth: 1, borderColor: themeColor().pitch, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },

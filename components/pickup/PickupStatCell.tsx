@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 /** Matches tournament hub overview stat cells. */
 export function PickupStatCell({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="rounded-card border border-line bg-overlay-subtle p-4">
+    <div className="rounded-card border border-line bg-card p-4">
       <div className="text-caption font-semibold text-muted">
         {label}
       </div>

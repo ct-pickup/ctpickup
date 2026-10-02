@@ -95,7 +95,7 @@ export default async function AdminRelationshipsPage() {
           {rows.map((r) => (
             <li
               key={r.name}
-              className="rounded-card border border-line bg-overlay-subtle p-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+              className="rounded-card border border-line bg-card p-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
             >
               <div className="min-w-0 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -136,7 +136,7 @@ export default async function AdminRelationshipsPage() {
           activeTournamentId={activeTRes.data?.id ?? null}
         />
 
-        <section className="mt-10 rounded-card border border-line bg-overlay-subtle p-5">
+        <section className="mt-10 rounded-card border border-line bg-card p-5">
           <h3 className="text-caption font-semibold text-muted">What updates automatically</h3>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-small text-muted">
             <li>Pickup auto-pipeline checkpoints after you launch outreach and leave automation on.</li>

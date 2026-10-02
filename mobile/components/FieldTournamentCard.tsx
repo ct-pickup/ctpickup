@@ -144,7 +144,7 @@ function make_styles() {
     paddingLeft: 22,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   cardAccent: {
     position: "absolute",
@@ -164,7 +164,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -185,7 +185,7 @@ function make_styles() {
     backgroundColor: themeColor().overlaySubtle,
     flexShrink: 0,
   },
-  statusPillText: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700",},
+  statusPillText: { color: themeColor().pitchText, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700",},
   statusKicker: {
     fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
@@ -202,7 +202,7 @@ function make_styles() {
     color: themeColor().muted,
     textAlign: "center",
   },
-  err: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().coral, lineHeight: 20 },
+  err: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().coralText, lineHeight: 20 },
 });
 }
 let styles = make_styles();

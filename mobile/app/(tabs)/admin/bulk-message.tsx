@@ -423,7 +423,7 @@ function make_styles() {
   },
   chipOn: {
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
   chipText: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", textAlign: "center" },
   chipTextOn: { color: themeColor().text },
@@ -436,9 +436,9 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
-  runCardOn: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  runCardOn: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
   runCardText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   previewBox: {
     marginTop: 10,
@@ -446,7 +446,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   previewRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   previewMain: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600", lineHeight: 22, flex: 1 },
@@ -463,7 +463,7 @@ function make_styles() {
     lineHeight: 22,
   },
   counter: { marginTop: 6, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, textAlign: "right" },
-  errText: { marginTop: 10, color: themeColor().coral, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  errText: { marginTop: 10, color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   okText: { marginTop: 10, color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   sendBtn: {
     marginTop: 20,

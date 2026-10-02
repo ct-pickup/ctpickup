@@ -174,7 +174,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     paddingVertical: 16,
     paddingHorizontal: 16,
   },

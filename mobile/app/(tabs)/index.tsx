@@ -560,7 +560,7 @@ export default function HomeScreen() {
   const name = firstName || firstNameFromEmail(session?.user?.email ?? undefined);
   const notVerified = verificationLevel === "self";
   const myTierMeta = tierMeta(tier);
-  const avatarBorderColor = notVerified ? themeColor().coral : (myTierMeta?.color ?? themeColor().pitch);
+  const avatarBorderColor = notVerified ? themeColor().line : (myTierMeta?.color ?? themeColor().pitch);
 
   const nextTierMeta = tierMeta(nextMatch?.min_tier);
   const isDiamondRun = nextTierMeta?.diamond === true;
@@ -598,7 +598,7 @@ export default function HomeScreen() {
                 { borderWidth: 2, borderColor: avatarBorderColor },
               ]}
             >
-              <FontAwesome name="user" size={16} color={notVerified ? themeColor().coral : themeColor().pitch} />
+              <FontAwesome name="user" size={16} color={notVerified ? themeColor().muted : themeColor().pitchText} />
             </View>
           )}
         </Pressable>
@@ -749,9 +749,9 @@ function make_styles() {
     justifyContent: "center",
     borderWidth: 1,
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
-  avatarUnverified: { borderWidth: 2, borderColor: themeColor().coral },
+  avatarUnverified: { borderWidth: 2, borderColor: themeColor().line },
 
   greeting: { marginTop: 10, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text,},
   greetingName: { color: themeColor().pitchText },
@@ -793,12 +793,12 @@ function make_styles() {
     borderRadius: 999,
     borderWidth: 1,
   },
-  tierBadgeText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
-  tierDiamond: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  tierBadgeText: { fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "800",},
+  tierDiamond: { fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "800" },
 
   /* next match card — compact */
   matchCard: {
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderWidth: 1,
     borderColor: themeColor().overlay,
     borderLeftWidth: 4,
@@ -895,7 +895,7 @@ function make_styles() {
     borderRadius: 10,
     maxWidth: 90,
   },
-  markerLabelText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().text },
+  markerLabelText: { fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().text },
 
   /* friends playing tonight */
   friendsEmpty: {

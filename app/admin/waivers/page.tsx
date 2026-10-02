@@ -170,7 +170,7 @@ export default function AdminWaiversPage() {
         </button>
 
         {msg ? (
-          <div className="rounded-button border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral">
+          <div className="rounded-button border border-line bg-card px-4 py-3 text-small text-ink">
             {msg}
           </div>
         ) : null}
@@ -186,7 +186,7 @@ export default function AdminWaiversPage() {
             {filteredRows.map((r) => (
               <div
                 key={r.id}
-                className="rounded-card border border-line bg-overlay-subtle p-5 md:p-6"
+                className="rounded-card border border-line bg-card p-5 md:p-6"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-3">
                   <div>

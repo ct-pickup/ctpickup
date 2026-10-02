@@ -128,7 +128,7 @@ function SelectedRunJoin({ runId }: { runId: string }) {
       <Panel className="space-y-5">
         <div className="space-y-1">
           <p className="text-caption font-semibold text-muted">Selected run</p>
-          <h2 className="text-h2 font-serif font-bold text-ink md:text-h1">
+          <h2 className="text-h2 font-serif font-bold text-ink">
             {run.title || "Pickup run"}
           </h2>
         </div>

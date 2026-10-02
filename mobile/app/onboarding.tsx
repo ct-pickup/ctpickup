@@ -263,7 +263,7 @@ function make_styles() {
     marginBottom: 28,
   },
   emoji: {
-    fontSize: 40, fontFamily: "InstrumentSerif_400Regular",
+    fontSize: 56, fontFamily: "InstrumentSerif_400Regular",
     lineHeight: 84,
     marginBottom: 28,
     textAlign: "center",

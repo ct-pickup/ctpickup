@@ -40,13 +40,13 @@ type StandingRow = {
 function chipTone(eff: string): string {
   switch (eff) {
     case "good":
-      return "border-pitch bg-pitch-soft text-pitch";
+      return "border-pitch bg-pitch-panel text-on-pitch-panel";
     case "warning":
-      return "border-coral bg-overlay-subtle text-coral";
+      return "border-line bg-overlay-subtle text-muted";
     case "suspended":
-      return "border-coral bg-overlay-subtle text-coral";
+      return "border-line bg-overlay-subtle text-muted";
     case "banned":
-      return "border-coral bg-overlay-subtle text-coral";
+      return "border-line bg-overlay-subtle text-muted";
     default:
       return "border-line bg-overlay text-ink";
   }
@@ -239,7 +239,7 @@ export default function PickupStandingAdminClient() {
 
         {msg ? <p className="text-small text-muted">{msg}</p> : null}
 
-        <div className="flex flex-wrap items-end gap-3 rounded-card border border-line bg-overlay-subtle p-4">
+        <div className="flex flex-wrap items-end gap-3 rounded-card border border-line bg-card p-4">
           <label className="flex flex-col gap-1 text-caption text-muted">
             Filter
             <select
@@ -326,7 +326,7 @@ export default function PickupStandingAdminClient() {
                     </td>
                     <td className="px-3 py-3 align-top">
                       <span
-                        className={`inline-block rounded-pill border px-2.5 py-0.5 text-caption font-semibold${chipTone(row.effective_standing)}`}
+                        className={`inline-block rounded-pill border px-2.5 py-0.5 text-caption font-semibold ${chipTone(row.effective_standing)}`}
                       >
                         {row.effective_standing}
                       </span>
@@ -348,14 +348,14 @@ export default function PickupStandingAdminClient() {
                       {row.waiver_current ? (
                         <span className="text-pitch-text">On file</span>
                       ) : (
-                        <span className="text-coral">Missing</span>
+                        <span className="text-muted">Missing</span>
                       )}
                     </td>
                     <td className="px-3 py-3 align-top text-caption">
                       {row.join_ok ? (
                         <span className="text-pitch-text">Yes</span>
                       ) : (
-                        <span className="text-coral">No</span>
+                        <span className="text-coral-text">No</span>
                       )}
                     </td>
                     <td className="px-3 py-3 align-top font-mono text-caption text-muted">

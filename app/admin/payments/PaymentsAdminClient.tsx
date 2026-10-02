@@ -179,7 +179,7 @@ export default function PaymentsAdminClient() {
         </p>
 
         {msg ? (
-          <p className="mt-4 rounded-button border border-coral bg-overlay-subtle px-3 py-2 text-small text-coral">
+          <p className="mt-4 rounded-button border border-line bg-card px-3 py-2 text-small text-ink">
             {msg}
           </p>
         ) : null}
@@ -305,7 +305,7 @@ export default function PaymentsAdminClient() {
                           {p.lifecycle_label} · {p.fulfillment_label}
                         </div>
                         {p.fulfillment_message ? (
-                          <div className="mt-1 text-caption text-coral">{p.fulfillment_message}</div>
+                          <div className="mt-1 text-caption text-muted">{p.fulfillment_message}</div>
                         ) : null}
                       </td>
                       <td className="px-3 py-3 text-ink">{p.product_type_label}</td>
@@ -328,7 +328,7 @@ export default function PaymentsAdminClient() {
                           <div className="mt-1 text-muted">Paid: {fmt(p.stripe_payment_received_at)}</div>
                         ) : null}
                         {p.refunded_at ? (
-                          <div className="mt-1 text-coral">Refunded: {fmt(p.refunded_at)}</div>
+                          <div className="mt-1 text-coral-text">Refunded: {fmt(p.refunded_at)}</div>
                         ) : null}
                       </td>
                       <td className="px-3 py-3 text-caption">
@@ -384,7 +384,7 @@ export default function PaymentsAdminClient() {
                                       <div className="flex flex-wrap items-center gap-2 text-ink">
                                         <span className="font-medium">{webhookOutcomeLabel(w.outcome)}</span>
                                         {w.needs_retry ? (
-                                          <span className="rounded-button bg-overlay-subtle px-1.5 py-0.5 text-caption text-coral">
+                                          <span className="rounded-button bg-overlay-subtle px-1.5 py-0.5 text-micro text-muted">
                                             Retry may help
                                           </span>
                                         ) : null}

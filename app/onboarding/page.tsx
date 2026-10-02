@@ -351,7 +351,7 @@ export default function OnboardingPage() {
         </button>
 
         {msg ? (
-          <p className="text-small text-coral whitespace-pre-line leading-relaxed">{msg}</p>
+          <p className="text-small text-coral-text whitespace-pre-line leading-relaxed">{msg}</p>
         ) : null}
       </div>
     </main>

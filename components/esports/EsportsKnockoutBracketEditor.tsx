@@ -69,7 +69,7 @@ export function EsportsKnockoutBracketEditor({ tournamentId, initialJson }: Prop
           placeholder="Paste bracket JSON, or leave empty to clear…"
         />
         {(clientError || (draft.trim() !== "" && !parsed.ok)) && (
-          <p className="text-caption font-medium text-coral" role="alert">
+          <p className="text-caption font-medium text-coral-text" role="alert">
             {clientError ?? (parsed.ok ? "" : parsed.error)}
           </p>
         )}

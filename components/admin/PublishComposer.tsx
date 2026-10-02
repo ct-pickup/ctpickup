@@ -179,14 +179,14 @@ export function PublishComposer({
       <div className="space-y-4">
         <div className="text-caption font-semibold text-muted">Targets</div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex cursor-pointer items-start gap-3 rounded-card border border-line bg-overlay-subtle p-4">
+          <label className="flex cursor-pointer items-start gap-3 rounded-card border border-line bg-card p-4">
             <input type="checkbox" checked={siteStatus} onChange={(e) => setSiteStatus(e.target.checked)} />
             <div>
               <div className="text-small font-medium text-ink">Site-wide status card</div>
               <p className="mt-1 text-caption text-muted">Main announcement for help chat and staff — not the pickup post feed.</p>
             </div>
           </label>
-          <label className="flex cursor-pointer items-start gap-3 rounded-card border border-line bg-overlay-subtle p-4">
+          <label className="flex cursor-pointer items-start gap-3 rounded-card border border-line bg-card p-4">
             <input type="checkbox" checked={pickupGlobal} onChange={(e) => setPickupGlobal(e.target.checked)} />
             <div>
               <div className="text-small font-medium text-ink">Pickup · all players</div>
@@ -194,7 +194,7 @@ export function PublishComposer({
             </div>
           </label>
           <label
-            className={`flex cursor-pointer items-start gap-3 rounded-card border border-line bg-overlay-subtle p-4${!hasActiveTournament ? "opacity-45" : ""}`}
+            className={`flex cursor-pointer items-start gap-3 rounded-card border border-line bg-card p-4 ${!hasActiveTournament ? "opacity-45" : ""}`}
           >
             <input
               type="checkbox"
@@ -213,7 +213,7 @@ export function PublishComposer({
           </label>
         </div>
 
-        <div className="rounded-card border border-line bg-overlay-subtle p-4">
+        <div className="rounded-card border border-line bg-card p-4">
           <div className="text-small font-medium text-ink">Pickup runs (per-run posts)</div>
           <p className="mt-1 text-caption text-muted">Adds a separate post for each run you check.</p>
           <ul className="mt-3 max-h-48 space-y-2 overflow-y-auto text-small">
@@ -259,7 +259,7 @@ export function PublishComposer({
         <div className="space-y-4">
           <div className="text-caption font-semibold text-muted">Preview</div>
           {previews.map((p) => (
-            <div key={p.key} className="rounded-card border border-line bg-overlay-subtle p-4">
+            <div key={p.key} className="rounded-card border border-line bg-card p-4">
               <div className="text-small font-semibold text-ink">{p.title}</div>
               <pre className="mt-2 whitespace-pre-wrap text-caption text-muted font-sans">{p.body}</pre>
             </div>

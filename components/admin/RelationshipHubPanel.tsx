@@ -86,7 +86,7 @@ export function RelationshipHubPanel({
   if (!isReady) return <p className="text-small text-muted">Loading hub controls…</p>;
 
   return (
-    <div className="mt-8 space-y-8 rounded-card border border-pitch bg-pitch-soft p-5">
+    <div className="mt-8 space-y-8 rounded-card border border-pitch bg-pitch-panel p-5">
       <div>
         <h3 className="text-small font-semibold text-ink">Fix hub links here</h3>
         <p className="mt-1 text-caption text-muted">
@@ -95,7 +95,7 @@ export function RelationshipHubPanel({
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
-        <section className="space-y-3 rounded-card border border-line bg-overlay-subtle p-4">
+        <section className="space-y-3 rounded-card border border-line bg-card p-4">
           <h4 className="text-caption font-semibold text-muted">Pickup hub</h4>
           <p className="text-caption text-muted">
             <span className="text-muted">Players see this on:</span> pickup hub, RSVPs, and the pickup status page when the
@@ -135,7 +135,7 @@ export function RelationshipHubPanel({
           ) : null}
         </section>
 
-        <section className="space-y-3 rounded-card border border-line bg-overlay-subtle p-4">
+        <section className="space-y-3 rounded-card border border-line bg-card p-4">
           <h4 className="text-caption font-semibold text-muted">Tournament hub</h4>
           <p className="text-caption text-muted">
             <span className="text-muted">Players see this on:</span> tournament hub and tournament status page.

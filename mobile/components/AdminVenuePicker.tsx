@@ -80,7 +80,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
   selectedText: { color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   placeholder: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
@@ -97,7 +97,7 @@ function make_styles() {
   },
   chipActive: {
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
   chipText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
   chipTextActive: { color: themeColor().pitchText },

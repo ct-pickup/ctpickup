@@ -132,7 +132,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   cardTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
   cardBody: { marginTop: 10, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 20 },

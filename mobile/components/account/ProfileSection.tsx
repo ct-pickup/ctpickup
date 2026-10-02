@@ -186,7 +186,7 @@ export function ProfileSection({
                       backgroundColor: selected ? themeColor().pitch : themeColor().overlaySubtle,
                       opacity: disabled ? 0.35 : 1,
                     }}>
-                    <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: selected ? themeColor().pitch : themeColor().text, fontWeight: "600" }}>
+                    <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: selected ? themeColor().onPitchPanel : themeColor().text, fontWeight: "600" }}>
                       {o.value}
                     </Text>
                   </Pressable>

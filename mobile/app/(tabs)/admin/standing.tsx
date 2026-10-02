@@ -42,13 +42,13 @@ function pickRowName(r: AdminStandingRow): string {
 function effTone(eff: string): { border: string; bg: string; text: string } {
   switch (eff) {
     case "good":
-      return { border: themeColor().pitch, bg: themeColor().pitchSoft, text: themeColor().pitch };
+      return { border: themeColor().pitch, bg: themeColor().pitchPanel, text: themeColor().onPitchPanel };
     case "warning":
-      return { border: themeColor().coral, bg: themeColor().coral, text: themeColor().text };
+      return { border: themeColor().line, bg: themeColor().overlaySubtle, text: themeColor().text };
     case "suspended":
-      return { border: themeColor().coral, bg: themeColor().overlaySubtle, text: themeColor().coral };
+      return { border: themeColor().coral, bg: themeColor().overlaySubtle, text: themeColor().coralText };
     case "banned":
-      return { border: themeColor().coral, bg: themeColor().overlaySubtle, text: themeColor().coral };
+      return { border: themeColor().coral, bg: themeColor().overlaySubtle, text: themeColor().coralText };
     default:
       return { border: themeColor().overlayStrong, bg: themeColor().overlaySubtle, text: themeColor().text };
   }
@@ -512,17 +512,17 @@ function make_styles() {
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
-  chipText: { color: themeColor().pitch, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
-  err: { marginTop: 10, color: themeColor().coral },
+  chipText: { color: themeColor().onPitchPanel, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
+  err: { marginTop: 10, color: themeColor().coralText },
   card: {
     marginTop: 14,
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   cardTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
   bodyMuted: { marginTop: 6, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 17 },
@@ -548,7 +548,7 @@ function make_styles() {
     borderColor: themeColor().line,
     backgroundColor: themeColor().overlaySubtle,
   },
-  filterChipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  filterChipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
   filterText: { color: themeColor().muted, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   filterTextActive: { color: themeColor().pitchText },
   muted: { marginTop: 8, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
@@ -570,8 +570,8 @@ function make_styles() {
     borderRadius: 999,
     borderWidth: 1,
   },
-  effBadgeText: { fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold", },
-  overrideHint: { marginTop: 6, color: themeColor().coral, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  effBadgeText: { fontWeight: "900", fontSize: 11, fontFamily: "Inter_700Bold", },
+  overrideHint: { marginTop: 6, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
   metaPill: {
     paddingHorizontal: 10,
@@ -586,7 +586,7 @@ function make_styles() {
   metaValue: { marginTop: 2, color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
   metaValueOk: { color: themeColor().pitchText },
   metaValueWarn: { color: themeColor().text },
-  metaValueBad: { color: themeColor().coral },
+  metaValueBad: { color: themeColor().coralText },
   relLabel: { marginTop: 10, color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   history: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" },
 

@@ -47,7 +47,7 @@ function NavLink({
   return (
     <Link
       href={href}
-      className={`block rounded-button px-3 py-2 text-small transition${activeCls}`}
+      className={`block rounded-button px-3 py-2 text-small transition ${activeCls}`}
     >
       {label}
     </Link>
@@ -111,7 +111,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
-              className={`shrink-0 rounded-pill px-3 py-1.5 text-caption font-medium ${ active ? "bg-overlay-strong text-ink" : "bg-overlay text-muted" }`}
+              className={`shrink-0 rounded-pill px-3 py-1.5 text-caption font-medium ${ active ? "bg-overlay-strong text-ink" : "bg-overlay-subtle text-muted" }`}
             >
               {item.label}
             </Link>

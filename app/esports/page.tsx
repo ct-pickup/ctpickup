@@ -106,7 +106,7 @@ export default function EsportsPage() {
             At a glance
           </h2>
           <ul className="mt-6 grid gap-4 sm:grid-cols-2">
-            <li className="rounded-card border border-line bg-overlay-subtle p-5">
+            <li className="rounded-card border border-line bg-card p-5">
               <h3 className="text-small font-semibold text-ink">
                 Eligibility
               </h3>
@@ -115,21 +115,21 @@ export default function EsportsPage() {
                 and game ownership as required.
               </p>
             </li>
-            <li className="rounded-card border border-line bg-overlay-subtle p-5">
+            <li className="rounded-card border border-line bg-card p-5">
               <h3 className="text-small font-semibold text-ink">Prize</h3>
               <p className="mt-2 text-small leading-relaxed text-muted">
                 Cash prize for the winner as posted per event. See each tournament for the advertised
                 amount.
               </p>
             </li>
-            <li className="rounded-card border border-line bg-overlay-subtle p-5">
+            <li className="rounded-card border border-line bg-card p-5">
               <h3 className="text-small font-semibold text-ink">Format</h3>
               <p className="mt-2 text-small leading-relaxed text-muted">
                 Bracket play on the current EA SPORTS FC title with scheduled windows and required
                 result reporting. Details vary by event.
               </p>
             </li>
-            <li className="rounded-card border border-line bg-overlay-subtle p-5">
+            <li className="rounded-card border border-line bg-card p-5">
               <h3 className="text-small font-semibold text-ink">Entry fee</h3>
               <p className="mt-2 text-small leading-relaxed text-muted">
                 $10 per player, collected at registration after legal consent. Refunds only if requested
@@ -141,7 +141,7 @@ export default function EsportsPage() {
       </section>
 
       <section className="mt-6 md:mt-8">
-        <Panel className="border border-line bg-overlay-subtle p-6 md:p-8">
+        <Panel className="border border-line bg-card p-6 md:p-8">
           <h2 className="text-h3 font-serif font-semibold text-ink">Full rules & policies</h2>
           <p className="mt-2 text-small text-muted">
             Registration records document version IDs, timestamp, account, and server audit fields.

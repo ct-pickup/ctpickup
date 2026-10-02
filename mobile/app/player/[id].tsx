@@ -1092,7 +1092,7 @@ function make_styles() {
     justifyContent: "center",
     padding: 24,
   },
-  errText: { color: themeColor().coral, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center" },
+  errText: { color: themeColor().coralText, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center" },
   hero: { alignItems: "center", marginBottom: 28 },
 
   /* Avatar — same container size for all tiers */
@@ -1143,7 +1143,7 @@ function make_styles() {
     justifyContent: "center",
   },
   checkBadgeText: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "900" },
-  avatarInitialsText: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  avatarInitialsText: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
 
   /* Legacy — kept to avoid removing referenced styles elsewhere */
   avatarImg: { width: 96, height: 96, borderRadius: 999, marginBottom: 14 },
@@ -1151,12 +1151,12 @@ function make_styles() {
     width: 96,
     height: 96,
     borderRadius: 999,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 14,
   },
-  avatarPhText: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().pitch },
+  avatarPhText: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().onPitchPanel },
   heroLabel: {
     marginTop: 4,
     fontSize: 13, fontFamily: "Inter_700Bold",

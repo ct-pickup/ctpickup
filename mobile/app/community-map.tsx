@@ -999,7 +999,7 @@ function SessionMarker({
   const r = sz / 2 - 4;
   const circ = 2 * Math.PI * r;
   const pct = Math.min(session.spots_taken / session.capacity, 1);
-  const color = full ? themeColor().muted : themeColor().pitch;
+  const color = full ? themeColor().muted : themeColor().onPitchPanel;
 
   const [tracking, setTracking] = useState(true);
   useEffect(() => {
@@ -1656,7 +1656,7 @@ function make_s() {
   layerBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999 },
   layerBtnActive: { backgroundColor: themeColor().pitch },
   layerBtnText: { color: themeColor().muted, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
-  layerBtnTextActive: { color: themeColor().bg },
+  layerBtnTextActive: { color: themeColor().onPitch },
 
   zoomBtn: {
     position: "absolute",
@@ -1739,7 +1739,7 @@ function make_s() {
     borderRadius: 999,
     alignItems: "center",
   },
-  popupCtaText: { color: themeColor().bg, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  popupCtaText: { color: themeColor().onPitch, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
 
   modalRoot: {
     flex: 1,
@@ -1843,7 +1843,7 @@ function make_s() {
   actCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderRadius: 12,
     padding: 12,
     gap: 12,

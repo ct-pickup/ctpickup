@@ -29,10 +29,10 @@ function PlayerRow({
 
   return (
     <div
-      className={`flex min-h-[2.5rem] items-center justify-between gap-2 rounded-button px-2.5 py-2${rowText} ${ isWinner ? "border border-[var(--brand)]/50 bg-[var(--brand)]/[0.14] text-ink" : pending ? tbd ? "border border-dashed border-line bg-overlay-subtle text-muted" : "border border-line bg-overlay-subtle text-ink" : isEliminated ? "border border-transparent bg-overlay-subtle text-muted line-through decoration-ink" : "border border-line bg-overlay-subtle text-ink" }`}
+      className={`flex min-h-[2.5rem] items-center justify-between gap-2 rounded-button px-2.5 py-2 ${rowText} ${ isWinner ? "border border-[var(--brand)]/50 bg-[var(--brand)]/[0.14] text-ink" : pending ? tbd ? "border border-dashed border-line bg-overlay-subtle text-muted" : "border border-line bg-overlay-subtle text-ink" : isEliminated ? "border border-transparent bg-overlay-subtle text-muted line-through decoration-ink" : "border border-line bg-overlay-subtle text-ink" }`}
     >
       <span
-        className={`min-w-0 truncate font-medium${tbd && pending ? "italic" : ""}`}
+        className={`min-w-0 truncate font-medium ${tbd && pending ? "italic" : ""}`}
       >
         {label}
       </span>
@@ -98,7 +98,7 @@ function MatchCard({
         />
       </div>
       {match.winner && !aWin && !bWin ? (
-        <p className={`mt-2 text-coral ${compact ? "text-caption" : "text-caption"}`}>
+        <p className={`mt-2 text-muted ${compact ? "text-caption" : "text-caption"}`}>
           Winner recorded: <span className="font-medium text-ink">{match.winner}</span>
           <span className="block text-muted">Does not match A or B — fix in admin JSON.</span>
         </p>
@@ -223,7 +223,7 @@ export function KnockoutBracketDisplay({
   return (
     <div className={className}>
       {tournamentComplete ? (
-        <div className="mb-6 rounded-button border border-pitch bg-pitch-soft px-4 py-3 text-center md:text-left">
+        <div className="mb-6 rounded-button border border-pitch bg-pitch-panel px-4 py-3 text-center md:text-left">
           <p className="text-small font-semibold text-pitch-text">Bracket complete</p>
           <p className="mt-0.5 text-caption text-pitch-text">All knockout matches have a recorded winner.</p>
         </div>

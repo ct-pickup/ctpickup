@@ -602,7 +602,7 @@ export function TopNav({
     <div className={`mb-3 sm:mb-4 lg:mb-10 ${className}`}>
       <div
         ref={navRef}
-        className={`max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:backdrop-blur-none rounded-card border border-line bg-overlay px-3 py-2 backdrop-blur-none sm:px-4 sm:py-2.5 lg:rounded-pill lg:border lg:bg-overlay lg:px-4 lg:py-3 lg:backdrop-blur-sm xl:px-5${innerClassName}`}
+        className={`max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:backdrop-blur-none rounded-card border border-line bg-card px-3 py-2 backdrop-blur-none sm:px-4 sm:py-2.5 lg:rounded-pill lg:border lg:bg-card lg:px-4 lg:py-3 lg:backdrop-blur-sm xl:px-5 ${innerClassName}`}
       >
         {/* Desktop — lg+; 3-column grid keeps brand / links / profile in separate tracks so centered links never paint over the icon */}
         <div

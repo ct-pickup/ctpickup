@@ -140,7 +140,7 @@ export default async function AdminTournamentEnginePage({
             </Link>
             <Link
               href={`/admin/esports/tournaments/${id}/match-review`}
-              className="rounded-button border border-coral bg-overlay-subtle px-3 py-2 text-coral transition hover:bg-overlay-subtle"
+              className="rounded-button border border-line bg-card px-3 py-2 text-ink transition hover:bg-overlay-subtle"
             >
               Match review
             </Link>
@@ -156,7 +156,7 @@ export default async function AdminTournamentEnginePage({
         </div>
 
         {sp.ok ? (
-          <div className="rounded-card border border-pitch bg-pitch-soft px-4 py-3 text-small text-pitch">
+          <div className="rounded-card border border-pitch bg-pitch-panel px-4 py-3 text-small text-on-pitch-panel">
             {sp.ok === "group_stage_generated" && "Group stage generated."}
             {sp.ok === "group_stage_locked" && "Group stage locked."}
             {sp.ok === "knockout_generated" && "Knockout bracket generated (first knockout round)." }
@@ -166,18 +166,18 @@ export default async function AdminTournamentEnginePage({
           </div>
         ) : null}
         {sp.e ? (
-          <div className="rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral">
+          <div className="rounded-card border border-coral bg-card px-4 py-3 text-small text-coral-text">
             {sp.e}
           </div>
         ) : null}
 
         {tErr ? (
-          <div className="rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral">
+          <div className="rounded-card border border-coral bg-card px-4 py-3 text-small text-coral-text">
             {tErr.message}
           </div>
         ) : null}
 
-        <section className="rounded-card border border-line bg-overlay-subtle p-6">
+        <section className="rounded-card border border-line bg-card p-6">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-h3 font-serif font-semibold text-ink">{tour?.title ?? "Tournament"}</h2>
             <StatusChip tone="neutral">{tour?.status ?? "—"}</StatusChip>
@@ -197,7 +197,7 @@ export default async function AdminTournamentEnginePage({
           </p>
         </section>
 
-        <section className="rounded-card border border-line bg-overlay-subtle p-6">
+        <section className="rounded-card border border-line bg-card p-6">
           <h2 className="text-small font-semibold text-ink">
             Generate group stage (Mon/Tue/Wed deadlines)
           </h2>
@@ -265,7 +265,7 @@ export default async function AdminTournamentEnginePage({
           </form>
         </section>
 
-        <section className="rounded-card border border-line bg-overlay-subtle p-6">
+        <section className="rounded-card border border-line bg-card p-6">
           <h2 className="text-small font-semibold text-ink">
             Knockout bracket (Thu/Fri/Sat/Sun deadlines)
           </h2>
@@ -366,14 +366,14 @@ export default async function AdminTournamentEnginePage({
           </form>
         </section>
 
-        <section className="rounded-card border border-line bg-overlay-subtle p-6">
+        <section className="rounded-card border border-line bg-card p-6">
           <h2 className="text-small font-semibold text-ink">Stages</h2>
           {stageList.length === 0 ? (
             <p className="mt-3 text-small text-muted">No stages yet.</p>
           ) : (
             <div className="mt-4 space-y-3">
               {stageList.map((s) => (
-                <div key={s.id} className="rounded-card border border-line bg-overlay-subtle p-4">
+                <div key={s.id} className="rounded-card border border-line bg-card p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="text-small font-semibold text-ink">
                       {s.order_index}. {s.name}
@@ -402,7 +402,7 @@ export default async function AdminTournamentEnginePage({
           )}
         </section>
 
-        <section className="rounded-card border border-line bg-overlay-subtle p-6">
+        <section className="rounded-card border border-line bg-card p-6">
           <h2 className="text-small font-semibold text-ink">Matches (admin edits)</h2>
           <p className="mt-2 text-small text-muted">
             Use this for urgent fixes (pairings, deadlines, scores, winner). Normal flow is players report → staff confirms.

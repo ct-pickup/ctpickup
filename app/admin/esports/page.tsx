@@ -157,7 +157,7 @@ export default async function AdminEsportsPage({
             </div>
           </div>
           {regCountErr ? (
-            <p className="mt-4 text-small text-coral">
+            <p className="mt-4 text-small text-coral-text">
               {regCountErr.message}
               {regCountErr.message.includes("schema cache") ? (
                 <> (Supabase migrations may not be applied in production yet.)</>
@@ -165,7 +165,7 @@ export default async function AdminEsportsPage({
             </p>
           ) : null}
           {regErr ? (
-            <p className="mt-2 text-small text-coral">{regErr.message}</p>
+            <p className="mt-2 text-small text-coral-text">{regErr.message}</p>
           ) : null}
         </section>
 
@@ -288,23 +288,23 @@ export default async function AdminEsportsPage({
         </section>
 
         {sp.ok ? (
-          <div className="rounded-card border border-pitch bg-pitch-soft px-4 py-3 text-small text-pitch">
+          <div className="rounded-card border border-pitch bg-pitch-panel px-4 py-3 text-small text-on-pitch-panel">
             {sp.ok === "created" && "Esports tournament created."}
             {sp.ok === "saved" && "Esports tournament updated."}
             {sp.ok === "deleted" && "Esports tournament deleted."}
           </div>
         ) : null}
         {sp.e ? (
-          <div className="rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral">
+          <div className="rounded-card border border-coral bg-card px-4 py-3 text-small text-coral-text">
             {sp.e}
           </div>
         ) : null}
 
         {error ? (
-          <p className="text-small text-coral">{error.message}</p>
+          <p className="text-small text-coral-text">{error.message}</p>
         ) : null}
 
-        <section className="space-y-4 rounded-card border border-line bg-overlay-subtle p-6">
+        <section className="space-y-4 rounded-card border border-line bg-card p-6">
           <h2 className="text-h3 font-serif font-semibold text-ink">
             Create esports tournament
           </h2>
@@ -480,7 +480,7 @@ export default async function AdminEsportsPage({
               {list.map((row) => (
                 <div
                   key={row.id}
-                  className="rounded-card border border-line bg-overlay-subtle p-5"
+                  className="rounded-card border border-line bg-card p-5"
                 >
                   <form
                     action={updateEsportsTournament}
@@ -671,7 +671,7 @@ export default async function AdminEsportsPage({
                     <input type="hidden" name="id" value={row.id} />
                     <button
                       type="submit"
-                      className="rounded-button border border-coral px-3 py-1.5 text-caption font-semibold text-coral hover:bg-overlay-subtle"
+                      className="rounded-button border border-coral px-3 py-1.5 text-caption font-semibold text-coral-text hover:bg-overlay-subtle"
                     >
                       Delete
                     </button>

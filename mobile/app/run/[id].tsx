@@ -287,7 +287,7 @@ export default function RunDetailScreen() {
         ) : null}
         {outcome ? (
           <View style={[styles.pill, outcome === "Won" ? styles.pillWin : styles.pillLoss]}>
-            <FontAwesome name={outcome === "Won" ? "trophy" : "flag"} size={14} color={outcome === "Won" ? themeColor().bg : themeColor().text} />
+            <FontAwesome name={outcome === "Won" ? "trophy" : "flag"} size={14} color={outcome === "Won" ? themeColor().onPitch : themeColor().muted} />
             <Text style={[styles.pillText, outcome === "Won" ? styles.pillTextWin : styles.pillTextLoss]}>
               {outcome}
             </Text>
@@ -333,7 +333,7 @@ function make_styles() {
   scroll: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 20, paddingBottom: 40 },
   center: { flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center", padding: 24 },
-  errText: { color: themeColor().coral, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center" },
+  errText: { color: themeColor().coralText, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center" },
   h1: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().text },
   sub: { marginTop: 10, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
 
@@ -343,7 +343,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   row: { flexDirection: "row", gap: 12 },
   label: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted, },
@@ -372,14 +372,14 @@ function make_styles() {
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
   awardName: { color: themeColor().pitchText, fontWeight: "900", fontSize: 14, fontFamily: "Inter_700Bold" },
   awardNameMuted: { color: themeColor().muted, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
 
   pill: { marginTop: 14, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1 },
   pillWin: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitch },
-  pillLoss: { borderColor: themeColor().coral, backgroundColor: themeColor().overlaySubtle },
+  pillLoss: { borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
   pillText: { fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
   pillTextWin: { color: themeColor().onPitch },
   pillTextLoss: { color: themeColor().text },

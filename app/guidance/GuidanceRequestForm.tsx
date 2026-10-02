@@ -20,7 +20,7 @@ type Props = {
 };
 
 const errLinkClass =
-  "font-medium text-coral underline underline-offset-2 hover:text-coral focus:outline-none focus-visible:ring-2 focus-visible:ring-line focus-visible:ring-offset-2 focus-visible:ring-offset-canvas rounded-button";
+  "font-medium text-ink underline underline-offset-2 hover:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-line focus-visible:ring-offset-2 focus-visible:ring-offset-canvas rounded-button";
 
 function apiErrorWithMailto(text: string): ReactNode {
   if (!text.includes(SUPPORT_EMAIL_ADDRESS)) return text;
@@ -123,7 +123,7 @@ export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
 
   if (done) {
     return (
-      <div className="rounded-card border border-pitch bg-pitch-soft px-5 py-6 text-small leading-relaxed text-pitch">
+      <div className="rounded-card border border-pitch bg-pitch-panel px-5 py-6 text-small leading-relaxed text-on-pitch-panel">
         <p className="font-semibold text-ink">Request received.</p>
         <p className="mt-2 text-ink">
           Your request is saved to our system. We will follow up using the path
@@ -216,7 +216,7 @@ export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
       </div>
 
       {error ? (
-        <p className="text-small text-coral" role="alert">
+        <p className="text-small text-coral-text" role="alert">
           {error}{"  "}
           {typeof error === "string" && error.includes("Sign in") ? (
             <Link href="/login" className="underline underline-offset-2">

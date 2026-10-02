@@ -237,7 +237,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   cardEyebrow: {
     fontSize: 13, fontFamily: "Inter_700Bold",
@@ -263,9 +263,9 @@ function make_styles() {
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
-  labelBadgeEveryoneText: { color: themeColor().pitch, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
+  labelBadgeEveryoneText: { color: themeColor().onPitchPanel, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
   labelBadgeMuted: {
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -275,7 +275,7 @@ function make_styles() {
     backgroundColor: themeColor().overlaySubtle,
   },
   labelBadgeMutedText: {
-    fontSize: 13, fontFamily: "Inter_700Bold",
+    fontSize: 11, fontFamily: "Inter_700Bold",
     fontWeight: "800",
     color: themeColor().muted,
   },
@@ -321,11 +321,11 @@ function make_styles() {
     borderColor: themeColor().line,
   },
   pillLikely: {
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     borderColor: themeColor().pitch,
   },
   pillActive: {
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     borderColor: themeColor().pitch,
   },
   runTitle: {
@@ -362,7 +362,7 @@ function make_styles() {
   },
   emptyTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text },
   emptyBody: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 },
-  errTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().coral },
+  errTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().coralText },
   errBody: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
 });
 }

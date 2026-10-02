@@ -82,13 +82,13 @@ export default async function EsportsTournamentsPage() {
               {data.map((t) => (
                 <li
                   key={t.id}
-                  className="flex flex-col rounded-card border border-line bg-overlay-subtle p-5 transition hover:border-line hover:bg-overlay"
+                  className="flex flex-col rounded-card border border-line bg-card p-5 transition hover:border-line hover:bg-overlay"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <h3 className="text-body font-semibold text-ink md:text-h3 font-serif">
                       {t.title}
                     </h3>
-                    <span className="shrink-0 rounded-pill border border-[var(--brand)]/35 bg-[var(--brand)]/10 px-2.5 py-0.5 text-caption font-semibold text-pitch-text">
+                    <span className="shrink-0 rounded-pill border border-[var(--brand)]/35 bg-[var(--brand)]/10 px-2.5 py-0.5 text-micro font-semibold text-pitch-text">
                       {statusLabel(t.status)}
                     </span>
                   </div>

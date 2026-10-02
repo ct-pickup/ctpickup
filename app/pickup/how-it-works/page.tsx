@@ -20,7 +20,7 @@ export default function HowItWorksPage() {
         </p>
 
         <div className="space-y-5">
-          <section className="rounded-card border border-line bg-overlay-subtle p-5">
+          <section className="rounded-card border border-line bg-card p-5">
             <p className="text-caption text-muted">
               01 — Request Access
             </p>
@@ -29,7 +29,7 @@ export default function HowItWorksPage() {
             </p>
           </section>
 
-          <section className="rounded-card border border-line bg-overlay-subtle p-5">
+          <section className="rounded-card border border-line bg-card p-5">
             <p className="text-caption text-muted">
               02 — Selection
             </p>
@@ -38,7 +38,7 @@ export default function HowItWorksPage() {
             </p>
           </section>
 
-          <section className="rounded-card border border-line bg-overlay-subtle p-5">
+          <section className="rounded-card border border-line bg-card p-5">
             <p className="text-caption text-muted">
               03 — Confirm Spot
             </p>
@@ -47,7 +47,7 @@ export default function HowItWorksPage() {
             </p>
           </section>
 
-          <section className="rounded-card border border-line bg-overlay-subtle p-5">
+          <section className="rounded-card border border-line bg-card p-5">
             <p className="text-caption text-muted">
               04 — Play
             </p>
@@ -56,7 +56,7 @@ export default function HowItWorksPage() {
             </p>
           </section>
 
-          <section className="rounded-card border border-line bg-overlay-subtle p-5">
+          <section className="rounded-card border border-line bg-card p-5">
             <p className="text-caption text-muted">
               Important
             </p>

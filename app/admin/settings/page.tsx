@@ -17,7 +17,7 @@ export default function AdminSettingsPage() {
 
       <AdminWorkArea question="What required configuration is present, and where do you manage waivers and compliance?">
         <div className="grid gap-6 lg:grid-cols-2">
-          <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+          <section className="rounded-card border border-line bg-card p-5 space-y-4">
             <h2 className="text-caption font-semibold text-muted">Public / build-time env</h2>
             <ul className="space-y-2">
               {publicEnv.map((f) => (
@@ -30,7 +30,7 @@ export default function AdminSettingsPage() {
             </ul>
           </section>
 
-          <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+          <section className="rounded-card border border-line bg-card p-5 space-y-4">
             <h2 className="text-caption font-semibold text-muted">Server-only env</h2>
             <ul className="space-y-2">
               {serverEnv.map((f) => (
@@ -48,7 +48,7 @@ export default function AdminSettingsPage() {
           </section>
         </div>
 
-        <section className="mt-8 rounded-card border border-line bg-overlay-subtle p-5 space-y-3">
+        <section className="mt-8 rounded-card border border-line bg-card p-5 space-y-3">
           <h2 className="text-small font-semibold text-ink">Staff tools</h2>
           <div className="flex flex-wrap gap-2">
             <Link

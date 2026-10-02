@@ -118,12 +118,12 @@ export default async function AdminMatchReviewPage({
         </div>
 
         {sp.ok ? (
-          <div className="rounded-card border border-pitch bg-pitch-soft px-4 py-3 text-small text-pitch">
+          <div className="rounded-card border border-pitch bg-pitch-panel px-4 py-3 text-small text-on-pitch-panel">
             Saved ({sp.ok}).
           </div>
         ) : null}
 
-        <section className="rounded-card border border-line bg-overlay-subtle p-6">
+        <section className="rounded-card border border-line bg-card p-6">
           <h2 className="text-small font-semibold text-ink">{tour?.title ?? "Tournament"}</h2>
           <p className="mt-2 text-small text-muted">
             Defaults for this tournament: confirmation window, proof requirement, and what happens if the opponent
@@ -178,7 +178,7 @@ export default async function AdminMatchReviewPage({
           <option value="other" />
         </datalist>
 
-        <section className="rounded-card border border-line bg-overlay-subtle p-6">
+        <section className="rounded-card border border-line bg-card p-6">
           <h2 className="text-small font-semibold text-ink">Conduct history (recent)</h2>
           {(conduct || []).length === 0 ? (
             <p className="mt-3 text-small text-muted">No conduct records for this tournament yet.</p>
@@ -222,7 +222,7 @@ export default async function AdminMatchReviewPage({
           )}
         </section>
 
-        <section className="rounded-card border border-line bg-overlay-subtle p-6">
+        <section className="rounded-card border border-line bg-card p-6">
           <h2 className="text-small font-semibold text-ink">Open cases</h2>
           <p className="mt-2 text-small text-muted">
             Awaiting opponent confirmation, disputed results, or matches escalated after the confirmation deadline.
@@ -265,7 +265,7 @@ export default async function AdminMatchReviewPage({
                   : null;
 
                 return (
-                  <div key={m.id} className="rounded-card border border-line bg-overlay-subtle p-5">
+                  <div key={m.id} className="rounded-card border border-line bg-card p-5">
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusChip tone={m.status === "under_review" ? "published" : "neutral"}>{m.status}</StatusChip>
                       <span className="text-caption text-muted">{st?.name ?? "—"}</span>
@@ -340,7 +340,7 @@ export default async function AdminMatchReviewPage({
                                         : rep.opponent_response}
                               </div>
                               {rep.dispute_reason ? (
-                                <div className="mt-2 text-caption text-coral">“{rep.dispute_reason}”</div>
+                                <div className="mt-2 text-caption text-coral-text">“{rep.dispute_reason}”</div>
                               ) : null}
                               <div className="mt-2 text-caption text-muted">
                                 Confirm by {fmtEt(rep.confirmation_deadline_at)}
@@ -348,7 +348,7 @@ export default async function AdminMatchReviewPage({
                             </div>
                           </div>
                         ) : (
-                          <p className="mt-3 text-small text-coral">No structured report row (legacy or cleared).</p>
+                          <p className="mt-3 text-small text-muted">No structured report row (legacy or cleared).</p>
                         )}
                       </div>
                     </div>
@@ -478,7 +478,7 @@ export default async function AdminMatchReviewPage({
                             <input type="hidden" name="match_id" value={m.id} />
                             <button
                               type="submit"
-                              className="rounded-button border border-coral px-4 py-2 text-small font-semibold text-coral"
+                              className="rounded-button border border-coral px-4 py-2 text-small font-semibold text-coral-text"
                             >
                               Reset match report
                             </button>

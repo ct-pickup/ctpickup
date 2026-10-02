@@ -87,7 +87,7 @@ export default function PeerVoteScreen() {
   if (loading) {
     return (
       <View style={[s.screen, s.center]}>
-        <ActivityIndicator color={themeColor().coral} />
+        <ActivityIndicator color={themeColor().pitchText} />
       </View>
     );
   }
@@ -153,7 +153,7 @@ function make_s() {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: themeColor().card, padding: 20, paddingTop: 56 },
   center: { alignItems: "center", justifyContent: "center" },
-  eyebrow: { color: themeColor().coral, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  eyebrow: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   title: { color: themeColor().text, fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", marginTop: 6 },
   sub: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", marginTop: 8, lineHeight: 20 },
   row: {
@@ -164,7 +164,7 @@ function make_s() {
     borderBottomWidth: 1,
     borderBottomColor: themeColor().line,
   },
-  rowPicked: { borderBottomColor: themeColor().coral },
+  rowPicked: { borderBottomColor: themeColor().pitch },
   rowDim: { opacity: 0.35 },
   slot: {
     width: 32,
@@ -175,14 +175,14 @@ function make_s() {
     alignItems: "center",
     justifyContent: "center",
   },
-  slotPicked: { backgroundColor: themeColor().coral, borderColor: themeColor().coral },
+  slotPicked: { backgroundColor: themeColor().pitch, borderColor: themeColor().pitch },
   slotText: { color: themeColor().muted, fontWeight: "700" },
   slotTextPicked: { color: themeColor().onPitch },
   name: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   tier: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
-  error: { color: themeColor().coral, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 10 },
+  error: { color: themeColor().coralText, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 10 },
   cta: {
-    backgroundColor: themeColor().coral,
+    backgroundColor: themeColor().pitch,
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: "center",

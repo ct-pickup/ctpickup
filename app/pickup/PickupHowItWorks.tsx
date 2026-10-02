@@ -174,7 +174,7 @@ function GlassCard({
   bullets: string[];
 }) {
   return (
-    <div className="group rounded-[24px] border border-line bg-overlay-subtle p-6 backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-line hover:bg-overlay-subtle">
+    <div className="group rounded-[24px] border border-line bg-card p-6 backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-line hover:bg-overlay-subtle">
       <h3 className="text-h3 font-serif font-semibold text-ink">{title}</h3>
       <p className="mt-3 text-small leading-6 text-muted">{body}</p>
 
@@ -238,7 +238,7 @@ export default function PickupHowItWorksPage() {
 
         <div className="mx-auto max-w-6xl px-6 pb-16 pt-8">
           <section className="relative overflow-hidden rounded-pill border border-line bg-overlay-subtle p-8 backdrop-blur-2xl sm:p-10">
-            <div className="absolute inset-0 bg-[linear-gradient(135deg,var(--pitch-soft),transparent_32%,transparent_68%,var(--overlay))]" />
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,var(--pitch-panel),transparent_32%,transparent_68%,var(--overlay))]" />
 
             <div className="relative">
               <SectionLabel>Pickup / How It Works</SectionLabel>
@@ -261,7 +261,7 @@ export default function PickupHowItWorksPage() {
                   </p>
 
                   <div className="mt-7 flex flex-wrap gap-3">
-                    <div className="rounded-pill border border-line bg-overlay px-4 py-2 text-small font-medium text-muted">
+                    <div className="rounded-pill border border-line bg-overlay-subtle px-4 py-2 text-small font-medium text-muted">
                       Live run status
                     </div>
                     <div className="rounded-pill border border-line bg-overlay-subtle px-4 py-2 text-small font-medium text-ink">
@@ -282,7 +282,7 @@ export default function PickupHowItWorksPage() {
                       {["Planning", "Likely On", "Confirmed / Active"].map((item) => (
                         <div
                           key={item}
-                          className="rounded-card border border-line bg-overlay-subtle px-4 py-3 text-small font-medium text-ink"
+                          className="rounded-card border border-line bg-card px-4 py-3 text-small font-medium text-ink"
                         >
                           {item}
                         </div>
@@ -307,7 +307,7 @@ export default function PickupHowItWorksPage() {
           <section className="mt-14">
             <div className="mb-6">
               <SectionLabel>Upcoming Games</SectionLabel>
-              <h2 className="mt-3 text-h1 font-serif font-semibold text-ink">
+              <h2 className="mt-3 text-h2 font-serif font-semibold text-ink">
                 What players can see
               </h2>
               <p className="mt-3 max-w-3xl text-small leading-7 text-muted">
@@ -331,7 +331,7 @@ export default function PickupHowItWorksPage() {
           <section className="mt-16">
             <div className="mb-6">
               <SectionLabel>Join a Game</SectionLabel>
-              <h2 className="mt-3 text-h1 font-serif font-semibold text-ink">
+              <h2 className="mt-3 text-h2 font-serif font-semibold text-ink">
                 How players move through the process
               </h2>
               <p className="mt-3 max-w-3xl text-small leading-7 text-muted">
@@ -354,7 +354,7 @@ export default function PickupHowItWorksPage() {
           </section>
 
           <section className="mt-16 grid gap-5 lg:grid-cols-[1fr_1fr]">
-            <div className="rounded-[28px] border border-coral bg-overlay-subtle p-7">
+            <div className="rounded-[28px] border border-line bg-card p-7">
               <SectionLabel>Important to Know</SectionLabel>
               <h2 className="mt-3 text-h2 font-serif font-semibold text-ink">
                 Joining is structured, not fully open
@@ -375,7 +375,7 @@ export default function PickupHowItWorksPage() {
               </div>
             </div>
 
-            <div className="rounded-[28px] border border-line bg-overlay-subtle p-7 backdrop-blur-xl">
+            <div className="rounded-[28px] border border-line bg-card p-7 backdrop-blur-xl">
               <SectionLabel>What You’ll See</SectionLabel>
               <h2 className="mt-3 text-h2 font-serif font-semibold text-ink">
                 The Pickup page shows exactly what matters
@@ -398,11 +398,11 @@ export default function PickupHowItWorksPage() {
             </div>
           </section>
 
-          <section className="mt-16 rounded-pill border border-line bg-[linear-gradient(180deg,var(--pitch-soft),var(--overlay-subtle))] p-8">
+          <section className="mt-16 rounded-pill border border-line bg-[linear-gradient(180deg,var(--pitch-panel),var(--overlay-subtle))] p-8">
             <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
               <div>
                 <SectionLabel>Final Note</SectionLabel>
-                <h2 className="mt-3 text-h1 font-serif font-semibold text-ink">
+                <h2 className="mt-3 text-h2 font-serif font-semibold text-ink">
                   The system is built to show players what they need — nothing more, nothing less.
                 </h2>
                 <p className="mt-4 max-w-3xl text-small leading-7 text-muted">

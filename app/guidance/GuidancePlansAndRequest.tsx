@@ -74,7 +74,7 @@ export function GuidancePlansAndRequest() {
                 </p>
               </div>
               <div className="text-right">
-                <div className="text-h2 font-serif font-semibold tabular-nums text-ink md:text-h1">
+                <div className="text-h2 font-serif font-semibold tabular-nums text-ink">
                   {formatGuidancePriceUsd(p.priceUsd)}
                 </div>
                 <div className="text-caption text-muted">Starting at</div>

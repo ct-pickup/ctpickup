@@ -19,7 +19,7 @@ const WHAT_WE_HELP_WITH = [
 
 function PlansFallback() {
   return (
-    <div className="rounded-card border border-line bg-overlay-subtle px-6 py-12 text-center text-small text-muted">
+    <div className="rounded-card border border-line bg-card px-6 py-12 text-center text-small text-muted">
       Loading plans…
     </div>
   );
@@ -107,7 +107,7 @@ export default function GuidancePage() {
             </p>
             <p className="pt-1 text-small text-muted md:text-body">
               Need help? Email{"  "}
-              <SupportEmailLink className="font-medium text-coral underline underline-offset-2 hover:text-coral focus:outline-none focus-visible:ring-2 focus-visible:ring-line focus-visible:ring-offset-2 focus-visible:ring-offset-canvas rounded-button" />
+              <SupportEmailLink className="font-medium text-ink underline underline-offset-2 hover:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-line focus-visible:ring-offset-2 focus-visible:ring-offset-canvas rounded-button" />
               .
             </p>
           </div>

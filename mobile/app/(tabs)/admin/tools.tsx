@@ -127,7 +127,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   cardIconWrap: {
     width: 44,
@@ -135,7 +135,7 @@ function make_styles() {
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     borderWidth: 1,
     borderColor: themeColor().pitch,
   },

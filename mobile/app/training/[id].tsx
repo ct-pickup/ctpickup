@@ -333,7 +333,7 @@ export default function TrainingDetailScreen() {
 
         {isEnded && (
           <View style={s.endedBanner}>
-            <FontAwesome name="info-circle" size={14} color={themeColor().coral} />
+            <FontAwesome name="info-circle" size={14} color={themeColor().coralText} />
             <Text style={s.endedBannerText}>This training session has ended</Text>
           </View>
         )}
@@ -393,7 +393,7 @@ export default function TrainingDetailScreen() {
           </View>
           <View style={s.detailRow}>
             <FontAwesome name="users" size={14} color={themeColor().muted} />
-            <Text style={[s.detailText, isFull && accepted.length > 0 && { color: themeColor().coral }]}>
+            <Text style={[s.detailText, isFull && accepted.length > 0 && { color: themeColor().coralText }]}>
               {spotsLabel}
             </Text>
           </View>
@@ -483,7 +483,7 @@ export default function TrainingDetailScreen() {
                         disabled={busy}
                         style={[s.declineBtn, busy && { opacity: 0.5 }]}
                       >
-                        <FontAwesome name="times" size={14} color={themeColor().coral} />
+                        <FontAwesome name="times" size={14} color={themeColor().coralText} />
                       </Pressable>
                       <Pressable
                         onPress={() => void respond(req.id, "accepted")}
@@ -535,19 +535,19 @@ function make_s() {
   errorText: { color: themeColor().muted, fontSize: 16, fontFamily: "Inter_400Regular" },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 8, marginBottom: 20 },
   headerTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", flex: 1, textAlign: "center", marginHorizontal: 12 },
-  endLink: { color: themeColor().coral, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  endLink: { color: themeColor().coralText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
   endedBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderWidth: 1,
     borderColor: themeColor().coral,
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
   },
-  endedBannerText: { color: themeColor().coral, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  endedBannerText: { color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   identityRow: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 16 },
   avatarRing: { width: 64, height: 64, borderRadius: 999, borderWidth: 2, padding: 3, alignItems: "center", justifyContent: "center" },
   avatarImg: { width: "100%", height: "100%", borderRadius: 999 },
@@ -564,11 +564,11 @@ function make_s() {
     borderRadius: 999,
     borderWidth: 1,
   },
-  tierBadgeText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
-  tierDiamond: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  tierBadgeText: { fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "800",},
+  tierDiamond: { fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "800" },
   positionText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   card: {
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -589,7 +589,7 @@ function make_s() {
   actionBtnDoneText: { color: themeColor().muted, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
   sectionLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "500", marginBottom: 12 },
   emptyBox: {
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -600,7 +600,7 @@ function make_s() {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,

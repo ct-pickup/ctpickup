@@ -124,15 +124,15 @@ export function SoccerBackgroundSection({
         <View style={{
           marginTop: 16,
           borderRadius: 12,
-          borderWidth: 2,
-          borderColor: themeColor().coral,
-          backgroundColor: themeColor().coral,
+          borderWidth: 1,
+          borderColor: themeColor().line,
+          backgroundColor: themeColor().card,
           padding: 16,
           gap: 8,
         }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <View style={{ width: 10, height: 10, borderRadius: 10, backgroundColor: themeColor().coral }} />
-            <Text style={{ color: themeColor().coral, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold",}}>
+            <View style={{ width: 10, height: 10, borderRadius: 10, backgroundColor: themeColor().muted }} />
+            <Text style={{ color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold",}}>
               NOT VERIFIED
             </Text>
           </View>
@@ -142,7 +142,7 @@ export function SoccerBackgroundSection({
           <Pressable
             onPress={onSubmitVerification}
             style={({ pressed }) => [{
-              backgroundColor: themeColor().coral,
+              backgroundColor: themeColor().pitch,
               borderRadius: 10,
               paddingVertical: 13,
               alignItems: "center",
@@ -150,7 +150,7 @@ export function SoccerBackgroundSection({
               opacity: pressed ? 0.85 : 1,
             }]}
           >
-            <Text style={{ color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold",}}>
+            <Text style={{ color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold",}}>
               Submit for Verification →
             </Text>
           </Pressable>

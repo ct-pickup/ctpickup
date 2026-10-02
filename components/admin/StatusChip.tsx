@@ -11,14 +11,14 @@ export type AdminStatusTone =
   | "neutral";
 
 const TONE_STYLES: Record<AdminStatusTone, string> = {
-  draft: "border-coral bg-overlay-subtle text-coral",
-  published: "border-pitch bg-pitch-soft text-pitch",
-  scheduled: "border-line bg-overlay text-muted",
-  synced: "border-pitch bg-pitch-soft text-pitch",
-  pending: "border-coral bg-overlay-subtle text-coral",
-  failed: "border-coral bg-overlay-subtle text-coral",
-  incomplete: "border-coral bg-overlay-subtle text-coral",
-  neutral: "border-line bg-overlay text-muted",
+  draft: "border-line bg-overlay-subtle text-muted",
+  published: "border-pitch bg-pitch-panel text-on-pitch-panel",
+  scheduled: "border-line bg-overlay-subtle text-muted",
+  synced: "border-pitch bg-pitch-panel text-on-pitch-panel",
+  pending: "border-line bg-overlay-subtle text-muted",
+  failed: "border-coral bg-overlay-subtle text-coral-text",
+  incomplete: "border-line bg-overlay-subtle text-muted",
+  neutral: "border-line bg-overlay-subtle text-muted",
 };
 
 export function StatusChip({
@@ -33,7 +33,7 @@ export function StatusChip({
   return (
     <span
       title={title}
-      className={`inline-flex items-center rounded-pill border px-2.5 py-0.5 text-caption font-semibold${TONE_STYLES[tone]}`}
+      className={`inline-flex items-center rounded-pill border px-2.5 py-0.5 text-micro font-semibold ${TONE_STYLES[tone]}`}
     >
       {children}
     </span>

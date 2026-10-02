@@ -118,8 +118,8 @@ export default function AdminVerificationScreen() {
                 <Text style={s.name}>{name}</Text>
                 <Text style={s.meta}>@{req.profiles?.username ?? "—"} · {new Date(req.created_at).toLocaleDateString()}</Text>
               </View>
-              <View style={[s.statusPill, { borderColor: themeColor().coral }]}>
-                <Text style={[s.statusText, { color: themeColor().coral }]}>Pending</Text>
+              <View style={[s.statusPill, { borderColor: themeColor().line }]}>
+                <Text style={[s.statusText, { color: themeColor().muted }]}>Pending</Text>
               </View>
             </View>
 
@@ -174,7 +174,7 @@ export default function AdminVerificationScreen() {
                     <Text style={s.meta}>{new Date(req.created_at).toLocaleDateString()}</Text>
                   </View>
                   <View style={[s.statusPill, { borderColor: approved ? themeColor().pitch : themeColor().coral }]}>
-                    <Text style={[s.statusText, { color: approved ? themeColor().pitch : themeColor().coral }]}>
+                    <Text style={[s.statusText, { color: approved ? themeColor().onPitchPanel : themeColor().coralText }]}>
                       {approved ? "Approved" : "Rejected"}
                     </Text>
                   </View>
@@ -194,23 +194,23 @@ function make_s() {
   root: { flex: 1, backgroundColor: themeColor().bg, padding: 16 },
   center: { flex: 1, backgroundColor: themeColor().bg, alignItems: "center", justifyContent: "center" },
   pageTitle: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginBottom: 20, marginTop: 8 },
-  emptyCard: { backgroundColor: themeColor().overlaySubtle, borderRadius: 12, padding: 20, alignItems: "center" },
+  emptyCard: { backgroundColor: themeColor().card, borderRadius: 12, padding: 20, alignItems: "center" },
   emptyText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
-  card: { backgroundColor: themeColor().overlaySubtle, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 14 },
+  card: { backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 14 },
   cardHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
-  avatar: { width: 40, height: 40, borderRadius: 999, backgroundColor: themeColor().pitchSoft, alignItems: "center", justifyContent: "center" },
-  avatarText: { color: themeColor().pitch, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
+  avatar: { width: 40, height: 40, borderRadius: 999, backgroundColor: themeColor().pitchPanel, alignItems: "center", justifyContent: "center" },
+  avatarText: { color: themeColor().onPitchPanel, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
   name: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
   meta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1 },
-  statusText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  statusText: { fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700" },
   claimLabel: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted, marginBottom: 6 },
   claimText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20, marginBottom: 12 },
-  urlRow: { backgroundColor: themeColor().pitchSoft, borderRadius: 10, borderWidth: 1, borderColor: themeColor().pitch, padding: 10, marginBottom: 14 },
+  urlRow: { backgroundColor: themeColor().pitchPanel, borderRadius: 10, borderWidth: 1, borderColor: themeColor().pitch, padding: 10, marginBottom: 14 },
   urlText: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular" },
   actions: { flexDirection: "row", gap: 10 },
   rejectBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: themeColor().coral, alignItems: "center" },
-  rejectBtnText: { color: themeColor().coral, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
+  rejectBtnText: { color: themeColor().coralText, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
   approveBtn: { flex: 2, paddingVertical: 12, borderRadius: 10, backgroundColor: themeColor().pitch, alignItems: "center" },
   approveBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
   sectionTitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 24, marginBottom: 12 },

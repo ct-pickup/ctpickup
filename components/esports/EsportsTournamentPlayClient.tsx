@@ -43,18 +43,18 @@ function badgeClasses(ui: ReturnType<typeof matchWorkflowUiLabel>): string {
   switch (ui) {
     case "finalized":
     case "confirmed":
-      return "border-pitch bg-pitch-soft text-pitch";
+      return "border-pitch bg-pitch-panel text-on-pitch-panel";
     case "awaiting_confirmation":
-      return "border-coral bg-overlay-subtle text-coral";
+      return "border-coral bg-overlay-subtle text-coral-text";
     case "disputed":
     case "under_review":
-      return "border-coral bg-overlay-subtle text-coral";
+      return "border-line bg-overlay-subtle text-muted";
     case "forfeit":
-      return "border-coral bg-overlay-subtle text-coral";
+      return "border-line bg-overlay-subtle text-muted";
     case "void":
-      return "border-line bg-overlay text-muted";
+      return "border-line bg-overlay-subtle text-muted";
     default:
-      return "border-line bg-overlay text-muted";
+      return "border-line bg-overlay-subtle text-muted";
   }
 }
 
@@ -219,7 +219,7 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
   return (
     <div className="space-y-6">
       {msg ? (
-        <div className="rounded-card border border-line bg-overlay-subtle px-4 py-3 text-small text-ink">{msg}</div>
+        <div className="rounded-card border border-line bg-card px-4 py-3 text-small text-ink">{msg}</div>
       ) : null}
 
       {sorted.map((e) => {
@@ -248,7 +248,7 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
         return (
           <div
             key={e.matchId}
-            className="rounded-card border border-line bg-overlay-subtle p-6"
+            className="rounded-card border border-line bg-card p-6"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -262,20 +262,20 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
                 <h2 className="mt-3 text-h3 font-serif font-semibold text-ink">vs {e.opponentLabel}</h2>
               </div>
               <span
-                className={`inline-flex items-center rounded-pill border px-3 py-1 text-caption font-semibold${badgeClasses(ui)}`}
+                className={`inline-flex items-center rounded-pill border px-3 py-1 text-micro font-semibold ${badgeClasses(ui)}`}
               >
                 {uiTitle(ui)}
               </span>
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-card border border-line bg-overlay-subtle p-4">
+              <div className="rounded-card border border-line bg-card p-4">
                 <div className="text-caption font-semibold text-muted">Play-by deadline</div>
                 <div className="mt-2 text-small text-ink">{e.scheduledDeadlineIso ?? "—"}</div>
               </div>
-              <div className="rounded-card border border-line bg-overlay-subtle p-4">
+              <div className="rounded-card border border-line bg-card p-4">
                 <div className="text-caption font-semibold text-muted">Countdown</div>
-                <div className={`mt-2 text-small ${isUnder24h ? "text-coral" : "text-ink"}`}>
+                <div className={`mt-2 text-small ${isUnder24h ? "text-coral-text" : "text-ink"}`}>
                   {msLeft == null ? "—" : fmtCountdown(msLeft)}
                 </div>
                 {isUnder24h ? <div className="mt-1 text-caption text-muted">Under 24 hours left.</div> : null}
@@ -329,8 +329,8 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
             ) : null}
 
             {showOpponentPanel ? (
-              <div className="mt-6 space-y-4 rounded-card border border-coral bg-overlay-subtle p-4">
-                <p className="text-small text-coral">
+              <div className="mt-6 space-y-4 rounded-card border border-line bg-card p-4">
+                <p className="text-small text-muted">
                   Your opponent reported a result. Please confirm if it matches your final score screen, or dispute if
                   it does not.
                 </p>
@@ -371,7 +371,7 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
                   Keep a screenshot of the final score screen. Upload it here, then submit the score you believe is
                   correct.
                   {requireMatchProof ? (
-                    <span className="block pt-1 text-coral">Screenshot upload is required before you can submit.</span>
+                    <span className="block pt-1 text-muted">Screenshot upload is required before you can submit.</span>
                   ) : null}
                 </p>
                 <label className="block text-caption text-muted">

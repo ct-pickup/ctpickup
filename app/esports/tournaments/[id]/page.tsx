@@ -168,7 +168,7 @@ export default async function EsportsTournamentDetailPage({ params }: Props) {
               </div>
             </>
           ) : (
-            <div className="mt-6 rounded-card border border-dashed border-line bg-overlay-subtle px-5 py-10 text-center">
+            <div className="mt-6 rounded-card border border-dashed border-line bg-card px-5 py-10 text-center">
               <p className="text-small text-muted">
                 Knockout bracket will be posted after the group stage closes.
               </p>

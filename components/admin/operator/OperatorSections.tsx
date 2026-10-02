@@ -25,7 +25,7 @@ export function OperatorLiveBar({
   previewHref: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-card border border-line bg-overlay-subtle px-4 py-3 text-small">
+    <div className="flex flex-wrap items-center gap-2 rounded-card border border-line bg-card px-4 py-3 text-small">
       <span className="text-muted">{label}</span>
       <StatusChip tone={chip.tone}>{chip.text}</StatusChip>
       <span className="text-ink min-w-0 truncate max-w-[min(100%,28rem)]">{title}</span>
@@ -88,7 +88,7 @@ export function OperatorLatestLine({
   empty: string;
 }) {
   return (
-    <section className="rounded-card border border-line bg-overlay-subtle px-4 py-3">
+    <section className="rounded-card border border-line bg-card px-4 py-3">
       <div className="text-caption font-semibold text-muted">{title}</div>
       {body ? (
         <>
@@ -110,10 +110,10 @@ export function OperatorWhereAppears({
   tablesMissing: boolean;
 }) {
   return (
-    <section className="rounded-card border border-line bg-overlay-subtle px-4 py-3">
+    <section className="rounded-card border border-line bg-card px-4 py-3">
       <div className="text-caption font-semibold text-muted">Where this appears</div>
       {tablesMissing ? (
-        <p className="mt-2 text-caption text-coral">
+        <p className="mt-2 text-caption text-muted">
           Publish delivery tracking isn’t set up yet — your developer needs to apply the latest staff database update.
         </p>
       ) : (
@@ -139,7 +139,7 @@ export function OperatorWhereAppears({
                       </StatusChip>
                     </div>
                     <p className="mt-1 text-caption text-muted">{r.note}</p>
-                    {r.lastError ? <p className="mt-1 text-caption text-coral">{r.lastError}</p> : null}
+                    {r.lastError ? <p className="mt-1 text-caption text-coral-text">{r.lastError}</p> : null}
                   </td>
                   <td className="py-2 pr-0 text-right">
                     {r.failedDeliveryId ? (
@@ -169,8 +169,8 @@ export function OperatorWhereAppears({
 export function OperatorNextSteps({ items }: { items: string[] }) {
   if (!items.length) return null;
   return (
-    <section className="rounded-card border border-coral bg-overlay-subtle px-4 py-3">
-      <div className="text-caption font-semibold text-coral">Next</div>
+    <section className="rounded-card border border-line bg-card px-4 py-3">
+      <div className="text-caption font-semibold text-ink">Next</div>
       <ul className="mt-2 list-disc space-y-1 pl-5 text-small text-muted">
         {items.map((t) => (
           <li key={t}>{t}</li>

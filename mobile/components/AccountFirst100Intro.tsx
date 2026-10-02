@@ -202,7 +202,7 @@ function make_styles() {
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
     minWidth: 272,
   },
   label: {
@@ -212,15 +212,15 @@ function make_styles() {
     marginBottom: 10,
   },
   fractionRow: { flexDirection: "row", alignItems: "baseline" },
-  numLeft: { fontSize: 40, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().pitchText, fontVariant: ["tabular-nums"] },
+  numLeft: { fontSize: 56, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().pitchText, fontVariant: ["tabular-nums"] },
   slash: {
-    fontSize: 40, fontFamily: "InstrumentSerif_400Regular",
+    fontSize: 56, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "300",
     color: themeColor().muted,
     marginHorizontal: 6,
     marginBottom: 4,
   },
-  numRight: { fontSize: 40, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text, fontVariant: ["tabular-nums"] },
+  numRight: { fontSize: 56, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text, fontVariant: ["tabular-nums"] },
   hint: { marginTop: 20, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
 });
 }

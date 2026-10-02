@@ -188,7 +188,7 @@ function make_styles() {
     borderWidth: 1,
     borderColor: themeColor().line,
   },
-  teamToggleActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  teamToggleActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
   teamToggleText: { color: themeColor().muted, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   teamToggleTextActive: { color: themeColor().pitchText },
   rebalanceBtn: {
@@ -218,7 +218,7 @@ function make_styles() {
     borderColor: themeColor().line,
     alignItems: "center",
   },
-  teamChipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  teamChipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
   teamChipText: { color: themeColor().muted, fontWeight: "800" },
   teamChipTextActive: { color: themeColor().pitchText },
   primaryBtn: {

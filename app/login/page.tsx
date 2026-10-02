@@ -216,7 +216,7 @@ function LoginForm() {
           />
         </div>
 
-        <div className="rounded-card border border-line bg-overlay-subtle p-6 space-y-4">
+        <div className="rounded-card border border-line bg-card p-6 space-y-4">
           <div className="space-y-2">
             {stage === "email" ? (
               <>
@@ -232,7 +232,7 @@ function LoginForm() {
                 <div className="text-caption text-muted">We’ll never share your email.</div>
               </>
             ) : (
-              <div className="flex items-center justify-between gap-3 rounded-card border border-line bg-overlay-subtle px-4 py-3 text-small">
+              <div className="flex items-center justify-between gap-3 rounded-card border border-line bg-card px-4 py-3 text-small">
                 <span className="min-w-0 truncate text-ink" title={emailClean}>
                   {emailClean}
                 </span>

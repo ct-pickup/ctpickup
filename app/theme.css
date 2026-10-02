@@ -8,7 +8,10 @@
   --pitch: #1F4D3A;
   --pitch-text: #1F4D3A;
   --pitch-soft: #E3ECE6;
+  --pitch-panel: #E3ECE6;
+  --on-pitch-panel: #1F4D3A;
   --coral: #FF6B4A;
+  --coral-text: #B33A1E;
   --on-pitch: #FFFFFF;
   --overlay-subtle: rgba(17,17,17,0.04);
   --overlay: rgba(17,17,17,0.08);
@@ -31,7 +34,10 @@
   --pitch: #1F4D3A;
   --pitch-text: #E3ECE6;
   --pitch-soft: #E3ECE6;
+  --pitch-panel: #1C2E25;
+  --on-pitch-panel: #A9CDB8;
   --coral: #FF6B4A;
+  --coral-text: #FF6B4A;
   --on-pitch: #FFFFFF;
   --overlay-subtle: rgba(255,255,255,0.04);
   --overlay: rgba(255,255,255,0.08);
@@ -54,7 +60,10 @@
   --color-pitch: var(--pitch);
   --color-pitch-text: var(--pitch-text);
   --color-pitch-soft: var(--pitch-soft);
+  --color-pitch-panel: var(--pitch-panel);
+  --color-on-pitch-panel: var(--on-pitch-panel);
   --color-coral: var(--coral);
+  --color-coral-text: var(--coral-text);
   --color-on-pitch: var(--on-pitch);
   --color-overlay-subtle: var(--overlay-subtle);
   --color-overlay: var(--overlay);
@@ -69,6 +78,8 @@
   --radius-card: 12px;
   --radius-button: 10px;
   --radius-pill: 999px;
+  --text-micro: 11px;
+  --text-micro--line-height: 1.3;
   --text-caption: 13px;
   --text-caption--line-height: 1.35;
   --text-small: 14px;
@@ -83,4 +94,6 @@
   --text-h1--line-height: 1.15;
   --text-display: 40px;
   --text-display--line-height: 1.1;
+  --text-display-xl: 56px;
+  --text-display-xl--line-height: 1.05;
 }

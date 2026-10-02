@@ -27,20 +27,20 @@ export function OperatorActionResult({
 }) {
   if (!ok && error) {
     return (
-      <div className="rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral space-y-2">
+      <div className="rounded-card border border-coral bg-card px-4 py-3 text-small text-coral-text space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <StatusChip tone="failed">Failed</StatusChip>
           {blocked ? <StatusChip tone="incomplete">Blocked</StatusChip> : null}
         </div>
         <p>{error}</p>
-        {hint ? <p className="text-caption text-coral">{hint}</p> : null}
+        {hint ? <p className="text-caption text-coral-text">{hint}</p> : null}
       </div>
     );
   }
 
   if (ok) {
     return (
-      <div className="rounded-card border border-pitch bg-pitch-soft px-4 py-3 text-small text-pitch space-y-3">
+      <div className="rounded-card border border-pitch bg-pitch-panel px-4 py-3 text-small text-on-pitch-panel space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <StatusChip tone="published">{skipped ? "No-op" : "Success"}</StatusChip>
         </div>

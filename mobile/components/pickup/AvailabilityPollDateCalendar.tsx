@@ -122,7 +122,7 @@ function make_styles() {
   },
   dayCellActive: {
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
   weekday: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", },
   weekdayActive: { color: themeColor().pitchText },

@@ -25,8 +25,8 @@ const UI: Record<
     label: "Confirmed",
     headline: "Tournament confirmed",
     blurb: "Date is locked. Details will be posted here first.",
-    card: "border border-pitch bg-pitch-soft",
-    pillActive: "border border-pitch bg-pitch-soft text-pitch",
+    card: "border border-pitch bg-pitch-panel",
+    pillActive: "border border-pitch bg-pitch-panel text-on-pitch-panel",
   },
   planning: {
     label: "Planning",
@@ -40,7 +40,7 @@ const UI: Record<
     headline: "No tournament announced",
     blurb: "No tournament is currently scheduled.",
     card: "border border-coral bg-overlay-subtle",
-    pillActive: "border border-coral bg-overlay-subtle text-coral",
+    pillActive: "border border-coral bg-overlay-subtle text-coral-text",
   },
 };
 
@@ -53,11 +53,11 @@ export default function StatusPage() {
       <div className="mx-auto max-w-5xl px-5 py-14 space-y-10">
 
         {/* Main Status Card */}
-        <section className={`rounded-card p-8${UI[tourneyStatus].card}`}>
+        <section className={`rounded-card p-8 ${UI[tourneyStatus].card}`}>
           <div className="flex items-center gap-3">
             {/* Bigger pill */}
             <div
-              className={`rounded-pill px-4 py-2 text-small font-semibold${UI[tourneyStatus].pillActive}`}
+              className={`rounded-pill px-4 py-2 text-small font-semibold ${UI[tourneyStatus].pillActive}`}
             >
               {UI[tourneyStatus].label}
             </div>
@@ -95,7 +95,7 @@ export default function StatusPage() {
         </section>
 
         {/* Updates box */}
-        <section className="rounded-card border border-line bg-overlay-subtle p-8 space-y-3">
+        <section className="rounded-card border border-line bg-card p-8 space-y-3">
           <div className="text-small font-semibold text-muted">
             Updates
           </div>

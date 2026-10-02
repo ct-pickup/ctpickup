@@ -460,12 +460,12 @@ export default function PickupOperatorClient() {
             <OperatorNextSteps items={nextItems} />
           </div>
         ) : selectedRunId && opCtxErr ? (
-          <p className="text-small text-coral">Couldn’t load where posts appear or delivery status.</p>
+          <p className="text-small text-coral-text">Couldn’t load where posts appear or delivery status.</p>
         ) : selectedRunId ? (
           <p className="text-small text-muted">Loading…</p>
         ) : null}
 
-        <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+        <section className="rounded-card border border-line bg-card p-5 space-y-4">
           <div className="text-caption font-semibold text-muted">New run</div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <label className="flex flex-col gap-1 text-small text-ink">
@@ -592,7 +592,7 @@ export default function PickupOperatorClient() {
           </button>
         </section>
 
-        <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+        <section className="rounded-card border border-line bg-card p-5 space-y-4">
           <div className="text-caption font-semibold text-muted">Pickup runs</div>
           <div className="flex flex-wrap gap-2">
             {(["planning", "active", "past"] as const).map((tab) => {
@@ -607,7 +607,7 @@ export default function PickupOperatorClient() {
                   className={[
                     "rounded-pill border px-4 py-2 text-caption font-semibold transition-colors",
                     active
-                      ? "bg-pitch-soft text-pitch"
+                      ? "bg-pitch-panel text-on-pitch-panel"
                       : "border-line bg-overlay-subtle text-muted hover:border-line",
                   ].join("  ")}
                   style={active ? { borderColor: LIME } : undefined}
@@ -652,7 +652,7 @@ export default function PickupOperatorClient() {
                     className={[
                       "cursor-pointer rounded-card border p-4 text-left transition-colors",
                       selected
-                        ? "border-pitch bg-pitch-soft"
+                        ? "border-pitch bg-pitch-panel"
                         : "border-line bg-overlay-subtle hover:border-line",
                     ].join("  ")}
                   >
@@ -661,21 +661,21 @@ export default function PickupOperatorClient() {
                         <div className="truncate text-small font-semibold text-ink">{String(r.title || "Pickup run")}</div>
                         <div className="mt-1 text-caption text-muted">{fmtEt(r.start_at as string | null)}</div>
                         <div className="mt-2 flex flex-wrap gap-2">
-                          <span className="rounded-pill border border-line bg-overlay-subtle px-2 py-0.5 text-caption font-bold text-ink">
+                          <span className="rounded-pill border border-line bg-overlay-subtle px-2 py-0.5 text-micro font-bold text-ink">
                             {isPublicPickupRunType(r.run_type) ? "Public" : "Select"}
                           </span>
-                          <span className="rounded-pill border border-line bg-overlay-subtle px-2 py-0.5 text-caption font-bold text-ink">
+                          <span className="rounded-pill border border-line bg-overlay-subtle px-2 py-0.5 text-micro font-bold text-ink">
                             {r.service_region ? String(r.service_region) : "—"}
                           </span>
                         </div>
                       </div>
                       {r.is_current ? (
-                        <span className="shrink-0 rounded-pill border border-pitch bg-pitch-soft px-2 py-0.5 text-caption font-bold text-pitch">
+                        <span className="shrink-0 rounded-pill border border-pitch bg-pitch-panel px-2 py-0.5 text-micro font-bold text-on-pitch-panel">
                           HUB
                         </span>
                       ) : null}
                     </div>
-                    <div className="mt-3 inline-flex rounded-pill border border-line bg-overlay-subtle px-3 py-1 text-caption font-semibold text-ink">
+                    <div className="mt-3 inline-flex rounded-pill border border-line bg-overlay-subtle px-3 py-1 text-micro font-semibold text-ink">
                       {pillLabel}
                     </div>
                     {(() => {
@@ -745,7 +745,7 @@ export default function PickupOperatorClient() {
                                 e.stopPropagation();
                                 void promoteHubRun(id);
                               }}
-                              className="rounded-pill border border-pitch bg-pitch-soft px-3 py-1.5 text-caption font-semibold text-pitch disabled:opacity-50"
+                              className="rounded-pill border border-pitch bg-pitch-panel px-3 py-1.5 text-caption font-semibold text-on-pitch-panel disabled:opacity-50"
                             >
                               Promote to hub
                             </button>
@@ -838,7 +838,7 @@ export default function PickupOperatorClient() {
                                 e.stopPropagation();
                                 void endRunNow(id);
                               }}
-                              className="rounded-pill border border-coral bg-overlay-subtle px-3 py-1.5 text-caption font-semibold text-coral disabled:opacity-50"
+                              className="rounded-pill border border-coral bg-overlay-subtle px-3 py-1.5 text-caption font-semibold text-coral-text disabled:opacity-50"
                             >
                               End Run
                             </button>

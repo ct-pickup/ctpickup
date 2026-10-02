@@ -22,9 +22,10 @@ type PendingPickup =
 type Data = any;
 
 function pill(status: string) {
-  if (status === "active") return "border-pitch bg-pitch-soft text-pitch";
+  if (status === "active") return "border-pitch bg-pitch-panel text-on-pitch-panel";
   if (status === "planning") return "border-line bg-overlay text-ink";
-  return "border-coral bg-overlay-subtle text-coral";
+  if (status === "cancelled" || status === "canceled") return "border-coral bg-overlay-subtle text-coral-text";
+  return "border-line bg-overlay-subtle text-muted";
 }
 
 function fmt(dt: string | null) {
@@ -265,8 +266,8 @@ export default function PickupPage() {
       <EsportsSetupNudgeBar />
 
       <div className="space-y-8 pb-6 pt-2 md:pt-4">
-        <section className="rounded-card border border-line bg-overlay-subtle p-7 space-y-5">
-          <div className={`inline-flex rounded-pill px-4 py-2 text-small font-semibold border${pill(data?.status || "inactive")}`}>
+        <section className="rounded-card border border-line bg-card p-7 space-y-5">
+          <div className={`inline-flex rounded-pill px-4 py-2 text-small font-semibold border ${pill(data?.status || "inactive")}`}>
             {runTypeLabel ? `${runTypeLabel} · ${statusLabel}` : statusLabel}
           </div>
 
@@ -291,7 +292,7 @@ export default function PickupPage() {
           ) : (
             <>
               {(data.globalUpdate || data.runUpdate) ? (
-                <div className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+                <div className="rounded-card border border-line bg-card p-5 space-y-4">
                   {data.globalUpdate ? (
                     <div className="space-y-1">
                       <div className="text-caption text-muted">Global update</div>
@@ -409,21 +410,21 @@ export default function PickupPage() {
               {data.run.status === "active" && data.run.final_slot_id ? (
                 <div className="space-y-4 pt-3">
                   {Number(data.run.fee_cents) > 0 ? (
-                    <div className="rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small leading-relaxed text-coral">
-                      <span className="font-semibold text-coral">Pickup fees &amp; refunds:</span>{"  "}
+                    <div className="rounded-card border border-line bg-card px-4 py-3 text-small leading-relaxed text-ink">
+                      <span className="font-semibold text-ink">Pickup fees &amp; refunds:</span>{"  "}
                       {PICKUP_REFUND_UI_NOTICE}
                     </div>
                   ) : null}
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-card border border-line bg-overlay-subtle p-5">
+                    <div className="rounded-card border border-line bg-card p-5">
                       <div className="text-caption text-muted">Confirmed</div>
                       <div className="mt-2 text-h2 font-serif font-semibold text-ink">{data.final?.counts?.confirmed ?? 0}</div>
                     </div>
-                    <div className="rounded-card border border-line bg-overlay-subtle p-5">
+                    <div className="rounded-card border border-line bg-card p-5">
                       <div className="text-caption text-muted">Waitlist</div>
                       <div className="mt-2 text-h2 font-serif font-semibold text-ink">{data.final?.counts?.standby ?? 0}</div>
                     </div>
-                    <div className="rounded-card border border-line bg-overlay-subtle p-5">
+                    <div className="rounded-card border border-line bg-card p-5">
                       <div className="text-caption text-muted">Pending payment</div>
                       <div className="mt-2 text-h2 font-serif font-semibold text-ink">{data.final?.counts?.pending_payment ?? 0}</div>
                     </div>
@@ -437,7 +438,7 @@ export default function PickupPage() {
                     <div className="flex flex-wrap gap-3">
                       {data.final?.my_status === "confirmed" ? (
                         <>
-                          <div className="inline-flex items-center rounded-pill border border-pitch bg-pitch-soft px-4 py-2 text-small font-semibold text-pitch">
+                          <div className="inline-flex items-center rounded-pill border border-pitch bg-pitch-panel px-4 py-2 text-small font-semibold text-on-pitch-panel">
                             Confirmed
                           </div>
                           <button
@@ -502,7 +503,7 @@ export default function PickupPage() {
                   </div>
 
                   {data.visibility?.attendanceVisible ? (
-                    <div className="rounded-card border border-line bg-overlay-subtle p-5 space-y-2">
+                    <div className="rounded-card border border-line bg-card p-5 space-y-2">
                       <div className="text-small font-semibold text-ink">
                         Attendance (visible to invited tiers)
                       </div>
@@ -522,7 +523,7 @@ export default function PickupPage() {
                   ) : null}
 
                   {data.location ? (
-                    <div className="rounded-card border border-line bg-overlay-subtle p-5 space-y-2">
+                    <div className="rounded-card border border-line bg-card p-5 space-y-2">
                       <div className="text-small font-semibold text-ink">Location</div>
                       <div className="text-small text-muted whitespace-pre-line">{data.location}</div>
                     </div>
@@ -530,7 +531,7 @@ export default function PickupPage() {
                 </div>
               ) : null}
 
-              {msg ? <div className="text-small text-coral pt-2">{msg}</div> : null}
+              {msg ? <div className="text-small text-coral-text pt-2">{msg}</div> : null}
             </>
           )}
         </section>

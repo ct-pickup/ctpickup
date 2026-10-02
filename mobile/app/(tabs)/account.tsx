@@ -1878,14 +1878,14 @@ export default function AccountScreen() {
               }}
               style={s.actionBanner}
             >
-              <View style={{ width: 10, height: 10, borderRadius: 10, backgroundColor: themeColor().coral }} />
+              <View style={{ width: 10, height: 10, borderRadius: 10, backgroundColor: themeColor().muted }} />
               <View style={{ flex: 1 }}>
-                <Text style={{ color: themeColor().coral, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" }}>Action required</Text>
+                <Text style={{ color: themeColor().text, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" }}>Action required</Text>
                 <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 }}>
                   Your profile is not verified. Scroll down to submit.
                 </Text>
               </View>
-              <Text style={{ color: themeColor().coral, fontSize: 16, fontFamily: "Inter_400Regular" }}>↓</Text>
+              <Text style={{ color: themeColor().muted, fontSize: 16, fontFamily: "Inter_400Regular" }}>↓</Text>
             </Pressable>
           )}
 
@@ -1927,7 +1927,7 @@ export default function AccountScreen() {
                       <Text style={[s.tierBadgeText, { color: tColor }]}>{tierLabel(currentTier)}</Text>
                     </View>
                     <Text
-                      style={[s.ptsPerSession, { color: ptsPerSession >= 0 ? themeColor().pitch : themeColor().coral }]}
+                      style={[s.ptsPerSession, { color: ptsPerSession >= 0 ? themeColor().pitchText : themeColor().coralText }]}
                       numberOfLines={1}
                     >
                       {ptsPerSessionLabel}
@@ -2029,7 +2029,7 @@ export default function AccountScreen() {
                 style={s.verifyPrompt}
               >
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <View style={{ width: 9, height: 9, borderRadius: 10, backgroundColor: themeColor().coral }} />
+                  <View style={{ width: 9, height: 9, borderRadius: 10, backgroundColor: themeColor().muted }} />
                   <Text style={s.verifyPromptTitle}>NOT VERIFIED</Text>
                 </View>
                 <Text style={s.verifyPromptSub}>
@@ -2066,10 +2066,8 @@ export default function AccountScreen() {
                     : "—";
                   const badgeColor =
                     row.result === "Won"
-                      ? themeColor().pitch
-                      : row.result === "Lost"
-                        ? themeColor().coral
-                        : themeColor().overlayStrong;
+                      ? themeColor().pitchText
+                      : themeColor().muted;
                   return (
                     <Pressable
                       key={row.run_id}
@@ -2225,7 +2223,7 @@ export default function AccountScreen() {
             ) : waiverAccepted ? (
               <Text style={[s.listRowValue, { color: themeColor().pitchText }]}>Accepted</Text>
             ) : (
-              <Text style={[s.listRowValue, { color: themeColor().coral }]}>Required</Text>
+              <Text style={[s.listRowValue, { color: themeColor().muted }]}>Required</Text>
             )}
             <FontAwesome name="chevron-right" size={13} color={themeColor().muted} />
           </Pressable>
@@ -2247,7 +2245,7 @@ export default function AccountScreen() {
           <View style={s.listRow}>
             <FontAwesome name="ticket" size={17} color={themeColor().pitchText} style={s.listRowIcon} />
             <Text style={s.listRowLabel}>Your credits</Text>
-            <Text style={[s.listRowValue, { color: (creditsCount ?? 0) > 0 ? themeColor().pitch : themeColor().text }]}>
+            <Text style={[s.listRowValue, { color: (creditsCount ?? 0) > 0 ? themeColor().onPitchPanel : themeColor().text }]}>
               {creditsCount ?? 0}
             </Text>
             <View style={{ width: 13 }} />
@@ -2403,7 +2401,7 @@ export default function AccountScreen() {
           Permanently remove your account and associated data from CT Pickup.
         </Text>
         <Pressable
-          style={[styles.deleteAccountBtn, { backgroundColor: themeColor().coral }, deleteAccountBusy && styles.disabled]}
+          style={[styles.deleteAccountBtn, deleteAccountBusy && styles.disabled]}
           disabled={deleteAccountBusy || !accessToken}
           onPress={startDeleteAccountFlow}
         >
@@ -2444,9 +2442,9 @@ function make_s() {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: themeColor().overlaySubtle,
-    borderWidth: 1.5,
-    borderColor: themeColor().coral,
+    backgroundColor: themeColor().card,
+    borderWidth: 1,
+    borderColor: themeColor().line,
     borderRadius: 12,
     padding: 14,
     marginBottom: 4,
@@ -2456,7 +2454,7 @@ function make_s() {
   /* hero */
   heroCard: {
     marginTop: 12,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().overlay,
@@ -2467,7 +2465,7 @@ function make_s() {
   avatarRing: { width: 84, height: 84, borderRadius: 999, borderWidth: 2.5, padding: 3 },
   avatarImg: { width: "100%", height: "100%", borderRadius: 999 },
   avatarFallback: { backgroundColor: themeColor().overlaySubtle, alignItems: "center", justifyContent: "center" },
-  avatarFallbackText: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  avatarFallbackText: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
   cameraBadge: {
     position: "absolute",
     bottom: 0,
@@ -2493,7 +2491,7 @@ function make_s() {
     borderRadius: 999,
     borderWidth: 1,
   },
-  tierBadgeDiamond: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  tierBadgeDiamond: { fontSize: 11, fontFamily: "Inter_400Regular" },
   tierBadgeText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
   ptsPerSession: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", flexShrink: 1 },
 
@@ -2536,7 +2534,7 @@ function make_s() {
   /* generic block card */
   blockCard: {
     marginTop: 16,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().overlay,
@@ -2561,13 +2559,13 @@ function make_s() {
   verifyPrompt: {
     marginTop: 14,
     borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: themeColor().coral,
-    backgroundColor: themeColor().overlaySubtle,
+    borderWidth: 1,
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().card,
     padding: 12,
     gap: 6,
   },
-  verifyPromptTitle: { color: themeColor().coral, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold",},
+  verifyPromptTitle: { color: themeColor().text, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold",},
   verifyPromptSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 17 },
 
   sessionHistoryRow: {
@@ -2585,7 +2583,7 @@ function make_s() {
   sessionHistoryResult: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
   mySessionsCard: {
     marginTop: 16,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,

@@ -253,7 +253,7 @@ export default function HelpPage() {
           </div>
         </div>
 
-        <p className="rounded-card border border-line bg-overlay-subtle px-4 py-3 text-small leading-relaxed text-ink md:px-5">
+        <p className="rounded-card border border-line bg-card px-4 py-3 text-small leading-relaxed text-ink md:px-5">
           Need help from a person? Email{"  "}
           <SupportEmailLink className="font-medium text-muted underline underline-offset-2 hover:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-line focus-visible:ring-offset-2 focus-visible:ring-offset-canvas rounded-button" />
           .
@@ -304,7 +304,7 @@ export default function HelpPage() {
             })}
 
             {busy ? (
-              <div className="max-w-[90%] rounded-card px-4 py-3 text-small bg-overlay-subtle text-ink border border-line">
+              <div className="max-w-[90%] rounded-card px-4 py-3 text-small bg-card text-ink border border-line">
                 Thinking...
               </div>
             ) : null}

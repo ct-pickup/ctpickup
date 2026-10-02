@@ -111,7 +111,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    backgroundColor: themeColor().overlaySubtle,
+    backgroundColor: themeColor().card,
   },
   stepHeader: {
     flexDirection: "row",
@@ -138,7 +138,7 @@ function make_styles() {
   importantCard: {
     marginTop: 22,
     borderColor: themeColor().pitch,
-    backgroundColor: themeColor().pitchSoft,
+    backgroundColor: themeColor().pitchPanel,
   },
   importantLabel: {
     fontSize: 13, fontFamily: "Inter_700Bold",
