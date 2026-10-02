@@ -13,9 +13,9 @@ import { siteOrigin } from "@/lib/env";
 import {
   fmtPickupRunDateDisplay,
   fmtPickupTimeEt,
-  isPickupRunDateOnlyStartAt,
   isPickupRunTimeTbd,
-} from "@/lib/pickupPublic";
+  runTimeTbd,
+} from "@/lib/pickup/runStartAtDisplay";
 import { evaluateInlinePlanningPollGate } from "@/lib/pickup/inlinePlanningPollGate";
 import { logPickupDiagnostic, logPickupPollMismatch } from "@/lib/pickup/pickupDiagnostics";
 import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickupRunType";
@@ -140,6 +140,7 @@ type RegionRunListItem = {
   title: string | null;
   status: string;
   start_at: string | null;
+  time_tbd: boolean;
   run_type: string | null;
   capacity: number;
   fee_cents: number;
@@ -281,9 +282,9 @@ function RunSummaryCard({
         ) : (
           <>
             <Text style={styles.dateEt}>{fmtPickupRunDateDisplay(startAt)}</Text>
-            {isPickupRunDateOnlyStartAt(startAt) ? null : (
-              <Text style={styles.timeEt}>{fmtPickupTimeEt(startAt)} ET</Text>
-            )}
+            <Text style={styles.timeEt}>
+              {runTimeTbd(row) ? fmtPickupTimeEt(startAt, true) : `${fmtPickupTimeEt(startAt)} ET`}
+            </Text>
           </>
         )}
       </View>
@@ -693,6 +694,7 @@ export default function RunsScreen() {
                 title: typeof o.title === "string" ? o.title : null,
                 status: typeof o.status === "string" ? o.status : "planning",
                 start_at: typeof o.start_at === "string" ? o.start_at : null,
+                time_tbd: o.time_tbd === true,
                 run_type: typeof o.run_type === "string" ? o.run_type : null,
                 capacity: Number(o.capacity ?? 0) || 0,
                 fee_cents: Number(o.fee_cents ?? 0) || 0,
@@ -884,6 +886,7 @@ export default function RunsScreen() {
       typeof run.cancellation_deadline === "string" ? run.cancellation_deadline : null;
     return pickupPlayerRefundEligibleClient({
       start_at: startAt,
+      time_tbd: runTimeTbd(run),
       cancellation_deadline: cancellationDeadline,
     });
   }, [run]);
@@ -1008,7 +1011,7 @@ export default function RunsScreen() {
     void declinePickup(
       token,
       runId,
-      { start_at: startAt, cancellation_deadline: cancellationDeadline },
+      { start_at: startAt, time_tbd: runTimeTbd(run), cancellation_deadline: cancellationDeadline },
       async () => {
         await load();
         void loadRegionRuns();

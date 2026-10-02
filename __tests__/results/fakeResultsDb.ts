@@ -102,8 +102,24 @@ class FakeQuery implements PromiseLike<Result> {
     this.filters.push((r) => (r[col] ?? null) !== val);
     return this;
   }
+  neq(col: string, val: unknown) {
+    this.filters.push((r) => r[col] !== val);
+    return this;
+  }
   gte(col: string, val: number | string) {
     this.filters.push((r) => (r[col] as number) >= (val as number));
+    return this;
+  }
+  gt(col: string, val: number | string) {
+    this.filters.push((r) => (r[col] as number) > (val as number));
+    return this;
+  }
+  lte(col: string, val: number | string) {
+    this.filters.push((r) => (r[col] as number) <= (val as number));
+    return this;
+  }
+  lt(col: string, val: number | string) {
+    this.filters.push((r) => (r[col] as number) < (val as number));
     return this;
   }
   order(col: string, opts?: { ascending?: boolean }) {

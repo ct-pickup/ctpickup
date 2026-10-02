@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { ensureTierSessionForRun } from "@/lib/pickup/ensureTierSessionForRun";
+import { realKickoffMs } from "@/lib/pickup/runScheduling";
+import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -68,8 +70,8 @@ export async function POST(req: Request) {
   }
 
   // Voting opens once the session has started (or after host marks completed).
-  const startMs = run.start_at ? new Date(run.start_at).getTime() : NaN;
-  const started = Number.isFinite(startMs) && startMs < Date.now();
+  const startMs = realKickoffMs({ start_at: run.start_at, time_tbd: (await fetchRunTimeTbdIds(admin, [run_id])).has(run_id) });
+  const started = startMs !== null && startMs < Date.now();
   const completed = run.status === "completed";
   if (!started && !completed) {
     return NextResponse.json({ error: "Voting opens after kickoff." }, { status: 403 });

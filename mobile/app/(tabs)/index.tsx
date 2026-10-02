@@ -34,7 +34,8 @@ import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { toggleDevPreview, useDevPreview } from "@/lib/devPreview";
 import { fetchBestGames, type BestGame, type PlayedWithSummary } from "@/lib/matchApi";
 import { effectiveMaxDriveMinutes } from "@/lib/pickup/profileMaxDriveFilter";
-import { currentHourEt, fmtPickupSlotChipEt } from "@/lib/pickup/runStartAtDisplay";
+import { currentHourEt, fmtPickupSlotChipEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
+import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 import { isServiceRegionCode, serviceRegionName } from "@/lib/serviceRegions";
 import { averageStars, fetchPlayerCards, type PlayerCard } from "@/lib/starRatings";
 import { StarRating } from "@/components/StarRating";
@@ -89,6 +90,7 @@ type HomeRun = {
   format: string | null;
   run_type: string | null;
   status: string | null;
+  time_tbd?: boolean;
 };
 
 type RateBanner = { run_id: string; title: string | null };
@@ -289,9 +291,12 @@ function useHomeData() {
       next = ((nextRes.data ?? []) as HomeRun[])[0] ?? null;
       recentRuns = (recentRes.data ?? []) as typeof recentRuns;
     }
-    setNextMatch(next);
+    const mapRows = (mapRes.data ?? []) as HomeRun[];
+    const tbd = await fetchRunTimeTbdIds(supabase, [...(next ? [next.id] : []), ...mapRows.map((r) => r.id)]);
+    const withTbd = (r: HomeRun): HomeRun => ({ ...r, time_tbd: tbd.has(r.id) });
+    setNextMatch(next ? withTbd(next) : null);
 
-    const runs = (mapRes.data ?? []) as HomeRun[];
+    const runs = mapRows.map(withTbd);
     const radiusMiles = driveRadiusMiles(effectiveMaxDriveMinutes(profile?.max_drive_minutes ?? null));
     const inRange = (r: HomeRun) => {
       const mi = milesFromZip(zip, r.latitude, r.longitude);
@@ -329,6 +334,8 @@ function useHomeData() {
       fallback = ((regionData ?? []) as HomeRun[])
         .filter((r) => isOpen(r) && !mine.has(r.id))
         .slice(0, REGION_FALLBACK_LIMIT);
+      const fallbackTbd = await fetchRunTimeTbdIds(supabase, fallback.map((r) => r.id));
+      fallback = fallback.map((r) => ({ ...r, time_tbd: fallbackTbd.has(r.id) }));
     }
     setRegionRuns(fallback);
     setRegionName(fallbackRegion ? serviceRegionName(fallbackRegion) : null);
@@ -459,7 +466,7 @@ function MapDot({ run }: { run: HomeRun }) {
   const left = run.capacity - run.spots_taken;
   const color = pinColor(left);
   const area = (run.location_text ?? "").split(",")[0]?.trim() || "";
-  const live = isSessionLive(run.start_at);
+  const live = !runTimeTbd(run) && isSessionLive(run.start_at);
   return (
     <Marker
       coordinate={{ latitude: run.latitude!, longitude: run.longitude! }}
@@ -509,7 +516,7 @@ function UpNextCard({
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       accessibilityRole="button"
-      accessibilityLabel={`Up next, ${field}, ${fmtPickupSlotChipEt(run.start_at)}`}
+      accessibilityLabel={`Up next, ${field}, ${fmtPickupSlotChipEt(run.start_at, runTimeTbd(run))}`}
     >
       {photo ? (
         <View>
@@ -520,7 +527,7 @@ function UpNextCard({
       <View style={styles.cardBody}>
         <View style={styles.cardTopRow}>
           <Text style={styles.when} numberOfLines={1}>
-            {fmtPickupSlotChipEt(run.start_at)}
+            {fmtPickupSlotChipEt(run.start_at, runTimeTbd(run))}
           </Text>
           {photo ? null : <SpotsBadge spotsLeft={left} />}
         </View>

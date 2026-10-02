@@ -2,6 +2,7 @@ import { siteOrigin } from "@/lib/env";
 import type { AdminApiResult } from "@/lib/adminApi";
 
 import { themeColor } from "@/theme";
+import { fmtPickupSlotChipEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
 export const ADMIN_DB_TABLE_KEYS = [
   "runs",
   "invites",
@@ -210,7 +211,7 @@ function fmtDt(iso: unknown): string {
   if (!t) return "";
   const d = new Date(t);
   if (Number.isNaN(d.getTime())) return t;
-  return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return d.toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 function formatProfilePlayerName(first: unknown, last: unknown): string {
@@ -243,7 +244,9 @@ export function formatAdminDbRecordSummary(
     case "runs":
       return {
         title: str(row.title) || "Pickup run",
-        subtitle: [str(row.run_type), str(row.service_region), fmtDt(row.start_at)].filter(Boolean).join(" · "),
+        subtitle: [str(row.run_type), str(row.service_region), runTimeTbd(row) ? fmtPickupSlotChipEt(str(row.start_at), true) : fmtDt(row.start_at)]
+          .filter(Boolean)
+          .join(" · "),
         status: recordStatusField(table, row),
       };
     case "invites":

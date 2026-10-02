@@ -8,6 +8,7 @@ import {
 } from "@/lib/pickup/pickupPushNotifications";
 import { isSelectPickupRunType } from "@/lib/pickup/pickupRunType";
 import { anchorStartAtMs } from "@/lib/pickup/runScheduling";
+import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 import { updatePickupRunWaveSchedule } from "@/lib/pickup/pickupRunWavePostgrest";
 import { countAcceptedPickupRsvps } from "@/lib/pickup/waitlist";
 
@@ -231,6 +232,13 @@ export function initialInterWaveCheckpointIso(
 
 function isoAfterMs(fromMs: number, hours: number): string {
   return new Date(fromMs + hours * MS_PER_HOUR).toISOString();
+}
+
+/** Wave 4 waits for kickoff; a run with time TBD is checked again this often until a real time is set. */
+export const TBD_WAVE_4_RECHECK_HOURS = 1;
+
+function tbdWave4RecheckIso(nowMs: number): string {
+  return new Date(nowMs + TBD_WAVE_4_RECHECK_HOURS * MS_PER_HOUR).toISOString();
 }
 
 /** When wave 3 should complete and wave 4 (last 2h) becomes due. */
@@ -512,7 +520,7 @@ export async function startSelectWaveOutreachOnHubPromote(
   const slotsRes = await admin.from("pickup_run_time_slots").select("start_at").eq("run_id", run_id);
   const slotRows = (slotsRes.data || []) as { start_at: string }[];
   const anchorMs = anchorStartAtMs(
-    { start_at: (run.start_at as string | null) ?? null },
+    { start_at: (run.start_at as string | null) ?? null, time_tbd: (await fetchRunTimeTbdIds(admin, [run_id])).has(run_id) },
     slotRows,
   );
   const hoursUntil =
@@ -619,12 +627,16 @@ export async function processDueWaveForRun(
 
   const slotsRes = await admin.from("pickup_run_time_slots").select("start_at").eq("run_id", run_id);
   const slotRows = (slotsRes.data || []) as { start_at: string }[];
-  const anchorMs = anchorStartAtMs(
-    { start_at: (row.start_at as string | null) ?? null },
-    slotRows,
-  );
+  const timeTbd = (await fetchRunTimeTbdIds(admin, [run_id])).has(run_id);
+  const anchorMs = anchorStartAtMs({ start_at: (row.start_at as string | null) ?? null, time_tbd: timeTbd }, slotRows);
 
   if (!force && nextWave === 4) {
+    if (anchorMs === null && timeTbd) {
+      const isoNow = new Date().toISOString();
+      const recheckAt = tbdWave4RecheckIso(nowMs);
+      await admin.from("pickup_runs").update({ next_wave_at: recheckAt, updated_at: isoNow }).eq("id", run_id);
+      return { run_id, action: "deferred_wave4_time_tbd", detail: recheckAt };
+    }
     if (anchorMs === null) {
       const isoNow = new Date().toISOString();
       await admin.from("pickup_runs").update({ next_wave_at: null, updated_at: isoNow }).eq("id", run_id);
@@ -691,6 +703,8 @@ export async function processDueWaveForRun(
   let next_wave_at = fired.next_wave_at;
   if (nextWave === 3 && anchorMs !== null) {
     next_wave_at = wave4DueAtIso(anchorMs);
+  } else if (nextWave === 3 && timeTbd) {
+    next_wave_at = tbdWave4RecheckIso(nowMs);
   }
 
   const up = await updatePickupRunWaveSchedule(admin, {

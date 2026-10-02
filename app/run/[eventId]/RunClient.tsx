@@ -26,7 +26,7 @@ type Counts = {
 };
 
 function fmt(iso: string) {
-  return new Date(iso).toLocaleString();
+  return `${new Date(iso).toLocaleString("en-US", { timeZone: "America/New_York" })} ET`;
 }
 
 export default function RunClient({ event, counts: initialCounts }: { event: EventRow; counts: Counts }) {

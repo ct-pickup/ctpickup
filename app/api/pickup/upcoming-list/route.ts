@@ -6,6 +6,7 @@ import {
 } from "@/lib/pickup/publicUpcomingRuns";
 import { jsonConfigErrorResponse, jsonUnexpectedErrorResponse } from "@/lib/server/publicApiRouteErrors";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -77,6 +78,8 @@ export async function GET() {
       console.error(`[api/${ROUTE}] pickup_run_rsvps:`, rsvpRes.error.message, rsvpRes.error);
     }
 
+    const timeTbdIds = await fetchRunTimeTbdIds(admin, ids);
+
     const confirmedUsersByRun = new Map<string, Set<string>>();
     for (const row of rsvpRes.data || []) {
       if (row.status !== "confirmed") continue;
@@ -95,6 +98,7 @@ export async function GET() {
         title: r.title,
         status: r.status,
         start_at: r.start_at,
+        time_tbd: timeTbdIds.has(String(r.id)),
         capacity: cap,
         run_type: r.run_type,
         level_label: levelLabel(r.run_type),

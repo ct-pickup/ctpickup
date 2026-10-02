@@ -36,7 +36,6 @@ export function pointsForGame(outcome: GameOutcome | null, potd: boolean): numbe
 }
 
 export const SEASON_TIME_ZONE = "America/New_York";
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Quarterly seasons from the calendar month: Fall Sep–Nov, Winter Dec–Feb, Spring Mar–May, Summer Jun–Aug.
@@ -59,18 +58,13 @@ function easternYearMonth(ms: number): { year: number; month: number } {
 }
 
 /**
- * The season of a game from its kickoff (`start_at`), in Eastern time.
- * A start_at of exactly midnight UTC is a date-only anchor (the Eastern calendar day stored as UTC midnight,
- * see lib/datetime/easternWallTime.ts), so its UTC date is used. Null for a missing or invalid time.
+ * The season of a game from its kickoff (`start_at`), in Eastern time. Time-TBD runs store noon Eastern on the
+ * chosen day, so the Eastern date is always right. Null for a missing or invalid time.
  */
 export function seasonForStartAt(startAt: string | number | Date | null | undefined): string | null {
   if (startAt == null || startAt === "") return null;
   const ms = startAt instanceof Date ? startAt.getTime() : typeof startAt === "number" ? startAt : Date.parse(startAt);
   if (!Number.isFinite(ms)) return null;
-  if (ms % DAY_MS === 0) {
-    const d = new Date(ms);
-    return seasonLabelFor(d.getUTCFullYear(), d.getUTCMonth() + 1);
-  }
   const { year, month } = easternYearMonth(ms);
   return seasonLabelFor(year, month);
 }

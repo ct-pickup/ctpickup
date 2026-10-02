@@ -76,6 +76,7 @@ export type MatchRun = {
   venue_zip_code?: string | null;
   service_region?: string | null;
   min_star?: number | string | null;
+  time_tbd?: boolean | null;
 };
 
 const RUN_BASE = [
@@ -96,7 +97,7 @@ const RUN_BASE = [
   "venue_zip_code",
   "service_region",
 ];
-const RUN_OPTIONAL = ["min_star"];
+const RUN_OPTIONAL = ["min_star", "time_tbd"];
 
 function minStarOf(run: MatchRun): number | null {
   const n = run.min_star == null ? NaN : Number(run.min_star);
@@ -109,6 +110,7 @@ export function runCard(run: MatchRun) {
     id: run.id,
     title: run.title,
     start_at: run.start_at,
+    time_tbd: run.time_tbd === true,
     location_text: run.location_text,
     latitude: run.latitude,
     longitude: run.longitude,

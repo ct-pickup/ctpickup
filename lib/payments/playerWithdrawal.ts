@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { pickupRefundCutoffMs } from "@/lib/pickup/runScheduling";
+import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 import {
   findPickupPayer,
   findPickupPaymentIntentId,
@@ -23,6 +24,7 @@ export type WithdrawalRun = {
   title: string | null;
   fee_cents: number | null;
   start_at: string | null;
+  time_tbd?: boolean | null;
   cancellation_deadline?: string | null;
 };
 
@@ -93,7 +95,8 @@ export async function planPlayerWithdrawal(
   rsvp: WithdrawalRsvp,
   opts: { preview: boolean },
 ): Promise<{ ok: true; plan: WithdrawalPlan } | WithdrawalFailure> {
-  const { admin, getStripe, run, userId, sentryCtx } = ctx;
+  const { admin, getStripe, userId, sentryCtx } = ctx;
+  const run = ctx.run.time_tbd == null ? { ...ctx.run, time_tbd: (await fetchRunTimeTbdIds(admin, [ctx.run.id])).has(ctx.run.id) } : ctx.run;
   const now = Date.now();
   const cancelledAt = ctx.cancelledAtMs ?? now;
   const earlyEnough = refundWindowOpen({ kickoffAt: run.start_at, refundCutoffAt: pickupRefundCutoffMs(run), now: cancelledAt });

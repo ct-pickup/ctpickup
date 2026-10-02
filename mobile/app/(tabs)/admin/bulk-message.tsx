@@ -20,6 +20,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { themeColor, useThemedStyles } from "@/theme";
+import { fmtPickupSlotChipEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
 const REGIONS = ["CT", "NY", "NJ", "MD"] as const;
 
 /** API filter_value; matches server tier_rank mapping (last chip = open/public rank 6). */
@@ -42,20 +43,7 @@ function fmtRunLine(row: Record<string, unknown>): string {
   const title = s(row.title).trim() || "Run";
   const region = s(row.service_region).trim();
   const start = s(row.start_at).trim();
-  let when = "";
-  if (start) {
-    try {
-      when = new Date(start).toLocaleString("en-US", {
-        timeZone: "America/New_York",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      });
-    } catch {
-      when = "";
-    }
-  }
+  const when = start ? fmtPickupSlotChipEt(start, runTimeTbd(row)) : "";
   const bits = [title, region, when].filter(Boolean);
   return bits.join(" · ");
 }

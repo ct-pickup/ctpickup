@@ -4,6 +4,7 @@
  */
 export type PickupRunRefundTiming = {
   start_at?: string | null;
+  time_tbd?: boolean | null;
   cancellation_deadline?: string | null;
 };
 
@@ -20,7 +21,7 @@ export function pickupPlayerRefundEligibleClient(
   nowMs: number = Date.now(),
 ): boolean {
   const startRaw = run.start_at != null ? String(run.start_at).trim() : "";
-  if (startRaw) {
+  if (startRaw && run.time_tbd !== true) {
     try {
       const cutoffMs = new Date(computeCancellationDeadline(startRaw)).getTime();
       if (Number.isFinite(cutoffMs)) return nowMs < cutoffMs;

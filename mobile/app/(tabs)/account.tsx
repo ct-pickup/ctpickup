@@ -2077,6 +2077,7 @@ export default function AccountScreen() {
                 {recentSessions.map((row, i) => {
                   const when = row.start_at
                     ? new Date(row.start_at).toLocaleDateString("en-US", {
+                        timeZone: "America/New_York",
                         weekday: "short",
                         month: "short",
                         day: "numeric",

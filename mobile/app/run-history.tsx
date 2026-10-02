@@ -6,6 +6,8 @@ import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from "react-native";
 
 import { headline, themeColor, useThemedStyles } from "@/theme";
+import { fmtPickupTimeEt } from "@/lib/pickup/runStartAtDisplay";
+import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 type Team = "A" | "B" | "C";
 
 type AwardSlot = "player" | "goalie" | "attacker" | "midfielder" | "defender";
@@ -23,6 +25,7 @@ type HistoryRow = {
   run_title: string | null;
   team: Team | null;
   start_at: string | null;
+  time_tbd: boolean;
   venue_label: string | null;
   winning_team: Team | null;
   has_result: boolean;
@@ -36,8 +39,8 @@ function s(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
 
-/** Eastern Time, e.g. "May 11, 2026 · 8:15 PM" */
-function fmtEtDateTime(iso: string | null): string {
+/** Eastern Time, e.g. "May 11, 2026 · 8:15 PM" or "May 11, 2026 · Time TBD" */
+function fmtEtDateTime(iso: string | null, timeTbd = false): string {
   const t = (iso ?? "").trim();
   if (!t) return "—";
   const d = new Date(t);
@@ -48,13 +51,7 @@ function fmtEtDateTime(iso: string | null): string {
     day: "numeric",
     year: "numeric",
   });
-  const timePart = d.toLocaleString("en-US", {
-    timeZone: "America/New_York",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-  return `${datePart} · ${timePart}`;
+  return `${datePart} · ${fmtPickupTimeEt(t, timeTbd)}`;
 }
 
 function venueSnippet(label: string | null): string {
@@ -264,6 +261,7 @@ export default function RunHistoryScreen() {
         }
       }
 
+      const tbdIds = await fetchRunTimeTbdIds(supabase, runIdsOrdered);
       const myRecord = accessToken ? await fetchMyRecord(accessToken) : null;
       if (cancelled) return;
       const logByRun = new Map((myRecord?.log ?? []).map((g) => [g.run_id, g]));
@@ -293,6 +291,7 @@ export default function RunHistoryScreen() {
           run_title: run?.title ?? null,
           team,
           start_at: run?.start_at ?? null,
+          time_tbd: tbdIds.has(run_id),
           venue_label: run?.venue_label ?? null,
           winning_team: (res?.winning_team ?? null) as Team | null,
           has_result: res != null,
@@ -414,7 +413,7 @@ export default function RunHistoryScreen() {
               style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}
             >
               <View style={styles.cardTop}>
-                <Text style={styles.date}>{fmtEtDateTime(r.start_at)}</Text>
+                <Text style={styles.date}>{fmtEtDateTime(r.start_at, r.time_tbd)}</Text>
                 <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
               </View>
               {r.run_title ? (

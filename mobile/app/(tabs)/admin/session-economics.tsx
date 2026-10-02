@@ -121,7 +121,7 @@ export default function SessionEconomicsScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={s.runTitle}>{run.title}</Text>
                 <Text style={s.runMeta}>
-                  {new Date(run.start_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  {new Date(run.start_at).toLocaleDateString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", year: "numeric" })}
                   {" · "}{run.status}
                 </Text>
               </View>

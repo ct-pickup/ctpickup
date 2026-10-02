@@ -29,6 +29,11 @@ export type PublicPickupParticipationResult = {
   branch: PublicPickupParticipationBranch;
 };
 
+/**
+ * Whether an approved player may use the public-run planning poll / join flow.
+ * Keeps venue home-region rules, adds hub-tab parity with Runs list filtering,
+ * and allows explicit run lookups (inline poll / deep links / nearby drive-time listings).
+ */
 export function explainPlayerMayParticipateInPublicPickupRun(
   ctx: PublicPickupParticipationContext,
 ): PublicPickupParticipationResult {

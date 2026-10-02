@@ -3,7 +3,7 @@ import {
   buildPublicPickupTimeSlotsForNextDay,
   publicPickupRunPlaceholderStartAt,
 } from "@/lib/pickup/publicRunTimeSlots";
-import { isPickupRunDateOnlyStartAt } from "@/lib/pickup/runStartAtDisplay";
+import { writeWithOptionalTimeTbd } from "@/lib/pickup/runTimeTbd";
 import { isPublicPickupRunType, normalizePickupRunTypeForDb } from "@/lib/pickup/pickupRunType";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { clearCurrentPickupRunsInRegion } from "@/lib/pickup/hubPromote";
@@ -11,8 +11,9 @@ import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 import { fmtPickupSlotWindowEt } from "@/lib/pickup/fmtPickupSlotWindowEt";
 import {
   parsePickupAdminDatetimeToUtcIso,
-  pickupDateOnlyStartAtFromEtInstant,
-  pickupDateOnlyStartAtFromPollDateString,
+  parsePickupStartInput,
+  pickupTimeTbdStartAtFromDateString,
+  pickupTimeTbdStartAtFromEtInstant,
 } from "@/lib/datetime/easternWallTime";
 import { normalizeUsZipDigits } from "@/lib/zipRegion";
 
@@ -42,24 +43,26 @@ export async function POST(req: Request) {
   const publicRun = isPublicPickupRunType(run_type);
 
   let start_at: string;
+  let time_tbd = true;
   let timeSlotsToInsert: { label: string; start_at: string }[] | null = null;
 
   function parseAdminSlotToUtcIso(raw: string): string | null {
     return parsePickupAdminDatetimeToUtcIso(raw);
   }
 
+  /** Poll date (or a public run's first slot day) is time TBD at noon Eastern; a select run's first slot is its kickoff. */
   function startAtFromPollDateOrFirstSlot(slotsFromBody: string[]): string {
     const pollDateRaw = String(b.poll_date ?? "").trim();
     if (pollDateRaw) {
-      const startAt = pickupDateOnlyStartAtFromPollDateString(pollDateRaw);
-      return startAt;
+      return pickupTimeTbdStartAtFromDateString(pollDateRaw);
     }
     if (slotsFromBody.length < 1) {
       throw new RangeError("start_at requires poll_date or time_slots");
     }
     if (publicRun) {
-      return pickupDateOnlyStartAtFromEtInstant(slotsFromBody[0]!);
+      return pickupTimeTbdStartAtFromEtInstant(slotsFromBody[0]!);
     }
+    time_tbd = false;
     return slotsFromBody[0]!;
   }
 
@@ -97,17 +100,14 @@ export async function POST(req: Request) {
       }));
 
       if (startAtRaw) {
-        if (!isPickupRunDateOnlyStartAt(startAtRaw)) {
+        const day = parsePickupStartInput(startAtRaw.slice(0, 10));
+        if (!day) {
           return NextResponse.json(
-            { error: "Public planning runs require a date-only start_at (midnight UTC) or omit start_at" },
+            { error: "Public planning runs require a start_at date (YYYY-MM-DD, Eastern) or omit start_at" },
             { status: 400 },
           );
         }
-        const dateOnlyIso = parseAdminSlotToUtcIso(startAtRaw);
-        if (!dateOnlyIso || !isPickupRunDateOnlyStartAt(dateOnlyIso)) {
-          return NextResponse.json({ error: "Invalid date-only start_at" }, { status: 400 });
-        }
-        start_at = dateOnlyIso;
+        start_at = day.start_at;
       } else {
         start_at = publicPickupRunPlaceholderStartAt();
       }
@@ -139,11 +139,12 @@ export async function POST(req: Request) {
       if (!startAtRaw) {
         return NextResponse.json({ error: "start_at or time_slots required" }, { status: 400 });
       }
-      const kickoffIso = parseAdminSlotToUtcIso(startAtRaw);
-      if (!kickoffIso || isPickupRunDateOnlyStartAt(kickoffIso)) {
+      const kickoff = parsePickupStartInput(startAtRaw);
+      if (!kickoff || kickoff.time_tbd) {
         return NextResponse.json({ error: "Invalid start_at datetime" }, { status: 400 });
       }
-      start_at = kickoffIso;
+      start_at = kickoff.start_at;
+      time_tbd = false;
       timeSlotsToInsert = [
         {
           label: fmtPickupSlotWindowEt(start_at),
@@ -181,7 +182,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: cleared.error }, { status: 500 });
   }
 
-  const insert = await supabaseAdmin
+  const insert = await writeWithOptionalTimeTbd((withTimeTbd) => supabaseAdmin
     .from("pickup_runs")
     .insert({
       title,
@@ -189,6 +190,7 @@ export async function POST(req: Request) {
       is_current: true,
       status: "planning",
       start_at,
+      ...(withTimeTbd ? { time_tbd } : {}),
       capacity,
       fee_cents,
       admin_fee_cents,
@@ -209,7 +211,7 @@ export async function POST(req: Request) {
       updated_at: now,
     })
     .select("*")
-    .single();
+    .single());
 
   if (insert.error) {
     const msg = insert.error.message;

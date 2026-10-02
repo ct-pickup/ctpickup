@@ -274,11 +274,12 @@ describe("cancelled_at validation", () => {
     expect(rsvp().status).toBe("confirmed");
   });
 
-  it("parser: defaults to now, accepts offsets, skips the kickoff check for date-only runs", () => {
+  it("parser: defaults to now, accepts offsets, skips the kickoff check for time-TBD runs", () => {
     const now = Date.parse("2026-10-02T18:00:00Z");
     expect(parseCancelledAt(undefined, { start_at: null }, now)).toEqual({ ok: true, ms: now });
     expect(parseCancelledAt("2026-10-02T10:00:00-04:00", { start_at: null }, now)).toEqual({ ok: true, ms: Date.parse("2026-10-02T14:00:00Z") });
-    expect(parseCancelledAt("2026-10-02T17:00:00Z", { start_at: "2026-10-02T00:00:00+00:00" }, now)).toMatchObject({ ok: true });
+    expect(parseCancelledAt("2026-10-02T17:00:00Z", { start_at: "2026-10-02T16:00:00Z", time_tbd: true }, now)).toMatchObject({ ok: true });
+    expect(parseCancelledAt("2026-10-02T17:00:00Z", { start_at: "2026-10-02T00:00:00+00:00" }, now)).toMatchObject({ ok: false });
     expect(parseCancelledAt("2026-10-02T17:00:00Z", { start_at: "2026-10-02T16:00:00Z" }, now)).toMatchObject({ ok: false });
   });
 });

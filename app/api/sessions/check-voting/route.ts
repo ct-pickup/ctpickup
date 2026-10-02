@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { autoSettleTierSession } from "@/lib/pickup/autoSettleSession";
+import { realKickoffMs } from "@/lib/pickup/runScheduling";
+import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
@@ -14,6 +16,7 @@ function bearer(req: Request) {
  * Lazily:
  * 1) Send peer-voting push notifications 30 minutes after kickoff
  * 2) Auto-settle ratings 2 hours after kickoff if still unsettled
+ * A run with time TBD has no kickoff yet, so neither happens until a real time is set.
  *
  * Triggered when someone opens the session detail screen.
  * Body: { run_id }
@@ -40,7 +43,8 @@ export async function POST(req: Request) {
 
   if (!run) return NextResponse.json({ error: "Run not found" }, { status: 404 });
 
-  const startMs = run.start_at ? new Date(run.start_at).getTime() : NaN;
+  const timeTbd = (await fetchRunTimeTbdIds(admin, [run_id])).has(run_id);
+  const startMs = realKickoffMs({ start_at: run.start_at, time_tbd: timeTbd }) ?? NaN;
   let votingSent = false;
   let settled = false;
   let settleError: string | undefined;

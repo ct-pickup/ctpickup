@@ -7,6 +7,7 @@ export type BestGame = {
   id: string;
   title: string | null;
   start_at: string;
+  time_tbd?: boolean;
   location_text: string | null;
   latitude: number | null;
   longitude: number | null;

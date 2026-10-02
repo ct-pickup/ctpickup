@@ -5,7 +5,7 @@ import { PhotoHeader } from "@/components/photo";
 import PlayedWithRow from "@/components/pickup/PlayedWithRow";
 import SpotsBadge from "@/components/pickup/SpotsBadge";
 import type { BestGame, PlayedWithSummary } from "@/lib/matchApi";
-import { fmtPickupSlotChipEt } from "@/lib/pickup/runStartAtDisplay";
+import { fmtPickupSlotChipEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
 import { formatStars } from "@/lib/starRatings";
 import { radius, themeColor, useThemedStyles } from "@/theme";
 
@@ -17,6 +17,7 @@ export type GameCardRun = {
   capacity: number;
   spots_taken: number;
   format: string | null;
+  time_tbd?: boolean;
 };
 
 export type RunCrowd = { people: AvatarPerson[]; avgStar: number | null };
@@ -62,7 +63,7 @@ export function GameCard({
       onPress={onPress}
       style={({ pressed }) => [styles.card, styles.gameCard, style, pressed && styles.pressed]}
       accessibilityRole="button"
-      accessibilityLabel={`${field}, ${fmtPickupSlotChipEt(run.start_at)}`}
+      accessibilityLabel={`${field}, ${fmtPickupSlotChipEt(run.start_at, runTimeTbd(run))}`}
     >
       <View>
         {photo ? (
@@ -74,7 +75,7 @@ export function GameCard({
       </View>
       <View style={styles.gameBody}>
         <Text style={styles.when} numberOfLines={1}>
-          {fmtPickupSlotChipEt(run.start_at)}
+          {fmtPickupSlotChipEt(run.start_at, runTimeTbd(run))}
         </Text>
         <Text style={styles.gameTitle} numberOfLines={1}>
           {field}
@@ -113,7 +114,7 @@ export function BestGameCard({
       onPress={onPress}
       style={({ pressed }) => [styles.card, styles.gameCard, pressed && styles.pressed]}
       accessibilityRole="button"
-      accessibilityLabel={`${field}, ${fmtPickupSlotChipEt(game.start_at)}`}
+      accessibilityLabel={`${field}, ${fmtPickupSlotChipEt(game.start_at, runTimeTbd(game))}`}
     >
       {photo ? (
         <View>
@@ -124,7 +125,7 @@ export function BestGameCard({
       <View style={styles.gameBody}>
         <View style={styles.cardTopRow}>
           <Text style={styles.when} numberOfLines={1}>
-            {fmtPickupSlotChipEt(game.start_at)}
+            {fmtPickupSlotChipEt(game.start_at, runTimeTbd(game))}
           </Text>
           {photo ? null : <SpotsBadge spotsLeft={left} />}
         </View>

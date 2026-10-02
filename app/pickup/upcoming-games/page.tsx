@@ -8,6 +8,7 @@ import {
   PickupSubpageLoading,
   PickupSubpageShell,
 } from "@/components/pickup";
+import { fmtPickupTimeEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -16,6 +17,7 @@ type UpcomingRun = {
   id: string;
   title: string | null;
   start_at: string;
+  time_tbd?: boolean;
   level_label: string;
   spots_left: number;
 };
@@ -26,6 +28,7 @@ type PublicPayload = {
     id: string;
     title?: string | null;
     start_at?: string | null;
+    time_tbd?: boolean;
     run_type?: string | null;
     capacity?: number | null;
     location_text?: string | null;
@@ -36,22 +39,14 @@ type PublicPayload = {
 
 function fmtRunDate(iso: string | null | undefined) {
   if (!iso) return "—";
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
-  } catch {
-    return "—";
-  }
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "—";
+  return d.toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "long", month: "short", day: "numeric" });
 }
 
-function fmtRunTime(iso: string | null | undefined) {
+function fmtRunTime(iso: string | null | undefined, timeTbd = false) {
   if (!iso) return "—";
-  try {
-    const d = new Date(iso);
-    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-  } catch {
-    return "—";
-  }
+  return timeTbd ? "Time TBD" : `${fmtPickupTimeEt(iso)} ET`;
 }
 
 function levelLabel(runType: string | null | undefined) {
@@ -135,7 +130,7 @@ function SelectedRunJoin({ runId }: { runId: string }) {
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <PickupStatCell label="Date" value={fmtRunDate(run.start_at)} />
-          <PickupStatCell label="Time" value={fmtRunTime(run.start_at)} />
+          <PickupStatCell label="Time" value={fmtRunTime(run.start_at, runTimeTbd(run))} />
           <PickupStatCell label="Level" value={levelLabel(run.run_type)} />
           <PickupStatCell label="Spots left" value={spotsLeft} />
           <div className="sm:col-span-2 lg:col-span-3">
@@ -222,7 +217,7 @@ function UpcomingGamesContent() {
 
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <PickupStatCell label="Date" value={fmtRunDate(run.start_at)} />
-                    <PickupStatCell label="Time" value={fmtRunTime(run.start_at)} />
+                    <PickupStatCell label="Time" value={fmtRunTime(run.start_at, runTimeTbd(run))} />
                     <PickupStatCell label="Level" value={run.level_label} />
                     <PickupStatCell label="Spots left" value={run.spots_left} />
                     <div className="sm:col-span-2 lg:col-span-3">

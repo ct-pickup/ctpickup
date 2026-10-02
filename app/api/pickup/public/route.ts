@@ -393,6 +393,7 @@ export async function GET(req: Request) {
         run_type: run.run_type,
         title: run.title,
         start_at: run.start_at,
+        time_tbd: run.time_tbd === true,
         capacity: run.capacity,
         fee_cents: run.fee_cents,
         currency: run.currency,

@@ -26,6 +26,8 @@
 --   points      POINTS in lib/pickup/points.ts: played 10, win 5, draw 2, potd 10.
 --   season      points_season_label(start_at), falling back to the result's
 --               created_at (pointsEventsForRun() in lib/points/ledger.ts).
+--               Always the Eastern date: a midnight UTC start_at is an 8pm
+--               EDT / 7pm EST game on the previous Eastern day.
 -- ============================================================
 
 begin;

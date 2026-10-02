@@ -41,104 +41,47 @@ export function parsePickupPayload(data: unknown): PickupPublicPayload {
 }
 
 import {
-  fmtPickupDateFromDateOnlyStartAt,
+  fmtPickupDateTimeEt,
   fmtPickupRunDateDisplay,
-  isPickupRunDateOnlyStartAt,
+  fmtPickupSlotChipEt,
+  fmtPickupTimeEt as fmtPickupKickoffTimeEt,
   isPickupRunTimeTbd,
 } from "@/lib/pickup/runStartAtDisplay";
 
-export {
-  fmtPickupDateFromDateOnlyStartAt,
-  fmtPickupRunDateDisplay,
-  isPickupRunDateOnlyStartAt,
-  isPickupRunTimeTbd,
-};
+export { fmtPickupRunDateDisplay, fmtPickupSlotChipEt, isPickupRunTimeTbd };
 
+/** Admin schedule line: date with "Time TBD" while the poll is open or the run's time is TBD. */
 export function fmtPickupRunScheduleEt(
   startAt: string | null | undefined,
   status: string | null | undefined,
   finalSlotId: string | null | undefined,
+  timeTbd = false,
 ): string {
-  if (isPickupRunTimeTbd(status, finalSlotId)) {
+  if (timeTbd || isPickupRunTimeTbd(status, finalSlotId)) {
     const date = fmtPickupRunDateDisplay(startAt);
     return date === "TBD" ? "Time TBD" : `${date} · Time TBD`;
   }
   return fmtPickupDtEt(startAt);
 }
 
+/** Non-run timestamps (updates, posts) in Eastern time. */
 export function fmtPickupDt(dt: string | null | undefined): string {
   if (!dt) return "TBD";
-  try {
-    return new Date(dt).toLocaleString();
-  } catch {
-    return "TBD";
-  }
+  const d = new Date(dt);
+  if (!Number.isFinite(d.getTime())) return "TBD";
+  return d.toLocaleString("en-US", { timeZone: "America/New_York", dateStyle: "short", timeStyle: "short" });
 }
 
-const ET_OPTS: Intl.DateTimeFormatOptions = {
-  timeZone: "America/New_York",
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-};
-
-export function fmtPickupDtEt(dt: string | null | undefined): string {
+export function fmtPickupDtEt(dt: string | null | undefined, timeTbd = false): string {
   if (!dt) return "No time set yet";
-  if (isPickupRunDateOnlyStartAt(dt)) return fmtPickupDateFromDateOnlyStartAt(dt);
-  try {
-    return new Date(dt).toLocaleString("en-US", ET_OPTS);
-  } catch {
-    return "—";
-  }
+  return fmtPickupDateTimeEt(dt, timeTbd);
 }
 
 export function fmtPickupDateEt(dt: string | null | undefined): string {
   return fmtPickupRunDateDisplay(dt);
 }
 
-/** Chip label: "Mon, May 22 · 8:00 PM" (Eastern). */
-export function fmtPickupSlotChipEt(iso: string | null | undefined): string {
-  if (!iso) return "Time TBD";
-  try {
-    const date = new Date(iso).toLocaleString("en-US", {
-      timeZone: "America/New_York",
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-    const time = new Date(iso).toLocaleString("en-US", {
-      timeZone: "America/New_York",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-    return `${date} · ${time}`;
-  } catch {
-    return "Time TBD";
-  }
-}
-
-export function fmtPickupTimeEt(dt: string | null | undefined): string {
+export function fmtPickupTimeEt(dt: string | null | undefined, timeTbd = false): string {
   if (!dt) return "No time set yet";
-  try {
-    return new Date(dt).toLocaleString("en-US", {
-      timeZone: "America/New_York",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  } catch {
-    return "—";
-  }
-}
-
-/** Short time for hero cards (locale default). */
-export function fmtPickupTime(dt: string | null | undefined): string {
-  if (!dt) return "—";
-  try {
-    return new Date(dt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  } catch {
-    return "—";
-  }
+  return fmtPickupKickoffTimeEt(dt, timeTbd);
 }

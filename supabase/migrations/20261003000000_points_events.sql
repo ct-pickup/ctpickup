@@ -25,8 +25,8 @@
 -- in lib/pickup/points.ts exactly; change both together.
 --   Fall Sep–Nov "Fall 2026", Spring Mar–May "Spring 2027", Summer Jun–Aug "Summer 2027",
 --   Winter Dec–Feb spans two years: Dec 2026–Feb 2027 is "Winter 2026–27".
---   A start_at of exactly midnight UTC is a date-only anchor (the Eastern
---   calendar day stored as UTC midnight), so its UTC date is used.
+--   Always the Eastern date: midnight UTC is a real evening kickoff (8pm EDT /
+--   7pm EST the previous day). Time-TBD runs store noon Eastern on their day.
 create or replace function public.points_season_label(p_start_at timestamptz)
 returns text
 language sql
@@ -34,11 +34,7 @@ immutable
 set search_path = public
 as $$
   with local as (
-    select case
-             when (p_start_at at time zone 'UTC')::time = time '00:00:00'
-               then p_start_at at time zone 'UTC'
-             else p_start_at at time zone 'America/New_York'
-           end as ts
+    select p_start_at at time zone 'America/New_York' as ts
   ), ym as (
     select extract(year from ts)::int as y, extract(month from ts)::int as m from local
   )
