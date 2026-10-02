@@ -1,5 +1,8 @@
 import { StarLevelSelect } from "@/components/StarLevels";
 import { useProfileCompletionGate } from "@/context/ProfileCompletionContext";
+import { useProfilePhoto } from "@/context/ProfilePhotoContext";
+import ProfilePhotoPicker from "@/components/photo/ProfilePhotoPicker";
+import { PHOTO_STEP_BODY, PHOTO_STEP_TITLE } from "@shared/profilePhoto";
 import { useAuth } from "@/context/AuthContext";
 import { useWaiver } from "@/context/WaiverContext";
 import { siteOrigin } from "@/lib/env";
@@ -193,6 +196,14 @@ export default function CompleteProfileScreen() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [postSaveVenues, setPostSaveVenues] = useState<VenueDistanceRow[] | null>(null);
+  const [photoStepDone, setPhotoStepDone] = useState(false);
+  const {
+    required: photoRequired,
+    avatarUrl,
+    hasPhoto,
+    setAvatarUrl,
+    dismissNudge,
+  } = useProfilePhoto();
   const [zipVenuePreviewChecking, setZipVenuePreviewChecking] = useState(false);
   const [zipVenuePreviewEmpty, setZipVenuePreviewEmpty] = useState<boolean | null>(null);
 
@@ -529,7 +540,36 @@ export default function CompleteProfileScreen() {
             },
           ]}
         >
-          {postSaveVenues ? (
+          {postSaveVenues && !photoStepDone && hasPhoto !== true ? (
+            <>
+              <Text style={styles.title}>{PHOTO_STEP_TITLE}</Text>
+              <Text style={styles.subtitle}>{PHOTO_STEP_BODY}</Text>
+              <View style={styles.photoStep}>
+                <ProfilePhotoPicker
+                  value={avatarUrl}
+                  onSaved={(url) => {
+                    setAvatarUrl(url);
+                    setPhotoStepDone(true);
+                  }}
+                />
+              </View>
+              {photoRequired ? (
+                <Text style={styles.photoStepHint}>You need a photo to continue.</Text>
+              ) : (
+                <Pressable
+                  style={styles.photoSkip}
+                  onPress={() => {
+                    dismissNudge();
+                    setPhotoStepDone(true);
+                  }}
+                  accessibilityRole="button"
+                  hitSlop={8}
+                >
+                  <Text style={styles.photoSkipText}>Not now</Text>
+                </Pressable>
+              )}
+            </>
+          ) : postSaveVenues ? (
             <>
               <Text style={styles.title}>Profile saved</Text>
               <Text style={styles.subtitle}>You&apos;re ready to find pickup and events.</Text>
@@ -818,6 +858,15 @@ function make_styles() {
   fieldBlock: {
     marginTop: 16,
   },
+  photoStep: { marginTop: 28 },
+  photoStepHint: {
+    marginTop: 16,
+    fontSize: 14, fontFamily: "Inter_400Regular",
+    color: themeColor().muted,
+    textAlign: "center",
+  },
+  photoSkip: { marginTop: 16, alignSelf: "center", paddingVertical: 8 },
+  photoSkipText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: themeColor().muted },
   label: {
     fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",

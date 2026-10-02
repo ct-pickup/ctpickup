@@ -14,6 +14,7 @@ const SECTIONS = [
   { href: "/admin/pickup", label: "Pickups", activeMatch: "exact" as const },
   { href: "/admin/pickup/standing", label: "Pickup standing" },
   { href: "/admin/relationships", label: "Relationships" },
+  { href: "/admin/photo-reports", label: "Photo reports" },
   { href: "/admin/sync", label: "Sync & status" },
   { href: "/admin/settings", label: "Settings" },
 ] as const;

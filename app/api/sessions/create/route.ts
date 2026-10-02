@@ -10,6 +10,7 @@ import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
 import { pickupStartFromHostBody } from "@/lib/datetime/easternWallTime";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { profilePhotoGate } from "@/lib/profilePhoto/requirement";
 
 const ALLOWED_FORMATS = ["5v5", "6v6", "7v7", "Open"];
 
@@ -41,6 +42,10 @@ export async function POST(req: Request) {
   if (profErr || (!profile?.approved && !profile?.is_admin)) {
     return NextResponse.json({ error: "Your account must be approved to host sessions." }, { status: 403 });
   }
+
+  // Admins hosting here play in the session too, so they need a photo like anyone else.
+  const photoBlock = await profilePhotoGate(admin, req, { userId: user.id });
+  if (photoBlock) return photoBlock;
 
   let body: Record<string, unknown>;
   try { body = await req.json(); }

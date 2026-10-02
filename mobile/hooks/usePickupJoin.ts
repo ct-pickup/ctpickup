@@ -1,3 +1,4 @@
+import { useProfilePhoto } from "@/context/ProfilePhotoContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { hapticError } from "@/lib/haptics";
 import * as Sentry from "@sentry/react-native";
@@ -134,6 +135,7 @@ type PhotoModalState = {
 
 export function usePickupJoin() {
   const { region } = useSelectedRegion();
+  const { ensurePhotoForGame, handlePhotoRequired } = useProfilePhoto();
   const [joinBusy, setJoinBusy] = useState(false);
   const [payBusy, setPayBusy] = useState(false);
   const [declineBusy, setDeclineBusy] = useState(false);
@@ -187,6 +189,7 @@ export function usePickupJoin() {
           ? options.friendDisplayName.trim()
           : null;
       const payForFriend = friendId.length > 0;
+      if (!payForFriend && !ensurePhotoForGame()) return;
       setJoinBusy(true);
       try {
         // Show cancellation policy before the API call so photo_package choice can be included.
@@ -244,6 +247,7 @@ export function usePickupJoin() {
           await reload();
           return;
         }
+        if (handlePhotoRequired(r.status, j)) return;
         if (j.error === "friend_waiver_required") {
           const detail = typeof j.detail === "string" ? j.detail : "That player must accept the waiver first.";
           void hapticError();
@@ -272,7 +276,7 @@ export function usePickupJoin() {
         setJoinBusy(false);
       }
     },
-    [],
+    [ensurePhotoForGame, handlePhotoRequired],
   );
 
   const payPickup = useCallback(

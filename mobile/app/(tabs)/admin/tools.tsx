@@ -44,6 +44,13 @@ const TOOLS: ToolDef[] = [
     href: "/admin/analytics",
   },
   {
+    id: "photo-reports",
+    title: "Photo reports",
+    description: "Review reported profile photos: remove or dismiss",
+    icon: "flag",
+    href: "/admin/photo-reports" as Href,
+  },
+  {
     id: "tier-suggestions",
     title: "Tier Suggestions",
     description: "Players suggested for tier upgrades",

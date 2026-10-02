@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { useProfilePhoto } from "@/context/ProfilePhotoContext";
 import { siteOrigin } from "@/lib/env";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
@@ -66,6 +67,7 @@ function ymd(date: Date): string {
 export default function SessionCreateScreen() {
   const router = useRouter();
   const { session, supabase } = useAuth();
+  const { ensurePhotoForGame, handlePhotoRequired } = useProfilePhoto();
   const [step, setStep] = useState<Step>(1);
 
   // Location
@@ -201,6 +203,7 @@ export default function SessionCreateScreen() {
 
   async function publish() {
     if (publishing) return;
+    if (!ensurePhotoForGame()) return;
     const token = session?.access_token;
     if (!token) { Alert.alert("Not signed in"); return; }
     const origin = siteOrigin();
@@ -238,6 +241,7 @@ export default function SessionCreateScreen() {
 
       const j = (await r.json().catch(() => null)) as { ok?: boolean; error?: string; run_id?: string } | null;
 
+      if (handlePhotoRequired(r.status, j)) return;
       if (!r.ok || !j?.ok) {
         Alert.alert("Error", j?.error ?? "Failed to create session.");
         return;

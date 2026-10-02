@@ -21,6 +21,7 @@ import { AdminModeProvider } from "@/context/AdminModeContext";
 import { AppearanceProvider, useAppearance } from "@/context/AppearanceContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { ProfileCompletionProvider } from "@/context/ProfileCompletionContext";
+import { ProfilePhotoProvider } from "@/context/ProfilePhotoContext";
 import { ProfileAdminProvider } from "@/context/ProfileAdminContext";
 import { ReviewModeProvider } from "@/context/ReviewModeContext";
 import { WaiverProvider } from "@/context/WaiverContext";
@@ -164,6 +165,7 @@ function RootLayoutNav() {
                 <SelectedRegionProvider>
                   <AppLockProvider>
                     <AccountIntroReplayProvider>
+                    <ProfilePhotoProvider>
                       <View style={{ flex: 1 }}>
                         {minVersionBlocked ? <UpdateRequiredGate /> : null}
                         <ReviewModeBanner />
@@ -475,6 +477,7 @@ function RootLayoutNav() {
                         <AppOpeningTheme key={openingThemeKey} />
                         <AppLockOverlay />
                       </View>
+                    </ProfilePhotoProvider>
                     </AccountIntroReplayProvider>
                   </AppLockProvider>
                 </SelectedRegionProvider>

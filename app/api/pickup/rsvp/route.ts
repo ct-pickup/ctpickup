@@ -6,6 +6,7 @@ import { lookupPickupPlayerByUsernameOrEmail } from "@/lib/pickup/lookupPlayerBy
 import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
 import { assertPickupStandingAllowsParticipation } from "@/lib/pickup/standing/participationGate";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
+import { profilePhotoGate } from "@/lib/profilePhoto/requirement";
 import { PICKUP_FIELD_FEE_STRIPE_DESCRIPTION } from "@/lib/fees/refundPolicyCopy";
 import { paymentIntentIdFromCheckoutSession } from "@/lib/payments/stripeSessionIds";
 import { recordPlatformCheckoutStarted } from "@/lib/payments/recordCheckoutStarted";
@@ -354,6 +355,13 @@ export async function POST(req: Request) {
       );
     }
   }
+
+  const photoBlock = await profilePhotoGate(admin, req, {
+    userId: targetUserId,
+    runId: body.run_id,
+    friend: payForFriend,
+  });
+  if (photoBlock) return photoBlock;
 
   const runRes = await admin.from("pickup_runs").select("*").eq("id", body.run_id).maybeSingle();
   const run = runRes.data;

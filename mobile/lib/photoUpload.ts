@@ -5,7 +5,7 @@ import * as ImagePicker from "expo-image-picker";
 
 import { PhotoUploadError, PhotoUserError } from "@shared/photoUploadError";
 
-export type PhotoBucket = "field-photos" | "action-photos";
+export type PhotoBucket = "field-photos" | "action-photos" | "avatars";
 
 const MAX_EDGE = 1600;
 const JPEG_QUALITY = 0.8;
