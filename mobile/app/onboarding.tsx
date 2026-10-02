@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChalkBox, ChalkCenterCircle } from "@/components/chalk";
 import { headline, themeColor, useThemedStyles } from "@/theme";
+import { PRODUCT_NAME } from "@/lib/brand";
 type Slide =
   | { kind: "logo"; title: string; body: string }
   | { kind: "chalk"; graphic: "circle" | "box"; title: string; body: string };
@@ -28,7 +29,7 @@ type Slide =
 const SLIDES: Slide[] = [
   {
     kind: "logo",
-    title: "Welcome to CT Pickup",
+    title: `Welcome to ${PRODUCT_NAME}`,
     body: "Competitive pickup soccer across NY, CT, NJ, and MD. Find your run, join the community.",
   },
   {
@@ -125,7 +126,7 @@ export default function OnboardingScreen() {
             source={require("../assets/images/icon.png")}
             style={styles.logo}
             resizeMode="contain"
-            accessibilityLabel="CT Pickup"
+            accessibilityLabel={PRODUCT_NAME}
           />
         ) : (
           <View style={styles.chalkMark}>

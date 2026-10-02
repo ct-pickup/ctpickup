@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SupportEmailLink } from "@/components/SupportEmailLink";
+import { PRODUCT_NAME } from "@/lib/brand";
 
 export function SiteFooter() {
   return (
@@ -32,7 +33,7 @@ export function SiteFooter() {
         </Link>
       </nav>
       <p className="mt-4 text-caption text-muted">
-        © {new Date().getFullYear()} CT Pickup
+        © {new Date().getFullYear()} {PRODUCT_NAME}
       </p>
     </footer>
   );

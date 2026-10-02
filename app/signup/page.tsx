@@ -45,6 +45,7 @@ import {
   profileIdentityColumns,
   normalizePlayingPosition,
 } from "@/lib/profileIdentityFields";
+import { Wordmark } from "@/components/brand/Wordmark";
 
 type Stage = "email" | "code" | "profile";
 
@@ -584,9 +585,7 @@ function SignupForm({
 
       <div className="mx-auto max-w-7xl px-6 py-10">
         <div className="mb-8 flex items-center justify-between">
-          <div className="text-body md:text-h3 font-serif font-semibold text-ink">
-            CT Pickup
-          </div>
+          <Wordmark as="div" className="text-body text-ink md:text-h3" />
 
           <HistoryBack
             fallbackHref="/"

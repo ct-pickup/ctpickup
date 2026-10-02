@@ -2,6 +2,7 @@ import { forwardRef, useEffect } from "react";
 import { Image, PixelRatio, StyleSheet, Text, View } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
+import { ShareCardCorner, ShareCardSignoff } from "@/components/brand/ShareCardSignoff";
 import { ChalkCenterCircle } from "@/components/chalk";
 import { StarRating } from "@/components/StarRating";
 import { longDateEt, outcomeWord, type Outcome } from "@/lib/season";
@@ -75,10 +76,7 @@ const ShareStoryCard = forwardRef<View, { data: ShareStoryData; onReady?: () => 
       </Svg>
 
       <View style={[styles.top, { top: n(92), left: n(32), right: n(32) }]}>
-        <View style={[styles.brandDot, { width: n(10), height: n(10), borderRadius: n(5), marginRight: n(8) }]} />
-        <Text allowFontScaling={false} style={[styles.wordmark, { fontSize: n(22) }]}>
-          CT Pickup
-        </Text>
+        <ShareCardCorner n={n} />
       </View>
 
       <View style={[styles.bottom, { left: n(32), right: n(32), bottom: n(112) }]}>
@@ -126,6 +124,7 @@ const ShareStoryCard = forwardRef<View, { data: ShareStoryData; onReady?: () => 
             </View>
           </>
         ) : null}
+        <ShareCardSignoff n={n} />
       </View>
     </View>
   );
@@ -151,8 +150,6 @@ function ResultTag({ outcome, n }: { outcome: Outcome; n: (v: number) => number 
 const styles = StyleSheet.create({
   chalkWrap: { alignItems: "center", justifyContent: "center" },
   top: { position: "absolute", flexDirection: "row", alignItems: "center" },
-  brandDot: { backgroundColor: C.accent },
-  wordmark: { fontFamily: headline.fontFamily, color: C.text },
   bottom: { position: "absolute" },
   tagRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
   resultTag: { borderRadius: radius.pill, borderWidth: 1.5 },

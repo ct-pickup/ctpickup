@@ -11,7 +11,6 @@ import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Linking,
   Pressable,
   ScrollView,
@@ -22,6 +21,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { headline, themeColor, useThemedStyles } from "@/theme";
+import { Wordmark } from "@/components/brand/Wordmark";
 const WAIVER_VERSION = "v1.5";
 
 export default function WaiverScreen() {
@@ -115,12 +115,7 @@ export default function WaiverScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.brandRow}>
-          <Image
-            source={require("../assets/images/ct-pickup-wordmark.png")}
-            style={styles.wordmark}
-            resizeMode="contain"
-            accessibilityLabel="CT Pickup"
-          />
+          <Wordmark size={24} />
         </View>
         <Text style={styles.docTitle}>Liability Waiver & Participation Agreement</Text>
         <Text style={styles.version}>
@@ -332,7 +327,6 @@ function make_styles() {
   center: { flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center" },
   scrollContent: { paddingHorizontal: 20 },
   brandRow: { alignItems: "center", marginBottom: 16 },
-  wordmark: { width: 220, height: 48 },
   docTitle: {
     color: themeColor().text,
     fontSize: 20, ...headline,

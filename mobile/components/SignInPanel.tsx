@@ -32,6 +32,8 @@ import {
   UIManager,
   View,
 } from "react-native";
+import { Wordmark } from "@/components/brand/Wordmark";
+import { PRODUCT_NAME } from "@/lib/brand";
 
 const OTP_RESEND_COOLDOWN_SEC = 30;
 const PASSWORD_MIN_LEN = 8;
@@ -342,7 +344,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
     } catch (e) {
       setBusy(false);
       setShowSendRetry(true);
-      const userMsg = "Could not reach CT Pickup. Check your connection and try again.";
+      const userMsg = `Could not reach ${PRODUCT_NAME}. Check your connection and try again.`;
       setMsg(userMsg);
       Alert.alert("Network error", userMsg);
       console.error("[auth] checkEmailExistsResult threw", { error: e, email: emailClean });
@@ -355,7 +357,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
       if (reason === "missing_site_url") {
         setMsg("Set EXPO_PUBLIC_SITE_URL in mobile/.env to your deployed API host (Next.js origin), then restart Expo.");
       } else if (reason === "network") {
-        setMsg("Could not reach CT Pickup. Check your connection and try again.");
+        setMsg(`Could not reach ${PRODUCT_NAME}. Check your connection and try again.`);
       } else {
         setMsg("Could not verify that email right now. Try again in a moment.");
       }
@@ -584,9 +586,9 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
       {isPremium ? (
         <View style={styles.brandHeader}>
           <View style={styles.brandIconWrap}>
-            <Image source={require("@/assets/images/icon.png")} style={styles.brandIcon} accessibilityLabel="CT Pickup" />
+            <Image source={require("@/assets/images/icon.png")} style={styles.brandIcon} accessibilityLabel={PRODUCT_NAME} />
           </View>
-          <Text style={styles.brandTitle}>CT Pickup</Text>
+          <Wordmark size={32} numberOfLines={2} style={styles.brandTitle} />
           <Text style={styles.brandTagline}>Community. Culture. Competitive.</Text>
         </View>
       ) : null}
@@ -703,7 +705,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
             {variant === "simple" ? (
               <Pressable style={styles.createAccountRow} onPress={() => switchAuthMode("signup")}>
                 <Text style={styles.createAccountText}>
-                  New to CT Pickup? <Text style={styles.createAccountStrong}>Create an account</Text>
+                  New to {PRODUCT_NAME}? <Text style={styles.createAccountStrong}>Create an account</Text>
                 </Text>
               </Pressable>
             ) : null}
@@ -826,8 +828,8 @@ function make_styles() {
     borderRadius: 12,
   },
   brandTitle: {
-    fontSize: 32, ...headline,
     color: themeColor().text,
+    textAlign: "center",
   },
   brandTagline: {
     marginTop: 8,

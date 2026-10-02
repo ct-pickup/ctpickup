@@ -43,6 +43,7 @@ import { driveRadiusMiles, milesFromZip, zipCentroid, zipState } from "@/lib/ven
 import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import type { DevFixtures } from "../../dev-fixtures";
+import { Wordmark } from "@/components/brand/Wordmark";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- must stay a __DEV__ require so release bundles drop dev-fixtures
 const devFixtures: DevFixtures | null = __DEV__ ? require("../../dev-fixtures").default : null;
@@ -639,9 +640,7 @@ export default function HomeScreen() {
       }
     >
       <View style={styles.header}>
-        <Text style={styles.wordmark} onLongPress={__DEV__ ? toggleDevPreview : undefined}>
-          CT Pickup
-        </Text>
+        <Wordmark style={styles.wordmark} onLongPress={__DEV__ ? toggleDevPreview : undefined} />
         <View style={styles.headerRight}>
           {myCard ? (
             <Pressable
@@ -786,7 +785,7 @@ function make_styles() {
     /* header */
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     headerRight: { flexDirection: "row", alignItems: "center", gap: 16 },
-    wordmark: { fontSize: 20, fontFamily: headline.fontFamily, color: themeColor().text },
+    wordmark: { flexShrink: 1, color: themeColor().text },
     greeting: { marginTop: 16, fontSize: 28, ...headline, color: themeColor().text },
     greetingName: { color: themeColor().pitchText },
     devLine: { marginTop: 8, fontSize: 13, fontFamily: "Inter_500Medium", color: themeColor().muted },

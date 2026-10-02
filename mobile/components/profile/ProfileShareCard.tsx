@@ -2,6 +2,7 @@ import { forwardRef, useEffect } from "react";
 import { Image, PixelRatio, StyleSheet, Text, View } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
+import { ShareCardCorner, ShareCardSignoff } from "@/components/brand/ShareCardSignoff";
 import { ChalkCenterCircle } from "@/components/chalk";
 import { StarRating } from "@/components/StarRating";
 import { STORY_HEIGHT, STORY_WIDTH } from "@/lib/shareStory";
@@ -20,7 +21,7 @@ export type ProfileShareData = {
 };
 
 /**
- * Player card story image. Same 360×640 grid, scrim and wordmark as the season ShareStoryCard, and always dark.
+ * Player card story image. Same 360×640 grid, scrim and brand marks as the season ShareStoryCard, and always dark.
  * Shows only public profile facts: no score, tier, reliability or date of birth.
  */
 const ProfileShareCard = forwardRef<View, { data: ProfileShareData; onReady?: () => void }>(function ProfileShareCard(
@@ -66,10 +67,7 @@ const ProfileShareCard = forwardRef<View, { data: ProfileShareData; onReady?: ()
       </Svg>
 
       <View style={[styles.top, { top: n(92), left: n(32), right: n(32) }]}>
-        <View style={[styles.brandDot, { width: n(10), height: n(10), borderRadius: n(5), marginRight: n(8) }]} />
-        <Text allowFontScaling={false} style={[styles.wordmark, { fontSize: n(22) }]}>
-          CT Pickup
-        </Text>
+        <ShareCardCorner n={n} />
       </View>
 
       <View style={[styles.bottom, { left: n(32), right: n(32), bottom: n(112) }]}>
@@ -110,6 +108,7 @@ const ProfileShareCard = forwardRef<View, { data: ProfileShareData; onReady?: ()
             </View>
           ))}
         </View>
+        <ShareCardSignoff n={n} />
       </View>
     </View>
   );
@@ -118,8 +117,6 @@ const ProfileShareCard = forwardRef<View, { data: ProfileShareData; onReady?: ()
 const styles = StyleSheet.create({
   chalkWrap: { alignItems: "center", justifyContent: "center" },
   top: { position: "absolute", flexDirection: "row", alignItems: "center" },
-  brandDot: { backgroundColor: C.accent },
-  wordmark: { fontFamily: headline.fontFamily, color: C.text },
   bottom: { position: "absolute" },
   name: { fontFamily: headline.fontFamily, color: C.text },
   meta: { fontFamily: "Inter_600SemiBold", color: C.muted },
