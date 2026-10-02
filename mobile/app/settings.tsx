@@ -1304,6 +1304,18 @@ export default function SettingsScreen() {
             ) : null}
           </SettingsSection>
 
+          <SettingsSection title="Verification">
+            <View style={s.group}>
+              <Row
+                icon="instagram"
+                label="Instagram"
+                value={profile?.verification_level === "instagram" ? "Verified" : isSelfDeclared ? "Not verified" : undefined}
+                onPress={() => push("/instagram-verification")}
+                last
+              />
+            </View>
+          </SettingsSection>
+
           <SettingsSection title="Preferences">
             <PreferencesSection
               pushEnabled={pushEnabled}

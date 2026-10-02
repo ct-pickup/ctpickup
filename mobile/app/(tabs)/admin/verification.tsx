@@ -1,3 +1,4 @@
+import { InstagramVerificationQueue } from "@/components/admin/InstagramVerificationQueue";
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import { useFocusEffect } from "expo-router";
@@ -98,6 +99,10 @@ export default function AdminVerificationScreen() {
   return (
     <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 60 }}>
       <Text style={s.pageTitle}>Verification Requests</Text>
+
+      <InstagramVerificationQueue />
+
+      <Text style={s.sectionTitle}>Documents</Text>
 
       {pending.length === 0 && (
         <View style={s.emptyCard}>

@@ -245,6 +245,17 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
+                            name="instagram-verification"
+                            options={{
+                              headerShown: true,
+                              title: "Verification",
+                              headerBackTitle: "Settings",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
                             name="reset-password"
                             options={{
                               headerShown: true,

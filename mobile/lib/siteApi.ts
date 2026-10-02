@@ -631,6 +631,8 @@ export type PublicPlayerProfile = {
   club_name: string | null;
   roster_url: string | null;
   attended_count: number | null;
+  /** Verified handle; present only when the player is Instagram-verified and chose to show it. */
+  instagram_handle?: string;
 };
 
 /** In-app public card (team chat, etc.); requires approved viewer. */
