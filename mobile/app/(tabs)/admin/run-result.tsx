@@ -11,6 +11,7 @@ import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions"
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -21,9 +22,6 @@ import {
   Text,
   View,
 } from "react-native";
-
-const BG = "#0a0a0a";
-const LIME = "#a3e635";
 
 type Team = "A" | "B" | "C";
 
@@ -69,6 +67,8 @@ function SelectModal<T extends string>({
   /** When true, tapping the selected option clears the value (award deselection). */
   allowClear?: boolean;
 }) {
+  useThemedStyles(publish_styles);
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalRoot}>
@@ -131,6 +131,8 @@ function SelectModal<T extends string>({
 }
 
 export default function AdminRunResultScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const navigation = useNavigation();
   const { run_id: rawRunId, readonly: rawReadonly } = useLocalSearchParams<{
@@ -183,8 +185,8 @@ export default function AdminRunResultScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       title: isReadonly ? "View Results" : "Post Results",
-      headerStyle: { backgroundColor: BG },
-      headerTintColor: "#fff",
+      headerStyle: { backgroundColor: themeColor().bg },
+      headerTintColor: themeColor().text,
       headerShadowVisible: false,
     });
   }, [navigation, isReadonly]);
@@ -513,7 +515,7 @@ export default function AdminRunResultScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={LIME} />
+        <ActivityIndicator size="large" color={themeColor().pitchText} />
       </View>
     );
   }
@@ -576,7 +578,7 @@ export default function AdminRunResultScreen() {
                     No-show ✗
                   </Text>
                 </Pressable>
-                {saving ? <ActivityIndicator size="small" color={LIME} style={{ marginLeft: 8 }} /> : null}
+                {saving ? <ActivityIndicator size="small" color={themeColor().pitchText} style={{ marginLeft: 8 }} /> : null}
               </View>
             </View>
           );
@@ -765,7 +767,7 @@ export default function AdminRunResultScreen() {
           style={({ pressed }) => [styles.primaryBtn, (pressed && !submitting) && { opacity: 0.92 }, submitting && styles.disabled]}
         >
           <View style={styles.primaryBtnInner}>
-            {submitting ? <ActivityIndicator color="#111" /> : <FontAwesome name="check" size={16} color="#111" />}
+            {submitting ? <ActivityIndicator color={themeColor().onPitch} /> : <FontAwesome name="check" size={16} color={themeColor().onPitch} />}
             <Text style={styles.primaryBtnText}>{submitting ? "Posting…" : "Post Results"}</Text>
           </View>
         </Pressable>
@@ -846,6 +848,8 @@ function AwardRow({
   onClear?: () => void;
   disabled?: boolean;
 }) {
+  useThemedStyles(publish_styles);
+
   return (
     <View style={[styles.awardRow, disabled && { opacity: 0.5 }]}>
       <Pressable
@@ -859,7 +863,7 @@ function AwardRow({
             {valueLabel}
           </Text>
         </View>
-        <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+        <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
       </Pressable>
       {hasValue && !disabled && onClear ? (
         <Pressable
@@ -876,24 +880,25 @@ function AwardRow({
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: BG },
+function make_styles() {
+  return StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 20, paddingBottom: 40 },
-  center: { flex: 1, backgroundColor: BG, justifyContent: "center", alignItems: "center", padding: 24 },
-  errText: { color: "#fca5a5", fontSize: 15, textAlign: "center" },
+  center: { flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center", padding: 24 },
+  errText: { color: themeColor().coral, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center" },
 
   headerCard: {
     padding: 18,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.25)",
-    backgroundColor: "rgba(163,230,53,0.06)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
     marginBottom: 12,
   },
-  h1: { fontSize: 22, fontWeight: "900", color: "#fff" },
-  sub: { marginTop: 8, fontSize: 13, lineHeight: 18, color: "rgba(255,255,255,0.55)" },
+  h1: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().text },
+  sub: { marginTop: 8, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, color: themeColor().muted },
 
-  sectionTitle: { marginTop: 18, fontSize: 12, fontWeight: "900", letterSpacing: 1.1, color: "rgba(255,255,255,0.45)", textTransform: "uppercase" },
+  sectionTitle: { marginTop: 18, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "900", color: themeColor().muted, },
 
   attendanceRow: {
     flexDirection: "row",
@@ -901,7 +906,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.06)",
+    borderBottomColor: themeColor().line,
   },
   attendanceChipRow: { flexDirection: "row", alignItems: "center", flexShrink: 0, gap: 8 },
   attendanceChip: {
@@ -909,33 +914,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  attendanceChipActive: { borderColor: "rgba(163,230,53,0.55)", backgroundColor: "rgba(163,230,53,0.14)" },
-  attendanceChipActiveNoShow: { borderColor: "rgba(248,113,113,0.45)", backgroundColor: "rgba(248,113,113,0.12)" },
+  attendanceChipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  attendanceChipActiveNoShow: { borderColor: themeColor().coral, backgroundColor: themeColor().overlaySubtle },
   attendanceChipDisabled: { opacity: 0.45 },
-  attendanceChipText: { fontSize: 12, fontWeight: "800", color: "rgba(255,255,255,0.55)" },
-  attendanceChipTextActive: { color: LIME },
-  attendanceChipTextNoShowActive: { color: "#fca5a5" },
+  attendanceChipText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted },
+  attendanceChipTextActive: { color: themeColor().pitchText },
+  attendanceChipTextNoShowActive: { color: themeColor().coral },
 
   rosterRowNoShow: { opacity: 0.72 },
-  personNameMuted: { color: "rgba(255,255,255,0.45)" },
-  noShowLabel: { marginTop: 4, fontSize: 11, fontWeight: "800", color: "rgba(248,113,113,0.9)", letterSpacing: 0.3 },
-  teamPillNoShow: { borderColor: "rgba(255,255,255,0.12)", backgroundColor: "rgba(255,255,255,0.04)" },
+  personNameMuted: { color: themeColor().muted },
+  noShowLabel: { marginTop: 4, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().coral,},
+  teamPillNoShow: { borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
 
   teamFallbackWarn: {
     marginTop: 10,
-    fontSize: 14,
+    fontSize: 14, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    color: "rgba(251,191,36,0.95)",
+    color: themeColor().coral,
     lineHeight: 20,
   },
   teamReadOnlyMeta: {
     marginTop: 10,
-    fontSize: 14,
+    fontSize: 14, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    color: "rgba(255,255,255,0.55)",
+    color: themeColor().muted,
   },
 
   segmentRow: { flexDirection: "row", gap: 10, marginTop: 10 },
@@ -945,43 +950,43 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  segmentChipActive: { borderColor: "rgba(163,230,53,0.55)", backgroundColor: "rgba(163,230,53,0.12)" },
-  segmentText: { color: "rgba(255,255,255,0.55)", fontSize: 15, fontWeight: "800" },
-  segmentTextActive: { color: LIME },
+  segmentChipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  segmentText: { color: themeColor().muted, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  segmentTextActive: { color: themeColor().pitchText },
 
   card: {
     marginTop: 12,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  muted: { color: "rgba(255,255,255,0.55)", fontSize: 14 },
+  muted: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
 
   rosterRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10 },
-  personName: { color: "#fff", fontWeight: "800", fontSize: 15 },
+  personName: { color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   teamPillReadonly: {
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  teamPillReadonlyText: { color: "rgba(255,255,255,0.75)", fontWeight: "800", fontSize: 13 },
+  teamPillReadonlyText: { color: themeColor().text, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
   teamPill: {
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.10)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  teamPillText: { color: LIME, fontWeight: "900", fontSize: 13 },
+  teamPillText: { color: themeColor().pitch, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
 
   awardRow: {
     flexDirection: "row",
@@ -990,66 +995,66 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.06)",
+    borderBottomColor: themeColor().line,
   },
-  awardLabel: { color: "rgba(255,255,255,0.65)", fontWeight: "800", fontSize: 12 },
-  awardValue: { marginTop: 6, color: "#fff", fontWeight: "800", fontSize: 15 },
-  awardValueSelected: { color: LIME },
+  awardLabel: { color: themeColor().muted, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
+  awardValue: { marginTop: 6, color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  awardValueSelected: { color: themeColor().pitchText },
   potdVoteCard: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.06)",
+    borderBottomColor: themeColor().line,
   },
-  potdVoteBody: { marginTop: 6, color: LIME, fontWeight: "800", fontSize: 15, lineHeight: 21 },
-  potdVoteMuted: { marginTop: 6, color: "rgba(255,255,255,0.45)", fontSize: 13, lineHeight: 18 },
+  potdVoteBody: { marginTop: 6, color: themeColor().pitchText, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold", lineHeight: 21 },
+  potdVoteMuted: { marginTop: 6, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   awardClearBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: themeColor().overlay,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: themeColor().line,
   },
-  awardClearText: { color: "rgba(255,255,255,0.75)", fontSize: 16, fontWeight: "700" },
+  awardClearText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
 
   input: {
     marginTop: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: themeColor().line,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: "rgba(0,0,0,0.35)",
+    backgroundColor: themeColor().overlaySubtle,
   },
   selectTrigger: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  selectValue: { color: "#fff", fontSize: 16, fontWeight: "800" },
-  selectChevron: { color: LIME, fontSize: 14 },
+  selectValue: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  selectChevron: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_400Regular" },
 
   primaryBtn: {
     marginTop: 20,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
   },
   primaryBtnInner: { flexDirection: "row", alignItems: "center", gap: 10 },
-  primaryBtnText: { color: "#111", fontWeight: "900", fontSize: 16 },
+  primaryBtnText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
   disabled: { opacity: 0.6 },
 
   modalRoot: { flex: 1 },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.65)" },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: themeColor().scrim },
   modalCardWrap: { ...StyleSheet.absoluteFillObject, justifyContent: "center", paddingHorizontal: 28 },
   modalCard: {
-    backgroundColor: "#141414",
-    borderRadius: 16,
+    backgroundColor: themeColor().card,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.25)",
+    borderColor: themeColor().pitch,
     paddingVertical: 8,
     paddingHorizontal: 4,
   },
-  modalTitle: { fontSize: 15, fontWeight: "800", color: LIME, paddingHorizontal: 16, paddingVertical: 12 },
+  modalTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().pitchText, paddingHorizontal: 16, paddingVertical: 12 },
   modalClearRow: {
     marginHorizontal: 8,
     marginBottom: 4,
@@ -1057,11 +1062,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     alignItems: "center",
   },
-  modalClearText: { color: "rgba(255,255,255,0.7)", fontWeight: "700", fontSize: 14 },
+  modalClearText: { color: themeColor().muted, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
   modalRow: {
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -1072,11 +1077,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 10,
   },
-  modalRowSelected: { backgroundColor: "rgba(163,230,53,0.12)" },
-  modalRowText: { flex: 1, fontSize: 16, color: "rgba(255,255,255,0.85)" },
-  modalRowTextSelected: { color: LIME, fontWeight: "700" },
-  modalRowRemove: { color: LIME, fontSize: 16, fontWeight: "800" },
+  modalRowSelected: { backgroundColor: themeColor().pitchSoft },
+  modalRowText: { flex: 1, fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().text },
+  modalRowTextSelected: { color: themeColor().pitchText, fontWeight: "700" },
+  modalRowRemove: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
   modalCancel: { marginTop: 4, paddingVertical: 14, alignItems: "center" },
-  modalCancelText: { fontSize: 15, fontWeight: "600", color: "rgba(255,255,255,0.45)" },
+  modalCancelText: { fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().muted },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+
 

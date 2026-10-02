@@ -21,26 +21,29 @@ import { format, isToday, isTomorrow } from "date-fns";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 
+import { themeColor, useThemedStyles } from "@/theme";
 /* ---------------------------------------------------------------- tokens */
 
-const C = {
-  bg: "#0B0F0D",
-  surface: "#151B18",
-  surfaceLift: "#1E2723",
-  hairline: "#2A342E",
-  chalk: "#F2F4F1",
-  muted: "#8A968F",
-  casual: "#6B8F71",
-  competitive: "#E8B62C",
-  elite: "#E24E32",
-  live: "#4ADE80",
+function C() {
+  return {
+  bg: themeColor().bg,
+  surface: themeColor().card,
+  surfaceLift: themeColor().card,
+  hairline: themeColor().line,
+  chalk: themeColor().text,
+  muted: themeColor().muted,
+  casual: themeColor().pitch,
+  competitive: themeColor().muted,
+  elite: themeColor().text,
+  live: themeColor().pitch,
 };
+}
 
 type Level = "casual" | "competitive" | "elite";
 const LEVEL_COLOR: Record<Level, string> = {
-  casual: C.casual,
-  competitive: C.competitive,
-  elite: C.elite,
+  casual: C().casual,
+  competitive: C().competitive,
+  elite: C().elite,
 };
 
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -83,6 +86,8 @@ function isSessionLive(startAt: string | null | undefined): boolean {
 }
 
 function LivePulseDot({ size = 8 }: { size?: number }) {
+  useThemedStyles(publish_styles);
+
   const opacity = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     const anim = Animated.loop(
@@ -100,7 +105,7 @@ function LivePulseDot({ size = 8 }: { size?: number }) {
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: C.live,
+        backgroundColor: C().live,
         opacity,
       }}
     />
@@ -108,6 +113,8 @@ function LivePulseDot({ size = 8 }: { size?: number }) {
 }
 
 function useSessions(level: Level | "all") {
+  useThemedStyles(publish_styles);
+
   const { supabase } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
@@ -199,6 +206,8 @@ type TrainingPin = {
 };
 
 function useTrainingPosts() {
+  useThemedStyles(publish_styles);
+
   const { supabase } = useAuth();
   const [posts, setPosts] = useState<TrainingPin[]>([]);
 
@@ -223,6 +232,8 @@ function useTrainingPosts() {
 
 // Small "T" pin for someone actively training (distinct from session fill pins).
 function TrainingMarkerPin({ post, onPress }: { post: TrainingPin; onPress: () => void }) {
+  useThemedStyles(publish_styles);
+
   const [tracking, setTracking] = useState(true);
   useEffect(() => {
     const t = setTimeout(() => setTracking(false), 400);
@@ -260,19 +271,21 @@ function FillPin({
   selected: boolean;
   live?: boolean;
 }) {
+  useThemedStyles(publish_styles);
+
   const size = selected ? 52 : 44;
   const r = size / 2 - 4;
   const circ = 2 * Math.PI * r;
   const pct = Math.min(taken / capacity, 1);
   const left = capacity - taken;
   const full = left <= 0;
-  const color = full ? C.muted : LEVEL_COLOR[level];
+  const color = full ? C().muted : LEVEL_COLOR[level];
 
   return (
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size}>
-        <Circle cx={size / 2} cy={size / 2} r={r} fill={C.surface} />
-        <Circle cx={size / 2} cy={size / 2} r={r} stroke={C.hairline} strokeWidth={3} fill="none" />
+        <Circle cx={size / 2} cy={size / 2} r={r} fill={C().surface} />
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke={C().hairline} strokeWidth={3} fill="none" />
         <Circle
           cx={size / 2}
           cy={size / 2}
@@ -286,7 +299,7 @@ function FillPin({
         />
       </Svg>
       <View style={styles.pinLabel}>
-        <Text style={[styles.pinNum, { color: full ? C.muted : C.chalk }]} allowFontScaling={false}>
+        <Text style={[styles.pinNum, { color: full ? C().muted : C().chalk }]} allowFontScaling={false}>
           {full ? "—" : left}
         </Text>
       </View>
@@ -316,6 +329,8 @@ function TrackingMarker({
   live?: boolean;
   children: React.ReactNode;
 }) {
+  useThemedStyles(publish_styles);
+
   const [tracking, setTracking] = useState(true);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -345,10 +360,12 @@ function whenLabel(iso: string) {
 }
 
 function SessionCard({ session, onPress }: { session: Session; onPress: (s: Session) => void }) {
+  useThemedStyles(publish_styles);
+
   const left = session.capacity - session.spots_taken;
   const full = left <= 0;
   const venue = session.location_private?.trim() || "Location TBD";
-  const levelColor = session.level ? LEVEL_COLOR[session.level] : C.muted;
+  const levelColor = session.level ? LEVEL_COLOR[session.level] : C().muted;
   const live = isSessionLive(session.start_at);
 
   return (
@@ -378,11 +395,11 @@ function SessionCard({ session, onPress }: { session: Session; onPress: (s: Sess
       <Text style={styles.cardWhen}>{whenLabel(session.start_at)}</Text>
 
       <View style={styles.cardBottomRow}>
-        <Text style={[styles.cardSpots, full && { color: C.muted }]}>
+        <Text style={[styles.cardSpots, full && { color: C().muted }]}>
           {full ? "Full — join waitlist" : `${left} of ${session.capacity} spots left`}
         </Text>
-        <View style={[styles.cta, full && { backgroundColor: C.surfaceLift }]}>
-          <Text style={[styles.ctaText, full && { color: C.muted }]}>
+        <View style={[styles.cta, full && { backgroundColor: C().surfaceLift }]}>
+          <Text style={[styles.ctaText, full && { color: C().muted }]}>
             {full ? "Waitlist" : "Reserve"}
           </Text>
         </View>
@@ -576,8 +593,8 @@ export default function SessionMapScreen() {
         style={StyleSheet.absoluteFill}
         initialRegion={FAIRFIELD}
         userInterfaceStyle="dark"
-        backgroundColor="#1a2420"
-        loadingBackgroundColor="#1a2420"
+        backgroundColor={themeColor().card}
+        loadingBackgroundColor={themeColor().card}
         showsUserLocation
         showsMyLocationButton={false}
         showsPointsOfInterest={false}
@@ -633,7 +650,7 @@ export default function SessionMapScreen() {
 
       {loading && (
         <View style={styles.center} pointerEvents="none">
-          <ActivityIndicator color={C.chalk} />
+          <ActivityIndicator color={C().chalk} />
         </View>
       )}
 
@@ -704,7 +721,7 @@ export default function SessionMapScreen() {
             keyboardType="number-pad"
             returnKeyType="done"
             placeholder="e.g. 06880"
-            placeholderTextColor="rgba(255,255,255,0.25)"
+            placeholderTextColor={themeColor().muted}
             maxLength={5}
             autoFocus
           />
@@ -715,7 +732,7 @@ export default function SessionMapScreen() {
             style={[styles.zipGpsBtn, zipGpsLoading && { opacity: 0.5 }]}
           >
             {zipGpsLoading
-              ? <ActivityIndicator color="#0a0a0a" size="small" />
+              ? <ActivityIndicator color={themeColor().onPitch} size="small" />
               : <Text style={styles.zipGpsBtnText}>📡 Use my GPS</Text>}
           </Pressable>
 
@@ -725,7 +742,7 @@ export default function SessionMapScreen() {
             style={[styles.zipSaveBtn, (zipSaving || zipInput.length < 5) && { opacity: 0.4 }]}
           >
             {zipSaving
-              ? <ActivityIndicator color="#0a0a0a" />
+              ? <ActivityIndicator color={themeColor().onPitch} />
               : <Text style={styles.zipSaveBtnText}>Save ZIP</Text>}
           </Pressable>
         </KeyboardAvoidingView>
@@ -736,27 +753,28 @@ export default function SessionMapScreen() {
 
 /* ----------------------------------------------------------------- styles */
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+function make_styles() {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: C().bg },
   center: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
 
   topBar: { position: "absolute", top: 60, left: 0, right: 0 },
-  backBtn: { marginLeft: 12, marginBottom: 8, backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, alignSelf: "flex-start" },
-  backBtnText: { color: "#fff", fontWeight: "600", fontSize: 15 },
-  zipPill: { position: "absolute", top: 60, right: 12, zIndex: 999, backgroundColor: "rgba(0,0,0,0.75)", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: "rgba(163,230,53,0.5)" },
-  zipPillText: { color: "#a3e635", fontWeight: "700", fontSize: 13 },
+  backBtn: { marginLeft: 12, marginBottom: 8, backgroundColor: themeColor().card, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, alignSelf: "flex-start" },
+  backBtnText: { color: themeColor().text, fontWeight: "600", fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  zipPill: { position: "absolute", top: 60, right: 12, zIndex: 999, backgroundColor: themeColor().card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: themeColor().pitch },
+  zipPillText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   filterRow: { flexDirection: "row", paddingHorizontal: 16, gap: 8 },
 
-  zipModal: { flex: 1, backgroundColor: "#0a0a0a", padding: 24 },
+  zipModal: { flex: 1, backgroundColor: themeColor().bg, padding: 24 },
   zipModalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 28, paddingTop: 8 },
-  zipModalTitle: { color: "#fff", fontSize: 20, fontWeight: "700" },
-  zipModalClose: { color: "rgba(255,255,255,0.5)", fontSize: 20 },
-  zipModalLabel: { color: "rgba(255,255,255,0.45)", fontSize: 11, fontWeight: "700", letterSpacing: 1.2, marginBottom: 8 },
-  zipInput: { backgroundColor: "rgba(255,255,255,0.07)", borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", color: "#fff", fontSize: 28, fontWeight: "700", paddingHorizontal: 18, paddingVertical: 14, textAlign: "center", letterSpacing: 6, marginBottom: 16 },
-  zipGpsBtn: { backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 14, paddingVertical: 16, alignItems: "center", marginBottom: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
-  zipGpsBtnText: { color: "#fff", fontWeight: "600", fontSize: 15 },
-  zipSaveBtn: { backgroundColor: "#a3e635", borderRadius: 14, paddingVertical: 16, alignItems: "center" },
-  zipSaveBtnText: { color: "#0a0a0a", fontWeight: "800", fontSize: 16 },
+  zipModalTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700" },
+  zipModalClose: { color: themeColor().muted, fontSize: 20, fontFamily: "InstrumentSerif_400Regular" },
+  zipModalLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 8 },
+  zipInput: { backgroundColor: themeColor().overlay, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", paddingHorizontal: 18, paddingVertical: 14, textAlign: "center", marginBottom: 16 },
+  zipGpsBtn: { backgroundColor: themeColor().overlay, borderRadius: 12, paddingVertical: 16, alignItems: "center", marginBottom: 12, borderWidth: 1, borderColor: themeColor().line },
+  zipGpsBtnText: { color: themeColor().text, fontWeight: "600", fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  zipSaveBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center" },
+  zipSaveBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   chip: {
     flexDirection: "row",
     alignItems: "center",
@@ -764,24 +782,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: C.surface,
+    backgroundColor: C().surface,
     borderWidth: 1,
-    borderColor: C.hairline,
+    borderColor: C().hairline,
   },
-  chipOn: { backgroundColor: C.chalk, borderColor: C.chalk },
-  chipText: { color: C.muted, fontSize: 13, fontWeight: "600" },
-  chipTextOn: { color: C.bg },
+  chipOn: { backgroundColor: C().chalk, borderColor: C().chalk },
+  chipText: { color: C().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  chipTextOn: { color: C().bg },
 
   pinLabel: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
-  pinNum: { fontSize: 15, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  pinNum: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", fontVariant: ["tabular-nums"] },
   livePinBadge: {
     position: "absolute",
     top: 2,
     right: 2,
     width: 12,
     height: 12,
-    borderRadius: 6,
-    backgroundColor: C.bg,
+    borderRadius: 10,
+    backgroundColor: C().bg,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -793,83 +811,88 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 999,
-    backgroundColor: "rgba(74,222,128,0.15)",
+    backgroundColor: themeColor().pitchSoft,
   },
   liveBadgeText: {
-    color: C.live,
-    fontSize: 10,
+    color: C().live,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 0.6,
   },
   trainingPin: {
     width: 26,
     height: 26,
-    borderRadius: 13,
-    backgroundColor: C.bg,
+    borderRadius: 12,
+    backgroundColor: C().bg,
     borderWidth: 2,
-    borderColor: "#a3e635",
+    borderColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
   },
-  trainingPinText: { color: "#a3e635", fontSize: 13, fontWeight: "800" },
+  trainingPinText: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
 
   carouselWrap: { position: "absolute", bottom: 34, left: 0, right: 0 },
   carousel: { paddingHorizontal: (SCREEN_W - CARD_W) / 2, gap: CARD_GAP },
 
   card: {
     width: CARD_W,
-    backgroundColor: C.surface,
-    borderRadius: 18,
+    backgroundColor: C().surface,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: C.hairline,
+    borderColor: C().hairline,
     padding: 16,
   },
   cardTopRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  levelDot: { width: 7, height: 7, borderRadius: 4 },
-  cardLevel: { color: C.muted, fontSize: 11, fontWeight: "700", letterSpacing: 0.8, flex: 1 },
-  cardPrice: { color: C.chalk, fontSize: 13, fontWeight: "700" },
-  cardVenue: { color: C.chalk, fontSize: 19, fontWeight: "700", marginTop: 10 },
-  cardWhen: { color: C.muted, fontSize: 13, marginTop: 3 },
+  levelDot: { width: 7, height: 7, borderRadius: 10 },
+  cardLevel: { color: C().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", flex: 1 },
+  cardPrice: { color: C().chalk, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  cardVenue: { color: C().chalk, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", marginTop: 10 },
+  cardWhen: { color: C().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 3 },
   cardBottomRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginTop: 16,
   },
-  cardSpots: { color: C.chalk, fontSize: 13, fontWeight: "600", flexShrink: 1 },
-  cta: { backgroundColor: C.chalk, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999 },
-  ctaText: { color: C.bg, fontSize: 13, fontWeight: "700" },
+  cardSpots: { color: C().chalk, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", flexShrink: 1 },
+  cta: { backgroundColor: C().chalk, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999 },
+  ctaText: { color: C().bg, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
 
   banner: {
     position: "absolute",
     bottom: 200,
     alignSelf: "center",
-    backgroundColor: C.surfaceLift,
+    backgroundColor: C().surfaceLift,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 999,
   },
-  bannerText: { color: C.chalk, fontSize: 13 },
+  bannerText: { color: C().chalk, fontSize: 13, fontFamily: "Inter_400Regular" },
 
   emptyWrap: {
     position: "absolute",
     bottom: 40,
     left: 20,
     right: 20,
-    backgroundColor: C.surface,
-    borderRadius: 18,
+    backgroundColor: C().surface,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: C.hairline,
+    borderColor: C().hairline,
     padding: 20,
   },
-  emptyTitle: { color: C.chalk, fontSize: 18, fontWeight: "700" },
-  emptyBody: { color: C.muted, fontSize: 14, lineHeight: 20, marginTop: 6 },
+  emptyTitle: { color: C().chalk, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700" },
+  emptyBody: { color: C().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20, marginTop: 6 },
   emptyCta: {
     marginTop: 16,
-    backgroundColor: C.chalk,
+    backgroundColor: C().chalk,
     paddingVertical: 12,
     borderRadius: 999,
     alignItems: "center",
   },
-  emptyCtaText: { color: C.bg, fontSize: 14, fontWeight: "700" },
+  emptyCtaText: { color: C().bg, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

@@ -10,14 +10,15 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-const LIME = "#a3e635";
-
+import { themeColor, useThemedStyles } from "@/theme";
 function pct01(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return "—";
   return `${Math.round(v * 100)}%`;
 }
 
 export default function AdminTierSuggestionsScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const { session } = useAuth();
   const token = session?.access_token ?? null;
@@ -108,11 +109,11 @@ export default function AdminTierSuggestionsScreen() {
               busy === "algo" && styles.disabled,
             ]}
           >
-            {busy === "algo" ? <ActivityIndicator color="#111" /> : <Text style={styles.primaryText}>Run Promotion Algorithm</Text>}
+            {busy === "algo" ? <ActivityIndicator color={themeColor().onPitch} /> : <Text style={styles.primaryText}>Run Promotion Algorithm</Text>}
           </Pressable>
         </View>
 
-        {loading ? <ActivityIndicator color="#fff" style={{ marginTop: 14 }} /> : null}
+        {loading ? <ActivityIndicator color={themeColor().text} style={{ marginTop: 14 }} /> : null}
         {error ? <Text style={styles.err}>{error}</Text> : null}
 
         {sorted.length === 0 && !loading && !error ? (
@@ -140,7 +141,7 @@ export default function AdminTierSuggestionsScreen() {
                     {s.current_tier ?? p?.tier ?? "—"} → <Text style={styles.cardMetaStrong}>{s.suggested_tier}</Text>
                   </Text>
                 </View>
-                <FontAwesome name="angle-right" size={16} color="rgba(255,255,255,0.35)" />
+                <FontAwesome name="angle-right" size={16} color={themeColor().muted} />
               </Pressable>
 
               <View style={styles.factRow}>
@@ -181,84 +182,91 @@ export default function AdminTierSuggestionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0a0a0a" },
+function make_styles() {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 16, paddingBottom: 48 },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  h1: { color: "#fff", fontSize: 26, fontWeight: "900" },
-  sub: { marginTop: 6, color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: "700" },
+  h1: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900" },
+  sub: { marginTop: 6, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  chipText: { color: LIME, fontWeight: "900", fontSize: 13 },
+  chipText: { color: themeColor().pitch, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
   actionRow: { marginTop: 14 },
   primary: {
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     minHeight: 48,
   },
-  primaryText: { color: "#111", fontWeight: "900", fontSize: 14 },
+  primaryText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 14, fontFamily: "Inter_700Bold" },
   disabled: { opacity: 0.55 },
-  err: { marginTop: 14, color: "#fca5a5" },
+  err: { marginTop: 14, color: themeColor().coral },
   emptyCard: {
     marginTop: 14,
     padding: 18,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  emptyTitle: { color: "#fff", fontWeight: "900", fontSize: 16 },
-  emptyBody: { marginTop: 8, color: "rgba(255,255,255,0.6)", fontSize: 14, lineHeight: 20 },
+  emptyTitle: { color: themeColor().text, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
+  emptyBody: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   card: {
     marginTop: 12,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   cardTop: { flexDirection: "row", alignItems: "center", gap: 10 },
-  cardName: { color: "#fff", fontWeight: "900", fontSize: 16 },
-  cardMeta: { marginTop: 6, color: "rgba(255,255,255,0.6)", fontWeight: "700", fontSize: 13 },
-  cardMetaStrong: { color: LIME, fontWeight: "900" },
+  cardName: { color: themeColor().text, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
+  cardMeta: { marginTop: 6, color: themeColor().muted, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
+  cardMetaStrong: { color: themeColor().pitchText, fontWeight: "900" },
   factRow: { marginTop: 12, flexDirection: "row", flexWrap: "wrap", gap: 8 },
   factPill: {
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(0,0,0,0.25)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().bg,
   },
-  factText: { color: "rgba(255,255,255,0.78)", fontWeight: "800", fontSize: 12 },
-  reason: { marginTop: 10, color: "rgba(255,255,255,0.78)", fontSize: 13, lineHeight: 18 },
+  factText: { color: themeColor().text, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
+  reason: { marginTop: 10, color: themeColor().text, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   btnRow: { marginTop: 14, flexDirection: "row", gap: 10 },
   acceptBtn: {
     flex: 1,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
   },
-  acceptText: { color: "#111", fontWeight: "900" },
+  acceptText: { color: themeColor().onPitch, fontWeight: "900" },
   rejectBtn: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "rgba(248,113,113,0.5)",
-    backgroundColor: "rgba(248,113,113,0.08)",
+    borderColor: themeColor().coral,
+    backgroundColor: themeColor().overlaySubtle,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
   },
-  rejectText: { color: "rgba(248,113,113,0.95)", fontWeight: "900" },
+  rejectText: { color: themeColor().coral, fontWeight: "900" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+
 

@@ -57,9 +57,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const BG = "#0a0a0a";
-const LIME = "#a3e635";
-
+import { themeColor, useThemedStyles } from "@/theme";
 type WorkflowTab = "planning" | "active" | "past";
 
 /** Field cost presets by venue name (whole dollars). */
@@ -128,6 +126,8 @@ function parseFeeDollarsToCents(value: string): number | null {
 }
 
 function SkeletonCard() {
+  useThemedStyles(publish_styles);
+
   return (
     <View style={styles.skeletonCard}>
       <View style={[styles.skeletonLine, { width: "55%" }]} />
@@ -138,6 +138,8 @@ function SkeletonCard() {
 }
 
 export default function AdminPickupOpsScreen() {
+  useThemedStyles(publish_styles);
+
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { session } = useAuth();
@@ -654,7 +656,7 @@ export default function AdminPickupOpsScreen() {
             onRefresh={() => {
               void loadRuns();
             }}
-            tintColor={LIME}
+            tintColor={themeColor().pitchText}
           />
         }
         keyboardShouldPersistTaps="handled"
@@ -667,7 +669,7 @@ export default function AdminPickupOpsScreen() {
             }}
             style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}
           >
-            <FontAwesome name="chevron-left" size={18} color="#fff" />
+            <FontAwesome name="chevron-left" size={18} color={themeColor().text} />
             <Text style={styles.backBtnText}>Back</Text>
           </Pressable>
           <Text style={styles.topTitle}>Pickup ops</Text>
@@ -678,7 +680,7 @@ export default function AdminPickupOpsScreen() {
             }}
             style={({ pressed }) => [styles.refreshBtn, pressed && { opacity: 0.85 }]}
           >
-            <FontAwesome name="refresh" size={14} color={LIME} />
+            <FontAwesome name="refresh" size={14} color={themeColor().pitchText} />
           </Pressable>
         </View>
 
@@ -847,7 +849,7 @@ export default function AdminPickupOpsScreen() {
           pressed && { opacity: 0.9 },
         ]}
       >
-        <FontAwesome name="plus" size={22} color="#111" />
+        <FontAwesome name="plus" size={22} color={themeColor().onPitch} />
       </Pressable>
 
       {/* Create run sheet */}
@@ -891,7 +893,7 @@ export default function AdminPickupOpsScreen() {
                     value={createCustomVenueName}
                     onChangeText={setCreateCustomVenueName}
                     placeholder="Venue name e.g. Chelsea Piers"
-                    placeholderTextColor="rgba(255,255,255,0.35)"
+                    placeholderTextColor={themeColor().muted}
                   />
                   <Text style={styles.label}>Venue address</Text>
                   <TextInput
@@ -902,7 +904,7 @@ export default function AdminPickupOpsScreen() {
                       if (serviceRegionFromAddress(text)) setCreateRegionOverride(null);
                     }}
                     placeholder="Full address e.g. 62 Chelsea Piers, New York, NY"
-                    placeholderTextColor="rgba(255,255,255,0.35)"
+                    placeholderTextColor={themeColor().muted}
                     multiline
                   />
                   <Text style={styles.label}>Venue ZIP code</Text>
@@ -911,7 +913,7 @@ export default function AdminPickupOpsScreen() {
                     value={createCustomVenueZip}
                     onChangeText={(text) => setCreateCustomVenueZip(text.replace(/\D/g, "").slice(0, 5))}
                     placeholder="e.g. 10011"
-                    placeholderTextColor="rgba(255,255,255,0.35)"
+                    placeholderTextColor={themeColor().muted}
                     keyboardType="number-pad"
                     maxLength={5}
                   />
@@ -1033,7 +1035,7 @@ export default function AdminPickupOpsScreen() {
                       pressed && createPollDateEt.trim() && { opacity: 0.9 },
                     ]}
                   >
-                    <FontAwesome name="plus" size={12} color={LIME} />
+                    <FontAwesome name="plus" size={12} color={themeColor().pitchText} />
                     <Text style={styles.addSlotBtnText}>Add another time slot</Text>
                   </Pressable>
                 ) : null}
@@ -1046,7 +1048,7 @@ export default function AdminPickupOpsScreen() {
                 onChangeText={setCreateCapacity}
                 keyboardType="number-pad"
                 placeholder="24"
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                placeholderTextColor={themeColor().muted}
               />
 
               <Text style={styles.label}>Player fee ($)</Text>
@@ -1056,7 +1058,7 @@ export default function AdminPickupOpsScreen() {
                 onChangeText={setCreatePlayerFee}
                 keyboardType="decimal-pad"
                 placeholder="e.g. 12.50"
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                placeholderTextColor={themeColor().muted}
               />
 
               <Text style={styles.label}>My earnings ($)</Text>
@@ -1066,7 +1068,7 @@ export default function AdminPickupOpsScreen() {
                 onChangeText={setCreateEarnings}
                 keyboardType="decimal-pad"
                 placeholder="0"
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                placeholderTextColor={themeColor().muted}
               />
 
               <View style={styles.pricingCalcBox}>
@@ -1078,7 +1080,7 @@ export default function AdminPickupOpsScreen() {
                   onChangeText={setPricingFieldCost}
                   keyboardType="decimal-pad"
                   placeholder="Auto-fills from venue"
-                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  placeholderTextColor={themeColor().muted}
                 />
                 <Text style={styles.pricingCalcHint}>
                   Recommended fee:{" "}
@@ -1131,7 +1133,7 @@ export default function AdminPickupOpsScreen() {
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Run details</Text>
               <Pressable onPress={closeDetail} hitSlop={12}>
-                <FontAwesome name="times" size={20} color="#fff" />
+                <FontAwesome name="times" size={20} color={themeColor().text} />
               </Pressable>
             </View>
 
@@ -1242,8 +1244,9 @@ export default function AdminPickupOpsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: BG },
+function make_styles() {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: themeColor().bg },
   content: { paddingHorizontal: 16, paddingTop: 8 },
   topBar: {
     flexDirection: "row",
@@ -1252,9 +1255,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   backBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 },
-  backBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  topTitle: { flex: 1, fontSize: 22, fontWeight: "800", color: "#fff", textAlign: "center" },
-  h1: { fontSize: 26, fontWeight: "800", color: "#fff" },
+  backBtnText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  topTitle: { flex: 1, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text, textAlign: "center" },
+  h1: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
   refreshBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -1263,9 +1266,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
+    borderColor: themeColor().pitch,
   },
-  refreshText: { color: LIME, fontWeight: "700", fontSize: 13 },
+  refreshText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   toolbar: { flexDirection: "row", gap: 8, marginBottom: 14 },
   toolChip: {
     flexDirection: "row",
@@ -1274,75 +1277,75 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  toolChipText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  toolChipText: { color: themeColor().text, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   badge: {
     marginLeft: 6,
     minWidth: 18,
     height: 18,
-    borderRadius: 9,
-    backgroundColor: LIME,
+    borderRadius: 10,
+    backgroundColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 4,
   },
-  badgeText: { color: "#111", fontSize: 10, fontWeight: "800" },
+  badgeText: { color: themeColor().onPitch, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   chip: {
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: themeColor().line,
   },
-  chipActive: { borderColor: "rgba(163,230,53,0.5)", backgroundColor: "rgba(163,230,53,0.1)" },
-  chipText: { color: "rgba(255,255,255,0.65)", fontWeight: "700" },
-  chipTextActive: { color: LIME },
+  chipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  chipText: { color: themeColor().muted, fontWeight: "700" },
+  chipTextActive: { color: themeColor().pitchText },
   tabRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
   tab: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: themeColor().line,
     alignItems: "center",
   },
-  tabActive: { borderColor: "rgba(163,230,53,0.45)", backgroundColor: "rgba(163,230,53,0.08)" },
-  tabText: { color: "rgba(255,255,255,0.55)", fontWeight: "700", fontSize: 12 },
-  tabTextActive: { color: LIME },
-  err: { color: "#fca5a5", marginBottom: 12, lineHeight: 20 },
+  tabActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  tabText: { color: themeColor().muted, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
+  tabTextActive: { color: themeColor().pitchText },
+  err: { color: themeColor().coral, marginBottom: 12, lineHeight: 20 },
   empty: {
     padding: 20,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     marginBottom: 12,
   },
-  emptyTitle: { color: "#fff", fontWeight: "800", fontSize: 16 },
-  emptyBody: { color: "rgba(255,255,255,0.55)", marginTop: 6, lineHeight: 20 },
+  emptyTitle: { color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  emptyBody: { color: themeColor().muted, marginTop: 6, lineHeight: 20 },
   card: {
     padding: 16,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     marginBottom: 12,
   },
   cardTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10 },
-  cardTitle: { flex: 1, color: "#fff", fontSize: 17, fontWeight: "800" },
+  cardTitle: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
   typeBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: "rgba(163,230,53,0.15)",
+    borderRadius: 10,
+    backgroundColor: themeColor().pitchSoft,
   },
-  typeBadgeText: { color: LIME, fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
-  cardEt: { color: LIME, fontSize: 15, fontWeight: "700", marginTop: 10 },
-  cardVenue: { color: "rgba(255,255,255,0.75)", marginTop: 6, lineHeight: 20 },
-  cardMeta: { color: "rgba(255,255,255,0.5)", marginTop: 8, fontSize: 13 },
+  typeBadgeText: { color: themeColor().pitch, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
+  cardEt: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 10 },
+  cardVenue: { color: themeColor().text, marginTop: 6, lineHeight: 20 },
+  cardMeta: { color: themeColor().muted, marginTop: 8, fontSize: 13, fontFamily: "Inter_400Regular" },
   statusBadge: {
     alignSelf: "flex-start",
     marginTop: 10,
@@ -1350,97 +1353,92 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: themeColor().line,
   },
-  statusBadgeText: { color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: "700" },
+  statusBadgeText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   inviteBtn: {
     marginTop: 12,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: "center",
   },
-  inviteBtnText: { color: "#111", fontWeight: "800", fontSize: 14 },
+  inviteBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
   skeletonCard: {
     padding: 16,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     marginBottom: 12,
   },
-  skeletonLine: { height: 14, borderRadius: 6, backgroundColor: "rgba(255,255,255,0.08)" },
+  skeletonLine: { height: 14, borderRadius: 10, backgroundColor: themeColor().overlay },
   fab: {
     position: "absolute",
     right: 20,
     width: 56,
     height: 56,
-    borderRadius: 28,
-    backgroundColor: LIME,
+    borderRadius: 999,
+    backgroundColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
   },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.65)" },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: themeColor().scrim },
   sheet: {
     maxHeight: "92%",
-    backgroundColor: "#111",
+    backgroundColor: themeColor().bg,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
   },
   detailSheet: { minHeight: "50%" },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
-  sheetTitle: { color: "#fff", fontSize: 20, fontWeight: "800" },
-  label: { color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: "700", textTransform: "uppercase", marginTop: 12, marginBottom: 6 },
+  sheetTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  label: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 12, marginBottom: 6 },
   typeToggleRow: { flexDirection: "row", gap: 10 },
   typeToggle: {
     flex: 1,
     paddingVertical: 16,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: themeColor().line,
     alignItems: "center",
   },
-  typeToggleActive: { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.1)" },
-  typeToggleText: { color: "rgba(255,255,255,0.55)", fontWeight: "800", fontSize: 15 },
-  typeToggleTextActive: { color: LIME },
+  typeToggleActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  typeToggleText: { color: themeColor().muted, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  typeToggleTextActive: { color: themeColor().pitchText },
   input: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: themeColor().card,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: themeColor().line,
     padding: 12,
-    color: "#fff",
-    fontSize: 16,
+    color: themeColor().text,
+    fontSize: 16, fontFamily: "Inter_400Regular",
   },
   publicTimeNote: {
     marginTop: 12,
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  publicTimeNoteText: { color: "rgba(255,255,255,0.65)", fontSize: 14, lineHeight: 20 },
-  slotSectionHint: { color: "rgba(255,255,255,0.45)", fontSize: 13, lineHeight: 18, marginBottom: 10 },
+  publicTimeNoteText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  slotSectionHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, marginBottom: 10 },
   slotBlock: {
     marginBottom: 12,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   slotBlockHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
-  slotBlockTitle: { color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: "700", textTransform: "uppercase" },
-  removeSlotText: { color: "#fca5a5", fontSize: 12, fontWeight: "600" },
-  slotWindowPreview: { marginTop: 8, color: "rgba(163,230,53,0.7)", fontWeight: "700", fontSize: 12, lineHeight: 16 },
+  slotBlockTitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", },
+  removeSlotText: { color: themeColor().coral, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  slotWindowPreview: { marginTop: 8, color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold", lineHeight: 16 },
   addSlotBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -1449,14 +1447,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
+    borderColor: themeColor().pitch,
     marginBottom: 8,
   },
-  addSlotBtnText: { color: LIME, fontWeight: "700", fontSize: 14 },
+  addSlotBtnText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
   regionDetectedHint: {
     marginTop: 8,
-    fontSize: 13,
-    color: "rgba(163,230,53,0.75)",
+    fontSize: 13, fontFamily: "Inter_600SemiBold",
+    color: themeColor().pitchText,
     fontWeight: "600",
   },
   pricingCalcBox: {
@@ -1464,57 +1462,63 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  pricingCalcTitle: { color: "#fff", fontSize: 15, fontWeight: "800", marginBottom: 10 },
-  pricingCalcHint: { color: LIME, fontSize: 16, fontWeight: "700", marginTop: 10 },
-  pricingCalcSub: { color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 6, lineHeight: 18 },
+  pricingCalcTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", marginBottom: 10 },
+  pricingCalcHint: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 10 },
+  pricingCalcSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 6, lineHeight: 18 },
   usePriceBtn: {
     marginTop: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: LIME,
+    borderColor: themeColor().pitch,
     paddingVertical: 10,
     alignItems: "center",
   },
-  usePriceBtnText: { color: LIME, fontWeight: "700", fontSize: 14 },
+  usePriceBtnText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
   primaryBtn: {
     marginTop: 20,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
   },
   primaryBtnDisabled: { opacity: 0.6 },
-  primaryBtnText: { color: "#111", fontWeight: "800", fontSize: 16 },
+  primaryBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   cancelLink: { alignItems: "center", marginTop: 12, paddingVertical: 8 },
-  cancelLinkText: { color: "rgba(255,255,255,0.45)", fontSize: 14 },
-  detailTitle: { color: "#fff", fontSize: 20, fontWeight: "800" },
-  detailEt: { color: LIME, fontSize: 16, fontWeight: "700", marginTop: 8 },
-  detailVenue: { color: "rgba(255,255,255,0.75)", marginTop: 8, lineHeight: 22 },
-  detailMeta: { color: "rgba(255,255,255,0.5)", marginTop: 6, fontSize: 13 },
-  rosterHeading: { color: "#fff", fontWeight: "800", marginTop: 20, marginBottom: 8 },
-  rosterEmpty: { color: "rgba(255,255,255,0.45)", fontStyle: "italic" },
-  rosterRow: { color: "rgba(255,255,255,0.8)", paddingVertical: 6, fontSize: 15 },
-  rosterRowMuted: { color: "rgba(255,255,255,0.5)", paddingVertical: 6, fontSize: 14 },
+  cancelLinkText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
+  detailTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  detailEt: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 8 },
+  detailVenue: { color: themeColor().text, marginTop: 8, lineHeight: 22 },
+  detailMeta: { color: themeColor().muted, marginTop: 6, fontSize: 13, fontFamily: "Inter_400Regular" },
+  rosterHeading: { color: themeColor().text, fontWeight: "800", marginTop: 20, marginBottom: 8 },
+  rosterEmpty: { color: themeColor().muted, fontStyle: "italic" },
+  rosterRow: { color: themeColor().text, paddingVertical: 6, fontSize: 16, fontFamily: "Inter_400Regular" },
+  rosterRowMuted: { color: themeColor().muted, paddingVertical: 6, fontSize: 14, fontFamily: "Inter_400Regular" },
   skipWaveBtn: {
     marginTop: 20,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.45)",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  skipWaveBtnText: { color: LIME, fontWeight: "800", fontSize: 15 },
+  skipWaveBtnText: { color: themeColor().pitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   deleteRunBtn: {
     marginTop: 16,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(248,113,113,0.5)",
+    borderColor: themeColor().coral,
   },
-  deleteRunBtnText: { color: "#fca5a5", fontWeight: "700", fontSize: 15 },
+  deleteRunBtnText: { color: themeColor().coral, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

@@ -20,7 +20,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const LIME = "#a3e635";
+import { themeColor, useThemedStyles } from "@/theme";
 const PROXIMITY_AUTO_SELECT_MIN = 30;
 const PROXIMITY_VISIBLE_MAX_MIN = 60;
 
@@ -82,6 +82,8 @@ function autoSelectIds(players: InvitePlayersFormPlayer[]): Set<string> {
 }
 
 export default function InvitePlayersScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const params = useLocalSearchParams<{ run_id?: string }>();
   const runId = typeof params.run_id === "string" && params.run_id.trim() ? params.run_id.trim() : "";
@@ -225,7 +227,7 @@ export default function InvitePlayersScreen() {
     <SafeAreaView style={styles.safe} edges={["bottom"]}>
       <View style={styles.header}>
         <Pressable onPress={() => goToAdminMenu(router)} style={({ pressed }) => [styles.backIcon, pressed && { opacity: 0.8 }]}>
-          <FontAwesome name="chevron-left" size={18} color="#fff" />
+          <FontAwesome name="chevron-left" size={18} color={themeColor().text} />
           <Text style={styles.backBtnText}>Back</Text>
         </Pressable>
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -252,7 +254,7 @@ export default function InvitePlayersScreen() {
       <TextInput
         style={styles.search}
         placeholder="Search by name or username"
-        placeholderTextColor="rgba(255,255,255,0.35)"
+        placeholderTextColor={themeColor().muted}
         value={query}
         onChangeText={setQuery}
         autoCapitalize="none"
@@ -271,7 +273,7 @@ export default function InvitePlayersScreen() {
       ) : null}
 
       {loading ? (
-        <ActivityIndicator color="#fff" style={{ marginTop: 24 }} />
+        <ActivityIndicator color={themeColor().text} style={{ marginTop: 24 }} />
       ) : error ? (
         <Text style={styles.err}>{error}</Text>
       ) : (
@@ -310,7 +312,7 @@ export default function InvitePlayersScreen() {
                         style={({ pressed }) => [styles.row, pressed && { opacity: 0.9 }]}
                       >
                         <View style={[styles.checkbox, on && styles.checkboxOn]}>
-                          {on ? <FontAwesome name="check" size={14} color="#111" /> : null}
+                          {on ? <FontAwesome name="check" size={14} color={themeColor().onPitch} /> : null}
                         </View>
                         <View style={styles.rowBody}>
                           <View style={styles.rowTop}>
@@ -362,7 +364,7 @@ export default function InvitePlayersScreen() {
           ]}
         >
           {busy ? (
-            <ActivityIndicator color="#111" />
+            <ActivityIndicator color={themeColor().onPitch} />
           ) : (
             <Text style={styles.inviteBtnText}>
               Invite {nSel} player{nSel === 1 ? "" : "s"}
@@ -374,33 +376,34 @@ export default function InvitePlayersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#0a0a0a", paddingHorizontal: 16 },
+function make_styles() {
+  return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: themeColor().bg, paddingHorizontal: 16 },
   header: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: 8 },
   backIcon: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 8, paddingRight: 4 },
-  h1: { fontSize: 22, fontWeight: "800", color: "#fff" },
-  sub: { marginTop: 4, fontSize: 14, color: "rgba(255,255,255,0.55)" },
+  h1: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
+  sub: { marginTop: 4, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
   summary: {
     marginTop: 12,
-    fontSize: 14,
+    fontSize: 14, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    color: LIME,
+    color: themeColor().pitchText,
   },
   help: {
     marginTop: 10,
-    fontSize: 13,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     lineHeight: 18,
-    color: "rgba(255,255,255,0.55)",
+    color: themeColor().muted,
   },
   search: {
     marginTop: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: themeColor().line,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: "#fff",
-    fontSize: 16,
+    color: themeColor().text,
+    fontSize: 16, fontFamily: "Inter_400Regular",
   },
   showAllBtn: {
     marginTop: 10,
@@ -408,7 +411,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 2,
   },
-  showAllBtnText: { fontSize: 14, fontWeight: "700", color: LIME },
+  showAllBtnText: { fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().pitchText },
   list: { flex: 1, marginTop: 8 },
   tierSection: { marginTop: 16 },
   tierHeader: {
@@ -418,81 +421,87 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     paddingBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255,255,255,0.12)",
+    borderBottomColor: themeColor().line,
   },
-  tierTitle: { fontSize: 15, fontWeight: "800", color: "#fff" },
-  tierCount: { marginTop: 2, fontSize: 12, color: "rgba(255,255,255,0.45)" },
+  tierTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
+  tierCount: { marginTop: 2, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
   groupActionBtn: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: themeColor().line,
   },
-  groupActionBtnText: { fontSize: 12, fontWeight: "800", color: "rgba(255,255,255,0.75)" },
+  groupActionBtnText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
   row: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255,255,255,0.08)",
+    borderBottomColor: themeColor().line,
   },
   checkbox: {
     width: 26,
     height: 26,
-    borderRadius: 6,
+    borderRadius: 10,
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.28)",
+    borderColor: themeColor().line,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "transparent",
     marginTop: 2,
   },
   checkboxOn: {
-    borderColor: LIME,
-    backgroundColor: LIME,
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitch,
   },
   rowBody: { flex: 1, minWidth: 0 },
   rowTop: { flexDirection: "row", alignItems: "center", gap: 8 },
-  name: { flex: 1, fontSize: 16, fontWeight: "700", color: "#fff" },
+  name: { flex: 1, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().text },
   rowBadges: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 0 },
   tierBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.45)",
-    backgroundColor: "rgba(163,230,53,0.12)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  tierBadgeText: { fontSize: 11, fontWeight: "800", color: LIME },
+  tierBadgeText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().pitch },
   distanceBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 10,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  distanceBadgeText: { fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.45)" },
-  username: { marginTop: 2, fontSize: 13, color: "rgba(255,255,255,0.45)" },
-  instagram: { marginTop: 2, fontSize: 12, color: "rgba(255,255,255,0.35)" },
-  empty: { marginTop: 24, color: "rgba(255,255,255,0.45)", fontSize: 15 },
-  err: { marginTop: 16, color: "#fca5a5", fontSize: 15 },
+  distanceBadgeText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
+  username: { marginTop: 2, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
+  instagram: { marginTop: 2, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
+  empty: { marginTop: 24, color: themeColor().muted, fontSize: 16, fontFamily: "Inter_400Regular" },
+  err: { marginTop: 16, color: themeColor().coral, fontSize: 16, fontFamily: "Inter_400Regular" },
   footer: {
     paddingVertical: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "#0a0a0a",
+    borderTopColor: themeColor().line,
+    backgroundColor: themeColor().bg,
   },
   inviteBtn: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     paddingVertical: 16,
-    borderRadius: 14,
+    borderRadius: 12,
     minHeight: 52,
   },
   inviteBtnDisabled: { opacity: 0.45 },
-  inviteBtnText: { color: "#111", fontWeight: "800", fontSize: 16 },
+  inviteBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   backBtn: { marginTop: 16, alignSelf: "flex-start", paddingVertical: 10, paddingHorizontal: 14 },
-  backBtnText: { color: LIME, fontWeight: "700", fontSize: 15 },
+  backBtnText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

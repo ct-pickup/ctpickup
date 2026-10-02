@@ -10,6 +10,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 
+import { themeColor, useThemedStyles } from "@/theme";
 type AttendeeRow = {
   user_id: string;
   profiles: { display_name: string | null; avatar_url: string | null } | null;
@@ -17,6 +18,8 @@ type AttendeeRow = {
 };
 
 export default function PeerVoteScreen() {
+  useThemedStyles(publish_s);
+
   const { id: sessionId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { supabase, session } = useAuth();
@@ -84,7 +87,7 @@ export default function PeerVoteScreen() {
   if (loading) {
     return (
       <View style={[s.screen, s.center]}>
-        <ActivityIndicator color="#E8B573" />
+        <ActivityIndicator color={themeColor().coral} />
       </View>
     );
   }
@@ -146,49 +149,55 @@ export default function PeerVoteScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0B1410", padding: 20, paddingTop: 56 },
+function make_s() {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: themeColor().card, padding: 20, paddingTop: 56 },
   center: { alignItems: "center", justifyContent: "center" },
-  eyebrow: { color: "#E8B573", fontSize: 11, letterSpacing: 3, fontWeight: "600" },
-  title: { color: "#E6EDE7", fontSize: 30, fontWeight: "700", marginTop: 6 },
-  sub: { color: "#7C8F84", fontSize: 14, marginTop: 8, lineHeight: 20 },
+  eyebrow: { color: themeColor().coral, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  title: { color: themeColor().text, fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", marginTop: 6 },
+  sub: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", marginTop: 8, lineHeight: 20 },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#28382F",
+    borderBottomColor: themeColor().line,
   },
-  rowPicked: { borderBottomColor: "#E8B573" },
+  rowPicked: { borderBottomColor: themeColor().coral },
   rowDim: { opacity: 0.35 },
   slot: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#28382F",
+    borderColor: themeColor().line,
     alignItems: "center",
     justifyContent: "center",
   },
-  slotPicked: { backgroundColor: "#E8B573", borderColor: "#E8B573" },
-  slotText: { color: "#7C8F84", fontWeight: "700" },
-  slotTextPicked: { color: "#14100A" },
-  name: { color: "#E6EDE7", fontSize: 16, fontWeight: "600" },
-  tier: { color: "#7C8F84", fontSize: 11, letterSpacing: 1.5, marginTop: 2 },
-  error: { color: "#E86F5B", fontSize: 13, marginBottom: 10 },
+  slotPicked: { backgroundColor: themeColor().coral, borderColor: themeColor().coral },
+  slotText: { color: themeColor().muted, fontWeight: "700" },
+  slotTextPicked: { color: themeColor().onPitch },
+  name: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  tier: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  error: { color: themeColor().coral, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 10 },
   cta: {
-    backgroundColor: "#E8B573",
-    borderRadius: 3,
+    backgroundColor: themeColor().coral,
+    borderRadius: 10,
     paddingVertical: 16,
     alignItems: "center",
     marginTop: 8,
   },
   ctaOff: { opacity: 0.3 },
   ctaText: {
-    color: "#14100A",
+    color: themeColor().onPitch,
     fontWeight: "700",
-    letterSpacing: 1.5,
-    fontSize: 14,
+    fontSize: 14, fontFamily: "Inter_700Bold",
   },
 });
+}
+let s = make_s();
+function publish_s() {
+  s = make_s();
+}
+

@@ -25,11 +25,7 @@ export default function InfoPage() {
         title: "Pickup",
         content: (
           <p className="whitespace-pre-line">
-            {`C2 Pickup runs use a tiered invite system. This is a competitive environment, not casual.
-
-If a run reaches capacity, you will be confirmed or placed on the waitlist.
-
-Waitlisted players may be moved into Confirmed if spots open up.`}
+            {`C2 Pickup runs use a tiered invite system. This is a competitive environment, not casual. If a run reaches capacity, you will be confirmed or placed on the waitlist. Waitlisted players may be moved into Confirmed if spots open up.`}
           </p>
         ),
       },
@@ -54,15 +50,7 @@ Waitlisted players may be moved into Confirmed if spots open up.`}
         title: "Accounts",
         content: (
           <p className="whitespace-pre-line">
-            {`Log in saves your info so you don’t re-enter it every time.
-
-Signing in uses an 8-digit code sent to your email (no password).
-
-It unlocks invite-only details (like exact location when confirmed).
-
-It lets you see Confirmed vs Waitlist.
-
-It lets you update your profile without DM’ing.`}
+            {`Log in saves your info so you don’t re-enter it every time. Signing in uses an 8-digit code sent to your email (no password). It unlocks invite-only details (like exact location when confirmed). It lets you see Confirmed vs Waitlist. It lets you update your profile without DM’ing.`}
           </p>
         ),
       },
@@ -71,11 +59,7 @@ It lets you update your profile without DM’ing.`}
         title: "Tournaments",
         content: (
           <p className="whitespace-pre-line">
-            {`Captains and players must submit at least 48 hours before the tournament start time.
-
-Team spots are limited. The Status Board updates as teams are approved/removed.
-
-Minimum roster size is required to submit. Goalkeeper counts toward the total.`}
+            {`Captains and players must submit at least 48 hours before the tournament start time. Team spots are limited. The Status Board updates as teams are approved/removed. Minimum roster size is required to submit. Goalkeeper counts toward the total.`}
           </p>
         ),
       },
@@ -84,9 +68,7 @@ Minimum roster size is required to submit. Goalkeeper counts toward the total.`}
         title: "Submission Agreement",
         content: (
           <p className="whitespace-pre-line">
-            {`When you click Make Submission, a required pop-up appears.
-
-You must read each section, then check the box to confirm you read and agree before submitting.`}
+            {`When you click Make Submission, a required pop-up appears. You must read each section, then check the box to confirm you read and agree before submitting.`}
           </p>
         ),
       },
@@ -95,7 +77,7 @@ You must read each section, then check the box to confirm you read and agree bef
         title: "Contact",
         content: (
           <p>
-            For questions, scheduling, or issues with the site:{" "}
+            For questions, scheduling, or issues with the site:{"  "}
             <SupportEmailLink />
           </p>
         ),
@@ -113,7 +95,7 @@ You must read each section, then check the box to confirm you read and agree bef
       <div className="space-y-8 pb-16 pt-4">
         <div>
           <SectionEyebrow>Reference</SectionEyebrow>
-          <h1 className="mt-3 text-2xl font-semibold uppercase tracking-tight text-white md:text-3xl">
+          <h1 className="mt-3 text-h2 font-serif font-semibold text-ink md:text-h1">
             Info
           </h1>
         </div>
@@ -126,7 +108,7 @@ You must read each section, then check the box to confirm you read and agree bef
               <a
                 key={s.id}
                 href={`#${s.id}`}
-                className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/75 transition hover:text-white"
+                className="rounded-pill border border-line bg-overlay-subtle px-3 py-1 text-caption text-muted transition hover:text-ink"
               >
                 {s.title}
               </a>
@@ -137,10 +119,10 @@ You must read each section, then check the box to confirm you read and agree bef
         <div className="space-y-4">
           {sections.map((sec) => (
             <Panel key={sec.id} id={sec.id} className="scroll-mt-24 space-y-3">
-              <h2 className="text-lg font-semibold uppercase tracking-wide text-white">
+              <h2 className="text-h3 font-serif font-semibold text-ink">
                 {sec.title}
               </h2>
-              <div className="text-sm leading-relaxed text-white/75">
+              <div className="text-small leading-relaxed text-muted">
                 {sec.content}
               </div>
             </Panel>

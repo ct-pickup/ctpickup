@@ -15,8 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const BG = "#0a0a0a";
-const LIME = "#a3e635";
+import { themeColor, useThemedStyles } from "@/theme";
 const WORD_LIMIT = 50;
 const SUPPORT_EMAIL = "pickupct@gmail.com";
 const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}`;
@@ -57,6 +56,8 @@ function nextId(prefix: string): string {
 }
 
 function TypingIndicator() {
+  useThemedStyles(publish_styles);
+
   const dot1 = useRef(new Animated.Value(0.25)).current;
   const dot2 = useRef(new Animated.Value(0.25)).current;
   const dot3 = useRef(new Animated.Value(0.25)).current;
@@ -107,6 +108,8 @@ function TypingIndicator() {
 }
 
 export default function HelpScreen() {
+  useThemedStyles(publish_styles);
+
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const accessToken = session?.access_token ?? null;
@@ -294,7 +297,7 @@ export default function HelpScreen() {
               value={input}
               onChangeText={(t) => setInput(textWithMaxWords(t, WORD_LIMIT))}
               placeholder="Ask a question…"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
               multiline
               maxLength={4000}
               editable={!busy}
@@ -325,9 +328,10 @@ export default function HelpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   flex: { flex: 1 },
-  screen: { backgroundColor: BG },
+  screen: { backgroundColor: themeColor().bg },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingTop: 20 },
   titleRow: {
@@ -339,10 +343,9 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     flexShrink: 1,
-    fontSize: 24,
+    fontSize: 24, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "800",
-    color: "#fff",
-    letterSpacing: 0.2,
+    color: themeColor().text,
   },
   aiBadge: {
     flexShrink: 0,
@@ -350,27 +353,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.45)",
-    backgroundColor: "rgba(163,230,53,0.12)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
   aiBadgeText: {
-    fontSize: 11,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    color: LIME,
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
+    color: themeColor().pitch,
   },
   aiDisclaimer: {
     marginTop: 12,
-    fontSize: 12,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     lineHeight: 16,
-    color: "rgba(255,255,255,0.45)",
+    color: themeColor().muted,
   },
   urgentContact: {
     marginTop: 6,
-    fontSize: 12,
+    fontSize: 13, fontFamily: "Inter_600SemiBold",
     lineHeight: 16,
-    color: LIME,
+    color: themeColor().pitchText,
     fontWeight: "600",
   },
   chipsColumn: {
@@ -383,14 +384,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: LIME,
-    backgroundColor: "#141414",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().card,
   },
   chipPressed: { opacity: 0.85 },
   chipText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
-    color: "rgba(255,255,255,0.9)",
+    color: themeColor().text,
   },
   messages: { gap: 14, marginTop: 4 },
   userRow: { alignItems: "flex-end", width: "100%" },
@@ -398,23 +399,23 @@ const styles = StyleSheet.create({
     maxWidth: "85%",
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 18,
-    backgroundColor: "#fff",
+    borderRadius: 12,
+    backgroundColor: themeColor().pitch,
     borderBottomRightRadius: 6,
   },
-  userBubbleText: { fontSize: 15, color: "#111", lineHeight: 22 },
+  userBubbleText: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().onPitch, lineHeight: 22 },
   assistantRow: { alignItems: "flex-start", width: "100%" },
   assistantCard: {
     maxWidth: "92%",
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 12,
+    backgroundColor: themeColor().overlaySubtle,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: themeColor().line,
     borderBottomLeftRadius: 6,
   },
-  assistantText: { fontSize: 15, color: "rgba(255,255,255,0.92)", lineHeight: 22 },
+  assistantText: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().text, lineHeight: 22 },
   dotsRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -422,17 +423,17 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   dot: {
-    fontSize: 22,
+    fontSize: 24, fontFamily: "InstrumentSerif_400Regular",
     lineHeight: 22,
-    color: LIME,
+    color: themeColor().pitchText,
     fontWeight: "900",
   },
   composer: {
     paddingHorizontal: 20,
     paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(255,255,255,0.12)",
-    backgroundColor: BG,
+    borderTopColor: themeColor().line,
+    backgroundColor: themeColor().bg,
   },
   inputRow: { flexDirection: "row", alignItems: "flex-end", gap: 10 },
   input: {
@@ -440,28 +441,34 @@ const styles = StyleSheet.create({
     minHeight: 44,
     maxHeight: 120,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-    borderRadius: 14,
+    borderColor: themeColor().line,
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === "ios" ? 12 : 10,
-    fontSize: 16,
-    color: "#fff",
-    backgroundColor: "rgba(0,0,0,0.45)",
+    fontSize: 16, fontFamily: "Inter_400Regular",
+    color: themeColor().text,
+    backgroundColor: themeColor().overlaySubtle,
     textAlignVertical: "top",
   },
   sendBtn: {
     paddingHorizontal: 18,
     paddingVertical: 13,
-    borderRadius: 14,
-    backgroundColor: LIME,
+    borderRadius: 12,
+    backgroundColor: themeColor().pitch,
     justifyContent: "center",
   },
   sendBtnDisabled: { opacity: 0.38 },
-  sendBtnText: { fontSize: 16, fontWeight: "800", color: "#000" },
+  sendBtnText: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().onPitch },
   wordCount: {
     marginBottom: 8,
-    fontSize: 11,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     opacity: 0.35,
-    color: "#fff",
+    color: themeColor().text,
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

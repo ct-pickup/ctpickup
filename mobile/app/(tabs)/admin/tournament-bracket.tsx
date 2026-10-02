@@ -23,9 +23,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const LIME = "#a3e635";
-const BG = "#0a0a0a";
-
+import { themeColor, useThemedStyles } from "@/theme";
 type Team = { id: string; team_name: string; captain_name: string };
 type Match = {
   id: string;
@@ -95,6 +93,8 @@ function goalsToDraft(rows: AdminBracketMatchGoal[]): GoalDraft[] {
 }
 
 export default function TournamentBracketScreen() {
+  useThemedStyles(publish_styles);
+
   const { tournament_id: tournamentIdParam } = useLocalSearchParams<{ tournament_id?: string | string[] }>();
   const tournament_id =
     typeof tournamentIdParam === "string"
@@ -389,7 +389,7 @@ export default function TournamentBracketScreen() {
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <ScrollView contentContainerStyle={styles.content}>
         {loading && teams.length === 0 ? (
-          <ActivityIndicator color={LIME} style={{ marginVertical: 16 }} />
+          <ActivityIndicator color={themeColor().pitchText} style={{ marginVertical: 16 }} />
         ) : null}
 
         <Text style={styles.title}>Bracket</Text>
@@ -510,7 +510,7 @@ export default function TournamentBracketScreen() {
                         onChangeText={setScoreA}
                         keyboardType="number-pad"
                         placeholder="0"
-                        placeholderTextColor="rgba(255,255,255,0.3)"
+                        placeholderTextColor={themeColor().muted}
                       />
                     </View>
                     <Text style={styles.scoreDash}>—</Text>
@@ -524,7 +524,7 @@ export default function TournamentBracketScreen() {
                         onChangeText={setScoreB}
                         keyboardType="number-pad"
                         placeholder="0"
-                        placeholderTextColor="rgba(255,255,255,0.3)"
+                        placeholderTextColor={themeColor().muted}
                       />
                     </View>
                   </View>
@@ -552,7 +552,7 @@ export default function TournamentBracketScreen() {
                         value={g.minute}
                         onChangeText={(v) => setGoals((gs) => gs.map((x, j) => (j === i ? { ...x, minute: v } : x)))}
                         placeholder="Min"
-                        placeholderTextColor="rgba(255,255,255,0.3)"
+                        placeholderTextColor={themeColor().muted}
                         keyboardType="number-pad"
                       />
                       <Pressable
@@ -600,7 +600,7 @@ export default function TournamentBracketScreen() {
                         value={playerSearch}
                         onChangeText={setPlayerSearch}
                         placeholder="Search roster…"
-                        placeholderTextColor="rgba(255,255,255,0.35)"
+                        placeholderTextColor={themeColor().muted}
                         autoFocus
                       />
                       <ScrollView style={styles.pickerList} nestedScrollEnabled keyboardShouldPersistTaps="handled">
@@ -662,143 +662,140 @@ export default function TournamentBracketScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BG },
+function make_styles() {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: themeColor().bg },
   centered: { justifyContent: "center", alignItems: "center", padding: 24 },
   content: { padding: 16, paddingBottom: 60 },
-  title: { color: "#fff", fontSize: 24, fontWeight: "800" },
-  sub: { color: "rgba(255,255,255,0.45)", fontSize: 13, marginTop: 4, marginBottom: 16 },
-  muted: { color: "rgba(255,255,255,0.5)", fontSize: 14, lineHeight: 20 },
-  mutedSmall: { color: "rgba(255,255,255,0.45)", fontSize: 12, marginBottom: 8 },
+  title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  sub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4, marginBottom: 16 },
+  muted: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  mutedSmall: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 8 },
   btnRow: { flexDirection: "row", gap: 10, marginBottom: 20 },
-  btn: { flex: 1, backgroundColor: LIME, borderRadius: 10, padding: 12, alignItems: "center" },
-  btnSecondary: { backgroundColor: "rgba(163,230,53,0.15)", borderWidth: 1, borderColor: LIME },
-  btnText: { color: "#111", fontWeight: "800", fontSize: 13 },
+  btn: { flex: 1, backgroundColor: themeColor().pitch, borderRadius: 10, padding: 12, alignItems: "center" },
+  btnSecondary: { backgroundColor: themeColor().pitchSoft, borderWidth: 1, borderColor: themeColor().pitch },
+  btnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
   disabled: { opacity: 0.5 },
   section: { marginBottom: 20 },
   sectionTitle: {
-    color: LIME,
-    fontSize: 12,
+    color: themeColor().pitchText,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: 1,
     marginBottom: 8,
   },
   stageLabel: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 11,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    textTransform: "uppercase",
     marginTop: 10,
     marginBottom: 6,
   },
   standingsHeader: { flexDirection: "row", paddingHorizontal: 8, marginBottom: 4 },
-  standingsRow: { flexDirection: "row", paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8 },
-  standingsRowQualify: { backgroundColor: "rgba(163,230,53,0.06)", borderLeftWidth: 2, borderLeftColor: LIME },
-  standingsCell: { flex: 1, color: "rgba(255,255,255,0.5)", fontSize: 11, textAlign: "center" },
-  standingsCellName: { color: "#fff", fontWeight: "700", textAlign: "left" },
-  standingsPts: { color: LIME, fontWeight: "800" },
+  standingsRow: { flexDirection: "row", paddingHorizontal: 8, paddingVertical: 6, borderRadius: 10 },
+  standingsRowQualify: { backgroundColor: themeColor().pitchSoft, borderLeftWidth: 2, borderLeftColor: themeColor().pitch },
+  standingsCell: { flex: 1, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
+  standingsCellName: { color: themeColor().text, fontWeight: "700", textAlign: "left" },
+  standingsPts: { color: themeColor().pitchText, fontWeight: "800" },
   matchRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    backgroundColor: themeColor().overlaySubtle,
     borderRadius: 10,
     padding: 12,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: themeColor().line,
   },
-  matchRowScored: { borderColor: "rgba(163,230,53,0.2)" },
-  matchTeam: { color: "#fff", fontSize: 13, fontWeight: "700" },
+  matchRowScored: { borderColor: themeColor().pitch },
+  matchTeam: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   scoreBox: { paddingHorizontal: 12, alignItems: "center" },
-  scoreText: { color: LIME, fontWeight: "800", fontSize: 14 },
-  logHint: { color: "rgba(255,255,255,0.4)", fontSize: 10, marginTop: 2, fontWeight: "600" },
+  scoreText: { color: themeColor().pitchText, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
+  logHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", marginTop: 2, fontWeight: "600" },
   modalOverlay: { flex: 1, justifyContent: "flex-end" },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.65)" },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: themeColor().scrim },
   modalSheet: {
-    backgroundColor: "#111",
+    backgroundColor: themeColor().bg,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: "88%",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: themeColor().line,
   },
   modalScroll: { padding: 20, paddingBottom: 36 },
-  modalTitle: { color: "#fff", fontSize: 18, fontWeight: "800", marginBottom: 4 },
-  modalMatchup: { color: "rgba(255,255,255,0.5)", fontSize: 13, marginBottom: 16 },
+  modalTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginBottom: 4 },
+  modalMatchup: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 16 },
   scoreInputRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 20 },
   scoreInputBox: { alignItems: "center" },
-  scoreInputLabel: { color: "rgba(255,255,255,0.5)", fontSize: 11, marginBottom: 6, maxWidth: 120 },
+  scoreInputLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 6, maxWidth: 120 },
   scoreInput: {
-    backgroundColor: "#1a1a1a",
-    borderRadius: 8,
+    backgroundColor: themeColor().card,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-    color: "#fff",
-    fontSize: 24,
+    borderColor: themeColor().line,
+    color: themeColor().text,
+    fontSize: 24, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "800",
     textAlign: "center",
     width: 70,
     padding: 10,
   },
-  scoreDash: { color: "rgba(255,255,255,0.3)", fontSize: 24 },
+  scoreDash: { color: themeColor().muted, fontSize: 24, fontFamily: "InstrumentSerif_400Regular" },
   modalSubtitle: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 11,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    textTransform: "uppercase",
     marginBottom: 8,
   },
   goalRow: { flexDirection: "row", gap: 8, marginBottom: 8, alignItems: "center" },
   playerPickBtn: {
     flex: 1,
-    backgroundColor: "#1a1a1a",
-    borderRadius: 8,
+    backgroundColor: themeColor().card,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: themeColor().line,
     paddingVertical: 10,
     paddingHorizontal: 10,
   },
-  playerPickText: { color: "#fff", fontSize: 13, fontWeight: "700" },
-  playerPickPlaceholder: { color: "rgba(255,255,255,0.35)", fontSize: 13 },
+  playerPickText: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  playerPickPlaceholder: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
   minuteInput: {
     width: 52,
-    backgroundColor: "#1a1a1a",
-    borderRadius: 8,
+    backgroundColor: themeColor().card,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    color: "#fff",
+    borderColor: themeColor().line,
+    color: themeColor().text,
     padding: 8,
-    fontSize: 13,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     textAlign: "center",
   },
-  teamToggle: { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  teamToggleA: { backgroundColor: "rgba(163,230,53,0.2)", borderWidth: 1, borderColor: LIME },
-  teamToggleB: { backgroundColor: "rgba(99,179,237,0.2)", borderWidth: 1, borderColor: "#63b3ed" },
-  teamToggleText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+  teamToggle: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  teamToggleA: { backgroundColor: themeColor().pitchSoft, borderWidth: 1, borderColor: themeColor().pitch },
+  teamToggleB: { backgroundColor: themeColor().card, borderWidth: 1, borderColor: themeColor().line },
+  teamToggleText: { color: themeColor().text, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
   removeGoalBtn: {
     width: 32,
     height: 36,
     alignItems: "center",
     justifyContent: "center",
   },
-  removeGoalText: { color: "rgba(255,255,255,0.5)", fontSize: 22, fontWeight: "300" },
+  removeGoalText: { color: themeColor().muted, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "300" },
   pickerPanel: {
     marginBottom: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.25)",
-    backgroundColor: "rgba(0,0,0,0.35)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().card,
     padding: 10,
   },
   pickerSearch: {
-    backgroundColor: "#1a1a1a",
-    borderRadius: 8,
+    backgroundColor: themeColor().card,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    color: "#fff",
+    borderColor: themeColor().line,
+    color: themeColor().text,
     padding: 10,
-    fontSize: 14,
+    fontSize: 14, fontFamily: "Inter_400Regular",
     marginBottom: 8,
   },
   pickerList: { maxHeight: 160 },
@@ -806,22 +803,28 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255,255,255,0.08)",
+    borderBottomColor: themeColor().line,
   },
-  pickerName: { color: "#fff", fontSize: 14, fontWeight: "700" },
-  pickerTeam: { color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 2 },
+  pickerName: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  pickerTeam: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   addGoalBtn: { marginBottom: 16 },
-  addGoalText: { color: LIME, fontSize: 13, fontWeight: "700" },
+  addGoalText: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   modalBtnRow: { flexDirection: "row", gap: 10 },
   cancelBtn: {
     flex: 1,
     padding: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: themeColor().line,
     alignItems: "center",
   },
-  cancelBtnText: { color: "rgba(255,255,255,0.5)", fontWeight: "700" },
-  saveBtn: { flex: 1, backgroundColor: LIME, padding: 14, borderRadius: 10, alignItems: "center" },
-  saveBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  cancelBtnText: { color: themeColor().muted, fontWeight: "700" },
+  saveBtn: { flex: 1, backgroundColor: themeColor().pitch, padding: 14, borderRadius: 10, alignItems: "center" },
+  saveBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

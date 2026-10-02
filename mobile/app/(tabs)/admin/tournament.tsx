@@ -35,8 +35,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const LIME = "#a3e635";
-
+import { themeColor, useThemedStyles } from "@/theme";
 const DECISIONS = ["pending", "confirmed", "standby", "rejected"] as const;
 type Decision = (typeof DECISIONS)[number];
 
@@ -95,6 +94,8 @@ function statusBadgeStyle(status: string) {
 }
 
 export default function AdminTournamentScreen() {
+  useThemedStyles(publish_styles);
+
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const token = session?.access_token ?? null;
@@ -433,7 +434,7 @@ export default function AdminTournamentScreen() {
         value={createTitle}
         onChangeText={setCreateTitle}
         placeholder="Spring invitational"
-        placeholderTextColor="rgba(255,255,255,0.35)"
+        placeholderTextColor={themeColor().muted}
       />
       <View style={styles.twoCol}>
         <View style={{ flex: 1 }}>
@@ -443,7 +444,7 @@ export default function AdminTournamentScreen() {
             value={createTarget}
             onChangeText={setCreateTarget}
             keyboardType="number-pad"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
           />
         </View>
         <View style={{ flex: 1 }}>
@@ -453,7 +454,7 @@ export default function AdminTournamentScreen() {
             value={createOfficial}
             onChangeText={setCreateOfficial}
             keyboardType="number-pad"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
           />
         </View>
       </View>
@@ -463,7 +464,7 @@ export default function AdminTournamentScreen() {
         value={createMax}
         onChangeText={setCreateMax}
         keyboardType="number-pad"
-        placeholderTextColor="rgba(255,255,255,0.35)"
+        placeholderTextColor={themeColor().muted}
       />
       <AdminVenuePicker
         value={createVenue}
@@ -492,7 +493,7 @@ export default function AdminTournamentScreen() {
             value={createCustomVenueName}
             onChangeText={setCreateCustomVenueName}
             placeholder="Venue name e.g. Chelsea Piers"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
           />
           <Text style={styles.label}>Venue address</Text>
           <TextInput
@@ -503,7 +504,7 @@ export default function AdminTournamentScreen() {
               if (serviceRegionFromAddress(text)) setCreateRegionOverride(null);
             }}
             placeholder="Full address e.g. 62 Chelsea Piers, New York, NY"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
             multiline
           />
           <Text style={styles.label}>Venue ZIP code</Text>
@@ -512,7 +513,7 @@ export default function AdminTournamentScreen() {
             value={createCustomVenueZip}
             onChangeText={(text) => setCreateCustomVenueZip(text.replace(/\D/g, "").slice(0, 5))}
             placeholder="e.g. 10011"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
             keyboardType="number-pad"
             maxLength={5}
           />
@@ -549,7 +550,7 @@ export default function AdminTournamentScreen() {
         value={createFormat}
         onChangeText={setCreateFormat}
         placeholder="Group stage → knockout"
-        placeholderTextColor="rgba(255,255,255,0.35)"
+        placeholderTextColor={themeColor().muted}
       />
       <View style={styles.twoCol}>
         <View style={{ flex: 1 }}>
@@ -559,7 +560,7 @@ export default function AdminTournamentScreen() {
             value={createEntryFee}
             onChangeText={setCreateEntryFee}
             keyboardType="decimal-pad"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
           />
         </View>
         <View style={{ flex: 1 }}>
@@ -569,7 +570,7 @@ export default function AdminTournamentScreen() {
             value={createMinRoster}
             onChangeText={setCreateMinRoster}
             keyboardType="number-pad"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
           />
         </View>
       </View>
@@ -592,7 +593,7 @@ export default function AdminTournamentScreen() {
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: 120 }]}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={LIME} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={themeColor().pitchText} />}
       >
           <Text style={styles.segmentLabel}>STATE (LIST FILTER)</Text>
           <View style={styles.segmentRow}>
@@ -612,7 +613,7 @@ export default function AdminTournamentScreen() {
 
           {activeTournament ? (
             <View style={styles.liveBanner}>
-              <FontAwesome name="star" size={14} color={LIME} />
+              <FontAwesome name="star" size={14} color={themeColor().pitchText} />
               <Text style={styles.liveBannerText}>
                 Live on hub: <Text style={styles.liveBannerStrong}>{activeTitle || "—"}</Text>
                 {activeTournament.service_region ? ` · ${s(activeTournament.service_region)}` : ""}
@@ -635,7 +636,7 @@ export default function AdminTournamentScreen() {
             </Pressable>
           ) : null}
 
-          {loading ? <ActivityIndicator color="#fff" style={{ marginTop: 16 }} /> : null}
+          {loading ? <ActivityIndicator color={themeColor().text} style={{ marginTop: 16 }} /> : null}
           {error ? <Text style={styles.err}>{error}</Text> : null}
           {panelError ? <Text style={styles.warn}>{panelError}</Text> : null}
 
@@ -978,7 +979,7 @@ export default function AdminTournamentScreen() {
                     value={d.notes}
                     onChangeText={(t) => setDraft(r.id, { notes: t })}
                     placeholder="Staff notes"
-                    placeholderTextColor="rgba(255,255,255,0.35)"
+                    placeholderTextColor={themeColor().muted}
                     multiline
                   />
                   <Pressable
@@ -1011,7 +1012,7 @@ export default function AdminTournamentScreen() {
         ]}
         accessibilityLabel="Create tournament"
       >
-        <FontAwesome name="plus" size={22} color="#111" />
+        <FontAwesome name="plus" size={22} color={themeColor().onPitch} />
       </Pressable>
 
       <Modal
@@ -1032,7 +1033,7 @@ export default function AdminTournamentScreen() {
               style={({ pressed }) => [styles.modalClose, pressed && { opacity: 0.85 }]}
               accessibilityLabel="Close"
             >
-              <FontAwesome name="times" size={22} color="#fff" />
+              <FontAwesome name="times" size={22} color={themeColor().text} />
             </Pressable>
           </View>
           <ScrollView
@@ -1057,187 +1058,188 @@ export default function AdminTournamentScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0a0a0a" },
+function make_styles() {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 16, paddingBottom: 48 },
-  segmentLabel: { marginTop: 8, fontSize: 11, fontWeight: "800", color: "rgba(255,255,255,0.45)", letterSpacing: 1.1 },
+  segmentLabel: { marginTop: 8, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted,},
   segmentRow: { marginTop: 10, flexDirection: "row", gap: 8 },
   segment: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     alignItems: "center",
   },
-  segmentActive: { borderColor: "rgba(163,230,53,0.45)", backgroundColor: "rgba(163,230,53,0.10)" },
-  segmentText: { color: "rgba(255,255,255,0.7)", fontWeight: "900", fontSize: 12 },
-  segmentTextActive: { color: LIME },
+  segmentActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  segmentText: { color: themeColor().muted, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
+  segmentTextActive: { color: themeColor().pitchText },
   listTabBar: {
     marginTop: 10,
     flexDirection: "row",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: themeColor().line,
     overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: themeColor().overlaySubtle,
   },
   listTabSegment: {
     flex: 1,
     paddingVertical: 10,
     alignItems: "center",
     borderRightWidth: StyleSheet.hairlineWidth,
-    borderRightColor: "rgba(255,255,255,0.12)",
+    borderRightColor: themeColor().line,
   },
   listTabSegmentLast: { borderRightWidth: 0 },
-  listTabSegmentActive: { backgroundColor: "rgba(163,230,53,0.12)" },
-  listTabSegmentText: { fontSize: 12, fontWeight: "800", color: "rgba(255,255,255,0.6)" },
-  listTabSegmentTextActive: { color: LIME },
-  emptyMuted: { marginTop: 14, fontSize: 14, color: "rgba(255,255,255,0.45)" },
+  listTabSegmentActive: { backgroundColor: themeColor().pitchSoft },
+  listTabSegmentText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted },
+  listTabSegmentTextActive: { color: themeColor().pitchText },
+  emptyMuted: { marginTop: 14, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
   liveBanner: {
     marginTop: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     padding: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.25)",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  liveBannerText: { flex: 1, color: "rgba(255,255,255,0.75)", fontSize: 13, lineHeight: 18 },
-  liveBannerStrong: { color: "#fff", fontWeight: "800" },
-  err: { marginTop: 12, color: "#fca5a5", fontSize: 14 },
-  warn: { marginTop: 8, color: "#fcd34d", fontSize: 13 },
+  liveBannerText: { flex: 1, color: themeColor().pitch, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  liveBannerStrong: { color: themeColor().text, fontWeight: "800" },
+  err: { marginTop: 12, color: themeColor().coral, fontSize: 14, fontFamily: "Inter_400Regular" },
+  warn: { marginTop: 8, color: themeColor().coral, fontSize: 13, fontFamily: "Inter_400Regular" },
   card: {
     marginTop: 14,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   cardHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  cardTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
-  fieldHint: { marginTop: 6, fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 18 },
-  label: { marginTop: 12, fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.55)" },
+  cardTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
+  fieldHint: { marginTop: 6, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 18 },
+  label: { marginTop: 12, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
   input: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: themeColor().line,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    fontSize: 15,
-    color: "#fff",
-    backgroundColor: "rgba(0,0,0,0.28)",
+    fontSize: 16, fontFamily: "Inter_400Regular",
+    color: themeColor().text,
+    backgroundColor: themeColor().bg,
   },
   notesInput: { minHeight: 72, textAlignVertical: "top" },
   twoCol: { flexDirection: "row", gap: 12 },
   primary: {
     marginTop: 0,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
   },
-  primaryText: { color: "#111", fontWeight: "900", fontSize: 15 },
+  primaryText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
   roomRow: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 10 },
   roomActions: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0 },
-  roomTitle: { color: "#fff", fontWeight: "800" },
-  liveBadge: { color: LIME, fontWeight: "900" },
-  roomSub: { marginTop: 2, color: "rgba(255,255,255,0.5)", fontSize: 12, lineHeight: 16 },
+  roomTitle: { color: themeColor().text, fontWeight: "800" },
+  liveBadge: { color: themeColor().pitchText, fontWeight: "900" },
+  roomSub: { marginTop: 2, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 16 },
   smallChip: {
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   smallChipPrimary: {
-    borderColor: "rgba(163,230,53,0.45)",
-    backgroundColor: "rgba(163,230,53,0.12)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  smallChipPrimaryText: { color: LIME, fontWeight: "900", fontSize: 12 },
+  smallChipPrimaryText: { color: themeColor().pitch, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
   smallChipMuted: {
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  smallChipMutedText: { color: "rgba(255,255,255,0.45)", fontWeight: "800", fontSize: 12 },
+  smallChipMutedText: { color: themeColor().muted, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
   smallChipDanger: {
-    borderColor: "rgba(248,113,113,0.5)",
-    backgroundColor: "rgba(248,113,113,0.12)",
+    borderColor: themeColor().coral,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  smallChipDangerText: { color: "#fca5a5", fontWeight: "900", fontSize: 12 },
-  muted: { marginTop: 10, color: "rgba(255,255,255,0.6)" },
+  smallChipDangerText: { color: themeColor().coral, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
+  muted: { marginTop: 10, color: themeColor().muted },
   disabled: { opacity: 0.55 },
   dangerOutline: {
     marginTop: 14,
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(248,113,113,0.45)",
+    borderColor: themeColor().coral,
     alignItems: "center",
-    backgroundColor: "rgba(248,113,113,0.08)",
+    backgroundColor: themeColor().overlaySubtle,
   },
-  dangerOutlineText: { color: "#fecaca", fontWeight: "900", fontSize: 14 },
+  dangerOutlineText: { color: themeColor().coral, fontWeight: "900", fontSize: 14, fontFamily: "Inter_700Bold" },
   captainRow: {
     marginTop: 12,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(0,0,0,0.22)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().bg,
   },
   captainTop: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
   badge: { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
-  badgeText: { fontSize: 10, fontWeight: "900", textTransform: "uppercase", color: "#fff" },
-  badgeOk: { borderColor: "rgba(163,230,53,0.4)", backgroundColor: "rgba(163,230,53,0.12)" },
-  badgeWarn: { borderColor: "rgba(251,191,36,0.4)", backgroundColor: "rgba(251,191,36,0.1)" },
-  badgeBad: { borderColor: "rgba(248,113,113,0.4)", backgroundColor: "rgba(248,113,113,0.1)" },
-  badgeNeutral: { borderColor: "rgba(255,255,255,0.2)", backgroundColor: "rgba(255,255,255,0.06)" },
-  captainName: { fontSize: 16, fontWeight: "800", color: "#fff" },
-  captainTeam: { marginTop: 4, fontSize: 14, color: "rgba(255,255,255,0.65)" },
-  captainMeta: { marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.45)" },
+  badgeText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "900", color: themeColor().text },
+  badgeOk: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  badgeWarn: { borderColor: themeColor().coral, backgroundColor: themeColor().overlaySubtle },
+  badgeBad: { borderColor: themeColor().coral, backgroundColor: themeColor().overlaySubtle },
+  badgeNeutral: { borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
+  captainName: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
+  captainTeam: { marginTop: 4, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
+  captainMeta: { marginTop: 6, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
   filterChips: { flexDirection: "row", gap: 8, paddingVertical: 10 },
   filterChip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  filterChipActive: { borderColor: "rgba(163,230,53,0.45)", backgroundColor: "rgba(163,230,53,0.12)" },
-  filterChipText: { fontSize: 12, fontWeight: "800", color: "rgba(255,255,255,0.6)", textTransform: "capitalize" },
-  filterChipTextActive: { color: LIME },
+  filterChipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  filterChipText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted, textTransform: "capitalize" },
+  filterChipTextActive: { color: themeColor().pitchText },
   subRow: {
     marginTop: 14,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.08)",
+    borderTopColor: themeColor().line,
   },
-  subName: { fontSize: 16, fontWeight: "800", color: "#fff" },
-  subIg: { marginTop: 4, fontSize: 14, color: "rgba(255,255,255,0.55)" },
-  subDate: { marginTop: 2, fontSize: 12, color: "rgba(255,255,255,0.4)" },
+  subName: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
+  subIg: { marginTop: 4, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
+  subDate: { marginTop: 2, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
   decisionRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
   decChip: {
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(0,0,0,0.25)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().bg,
   },
-  decChipActive: { borderColor: "rgba(163,230,53,0.5)", backgroundColor: "rgba(163,230,53,0.14)" },
-  decChipText: { fontSize: 11, fontWeight: "800", color: "rgba(255,255,255,0.55)", textTransform: "capitalize" },
-  decChipTextActive: { color: LIME },
+  decChipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  decChipText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted, textTransform: "capitalize" },
+  decChipTextActive: { color: themeColor().pitchText },
   reviewRow: { marginTop: 10 },
   reviewToggle: {
     alignSelf: "flex-start",
@@ -1245,30 +1247,30 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(0,0,0,0.3)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().bg,
   },
-  reviewToggleOn: { borderColor: "rgba(163,230,53,0.45)", backgroundColor: "rgba(163,230,53,0.12)" },
-  reviewToggleText: { fontWeight: "800", fontSize: 12, color: "#fff" },
+  reviewToggleOn: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  reviewToggleText: { fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold", color: themeColor().text },
   saveBtn: {
     marginTop: 12,
     alignSelf: "flex-start",
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
   },
-  saveBtnText: { color: "#111", fontWeight: "900", fontSize: 13 },
+  saveBtnText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
   venueSelectedRow: {
     marginTop: 8,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  venueSelectedText: { color: "#fff", fontWeight: "800", fontSize: 15 },
-  venuePlaceholder: { marginTop: 8, fontSize: 14, color: "rgba(255,255,255,0.4)" },
+  venueSelectedText: { color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  venuePlaceholder: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
   venueScroll: { marginTop: 10 },
   venueScrollContent: { flexDirection: "row", alignItems: "stretch", gap: 8, paddingRight: 8 },
   venueChip: {
@@ -1277,46 +1279,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   venueChipActive: {
-    borderColor: "rgba(163,230,53,0.45)",
-    backgroundColor: "rgba(163,230,53,0.12)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  venueChipText: { fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.65)" },
-  venueChipTextActive: { color: LIME },
+  venueChipText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
+  venueChipTextActive: { color: themeColor().pitchText },
   regionChipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
   regionChip: {
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   regionChipActive: {
-    borderColor: "rgba(163,230,53,0.45)",
-    backgroundColor: "rgba(163,230,53,0.12)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  regionChipText: { fontSize: 13, fontWeight: "800", color: "rgba(255,255,255,0.65)" },
-  regionChipTextActive: { color: LIME },
+  regionChipText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted },
+  regionChipTextActive: { color: themeColor().pitchText },
   fab: {
     position: "absolute",
     right: 24,
     width: 56,
     height: 56,
-    borderRadius: 28,
-    backgroundColor: LIME,
+    borderRadius: 999,
+    backgroundColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.28,
-    shadowRadius: 6,
-    elevation: 8,
   },
-  modalScreen: { flex: 1, backgroundColor: "#0a0a0a" },
+  modalScreen: { flex: 1, backgroundColor: themeColor().bg },
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -1324,9 +1321,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.1)",
+    borderBottomColor: themeColor().line,
   },
-  modalTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  modalTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
   modalClose: { padding: 4 },
   modalScroll: { flex: 1 },
   modalContent: { padding: 16, paddingBottom: 24 },
@@ -1334,40 +1331,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.1)",
+    borderTopColor: themeColor().line,
   },
   prizeRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10 },
   prizeRowTotal: { marginTop: 6 },
-  prizeLabel: { fontSize: 14, color: "rgba(255,255,255,0.65)" },
-  prizeValue: { fontSize: 14, color: "#fff", fontWeight: "700" },
-  prizeLabelBold: { fontSize: 15, color: "#fff", fontWeight: "800" },
-  prizeValueBold: { fontSize: 15, color: LIME, fontWeight: "900" },
-  prizeDivider: { marginTop: 14, marginBottom: 4, height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,0.1)" },
-  prizeSplitLabel: { marginTop: 10, fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 0.8 },
+  prizeLabel: { fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
+  prizeValue: { fontSize: 14, fontFamily: "Inter_700Bold", color: themeColor().text, fontWeight: "700" },
+  prizeLabelBold: { fontSize: 16, fontFamily: "Inter_700Bold", color: themeColor().text, fontWeight: "800" },
+  prizeValueBold: { fontSize: 16, fontFamily: "Inter_700Bold", color: themeColor().pitchText, fontWeight: "900" },
+  prizeDivider: { marginTop: 14, marginBottom: 4, height: StyleSheet.hairlineWidth, backgroundColor: themeColor().overlay },
+  prizeSplitLabel: { marginTop: 10, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted,},
   earlyTermToggle: {
     marginTop: 14,
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     alignItems: "center",
   },
   earlyTermToggleOn: {
-    borderColor: "rgba(251,191,36,0.5)",
-    backgroundColor: "rgba(251,191,36,0.1)",
+    borderColor: themeColor().coral,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  earlyTermToggleText: { fontSize: 14, fontWeight: "800", color: "rgba(255,255,255,0.65)" },
-  earlyTermToggleTextOn: { color: "#fcd34d" },
+  earlyTermToggleText: { fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted },
+  earlyTermToggleTextOn: { color: themeColor().coral },
   prizesPaidBanner: {
     marginTop: 14,
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.3)",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
     alignItems: "center",
   },
-  prizesPaidText: { fontSize: 13, fontWeight: "700", color: LIME },
+  prizesPaidText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().pitchText },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

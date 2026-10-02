@@ -27,30 +27,30 @@ export function OperatorActionResult({
 }) {
   if (!ok && error) {
     return (
-      <div className="rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-100 space-y-2">
+      <div className="rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <StatusChip tone="failed">Failed</StatusChip>
           {blocked ? <StatusChip tone="incomplete">Blocked</StatusChip> : null}
         </div>
         <p>{error}</p>
-        {hint ? <p className="text-xs text-red-200/80">{hint}</p> : null}
+        {hint ? <p className="text-caption text-coral">{hint}</p> : null}
       </div>
     );
   }
 
   if (ok) {
     return (
-      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100 space-y-3">
+      <div className="rounded-card border border-pitch bg-pitch-soft px-4 py-3 text-small text-pitch space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <StatusChip tone="published">{skipped ? "No-op" : "Success"}</StatusChip>
         </div>
         {effects && effects.length > 0 ? (
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-emerald-200/80">What changed</div>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-emerald-100/90">
+            <div className="text-caption font-semibold text-pitch-text">What changed</div>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-pitch-text">
               {effects.map((e, i) => (
                 <li key={i}>
-                  <span className="font-medium text-white">{e.record}:</span> {e.detail}
+                  <span className="font-medium text-ink">{e.record}:</span> {e.detail}
                 </li>
               ))}
             </ul>
@@ -58,8 +58,8 @@ export function OperatorActionResult({
         ) : null}
         {messages && messages.length > 0 ? (
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-emerald-200/80">Automation log</div>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-emerald-100/85">
+            <div className="text-caption font-semibold text-pitch-text">Automation log</div>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-caption text-pitch-text">
               {messages.map((m, i) => (
                 <li key={i}>{m}</li>
               ))}
@@ -68,7 +68,7 @@ export function OperatorActionResult({
         ) : null}
         {verify && verify.length > 0 ? (
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-emerald-200/80">Open live pages</div>
+            <div className="text-caption font-semibold text-pitch-text">Open live pages</div>
             <div className="mt-2 flex flex-wrap gap-3">
               {verify.map((v) => (
                 <Link
@@ -76,7 +76,7 @@ export function OperatorActionResult({
                   href={v.href}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-emerald-100 underline-offset-4 hover:underline"
+                  className="text-pitch-text underline-offset-4 hover:underline"
                 >
                   {v.label} ↗
                 </Link>

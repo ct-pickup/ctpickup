@@ -19,6 +19,7 @@ import { ANNOUNCEMENTS_CHAT_SLUG, isAdminDmGroupSlug } from "@/lib/teamChat";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -42,8 +43,6 @@ const REPORT_REASONS: readonly ReportOption[] = [
   { value: "inappropriate", label: "Inappropriate content" },
   { value: "other", label: "Other" },
 ];
-
-const LIME = "#a3e635";
 
 const REACTION_PICKER_EMOJIS = ["👍", "❤️", "😂", "🔥", "💪", "⚽"] as const;
 
@@ -87,6 +86,8 @@ function resolvedRoomTitle(room: { title: string; room_type: string | null; pick
 }
 
 export default function TeamChatThreadScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const navigation = useNavigation();
   const params = useLocalSearchParams();
@@ -201,8 +202,8 @@ export default function TeamChatThreadScreen() {
     useCallback(() => {
       navigation.setOptions({
         title: resolvedRoomTitle(room),
-        headerStyle: { backgroundColor: "#0a0a0a" },
-        headerTintColor: "#fff",
+        headerStyle: { backgroundColor: themeColor().bg },
+        headerTintColor: themeColor().text,
         headerShadowVisible: false,
         headerBackVisible: false,
         headerLeft: () => (
@@ -213,7 +214,7 @@ export default function TeamChatThreadScreen() {
             hitSlop={10}
             style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1, paddingHorizontal: 8 })}
           >
-            <FontAwesome name="chevron-left" size={20} color="#fff" />
+            <FontAwesome name="chevron-left" size={20} color={themeColor().text} />
           </Pressable>
         ),
       });
@@ -289,7 +290,7 @@ export default function TeamChatThreadScreen() {
   if (!isReady) {
     return (
       <View style={styles.screenCenter}>
-        <ActivityIndicator color={LIME} />
+        <ActivityIndicator color={themeColor().pitchText} />
       </View>
     );
   }
@@ -310,7 +311,7 @@ export default function TeamChatThreadScreen() {
     return (
       <View style={styles.screenCenter}>
         <View style={styles.iconWrap}>
-          <FontAwesome name="comment-o" size={28} color="#0a0a0a" />
+          <FontAwesome name="comment-o" size={28} color={themeColor().onPitch} />
         </View>
         <Text style={styles.title}>Messaging isn’t unlocked yet</Text>
         <Text style={styles.body}>Once your player profile is approved, you’ll see team updates and run reminders here.</Text>
@@ -321,7 +322,7 @@ export default function TeamChatThreadScreen() {
   if (roomLoading) {
     return (
       <View style={styles.screenCenter}>
-        <ActivityIndicator color={LIME} />
+        <ActivityIndicator color={themeColor().pitchText} />
       </View>
     );
   }
@@ -339,7 +340,7 @@ export default function TeamChatThreadScreen() {
     return (
       <View style={styles.screenCenter}>
         <View style={styles.iconWrap}>
-          <FontAwesome name="comment-o" size={28} color="#0a0a0a" />
+          <FontAwesome name="comment-o" size={28} color={themeColor().onPitch} />
         </View>
         <Text style={styles.title}>Team chat is off</Text>
         <Text style={styles.body}>Messaging can be turned on for specific sessions. Check again later.</Text>
@@ -382,7 +383,7 @@ export default function TeamChatThreadScreen() {
 
       {msgsLoading ? (
         <View style={styles.loadingRow}>
-          <ActivityIndicator color={LIME} />
+          <ActivityIndicator color={themeColor().pitchText} />
         </View>
       ) : null}
 
@@ -613,7 +614,7 @@ export default function TeamChatThreadScreen() {
                         }}
                         style={({ pressed }) => [styles.reactionPickerMoreBtn, pressed && { opacity: 0.75 }]}
                       >
-                        <FontAwesome name="ellipsis-h" size={18} color="rgba(255,255,255,0.85)" />
+                        <FontAwesome name="ellipsis-h" size={18} color={themeColor().text} />
                       </Pressable>
                     ) : null}
                   </View>
@@ -644,7 +645,7 @@ export default function TeamChatThreadScreen() {
                 if (t) setReportTarget(t);
               }}
             >
-              <FontAwesome name="flag" size={16} color="#f59e0b" />
+              <FontAwesome name="flag" size={16} color={themeColor().coral} />
               <Text style={styles.sheetRowText}>Report message</Text>
             </Pressable>
             <Pressable
@@ -655,7 +656,7 @@ export default function TeamChatThreadScreen() {
                 if (t) confirmBlock(t);
               }}
             >
-              <FontAwesome name="ban" size={16} color="#f87171" />
+              <FontAwesome name="ban" size={16} color={themeColor().coral} />
               <Text style={styles.sheetRowText}>Block user</Text>
             </Pressable>
             <Pressable
@@ -692,7 +693,7 @@ export default function TeamChatThreadScreen() {
                   reportBusy ? { opacity: 0.6 } : null,
                 ]}
               >
-                <FontAwesome name="circle-o" size={14} color="rgba(255,255,255,0.55)" />
+                <FontAwesome name="circle-o" size={14} color={themeColor().muted} />
                 <Text style={styles.sheetRowText}>{opt.label}</Text>
               </Pressable>
             ))}
@@ -702,7 +703,7 @@ export default function TeamChatThreadScreen() {
               onPress={() => setReportTarget(null)}
             >
               {reportBusy ? (
-                <ActivityIndicator color={LIME} />
+                <ActivityIndicator color={themeColor().pitchText} />
               ) : (
                 <Text style={styles.sheetCancelText}>Cancel</Text>
               )}
@@ -728,7 +729,7 @@ export default function TeamChatThreadScreen() {
                       : "Message the group"
                     : "Message the team…"
             }
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
             value={draft}
             onChangeText={(t) => {
               setDraft(t);
@@ -743,7 +744,7 @@ export default function TeamChatThreadScreen() {
             disabled={!draft.trim() || !canCompose || sendBusy}
             onPress={() => void onSend()}
           >
-            {sendBusy ? <ActivityIndicator color="#0a0a0a" /> : <Text style={styles.sendBtnText}>Send</Text>}
+            {sendBusy ? <ActivityIndicator color={themeColor().onPitch} /> : <Text style={styles.sendBtnText}>Send</Text>}
           </Pressable>
         </View>
       ) : null}
@@ -751,36 +752,37 @@ export default function TeamChatThreadScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   screenCenter: {
     flex: 1,
-    backgroundColor: "#0a0a0a",
+    backgroundColor: themeColor().bg,
     padding: 24,
     justifyContent: "center",
   },
-  screenPad: { flex: 1, backgroundColor: "#0a0a0a", padding: 18 },
-  screen: { flex: 1, backgroundColor: "#0a0a0a", padding: 18 },
+  screenPad: { flex: 1, backgroundColor: themeColor().bg, padding: 18 },
+  screen: { flex: 1, backgroundColor: themeColor().bg, padding: 18 },
   iconWrap: {
     alignSelf: "center",
     width: 56,
     height: 56,
-    borderRadius: 16,
-    backgroundColor: LIME,
+    borderRadius: 12,
+    backgroundColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
   },
   title: {
-    fontSize: 20,
+    fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "800",
-    color: "#fff",
+    color: themeColor().text,
     textAlign: "center",
     marginBottom: 12,
   },
   body: {
-    fontSize: 15,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 22,
-    color: "rgba(255,255,255,0.55)",
+    color: themeColor().muted,
     textAlign: "center",
   },
   signInWrap: { marginTop: 14 },
@@ -788,80 +790,80 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     marginBottom: 10,
   },
   noticeRed: {
-    borderColor: "rgba(248,113,113,0.35)",
-    backgroundColor: "rgba(248,113,113,0.08)",
+    borderColor: themeColor().coral,
+    backgroundColor: themeColor().overlaySubtle,
   },
   noticeLime: {
-    borderColor: "rgba(163,230,53,0.4)",
-    backgroundColor: "rgba(163,230,53,0.1)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  noticeText: { color: "rgba(255,255,255,0.75)", fontSize: 13, lineHeight: 18 },
+  noticeText: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   runBanterBanner: {
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginBottom: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   runBanterBannerText: {
-    color: "rgba(255,255,255,0.42)",
-    fontSize: 13,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_600SemiBold",
     lineHeight: 18,
     textAlign: "center",
     fontWeight: "600",
   },
   runBanterBannerHint: { paddingVertical: 6, paddingHorizontal: 10, marginBottom: 6 },
   runBanterBannerHintText: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 12,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_600SemiBold",
     lineHeight: 16,
     textAlign: "center",
     fontWeight: "600",
   },
   sheetBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: themeColor().scrim,
     padding: 18,
     justifyContent: "flex-end",
   },
   sheet: {
-    borderRadius: 18,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(18,18,18,0.98)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().bg,
     padding: 16,
   },
-  sheetTitle: { color: "#fff", fontSize: 16, fontWeight: "900" },
-  sheetSub: { marginTop: 6, color: "rgba(255,255,255,0.6)", fontSize: 13, lineHeight: 18 },
+  sheetTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "900" },
+  sheetSub: { marginTop: 6, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   sheetRow: {
     marginTop: 14,
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
-  sheetRowText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  sheetRowText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
   sheetCancel: {
     marginTop: 14,
     paddingVertical: 12,
     alignItems: "center",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: themeColor().line,
   },
-  sheetCancelText: { color: "rgba(255,255,255,0.65)", fontSize: 14, fontWeight: "700" },
+  sheetCancelText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
   loadingRow: { paddingVertical: 10 },
   listContent: { paddingBottom: 12 },
   msgRow: { marginBottom: 10, maxWidth: "92%" },
@@ -881,52 +883,52 @@ const styles = StyleSheet.create({
   msgSenderAvatar: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
   },
   msgSenderAvatarOther: {
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: themeColor().overlay,
+    borderColor: themeColor().line,
   },
   msgSenderAvatarAdmin: {
-    backgroundColor: "rgba(163,230,53,0.12)",
-    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: themeColor().pitchSoft,
+    borderColor: themeColor().pitch,
   },
-  msgSenderAvatarText: { fontSize: 11, fontWeight: "800" },
-  msgSenderAvatarTextOther: { color: "rgba(255,255,255,0.65)" },
-  msgSenderAvatarTextAdmin: { color: LIME },
+  msgSenderAvatarText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  msgSenderAvatarTextOther: { color: themeColor().muted },
+  msgSenderAvatarTextAdmin: { color: themeColor().pitchText },
   msgSenderOther: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 12,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
     flexShrink: 1,
   },
   msgSenderAdmin: {
-    color: LIME,
-    fontSize: 12,
+    color: themeColor().pitchText,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
     flexShrink: 1,
   },
   bubble: {
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
   },
-  bubbleMine: { backgroundColor: LIME, borderColor: "rgba(0,0,0,0.2)" },
-  bubbleOther: { backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)" },
+  bubbleMine: { backgroundColor: themeColor().pitch, borderColor: themeColor().line },
+  bubbleOther: { backgroundColor: themeColor().overlaySubtle, borderColor: themeColor().line },
   bubbleAdmin: {
-    backgroundColor: "rgba(163,230,53,0.08)",
-    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: themeColor().pitchSoft,
+    borderColor: themeColor().line,
     borderLeftWidth: 3,
-    borderLeftColor: LIME,
+    borderLeftColor: themeColor().pitch,
   },
-  bubbleText: { fontSize: 15, lineHeight: 20 },
-  bubbleTextMine: { color: "#0a0a0a", fontWeight: "700" },
-  bubbleTextOther: { color: "rgba(255,255,255,0.72)", fontWeight: "500" },
-  bubbleTextAdmin: { color: "#ffffff", fontWeight: "600" },
+  bubbleText: { fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  bubbleTextMine: { color: themeColor().onPitch, fontWeight: "700" },
+  bubbleTextOther: { color: themeColor().muted, fontWeight: "500" },
+  bubbleTextAdmin: { color: themeColor().text, fontWeight: "600" },
   reactionPickerRoot: { flex: 1 },
   reactionPickerBar: {
     position: "absolute",
@@ -935,18 +937,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "rgba(22,22,22,0.97)",
+    backgroundColor: themeColor().card,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
+    borderColor: themeColor().line,
     gap: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 6,
   },
   reactionPickerEmojiBtn: { paddingHorizontal: 4, paddingVertical: 2 },
-  reactionPickerEmoji: { fontSize: 26, lineHeight: 32 },
+  reactionPickerEmoji: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", lineHeight: 32 },
   reactionPickerMoreBtn: { paddingHorizontal: 8, paddingVertical: 4 },
   reactionPillsRow: {
     flexDirection: "row",
@@ -963,24 +960,24 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius: 12,
+    backgroundColor: themeColor().overlay,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: themeColor().line,
   },
   reactionPillMine: {
-    backgroundColor: "rgba(163,230,53,0.22)",
-    borderColor: LIME,
+    backgroundColor: themeColor().pitchSoft,
+    borderColor: themeColor().pitch,
   },
-  reactionPillEmoji: { fontSize: 14, lineHeight: 18 },
-  reactionPillCount: { fontSize: 12, fontWeight: "800", color: "rgba(255,255,255,0.7)" },
-  reactionPillCountMine: { color: "#0a0a0a" },
+  reactionPillEmoji: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  reactionPillCount: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted },
+  reactionPillCountMine: { color: themeColor().onPitch },
   composer: {
     flexDirection: "row",
     gap: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.08)",
+    borderTopColor: themeColor().line,
     alignItems: "flex-end",
   },
   input: {
@@ -988,24 +985,30 @@ const styles = StyleSheet.create({
     minHeight: 44,
     maxHeight: 120,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    borderRadius: 14,
+    borderColor: themeColor().line,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 15,
-    color: "#fff",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    fontSize: 16, fontFamily: "Inter_400Regular",
+    color: themeColor().text,
+    backgroundColor: themeColor().overlaySubtle,
   },
   inputDisabled: { opacity: 0.7 },
   sendBtn: {
-    backgroundColor: LIME,
-    borderRadius: 14,
+    backgroundColor: themeColor().pitch,
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  sendBtnText: { color: "#0a0a0a", fontWeight: "900" },
+  sendBtnText: { color: themeColor().onPitch, fontWeight: "900" },
   disabled: { opacity: 0.55 },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

@@ -1,0 +1,5 @@
+mobile/app
+mobile/components
+mobile/constants
+app
+components

@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -19,7 +23,12 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ],
+      "@theme/*": [
+        "./shared/theme/*"
+      ]
     }
   },
   "include": [
@@ -30,5 +39,10 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "mobile", "ctpickup-mobile-*"]
+  "exclude": [
+    "node_modules",
+    "mobile",
+    "ctpickup-mobile-*",
+    "scripts/emit-theme-css.ts"
+  ]
 }

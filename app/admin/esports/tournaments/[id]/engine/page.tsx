@@ -123,7 +123,7 @@ export default async function AdminTournamentEnginePage({
   const defaultSunday = daysFromNow(7);
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-canvas text-ink">
       <div className="mx-auto max-w-6xl space-y-8 px-4 py-10 md:px-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <PageTop
@@ -131,16 +131,16 @@ export default async function AdminTournamentEnginePage({
             title="Staff · Tournament engine"
             fallbackHref={APP_HOME_URL}
           />
-          <div className="flex flex-wrap gap-2 text-sm">
+          <div className="flex flex-wrap gap-2 text-small">
             <Link
               href="/admin/esports"
-              className="rounded-lg border border-white/15 bg-white/[0.04] px-3 py-2 text-white/85 transition hover:bg-white/[0.08]"
+              className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-ink transition hover:bg-overlay"
             >
               ← Tournament admin
             </Link>
             <Link
               href={`/admin/esports/tournaments/${id}/match-review`}
-              className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-100/90 transition hover:bg-amber-500/15"
+              className="rounded-button border border-coral bg-overlay-subtle px-3 py-2 text-coral transition hover:bg-overlay-subtle"
             >
               Match review
             </Link>
@@ -148,7 +148,7 @@ export default async function AdminTournamentEnginePage({
               href={`/esports/tournaments/${id}`}
               target="_blank"
               rel="noreferrer"
-              className="rounded-lg border border-white/15 px-3 py-2 text-white/55 hover:text-white"
+              className="rounded-button border border-line px-3 py-2 text-muted hover:text-ink"
             >
               Public page ↗
             </a>
@@ -156,7 +156,7 @@ export default async function AdminTournamentEnginePage({
         </div>
 
         {sp.ok ? (
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+          <div className="rounded-card border border-pitch bg-pitch-soft px-4 py-3 text-small text-pitch">
             {sp.ok === "group_stage_generated" && "Group stage generated."}
             {sp.ok === "group_stage_locked" && "Group stage locked."}
             {sp.ok === "knockout_generated" && "Knockout bracket generated (first knockout round)." }
@@ -166,29 +166,29 @@ export default async function AdminTournamentEnginePage({
           </div>
         ) : null}
         {sp.e ? (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          <div className="rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral">
             {sp.e}
           </div>
         ) : null}
 
         {tErr ? (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          <div className="rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral">
             {tErr.message}
           </div>
         ) : null}
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+        <section className="rounded-card border border-line bg-overlay-subtle p-6">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold text-white">{tour?.title ?? "Tournament"}</h2>
+            <h2 className="text-h3 font-serif font-semibold text-ink">{tour?.title ?? "Tournament"}</h2>
             <StatusChip tone="neutral">{tour?.status ?? "—"}</StatusChip>
             <StatusChip tone="published">{paidCount} paid players</StatusChip>
             <StatusChip tone="neutral">{matchList.length} matches</StatusChip>
           </div>
-          <p className="mt-2 text-sm text-white/60">
+          <p className="mt-2 text-small text-muted">
             Window: {fmtEt(tour?.start_date)} → {fmtEt(tour?.end_date)}
           </p>
-          <p className="mt-3 text-xs text-white/45">
-            Stages:{" "}
+          <p className="mt-3 text-caption text-muted">
+            Stages:{"  "}
             {Object.keys(stageTypeCounts).length
               ? Object.entries(stageTypeCounts)
                   .map(([k, v]) => `${k}=${v}`)
@@ -197,57 +197,57 @@ export default async function AdminTournamentEnginePage({
           </p>
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-white/80">
+        <section className="rounded-card border border-line bg-overlay-subtle p-6">
+          <h2 className="text-small font-semibold text-ink">
             Generate group stage (Mon/Tue/Wed deadlines)
           </h2>
-          <p className="mt-2 text-sm text-white/55">
+          <p className="mt-2 text-small text-muted">
             Uses paid registrations only. Creates groups, then round-robin matches. Round 1 due Monday, Round 2 due Tuesday,
             and all remaining rounds due Wednesday (11:59 PM ET recommended).
           </p>
 
           <form action={generateGroupStage} className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             <input type="hidden" name="tournament_id" value={id} />
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Group size
               <input
                 name="group_size"
                 required
                 defaultValue={4}
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Monday deadline (ISO)
               <input
                 name="deadline_monday"
                 required
                 defaultValue={defaultMonday}
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Tuesday deadline (ISO)
               <input
                 name="deadline_tuesday"
                 required
                 defaultValue={defaultTuesday}
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Wednesday deadline (ISO)
               <input
                 name="deadline_wednesday"
                 required
                 defaultValue={defaultWednesday}
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
             <div className="md:col-span-2 lg:col-span-3 flex flex-wrap gap-2">
               <button
                 type="submit"
-                className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-black"
+                className="rounded-button bg-pitch px-4 py-2 text-small font-semibold text-on-pitch"
               >
                 Generate group stage
               </button>
@@ -258,71 +258,71 @@ export default async function AdminTournamentEnginePage({
             <input type="hidden" name="tournament_id" value={id} />
             <button
               type="submit"
-              className="rounded-md border border-white/20 px-4 py-2 text-sm font-semibold text-white/85 hover:bg-white/[0.06]"
+              className="rounded-button border border-line px-4 py-2 text-small font-semibold text-ink hover:bg-overlay"
             >
               Lock group stage
             </button>
           </form>
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-white/80">
+        <section className="rounded-card border border-line bg-overlay-subtle p-6">
+          <h2 className="text-small font-semibold text-ink">
             Knockout bracket (Thu/Fri/Sat/Sun deadlines)
           </h2>
-          <p className="mt-2 text-sm text-white/55">
+          <p className="mt-2 text-small text-muted">
             Workflow: lock group stage → generate first knockout round → lock that stage → generate next round (repeat)
             until the final.
           </p>
 
           <form action={generateKnockoutFromGroups} className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
             <input type="hidden" name="tournament_id" value={id} />
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Advance per group
               <input
                 name="advance_per_group"
                 required
                 defaultValue={2}
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Thursday deadline (ISO)
               <input
                 name="deadline_thursday"
                 required
                 defaultValue={defaultThursday}
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Friday deadline (ISO)
               <input
                 name="deadline_friday"
                 required
                 defaultValue={defaultFriday}
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Saturday deadline (ISO)
               <input
                 name="deadline_saturday"
                 required
                 defaultValue={defaultSaturday}
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55 lg:col-span-2">
+            <label className="flex flex-col gap-1 text-caption text-muted lg:col-span-2">
               Sunday final deadline (ISO)
               <input
                 name="deadline_sunday"
                 required
                 defaultValue={defaultSunday}
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
             <div className="md:col-span-2 lg:col-span-4 flex flex-wrap gap-2">
-              <button type="submit" className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-black">
+              <button type="submit" className="rounded-button bg-pitch px-4 py-2 text-small font-semibold text-on-pitch">
                 Generate first knockout round
               </button>
             </div>
@@ -331,57 +331,57 @@ export default async function AdminTournamentEnginePage({
           <form action={generateNextKnockoutRound} className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
             <input type="hidden" name="tournament_id" value={id} />
             <input type="hidden" name="deadline_thursday" value={defaultThursday} />
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Friday deadline (ISO)
               <input
                 name="deadline_friday"
                 required
                 defaultValue={defaultFriday}
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Saturday deadline (ISO)
               <input
                 name="deadline_saturday"
                 required
                 defaultValue={defaultSaturday}
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55 lg:col-span-2">
+            <label className="flex flex-col gap-1 text-caption text-muted lg:col-span-2">
               Sunday final deadline (ISO)
               <input
                 name="deadline_sunday"
                 required
                 defaultValue={defaultSunday}
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
             <div className="md:col-span-2 lg:col-span-4 flex flex-wrap gap-2">
-              <button type="submit" className="rounded-md border border-white/20 px-4 py-2 text-sm font-semibold text-white/85 hover:bg-white/[0.06]">
+              <button type="submit" className="rounded-button border border-line px-4 py-2 text-small font-semibold text-ink hover:bg-overlay">
                 Generate next knockout round from winners
               </button>
             </div>
           </form>
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-white/80">Stages</h2>
+        <section className="rounded-card border border-line bg-overlay-subtle p-6">
+          <h2 className="text-small font-semibold text-ink">Stages</h2>
           {stageList.length === 0 ? (
-            <p className="mt-3 text-sm text-white/55">No stages yet.</p>
+            <p className="mt-3 text-small text-muted">No stages yet.</p>
           ) : (
             <div className="mt-4 space-y-3">
               {stageList.map((s) => (
-                <div key={s.id} className="rounded-xl border border-white/10 bg-black/30 p-4">
+                <div key={s.id} className="rounded-card border border-line bg-overlay-subtle p-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className="text-sm font-semibold text-white">
+                    <div className="text-small font-semibold text-ink">
                       {s.order_index}. {s.name}
                     </div>
                     <StatusChip tone="neutral">{s.type}</StatusChip>
                     <StatusChip tone={s.status === "active" ? "published" : "neutral"}>{s.status}</StatusChip>
                   </div>
-                  <p className="mt-2 text-xs text-white/45">
+                  <p className="mt-2 text-caption text-muted">
                     Starts {fmtEt(s.starts_at)} · Ends {fmtEt(s.ends_at)} · Created {fmtEt(s.created_at)}
                   </p>
                   {s.type !== "group_stage" ? (
@@ -390,7 +390,7 @@ export default async function AdminTournamentEnginePage({
                       <input type="hidden" name="stage_id" value={s.id} />
                       <button
                         type="submit"
-                        className="rounded-md border border-white/20 px-3 py-1.5 text-xs font-semibold text-white/85 hover:bg-white/[0.06]"
+                        className="rounded-button border border-line px-3 py-1.5 text-caption font-semibold text-ink hover:bg-overlay"
                       >
                         Lock this stage
                       </button>
@@ -402,18 +402,18 @@ export default async function AdminTournamentEnginePage({
           )}
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-white/80">Matches (admin edits)</h2>
-          <p className="mt-2 text-sm text-white/55">
+        <section className="rounded-card border border-line bg-overlay-subtle p-6">
+          <h2 className="text-small font-semibold text-ink">Matches (admin edits)</h2>
+          <p className="mt-2 text-small text-muted">
             Use this for urgent fixes (pairings, deadlines, scores, winner). Normal flow is players report → staff confirms.
           </p>
 
           {matchList.length === 0 ? (
-            <p className="mt-3 text-sm text-white/55">No matches yet.</p>
+            <p className="mt-3 text-small text-muted">No matches yet.</p>
           ) : (
-            <div className="mt-4 overflow-x-auto rounded-2xl border border-white/10 bg-black/30">
-              <table className="min-w-[1400px] w-full border-collapse text-left text-[11px] leading-snug">
-                <thead className="border-b border-white/10 bg-[#121213] text-[10px] font-semibold uppercase tracking-wider text-white/50">
+            <div className="mt-4 overflow-x-auto rounded-card border border-line bg-overlay-subtle">
+              <table className="min-w-[1400px] w-full border-collapse text-left text-caption leading-snug">
+                <thead className="border-b border-line bg-canvas text-caption font-semibold text-muted">
                   <tr>
                     <th className="whitespace-nowrap px-3 py-2.5">Stage</th>
                     <th className="whitespace-nowrap px-3 py-2.5">Round</th>
@@ -426,37 +426,37 @@ export default async function AdminTournamentEnginePage({
                     <th className="whitespace-nowrap px-3 py-2.5">Edit</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/[0.06]">
+                <tbody className="divide-line">
                   {matchList.map((m) => {
                     const st = stageById.get(m.stage_id);
                     return (
-                      <tr key={m.id} className="align-top text-white/80 hover:bg-white/[0.02]">
+                      <tr key={m.id} className="align-top text-ink hover:bg-overlay-subtle">
                         <td className="px-3 py-2">
-                          <div className="text-white/90">{st?.name ?? "—"}</div>
-                          <div className="font-mono text-[10px] text-white/35">{st?.type ?? ""}</div>
+                          <div className="text-ink">{st?.name ?? "—"}</div>
+                          <div className="font-mono text-caption text-muted">{st?.type ?? ""}</div>
                         </td>
                         <td className="px-3 py-2">{m.round_label ?? "—"}</td>
-                        <td className="max-w-[240px] px-3 py-2 font-mono text-[10px] text-white/65" title={m.player1_user_id}>
+                        <td className="max-w-[240px] px-3 py-2 font-mono text-caption text-muted" title={m.player1_user_id}>
                           {m.player1_user_id}
                         </td>
-                        <td className="max-w-[240px] px-3 py-2 font-mono text-[10px] text-white/65" title={m.player2_user_id}>
+                        <td className="max-w-[240px] px-3 py-2 font-mono text-caption text-muted" title={m.player2_user_id}>
                           {m.player2_user_id}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-white/70">{fmtEt(m.scheduled_deadline)}</td>
+                        <td className="whitespace-nowrap px-3 py-2 text-muted">{fmtEt(m.scheduled_deadline)}</td>
                         <td className="px-3 py-2">
                           <StatusChip tone={m.status === "completed" ? "published" : "neutral"}>{m.status}</StatusChip>
                         </td>
-                        <td className="px-3 py-2 text-white/70">
+                        <td className="px-3 py-2 text-muted">
                           {typeof m.score_player1 === "number" && typeof m.score_player2 === "number"
                             ? `${m.score_player1}–${m.score_player2}`
                             : "—"}
                         </td>
-                        <td className="max-w-[240px] px-3 py-2 font-mono text-[10px] text-white/65" title={m.winner_user_id ?? ""}>
+                        <td className="max-w-[240px] px-3 py-2 font-mono text-caption text-muted" title={m.winner_user_id ?? ""}>
                           {m.winner_user_id ?? "—"}
                         </td>
                         <td className="px-3 py-2">
                           <details className="group">
-                            <summary className="cursor-pointer select-none text-xs text-white/70 hover:text-white">
+                            <summary className="cursor-pointer select-none text-caption text-muted hover:text-ink">
                               Edit
                             </summary>
                             <form action={updateMatchAdmin} className="mt-2 grid gap-2">
@@ -465,36 +465,36 @@ export default async function AdminTournamentEnginePage({
                               <input
                                 name="player1_user_id"
                                 defaultValue={m.player1_user_id}
-                                className="w-[420px] rounded-md border border-white/15 bg-black/40 px-2 py-1 text-[11px] font-mono text-white"
+                                className="w-[420px] rounded-button border border-line bg-overlay-subtle px-2 py-1 text-caption font-mono text-ink"
                               />
                               <input
                                 name="player2_user_id"
                                 defaultValue={m.player2_user_id}
-                                className="w-[420px] rounded-md border border-white/15 bg-black/40 px-2 py-1 text-[11px] font-mono text-white"
+                                className="w-[420px] rounded-button border border-line bg-overlay-subtle px-2 py-1 text-caption font-mono text-ink"
                               />
                               <input
                                 name="scheduled_deadline"
                                 defaultValue={m.scheduled_deadline ?? ""}
                                 placeholder="ISO deadline"
-                                className="w-[420px] rounded-md border border-white/15 bg-black/40 px-2 py-1 text-[11px] text-white"
+                                className="w-[420px] rounded-button border border-line bg-overlay-subtle px-2 py-1 text-caption text-ink"
                               />
                               <div className="flex flex-wrap gap-2">
                                 <input
                                   name="score_player1"
                                   defaultValue={typeof m.score_player1 === "number" ? String(m.score_player1) : ""}
                                   placeholder="P1 score"
-                                  className="w-[110px] rounded-md border border-white/15 bg-black/40 px-2 py-1 text-[11px] text-white"
+                                  className="w-[110px] rounded-button border border-line bg-overlay-subtle px-2 py-1 text-caption text-ink"
                                 />
                                 <input
                                   name="score_player2"
                                   defaultValue={typeof m.score_player2 === "number" ? String(m.score_player2) : ""}
                                   placeholder="P2 score"
-                                  className="w-[110px] rounded-md border border-white/15 bg-black/40 px-2 py-1 text-[11px] text-white"
+                                  className="w-[110px] rounded-button border border-line bg-overlay-subtle px-2 py-1 text-caption text-ink"
                                 />
                                 <select
                                   name="status"
                                   defaultValue={m.status}
-                                  className="w-[200px] rounded-md border border-white/15 bg-black/40 px-2 py-1 text-[11px] text-white"
+                                  className="w-[200px] rounded-button border border-line bg-overlay-subtle px-2 py-1 text-caption text-ink"
                                 >
                                   <option value="scheduled">scheduled</option>
                                   <option value="awaiting_confirmation">awaiting_confirmation</option>
@@ -509,11 +509,11 @@ export default async function AdminTournamentEnginePage({
                                 name="winner_user_id"
                                 defaultValue={m.winner_user_id ?? ""}
                                 placeholder="Winner user id (UUID)"
-                                className="w-[420px] rounded-md border border-white/15 bg-black/40 px-2 py-1 text-[11px] font-mono text-white"
+                                className="w-[420px] rounded-button border border-line bg-overlay-subtle px-2 py-1 text-caption font-mono text-ink"
                               />
                               <button
                                 type="submit"
-                                className="w-fit rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-black"
+                                className="w-fit rounded-button bg-pitch px-3 py-1.5 text-caption font-semibold text-on-pitch"
                               >
                                 Save
                               </button>

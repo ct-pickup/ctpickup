@@ -16,11 +16,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const BG = "#0a0a0a";
-const LIME = "#a3e635";
+import { themeColor, useThemedStyles } from "@/theme";
 const WAIVER_VERSION = "v1.5";
 
 export default function WaiverScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { session, isReady } = useAuth();
@@ -91,7 +92,7 @@ export default function WaiverScreen() {
   if (!isReady) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#fff" />
+        <ActivityIndicator size="large" color={themeColor().text} />
       </View>
     );
   }
@@ -303,7 +304,7 @@ export default function WaiverScreen() {
           accessibilityLabel="I have read and agree to the Liability Waiver and Participation Agreement"
         >
           {submitting ? (
-            <ActivityIndicator color="#0a0a0a" />
+            <ActivityIndicator color={themeColor().onPitch} />
           ) : (
             <Text style={styles.agreeText}>I have read and agree to the Liability Waiver & Participation Agreement</Text>
           )}
@@ -313,56 +314,57 @@ export default function WaiverScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: BG },
-  center: { flex: 1, backgroundColor: BG, justifyContent: "center", alignItems: "center" },
+function make_styles() {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: themeColor().bg },
+  center: { flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center" },
   scrollContent: { paddingHorizontal: 20 },
   brandRow: { alignItems: "center", marginBottom: 16 },
   wordmark: { width: 220, height: 48 },
   docTitle: {
-    color: "#fff",
-    fontSize: 18,
+    color: themeColor().text,
+    fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "600",
     textAlign: "center",
     marginBottom: 6,
   },
   version: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 13,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     textAlign: "center",
     marginBottom: 24,
   },
   section: { marginBottom: 22 },
-  h2: { color: "#fff", fontSize: 16, fontWeight: "600", marginBottom: 10 },
+  h2: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600", marginBottom: 10 },
   p: {
-    color: "rgba(255,255,255,0.75)",
-    fontSize: 14,
+    color: themeColor().text,
+    fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 22,
     marginBottom: 10,
   },
   li: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 14,
+    color: themeColor().muted,
+    fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 22,
     marginBottom: 6,
     paddingLeft: 4,
   },
-  strong: { color: "rgba(255,255,255,0.9)", fontWeight: "600" },
-  emphasis: { color: "rgba(255,255,255,0.9)" },
-  link: { color: LIME, textDecorationLine: "underline", fontSize: 14, lineHeight: 22 },
+  strong: { color: themeColor().text, fontWeight: "600" },
+  emphasis: { color: themeColor().text },
+  link: { color: themeColor().pitchText, textDecorationLine: "underline", fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22 },
   stickyBar: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: BG,
+    backgroundColor: themeColor().bg,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(255,255,255,0.12)",
+    borderTopColor: themeColor().line,
     paddingHorizontal: 16,
     paddingTop: 12,
   },
   agreeBtn: {
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -372,9 +374,15 @@ const styles = StyleSheet.create({
   },
   agreeBtnDisabled: { opacity: 0.7 },
   agreeText: {
-    color: "#0a0a0a",
-    fontSize: 15,
+    color: themeColor().onPitch,
+    fontSize: 16, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
     textAlign: "center",
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

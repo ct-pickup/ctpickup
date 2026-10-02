@@ -1,8 +1,7 @@
 import * as zipcodes from "zipcodes";
 import { StyleSheet, Text, View } from "react-native";
 
-const LIME = "#a3e635";
-
+import { themeColor, useThemedStyles } from "@/theme";
 export type PlayerByVenueRow = { venue: string; count: number };
 export type PlayerByZipRow = { zip_code: string; count: number };
 
@@ -19,6 +18,8 @@ function zipLineLabel(zip: string): string {
 }
 
 function DistributionRow({ label, count, max }: { label: string; count: number; max: number }) {
+  useThemedStyles(publish_styles);
+
   const pct = max > 0 ? Math.max(0.06, Math.min(1, count / max)) : 0;
   return (
     <View style={styles.distRow}>
@@ -42,6 +43,8 @@ export function PlayerLocationBreakdown({
   playersByVenue: PlayerByVenueRow[];
   playersByZip: PlayerByZipRow[];
 }) {
+  useThemedStyles(publish_styles);
+
   const maxVenue = playersByVenue.length ? Math.max(...playersByVenue.map((r) => r.count)) : 0;
   const maxZip = playersByZip.length ? Math.max(...playersByZip.map((r) => r.count)) : 0;
 
@@ -79,24 +82,25 @@ export function PlayerLocationBreakdown({
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   card: {
     marginTop: 14,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  cardTitle: { color: "#fff", fontWeight: "900", fontSize: 16 },
+  cardTitle: { color: themeColor().text, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
   cardHint: {
     marginTop: 6,
-    color: "rgba(255,255,255,0.45)",
-    fontSize: 12,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
     lineHeight: 16,
   },
-  muted: { marginTop: 10, color: "rgba(255,255,255,0.55)", fontSize: 14 },
+  muted: { marginTop: 10, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
   distRow: {
     marginTop: 12,
     flexDirection: "row",
@@ -106,8 +110,8 @@ const styles = StyleSheet.create({
   distLabel: {
     flex: 1,
     minWidth: 0,
-    color: "rgba(255,255,255,0.82)",
-    fontSize: 13,
+    color: themeColor().text,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
   },
   distMid: {
@@ -117,22 +121,28 @@ const styles = StyleSheet.create({
   distTrack: {
     height: 6,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: themeColor().overlay,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: themeColor().line,
   },
   distFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: "rgba(163,230,53,0.35)",
+    backgroundColor: themeColor().pitch,
   },
   distCount: {
     flexShrink: 0,
     minWidth: 32,
     textAlign: "right",
-    color: LIME,
-    fontSize: 14,
+    color: themeColor().pitchText,
+    fontSize: 14, fontFamily: "Inter_700Bold",
     fontWeight: "900",
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

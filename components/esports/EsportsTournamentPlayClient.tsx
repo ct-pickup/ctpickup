@@ -43,18 +43,18 @@ function badgeClasses(ui: ReturnType<typeof matchWorkflowUiLabel>): string {
   switch (ui) {
     case "finalized":
     case "confirmed":
-      return "border-emerald-400/40 bg-emerald-500/15 text-emerald-100";
+      return "border-pitch bg-pitch-soft text-pitch";
     case "awaiting_confirmation":
-      return "border-amber-400/40 bg-amber-500/15 text-amber-100";
+      return "border-coral bg-overlay-subtle text-coral";
     case "disputed":
     case "under_review":
-      return "border-rose-400/40 bg-rose-500/15 text-rose-100";
+      return "border-coral bg-overlay-subtle text-coral";
     case "forfeit":
-      return "border-orange-400/40 bg-orange-500/15 text-orange-100";
+      return "border-coral bg-overlay-subtle text-coral";
     case "void":
-      return "border-white/20 bg-white/[0.06] text-white/55";
+      return "border-line bg-overlay text-muted";
     default:
-      return "border-white/15 bg-white/[0.06] text-white/70";
+      return "border-line bg-overlay text-muted";
   }
 }
 
@@ -219,7 +219,7 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
   return (
     <div className="space-y-6">
       {msg ? (
-        <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/85">{msg}</div>
+        <div className="rounded-card border border-line bg-overlay-subtle px-4 py-3 text-small text-ink">{msg}</div>
       ) : null}
 
       {sorted.map((e) => {
@@ -248,52 +248,52 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
         return (
           <div
             key={e.matchId}
-            className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+            className="rounded-card border border-line bg-overlay-subtle p-6"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="text-xs font-semibold uppercase tracking-wider text-white/55">
+                  <div className="text-caption font-semibold text-muted">
                     {e.stageType === "group_stage" ? "Group stage" : "Knockout"}
                   </div>
-                  <div className="text-xs text-white/35">·</div>
-                  <div className="text-xs text-white/65">{e.stageName}</div>
+                  <div className="text-caption text-muted">·</div>
+                  <div className="text-caption text-muted">{e.stageName}</div>
                 </div>
-                <h2 className="mt-3 text-lg font-semibold text-white">vs {e.opponentLabel}</h2>
+                <h2 className="mt-3 text-h3 font-serif font-semibold text-ink">vs {e.opponentLabel}</h2>
               </div>
               <span
-                className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${badgeClasses(ui)}`}
+                className={`inline-flex items-center rounded-pill border px-3 py-1 text-caption font-semibold${badgeClasses(ui)}`}
               >
                 {uiTitle(ui)}
               </span>
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-white/10 bg-black/30 p-4">
-                <div className="text-xs font-semibold uppercase tracking-wider text-white/55">Play-by deadline</div>
-                <div className="mt-2 text-sm text-white/80">{e.scheduledDeadlineIso ?? "—"}</div>
+              <div className="rounded-card border border-line bg-overlay-subtle p-4">
+                <div className="text-caption font-semibold text-muted">Play-by deadline</div>
+                <div className="mt-2 text-small text-ink">{e.scheduledDeadlineIso ?? "—"}</div>
               </div>
-              <div className="rounded-xl border border-white/10 bg-black/30 p-4">
-                <div className="text-xs font-semibold uppercase tracking-wider text-white/55">Countdown</div>
-                <div className={`mt-2 text-sm ${isUnder24h ? "text-amber-200" : "text-white/80"}`}>
+              <div className="rounded-card border border-line bg-overlay-subtle p-4">
+                <div className="text-caption font-semibold text-muted">Countdown</div>
+                <div className={`mt-2 text-small ${isUnder24h ? "text-coral" : "text-ink"}`}>
                   {msLeft == null ? "—" : fmtCountdown(msLeft)}
                 </div>
-                {isUnder24h ? <div className="mt-1 text-[11px] text-white/45">Under 24 hours left.</div> : null}
+                {isUnder24h ? <div className="mt-1 text-caption text-muted">Under 24 hours left.</div> : null}
               </div>
             </div>
 
             {e.status === "completed" || e.status === "forfeit" ? (
-              <div className="mt-5 rounded-xl border border-white/10 bg-black/25 p-4 text-sm text-white/80">
+              <div className="mt-5 rounded-card border border-line bg-overlay-strong p-4 text-small text-ink">
                 <div>
-                  Score:{" "}
-                  <span className="text-white">
+                  Score:{"  "}
+                  <span className="text-ink">
                     {typeof youScore === "number" && typeof oppScore === "number"
                       ? `${youScore}–${oppScore} (you–opp)`
                       : "—"}
                   </span>
                 </div>
                 {e.winnerUserId ? (
-                  <div className="mt-2 text-white/60">
+                  <div className="mt-2 text-muted">
                     Outcome recorded for bracket standings (winner id on file).
                   </div>
                 ) : null}
@@ -301,10 +301,10 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
             ) : null}
 
             {e.report?.screenshot_storage_path ? (
-              <div className="mt-4 text-xs text-white/55">
-                Proof on file.{" "}
+              <div className="mt-4 text-caption text-muted">
+                Proof on file.{"  "}
                 <a
-                  className="text-[var(--brand)] underline-offset-4 hover:underline"
+                  className="text-pitch-text underline-offset-4 hover:underline"
                   href={`/api/esports/matches/${e.matchId}/proof?path=${encodeURIComponent(e.report.screenshot_storage_path)}`}
                   target="_blank"
                   rel="noreferrer"
@@ -315,13 +315,13 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
             ) : null}
 
             {e.report && e.status !== "completed" && e.status !== "void" ? (
-              <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-white/75">
-                <div className="font-semibold text-white/90">Reported score (P1–P2)</div>
-                <div className="mt-1 font-mono text-white">
+              <div className="mt-4 rounded-card border border-line bg-overlay-strong p-4 text-small text-muted">
+                <div className="font-semibold text-ink">Reported score (P1–P2)</div>
+                <div className="mt-1 font-mono text-ink">
                   {e.report.score_player1} – {e.report.score_player2}
                 </div>
                 {e.report.confirmation_deadline_at ? (
-                  <div className="mt-2 text-xs text-white/50">
+                  <div className="mt-2 text-caption text-muted">
                     Confirmation due by {new Date(e.report.confirmation_deadline_at).toLocaleString()}
                   </div>
                 ) : null}
@@ -329,18 +329,18 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
             ) : null}
 
             {showOpponentPanel ? (
-              <div className="mt-6 space-y-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-4">
-                <p className="text-sm text-amber-100/90">
+              <div className="mt-6 space-y-4 rounded-card border border-coral bg-overlay-subtle p-4">
+                <p className="text-small text-coral">
                   Your opponent reported a result. Please confirm if it matches your final score screen, or dispute if
                   it does not.
                 </p>
-                <label className="block text-xs text-white/55">
+                <label className="block text-caption text-muted">
                   Dispute note (optional)
                   <textarea
                     value={disputeReason}
                     onChange={(ev) => setDisputeReason(ev.target.value)}
                     rows={2}
-                    className="mt-1 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                    className="mt-1 w-full rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                     disabled={busy}
                   />
                 </label>
@@ -349,7 +349,7 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
                     type="button"
                     disabled={busy}
                     onClick={() => void confirmResult(e.matchId)}
-                    className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-black disabled:opacity-40"
+                    className="rounded-button bg-pitch px-4 py-2 text-small font-semibold text-on-pitch disabled:opacity-40"
                   >
                     Confirm result
                   </button>
@@ -357,7 +357,7 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
                     type="button"
                     disabled={busy}
                     onClick={() => void disputeResult(e.matchId)}
-                    className="rounded-md border border-white/20 px-4 py-2 text-sm font-semibold text-white/90 disabled:opacity-40"
+                    className="rounded-button border border-line px-4 py-2 text-small font-semibold text-ink disabled:opacity-40"
                   >
                     Dispute
                   </button>
@@ -367,49 +367,49 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
 
             {canReport ? (
               <div className="mt-6 space-y-4">
-                <p className="text-sm text-white/60">
+                <p className="text-small text-muted">
                   Keep a screenshot of the final score screen. Upload it here, then submit the score you believe is
                   correct.
                   {requireMatchProof ? (
-                    <span className="block pt-1 text-amber-200/90">Screenshot upload is required before you can submit.</span>
+                    <span className="block pt-1 text-coral">Screenshot upload is required before you can submit.</span>
                   ) : null}
                 </p>
-                <label className="block text-xs text-white/55">
+                <label className="block text-caption text-muted">
                   Screenshot (JPEG, PNG, or WebP, max 5MB)
                   {requireMatchProof ? " — required" : ""}
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
                     disabled={busy}
-                    className="mt-1 block w-full text-sm text-white/80 file:mr-3 file:rounded-md file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-black"
+                    className="mt-1 block w-full text-small text-ink file:mr-3 file:rounded-button file:border-0 file:bg-pitch file:px-3 file:py-1.5 file:text-small file:font-semibold file:text-on-pitch"
                     onChange={(ev) => {
                       const f = ev.target.files?.[0];
                       if (f) void uploadProof(e.matchId, f);
                     }}
                   />
                 </label>
-                {proofPath ? <div className="text-xs text-emerald-200/90">Ready to attach: {proofPath}</div> : null}
+                {proofPath ? <div className="text-caption text-pitch-text">Ready to attach: {proofPath}</div> : null}
 
                 {openReportId === e.matchId ? (
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                    <label className="flex flex-col gap-1 text-caption text-muted">
                       Your score
                       <input
                         value={scoreYou}
                         onChange={(ev) => setScoreYou(ev.target.value)}
                         inputMode="numeric"
-                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                        className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                         placeholder="0"
                         disabled={busy}
                       />
                     </label>
-                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                    <label className="flex flex-col gap-1 text-caption text-muted">
                       Opponent score
                       <input
                         value={scoreOpp}
                         onChange={(ev) => setScoreOpp(ev.target.value)}
                         inputMode="numeric"
-                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                        className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                         placeholder="0"
                         disabled={busy}
                       />
@@ -419,7 +419,7 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
                         type="button"
                         disabled={busy}
                         onClick={() => void submitReport(e.matchId, e.youArePlayer1)}
-                        className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-black disabled:opacity-40"
+                        className="rounded-button bg-pitch px-4 py-2 text-small font-semibold text-on-pitch disabled:opacity-40"
                       >
                         Submit result
                       </button>
@@ -431,7 +431,7 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
                           setScoreYou("");
                           setScoreOpp("");
                         }}
-                        className="rounded-md border border-white/15 px-4 py-2 text-sm text-white/75"
+                        className="rounded-button border border-line px-4 py-2 text-small text-muted"
                       >
                         Cancel
                       </button>
@@ -447,7 +447,7 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
                       setScoreYou("");
                       setScoreOpp("");
                     }}
-                    className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-black disabled:opacity-40"
+                    className="rounded-button bg-pitch px-4 py-2 text-small font-semibold text-on-pitch disabled:opacity-40"
                   >
                     {e.status === "awaiting_confirmation" && e.reporterIsYou ? "Update report" : "Report result"}
                   </button>
@@ -456,7 +456,7 @@ export function EsportsTournamentPlayClient({ entries, requireMatchProof }: Prop
             ) : null}
 
             {(e.status === "disputed" || e.status === "under_review") && (
-              <p className="mt-5 text-sm text-white/55">
+              <p className="mt-5 text-small text-muted">
                 Staff are reviewing this match. You will be contacted if more information is needed.
               </p>
             )}

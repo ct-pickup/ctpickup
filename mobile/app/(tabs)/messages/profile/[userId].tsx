@@ -3,6 +3,7 @@ import { fetchPublicPlayerProfile, type PublicPlayerProfile } from "@/lib/siteAp
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useEffect, useLayoutEffect, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Image,
@@ -14,8 +15,6 @@ import {
   View,
 } from "react-native";
 
-const LIME = "#a3e635";
-
 function initials(displayName: string) {
   const parts = displayName.trim().split(/\s+/).filter(Boolean);
   if (parts.length >= 2) return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase().slice(0, 2);
@@ -24,6 +23,8 @@ function initials(displayName: string) {
 }
 
 export default function PublicPlayerProfileScreen() {
+  useThemedStyles(publish_styles);
+
   const { userId: raw } = useLocalSearchParams<{ userId: string | string[] }>();
   const userId = typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : "";
   const navigation = useNavigation();
@@ -66,8 +67,8 @@ export default function PublicPlayerProfileScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       title: nameForTitle,
-      headerStyle: { backgroundColor: "#0a0a0a" },
-      headerTintColor: "#fff",
+      headerStyle: { backgroundColor: themeColor().bg },
+      headerTintColor: themeColor().text,
       headerShadowVisible: false,
     });
   }, [navigation, nameForTitle]);
@@ -75,7 +76,7 @@ export default function PublicPlayerProfileScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={LIME} />
+        <ActivityIndicator size="large" color={themeColor().pitchText} />
       </View>
     );
   }
@@ -125,7 +126,7 @@ export default function PublicPlayerProfileScreen() {
             onPress={() => void Linking.openURL(`https://instagram.com/${encodeURIComponent(ig)}`)}
             style={styles.linkRow}
           >
-            <FontAwesome name="instagram" size={18} color={LIME} />
+            <FontAwesome name="instagram" size={18} color={themeColor().pitchText} />
             <Text style={styles.linkText}>@{ig}</Text>
           </Pressable>
         </View>
@@ -136,47 +137,52 @@ export default function PublicPlayerProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: "#0a0a0a" },
+function make_styles() {
+  return StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 20, paddingBottom: 40 },
   center: {
     flex: 1,
-    backgroundColor: "#0a0a0a",
+    backgroundColor: themeColor().bg,
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
   },
-  errText: { color: "#fca5a5", fontSize: 15, textAlign: "center" },
+  errText: { color: themeColor().coral, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center" },
   hero: { alignItems: "center", marginBottom: 28 },
-  avatarImg: { width: 96, height: 96, borderRadius: 48, marginBottom: 14 },
+  avatarImg: { width: 96, height: 96, borderRadius: 999, marginBottom: 14 },
   avatarPh: {
     width: 96,
     height: 96,
-    borderRadius: 48,
-    backgroundColor: "rgba(163,230,53,0.2)",
+    borderRadius: 999,
+    backgroundColor: themeColor().pitchSoft,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 14,
   },
-  avatarPhText: { fontSize: 32, fontWeight: "800", color: LIME },
-  displayName: { fontSize: 22, fontWeight: "700", color: "#fff", textAlign: "center" },
-  username: { marginTop: 6, fontSize: 16, color: "rgba(255,255,255,0.55)" },
+  avatarPhText: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().pitch },
+  displayName: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text, textAlign: "center" },
+  username: { marginTop: 6, fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().muted },
   block: {
     marginBottom: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.08)",
+    borderBottomColor: themeColor().line,
   },
   label: {
-    fontSize: 11,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    color: "rgba(255,255,255,0.45)",
+    color: themeColor().muted,
     marginBottom: 6,
   },
-  value: { fontSize: 16, color: "rgba(255,255,255,0.92)" },
+  value: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().text },
   linkRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  linkText: { fontSize: 16, color: LIME },
-  note: { marginTop: 8, fontSize: 13, color: "rgba(255,255,255,0.35)", lineHeight: 18 },
+  linkText: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().pitchText },
+  note: { marginTop: 8, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 18 },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

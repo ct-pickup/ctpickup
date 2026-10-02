@@ -2,8 +2,7 @@ import { useNavigation } from "expo-router";
 import { useEffect } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
-const LIME = "#a3e635";
-
+import { themeColor, useThemedStyles } from "@/theme";
 type Step = {
   number: string;
   title: string;
@@ -41,6 +40,8 @@ const IMPORTANT_BULLETS: string[] = [
 ];
 
 export default function HowPickupWorksScreen() {
+  useThemedStyles(publish_styles);
+
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -48,11 +49,11 @@ export default function HowPickupWorksScreen() {
       title: "How pickup works",
       headerTitleAlign: "center",
       headerStyle: {
-        backgroundColor: "#0a0a0a",
+        backgroundColor: themeColor().bg,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: "rgba(255,255,255,0.08)",
+        borderBottomColor: themeColor().line,
       },
-      headerTintColor: "#fff",
+      headerTintColor: themeColor().text,
       headerShadowVisible: false,
     });
   }, [navigation]);
@@ -89,28 +90,28 @@ export default function HowPickupWorksScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0a0a0a" },
+function make_styles() {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 20, paddingBottom: 40 },
   kicker: {
-    fontSize: 11,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 1.4,
-    color: "rgba(163,230,53,0.65)",
+    color: themeColor().pitchText,
   },
   lead: {
     marginTop: 10,
-    fontSize: 15,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 22,
-    color: "rgba(255,255,255,0.58)",
+    color: themeColor().muted,
   },
   card: {
     marginTop: 14,
     padding: 18,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   stepHeader: {
     flexDirection: "row",
@@ -118,33 +119,31 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   stepNumber: {
-    fontSize: 12,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 1.2,
-    color: LIME,
+    color: themeColor().pitchText,
   },
   stepTitle: {
-    fontSize: 16,
+    fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    color: "#fff",
+    color: themeColor().text,
     flexShrink: 1,
   },
   stepBody: {
     marginTop: 10,
-    fontSize: 14,
+    fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 21,
-    color: "rgba(255,255,255,0.72)",
+    color: themeColor().muted,
   },
   importantCard: {
     marginTop: 22,
-    borderColor: "rgba(163,230,53,0.28)",
-    backgroundColor: "rgba(163,230,53,0.06)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
   importantLabel: {
-    fontSize: 11,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 1.4,
-    color: LIME,
+    color: themeColor().pitchText,
   },
   bulletList: {
     marginTop: 12,
@@ -156,16 +155,22 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   bulletDot: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 21,
-    color: LIME,
+    color: themeColor().pitchText,
     width: 10,
     textAlign: "center",
   },
   bulletText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 21,
-    color: "rgba(255,255,255,0.78)",
+    color: themeColor().text,
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

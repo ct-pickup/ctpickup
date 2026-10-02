@@ -19,7 +19,7 @@ const WHAT_WE_HELP_WITH = [
 
 function PlansFallback() {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-12 text-center text-sm text-white/50">
+    <div className="rounded-card border border-line bg-overlay-subtle px-6 py-12 text-center text-small text-muted">
       Loading plans…
     </div>
   );
@@ -35,19 +35,19 @@ export default function GuidancePage() {
       <div className="space-y-10 pb-20 pt-4">
         <header className="space-y-4">
           <SectionEyebrow>CT Pickup</SectionEyebrow>
-          <h1 className="text-3xl font-semibold tracking-tight text-white md:text-5xl md:leading-tight">
+          <h1 className="text-h1 font-serif font-semibold text-ink md:text-display md:leading-tight">
             Player Development
           </h1>
-          <p className="max-w-2xl text-base font-medium leading-relaxed text-white/85 md:text-xl">
+          <p className="max-w-2xl text-body font-medium leading-relaxed text-ink md:text-h3 font-serif">
             Real guidance from people who have lived it.
           </p>
         </header>
 
         <Panel className="space-y-4 p-6 md:p-8">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/55">
+          <h2 className="text-small font-semibold text-muted">
             What this is
           </h2>
-          <div className="space-y-3 text-sm leading-relaxed text-white/80 md:text-base">
+          <div className="space-y-3 text-small leading-relaxed text-ink md:text-body">
             <p>This is not professional consulting or certified advising.</p>
             <p>
               It is real guidance from people who have firsthand experience
@@ -59,7 +59,7 @@ export default function GuidancePage() {
               direction, and honest feedback — without the corporate language or
               empty hype.
             </p>
-            <p className="pt-1 text-xs text-white/50 md:text-sm">
+            <p className="pt-1 text-caption text-muted md:text-small">
               Not legal, medical, or licensed professional advice. An
               &quot;initial consultation&quot; means an informal conversation
               to align on fit — not a licensed service.
@@ -68,16 +68,16 @@ export default function GuidancePage() {
         </Panel>
 
         <Panel className="space-y-5 p-6 md:p-8">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/55">
+          <h2 className="text-small font-semibold text-muted">
             What we help with
           </h2>
           <ul className="space-y-2">
             {WHAT_WE_HELP_WITH.map((item) => (
               <li
                 key={item}
-                className="flex gap-2 text-sm leading-relaxed text-white/80 md:text-base"
+                className="flex gap-2 text-small leading-relaxed text-ink md:text-body"
               >
-                <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-white/40" />
+                <span className="mt-2 h-1 w-1 shrink-0 rounded-pill bg-muted" />
                 <span>{item}</span>
               </li>
             ))}
@@ -85,10 +85,10 @@ export default function GuidancePage() {
         </Panel>
 
         <Panel className="space-y-4 p-6 md:p-8">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/55">
+          <h2 className="text-small font-semibold text-muted">
             How it works
           </h2>
-          <div className="space-y-3 text-sm leading-relaxed text-white/80 md:text-base">
+          <div className="space-y-3 text-small leading-relaxed text-ink md:text-body">
             <p>
               First, you reach out and tell us what you are trying to figure
               out.
@@ -101,13 +101,13 @@ export default function GuidancePage() {
               After that, you talk directly in the format that works best —
               message, call, or otherwise.
             </p>
-            <p className="text-white/55">
+            <p className="text-muted">
               Optional: a short initial consultation (informal, not licensed)
               to line up on needs before deeper work.
             </p>
-            <p className="pt-1 text-sm text-white/70 md:text-base">
-              Need help? Email{" "}
-              <SupportEmailLink className="font-medium text-amber-200 underline underline-offset-2 hover:text-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f10] rounded-sm" />
+            <p className="pt-1 text-small text-muted md:text-body">
+              Need help? Email{"  "}
+              <SupportEmailLink className="font-medium text-coral underline underline-offset-2 hover:text-coral focus:outline-none focus-visible:ring-2 focus-visible:ring-line focus-visible:ring-offset-2 focus-visible:ring-offset-canvas rounded-button" />
               .
             </p>
           </div>

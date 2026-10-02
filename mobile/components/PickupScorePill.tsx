@@ -2,8 +2,7 @@ import { useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useAccountIntroReplay } from "@/context/AccountIntroReplayContext";
 
-const LIME = "#a3e635";
-
+import { themeColor, useThemedStyles } from "@/theme";
 type Props = {
   loading: boolean;
   scorePct: number | null;
@@ -14,6 +13,8 @@ type Props = {
 
 /** Pickup reliability score (same source as `/api/pickup/standing`). */
 export function PickupScorePill({ loading, scorePct, trackedPickups, attendedPickups, onPress }: Props) {
+  useThemedStyles(publish_styles);
+
   const { replay } = useAccountIntroReplay();
   const [open, setOpen] = useState(false);
 
@@ -99,69 +100,74 @@ export function PickupScorePill({ loading, scorePct, trackedPickups, attendedPic
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   pill: {
     paddingVertical: 7,
     paddingHorizontal: 11,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.4)",
-    backgroundColor: "rgba(163,230,53,0.12)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
     alignItems: "center",
     justifyContent: "center",
     minWidth: 68,
   },
   loading: {
-    fontSize: 18,
+    fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "700",
-    color: "rgba(255,255,255,0.55)",
-    letterSpacing: 2,
+    color: themeColor().muted,
   },
   num: {
-    fontSize: 17,
+    fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    color: LIME,
-    letterSpacing: -0.3,
+    color: themeColor().pitchText,
   },
   placeholder: {
-    fontSize: 17,
+    fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    color: "rgba(255,255,255,0.45)",
+    color: themeColor().muted,
   },
   denom: {
-    fontSize: 13,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    color: "rgba(255,255,255,0.5)",
+    color: themeColor().muted,
   },
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: themeColor().scrim,
     padding: 18,
     justifyContent: "flex-end",
   },
   sheet: {
-    borderRadius: 18,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(18,18,18,0.98)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().bg,
     padding: 16,
   },
-  sheetTitle: { color: "#fff", fontSize: 16, fontWeight: "900" },
-  sheetBody: { marginTop: 10, color: "rgba(255,255,255,0.68)", fontSize: 14.5, lineHeight: 21 },
+  sheetTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "900" },
+  sheetBody: { marginTop: 10, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 },
   actions: { marginTop: 14, flexDirection: "row", justifyContent: "flex-end", gap: 10 },
   secondaryBtn: {
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
+    borderColor: themeColor().line,
   },
-  secondaryBtnText: { color: "rgba(255,255,255,0.8)", fontWeight: "800" },
+  secondaryBtnText: { color: themeColor().text, fontWeight: "800" },
   primaryBtn: {
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
   },
-  primaryBtnText: { color: "#0a0a0a", fontWeight: "900" },
+  primaryBtnText: { color: themeColor().onPitch, fontWeight: "900" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

@@ -54,16 +54,16 @@ export default function PrivacyPage() {
       <div className="mt-4">
         <HistoryBack
           fallbackHref="/"
-          className="cursor-pointer border-0 bg-transparent p-0 text-sm text-white/75 transition hover:text-white"
+          className="cursor-pointer border-0 bg-transparent p-0 text-small text-muted transition hover:text-ink"
         />
       </div>
-      <h1 className="mt-6 text-3xl font-semibold uppercase tracking-tight text-white md:text-4xl">
+      <h1 className="mt-6 text-h1 font-serif font-semibold text-ink md:text-display">
         Privacy Policy
       </h1>
       <Panel className="mt-6 p-6 md:p-8">
-        <div className="space-y-6 text-sm leading-relaxed text-white/75 md:text-base">
+        <div className="space-y-6 text-small leading-relaxed text-muted md:text-body">
           <section>
-            <h2 className="text-base font-semibold text-white md:text-lg">Data we collect</h2>
+            <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">Data we collect</h2>
             <p className="mt-2">
               We collect information you provide when you use CT Pickup: your name, email,
               Instagram handle, playing position, ZIP code, nearest venue preference, and
@@ -73,7 +73,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white md:text-lg">How we use your information</h2>
+            <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">How we use your information</h2>
             <p className="mt-2">
               We use your information to operate the app, match you with nearby pickup runs
               and tournaments, process payments, send essential notifications, calculate
@@ -82,7 +82,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white md:text-lg">Third-party processors</h2>
+            <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">Third-party processors</h2>
             <p className="mt-2">
               We use trusted service providers to run CT Pickup. Each processes data only as
               needed to provide their service:
@@ -90,12 +90,12 @@ export default function PrivacyPage() {
             <ul className="mt-3 list-disc space-y-3 pl-5">
               {PROCESSORS.map((p) => (
                 <li key={p.name}>
-                  <span className="font-medium text-white/90">{p.name}</span> — {p.use}.{" "}
+                  <span className="font-medium text-ink">{p.name}</span> — {p.use}.{"  "}
                   <a
                     href={p.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-medium text-[var(--brand)] underline-offset-4 hover:underline"
+                    className="font-medium text-pitch-text underline-offset-4 hover:underline"
                   >
                     Privacy policy
                   </a>
@@ -105,7 +105,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white md:text-lg">Location</h2>
+            <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">Location</h2>
             <p className="mt-2">
               We use your ZIP code and venue selection for proximity matching. We do not
               access GPS or continuous location tracking on your device.
@@ -113,7 +113,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white md:text-lg">AI disclosure</h2>
+            <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">AI disclosure</h2>
             <p className="mt-2">
               Our Help assistant uses OpenAI to generate responses. Questions you ask in Help
               are sent to OpenAI&apos;s API. Do not share sensitive personal information in Help
@@ -122,7 +122,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white md:text-lg">Data retention</h2>
+            <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">Data retention</h2>
             <p className="mt-2">
               Account data is kept until you delete your account. Payment and transaction
               records are retained for up to 7 years for legal and tax compliance.
@@ -130,7 +130,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white md:text-lg">Account deletion</h2>
+            <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">Account deletion</h2>
             <p className="mt-2">
               You can delete your account at any time. Go to Profile → scroll to bottom →
               Delete Account. This permanently removes all your data from CT Pickup.
@@ -138,7 +138,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white md:text-lg">Children</h2>
+            <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">Children</h2>
             <p className="mt-2">
               CT Pickup is for users 13 and older. We do not knowingly collect data from
               children under 13.
@@ -146,19 +146,19 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white md:text-lg">Content moderation</h2>
+            <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">Content moderation</h2>
             <p className="mt-2">
-              We review reported content within 24–48 hours. Contact{" "}
+              We review reported content within 24–48 hours. Contact{"  "}
               <SupportEmailLink /> for urgent issues.
             </p>
           </section>
 
           <section>
             <p>
-              Participation in tournaments and guidance is also covered by our{" "}
+              Participation in tournaments and guidance is also covered by our{"  "}
               <Link
                 href="/liability-waiver"
-                className="font-medium text-[var(--brand)] underline-offset-4 hover:underline"
+                className="font-medium text-pitch-text underline-offset-4 hover:underline"
               >
                 Liability Waiver &amp; Participation Agreement
               </Link>
@@ -166,7 +166,7 @@ export default function PrivacyPage() {
             </p>
           </section>
 
-          <p className="text-white/55">
+          <p className="text-muted">
             Questions about privacy? Contact <SupportEmailLink />.
           </p>
         </div>

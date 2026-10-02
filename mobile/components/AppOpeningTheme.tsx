@@ -3,10 +3,8 @@ import { useEffect, useState } from "react";
 import { Image, StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming } from "react-native-reanimated";
 
+import { themeColor, useThemedStyles } from "@/theme";
 export const APP_OPENING_THEME_STORAGE_KEY = "ctpickup_app_opening_theme_v1";
-
-const BG = "#0a0a0a";
-const ACCENT = "#4ade80";
 
 const RING = 108;
 
@@ -38,6 +36,8 @@ export async function clearAppOpeningThemeFlag(): Promise<void> {
 
 /** First cold open only: green ripple pulse, then wordmark; auto-dismiss after ~3s. */
 export function AppOpeningTheme() {
+  useThemedStyles(publish_styles);
+
   const [gate, setGate] = useState<"check" | "show" | "hide">("check");
 
   useEffect(() => {
@@ -58,6 +58,8 @@ export function AppOpeningTheme() {
 }
 
 function AppOpeningThemeInner({ onDone }: { onDone: () => void }) {
+  useThemedStyles(publish_styles);
+
   const { width: windowW } = useWindowDimensions();
   const iconSize = Math.min(180, windowW * 0.42);
 
@@ -141,11 +143,12 @@ function AppOpeningThemeInner({ onDone }: { onDone: () => void }) {
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   shell: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 100000,
-    backgroundColor: BG,
+    backgroundColor: themeColor().bg,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -170,7 +173,7 @@ const styles = StyleSheet.create({
     height: RING,
     borderRadius: RING / 2,
     borderWidth: 2,
-    borderColor: ACCENT,
+    borderColor: themeColor().pitch,
     backgroundColor: "transparent",
   },
   brand: {
@@ -181,3 +184,9 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

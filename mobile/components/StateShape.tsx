@@ -1,6 +1,7 @@
 import React from "react";
 import Svg, { Path } from "react-native-svg";
 
+import { themeColor, useTheme } from "@/theme";
 type StateCode = "CT" | "NY" | "NJ" | "MD";
 
 type Props = {
@@ -19,7 +20,9 @@ const STATE_PATHS: Record<StateCode, string> = {
 };
 
 export default function StateShape({ state, size = 48, color, active = false }: Props) {
-  const fill = color || (active ? "#a3e635" : "rgba(255,255,255,0.5)");
+  useTheme();
+
+  const fill = color || (active ? themeColor().pitch : themeColor().muted);
   return (
     <Svg width={size} height={size} viewBox="0 0 100 100">
       <Path d={STATE_PATHS[state]} fill={fill} />

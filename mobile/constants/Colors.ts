@@ -1,22 +1,23 @@
-// CT Pickup palette
-// Light mode background should match CT Pickup logo green.
-export const CT_PICKUP_LIME = "#a3e635";
-const tintColorLight = CT_PICKUP_LIME;
-const tintColorDark = "#fff";
+import { darkColor, lightColor, palette } from "@theme/tokens";
 
-export default {
+/** @deprecated Prefer useTheme() from @/theme. Kept so older call sites keep compiling. */
+const Colors = {
   light: {
-    text: "#0a0a0a",
-    background: CT_PICKUP_LIME,
-    tint: tintColorLight,
-    tabIconDefault: "rgba(10,10,10,0.35)",
-    tabIconSelected: tintColorLight,
+    text: lightColor.text,
+    background: lightColor.bg,
+    tint: palette.pitch,
+    tabIconDefault: lightColor.muted,
+    tabIconSelected: palette.pitch,
   },
   dark: {
-    text: "#fff",
-    background: "#0a0a0a",
-    tint: tintColorDark,
-    tabIconDefault: "rgba(255,255,255,0.35)",
-    tabIconSelected: tintColorDark,
+    text: darkColor.text,
+    background: darkColor.bg,
+    tint: palette.pitch,
+    tabIconDefault: darkColor.muted,
+    tabIconSelected: darkColor.text,
   },
 };
+
+export default Colors;
+
+export const CT_PICKUP_LIME = palette.pitch;

@@ -22,9 +22,9 @@ type PendingPickup =
 type Data = any;
 
 function pill(status: string) {
-  if (status === "active") return "border-emerald-500/25 bg-emerald-500/15 text-emerald-200";
-  if (status === "planning") return "border-white/15 bg-white/10 text-white/85";
-  return "border-red-500/25 bg-red-500/15 text-red-200";
+  if (status === "active") return "border-pitch bg-pitch-soft text-pitch";
+  if (status === "planning") return "border-line bg-overlay text-ink";
+  return "border-coral bg-overlay-subtle text-coral";
 }
 
 function fmt(dt: string | null) {
@@ -265,44 +265,44 @@ export default function PickupPage() {
       <EsportsSetupNudgeBar />
 
       <div className="space-y-8 pb-6 pt-2 md:pt-4">
-        <section className="rounded-2xl border border-white/15 bg-white/5 p-7 space-y-5">
-          <div className={`inline-flex rounded-full px-4 py-2 text-sm font-semibold border ${pill(data?.status || "inactive")}`}>
+        <section className="rounded-card border border-line bg-overlay-subtle p-7 space-y-5">
+          <div className={`inline-flex rounded-pill px-4 py-2 text-small font-semibold border${pill(data?.status || "inactive")}`}>
             {runTypeLabel ? `${runTypeLabel} · ${statusLabel}` : statusLabel}
           </div>
 
           {!token ? (
             <div className="space-y-3">
-              <div className="text-white/80">Log in to see your invite status and respond.</div>
+              <div className="text-ink">Log in to see your invite status and respond.</div>
               <Link
                 href="/login"
-                className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-semibold bg-white text-black w-full sm:w-auto"
+                className="inline-flex items-center justify-center rounded-button px-5 py-3 text-small font-semibold bg-pitch text-on-pitch w-full sm:w-auto"
               >
                 LOG IN
               </Link>
             </div>
           ) : loading ? (
-            <div className="text-white/70">Loading…</div>
+            <div className="text-muted">Loading…</div>
           ) : !data?.run ? (
             <EmptyStateMessage>No active pickup games</EmptyStateMessage>
           ) : !data?.me?.approved ? (
-            <div className="text-white/80">
+            <div className="text-ink">
               Your account is pending approval. If you’re already known to CT Pickup, we’ll approve your account and tier.
             </div>
           ) : (
             <>
               {(data.globalUpdate || data.runUpdate) ? (
-                <div className="rounded-xl border border-white/10 bg-black/30 p-5 space-y-4">
+                <div className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
                   {data.globalUpdate ? (
                     <div className="space-y-1">
-                      <div className="text-xs uppercase tracking-widest text-white/55">Global update</div>
-                      <div className="text-sm text-white/85 whitespace-pre-line">{data.globalUpdate.message}</div>
+                      <div className="text-caption text-muted">Global update</div>
+                      <div className="text-small text-ink whitespace-pre-line">{data.globalUpdate.message}</div>
                     </div>
                   ) : null}
 
                   {data.runUpdate ? (
                     <div className="space-y-1">
-                      <div className="text-xs uppercase tracking-widest text-white/55">Run update</div>
-                      <div className="text-sm text-white/85 whitespace-pre-line">{data.runUpdate.message}</div>
+                      <div className="text-caption text-muted">Run update</div>
+                      <div className="text-small text-ink whitespace-pre-line">{data.runUpdate.message}</div>
                     </div>
                   ) : null}
                 </div>
@@ -311,23 +311,23 @@ export default function PickupPage() {
               )}
 
               <div className="space-y-1 pt-2">
-                <div className="text-white/90 text-lg font-semibold">{data.run.title}</div>
-                <div className="text-sm text-white/70">{fmt(data.run.start_at)}</div>
+                <div className="text-ink text-h3 font-serif font-semibold">{data.run.title}</div>
+                <div className="text-small text-muted">{fmt(data.run.start_at)}</div>
                 {token ? (
                   <div className="pt-2">
                     {reliabilityLoading ? (
-                      <div className="inline-flex rounded-full border border-white/12 bg-white/[0.04] px-4 py-1.5 text-xs text-white/60">
+                      <div className="inline-flex rounded-pill border border-line bg-overlay-subtle px-4 py-1.5 text-caption text-muted">
                         Checking rating…
                       </div>
                     ) : reliability ? (
-                      <div className="inline-flex flex-col rounded-full border border-white/12 bg-white/[0.04] px-4 py-1.5 text-xs text-white/75 sm:flex-row sm:items-center sm:gap-3">
-                        <span className="font-semibold text-white/85">
+                      <div className="inline-flex flex-col rounded-pill border border-line bg-overlay-subtle px-4 py-1.5 text-caption text-muted sm:flex-row sm:items-center sm:gap-3">
+                        <span className="font-semibold text-ink">
                           {reliability.user_label}
                           {reliability.score_pct != null && reliability.bucket !== "building"
                             ? ` · ${Math.round(reliability.score_pct)}%`
                             : ""}
                         </span>
-                        <span className="text-[11px] text-white/55 leading-none">{reliability.user_subtext}</span>
+                        <span className="text-caption text-muted leading-none">{reliability.user_subtext}</span>
                       </div>
                     ) : null}
                   </div>
@@ -335,7 +335,7 @@ export default function PickupPage() {
               </div>
 
               {!data.visibility?.invitedNow && (data.run.status === "planning" || data.run.status === "likely_on") ? (
-                <div className="text-sm text-white/60">
+                <div className="text-small text-muted">
                   {data.run.run_type === "public"
                     ? "Sign in with an approved account in this hub region to join."
                     : "Select runs are invite-only. You’ll get a notification when you’re invited."}
@@ -344,7 +344,7 @@ export default function PickupPage() {
 
               {(data.run.status === "planning" || data.run.status === "likely_on") && !data.run.final_slot_id ? (
                 <div className="space-y-4 pt-2">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-white/80">
+                  <div className="text-small font-semibold text-ink">
                     Availability poll (choose one)
                   </div>
 
@@ -359,22 +359,22 @@ export default function PickupPage() {
                             disabled={busy || !data.visibility?.invitedNow}
                             onClick={() => submitAvailability("available", s.slot_id)}
                             className={[
-                              "w-full text-left rounded-xl border p-4",
+                              "w-full text-left rounded-card border p-4",
                               picked
-                                ? "border-white/25 bg-white/[0.06]"
-                                : "border-white/10 bg-white/[0.03] hover:bg-white/[0.05]",
+                                ? "border-line bg-overlay"
+                                : "border-line bg-overlay-subtle hover:bg-overlay-subtle",
                               busy || !data.visibility?.invitedNow ? "opacity-60" : "",
-                            ].join(" ")}
+                            ].join("  ")}
                           >
                             <div className="flex items-center justify-between gap-4">
-                              <div className="text-sm font-semibold text-white/90">
+                              <div className="text-small font-semibold text-ink">
                                 {fmt(s.start_at)}
                               </div>
-                              <div className="text-xs text-white/55">
+                              <div className="text-caption text-muted">
                                 Available: {s.total_available}
                               </div>
                             </div>
-                            {s.label ? <div className="text-xs text-white/55 mt-1">{s.label}</div> : null}
+                            {s.label ? <div className="text-caption text-muted mt-1">{s.label}</div> : null}
                           </button>
                         );
                       })
@@ -388,17 +388,17 @@ export default function PickupPage() {
                       type="button"
                       disabled={busy || !data.visibility?.invitedNow}
                       onClick={() => submitAvailability("declined", null)}
-                      className="rounded-md border border-white/15 bg-black px-5 py-2.5 text-sm font-semibold text-white/85 hover:bg-white/[0.04] disabled:opacity-50"
+                      className="rounded-button border border-line bg-canvas px-5 py-2.5 text-small font-semibold text-ink hover:bg-overlay-subtle disabled:opacity-50"
                     >
                       Decline
                     </button>
 
                     {data.run.status === "likely_on" ? (
-                      <div className="text-sm text-white/60 flex items-center">
+                      <div className="text-small text-muted flex items-center">
                         Likely On triggered (Tier-1 ≥ 5 on a slot). Admin will finalize the time.
                       </div>
                     ) : (
-                      <div className="text-sm text-white/60 flex items-center">
+                      <div className="text-small text-muted flex items-center">
                         Likely On triggers when 5 Tier-1 players pick the same slot.
                       </div>
                     )}
@@ -409,60 +409,60 @@ export default function PickupPage() {
               {data.run.status === "active" && data.run.final_slot_id ? (
                 <div className="space-y-4 pt-3">
                   {Number(data.run.fee_cents) > 0 ? (
-                    <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-4 py-3 text-sm leading-relaxed text-amber-50/95">
-                      <span className="font-semibold text-amber-100">Pickup fees &amp; refunds:</span>{" "}
+                    <div className="rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small leading-relaxed text-coral">
+                      <span className="font-semibold text-coral">Pickup fees &amp; refunds:</span>{"  "}
                       {PICKUP_REFUND_UI_NOTICE}
                     </div>
                   ) : null}
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-xl border border-white/10 bg-black/30 p-5">
-                      <div className="text-xs uppercase tracking-widest text-white/55">Confirmed</div>
-                      <div className="mt-2 text-2xl font-semibold text-white/90">{data.final?.counts?.confirmed ?? 0}</div>
+                    <div className="rounded-card border border-line bg-overlay-subtle p-5">
+                      <div className="text-caption text-muted">Confirmed</div>
+                      <div className="mt-2 text-h2 font-serif font-semibold text-ink">{data.final?.counts?.confirmed ?? 0}</div>
                     </div>
-                    <div className="rounded-xl border border-white/10 bg-black/30 p-5">
-                      <div className="text-xs uppercase tracking-widest text-white/55">Waitlist</div>
-                      <div className="mt-2 text-2xl font-semibold text-white/90">{data.final?.counts?.standby ?? 0}</div>
+                    <div className="rounded-card border border-line bg-overlay-subtle p-5">
+                      <div className="text-caption text-muted">Waitlist</div>
+                      <div className="mt-2 text-h2 font-serif font-semibold text-ink">{data.final?.counts?.standby ?? 0}</div>
                     </div>
-                    <div className="rounded-xl border border-white/10 bg-black/30 p-5">
-                      <div className="text-xs uppercase tracking-widest text-white/55">Pending payment</div>
-                      <div className="mt-2 text-2xl font-semibold text-white/90">{data.final?.counts?.pending_payment ?? 0}</div>
+                    <div className="rounded-card border border-line bg-overlay-subtle p-5">
+                      <div className="text-caption text-muted">Pending payment</div>
+                      <div className="mt-2 text-h2 font-serif font-semibold text-ink">{data.final?.counts?.pending_payment ?? 0}</div>
                     </div>
                   </div>
 
                   {!data.final?.eligible ? (
-                    <div className="text-sm text-white/60">
+                    <div className="text-small text-muted">
                       You’re not eligible for final RSVP (you must have selected the finalized slot in the planning poll).
                     </div>
                   ) : (
                     <div className="flex flex-wrap gap-3">
                       {data.final?.my_status === "confirmed" ? (
                         <>
-                          <div className="inline-flex items-center rounded-full border border-emerald-500/25 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-200">
+                          <div className="inline-flex items-center rounded-pill border border-pitch bg-pitch-soft px-4 py-2 text-small font-semibold text-pitch">
                             Confirmed
                           </div>
                           <button
                             type="button"
                             disabled={busy}
                             onClick={() => rsvp("decline")}
-                            className="rounded-md border border-white/15 bg-black px-5 py-2.5 text-sm font-semibold text-white/85 hover:bg-white/[0.04] disabled:opacity-50"
+                            className="rounded-button border border-line bg-canvas px-5 py-2.5 text-small font-semibold text-ink hover:bg-overlay-subtle disabled:opacity-50"
                           >
                             Cancel
                           </button>
                         </>
                       ) : data.final?.my_status === "standby" ? (
-                        <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white/85">
+                        <div className="inline-flex items-center rounded-pill border border-line bg-overlay px-4 py-2 text-small font-semibold text-ink">
                           Waitlist
                         </div>
                       ) : data.final?.my_status === "pending_payment" ? (
                         <div className="flex flex-wrap gap-3 items-center">
-                          <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white/85">
+                          <div className="inline-flex items-center rounded-pill border border-line bg-overlay px-4 py-2 text-small font-semibold text-ink">
                             Payment required to confirm
                           </div>
                           <button
                             type="button"
                             disabled={busy}
                             onClick={payNow}
-                            className="rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-black disabled:opacity-50"
+                            className="rounded-button bg-pitch px-5 py-2.5 text-small font-semibold text-on-pitch disabled:opacity-50"
                           >
                             Pay now
                           </button>
@@ -473,7 +473,7 @@ export default function PickupPage() {
                             type="button"
                             disabled={busy}
                             onClick={() => rsvp("join")}
-                            className="rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-black disabled:opacity-50"
+                            className="rounded-button bg-pitch px-5 py-2.5 text-small font-semibold text-on-pitch disabled:opacity-50"
                           >
                             {data.run.fee_cents > 0 ? "Pay & confirm" : "Confirm spot"}
                           </button>
@@ -481,7 +481,7 @@ export default function PickupPage() {
                             type="button"
                             disabled={busy}
                             onClick={() => rsvp("decline")}
-                            className="rounded-md border border-white/15 bg-black px-5 py-2.5 text-sm font-semibold text-white/85 hover:bg-white/[0.04] disabled:opacity-50"
+                            className="rounded-button border border-line bg-canvas px-5 py-2.5 text-small font-semibold text-ink hover:bg-overlay-subtle disabled:opacity-50"
                           >
                             Not now
                           </button>
@@ -491,27 +491,27 @@ export default function PickupPage() {
                   )}
 
                   {data.run.cancellation_deadline ? (
-                    <div className="text-sm text-white/70">
+                    <div className="text-small text-muted">
                       Cancellation deadline: {fmt(data.run.cancellation_deadline)}
                     </div>
                   ) : null}
 
-                  <div className="text-sm text-white/75">
-                    <span className="font-semibold text-white/85">Important:</span>{" "}
+                  <div className="text-small text-muted">
+                    <span className="font-semibold text-ink">Important:</span>{"  "}
                     Waitlisted players never receive the exact location. Only confirmed players do.
                   </div>
 
                   {data.visibility?.attendanceVisible ? (
-                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 space-y-2">
-                      <div className="text-sm font-semibold uppercase tracking-wide text-white/80">
+                    <div className="rounded-card border border-line bg-overlay-subtle p-5 space-y-2">
+                      <div className="text-small font-semibold text-ink">
                         Attendance (visible to invited tiers)
                       </div>
                       {data.attendees?.length ? (
-                        <div className="space-y-1 text-sm text-white/75">
+                        <div className="space-y-1 text-small text-muted">
                           {data.attendees.map((a: any, idx: number) => (
                             <div key={idx}>
-                              {a.full_name || "Player"}{" "}
-                              {a.instagram ? <span className="text-white/55">(@{a.instagram})</span> : null}
+                              {a.full_name || "Player"}{"  "}
+                              {a.instagram ? <span className="text-muted">(@{a.instagram})</span> : null}
                             </div>
                           ))}
                         </div>
@@ -522,15 +522,15 @@ export default function PickupPage() {
                   ) : null}
 
                   {data.location ? (
-                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 space-y-2">
-                      <div className="text-sm font-semibold uppercase tracking-wide text-white/80">Location</div>
-                      <div className="text-sm text-white/75 whitespace-pre-line">{data.location}</div>
+                    <div className="rounded-card border border-line bg-overlay-subtle p-5 space-y-2">
+                      <div className="text-small font-semibold text-ink">Location</div>
+                      <div className="text-small text-muted whitespace-pre-line">{data.location}</div>
                     </div>
                   ) : null}
                 </div>
               ) : null}
 
-              {msg ? <div className="text-sm text-red-200 pt-2">{msg}</div> : null}
+              {msg ? <div className="text-small text-coral pt-2">{msg}</div> : null}
             </>
           )}
         </section>

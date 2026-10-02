@@ -1,7 +1,8 @@
 import { View, Text, Pressable, Linking } from "react-native";
-import { accountStyles as styles, LIME } from "./accountStyles";
+import { accountStyles as styles, publish_accountStyles } from "./accountStyles";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
+import { themeColor, useThemedStyles } from "@/theme";
 const EXPERIENCE_LABELS: Record<string, string> = {
   recreational: "Recreational",
   club: "Club",
@@ -17,11 +18,13 @@ const VERIFICATION_LABELS: Record<string, string> = {
   vouched: "Vouched",
 };
 
-const VERIFICATION_COLORS: Record<string, string> = {
-  self: "rgba(255,255,255,0.35)",
-  document: "#a3e635",
-  vouched: "#a3e635",
+function VERIFICATION_COLORS(): Record<string, string> {
+  return {
+  self: themeColor().overlayStrong,
+  document: themeColor().pitch,
+  vouched: themeColor().pitch,
 };
+}
 
 type Props = {
   primaryPosition: string | null;
@@ -54,13 +57,15 @@ export function SoccerBackgroundSection({
   verificationLevel,
   onSubmitVerification,
 }: Props) {
+  useThemedStyles(publish_accountStyles);
+
   const age = ageFromDob(dateOfBirth);
   const hasAny = primaryPosition || experienceLevel || clubName || age;
   if (!hasAny) return null;
 
   const verif = verificationLevel ?? "self";
   const verifLabel = VERIFICATION_LABELS[verif] ?? "Self-declared";
-  const verifColor = VERIFICATION_COLORS[verif] ?? "rgba(255,255,255,0.35)";
+  const verifColor = VERIFICATION_COLORS()[verif] ?? themeColor().overlayStrong;
 
   return (
     <>
@@ -99,14 +104,14 @@ export function SoccerBackgroundSection({
           <View style={styles.bgRow}>
             <Text style={styles.bgLabel}>Roster</Text>
             <Pressable onPress={() => Linking.openURL(rosterUrl)}>
-              <Text style={[styles.bgValue, { color: LIME, textDecorationLine: "underline" }]}>
+              <Text style={[styles.bgValue, { color: themeColor().pitchText, textDecorationLine: "underline" }]}>
                 View roster ↗
               </Text>
             </Pressable>
           </View>
         ) : null}
 
-        <View style={[styles.bgRow, { marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)" }]}>
+        <View style={[styles.bgRow, { marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: themeColor().line }]}>
           <Text style={styles.bgLabel}>Verification</Text>
           <Text style={[styles.bgValue, { color: verifColor }]}>
             {verif !== "self" ? "✓ " : ""}{verifLabel}
@@ -118,26 +123,26 @@ export function SoccerBackgroundSection({
       {verif === "self" && onSubmitVerification ? (
         <View style={{
           marginTop: 16,
-          borderRadius: 14,
+          borderRadius: 12,
           borderWidth: 2,
-          borderColor: "#ef4444",
-          backgroundColor: "rgba(239,68,68,0.06)",
+          borderColor: themeColor().coral,
+          backgroundColor: themeColor().coral,
           padding: 16,
           gap: 8,
         }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#ef4444" }} />
-            <Text style={{ color: "#ef4444", fontWeight: "800", fontSize: 15, letterSpacing: 0.3 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 10, backgroundColor: themeColor().coral }} />
+            <Text style={{ color: themeColor().coral, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold",}}>
               NOT VERIFIED
             </Text>
           </View>
-          <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, lineHeight: 18 }}>
+          <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 }}>
             Self-declared players are capped at Gold tier. Get verified to unlock Platinum and Diamond.
           </Text>
           <Pressable
             onPress={onSubmitVerification}
             style={({ pressed }) => [{
-              backgroundColor: "#ef4444",
+              backgroundColor: themeColor().coral,
               borderRadius: 10,
               paddingVertical: 13,
               alignItems: "center",
@@ -145,7 +150,7 @@ export function SoccerBackgroundSection({
               opacity: pressed ? 0.85 : 1,
             }]}
           >
-            <Text style={{ color: "#fff", fontWeight: "800", fontSize: 15, letterSpacing: 0.5 }}>
+            <Text style={{ color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold",}}>
               Submit for Verification →
             </Text>
           </Pressable>

@@ -53,10 +53,10 @@ export default async function AdminTournamentPage({
     supabase = getSupabaseAdmin({ auth: { persistSession: false } });
   } catch {
     return (
-      <main className="min-h-screen bg-black text-white">
+      <main className="min-h-screen bg-canvas text-ink">
         <div className="mx-auto max-w-6xl pt-10 pb-10">
           <PageTop flush title="Staff · Tournaments" fallbackHref={APP_HOME_URL} />
-          <p className="mt-6 text-white/80">Database isn’t configured for this environment.</p>
+          <p className="mt-6 text-ink">Database isn’t configured for this environment.</p>
         </div>
       </main>
     );
@@ -122,12 +122,12 @@ export default async function AdminTournamentPage({
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-canvas text-ink">
       <div className="mx-auto max-w-6xl space-y-6 py-8">
         <PageTop flush title="Staff · Tournaments" fallbackHref={APP_HOME_URL} />
 
         {sp.ok ? (
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+          <div className="rounded-card border border-pitch bg-pitch-soft px-4 py-3 text-small text-pitch">
             {sp.ok === "active" && "Live tournament updated."}
             {sp.ok === "cleared" && "No tournament is live."}
             {sp.ok === "created" && "Tournament created."}
@@ -135,18 +135,18 @@ export default async function AdminTournamentPage({
           </div>
         ) : null}
         {sp.e ? (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          <div className="rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral">
             {sp.e}
           </div>
         ) : null}
 
-        <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 space-y-2">
-          <h2 className="text-sm font-semibold text-white">Live tournament</h2>
-          <p className="text-sm text-white/70">
+        <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-2">
+          <h2 className="text-small font-semibold text-ink">Live tournament</h2>
+          <p className="text-small text-muted">
             The tournament marked Live is the one players currently see on the public tournament page and tournament hub.
           </p>
           {!active ? (
-            <p className="text-sm text-white/55">
+            <p className="text-small text-muted">
               No tournament is live right now, so players will not see a featured tournament.
             </p>
           ) : null}
@@ -181,15 +181,15 @@ export default async function AdminTournamentPage({
           <OperatorNextSteps items={nextSteps} />
         )}
 
-        <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 space-y-6">
+        <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-6">
           <div>
-            <div className="text-sm font-semibold text-white">All tournaments</div>
-            {activeErr ? <p className="mt-2 text-sm text-red-300">{activeErr.message}</p> : null}
-            {tListErr ? <p className="mt-2 text-sm text-red-300">{tListErr.message}</p> : null}
-            <div className="mt-3 overflow-x-auto rounded-lg border border-white/10">
-              <table className="w-full text-sm min-w-[720px]">
-                <thead className="text-white/50">
-                  <tr className="border-b border-white/10">
+            <div className="text-small font-semibold text-ink">All tournaments</div>
+            {activeErr ? <p className="mt-2 text-small text-coral">{activeErr.message}</p> : null}
+            {tListErr ? <p className="mt-2 text-small text-coral">{tListErr.message}</p> : null}
+            <div className="mt-3 overflow-x-auto rounded-button border border-line">
+              <table className="w-full text-small min-w-[720px]">
+                <thead className="text-muted">
+                  <tr className="border-b border-line">
                     <th className="p-2 text-left">Title</th>
                     <th className="p-2 text-left">URL name</th>
                     <th className="p-2 text-left">Target teams</th>
@@ -202,26 +202,26 @@ export default async function AdminTournamentPage({
                 <tbody>
                   {(tournaments || []).length === 0 ? (
                     <tr>
-                      <td className="p-4 text-white/50" colSpan={7}>
+                      <td className="p-4 text-muted" colSpan={7}>
                         No tournaments yet. Create one below.
                       </td>
                     </tr>
                   ) : (
                     (tournaments as TourneyRow[]).map((t) => (
-                      <tr key={t.id} className="border-b border-white/10 align-top">
-                        <td className="p-2 text-white/90">{t.title}</td>
-                        <td className="p-2 text-white/60">{t.slug || "—"}</td>
-                        <td className="p-2 text-white/75">{t.target_teams ?? "—"}</td>
-                        <td className="p-2 text-white/75">{t.official_threshold ?? "—"}</td>
-                        <td className="p-2 text-white/75">{t.max_teams ?? "—"}</td>
-                        <td className="p-2 text-white/75">{t.is_active ? "Live" : "Not live"}</td>
+                      <tr key={t.id} className="border-b border-line align-top">
+                        <td className="p-2 text-ink">{t.title}</td>
+                        <td className="p-2 text-muted">{t.slug || "—"}</td>
+                        <td className="p-2 text-muted">{t.target_teams ?? "—"}</td>
+                        <td className="p-2 text-muted">{t.official_threshold ?? "—"}</td>
+                        <td className="p-2 text-muted">{t.max_teams ?? "—"}</td>
+                        <td className="p-2 text-muted">{t.is_active ? "Live" : "Not live"}</td>
                         <td className="p-2">
                           {!t.is_active ? (
                             <form action={setActiveTournament}>
                               <input type="hidden" name="tournament_id" value={t.id} />
                               <button
                                 type="submit"
-                                className="rounded-md bg-white px-2 py-1 text-[11px] font-semibold text-black"
+                                className="rounded-button bg-pitch px-2 py-1 text-caption font-semibold text-on-pitch"
                               >
                                 Make live
                               </button>
@@ -230,7 +230,7 @@ export default async function AdminTournamentPage({
                             <form action={clearActiveTournament}>
                               <button
                                 type="submit"
-                                className="rounded-md border border-white/20 px-2 py-1 text-[11px] font-semibold text-white/85"
+                                className="rounded-button border border-line px-2 py-1 text-caption font-semibold text-ink"
                               >
                                 Take offline
                               </button>
@@ -245,71 +245,71 @@ export default async function AdminTournamentPage({
             </div>
           </div>
 
-          <div className="space-y-3 border-t border-white/10 pt-6">
+          <div className="space-y-3 border-t border-line pt-6">
             <div>
-              <h3 className="text-sm font-semibold text-white">Create tournament</h3>
-              <p className="mt-1 text-sm text-white/55">Create a new tournament draft. You can make it live later.</p>
+              <h3 className="text-small font-semibold text-ink">Create tournament</h3>
+              <p className="mt-1 text-small text-muted">Create a new tournament draft. You can make it live later.</p>
             </div>
             <form action={createTournament} className="grid gap-4 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-white/80">Title</span>
+              <label className="flex flex-col gap-1 text-small">
+                <span className="text-ink">Title</span>
                 <input
                   name="title"
                   required
                   placeholder="Spring invitational"
-                  className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                  className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink placeholder:text-muted"
                 />
               </label>
-              <div className="flex flex-col gap-1 text-sm sm:col-span-2">
-                <label className="text-white/80" htmlFor="new-tournament-url-name">
-                  URL name <span className="text-white/45">(optional)</span>
+              <div className="flex flex-col gap-1 text-small sm:col-span-2">
+                <label className="text-ink" htmlFor="new-tournament-url-name">
+                  URL name <span className="text-muted">(optional)</span>
                 </label>
                 <input
                   id="new-tournament-url-name"
                   name="slug"
                   placeholder="next-tournament"
-                  className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                  className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink placeholder:text-muted"
                 />
-                <p className="text-xs text-white/45">Used in the page link. Example: next-tournament</p>
+                <p className="text-caption text-muted">Used in the page link. Example: next-tournament</p>
               </div>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-white/80">Target teams</span>
-                <span className="text-xs text-white/45">How many teams you are planning toward.</span>
+              <label className="flex flex-col gap-1 text-small">
+                <span className="text-ink">Target teams</span>
+                <span className="text-caption text-muted">How many teams you are planning toward.</span>
                 <input
                   name="target_teams"
                   type="number"
                   min={1}
                   defaultValue={12}
                   required
-                  className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                  className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                 />
               </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-white/80">Teams needed for official status</span>
-                <span className="text-xs text-white/45">Once this many teams are confirmed, the tournament reads as official.</span>
+              <label className="flex flex-col gap-1 text-small">
+                <span className="text-ink">Teams needed for official status</span>
+                <span className="text-caption text-muted">Once this many teams are confirmed, the tournament reads as official.</span>
                 <input
                   name="official_threshold"
                   type="number"
                   min={1}
                   defaultValue={8}
                   required
-                  className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                  className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                 />
               </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-white/80">Maximum teams</span>
-                <span className="text-xs text-white/45">Cap on confirmed teams before the tournament is full.</span>
+              <label className="flex flex-col gap-1 text-small">
+                <span className="text-ink">Maximum teams</span>
+                <span className="text-caption text-muted">Cap on confirmed teams before the tournament is full.</span>
                 <input
                   name="max_teams"
                   type="number"
                   min={1}
                   defaultValue={12}
                   required
-                  className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                  className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                 />
               </label>
               <div className="flex items-end sm:col-span-2">
-                <button type="submit" className="rounded-md bg-white px-3 py-2 text-xs font-semibold text-black">
+                <button type="submit" className="rounded-button bg-pitch px-3 py-2 text-caption font-semibold text-on-pitch">
                   Create draft
                 </button>
               </div>
@@ -317,19 +317,19 @@ export default async function AdminTournamentPage({
           </div>
         </section>
 
-        <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
-          <div className="text-sm font-semibold text-white">Captain claims</div>
+        <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-3">
+          <div className="text-small font-semibold text-ink">Captain claims</div>
           {!active ? (
-            <p className="text-sm text-white/55">Captain claims appear after a tournament is made live.</p>
+            <p className="text-small text-muted">Captain claims appear after a tournament is made live.</p>
           ) : captainsErr ? (
-            <p className="text-sm text-red-300">{captainsErr}</p>
+            <p className="text-small text-coral">{captainsErr}</p>
           ) : captains.length === 0 ? (
-            <p className="text-sm text-white/50">No captain claims yet.</p>
+            <p className="text-small text-muted">No captain claims yet.</p>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-white/10">
-              <table className="w-full text-sm">
-                <thead className="text-white/50">
-                  <tr className="border-b border-white/10">
+            <div className="overflow-x-auto rounded-button border border-line">
+              <table className="w-full text-small">
+                <thead className="text-muted">
+                  <tr className="border-b border-line">
                     <th className="p-2 text-left">Status</th>
                     <th className="p-2 text-left">Captain</th>
                     <th className="p-2 text-left">Team</th>
@@ -338,11 +338,11 @@ export default async function AdminTournamentPage({
                 </thead>
                 <tbody>
                   {captains.map((c) => (
-                    <tr key={String(c.id)} className="border-b border-white/10">
-                      <td className="p-2 text-white/80">{String(c.status || "—")}</td>
-                      <td className="p-2 text-white/90">{String(c.captain_name || "—")}</td>
-                      <td className="p-2 text-white/70">{String(c.team_name || "—")}</td>
-                      <td className="p-2 whitespace-nowrap text-white/55">{fmtDate(c.claim_submitted_at as string)}</td>
+                    <tr key={String(c.id)} className="border-b border-line">
+                      <td className="p-2 text-ink">{String(c.status || "—")}</td>
+                      <td className="p-2 text-ink">{String(c.captain_name || "—")}</td>
+                      <td className="p-2 text-muted">{String(c.team_name || "—")}</td>
+                      <td className="p-2 whitespace-nowrap text-muted">{fmtDate(c.claim_submitted_at as string)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -354,10 +354,10 @@ export default async function AdminTournamentPage({
         <section className="space-y-3">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <div className="text-sm font-semibold text-white">Tournament signups</div>
-              <p className="mt-0.5 text-xs text-white/50">Recent player signup submissions.</p>
+              <div className="text-small font-semibold text-ink">Tournament signups</div>
+              <p className="mt-0.5 text-caption text-muted">Recent player signup submissions.</p>
             </div>
-            <div className="text-xs text-white/50">
+            <div className="text-caption text-muted">
               <a className="underline" href="/admin/tournament">
                 All
               </a>
@@ -376,12 +376,12 @@ export default async function AdminTournamentPage({
             </div>
           </div>
 
-          {subErr ? <p className="text-sm text-red-300">{subErr.message}</p> : null}
+          {subErr ? <p className="text-small text-coral">{subErr.message}</p> : null}
 
-          <div className="overflow-x-auto rounded-xl border border-white/10 bg-white/[0.03]">
-            <table className="w-full text-sm min-w-[900px]">
-              <thead className="text-white/50">
-                <tr className="border-b border-white/10">
+          <div className="overflow-x-auto rounded-card border border-line bg-overlay-subtle">
+            <table className="w-full text-small min-w-[900px]">
+              <thead className="text-muted">
+                <tr className="border-b border-line">
                   <th className="p-2 text-left">Created</th>
                   <th className="p-2 text-left">Name</th>
                   <th className="p-2 text-left">IG</th>
@@ -390,23 +390,23 @@ export default async function AdminTournamentPage({
               </thead>
               <tbody>
                 {(submissions || []).map((r) => (
-                  <tr key={r.id} className="border-b border-white/10 align-top">
-                    <td className="p-2 whitespace-nowrap text-white/60">{fmtDate(r.created_at)}</td>
-                    <td className="p-2 font-medium text-white/90">
+                  <tr key={r.id} className="border-b border-line align-top">
+                    <td className="p-2 whitespace-nowrap text-muted">{fmtDate(r.created_at)}</td>
+                    <td className="p-2 font-medium text-ink">
                       {tourneySubmissionDisplayName({
                         first_name: r.first_name as string | null | undefined,
                         last_name: r.last_name as string | null | undefined,
                         meta: r.meta,
                       })}
                     </td>
-                    <td className="p-2 text-white/70">{r.instagram || "—"}</td>
+                    <td className="p-2 text-muted">{r.instagram || "—"}</td>
                     <td className="p-2">
                       <form action={updateTourneySubmission} className="space-y-1 min-w-[160px]">
                         <input type="hidden" name="submission_id" value={r.id} />
                         <select
                           name="decision"
                           defaultValue={(r.decision as string) || "pending"}
-                          className="w-full rounded border border-white/15 bg-black/50 px-2 py-1 text-xs text-white"
+                          className="w-full rounded-button border border-line bg-overlay-subtle px-2 py-1 text-caption text-ink"
                         >
                           <option value="pending">pending</option>
                           <option value="confirmed">confirmed</option>
@@ -417,13 +417,13 @@ export default async function AdminTournamentPage({
                           name="notes"
                           defaultValue={(r.notes as string) || ""}
                           placeholder="Notes"
-                          className="w-full rounded border border-white/15 bg-black/50 px-2 py-1 text-xs text-white"
+                          className="w-full rounded-button border border-line bg-overlay-subtle px-2 py-1 text-caption text-ink"
                         />
-                        <label className="flex items-center gap-1 text-[11px] text-white/60">
+                        <label className="flex items-center gap-1 text-caption text-muted">
                           <input type="checkbox" name="reviewed" defaultChecked={!!r.reviewed} />
                           Reviewed
                         </label>
-                        <button type="submit" className="w-full rounded bg-white/90 py-1 text-[11px] font-semibold text-black">
+                        <button type="submit" className="w-full rounded-button bg-pitch py-1 text-caption font-semibold text-on-pitch">
                           Save
                         </button>
                       </form>
@@ -432,7 +432,7 @@ export default async function AdminTournamentPage({
                 ))}
                 {!submissions?.length ? (
                   <tr>
-                    <td className="p-4 text-white/50" colSpan={4}>
+                    <td className="p-4 text-muted" colSpan={4}>
                       No signups yet.
                     </td>
                   </tr>

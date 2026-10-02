@@ -79,9 +79,9 @@ export default function UpdatePage() {
       <main className="min-h-screen p-6 max-w-xl mx-auto">
         <HistoryBack
           fallbackHref="/tournament"
-          className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900"
+          className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-small text-muted underline underline-offset-4 hover:text-muted"
         />
-        <h1 className="text-2xl font-semibold">Loading…</h1>
+        <h1 className="text-h2 font-serif font-semibold">Loading…</h1>
       </main>
     );
   }
@@ -91,22 +91,22 @@ export default function UpdatePage() {
       <main className="min-h-screen p-6 max-w-xl mx-auto">
         <HistoryBack
           fallbackHref="/tournament"
-          className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900"
+          className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-small text-muted underline underline-offset-4 hover:text-muted"
         />
-        <h1 className="text-2xl font-semibold">Update received</h1>
-        <p className="mt-3 text-gray-700">
+        <h1 className="text-h2 font-serif font-semibold">Update received</h1>
+        <p className="mt-3 text-muted">
           We’ve logged your change request. A CT Pickup member will review it soon.
         </p>
 
-        <div className="mt-6 rounded-xl border p-4 space-y-2">
-          <div><span className="text-gray-500">Instagram:</span> @{cleanIG(instagram)}</div>
-          <div><span className="text-gray-500">What changed:</span> {changeType}</div>
-          <div className="whitespace-pre-wrap"><span className="text-gray-500">New info:</span> {newInfo}</div>
+        <div className="mt-6 rounded-card border p-4 space-y-2">
+          <div><span className="text-muted">Instagram:</span> @{cleanIG(instagram)}</div>
+          <div><span className="text-muted">What changed:</span> {changeType}</div>
+          <div className="whitespace-pre-wrap"><span className="text-muted">New info:</span> {newInfo}</div>
         </div>
 
         <div className="mt-6 flex gap-3">
           <a className="underline" href="/status">Go to Status</a>
-          <button className="rounded-lg border px-4 py-2" onClick={() => { setDone(false); setNewInfo(""); setMsg(null); }}>
+          <button className="rounded-button border px-4 py-2" onClick={() => { setDone(false); setNewInfo(""); setMsg(null); }}>
             Submit another update
           </button>
         </div>
@@ -118,33 +118,33 @@ export default function UpdatePage() {
     <main className="min-h-screen p-6 max-w-xl mx-auto">
       <HistoryBack
         fallbackHref="/tournament"
-        className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900"
+        className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-small text-muted underline underline-offset-4 hover:text-muted"
       />
-      <h1 className="text-2xl font-semibold">Fix / Edit My Submission</h1>
-      <p className="mt-2 text-sm text-gray-600">
+      <h1 className="text-h2 font-serif font-semibold">Fix / Edit My Submission</h1>
+      <p className="mt-2 text-small text-muted">
         Use this if something changed after you submitted tournament availability.
       </p>
 
-      <div className="mt-6 space-y-3 rounded-xl border p-4">
+      <div className="mt-6 space-y-3 rounded-card border p-4">
         <label className="block">
-          <div className="text-sm text-gray-600">Instagram handle (required)</div>
+          <div className="text-small text-muted">Instagram handle (required)</div>
           <input
-            className="w-full rounded-lg border p-3"
+            className="w-full rounded-button border p-3"
             value={instagram}
             onChange={(e) => setInstagram(e.target.value)}
             placeholder="@yourhandle"
           />
           {profileIG ? (
-            <div className="mt-1 text-xs text-gray-500">
+            <div className="mt-1 text-caption text-muted">
               Autofilled from your profile. You can edit if needed.
             </div>
           ) : null}
         </label>
 
         <label className="block">
-          <div className="text-sm text-gray-600">What changed?</div>
+          <div className="text-small text-muted">What changed?</div>
           <select
-            className="w-full rounded-lg border p-3"
+            className="w-full rounded-button border p-3"
             value={changeType}
             onChange={(e) => setChangeType(e.target.value as ChangeType)}
           >
@@ -157,9 +157,9 @@ export default function UpdatePage() {
         </label>
 
         <label className="block">
-          <div className="text-sm text-gray-600">New info</div>
+          <div className="text-small text-muted">New info</div>
           <textarea
-            className="w-full rounded-lg border p-3 min-h-[120px]"
+            className="w-full rounded-button border p-3 min-h-[120px]"
             value={newInfo}
             onChange={(e) => setNewInfo(e.target.value)}
             placeholder="Type the new info exactly as you want it recorded."
@@ -167,14 +167,14 @@ export default function UpdatePage() {
         </label>
 
         <button
-          className="rounded-lg border px-4 py-3 font-medium"
+          className="rounded-button border px-4 py-3 font-medium"
           onClick={submit}
           disabled={submitting || !cleanIG(instagram) || !newInfo.trim()}
         >
           {submitting ? "Submitting..." : "Submit update"}
         </button>
 
-        {msg ? <p className="text-sm text-red-600">Error: {msg}</p> : null}
+        {msg ? <p className="text-small text-coral">Error: {msg}</p> : null}
       </div>
     </main>
   );

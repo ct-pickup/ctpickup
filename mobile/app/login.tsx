@@ -5,7 +5,10 @@ import { useEffect } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { themeColor, useThemedStyles } from "@/theme";
 export default function LoginScreen() {
+  useThemedStyles(publish_styles);
+
   const { session, isReady, sessionExpiredNotice, clearSessionExpiredNotice } = useAuth();
   const insets = useSafeAreaInsets();
   const isIPad = Platform.OS === "ios" && Platform.isPad;
@@ -17,7 +20,7 @@ export default function LoginScreen() {
   if (!isReady) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#fff" />
+        <ActivityIndicator size="large" color={themeColor().text} />
       </View>
     );
   }
@@ -57,17 +60,18 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0a0a0a" },
-  center: { flex: 1, backgroundColor: "#0a0a0a", justifyContent: "center", alignItems: "center" },
+function make_styles() {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: themeColor().bg },
+  center: { flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center" },
   bgGlowA: {
     position: "absolute",
     top: -220,
     left: -160,
     width: 420,
     height: 420,
-    borderRadius: 420,
-    backgroundColor: "rgba(163,230,53,0.10)",
+    borderRadius: 999,
+    backgroundColor: themeColor().pitchSoft,
   },
   bgGlowB: {
     position: "absolute",
@@ -75,8 +79,8 @@ const styles = StyleSheet.create({
     right: -220,
     width: 520,
     height: 520,
-    borderRadius: 520,
-    backgroundColor: "rgba(163,230,53,0.06)",
+    borderRadius: 999,
+    backgroundColor: themeColor().pitchSoft,
   },
   content: {
     flexGrow: 1,
@@ -91,9 +95,15 @@ const styles = StyleSheet.create({
   },
   sessionExpiredNotice: {
     marginBottom: 16,
-    color: "rgba(252,211,212,0.92)",
-    fontSize: 14,
+    color: themeColor().coral,
+    fontSize: 14, fontFamily: "Inter_400Regular",
     textAlign: "center",
     lineHeight: 20,
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

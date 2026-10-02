@@ -32,7 +32,7 @@ export default function AutoSlider({
   const current = images[index];
 
   return (
-    <div className={`relative w-full overflow-hidden rounded-lg ${className}`}>
+    <div className={`relative w-full overflow-hidden rounded-button${className}`}>
       <div className={`relative w-full ${aspectClassName}`}>
         <Image
           key={current.src}

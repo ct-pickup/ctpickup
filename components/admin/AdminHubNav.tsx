@@ -20,15 +20,15 @@ export function AdminHubNav({
   className?: string;
   tone?: "dark" | "light";
 }) {
-  const navTone = tone === "dark" ? "text-white/50" : "text-gray-600";
+  const navTone = tone === "dark" ? "text-muted" : "text-muted";
   const linkTone =
     tone === "dark"
-      ? "underline-offset-4 transition hover:text-white hover:underline"
-      : "underline-offset-4 transition hover:text-gray-900 hover:underline";
+      ? "underline-offset-4 transition hover:text-ink hover:underline"
+      : "underline-offset-4 transition hover:text-muted hover:underline";
 
   return (
     <nav
-      className={`flex flex-wrap gap-x-4 gap-y-2 text-sm ${navTone} ${className}`}
+      className={`flex flex-wrap gap-x-4 gap-y-2 text-small${navTone} ${className}`}
       aria-label="Admin sections"
     >
       {ADMIN_LINKS.map((l) => (

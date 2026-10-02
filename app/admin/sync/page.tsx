@@ -45,10 +45,10 @@ export default async function AdminSyncPage({
     supabase = supabaseService();
   } catch {
     return (
-      <main className="min-h-screen text-white">
+      <main className="min-h-screen text-ink">
         <PageTop flush title="Staff · Sync & status" fallbackHref={APP_HOME_URL} />
         <AdminWorkArea question="What has propagated, what is waiting on cron or checkpoints, and what failed configuration might block automation?">
-          <p className="text-sm text-white/55">Database isn’t configured.</p>
+          <p className="text-small text-muted">Database isn’t configured.</p>
         </AdminWorkArea>
       </main>
     );
@@ -128,44 +128,44 @@ export default async function AdminSyncPage({
   }));
 
   return (
-    <main className="min-h-screen text-white">
+    <main className="min-h-screen text-ink">
       <PageTop flush title="Staff · Sync & status" fallbackHref={APP_HOME_URL} />
 
       <AdminWorkArea question="Where is automation caught up, where is it waiting, and what page refresh or delivery still needs a retry?">
         {sp.ok ? (
-          <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+          <div className="mb-6 rounded-card border border-pitch bg-pitch-soft px-4 py-3 text-small text-pitch">
             {sp.ok === "job" && "Page refresh job ran again."}
             {sp.ok === "delivery" && "Delivery retried."}
           </div>
         ) : null}
         {sp.e ? (
-          <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          <div className="mb-6 rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral">
             {sp.e}
           </div>
         ) : null}
 
         {layerMissing ? (
-          <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          <div className="mb-6 rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral">
             Publish and sync tracking aren’t set up on this database yet. Your developer should apply the latest staff
             migration, then redeploy or refresh the database cache.
           </div>
         ) : null}
 
-        <section className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
+        <section className="mb-8 rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-white">Content surfaces</h2>
-            <Link href="/admin/publish" className="text-xs font-semibold text-white/70 hover:text-white">
+            <h2 className="text-small font-semibold text-ink">Content surfaces</h2>
+            <Link href="/admin/publish" className="text-caption font-semibold text-muted hover:text-ink">
               Unified publish →
             </Link>
           </div>
-          <p className="text-xs text-white/45">
+          <p className="text-caption text-muted">
             Last attempts for site status, pickup posts, and tournament copy. Failed items stay failed until you fix the
             issue or retry.
           </p>
-          <div className="overflow-x-auto rounded-xl border border-white/10">
-            <table className="w-full min-w-[560px] text-sm">
-              <thead className="text-left text-white/50">
-                <tr className="border-b border-white/10">
+          <div className="overflow-x-auto rounded-card border border-line">
+            <table className="w-full min-w-[560px] text-small">
+              <thead className="text-left text-muted">
+                <tr className="border-b border-line">
                   <th className="p-3">Place</th>
                   <th className="p-3">Delivery</th>
                   <th className="p-3">Last success</th>
@@ -175,23 +175,23 @@ export default async function AdminSyncPage({
               <tbody>
                 {surfaces.length === 0 ? (
                   <tr>
-                    <td className="p-4 text-white/50" colSpan={4}>
+                    <td className="p-4 text-muted" colSpan={4}>
                       {layerMissing ? "—" : "No surface pings yet — publish once or post from Pickups."}
                     </td>
                   </tr>
                 ) : (
                   surfaces.map((s) => (
-                    <tr key={s.surface_key} className="border-b border-white/10 align-top">
+                    <tr key={s.surface_key} className="border-b border-line align-top">
                       <td className="p-3">
-                        <div className="font-medium text-white">{s.label || s.surface_key}</div>
+                        <div className="font-medium text-ink">{s.label || s.surface_key}</div>
                       </td>
                       <td className="p-3">
                         <StatusChip tone={toneForSurface(s.sync_state)} title={s.sync_state}>
                           {labelPublishSyncState(s.sync_state)}
                         </StatusChip>
                       </td>
-                      <td className="p-3 text-white/60">{fmt(s.last_success_at)}</td>
-                      <td className="p-3 text-xs text-red-200/90">{s.last_error || "—"}</td>
+                      <td className="p-3 text-muted">{fmt(s.last_success_at)}</td>
+                      <td className="p-3 text-caption text-coral">{s.last_error || "—"}</td>
                     </tr>
                   ))
                 )}
@@ -200,15 +200,15 @@ export default async function AdminSyncPage({
           </div>
         </section>
 
-        <section className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-white">Page refresh jobs</h2>
-          <p className="text-xs text-white/45">
+        <section className="mb-8 rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+          <h2 className="text-small font-semibold text-ink">Page refresh jobs</h2>
+          <p className="text-caption text-muted">
             After each publish, the site queues a job to refresh public pages. Failed jobs can be retried here.
           </p>
-          <div className="overflow-x-auto rounded-xl border border-white/10">
-            <table className="w-full min-w-[520px] text-sm">
-              <thead className="text-left text-white/50">
-                <tr className="border-b border-white/10">
+          <div className="overflow-x-auto rounded-card border border-line">
+            <table className="w-full min-w-[520px] text-small">
+              <thead className="text-left text-muted">
+                <tr className="border-b border-line">
                   <th className="p-3">Job</th>
                   <th className="p-3">Status</th>
                   <th className="p-3">Tries</th>
@@ -220,14 +220,14 @@ export default async function AdminSyncPage({
               <tbody>
                 {jobs.length === 0 ? (
                   <tr>
-                    <td className="p-4 text-white/50" colSpan={6}>
+                    <td className="p-4 text-muted" colSpan={6}>
                       {layerMissing ? "—" : "No jobs yet."}
                     </td>
                   </tr>
                 ) : (
                   jobs.map((j) => (
-                    <tr key={j.id} className="border-b border-white/10 align-top">
-                      <td className="p-3 text-white/80" title={j.job_type}>
+                    <tr key={j.id} className="border-b border-line align-top">
+                      <td className="p-3 text-ink" title={j.job_type}>
                         {labelSyncJobType(j.job_type)}
                       </td>
                       <td className="p-3">
@@ -244,20 +244,20 @@ export default async function AdminSyncPage({
                           {labelSyncJobStatus(j.status)}
                         </StatusChip>
                       </td>
-                      <td className="p-3 text-white/65" title={`${j.attempts} of ${j.max_attempts} tries`}>
+                      <td className="p-3 text-muted" title={`${j.attempts} of ${j.max_attempts} tries`}>
                         {j.attempts} / {j.max_attempts}
                       </td>
-                      <td className="p-3 text-xs text-white/55 font-mono">
+                      <td className="p-3 text-caption text-muted font-mono">
                         {(j.payload?.paths || []).join(", ") || "—"}
                       </td>
-                      <td className="p-3 text-xs text-red-200/90">{j.last_error || "—"}</td>
+                      <td className="p-3 text-caption text-coral">{j.last_error || "—"}</td>
                       <td className="p-3">
                         {j.status === "failed" && j.job_type === "revalidate" ? (
                           <form action={retrySyncJobAction}>
                             <input type="hidden" name="job_id" value={j.id} />
                             <button
                               type="submit"
-                              className="rounded-md border border-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+                              className="rounded-button border border-line px-3 py-1.5 text-caption font-semibold text-ink hover:bg-overlay"
                             >
                               Retry
                             </button>
@@ -274,13 +274,13 @@ export default async function AdminSyncPage({
           </div>
         </section>
 
-        <section className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-white">Failed publication deliveries</h2>
-          <p className="text-xs text-white/45">Sends the saved message again to the destination that failed — safe to run twice.</p>
-          <div className="overflow-x-auto rounded-xl border border-white/10">
-            <table className="w-full min-w-[480px] text-sm">
-              <thead className="text-left text-white/50">
-                <tr className="border-b border-white/10">
+        <section className="mb-8 rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+          <h2 className="text-small font-semibold text-ink">Failed publication deliveries</h2>
+          <p className="text-caption text-muted">Sends the saved message again to the destination that failed — safe to run twice.</p>
+          <div className="overflow-x-auto rounded-card border border-line">
+            <table className="w-full min-w-[480px] text-small">
+              <thead className="text-left text-muted">
+                <tr className="border-b border-line">
                   <th className="p-3">Destination</th>
                   <th className="p-3">Target ID</th>
                   <th className="p-3">Error</th>
@@ -290,24 +290,24 @@ export default async function AdminSyncPage({
               <tbody>
                 {failedDeliveries.length === 0 ? (
                   <tr>
-                    <td className="p-4 text-white/50" colSpan={4}>
+                    <td className="p-4 text-muted" colSpan={4}>
                       No failed deliveries.
                     </td>
                   </tr>
                 ) : (
                   failedDeliveries.map((d) => (
-                    <tr key={d.id} className="border-b border-white/10 align-top">
-                      <td className="p-3 text-white/85" title={d.channel}>
+                    <tr key={d.id} className="border-b border-line align-top">
+                      <td className="p-3 text-ink" title={d.channel}>
                         {labelPublicationChannel(d.channel)}
                       </td>
-                      <td className="p-3 text-xs font-mono text-white/55">{d.entity_id || "—"}</td>
-                      <td className="p-3 text-xs text-red-200/90">{d.last_error || "—"}</td>
+                      <td className="p-3 text-caption font-mono text-muted">{d.entity_id || "—"}</td>
+                      <td className="p-3 text-caption text-coral">{d.last_error || "—"}</td>
                       <td className="p-3">
                         <form action={retryDeliveryAction}>
                           <input type="hidden" name="delivery_id" value={d.id} />
                           <button
                             type="submit"
-                            className="rounded-md border border-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+                            className="rounded-button border border-line px-3 py-1.5 text-caption font-semibold text-ink hover:bg-overlay"
                           >
                             Resync
                           </button>
@@ -321,26 +321,26 @@ export default async function AdminSyncPage({
           </div>
         </section>
 
-        <section className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-white">Recent unified publications</h2>
-          <ul className="space-y-3 text-sm">
+        <section className="mb-8 rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+          <h2 className="text-small font-semibold text-ink">Recent unified publications</h2>
+          <ul className="space-y-3 text-small">
             {recentPubs.length === 0 ? (
-              <li className="text-white/50">{layerMissing ? "—" : "None yet."}</li>
+              <li className="text-muted">{layerMissing ? "—" : "None yet."}</li>
             ) : (
               recentPubs.map((p) => {
                 const dels = p.deliveries || [];
                 const failed = dels.filter((x) => x.sync_state === "failed").length;
                 return (
-                  <li key={p.id} className="rounded-xl border border-white/10 bg-black/30 px-4 py-3">
-                    <div className="text-xs text-white/40">{fmt(p.created_at)}</div>
-                    <p className="mt-1 text-white/80 line-clamp-3">{p.message}</p>
+                  <li key={p.id} className="rounded-card border border-line bg-overlay-subtle px-4 py-3">
+                    <div className="text-caption text-muted">{fmt(p.created_at)}</div>
+                    <p className="mt-1 text-ink line-clamp-3">{p.message}</p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {failed ? (
                         <StatusChip tone="failed">{failed} not delivered</StatusChip>
                       ) : (
                         <StatusChip tone="synced">All destinations ok</StatusChip>
                       )}
-                      <span className="text-xs text-white/45">
+                      <span className="text-caption text-muted">
                         {dels.length
                           ? dels.map((x) => labelPublicationChannel(x.channel)).join(", ")
                           : "No destinations"}
@@ -353,38 +353,38 @@ export default async function AdminSyncPage({
           </ul>
         </section>
 
-        <section className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-white/45">Automation prerequisites</h2>
+        <section className="mb-8 rounded-card border border-line bg-overlay-subtle p-5 space-y-3">
+          <h2 className="text-caption font-semibold text-muted">Automation prerequisites</h2>
           <div className="flex flex-wrap gap-2">
             <StatusChip tone={cronSet ? "synced" : "incomplete"} title="Secret the cron job sends">
               Automation secret {cronSet ? "set" : "missing"}
             </StatusChip>
             <StatusChip tone="neutral">Stripe payments: see Settings</StatusChip>
           </div>
-          <p className="text-sm text-white/55">
+          <p className="text-small text-muted">
             Pickup checkpoints run when the scheduled job on your host calls the processor with the automation secret. You still
             launch outreach from Pickups when you’re ready.
           </p>
-          <Link href="/admin/settings" className="text-sm text-white underline-offset-4 hover:underline">
+          <Link href="/admin/settings" className="text-small text-ink underline-offset-4 hover:underline">
             Open settings
           </Link>
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
+        <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-white">Pickup auto-pipeline</h2>
-            <Link href="/admin/pickup" className="text-xs font-semibold text-white/70 hover:text-white">
+            <h2 className="text-small font-semibold text-ink">Pickup auto-pipeline</h2>
+            <Link href="/admin/pickup" className="text-caption font-semibold text-muted hover:text-ink">
               Manage runs →
             </Link>
           </div>
-          <p className="text-xs text-white/45">
+          <p className="text-caption text-muted">
             “Last automation change” is when timed pickup steps last changed the run. If the public site looks stale, run the
             processor for that run or check failed refresh jobs above.
           </p>
           <SyncPickupTable summaries={summaries} />
         </section>
 
-        <p className="mt-6 text-xs text-white/40">
+        <p className="mt-6 text-caption text-muted">
           After publish, affected public pages refresh in the background so visitors see changes on their next load.
         </p>
       </AdminWorkArea>

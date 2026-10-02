@@ -3,6 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { fetchAdminAnalyticsDashboard, type AdminAnalyticsDashboardResponse } from "@/lib/adminApi";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Pressable,
@@ -11,11 +12,6 @@ import {
   Text,
   View,
 } from "react-native";
-
-const LIME = "#a3e635";
-const GREEN = "#22c55e";
-const RED = "#ef4444";
-const AMBER = "#fbbf24";
 
 function utcMonthKey(d = new Date()): string {
   const y = d.getUTCFullYear();
@@ -126,6 +122,8 @@ function RegionBar({
   value: number;
   max: number;
 }) {
+  useThemedStyles(publish_styles);
+
   const pctWidth = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
   return (
     <View style={styles.barRow}>
@@ -143,6 +141,8 @@ function RegionBar({
 }
 
 export default function AdminAnalyticsScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const { session } = useAuth();
   const token = session?.access_token ?? null;
@@ -227,7 +227,7 @@ export default function AdminAnalyticsScreen() {
           <Text style={styles.refreshText}>Refresh</Text>
         </Pressable>
 
-        {loading ? <ActivityIndicator color="#fff" style={{ marginTop: 16 }} /> : null}
+        {loading ? <ActivityIndicator color={themeColor().text} style={{ marginTop: 16 }} /> : null}
 
         {rev ? (
           <View style={styles.card}>
@@ -237,9 +237,9 @@ export default function AdminAnalyticsScreen() {
               <Text
                 style={[
                   styles.revenueSub,
-                  revCompare.up === true && { color: GREEN },
-                  revCompare.up === false && { color: RED },
-                  revCompare.up === null && { color: "rgba(255,255,255,0.55)" },
+                  revCompare.up === true && { color: themeColor().pitchText },
+                  revCompare.up === false && { color: themeColor().coral },
+                  revCompare.up === null && { color: themeColor().muted },
                 ]}
               >
                 {revCompare.text}
@@ -385,8 +385,9 @@ export default function AdminAnalyticsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0a0a0a" },
+function make_styles() {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 16, paddingBottom: 48 },
   monthRow: {
     flexDirection: "row",
@@ -400,18 +401,18 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: themeColor().line,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: themeColor().overlaySubtle,
   },
-  monthArrowText: { color: "#fff", fontSize: 22, fontWeight: "900", marginTop: -2 },
-  monthTitle: { color: "#fff", fontSize: 20, fontWeight: "900", minWidth: 160, textAlign: "center" },
+  monthArrowText: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", marginTop: -2 },
+  monthTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", minWidth: 160, textAlign: "center" },
   errSubtitle: {
     marginTop: 10,
     paddingHorizontal: 12,
-    color: "rgba(255,255,255,0.45)",
-    fontSize: 13,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
     textAlign: "center",
     lineHeight: 18,
@@ -423,58 +424,58 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  refreshText: { color: LIME, fontWeight: "900", fontSize: 13 },
+  refreshText: { color: themeColor().pitch, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
   card: {
     marginTop: 14,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  cardTitle: { color: "#fff", fontWeight: "900", fontSize: 16 },
-  muted: { marginTop: 10, color: "rgba(255,255,255,0.55)", fontSize: 14 },
-  revenueMain: { marginTop: 10, color: LIME, fontSize: 30, fontWeight: "900" },
-  revenueSub: { marginTop: 8, fontSize: 15, fontWeight: "800" },
-  attBig: { marginTop: 10, color: "#fff", fontSize: 32, fontWeight: "900" },
-  attSub: { marginTop: 8, color: "rgba(255,255,255,0.55)", fontSize: 14 },
+  cardTitle: { color: themeColor().text, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
+  muted: { marginTop: 10, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
+  revenueMain: { marginTop: 10, color: themeColor().pitchText, fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900" },
+  revenueSub: { marginTop: 8, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  attBig: { marginTop: 10, color: themeColor().text, fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900" },
+  attSub: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
   barRow: { marginTop: 12, gap: 8 },
   barLeft: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
-  barLabel: { color: "rgba(255,255,255,0.75)", fontSize: 13, fontWeight: "800", flex: 1, minWidth: 0 },
-  barValue: { color: "#fff", fontSize: 13, fontWeight: "900" },
+  barLabel: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", flex: 1, minWidth: 0 },
+  barValue: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "900" },
   barTrack: {
     width: "100%",
     height: 10,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: themeColor().overlay,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
+    borderColor: themeColor().line,
   },
-  barFill: { height: "100%", backgroundColor: LIME, borderRadius: 999 },
+  barFill: { height: "100%", backgroundColor: themeColor().pitch, borderRadius: 999 },
   playerRow: {
     marginTop: 10,
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
-    backgroundColor: "rgba(0,0,0,0.25)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().bg,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
-  playerRank: { width: 26, color: LIME, fontWeight: "900", fontSize: 14, textAlign: "center" },
-  playerName: { color: "#fff", fontWeight: "800", fontSize: 14 },
-  playerIg: { marginTop: 4, color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: "700" },
-  sessionCt: { color: LIME, fontWeight: "900", fontSize: 16, minWidth: 28, textAlign: "right" },
+  playerRank: { width: 26, color: themeColor().pitchText, fontWeight: "900", fontSize: 14, fontFamily: "Inter_700Bold", textAlign: "center" },
+  playerName: { color: themeColor().text, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
+  playerIg: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  sessionCt: { color: themeColor().pitchText, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold", minWidth: 28, textAlign: "right" },
   churnHint: {
     marginTop: 8,
-    color: "rgba(255,255,255,0.45)",
-    fontSize: 12,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     lineHeight: 17,
   },
   churnRow: {
@@ -483,12 +484,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(251,191,36,0.35)",
-    backgroundColor: "rgba(251,191,36,0.08)",
+    borderColor: themeColor().coral,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  churnName: { color: AMBER, fontWeight: "900", fontSize: 14 },
-  churnIg: { marginTop: 4, color: "rgba(251,191,36,0.75)", fontSize: 12, fontWeight: "700" },
-  churnSeen: { marginTop: 6, color: "rgba(251,191,36,0.9)", fontSize: 12, fontWeight: "800" },
+  churnName: { color: themeColor().coral, fontWeight: "900", fontSize: 14, fontFamily: "Inter_700Bold" },
+  churnIg: { marginTop: 4, color: themeColor().coral, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  churnSeen: { marginTop: 6, color: themeColor().coral, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
   regionChips: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -501,39 +502,45 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   regionChipSelected: {
-    borderColor: "rgba(163,230,53,0.45)",
-    backgroundColor: "rgba(163,230,53,0.12)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  regionChipText: { color: "rgba(255,255,255,0.75)", fontWeight: "800", fontSize: 13 },
-  regionChipTextSelected: { color: LIME },
+  regionChipText: { color: themeColor().text, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
+  regionChipTextSelected: { color: themeColor().pitchText },
   bestTimeCard: {
     marginTop: 12,
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
-    backgroundColor: "rgba(0,0,0,0.22)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().bg,
   },
-  bestTimeDay: { color: "#fff", fontWeight: "900", fontSize: 16 },
-  bestTimeClock: { marginTop: 4, color: "rgba(255,255,255,0.7)", fontSize: 14, fontWeight: "700" },
-  bestTimeAvg: { marginTop: 10, color: LIME, fontSize: 15, fontWeight: "900" },
-  bestTimeRuns: { marginTop: 4, color: "rgba(255,255,255,0.45)", fontSize: 12, fontWeight: "600" },
+  bestTimeDay: { color: themeColor().text, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
+  bestTimeClock: { marginTop: 4, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  bestTimeAvg: { marginTop: 10, color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "900" },
+  bestTimeRuns: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   bestTimeBarTrack: {
     marginTop: 10,
     height: 6,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.07)",
+    backgroundColor: themeColor().overlay,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: themeColor().line,
   },
   bestTimeBarFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: "rgba(163,230,53,0.45)",
+    backgroundColor: themeColor().pitch,
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

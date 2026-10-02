@@ -20,12 +20,7 @@ import { fetchAdminAnalyticsDashboard } from "@/lib/adminApi";
 import { hapticError, hapticGoal, hapticTap } from "@/lib/haptics";
 import { siteOrigin } from "@/lib/env";
 
-const LIME = "#a3e635";
-
-const PENDING_BADGE_BG = "rgba(245, 158, 11, 0.22)";
-const PENDING_BADGE_BORDER = "rgba(245, 158, 11, 0.55)";
-const PENDING_BADGE_TEXT = "#fbbf24";
-
+import { themeColor, useThemedStyles } from "@/theme";
 function utcMonthKey(d = new Date()): string {
   const y = d.getUTCFullYear();
   const m = d.getUTCMonth() + 1;
@@ -78,6 +73,8 @@ type Member = {
 };
 
 export default function AdminMembersScreen() {
+  useThemedStyles(publish_styles);
+
   const { session } = useAuth();
   const insets = useSafeAreaInsets();
   const [members, setMembers] = useState<Member[]>([]);
@@ -565,7 +562,7 @@ export default function AdminMembersScreen() {
                       }}
                       keyboardType="number-pad"
                       placeholder="0"
-                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      placeholderTextColor={themeColor().muted}
                     />
                   </View>
                 );
@@ -581,7 +578,7 @@ export default function AdminMembersScreen() {
               value={banReason[item.id] !== undefined ? banReason[item.id] : (item.ban_reason || "")}
               onChangeText={(v) => setBanReason((p) => ({ ...p, [item.id]: v }))}
               placeholder="Reason for ban..."
-              placeholderTextColor="rgba(255,255,255,0.3)"
+              placeholderTextColor={themeColor().muted}
             />
             <View style={styles.actionRow}>
               <Pressable onPress={() => void banPlayer(item.id, item.is_banned)} disabled={isBusy}
@@ -624,7 +621,7 @@ export default function AdminMembersScreen() {
                 value={dmText}
                 onChangeText={setDmText}
                 placeholder="Type a direct message…"
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                placeholderTextColor={themeColor().muted}
                 multiline
                 editable={!dmSending}
               />
@@ -642,7 +639,7 @@ export default function AdminMembersScreen() {
                   disabled={dmSending || !dmText.trim()}
                 >
                   {dmSending ? (
-                    <ActivityIndicator color="#0a0a0a" />
+                    <ActivityIndicator color={themeColor().onPitch} />
                   ) : (
                     <Text style={styles.modalBtnPrimaryText}>Send</Text>
                   )}
@@ -679,7 +676,7 @@ export default function AdminMembersScreen() {
       </View>
       {adminTab === "members" ? (
         <>
-          {loading ? <ActivityIndicator color={LIME} style={{ marginTop: 32 }} /> : null}
+          {loading ? <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 32 }} /> : null}
           {error ? <Text style={styles.err}>{error}</Text> : null}
           <FlatList
             data={sortedMembers}
@@ -697,7 +694,7 @@ export default function AdminMembersScreen() {
       ) : (
         <>
           {reportsLoading && reports.length === 0 ? (
-            <ActivityIndicator color={LIME} style={{ marginTop: 32 }} />
+            <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 32 }} />
           ) : null}
           {reportsError ? <Text style={styles.err}>{reportsError}</Text> : null}
           <FlatList
@@ -717,23 +714,24 @@ export default function AdminMembersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#000" },
-  title: { color: "#fff", fontSize: 22, fontWeight: "800", paddingHorizontal: 16, paddingVertical: 12 },
-  card: { backgroundColor: "#111", borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
-  cardBanned: { borderColor: "rgba(239,68,68,0.4)", backgroundColor: "#1a0a0a" },
+function make_styles() {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: themeColor().bg },
+  title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", paddingHorizontal: 16, paddingVertical: 12 },
+  card: { backgroundColor: themeColor().bg, borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: themeColor().line },
+  cardBanned: { borderColor: themeColor().coral, backgroundColor: themeColor().card },
   cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   nameRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
-  name: { color: "#fff", fontSize: 15, fontWeight: "700", flexShrink: 1 },
+  name: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", flexShrink: 1 },
   pendingBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: PENDING_BADGE_BG,
+    borderRadius: 10,
+    backgroundColor: themeColor().coral,
     borderWidth: 1,
-    borderColor: PENDING_BADGE_BORDER,
+    borderColor: themeColor().coral,
   },
-  pendingBadgeText: { color: PENDING_BADGE_TEXT, fontSize: 11, fontWeight: "800" },
+  pendingBadgeText: { color: themeColor().coral, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
   membershipApprovalRow: { flexDirection: "row", gap: 10, marginTop: 12 },
   approveMembershipBtn: {
     flex: 2,
@@ -741,17 +739,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 10,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderWidth: 2,
-    borderColor: "#bbf451",
+    borderColor: themeColor().pitch,
     paddingHorizontal: 12,
   },
   approveMembershipBtnLocked: {
-    backgroundColor: "rgba(163,230,53,0.18)",
-    borderColor: "rgba(163,230,53,0.45)",
+    backgroundColor: themeColor().pitchSoft,
+    borderColor: themeColor().pitch,
   },
-  approveMembershipBtnText: { color: "#171717", fontSize: 14, fontWeight: "900" },
-  approveMembershipBtnTextMuted: { color: LIME },
+  approveMembershipBtnText: { color: themeColor().onPitch, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "900" },
+  approveMembershipBtnTextMuted: { color: themeColor().pitchText },
   rejectMembershipBtn: {
     flex: 1,
     minHeight: 44,
@@ -759,60 +757,60 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(251,146,146,0.55)",
-    backgroundColor: "rgba(239,68,68,0.12)",
+    borderColor: themeColor().coral,
+    backgroundColor: themeColor().overlaySubtle,
     paddingHorizontal: 10,
   },
   rejectMembershipBtnDisabled: { opacity: 0.35 },
-  rejectMembershipBtnText: { color: "#fca5a5", fontSize: 13, fontWeight: "800" },
-  rejectMembershipBtnTextDisabled: { color: "rgba(255,255,255,0.25)" },
+  rejectMembershipBtnText: { color: themeColor().coral, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  rejectMembershipBtnTextDisabled: { color: themeColor().muted },
   messageOnlyBtn: { alignSelf: "stretch", marginTop: 8, flex: 0 },
-  sub: { color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 2 },
-  chevron: { color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 2 },
-  label: { color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: "700", textTransform: "uppercase", marginBottom: 6 },
+  sub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  chevron: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  label: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 6 },
   tierRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
-  tierChip: { width: 36, height: 36, borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
-  tierChipActive: { borderColor: "#a3e635", backgroundColor: "rgba(163,230,53,0.15)" },
-  tierChipText: { color: "rgba(255,255,255,0.45)", fontSize: 13, fontWeight: "700" },
-  tierChipTextActive: { color: "#a3e635" },
+  tierChip: { width: 36, height: 36, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, alignItems: "center", justifyContent: "center" },
+  tierChipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  tierChipText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  tierChipTextActive: { color: themeColor().pitchText },
   actionRow: { flexDirection: "row", gap: 8, marginTop: 8 },
-  actionBtn: { borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", paddingHorizontal: 12, paddingVertical: 7, flex: 1, alignItems: "center" },
-  actionBtnActive: { borderColor: "#a3e635", backgroundColor: "rgba(163,230,53,0.1)" },
-  actionBtnDanger: { borderColor: "rgba(239,68,68,0.4)", backgroundColor: "rgba(239,68,68,0.1)" },
-  actionBtnText: { color: "rgba(255,255,255,0.45)", fontSize: 12, fontWeight: "700" },
-  actionBtnTextActive: { color: "#a3e635", fontSize: 12, fontWeight: "700" },
-  actionBtnTextDanger: { color: "#f87171", fontSize: 12, fontWeight: "700" },
-  actionBtnLimeOutline: { borderColor: "rgba(163,230,53,0.45)" },
-  actionBtnTextLime: { color: "#a3e635", fontSize: 12, fontWeight: "700" },
+  actionBtn: { borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 12, paddingVertical: 7, flex: 1, alignItems: "center" },
+  actionBtnActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  actionBtnDanger: { borderColor: themeColor().coral, backgroundColor: themeColor().overlaySubtle },
+  actionBtnText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  actionBtnTextActive: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  actionBtnTextDanger: { color: themeColor().coral, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  actionBtnLimeOutline: { borderColor: themeColor().pitch },
+  actionBtnTextLime: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.65)",
+    backgroundColor: themeColor().scrim,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
   modalCard: {
-    backgroundColor: "#141414",
-    borderRadius: 16,
+    backgroundColor: themeColor().card,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: themeColor().line,
     padding: 18,
     width: "100%",
     maxWidth: 400,
   },
-  modalTitle: { color: "#fff", fontSize: 17, fontWeight: "800", marginBottom: 12 },
+  modalTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", marginBottom: 12 },
   modalInput: {
     minHeight: 100,
     maxHeight: 180,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: themeColor().line,
     borderRadius: 12,
     padding: 12,
-    color: "#fff",
-    fontSize: 15,
+    color: themeColor().text,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     textAlignVertical: "top",
     marginBottom: 16,
-    backgroundColor: "#0a0a0a",
+    backgroundColor: themeColor().bg,
   },
   modalActions: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
   modalBtn: {
@@ -823,17 +821,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  modalBtnGhost: { borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
-  modalBtnGhostText: { color: "rgba(255,255,255,0.75)", fontWeight: "700", fontSize: 14 },
-  modalBtnPrimary: { backgroundColor: LIME },
-  modalBtnPrimaryText: { color: "#0a0a0a", fontWeight: "900", fontSize: 14 },
+  modalBtnGhost: { borderWidth: 1, borderColor: themeColor().line },
+  modalBtnGhostText: { color: themeColor().text, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
+  modalBtnPrimary: { backgroundColor: themeColor().pitch },
+  modalBtnPrimaryText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 14, fontFamily: "Inter_700Bold" },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   statField: { width: "30%", minWidth: 90 },
-  statLabel: { color: "rgba(255,255,255,0.45)", fontSize: 10, marginBottom: 3 },
-  statInput: { backgroundColor: "#1a1a1a", borderRadius: 6, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", color: "#fff", padding: 6, fontSize: 13 },
-  banInput: { backgroundColor: "#1a1a1a", borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", color: "#fff", padding: 8, fontSize: 13, marginBottom: 8 },
-  err: { color: "#f87171", padding: 16 },
-  muted: { color: "rgba(255,255,255,0.35)", fontSize: 13 },
+  statLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 3 },
+  statInput: { backgroundColor: themeColor().card, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, padding: 6, fontSize: 13, fontFamily: "Inter_400Regular" },
+  banInput: { backgroundColor: themeColor().card, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, padding: 8, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 8 },
+  err: { color: themeColor().coral, padding: 16 },
+  muted: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
   tabRow: {
     flexDirection: "row",
     gap: 10,
@@ -845,48 +843,54 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: themeColor().line,
     alignItems: "center",
   },
-  tabBtnActive: { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.12)" },
-  tabBtnText: { color: "rgba(255,255,255,0.45)", fontSize: 14, fontWeight: "700" },
-  tabBtnTextActive: { color: LIME },
-  reportNameLine: { color: "#fff", fontSize: 14, lineHeight: 20 },
-  reportNameStrong: { color: "#fff", fontWeight: "700" },
-  reportArrow: { color: "rgba(255,255,255,0.4)", fontWeight: "600" },
+  tabBtnActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  tabBtnText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  tabBtnTextActive: { color: themeColor().pitchText },
+  reportNameLine: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  reportNameStrong: { color: themeColor().text, fontWeight: "700" },
+  reportArrow: { color: themeColor().muted, fontWeight: "600" },
   reasonPill: {
     alignSelf: "flex-start",
     marginTop: 10,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: "rgba(163, 230, 53, 0.18)",
+    backgroundColor: themeColor().pitchSoft,
     borderWidth: 1,
-    borderColor: "rgba(163, 230, 53, 0.45)",
+    borderColor: themeColor().pitch,
   },
-  reasonPillText: { color: LIME, fontSize: 12, fontWeight: "800" },
+  reasonPillText: { color: themeColor().pitch, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
   reportTypeLine: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 12,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
     marginTop: 10,
   },
-  reportDate: { color: "rgba(255,255,255,0.35)", fontSize: 12, marginTop: 4 },
+  reportDate: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   reportActionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 },
   reportActionBtn: {
     flexGrow: 1,
     minWidth: "30%",
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: themeColor().line,
     paddingHorizontal: 8,
     paddingVertical: 8,
     alignItems: "center",
     justifyContent: "center",
   },
-  reportActionBtnLime: { borderColor: "rgba(163,230,53,0.45)", backgroundColor: "rgba(163,230,53,0.08)" },
-  reportActionBtnLimeText: { color: LIME, fontSize: 11, fontWeight: "800" },
-  reportActionBtnDanger: { borderColor: "rgba(239,68,68,0.45)", backgroundColor: "rgba(239,68,68,0.1)" },
-  reportActionBtnDangerText: { color: "#f87171", fontSize: 11, fontWeight: "800" },
-  reportActionBtnText: { color: "rgba(255,255,255,0.65)", fontSize: 11, fontWeight: "700" },
+  reportActionBtnLime: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  reportActionBtnLimeText: { color: themeColor().pitch, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  reportActionBtnDanger: { borderColor: themeColor().coral, backgroundColor: themeColor().overlaySubtle },
+  reportActionBtnDangerText: { color: themeColor().coral, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  reportActionBtnText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

@@ -43,16 +43,15 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Circle, Defs, Ellipse, Polygon, RadialGradient, Stop } from "react-native-svg";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { AppLockSection } from "@/components/account/AppLockSection";
 import { PreferencesSection } from "@/components/account/PreferencesSection";
 import { ProfileSection } from "@/components/account/ProfileSection";
 import { ReferralSection } from "@/components/account/ReferralSection";
 import { VerificationRequestModal } from "@/components/account/VerificationRequestModal";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
-  accountStyles as styles,
-  LIME,
+  accountStyles as styles, publish_accountStyles,
   POSITION_OPTIONS,
   SPECIFIC_POSITION_OPTIONS,
   EXPERIENCE_LEVEL_OPTIONS,
@@ -135,16 +134,18 @@ function formatProfileSaveError(err: unknown): string {
 
 /* ----------------------------------------------------------- tier + gems */
 
-const TIER_COLORS: Record<string, string> = {
-  diamond: "#9B59B6",
-  platinum: "#E8E8E8",
-  gold: "#E3B23C",
-  silver: "#A8B0B5",
-  bronze: "#B87333",
+function TIER_COLORS(): Record<string, string> {
+  return {
+  diamond: themeColor().muted,
+  platinum: themeColor().muted,
+  gold: themeColor().muted,
+  silver: themeColor().muted,
+  bronze: themeColor().muted,
 };
+}
 
 function tierColor(tier: string | null | undefined): string {
-  return tier ? (TIER_COLORS[tier.toLowerCase()] ?? LIME) : LIME;
+  return tier ? (TIER_COLORS()[tier.toLowerCase()] ?? themeColor().pitch) : themeColor().pitch;
 }
 
 function tierLabel(tier: string | null | undefined): string {
@@ -161,40 +162,22 @@ const TIER_META: Record<string, { pts: number; topPct: string }> = {
   bronze: { pts: -12, topPct: "Entry tier — keep climbing" },
 };
 
-function DiamondGem({ size }: { size: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 100 100">
-      <Polygon points="32,14 68,14 60,36 40,36" fill="#C89BE0" />
-      <Polygon points="32,14 18,36 40,36" fill="#A56FC9" />
-      <Polygon points="68,14 82,36 60,36" fill="#8E57B8" />
-      <Polygon points="18,36 50,36 50,92" fill="#8E57B8" />
-      <Polygon points="50,36 82,36 50,92" fill="#6B3E86" />
-      <Polygon points="40,36 60,36 50,92" fill="#A56FC9" />
-      <Polygon points="38,17 62,17 57,33 43,33" fill="#D9B8EC" opacity={0.55} />
-    </Svg>
-  );
-}
+function TierGem({ size }: { tier: string; size: number; gid?: string }) {
+  useThemedStyles(publish_s);
+  useThemedStyles(publish_accountStyles);
 
-function CircleGem({ color, size, gid }: { color: string; size: number; gid: string }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 100 100">
-      <Defs>
-        <RadialGradient id={gid} cx="38%" cy="32%" r="80%">
-          <Stop offset="0" stopColor="#ffffff" stopOpacity="0.9" />
-          <Stop offset="0.4" stopColor={color} stopOpacity="1" />
-          <Stop offset="1" stopColor={color} stopOpacity="1" />
-        </RadialGradient>
-      </Defs>
-      <Circle cx="50" cy="50" r="46" fill={`url(#${gid})`} />
-      <Ellipse cx="37" cy="33" rx="17" ry="11" fill="#ffffff" opacity={0.28} />
-    </Svg>
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 999,
+        backgroundColor: themeColor().overlay,
+        borderWidth: 1,
+        borderColor: themeColor().line,
+      }}
+    />
   );
-}
-
-function TierGem({ tier, size, gid }: { tier: string; size: number; gid: string }) {
-  const t = (tier ?? "").toLowerCase();
-  if (t === "diamond") return <DiamondGem size={size} />;
-  return <CircleGem color={TIER_COLORS[t] ?? "#A8B0B5"} size={size} gid={gid} />;
 }
 
 function initialsFromName(name: string): string {
@@ -252,6 +235,9 @@ function formatDob(dob: string | null): string | null {
 }
 
 export default function AccountScreen() {
+  useThemedStyles(publish_s);
+  useThemedStyles(publish_accountStyles);
+
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { replay: replayAccountIntro } = useAccountIntroReplay();
@@ -1655,7 +1641,7 @@ export default function AccountScreen() {
   if (!isReady || !profileAdminReady) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#fff" />
+        <ActivityIndicator size="large" color={themeColor().text} />
       </View>
     );
   }
@@ -1664,7 +1650,7 @@ export default function AccountScreen() {
   if (!signedEmail) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#fff" />
+        <ActivityIndicator size="large" color={themeColor().text} />
       </View>
     );
   }
@@ -1745,7 +1731,7 @@ export default function AccountScreen() {
               autoCorrect={false}
               secureTextEntry
               placeholder="Secret code"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
               style={styles.reviewModalInput}
             />
             <View style={styles.reviewModalActions}>
@@ -1769,7 +1755,7 @@ export default function AccountScreen() {
           <View style={styles.reviewModalCard}>
             <Text style={styles.reviewModalTitle}>Confirm account deletion</Text>
             <Text style={styles.reviewModalSub}>
-              Type <Text style={{ fontWeight: "800", color: "#fff" }}>{DELETE_CONFIRM_WORD}</Text> below to permanently
+              Type <Text style={{ fontWeight: "800", color: themeColor().text }}>{DELETE_CONFIRM_WORD}</Text> below to permanently
               delete your account.
             </Text>
             <TextInput
@@ -1779,7 +1765,7 @@ export default function AccountScreen() {
               autoCorrect={false}
               autoComplete="off"
               placeholder={DELETE_CONFIRM_WORD}
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
               style={styles.reviewModalInput}
               editable={!deleteAccountBusy}
             />
@@ -1800,7 +1786,7 @@ export default function AccountScreen() {
                 disabled={!deleteConfirmMatches || deleteAccountBusy}
               >
                 {deleteAccountBusy ? (
-                  <ActivityIndicator color="#fff" size="small" />
+                  <ActivityIndicator color={themeColor().text} size="small" />
                 ) : (
                   <Text style={styles.deleteConfirmModalBtnText}>Delete account</Text>
                 )}
@@ -1819,7 +1805,7 @@ export default function AccountScreen() {
           <View style={s.editModalHeader}>
             <Text style={s.editModalTitle}>Edit profile</Text>
             <Pressable onPress={() => setEditModalOpen(false)} hitSlop={12} style={s.editModalClose}>
-              <FontAwesome name="close" size={20} color="rgba(255,255,255,0.75)" />
+              <FontAwesome name="close" size={20} color={themeColor().text} />
             </Pressable>
           </View>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
@@ -1881,7 +1867,7 @@ export default function AccountScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => void onRefresh()}
-              tintColor={LIME}
+              tintColor={themeColor().pitchText}
             />
           }
         >
@@ -1892,14 +1878,14 @@ export default function AccountScreen() {
               }}
               style={s.actionBanner}
             >
-              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#ef4444" }} />
+              <View style={{ width: 10, height: 10, borderRadius: 10, backgroundColor: themeColor().coral }} />
               <View style={{ flex: 1 }}>
-                <Text style={{ color: "#ef4444", fontWeight: "800", fontSize: 14 }}>Action required</Text>
-                <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 2 }}>
+                <Text style={{ color: themeColor().coral, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" }}>Action required</Text>
+                <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 }}>
                   Your profile is not verified. Scroll down to submit.
                 </Text>
               </View>
-              <Text style={{ color: "#ef4444", fontSize: 16 }}>↓</Text>
+              <Text style={{ color: themeColor().coral, fontSize: 16, fontFamily: "Inter_400Regular" }}>↓</Text>
             </Pressable>
           )}
 
@@ -1921,13 +1907,13 @@ export default function AccountScreen() {
                     </View>
                   )}
                   {avatarUploading && (
-                    <View style={[StyleSheet.absoluteFill, s.avatarFallback, { borderRadius: 40, zIndex: 2 }]}>
-                      <ActivityIndicator color={LIME} />
+                    <View style={[StyleSheet.absoluteFill, s.avatarFallback, { borderRadius: 999, zIndex: 2 }]}>
+                      <ActivityIndicator color={themeColor().pitchText} />
                     </View>
                   )}
                 </View>
                 <View style={s.cameraBadge}>
-                  <FontAwesome name="camera" size={11} color="#0a0a0a" />
+                  <FontAwesome name="camera" size={11} color={themeColor().onPitch} />
                 </View>
               </Pressable>
 
@@ -1941,7 +1927,7 @@ export default function AccountScreen() {
                       <Text style={[s.tierBadgeText, { color: tColor }]}>{tierLabel(currentTier)}</Text>
                     </View>
                     <Text
-                      style={[s.ptsPerSession, { color: ptsPerSession >= 0 ? LIME : "#fca5a5" }]}
+                      style={[s.ptsPerSession, { color: ptsPerSession >= 0 ? themeColor().pitch : themeColor().coral }]}
                       numberOfLines={1}
                     >
                       {ptsPerSessionLabel}
@@ -1954,27 +1940,27 @@ export default function AccountScreen() {
             {/* Stats row */}
             <View style={s.statsRow}>
               <View style={s.statCell}>
-                <FontAwesome name="futbol-o" size={20} color={LIME} />
+                <FontAwesome name="futbol-o" size={20} color={themeColor().pitchText} />
                 <Text style={s.statValue}>{sessionsCount}</Text>
                 <Text style={s.statLabel}>Sessions</Text>
               </View>
               <View style={s.statCell}>
-                <FontAwesome name="percent" size={18} color={LIME} />
+                <FontAwesome name="percent" size={18} color={themeColor().pitchText} />
                 <Text style={s.statValue}>{winPct == null ? "—" : `${winPct}%`}</Text>
                 <Text style={s.statLabel}>Win %</Text>
               </View>
               <View style={s.statCell}>
-                <FontAwesome name="trophy" size={20} color={LIME} />
+                <FontAwesome name="trophy" size={20} color={themeColor().pitchText} />
                 <Text style={s.statValue}>{winsCount ?? 0}</Text>
                 <Text style={s.statLabel}>Wins</Text>
               </View>
               <View style={s.statCell}>
-                <FontAwesome name="fire" size={20} color={LIME} />
+                <FontAwesome name="fire" size={20} color={themeColor().pitchText} />
                 <Text style={s.statValue}>{potdCount}</Text>
                 <Text style={s.statLabel}>MOTM</Text>
               </View>
               <View style={s.statCell}>
-                <FontAwesome name="star" size={19} color={LIME} />
+                <FontAwesome name="star" size={19} color={themeColor().pitchText} />
                 <Text style={s.statValue} numberOfLines={1} adjustsFontSizeToFit>
                   {points.toLocaleString()}
                 </Text>
@@ -2021,7 +2007,7 @@ export default function AccountScreen() {
               <View style={s.tileGrid}>
                 {soccerTiles.map((t, i) => (
                   <View key={`${t.label}-${i}`} style={s.tile}>
-                    <FontAwesome name={t.icon} size={16} color={LIME} />
+                    <FontAwesome name={t.icon} size={16} color={themeColor().pitchText} />
                     <Text style={s.tileLabel} numberOfLines={2}>{t.label}</Text>
                     <Text style={s.tileValue} numberOfLines={2}>{t.value}</Text>
                   </View>
@@ -2043,7 +2029,7 @@ export default function AccountScreen() {
                 style={s.verifyPrompt}
               >
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: "#ef4444" }} />
+                  <View style={{ width: 9, height: 9, borderRadius: 10, backgroundColor: themeColor().coral }} />
                   <Text style={s.verifyPromptTitle}>NOT VERIFIED</Text>
                 </View>
                 <Text style={s.verifyPromptSub}>
@@ -2080,10 +2066,10 @@ export default function AccountScreen() {
                     : "—";
                   const badgeColor =
                     row.result === "Won"
-                      ? LIME
+                      ? themeColor().pitch
                       : row.result === "Lost"
-                        ? "#ef4444"
-                        : "rgba(255,255,255,0.4)";
+                        ? themeColor().coral
+                        : themeColor().overlayStrong;
                   return (
                     <Pressable
                       key={row.run_id}
@@ -2129,10 +2115,10 @@ export default function AccountScreen() {
                 onPress={openEdit}
                 style={[s.listRow, i === accountRows.length - 1 && s.listRowLast]}
               >
-                <FontAwesome name={row.icon} size={17} color={LIME} style={s.listRowIcon} />
+                <FontAwesome name={row.icon} size={17} color={themeColor().pitchText} style={s.listRowIcon} />
                 <Text style={s.listRowLabel}>{row.label}</Text>
                 <Text style={s.listRowValue} numberOfLines={1}>{row.value}</Text>
-                <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+                <FontAwesome name="chevron-right" size={13} color={themeColor().muted} />
               </Pressable>
             ))}
           </View>
@@ -2143,12 +2129,12 @@ export default function AccountScreen() {
                 <Text style={s.blockTitle}>Host Rating</Text>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                <Text style={{ color: "#fff", fontSize: 32, fontWeight: "800" }}>
+                <Text style={{ color: themeColor().text, fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" }}>
                   {hostRating.avg_overall != null ? hostRating.avg_overall.toFixed(1) : "—"}
                 </Text>
-                <FontAwesome name="star" size={20} color={LIME} />
+                <FontAwesome name="star" size={20} color={themeColor().pitchText} />
               </View>
-              <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, marginBottom: 12 }}>
+              <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 12 }}>
                 {hostRating.sessions_hosted} session{hostRating.sessions_hosted === 1 ? "" : "s"} hosted
                 {hostRating.total_ratings > 0
                   ? ` · ${hostRating.total_ratings} rating${hostRating.total_ratings === 1 ? "" : "s"}`
@@ -2174,14 +2160,14 @@ export default function AccountScreen() {
                       paddingVertical: 4,
                     }}
                   >
-                    <Text style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, width: 110 }}>
+                    <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", width: 110 }}>
                       {row.label}
                     </Text>
-                    <Text style={{ color: LIME, fontSize: 13, letterSpacing: 1, flex: 1 }}>{dots}</Text>
+                    <Text style={{ color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 }}>{dots}</Text>
                     <Text
                       style={{
-                        color: "#fff",
-                        fontSize: 13,
+                        color: themeColor().text,
+                        fontSize: 13, fontFamily: "Inter_700Bold",
                         fontWeight: "700",
                         width: 36,
                         textAlign: "right",
@@ -2232,36 +2218,36 @@ export default function AccountScreen() {
           <Text style={[s.blockTitle, { marginBottom: 4 }]}>Account &amp; App</Text>
 
           <Pressable style={s.listRow} onPress={() => (router.push as (href: string) => void)("/waiver")}>
-            <FontAwesome name="file-text-o" size={17} color={LIME} style={s.listRowIcon} />
+            <FontAwesome name="file-text-o" size={17} color={themeColor().pitchText} style={s.listRowIcon} />
             <Text style={s.listRowLabel}>Waiver</Text>
             {waiverLoading ? (
               <Text style={s.listRowValue}>…</Text>
             ) : waiverAccepted ? (
-              <Text style={[s.listRowValue, { color: LIME }]}>Accepted</Text>
+              <Text style={[s.listRowValue, { color: themeColor().pitchText }]}>Accepted</Text>
             ) : (
-              <Text style={[s.listRowValue, { color: "#fcd34d" }]}>Required</Text>
+              <Text style={[s.listRowValue, { color: themeColor().coral }]}>Required</Text>
             )}
-            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+            <FontAwesome name="chevron-right" size={13} color={themeColor().muted} />
           </Pressable>
 
           <Pressable style={s.listRow} onPress={openEdit}>
-            <FontAwesome name="futbol-o" size={17} color={LIME} style={s.listRowIcon} />
+            <FontAwesome name="futbol-o" size={17} color={themeColor().pitchText} style={s.listRowIcon} />
             <Text style={s.listRowLabel}>Soccer Background</Text>
             <Text style={s.listRowValue} />
-            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+            <FontAwesome name="chevron-right" size={13} color={themeColor().muted} />
           </Pressable>
 
           <View style={s.listRow}>
-            <FontAwesome name="line-chart" size={17} color={LIME} style={s.listRowIcon} />
+            <FontAwesome name="line-chart" size={17} color={themeColor().pitchText} style={s.listRowIcon} />
             <Text style={s.listRowLabel}>Reliability</Text>
             <Text style={s.listRowValue}>Coming soon</Text>
             <View style={{ width: 13 }} />
           </View>
 
           <View style={s.listRow}>
-            <FontAwesome name="ticket" size={17} color={LIME} style={s.listRowIcon} />
+            <FontAwesome name="ticket" size={17} color={themeColor().pitchText} style={s.listRowIcon} />
             <Text style={s.listRowLabel}>Your credits</Text>
-            <Text style={[s.listRowValue, { color: (creditsCount ?? 0) > 0 ? LIME : "rgba(255,255,255,0.5)" }]}>
+            <Text style={[s.listRowValue, { color: (creditsCount ?? 0) > 0 ? themeColor().pitch : themeColor().text }]}>
               {creditsCount ?? 0}
             </Text>
             <View style={{ width: 13 }} />
@@ -2271,22 +2257,22 @@ export default function AccountScreen() {
             style={[s.listRow, !isAdmin && s.listRowLast]}
             onPress={() => (router.push as (href: string) => void)("/run-history")}
           >
-            <FontAwesome name="history" size={17} color={LIME} style={s.listRowIcon} />
+            <FontAwesome name="history" size={17} color={themeColor().pitchText} style={s.listRowIcon} />
             <Text style={s.listRowLabel}>Run history</Text>
             <Text style={s.listRowValue} />
-            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+            <FontAwesome name="chevron-right" size={13} color={themeColor().muted} />
           </Pressable>
 
           {isAdmin ? (
             <View style={[s.listRow, s.listRowLast]}>
-              <FontAwesome name="shield" size={17} color={LIME} style={s.listRowIcon} />
+              <FontAwesome name="shield" size={17} color={themeColor().pitchText} style={s.listRowIcon} />
               <Text style={s.listRowLabel}>Admin mode</Text>
               <Switch
                 value={adminModeEnabled}
                 onValueChange={(v) => void setAdminModeEnabled(v)}
                 disabled={!adminModeReady}
-                trackColor={{ false: "rgba(255,255,255,0.18)", true: LIME }}
-                thumbColor="#f4f4f5"
+                trackColor={{ false: themeColor().overlayStrong, true: themeColor().pitch }}
+                thumbColor={themeColor().text}
               />
             </View>
           ) : null}
@@ -2297,33 +2283,33 @@ export default function AccountScreen() {
           <Text style={[s.blockTitle, { marginBottom: 4 }]}>Support &amp; Legal</Text>
 
           <Pressable style={s.listRow} onPress={() => (router.push as (href: string) => void)("/help")}>
-            <FontAwesome name="question-circle" size={17} color={LIME} style={s.listRowIcon} />
+            <FontAwesome name="question-circle" size={17} color={themeColor().pitchText} style={s.listRowIcon} />
             <Text style={s.listRowLabel}>Help</Text>
-            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+            <FontAwesome name="chevron-right" size={13} color={themeColor().muted} />
           </Pressable>
 
           <Pressable style={s.listRow} onPress={() => void Linking.openURL(SUPPORT_MAILTO)}>
-            <FontAwesome name="envelope" size={17} color={LIME} style={s.listRowIcon} />
+            <FontAwesome name="envelope" size={17} color={themeColor().pitchText} style={s.listRowIcon} />
             <Text style={s.listRowLabel}>Contact support</Text>
-            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+            <FontAwesome name="chevron-right" size={13} color={themeColor().muted} />
           </Pressable>
 
           <Pressable style={s.listRow} onPress={() => (router.push as (href: string) => void)("/rules")}>
-            <FontAwesome name="list-alt" size={17} color={LIME} style={s.listRowIcon} />
+            <FontAwesome name="list-alt" size={17} color={themeColor().pitchText} style={s.listRowIcon} />
             <Text style={s.listRowLabel}>Rules</Text>
-            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+            <FontAwesome name="chevron-right" size={13} color={themeColor().muted} />
           </Pressable>
 
           <Pressable style={s.listRow} onPress={() => (router.push as (href: string) => void)("/terms")}>
-            <FontAwesome name="file-o" size={17} color={LIME} style={s.listRowIcon} />
+            <FontAwesome name="file-o" size={17} color={themeColor().pitchText} style={s.listRowIcon} />
             <Text style={s.listRowLabel}>Terms of Service</Text>
-            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+            <FontAwesome name="chevron-right" size={13} color={themeColor().muted} />
           </Pressable>
 
           <Pressable style={s.listRow} onPress={() => (router.push as (href: string) => void)("/privacy-policy")}>
-            <FontAwesome name="shield" size={17} color={LIME} style={s.listRowIcon} />
+            <FontAwesome name="shield" size={17} color={themeColor().pitchText} style={s.listRowIcon} />
             <Text style={s.listRowLabel}>Privacy Policy</Text>
-            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+            <FontAwesome name="chevron-right" size={13} color={themeColor().muted} />
           </Pressable>
 
           <Pressable
@@ -2336,10 +2322,10 @@ export default function AccountScreen() {
               openReviewCodeEntry();
             }}
           >
-            <FontAwesome name="info-circle" size={17} color={LIME} style={s.listRowIcon} />
+            <FontAwesome name="info-circle" size={17} color={themeColor().pitchText} style={s.listRowIcon} />
             <Text style={s.listRowLabel}>About this app</Text>
             <Text style={s.listRowValue}>v{appVersion}</Text>
-            <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" />
+            <FontAwesome name="chevron-right" size={13} color={themeColor().muted} />
           </Pressable>
         </View>
 
@@ -2391,11 +2377,11 @@ export default function AccountScreen() {
         <Pressable style={styles.aboutRow} onPress={() => void signOut()}>
           <View style={styles.aboutLeft}>
             <View style={styles.aboutIconWrap}>
-              <FontAwesome name="sign-out" size={18} color="rgba(255,255,255,0.75)" />
+              <FontAwesome name="sign-out" size={18} color={themeColor().text} />
             </View>
             <Text style={styles.aboutText}>Sign out</Text>
           </View>
-          <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+          <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
         </Pressable>
 
         {reviewModeEnabled ? (
@@ -2417,13 +2403,13 @@ export default function AccountScreen() {
           Permanently remove your account and associated data from CT Pickup.
         </Text>
         <Pressable
-          style={[styles.deleteAccountBtn, { backgroundColor: "#ef4444" }, deleteAccountBusy && styles.disabled]}
+          style={[styles.deleteAccountBtn, { backgroundColor: themeColor().coral }, deleteAccountBusy && styles.disabled]}
           disabled={deleteAccountBusy || !accessToken}
           onPress={startDeleteAccountFlow}
         >
           {deleteAccountBusy ? (
             <View style={styles.deleteAccountBtnBusy}>
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={themeColor().text} />
               <Text style={styles.deleteAccountBtnText}>Deleting…</Text>
             </View>
           ) : (
@@ -2441,10 +2427,8 @@ export default function AccountScreen() {
   );
 }
 
-const CARD_BG = "rgba(255,255,255,0.04)";
-const CARD_BORDER = "rgba(255,255,255,0.08)";
-
-const s = StyleSheet.create({
+function make_s() {
+  return StyleSheet.create({
   /* header */
   header: {
     flexDirection: "row",
@@ -2453,16 +2437,16 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   headerSide: { width: 40, justifyContent: "center" },
-  headerTitle: { flex: 1, textAlign: "center", color: "#fff", fontSize: 20, fontWeight: "800", letterSpacing: 0.2 },
+  headerTitle: { flex: 1, textAlign: "center", color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800",},
   gearBtn: { padding: 4 },
 
   actionBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "rgba(239,68,68,0.08)",
+    backgroundColor: themeColor().overlaySubtle,
     borderWidth: 1.5,
-    borderColor: "#ef4444",
+    borderColor: themeColor().coral,
     borderRadius: 12,
     padding: 14,
     marginBottom: 4,
@@ -2472,34 +2456,33 @@ const s = StyleSheet.create({
   /* hero */
   heroCard: {
     marginTop: 12,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderRadius: 20,
+    backgroundColor: themeColor().overlaySubtle,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: themeColor().overlay,
     padding: 16,
   },
   heroTop: { flexDirection: "row", alignItems: "center", gap: 16 },
   avatarWrap: { width: 84, height: 84 },
-  avatarRing: { width: 84, height: 84, borderRadius: 42, borderWidth: 2.5, padding: 3 },
-  avatarImg: { width: "100%", height: "100%", borderRadius: 40 },
-  avatarFallback: { backgroundColor: "rgba(255,255,255,0.06)", alignItems: "center", justifyContent: "center" },
-  avatarFallbackText: { fontSize: 28, fontWeight: "800" },
+  avatarRing: { width: 84, height: 84, borderRadius: 999, borderWidth: 2.5, padding: 3 },
+  avatarImg: { width: "100%", height: "100%", borderRadius: 999 },
+  avatarFallback: { backgroundColor: themeColor().overlaySubtle, alignItems: "center", justifyContent: "center" },
+  avatarFallbackText: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
   cameraBadge: {
     position: "absolute",
     bottom: 0,
     left: 0,
     width: 26,
     height: 26,
-    borderRadius: 13,
-    backgroundColor: LIME,
-    alignItems: "center",
+    borderRadius: 12,
+    backgroundColor: themeColor().pitch, alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "#0a0a0a",
+    borderColor: themeColor().line,
   },
   heroInfo: { flex: 1, minWidth: 0 },
-  heroName: { color: "#fff", fontSize: 22, fontWeight: "900", letterSpacing: -0.4 },
-  heroUsername: { color: LIME, fontSize: 14, fontWeight: "700", marginTop: 2 },
+  heroName: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900",},
+  heroUsername: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 2 },
   heroBadgeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" },
   tierBadge: {
     flexDirection: "row",
@@ -2510,9 +2493,9 @@ const s = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
-  tierBadgeDiamond: { fontSize: 11 },
-  tierBadgeText: { fontSize: 12, fontWeight: "800", letterSpacing: 0.3 },
-  ptsPerSession: { fontSize: 12, fontWeight: "700", flexShrink: 1 },
+  tierBadgeDiamond: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  tierBadgeText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
+  ptsPerSession: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", flexShrink: 1 },
 
   /* stats */
   statsRow: {
@@ -2520,11 +2503,11 @@ const s = StyleSheet.create({
     marginTop: 18,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: CARD_BORDER,
+    borderTopColor: themeColor().overlay,
   },
   statCell: { flex: 1, alignItems: "center", gap: 5 },
-  statValue: { color: "#fff", fontSize: 18, fontWeight: "900", letterSpacing: -0.3 },
-  statLabel: { color: "rgba(255,255,255,0.45)", fontSize: 11, fontWeight: "600" },
+  statValue: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900",},
+  statLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
 
   /* tier progress */
   tierProgress: {
@@ -2533,36 +2516,35 @@ const s = StyleSheet.create({
     gap: 12,
     marginTop: 16,
     padding: 12,
-    borderRadius: 14,
-    backgroundColor: "rgba(0,0,0,0.25)",
+    borderRadius: 12,
+    backgroundColor: themeColor().bg,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: themeColor().overlay,
   },
-  tierProgressSkeleton: { minHeight: 68, backgroundColor: "rgba(255,255,255,0.04)" },
-  tierProgressTitle: { color: "#fff", fontSize: 14, fontWeight: "800" },
-  tierProgressSub: { color: "rgba(255,255,255,0.5)", fontSize: 11, lineHeight: 15, marginTop: 2 },
+  tierProgressSkeleton: { minHeight: 68, backgroundColor: themeColor().overlaySubtle },
+  tierProgressTitle: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  tierProgressSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 15, marginTop: 2 },
   viewProgressBtn: {
     flexShrink: 0,
     borderWidth: 1,
-    borderColor: LIME,
-    borderRadius: 999,
+    borderColor: themeColor().pitch, borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
-  viewProgressBtnText: { color: LIME, fontWeight: "800", fontSize: 12 },
+  viewProgressBtnText: { color: themeColor().pitchText, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
 
   /* generic block card */
   blockCard: {
     marginTop: 16,
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
+    backgroundColor: themeColor().overlaySubtle,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: themeColor().overlay,
     padding: 16,
   },
   blockHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
-  blockTitle: { color: "#fff", fontSize: 17, fontWeight: "800", letterSpacing: -0.2 },
-  editLink: { color: LIME, fontSize: 14, fontWeight: "800" },
+  blockTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800",},
+  editLink: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "800" },
 
   /* soccer tile grid */
   tileGrid: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: -6 },
@@ -2572,21 +2554,21 @@ const s = StyleSheet.create({
     paddingVertical: 10,
     gap: 6,
   },
-  tileLabel: { color: "rgba(255,255,255,0.45)", fontSize: 11, fontWeight: "600", marginTop: 4 },
-  tileValue: { color: "#fff", fontSize: 13, fontWeight: "700" },
+  tileLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", marginTop: 4 },
+  tileValue: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   emptyBackground: { gap: 12 },
-  emptyBackgroundText: { color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
+  emptyBackgroundText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   verifyPrompt: {
     marginTop: 14,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: "#ef4444",
-    backgroundColor: "rgba(239,68,68,0.06)",
+    borderColor: themeColor().coral,
+    backgroundColor: themeColor().overlaySubtle,
     padding: 12,
     gap: 6,
   },
-  verifyPromptTitle: { color: "#ef4444", fontWeight: "800", fontSize: 13, letterSpacing: 0.3 },
-  verifyPromptSub: { color: "rgba(255,255,255,0.6)", fontSize: 12, lineHeight: 17 },
+  verifyPromptTitle: { color: themeColor().coral, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold",},
+  verifyPromptSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 17 },
 
   sessionHistoryRow: {
     flexDirection: "row",
@@ -2594,19 +2576,19 @@ const s = StyleSheet.create({
     gap: 12,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.06)",
+    borderBottomColor: themeColor().line,
   },
   sessionHistoryRowLast: { borderBottomWidth: 0 },
-  sessionHistoryDate: { color: "rgba(255,255,255,0.45)", fontSize: 12, fontWeight: "600" },
-  sessionHistoryVenue: { color: "#fff", fontSize: 14, fontWeight: "700", marginTop: 2 },
-  sessionHistoryLocation: { color: "rgba(255,255,255,0.45)", fontSize: 12, fontWeight: "500", marginTop: 2 },
-  sessionHistoryResult: { fontSize: 13, fontWeight: "800" },
+  sessionHistoryDate: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  sessionHistoryVenue: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 2 },
+  sessionHistoryLocation: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_500Medium", fontWeight: "500", marginTop: 2 },
+  sessionHistoryResult: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
   mySessionsCard: {
     marginTop: 16,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderRadius: 16,
+    backgroundColor: themeColor().overlaySubtle,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: themeColor().line,
     padding: 16,
   },
   mySessionsHeader: {
@@ -2616,13 +2598,10 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   mySessionsTitle: {
-    color: LIME,
-    fontSize: 11,
+    color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
   },
-  mySessionsViewAll: { color: LIME, fontSize: 13, fontWeight: "700" },
+  mySessionsViewAll: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
 
   /* list rows */
   listRow: {
@@ -2630,12 +2609,12 @@ const s = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.06)",
+    borderBottomColor: themeColor().line,
   },
   listRowLast: { borderBottomWidth: 0 },
   listRowIcon: { width: 26 },
-  listRowLabel: { flex: 1, color: "#fff", fontSize: 15, fontWeight: "600" },
-  listRowValue: { color: "rgba(255,255,255,0.5)", fontSize: 14, marginRight: 10, maxWidth: "48%", textAlign: "right" },
+  listRowLabel: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  listRowValue: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", marginRight: 10, maxWidth: "48%", textAlign: "right" },
 
   /* edit modal */
   editModalHeader: {
@@ -2645,9 +2624,15 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: CARD_BORDER,
+    borderBottomColor: themeColor().overlay,
   },
-  editModalTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
+  editModalTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
   editModalClose: { padding: 4 },
 });
+}
+let s = make_s();
+function publish_s() {
+  s = make_s();
+}
+
 

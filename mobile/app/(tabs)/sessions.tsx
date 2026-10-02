@@ -15,12 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const BG = "#0a0a0a";
-const LIME = "#a3e635";
-const CARD = "rgba(255,255,255,0.04)";
-const CARD_BORDER = "rgba(255,255,255,0.08)";
-const MUTED = "rgba(255,255,255,0.45)";
-
+import { themeColor, useThemedStyles } from "@/theme";
 type AvatarPreview = { id: string; initials: string };
 
 type LiveRow = {
@@ -133,6 +128,8 @@ function isLiveRun(status: string | null, startAt: string | null, nowMs: number)
 }
 
 function LivePulseDot() {
+  useThemedStyles(publish_styles);
+
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -171,6 +168,8 @@ function LivePulseDot() {
 }
 
 export default function SessionsTabScreen() {
+  useThemedStyles(publish_styles);
+
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { session, supabase, isReady } = useAuth();
@@ -490,7 +489,7 @@ export default function SessionsTabScreen() {
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: 120 + insets.bottom }]}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={LIME} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={themeColor().pitchText} />
         }
       >
         <View style={styles.statsBar}>
@@ -516,7 +515,7 @@ export default function SessionsTabScreen() {
 
         {loading ? (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator color={LIME} />
+            <ActivityIndicator color={themeColor().pitchText} />
           </View>
         ) : (
           <>
@@ -593,7 +592,7 @@ export default function SessionsTabScreen() {
                         : "Browse open sessions on the map"}
                     </Text>
                   </View>
-                  <FontAwesome name="map-marker" size={22} color={LIME} />
+                  <FontAwesome name="map-marker" size={22} color={themeColor().pitchText} />
                 </Pressable>
               </>
             ) : null}
@@ -664,10 +663,10 @@ export default function SessionsTabScreen() {
                 {past.map((row) => {
                   const badgeColor =
                     row.result === "Won"
-                      ? LIME
+                      ? themeColor().pitch
                       : row.result === "Lost"
-                        ? "#ef4444"
-                        : "rgba(255,255,255,0.4)";
+                        ? themeColor().coral
+                        : themeColor().overlayStrong;
                   return (
                     <Pressable
                       key={row.run_id}
@@ -716,19 +715,19 @@ export default function SessionsTabScreen() {
         accessibilityRole="button"
         accessibilityLabel="Host a Session"
       >
-        <FontAwesome name="plus" size={22} color="#0a0a0a" />
+        <FontAwesome name="plus" size={22} color={themeColor().onPitch} />
       </Pressable>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BG },
+function make_styles() {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: themeColor().bg },
   header: {
-    color: "#fff",
-    fontSize: 28,
+    color: themeColor().text,
+    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "800",
-    letterSpacing: -0.4,
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 8,
@@ -736,59 +735,57 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingBottom: 120 },
   statsBar: {
     flexDirection: "row",
-    backgroundColor: CARD,
-    borderRadius: 16,
+    backgroundColor: themeColor().overlaySubtle,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: themeColor().overlay,
     paddingVertical: 14,
     marginBottom: 22,
   },
   statCell: { flex: 1, alignItems: "center", gap: 4 },
-  statValue: { color: "#fff", fontSize: 18, fontWeight: "800" },
-  statLabel: { color: MUTED, fontSize: 11, fontWeight: "600" },
+  statValue: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  statLabel: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   sectionTitle: {
-    color: LIME,
-    fontSize: 11,
+    color: themeColor().pitchText,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
     marginBottom: 12,
   },
   loadingWrap: { paddingVertical: 40, alignItems: "center" },
   emptyCard: {
-    backgroundColor: CARD,
-    borderRadius: 16,
+    backgroundColor: themeColor().overlaySubtle,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: themeColor().overlay,
     padding: 16,
     gap: 12,
   },
-  emptyText: { color: MUTED, fontSize: 14, lineHeight: 20 },
+  emptyText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   findBtn: {
     alignSelf: "flex-start",
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
-  findBtnText: { color: "#0a0a0a", fontWeight: "800", fontSize: 14 },
+  findBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
   joinCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    backgroundColor: "rgba(163,230,53,0.1)",
-    borderRadius: 16,
+    backgroundColor: themeColor().pitchSoft,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
+    borderColor: themeColor().pitch,
     padding: 16,
   },
-  joinTitle: { color: "#fff", fontSize: 17, fontWeight: "800" },
-  joinSub: { marginTop: 4, color: "rgba(255,255,255,0.6)", fontSize: 13, lineHeight: 18 },
+  joinTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  joinSub: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   liveCard: {
-    backgroundColor: "rgba(163,230,53,0.08)",
-    borderRadius: 16,
+    backgroundColor: themeColor().pitchSoft,
+    borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: "rgba(163,230,53,0.45)",
+    borderColor: themeColor().pitch,
     padding: 14,
     gap: 6,
   },
@@ -805,27 +802,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: "rgba(163,230,53,0.18)",
+    backgroundColor: themeColor().pitchSoft,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.4)",
+    borderColor: themeColor().pitch,
   },
   liveDotWrap: { width: 10, height: 10, alignItems: "center", justifyContent: "center" },
   liveDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
-    backgroundColor: LIME,
+    borderRadius: 10,
+    backgroundColor: themeColor().pitch,
   },
   liveDotRing: {
     position: "absolute",
     width: 8,
     height: 8,
-    borderRadius: 4,
-    backgroundColor: LIME,
+    borderRadius: 10,
+    backgroundColor: themeColor().pitch,
   },
-  liveBadgeText: { color: LIME, fontSize: 11, fontWeight: "900", letterSpacing: 0.8 },
-  liveTime: { color: MUTED, fontSize: 12, fontWeight: "600" },
-  liveTitle: { color: "#fff", fontSize: 17, fontWeight: "800", marginTop: 2 },
+  liveBadgeText: { color: themeColor().pitch, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "900",},
+  liveTime: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  liveTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", marginTop: 2 },
   liveFooter: {
     flexDirection: "row",
     alignItems: "center",
@@ -836,50 +833,51 @@ const styles = StyleSheet.create({
   avatar: {
     width: 28,
     height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(163,230,53,0.2)",
+    borderRadius: 12,
+    backgroundColor: themeColor().pitchSoft,
     borderWidth: 1.5,
-    borderColor: "#0a0a0a",
+    borderColor: themeColor().line,
     alignItems: "center",
     justifyContent: "center",
     marginRight: -8,
   },
-  avatarText: { color: LIME, fontSize: 10, fontWeight: "800" },
-  avatarMore: { marginLeft: 14, color: MUTED, fontSize: 12, fontWeight: "700" },
+  avatarText: { color: themeColor().pitch, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  avatarMore: { marginLeft: 14, color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   card: {
-    backgroundColor: CARD,
-    borderRadius: 16,
+    backgroundColor: themeColor().overlaySubtle,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: themeColor().overlay,
     padding: 14,
     gap: 4,
   },
-  cardMeta: { color: MUTED, fontSize: 12, fontWeight: "600" },
-  cardTitle: { color: "#fff", fontSize: 16, fontWeight: "700", marginTop: 2 },
+  cardMeta: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  cardTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 2 },
   cardFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: 10,
   },
-  cardChip: { color: MUTED, fontSize: 12, fontWeight: "600" },
-  cardChipLime: { color: LIME, fontSize: 12, fontWeight: "700" },
+  cardChip: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  cardChipLime: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   pastTop: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  resultBadge: { fontSize: 13, fontWeight: "800", marginTop: 2 },
-  awards: { color: LIME, fontSize: 12, fontWeight: "600", marginTop: 8 },
+  resultBadge: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", marginTop: 2 },
+  awards: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", marginTop: 8 },
   fab: {
     position: "absolute",
     right: 20,
     width: 56,
     height: 56,
-    borderRadius: 28,
-    backgroundColor: LIME,
+    borderRadius: 999,
+    backgroundColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

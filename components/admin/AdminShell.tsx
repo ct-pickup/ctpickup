@@ -42,12 +42,12 @@ function NavLink({
     activeMatch === "exact"
       ? pathname === href
       : pathname === href || (href !== "/admin" && pathname.startsWith(href + "/"));
-  const activeCls = active ? "bg-white/10 text-white" : "text-white/65 hover:bg-white/[0.06] hover:text-white";
+  const activeCls = active ? "bg-overlay text-ink" : "text-muted hover:bg-overlay hover:text-ink";
 
   return (
     <Link
       href={href}
-      className={`block rounded-lg px-3 py-2 text-sm transition ${activeCls}`}
+      className={`block rounded-button px-3 py-2 text-small transition${activeCls}`}
     >
       {label}
     </Link>
@@ -58,12 +58,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen bg-black text-white md:flex">
-      <aside className="hidden shrink-0 border-b border-white/10 md:flex md:w-56 md:flex-col md:border-b-0 md:border-r md:border-white/10 md:py-8 md:pl-4 md:pr-3">
-        <div className="px-3 pb-1 text-xs font-semibold uppercase tracking-widest text-white/45">
+    <div className="min-h-screen bg-canvas text-ink md:flex">
+      <aside className="hidden shrink-0 border-b border-line md:flex md:w-56 md:flex-col md:border-b-0 md:border-r md:border-line md:py-8 md:pl-4 md:pr-3">
+        <div className="px-3 pb-1 text-caption font-semibold text-muted">
           CT Pickup
         </div>
-        <div className="px-3 pb-5 text-[11px] font-medium uppercase tracking-wider text-white/35">
+        <div className="px-3 pb-5 text-caption font-medium text-muted">
           Staff control center
         </div>
         <nav className="flex flex-col gap-1" aria-label="Admin navigation">
@@ -78,7 +78,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="mt-auto hidden pt-10 md:block">
-          <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-white/35">
+          <div className="px-3 pb-2 text-caption font-semibold text-muted">
             Public preview
           </div>
           <div className="space-y-0.5">
@@ -88,7 +88,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 href={l.href}
                 target="_blank"
                 rel="noreferrer"
-                className="block rounded-lg px-3 py-1.5 text-xs text-white/50 transition hover:bg-white/[0.04] hover:text-white/80"
+                className="block rounded-button px-3 py-1.5 text-caption text-muted transition hover:bg-overlay-subtle hover:text-ink"
               >
                 {l.label} ↗
               </Link>
@@ -98,7 +98,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <nav
-        className="flex gap-1 overflow-x-auto border-b border-white/10 px-3 py-2 md:hidden"
+        className="flex gap-1 overflow-x-auto border-b border-line px-3 py-2 md:hidden"
         aria-label="Admin navigation"
       >
         {SECTIONS.map((item) => {
@@ -111,9 +111,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
-                active ? "bg-white/15 text-white" : "bg-white/[0.06] text-white/70"
-              }`}
+              className={`shrink-0 rounded-pill px-3 py-1.5 text-caption font-medium ${ active ? "bg-overlay-strong text-ink" : "bg-overlay text-muted" }`}
             >
               {item.label}
             </Link>

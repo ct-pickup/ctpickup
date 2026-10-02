@@ -6,11 +6,11 @@ export function CoachProfileBackBar() {
     <nav aria-label="Back to coaches" className="mb-6 sm:mb-7">
       <Link
         href="/training#coaches"
-        className="group flex min-h-[48px] w-full items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.06] px-4 py-3 text-left shadow-sm transition hover:border-white/20 hover:bg-white/[0.09] sm:min-h-[44px] sm:w-fit sm:py-2.5"
+        className="group flex min-h-[48px] w-full items-center gap-3 rounded-card border border-line bg-overlay px-4 py-3 text-left transition hover:border-line hover:bg-overlay sm:min-h-[44px] sm:w-fit sm:py-2.5"
       >
         <span
           aria-hidden
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/12 bg-white/[0.05] text-white/80 transition group-hover:border-white/18 group-hover:text-white"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-card border border-line bg-overlay-subtle text-ink transition group-hover:border-line group-hover:text-ink"
         >
           <svg
             width="18"
@@ -29,10 +29,10 @@ export function CoachProfileBackBar() {
           </svg>
         </span>
         <span className="min-w-0">
-          <span className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-white/50">
+          <span className="block text-caption font-semibold text-muted">
             Training
           </span>
-          <span className="mt-0.5 block text-sm font-semibold tracking-wide text-white/95">
+          <span className="mt-0.5 block text-small font-semibold text-ink">
             Back to coaches
           </span>
         </span>

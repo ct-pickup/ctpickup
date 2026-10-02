@@ -15,18 +15,19 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const LIME = "#a3e635";
-
-const TIER_COLORS: Record<string, string> = {
-  bronze: "#B87333",
-  silver: "#A8B0B5",
-  gold: "#E3B23C",
-  platinum: "#E8E8E8",
-  diamond: "#9B59B6",
+import { themeColor, useThemedStyles } from "@/theme";
+function TIER_COLORS(): Record<string, string> {
+  return {
+  bronze: themeColor().muted,
+  silver: themeColor().muted,
+  gold: themeColor().muted,
+  platinum: themeColor().muted,
+  diamond: themeColor().muted,
 };
+}
 
 function tierColor(tier: string | null | undefined): string {
-  return tier ? (TIER_COLORS[tier] ?? LIME) : LIME;
+  return tier ? (TIER_COLORS()[tier] ?? themeColor().pitch) : themeColor().pitch;
 }
 
 /** Live-updating elapsed-time string, refreshed every 60 seconds. */
@@ -105,6 +106,8 @@ function initials(name: string): string {
 }
 
 export default function TrainingDetailScreen() {
+  useThemedStyles(publish_s);
+
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -273,7 +276,7 @@ export default function TrainingDetailScreen() {
     return (
       <View style={s.center}>
         <Stack.Screen options={{ headerShown: false }} />
-        <ActivityIndicator color={LIME} size="large" />
+        <ActivityIndicator color={themeColor().pitchText} size="large" />
       </View>
     );
   }
@@ -314,7 +317,7 @@ export default function TrainingDetailScreen() {
         {/* Header */}
         <View style={s.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
-            <FontAwesome name="chevron-left" size={16} color="rgba(255,255,255,0.6)" />
+            <FontAwesome name="chevron-left" size={16} color={themeColor().muted} />
           </Pressable>
           <Text style={s.headerTitle} numberOfLines={1}>
             {post.field_name}
@@ -330,7 +333,7 @@ export default function TrainingDetailScreen() {
 
         {isEnded && (
           <View style={s.endedBanner}>
-            <FontAwesome name="info-circle" size={14} color="#ef4444" />
+            <FontAwesome name="info-circle" size={14} color={themeColor().coral} />
             <Text style={s.endedBannerText}>This training session has ended</Text>
           </View>
         )}
@@ -367,30 +370,30 @@ export default function TrainingDetailScreen() {
         {/* Live timer + session info */}
         <View style={s.card}>
           <View style={s.liveRow}>
-            <View style={[s.liveDot, isEnded && { backgroundColor: "rgba(255,255,255,0.3)" }]} />
-            <Text style={[s.liveText, isEnded && { color: "rgba(255,255,255,0.4)" }]}>
+            <View style={[s.liveDot, isEnded && { backgroundColor: themeColor().overlayStrong }]} />
+            <Text style={[s.liveText, isEnded && { color: themeColor().muted }]}>
               {isEnded ? "Ended" : elapsed || "Just started"}
             </Text>
           </View>
           {post.started_at ? (
             <View style={s.detailRow}>
-              <FontAwesome name="clock-o" size={14} color="rgba(255,255,255,0.4)" />
+              <FontAwesome name="clock-o" size={14} color={themeColor().muted} />
               <Text style={s.detailText}>Started at {fmt12Hour(post.started_at)}</Text>
             </View>
           ) : null}
           {post.training_until ? (
             <View style={s.detailRow}>
-              <FontAwesome name="clock-o" size={14} color="rgba(255,255,255,0.4)" />
+              <FontAwesome name="clock-o" size={14} color={themeColor().muted} />
               <Text style={s.detailText}>Training until {fmt12Hour(post.training_until)}</Text>
             </View>
           ) : null}
           <View style={s.detailRow}>
-            <FontAwesome name="map-marker" size={14} color="rgba(255,255,255,0.4)" />
+            <FontAwesome name="map-marker" size={14} color={themeColor().muted} />
             <Text style={s.detailText}>{post.field_name}</Text>
           </View>
           <View style={s.detailRow}>
-            <FontAwesome name="users" size={14} color="rgba(255,255,255,0.4)" />
-            <Text style={[s.detailText, isFull && accepted.length > 0 && { color: "#ef4444" }]}>
+            <FontAwesome name="users" size={14} color={themeColor().muted} />
+            <Text style={[s.detailText, isFull && accepted.length > 0 && { color: themeColor().coral }]}>
               {spotsLabel}
             </Text>
           </View>
@@ -432,7 +435,7 @@ export default function TrainingDetailScreen() {
                 style={[s.actionBtn, (busy || isFull) && { opacity: 0.5 }]}
               >
                 {busy ? (
-                  <ActivityIndicator color="#0a0a0a" />
+                  <ActivityIndicator color={themeColor().onPitch} />
                 ) : (
                   <Text style={s.actionBtnText}>{isFull ? "Full" : "Request to join"}</Text>
                 )}
@@ -480,7 +483,7 @@ export default function TrainingDetailScreen() {
                         disabled={busy}
                         style={[s.declineBtn, busy && { opacity: 0.5 }]}
                       >
-                        <FontAwesome name="times" size={14} color="#ef4444" />
+                        <FontAwesome name="times" size={14} color={themeColor().coral} />
                       </Pressable>
                       <Pressable
                         onPress={() => void respond(req.id, "accepted")}
@@ -508,7 +511,7 @@ export default function TrainingDetailScreen() {
                           {req.person?.avatar_url ? (
                             <Image source={{ uri: req.person.avatar_url }} style={s.reqAvatarImg} />
                           ) : (
-                            <Text style={[s.reqAvatarText, { color: tc, fontSize: 12 }]}>{initials(name)}</Text>
+                            <Text style={[s.reqAvatarText, { color: tc, fontSize: 13, fontFamily: "Inter_400Regular" }]}>{initials(name)}</Text>
                           )}
                         </View>
                         <Text style={s.attendeeName}>{name}</Text>
@@ -525,31 +528,32 @@ export default function TrainingDetailScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0a0a0a", padding: 20 },
-  center: { flex: 1, backgroundColor: "#0a0a0a", alignItems: "center", justifyContent: "center", padding: 24 },
-  errorText: { color: "rgba(255,255,255,0.5)", fontSize: 16 },
+function make_s() {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: themeColor().bg, padding: 20 },
+  center: { flex: 1, backgroundColor: themeColor().bg, alignItems: "center", justifyContent: "center", padding: 24 },
+  errorText: { color: themeColor().muted, fontSize: 16, fontFamily: "Inter_400Regular" },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 8, marginBottom: 20 },
-  headerTitle: { color: "#fff", fontSize: 17, fontWeight: "700", flex: 1, textAlign: "center", marginHorizontal: 12 },
-  endLink: { color: "#ef4444", fontSize: 15, fontWeight: "700" },
+  headerTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", flex: 1, textAlign: "center", marginHorizontal: 12 },
+  endLink: { color: themeColor().coral, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
   endedBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "rgba(239,68,68,0.1)",
+    backgroundColor: themeColor().overlaySubtle,
     borderWidth: 1,
-    borderColor: "rgba(239,68,68,0.3)",
+    borderColor: themeColor().coral,
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
   },
-  endedBannerText: { color: "#ef4444", fontSize: 14, fontWeight: "600" },
+  endedBannerText: { color: themeColor().coral, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   identityRow: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 16 },
-  avatarRing: { width: 64, height: 64, borderRadius: 32, borderWidth: 2, padding: 3, alignItems: "center", justifyContent: "center" },
-  avatarImg: { width: "100%", height: "100%", borderRadius: 28 },
-  avatarFallback: { backgroundColor: "rgba(255,255,255,0.06)", alignItems: "center", justifyContent: "center" },
-  avatarFallbackText: { fontSize: 20, fontWeight: "800" },
-  hostName: { color: "#fff", fontSize: 22, fontWeight: "800", letterSpacing: -0.3 },
+  avatarRing: { width: 64, height: 64, borderRadius: 999, borderWidth: 2, padding: 3, alignItems: "center", justifyContent: "center" },
+  avatarImg: { width: "100%", height: "100%", borderRadius: 999 },
+  avatarFallback: { backgroundColor: themeColor().overlaySubtle, alignItems: "center", justifyContent: "center" },
+  avatarFallbackText: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  hostName: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800",},
   tierBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -560,76 +564,82 @@ const s = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
-  tierBadgeText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.5 },
-  tierDiamond: { fontSize: 11, fontWeight: "800" },
-  positionText: { color: "rgba(255,255,255,0.55)", fontSize: 13, marginTop: 4 },
+  tierBadgeText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
+  tierDiamond: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  positionText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   card: {
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderRadius: 16,
+    backgroundColor: themeColor().overlaySubtle,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: themeColor().line,
     padding: 16,
     marginBottom: 16,
   },
   liveRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 },
-  liveDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#4ADE80" },
-  liveText: { color: "#4ADE80", fontSize: 16, fontWeight: "800" },
+  liveDot: { width: 10, height: 10, borderRadius: 10, backgroundColor: themeColor().pitch },
+  liveText: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
   detailRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 7 },
-  detailText: { color: "#fff", fontSize: 15, flex: 1 },
-  sectionTitle: { color: "rgba(255,255,255,0.45)", fontSize: 11, fontWeight: "700", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 8 },
-  workingOnText: { color: "#fff", fontSize: 18, fontWeight: "600", lineHeight: 24 },
-  notesText: { color: "rgba(255,255,255,0.8)", fontSize: 15, lineHeight: 21 },
-  actionBtn: { backgroundColor: LIME, borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 4 },
-  actionBtnText: { color: "#0a0a0a", fontWeight: "800", fontSize: 16 },
-  actionBtnDone: { backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
-  actionBtnDoneText: { color: "rgba(255,255,255,0.7)", fontWeight: "700", fontSize: 15 },
-  sectionLabel: { color: "rgba(255,255,255,0.45)", fontSize: 11, fontWeight: "700", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 },
+  detailText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", flex: 1 },
+  sectionTitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 8 },
+  workingOnText: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "600", lineHeight: 24 },
+  notesText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 21 },
+  actionBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", marginTop: 4 },
+  actionBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  actionBtnDone: { backgroundColor: themeColor().overlaySubtle, borderWidth: 1, borderColor: themeColor().line },
+  actionBtnDoneText: { color: themeColor().muted, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
+  sectionLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "500", marginBottom: 12 },
   emptyBox: {
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderRadius: 16,
+    backgroundColor: themeColor().overlaySubtle,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: themeColor().line,
     padding: 18,
   },
-  emptyText: { color: "rgba(255,255,255,0.4)", fontSize: 14, lineHeight: 20 },
+  emptyText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   requestRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderRadius: 14,
+    backgroundColor: themeColor().overlaySubtle,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: themeColor().line,
     padding: 12,
   },
   reqAvatar: {
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: 999,
     borderWidth: 2,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: themeColor().overlaySubtle,
   },
   reqAvatarImg: { width: "100%", height: "100%" },
-  reqAvatarText: { fontWeight: "800", fontSize: 15 },
-  reqName: { color: "#fff", fontSize: 15, fontWeight: "700" },
-  reqMeta: { color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 2 },
+  reqAvatarText: { fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  reqName: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  reqMeta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   declineBtn: {
     width: 40,
     height: 40,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(239,68,68,0.5)",
+    borderColor: themeColor().coral,
     alignItems: "center",
     justifyContent: "center",
   },
-  acceptBtn: { backgroundColor: LIME, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
-  acceptBtnText: { color: "#0a0a0a", fontWeight: "800", fontSize: 14 },
+  acceptBtn: { backgroundColor: themeColor().pitch, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  acceptBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
   attendeeRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
-  attendeeBorder: { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.06)" },
-  attendeeName: { flex: 1, color: "#fff", fontSize: 15, fontWeight: "500" },
-  backBtn: { marginTop: 16, backgroundColor: LIME, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
-  backBtnText: { color: "#0a0a0a", fontWeight: "800" },
+  attendeeBorder: { borderTopWidth: 1, borderTopColor: themeColor().line },
+  attendeeName: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_500Medium", fontWeight: "500" },
+  backBtn: { marginTop: 16, backgroundColor: themeColor().pitch, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+  backBtnText: { color: themeColor().onPitch, fontWeight: "800" },
 });
+}
+let s = make_s();
+function publish_s() {
+  s = make_s();
+}
+

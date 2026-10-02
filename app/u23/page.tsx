@@ -41,18 +41,18 @@ export default function U23Page() {
           <SectionEyebrow>CT Pickup</SectionEyebrow>
 
           <div className="mt-5 space-y-5">
-            <h1 className="max-w-3xl text-3xl font-semibold uppercase tracking-tight text-white md:text-5xl">
+            <h1 className="max-w-3xl text-h1 font-serif font-semibold text-ink md:text-display">
               U23 Select Team
             </h1>
 
-            <p className="max-w-2xl text-base leading-7 text-white/78 md:text-lg">
+            <p className="max-w-2xl text-body leading-7 text-muted md:text-h3 font-serif">
               A competitive U23 team formed through the CT Pickup network, built for
               high-level matches, structured training, and clear standards.
             </p>
 
-            <div className="h-px w-full max-w-xl bg-white/10" />
+            <div className="h-px w-full max-w-xl bg-overlay" />
 
-            <div className="space-y-4 text-base leading-7 text-white/80">
+            <div className="space-y-4 text-body leading-7 text-ink">
               <p>
                 We look for clean technical play under pressure, reliable communication,
                 and players who care about doing things the right way.
@@ -68,17 +68,17 @@ export default function U23Page() {
                 href={APPLY_FORM}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center rounded-md bg-white px-5 py-3 text-sm font-semibold text-black transition hover:opacity-90"
+                className="inline-flex items-center justify-center rounded-button bg-pitch px-5 py-3 text-small font-semibold text-on-pitch transition hover:opacity-90"
               >
                 Apply Now
               </a>
             </div>
 
             <div className="pt-3">
-              <p className="text-sm text-white/65">
+              <p className="text-small text-muted">
                 If selected, we will contact you directly.
               </p>
-              <p className="mt-2 text-sm text-white/50">
+              <p className="mt-2 text-small text-muted">
                 Not all applicants will be accepted. We are building the right team,
                 not the biggest one.
               </p>
@@ -87,7 +87,7 @@ export default function U23Page() {
         </Panel>
 
         <Panel className="p-4 md:p-5">
-          <div className="overflow-hidden rounded-xl border border-white/15">
+          <div className="overflow-hidden rounded-card border border-line">
             <AutoSlider
               images={images}
               intervalMs={5000}
@@ -96,10 +96,10 @@ export default function U23Page() {
           </div>
 
           <div className="space-y-1 px-1 pt-3">
-            <p className="text-sm font-medium tracking-tight text-white/90 md:text-base">
+            <p className="text-small font-medium text-ink md:text-body">
               U23 Select Team, 2025
             </p>
-            <p className="text-xs text-white/55 md:text-sm">Built through CT Pickup.</p>
+            <p className="text-caption text-muted md:text-small">Built through CT Pickup.</p>
           </div>
         </Panel>
       </section>
@@ -107,10 +107,10 @@ export default function U23Page() {
       <section className="mt-6 grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
         <Panel className="p-6 md:p-8">
           <SectionEyebrow>Standards</SectionEyebrow>
-          <h2 className="mt-4 text-xl font-semibold uppercase tracking-tight text-white md:text-2xl">
+          <h2 className="mt-4 text-h3 font-serif font-semibold text-ink md:text-h2">
             High level, serious environment
           </h2>
-          <p className="mt-4 text-base leading-7 text-white/75">
+          <p className="mt-4 text-body leading-7 text-muted">
             We value composure, intensity, and consistency. Players are expected to
             compete, communicate, and carry themselves with maturity every time they
             step on the field.
@@ -124,12 +124,12 @@ export default function U23Page() {
             {playerBenefits.map((item) => (
               <div
                 key={item.title}
-                className="rounded-xl border border-white/15 bg-white/5 p-4 md:p-5"
+                className="rounded-card border border-line bg-overlay-subtle p-4 md:p-5"
               >
-                <h3 className="text-base font-semibold text-white md:text-lg">
+                <h3 className="text-body font-semibold text-ink md:text-h3 font-serif">
                   {item.title}
                 </h3>
-                <p className="mt-3 text-sm leading-6 text-white/70">{item.body}</p>
+                <p className="mt-3 text-small leading-6 text-muted">{item.body}</p>
               </div>
             ))}
           </div>
@@ -140,24 +140,24 @@ export default function U23Page() {
         <Panel className="p-6 md:p-8">
           <div className="max-w-2xl">
             <SectionEyebrow>Video Highlights</SectionEyebrow>
-            <h2 className="mt-4 text-2xl font-semibold uppercase tracking-tight text-white md:text-3xl">
+            <h2 className="mt-4 text-h2 font-serif font-semibold text-ink md:text-h1">
               2025 Summer Season
             </h2>
-            <p className="mt-4 text-base leading-7 text-white/72">
+            <p className="mt-4 text-body leading-7 text-muted">
               Match footage from the U23 team. The presentation stays clean and cinematic,
               while the video itself remains bright and easy to watch.
             </p>
           </div>
 
           <div className="mt-8 grid gap-4">
-            <div className="rounded-xl border border-white/15 bg-black/40 p-3">
+            <div className="rounded-card border border-line bg-overlay-subtle p-3">
               <AutoplayHighlightVideo
                 src="/u23-clip-1.mp4"
                 label="U23 highlight clip 1"
               />
             </div>
 
-            <div className="rounded-xl border border-white/15 bg-black/40 p-3">
+            <div className="rounded-card border border-line bg-overlay-subtle p-3">
               <AutoplayHighlightVideo
                 src="/u23-clip-2.mp4"
                 label="U23 highlight clip 2"

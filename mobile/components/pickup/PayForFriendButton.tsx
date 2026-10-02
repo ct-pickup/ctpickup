@@ -4,6 +4,7 @@ import { hapticGoal, hapticTap } from "@/lib/haptics";
 import { fetchPickupFindPlayers, type PickupFindPlayerResult } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useCallback, useEffect, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -17,8 +18,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-
-const LIME = "#a3e635";
 
 const FRIEND_FIND_NO_PLAYERS_MSG = "No players found. Try a different name or username.";
 
@@ -34,6 +33,8 @@ type Props = {
 };
 
 export function PayForFriendButton({ run, onSuccess }: Props) {
+  useThemedStyles(publish_styles);
+
   const { session } = useAuth();
   const token = session?.access_token ?? null;
   const runId = typeof run.id === "string" ? run.id : null;
@@ -184,7 +185,7 @@ export function PayForFriendButton({ run, onSuccess }: Props) {
           pressed && token && !joinBusy && runId && { opacity: 0.9 },
         ]}
       >
-        <FontAwesome name="user-plus" size={15} color={LIME} />
+        <FontAwesome name="user-plus" size={15} color={themeColor().pitchText} />
         <Text style={styles.btnText}> Pay for a friend</Text>
       </Pressable>
 
@@ -206,7 +207,7 @@ export function PayForFriendButton({ run, onSuccess }: Props) {
             <TextInput
               style={styles.input}
               placeholder="Name or username"
-              placeholderTextColor="rgba(255,255,255,0.4)"
+              placeholderTextColor={themeColor().muted}
               autoCapitalize="none"
               autoCorrect={false}
               value={query}
@@ -219,7 +220,7 @@ export function PayForFriendButton({ run, onSuccess }: Props) {
 
             {searchLoading ? (
               <View style={styles.searchRow}>
-                <ActivityIndicator color={LIME} size="small" />
+                <ActivityIndicator color={themeColor().pitchText} size="small" />
                 <Text style={styles.searchRowText}>Searching…</Text>
               </View>
             ) : null}
@@ -272,7 +273,7 @@ export function PayForFriendButton({ run, onSuccess }: Props) {
                     ]}
                   >
                     {joinBusy ? (
-                      <ActivityIndicator color="#111" size="small" />
+                      <ActivityIndicator color={themeColor().onPitch} size="small" />
                     ) : (
                       <Text style={styles.confirmBtnText}>
                         Pay for {selected.full_name}
@@ -296,7 +297,8 @@ export function PayForFriendButton({ run, onSuccess }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   btn: {
     flexDirection: "row",
     alignItems: "center",
@@ -304,68 +306,74 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.06)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
   btnDisabled: { opacity: 0.5 },
-  btnText: { color: LIME, fontWeight: "700", fontSize: 15 },
+  btnText: { color: themeColor().pitch, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
   backdrop: { flex: 1, justifyContent: "center", padding: 20 },
   backdropPress: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.72)",
+    backgroundColor: themeColor().scrim,
   },
   card: {
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "#141414",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().card,
     padding: 18,
     gap: 10,
   },
-  title: { color: "#fff", fontSize: 18, fontWeight: "800" },
-  hint: { color: "rgba(255,255,255,0.55)", fontSize: 13, lineHeight: 18 },
+  title: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  hint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   input: {
     marginTop: 4,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.04)",
-    color: "#fff",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
+    color: themeColor().text,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 15,
+    fontSize: 16, fontFamily: "Inter_400Regular",
   },
   searchRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  searchRowText: { color: "rgba(255,255,255,0.55)", fontSize: 13 },
+  searchRowText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
   suggestions: {
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: themeColor().line,
     overflow: "hidden",
   },
   suggestionRow: {
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.08)",
+    borderBottomColor: themeColor().line,
   },
   suggestionRowLast: { borderBottomWidth: 0 },
-  suggestionName: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  suggestionUsername: { color: "rgba(255,255,255,0.5)", fontSize: 13, marginTop: 2 },
-  emptyHint: { color: "rgba(255,255,255,0.45)", fontSize: 13 },
-  errorHint: { color: "#fca5a5", fontSize: 13 },
-  selfHint: { color: "rgba(255,255,255,0.55)", fontSize: 13 },
-  selectedLine: { color: "rgba(255,255,255,0.7)", fontSize: 14 },
-  selectedName: { color: "#fff", fontWeight: "800" },
+  suggestionName: { color: themeColor().text, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
+  suggestionUsername: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  emptyHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
+  errorHint: { color: themeColor().coral, fontSize: 13, fontFamily: "Inter_400Regular" },
+  selfHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
+  selectedLine: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
+  selectedName: { color: themeColor().text, fontWeight: "800" },
   confirmBtn: {
     marginTop: 4,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
   },
   confirmBtnDisabled: { opacity: 0.65 },
-  confirmBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  confirmBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   closeBtn: { alignItems: "center", paddingVertical: 10, marginTop: 4 },
-  closeBtnText: { color: "rgba(255,255,255,0.55)", fontWeight: "700", fontSize: 14 },
+  closeBtnText: { color: themeColor().muted, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

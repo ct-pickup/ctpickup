@@ -10,6 +10,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -22,8 +23,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-
-const LIME = "#a3e635";
 
 type TierOption = {
   rank: number;
@@ -74,6 +73,8 @@ function fmtRoomLine(r: ChatRoom): string {
 }
 
 export default function AdminChatScreen() {
+  useThemedStyles(publish_styles);
+
   const { session, supabase, isReady: authReady } = useAuth();
   const token = session?.access_token ?? null;
   const router = useRouter();
@@ -255,7 +256,7 @@ export default function AdminChatScreen() {
           value={slug}
           onChangeText={setSlug}
           placeholder="ct-announcements"
-          placeholderTextColor="rgba(255,255,255,0.35)"
+          placeholderTextColor={themeColor().muted}
           autoCapitalize="none"
           autoCorrect={false}
         />
@@ -265,7 +266,7 @@ export default function AdminChatScreen() {
           value={title}
           onChangeText={setTitle}
           placeholder="Announcements"
-          placeholderTextColor="rgba(255,255,255,0.35)"
+          placeholderTextColor={themeColor().muted}
         />
 
         <Text style={styles.label}>Room type</Text>
@@ -317,11 +318,11 @@ export default function AdminChatScreen() {
               value={memberQuery}
               onChangeText={setMemberQuery}
               placeholder="First name, last name, or email"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
               autoCapitalize="none"
               autoCorrect={false}
             />
-            {memberSearchBusy ? <ActivityIndicator color="#fff" style={{ marginTop: 8 }} /> : null}
+            {memberSearchBusy ? <ActivityIndicator color={themeColor().text} style={{ marginTop: 8 }} /> : null}
             {memberHits.length > 0 ? (
               <View style={styles.hitBox}>
                 {memberHits.map((p) => {
@@ -386,7 +387,7 @@ export default function AdminChatScreen() {
           value={announceDraft}
           onChangeText={setAnnounceDraft}
           placeholder="Write an update…"
-          placeholderTextColor="rgba(255,255,255,0.35)"
+          placeholderTextColor={themeColor().muted}
           multiline
         />
         <Pressable
@@ -410,7 +411,7 @@ export default function AdminChatScreen() {
         </Pressable>
       </View>
 
-        {loading ? <ActivityIndicator color="#fff" style={{ marginTop: 10 }} /> : null}
+        {loading ? <ActivityIndicator color={themeColor().text} style={{ marginTop: 10 }} /> : null}
         {error ? <Text style={styles.err}>{error}</Text> : null}
 
         <View style={styles.card}>
@@ -461,53 +462,54 @@ export default function AdminChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0a0a0a" },
+function make_styles() {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 16, paddingBottom: 40 },
-  h1: { fontSize: 28, fontWeight: "800", color: "#fff" },
+  h1: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  chipText: { color: LIME, fontWeight: "800", fontSize: 13 },
-  err: { marginTop: 10, color: "#fca5a5" },
+  chipText: { color: themeColor().pitch, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
+  err: { marginTop: 10, color: themeColor().coral },
   card: {
     marginTop: 14,
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  cardTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
-  label: { marginTop: 12, fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.55)" },
-  labelInline: { fontSize: 13, fontWeight: "800", color: "rgba(255,255,255,0.75)" },
+  cardTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
+  label: { marginTop: 12, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
+  labelInline: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
   input: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: themeColor().line,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 15,
-    color: "#fff",
-    backgroundColor: "rgba(0,0,0,0.35)",
+    fontSize: 16, fontFamily: "Inter_400Regular",
+    color: themeColor().text,
+    backgroundColor: themeColor().overlaySubtle,
   },
   inputMulti: { minHeight: 88, textAlignVertical: "top" },
   primary: {
     marginTop: 14,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
   },
-  primaryText: { color: "#111", fontWeight: "900", fontSize: 15 },
-  bodyMuted: { marginTop: 10, color: "rgba(255,255,255,0.6)", fontSize: 13.5, lineHeight: 19 },
+  primaryText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
+  bodyMuted: { marginTop: 10, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 19 },
   segmentRow: {
     marginTop: 8,
     flexDirection: "row",
@@ -519,38 +521,38 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   segmentActive: {
-    borderColor: LIME,
-    backgroundColor: "rgba(163,230,53,0.18)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  segmentText: { color: "rgba(255,255,255,0.75)", fontWeight: "800", fontSize: 13 },
-  segmentTextActive: { color: LIME },
+  segmentText: { color: themeColor().text, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
+  segmentTextActive: { color: themeColor().pitchText },
   tierRow: { marginTop: 8, flexDirection: "row", flexWrap: "wrap", gap: 8 },
   tierChip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  tierChipActive: { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.18)" },
-  tierChipText: { color: "rgba(255,255,255,0.75)", fontWeight: "800", fontSize: 12 },
-  tierChipTextActive: { color: LIME },
+  tierChipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  tierChipText: { color: themeColor().text, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
+  tierChipTextActive: { color: themeColor().pitchText },
   hitBox: {
     marginTop: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.25)",
+    borderColor: themeColor().pitch,
     overflow: "hidden",
-    backgroundColor: "rgba(0,0,0,0.25)",
+    backgroundColor: themeColor().bg,
   },
-  hitRow: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
-  hitTitle: { color: "#fff", fontWeight: "800", fontSize: 14 },
-  hitSub: { marginTop: 2, color: "rgba(255,255,255,0.5)", fontSize: 12 },
+  hitRow: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: themeColor().line },
+  hitTitle: { color: themeColor().text, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
+  hitSub: { marginTop: 2, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
   memberRow: {
     marginTop: 8,
     flexDirection: "row",
@@ -560,28 +562,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  memberName: { color: "#fff", fontWeight: "800", fontSize: 13 },
-  memberSub: { marginTop: 2, color: "rgba(255,255,255,0.5)", fontSize: 11 },
+  memberName: { color: themeColor().text, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
+  memberSub: { marginTop: 2, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
   roomRow: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 10 },
-  roomTitle: { color: "#fff", fontWeight: "800" },
-  roomSub: { marginTop: 2, color: "rgba(255,255,255,0.5)", fontSize: 12, lineHeight: 16 },
+  roomTitle: { color: themeColor().text, fontWeight: "800" },
+  roomSub: { marginTop: 2, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 16 },
   smallChip: {
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  smallChipText: { color: "#fff", fontWeight: "900", fontSize: 12 },
+  smallChipText: { color: themeColor().text, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
   smallChipDanger: {
-    borderColor: "rgba(248,113,113,0.35)",
-    backgroundColor: "rgba(248,113,113,0.10)",
+    borderColor: themeColor().coral,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  smallChipDangerText: { color: "#fecaca", fontWeight: "900", fontSize: 12 },
-  muted: { marginTop: 10, color: "rgba(255,255,255,0.6)" },
+  smallChipDangerText: { color: themeColor().coral, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
+  muted: { marginTop: 10, color: themeColor().muted },
   disabled: { opacity: 0.55 },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

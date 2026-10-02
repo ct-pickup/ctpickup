@@ -32,10 +32,10 @@ export function PickupSubpageShell({
 
       <div className={`mx-auto ${maxWidthClass}`}>
         <SectionEyebrow>Pickup</SectionEyebrow>
-        <h1 className="mt-3 text-2xl font-bold uppercase tracking-[0.14em] text-white sm:text-3xl">
+        <h1 className="mt-3 text-h2 font-serif font-bold text-ink sm:text-h1">
           {title}
         </h1>
-        <p className="mb-8 mt-4 text-sm text-white/70">{intro}</p>
+        <p className="mb-8 mt-4 text-small text-muted">{intro}</p>
         {children}
       </div>
     </PageShell>
@@ -54,10 +54,10 @@ export function PickupSubpageLoading({ title }: { title: string }) {
       <EsportsSetupNudgeBar />
       <div className="mx-auto max-w-3xl">
         <SectionEyebrow>Pickup</SectionEyebrow>
-        <h1 className="mt-3 text-2xl font-bold uppercase tracking-[0.14em] text-white sm:text-3xl">
+        <h1 className="mt-3 text-h2 font-serif font-bold text-ink sm:text-h1">
           {title}
         </h1>
-        <p className="mt-4 text-sm text-white/60">Loading…</p>
+        <p className="mt-4 text-small text-muted">Loading…</p>
       </div>
     </PageShell>
   );

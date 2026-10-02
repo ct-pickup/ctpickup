@@ -4,9 +4,7 @@ import { SERVICE_REGIONS, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
-const LIME = "#a3e635";
-const BG = "#0a0a0a";
-
+import { themeColor, useThemedStyles } from "@/theme";
 type Props = {
   /** Called after the row’s region is chosen (caller may also persist hub region). */
   onSelectState: (code: ServiceRegionCode) => void;
@@ -15,6 +13,8 @@ type Props = {
 };
 
 export function RegionsPickerPanel({ onSelectState, variant = "pickup" }: Props) {
+  useThemedStyles(publish_styles);
+
   const leadText =
     variant === "tournament"
       ? "We run tournaments in four states. Select your state to see what's coming up and register your team."
@@ -49,7 +49,7 @@ export function RegionsPickerPanel({ onSelectState, variant = "pickup" }: Props)
                     <Text style={styles.stateName}>{r.name}</Text>
                     <Text style={styles.stateHint}>Runs & RSVPs</Text>
                   </View>
-                  <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+                  <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
                 </View>
               </AnimatedPressScale>
             </View>
@@ -61,36 +61,31 @@ export function RegionsPickerPanel({ onSelectState, variant = "pickup" }: Props)
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 8, backgroundColor: BG },
+function make_styles() {
+  return StyleSheet.create({
+  scroll: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 8, backgroundColor: themeColor().bg },
   kicker: {
-    fontSize: 11,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 2,
-    color: "rgba(163,230,53,0.65)",
+    color: themeColor().pitchText,
     marginBottom: 8,
   },
-  headline: { fontSize: 30, fontWeight: "800", color: "#fff", letterSpacing: -0.6 },
-  headlineAccent: { color: LIME },
+  headline: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text,},
+  headlineAccent: { color: themeColor().pitchText },
   lead: {
     marginTop: 12,
-    fontSize: 16,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 24,
-    color: "rgba(255,255,255,0.58)",
+    color: themeColor().muted,
   },
   grid: { marginTop: 28 },
   cardGap: { marginTop: 12 },
   card: {
-    borderRadius: 18,
+    borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "rgba(255,255,255,0.035)",
-    shadowColor: "#000",
-    shadowOpacity: 0.45,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 2,
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   cardAccent: {
     position: "absolute",
@@ -98,7 +93,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 4,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderTopLeftRadius: 18,
     borderBottomLeftRadius: 18,
   },
@@ -112,21 +107,27 @@ const styles = StyleSheet.create({
   codeBadge: {
     width: 52,
     height: 52,
-    borderRadius: 14,
-    backgroundColor: "rgba(163,230,53,0.12)",
+    borderRadius: 12,
+    backgroundColor: themeColor().pitchSoft,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
+    borderColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
   },
-  codeText: { fontSize: 17, fontWeight: "900", color: LIME, letterSpacing: 0.5 },
+  codeText: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "900", color: themeColor().pitchText,},
   cardBody: { flex: 1, marginLeft: 16 },
-  stateName: { fontSize: 18, fontWeight: "700", color: "#fff" },
-  stateHint: { marginTop: 4, fontSize: 13, color: "rgba(255,255,255,0.45)" },
+  stateName: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text },
+  stateHint: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
   footerNote: {
     marginTop: 28,
-    fontSize: 13,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     lineHeight: 20,
-    color: "rgba(255,255,255,0.38)",
+    color: themeColor().muted,
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

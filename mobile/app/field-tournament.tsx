@@ -19,6 +19,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useNavigation, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -30,8 +31,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-
-const LIME = "#a3e635";
 
 const PROCESSING_STATUSES = new Set([
   "payment_received",
@@ -112,6 +111,8 @@ function alertCaptainPayError(errMsg: string) {
 }
 
 export default function FieldTournamentDetailScreen() {
+  useThemedStyles(publish_styles);
+
   const navigation = useNavigation();
   const router = useRouter();
   const { region } = useSelectedRegion();
@@ -177,11 +178,11 @@ export default function FieldTournamentDetailScreen() {
       title: "In-person tournament",
       headerTitleAlign: "center",
       headerStyle: {
-        backgroundColor: "#0a0a0a",
+        backgroundColor: themeColor().bg,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: "rgba(255,255,255,0.08)",
+        borderBottomColor: themeColor().line,
       },
-      headerTintColor: "#fff",
+      headerTintColor: themeColor().text,
       headerShadowVisible: false,
     });
   }, [navigation]);
@@ -533,11 +534,11 @@ export default function FieldTournamentDetailScreen() {
       >
         <View style={styles.statusLinkLeft}>
           <View style={styles.statusLinkIconWrap}>
-            <FontAwesome name="trophy" size={16} color="rgba(255,255,255,0.8)" />
+            <FontAwesome name="trophy" size={16} color={themeColor().text} />
           </View>
           <Text style={styles.statusLinkText}>Tournament status</Text>
         </View>
-        <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+        <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
       </Pressable>
 
       {t ? (
@@ -562,7 +563,7 @@ export default function FieldTournamentDetailScreen() {
       {t ? (
         <>
           {session && captainClaimLoading ? (
-            <ActivityIndicator style={{ marginTop: 14 }} color={LIME} />
+            <ActivityIndicator style={{ marginTop: 14 }} color={themeColor().pitchText} />
           ) : null}
 
           {session && sessionClaimReady && !captainCanManageRoster(captainClaim?.status ?? "") && tournamentId ? (
@@ -572,7 +573,7 @@ export default function FieldTournamentDetailScreen() {
               accessibilityRole="button"
               accessibilityLabel="Find a team"
             >
-              <FontAwesome name="users" size={16} color="#111" style={{ marginRight: 8 }} />
+              <FontAwesome name="users" size={16} color={themeColor().onPitch} style={{ marginRight: 8 }} />
               <Text style={styles.findTeamBtnText}>Find a team</Text>
             </Pressable>
           ) : null}
@@ -596,11 +597,11 @@ export default function FieldTournamentDetailScreen() {
                   setInviteFound(null);
                 }}
               >
-                <FontAwesome name="user-plus" size={15} color="#111" style={{ marginRight: 8 }} />
+                <FontAwesome name="user-plus" size={15} color={themeColor().onPitch} style={{ marginRight: 8 }} />
                 <Text style={styles.inviteOpenBtnText}>Invite player</Text>
               </Pressable>
 
-              {rosterLoading ? <ActivityIndicator style={{ marginTop: 12 }} color={LIME} /> : null}
+              {rosterLoading ? <ActivityIndicator style={{ marginTop: 12 }} color={themeColor().pitchText} /> : null}
 
               {rosterRows.length ? (
                 <View style={{ marginTop: 14 }}>
@@ -698,7 +699,7 @@ export default function FieldTournamentDetailScreen() {
                 accessibilityLabel="Pay captain fee"
               >
                 {payBusy ? (
-                  <ActivityIndicator color="#111" />
+                  <ActivityIndicator color={themeColor().onPitch} />
                 ) : (
                   <Text style={styles.captainPayBtnTextDark}>
                     Pay captain fee $
@@ -744,7 +745,7 @@ export default function FieldTournamentDetailScreen() {
 
       {payload?.tournament && payload.tournament.announcement ? (
         <View style={styles.note}>
-          <FontAwesome name="bullhorn" size={16} color="rgba(163,230,53,0.85)" />
+          <FontAwesome name="bullhorn" size={16} color={themeColor().pitchText} />
           <Text style={styles.noteText}>{payload.tournament.announcement}</Text>
         </View>
       ) : null}
@@ -779,7 +780,7 @@ export default function FieldTournamentDetailScreen() {
               setInviteFound(null);
             }}
             placeholder="username or email"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
             style={styles.inviteInput}
             autoCapitalize="none"
             autoCorrect={false}
@@ -790,7 +791,7 @@ export default function FieldTournamentDetailScreen() {
             onPress={() => void onInviteSearch()}
           >
             {inviteSearchBusy ? (
-              <ActivityIndicator color="#111" />
+              <ActivityIndicator color={themeColor().onPitch} />
             ) : (
               <Text style={styles.inviteSearchBtnText}>Search</Text>
             )}
@@ -810,7 +811,7 @@ export default function FieldTournamentDetailScreen() {
             onPress={() => void onInviteSend()}
           >
             {inviteSendBusy ? (
-              <ActivityIndicator color="#111" />
+              <ActivityIndicator color={themeColor().onPitch} />
             ) : (
               <Text style={styles.inviteSendBtnText}>Send invite</Text>
             )}
@@ -825,29 +826,29 @@ export default function FieldTournamentDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0a0a0a" },
+function make_styles() {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 20, paddingBottom: 40 },
   kicker: {
-    fontSize: 11,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 1.4,
-    color: "rgba(163,230,53,0.65)",
+    color: themeColor().pitchText,
   },
   lead: {
     marginTop: 10,
-    fontSize: 15,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 22,
-    color: "rgba(255,255,255,0.58)",
+    color: themeColor().muted,
   },
   statusLinkRow: {
     marginTop: 14,
     paddingVertical: 14,
     paddingHorizontal: 14,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -859,11 +860,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    backgroundColor: themeColor().pitchSoft,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
+    borderColor: themeColor().pitch,
   },
-  statusLinkText: { fontSize: 15, fontWeight: "700", color: "rgba(255,255,255,0.9)" },
+  statusLinkText: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().text },
   statsRow: {
     marginTop: 14,
     flexDirection: "row",
@@ -873,23 +874,21 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   chipLabel: {
-    fontSize: 10,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 0.8,
-    color: "rgba(255,255,255,0.55)",
-    textTransform: "uppercase",
+    color: themeColor().muted,
   },
   chipValue: {
     marginTop: 6,
-    fontSize: 18,
+    fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "800",
-    color: "#fff",
+    color: themeColor().text,
   },
   claimBtn: {
     marginTop: 14,
@@ -897,16 +896,16 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
   },
   claimBtnDisabled: { opacity: 0.45 },
-  claimBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  claimBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   claimSubText: {
     marginTop: 8,
-    fontSize: 12,
-    color: "rgba(255,255,255,0.5)",
+    fontSize: 13, fontFamily: "Inter_400Regular",
+    color: themeColor().muted,
     textAlign: "center",
   },
   note: {
@@ -915,19 +914,19 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 12,
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.22)",
-    backgroundColor: "rgba(163,230,53,0.06)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  noteText: { flex: 1, fontSize: 14, lineHeight: 21, color: "rgba(255,255,255,0.78)" },
+  noteText: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21, color: themeColor().pitch },
   section: { marginTop: 28 },
-  sectionTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
+  sectionTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
   body: {
     marginTop: 10,
-    fontSize: 14,
+    fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 21,
-    color: "rgba(255,255,255,0.62)",
+    color: themeColor().muted,
   },
   captainPayBtnInCard: {
     marginTop: 14,
@@ -936,45 +935,45 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
   },
   captainPayBtnDisabled: { opacity: 0.45 },
-  captainPayBtnTextDark: { color: "#111", fontWeight: "800", fontSize: 15 },
+  captainPayBtnTextDark: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   confirmedBanner: {
     marginTop: 14,
     paddingVertical: 14,
     paddingHorizontal: 14,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.45)",
-    backgroundColor: "rgba(163,230,53,0.12)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
   confirmedBannerText: {
-    fontSize: 15,
+    fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    color: LIME,
+    color: themeColor().pitch,
     textAlign: "center",
   },
   claimStatusCard: {
     marginTop: 14,
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   claimStatusCardText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 21,
-    color: "rgba(255,255,255,0.82)",
+    color: themeColor().text,
   },
   paymentDueLine: {
     marginTop: 10,
-    fontSize: 13,
+    fontSize: 13, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
-    color: "rgba(255,255,255,0.55)",
+    color: themeColor().muted,
   },
   findTeamBtn: {
     marginTop: 14,
@@ -984,23 +983,23 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.45)",
-    backgroundColor: "rgba(163,230,53,0.12)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  findTeamBtnText: { color: LIME, fontWeight: "800", fontSize: 15 },
+  findTeamBtnText: { color: themeColor().pitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   myTeamSection: {
     marginTop: 16,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   sectionSub: {
     marginTop: 8,
-    fontSize: 13,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     lineHeight: 19,
-    color: "rgba(255,255,255,0.52)",
+    color: themeColor().muted,
   },
   inviteOpenBtn: {
     marginTop: 14,
@@ -1009,128 +1008,132 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
   },
-  inviteOpenBtnText: { color: "#111", fontWeight: "800", fontSize: 14 },
+  inviteOpenBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
   rosterRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255,255,255,0.08)",
+    borderBottomColor: themeColor().line,
   },
-  rosterName: { fontSize: 15, fontWeight: "700", color: "#fff" },
-  rosterMeta: { marginTop: 4, fontSize: 12, color: "rgba(255,255,255,0.5)" },
+  rosterName: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().text },
+  rosterMeta: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
   removeBtn: {
     paddingVertical: 8,
     paddingHorizontal: 10,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(248,113,113,0.5)",
+    borderColor: themeColor().coral,
   },
-  removeBtnText: { color: "rgba(248,113,113,0.95)", fontWeight: "700", fontSize: 12 },
-  emptyRoster: { marginTop: 10, fontSize: 13, color: "rgba(255,255,255,0.45)" },
+  removeBtnText: { color: themeColor().coral, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
+  emptyRoster: { marginTop: 10, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
   joinReqTitle: {
-    fontSize: 13,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    color: LIME,
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
+    color: themeColor().pitchText,
   },
   joinReqCard: {
     marginTop: 10,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(0,0,0,0.25)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().bg,
   },
   joinReqActions: { marginTop: 12, flexDirection: "row", gap: 10 },
   approveBtn: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     alignItems: "center",
   },
-  approveBtnText: { color: "#111", fontWeight: "800", fontSize: 13 },
+  approveBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
   declineBtn: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: themeColor().line,
     alignItems: "center",
   },
-  declineBtnText: { color: "rgba(255,255,255,0.75)", fontWeight: "700", fontSize: 13 },
-  inviteModalRoot: { flex: 1, backgroundColor: "rgba(0,0,0,0.65)", justifyContent: "flex-end" },
+  declineBtnText: { color: themeColor().text, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
+  inviteModalRoot: { flex: 1, backgroundColor: themeColor().scrim, justifyContent: "flex-end" },
   inviteModalSheet: {
     padding: 20,
     paddingBottom: 36,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
-    backgroundColor: "#121212",
+    backgroundColor: themeColor().bg,
     borderTopWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: themeColor().line,
   },
-  inviteModalTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
-  inviteModalHint: { marginTop: 8, fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 18 },
+  inviteModalTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
+  inviteModalHint: { marginTop: 8, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 18 },
   inviteInput: {
     marginTop: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: themeColor().line,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: "#fff",
-    fontSize: 15,
+    color: themeColor().text,
+    fontSize: 16, fontFamily: "Inter_400Regular",
   },
   inviteSearchBtn: {
     marginTop: 12,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
   },
-  inviteSearchBtnText: { color: "#111", fontWeight: "800", fontSize: 14 },
+  inviteSearchBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
   inviteFoundBox: {
     marginTop: 14,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: "rgba(163,230,53,0.08)",
+    backgroundColor: themeColor().pitchSoft,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.3)",
+    borderColor: themeColor().pitch,
   },
-  inviteFoundLabel: { fontSize: 11, fontWeight: "800", color: LIME, textTransform: "uppercase" },
-  inviteFoundName: { marginTop: 6, fontSize: 16, fontWeight: "800", color: "#fff" },
-  inviteFoundUser: { marginTop: 4, fontSize: 14, color: "rgba(255,255,255,0.55)" },
+  inviteFoundLabel: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().pitchText, },
+  inviteFoundName: { marginTop: 6, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
+  inviteFoundUser: { marginTop: 4, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
   inviteSendBtn: {
     marginTop: 16,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
   },
-  inviteSendBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  inviteSendBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   inviteCancelBtn: { marginTop: 12, paddingVertical: 12, alignItems: "center" },
-  inviteCancelBtnText: { color: "rgba(255,255,255,0.45)", fontWeight: "600", fontSize: 14 },
+  inviteCancelBtnText: { color: themeColor().muted, fontWeight: "600", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   detailCard: {
     marginTop: 14,
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     gap: 8,
   },
-  detailLine: { fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 20 },
-  detailLabel: { fontWeight: "800", color: LIME },
+  detailLine: { fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().text, lineHeight: 20 },
+  detailLabel: { fontWeight: "800", color: themeColor().pitchText },
   teamsSection: { marginTop: 18 },
   teamRow: {
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255,255,255,0.08)",
+    borderBottomColor: themeColor().line,
   },
-  teamName: { fontSize: 15, fontWeight: "700", color: "#fff" },
-  teamCap: { marginTop: 4, fontSize: 13, color: "rgba(255,255,255,0.5)" },
+  teamName: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().text },
+  teamCap: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

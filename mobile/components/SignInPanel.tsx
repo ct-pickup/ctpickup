@@ -1,5 +1,4 @@
 import { useAuth } from "@/context/AuthContext";
-import { CT_PICKUP_LIME } from "@/constants/Colors";
 import {
   biometricSignInLabel,
   disableBiometricSignIn,
@@ -16,6 +15,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -33,7 +33,6 @@ import {
   View,
 } from "react-native";
 
-const LIME = CT_PICKUP_LIME;
 const OTP_RESEND_COOLDOWN_SEC = 30;
 const PASSWORD_MIN_LEN = 8;
 /** Accounts older than this after OTP verify are treated as already registered (not brand-new). */
@@ -57,6 +56,8 @@ function AuthTextInput({
   labelSpaced,
   ...inputProps
 }: TextInputProps & { label: string; labelSpaced?: boolean }) {
+  useThemedStyles(publish_styles);
+
   const [focused, setFocused] = useState(false);
   return (
     <>
@@ -64,7 +65,7 @@ function AuthTextInput({
       <TextInput
         {...inputProps}
         style={[styles.input, focused && styles.inputFocused]}
-        placeholderTextColor={inputProps.placeholderTextColor ?? "rgba(255,255,255,0.32)"}
+        placeholderTextColor={inputProps.placeholderTextColor ?? themeColor().muted}
         onFocus={(e) => {
           setFocused(true);
           inputProps.onFocus?.(e);
@@ -89,14 +90,16 @@ function PrimaryButton({
   disabled: boolean;
   onPress: () => void;
 }) {
+  useThemedStyles(publish_styles);
+
   return (
     <Pressable style={[styles.primaryBtn, disabled && styles.disabled]} disabled={disabled} onPress={onPress}>
       {busy ? (
-        <ActivityIndicator color="#0a0a0a" />
+        <ActivityIndicator color={themeColor().onPitch} />
       ) : (
         <View style={styles.primaryBtnRow}>
           <Text style={styles.primaryBtnText}>{label}</Text>
-          <FontAwesome name="long-arrow-right" size={18} color="#0a0a0a" />
+          <FontAwesome name="long-arrow-right" size={18} color={themeColor().onPitch} />
         </View>
       )}
     </Pressable>
@@ -104,6 +107,8 @@ function PrimaryButton({
 }
 
 export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const { supabase, refreshSession } = useAuth();
 
@@ -685,7 +690,7 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
                 <FontAwesome
                   name={bioLabel === "Touch ID" ? "hand-o-up" : "user-circle-o"}
                   size={18}
-                  color="#e5e5e5"
+                  color={themeColor().text}
                 />
                 <Text style={styles.bioBtnText}>Sign in with {bioLabel}</Text>
               </Pressable>
@@ -796,7 +801,8 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   panelRoot: { width: "100%" },
   brandHeader: {
     alignItems: "center",
@@ -805,10 +811,10 @@ const styles = StyleSheet.create({
   brandIconWrap: {
     width: 72,
     height: 72,
-    borderRadius: 20,
-    backgroundColor: "rgba(163,230,53,0.12)",
+    borderRadius: 999,
+    backgroundColor: themeColor().pitchSoft,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.28)",
+    borderColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
@@ -817,31 +823,30 @@ const styles = StyleSheet.create({
   brandIcon: {
     width: 56,
     height: 56,
-    borderRadius: 14,
+    borderRadius: 12,
   },
   brandTitle: {
-    fontSize: 32,
+    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "900",
-    color: "#fff",
-    letterSpacing: -0.5,
+    color: themeColor().text,
   },
   brandTagline: {
     marginTop: 8,
-    fontSize: 15,
-    color: "rgba(255,255,255,0.45)",
+    fontSize: 16, fontFamily: "Inter_400Regular",
+    color: themeColor().muted,
     textAlign: "center",
   },
-  sectionTitle: { marginTop: 28, fontSize: 18, fontWeight: "700", color: "#fff" },
+  sectionTitle: { marginTop: 28, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text },
   sectionAboveAuth: { marginTop: 20 },
   segmentRow: {
     flexDirection: "row",
     marginTop: 20,
     marginBottom: 4,
     padding: 4,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     position: "relative",
     overflow: "hidden",
   },
@@ -855,7 +860,7 @@ const styles = StyleSheet.create({
     bottom: 4,
     left: 0,
     borderRadius: 12,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
   },
   segmentTab: {
     flex: 1,
@@ -866,40 +871,40 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   segmentTabText: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 13,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
     textAlign: "center",
   },
   segmentTabTextActive: {
-    color: "#0a0a0a",
+    color: themeColor().onPitch,
     fontWeight: "900",
   },
   trustLine: {
     marginTop: 4,
     marginBottom: 12,
-    fontSize: 13,
-    color: "rgba(255,255,255,0.45)",
+    fontSize: 13, fontFamily: "Inter_400Regular",
+    color: themeColor().muted,
     lineHeight: 18,
   },
   configBox: {
     marginBottom: 16,
     padding: 14,
     borderRadius: 12,
-    backgroundColor: "rgba(251,146,60,0.12)",
+    backgroundColor: themeColor().overlaySubtle,
     borderWidth: 1,
-    borderColor: "rgba(251,146,60,0.35)",
+    borderColor: themeColor().coral,
   },
   configBoxYellow: { marginBottom: 16 },
-  configBoxTitle: { fontWeight: "700", color: "#fcd34d", marginBottom: 8, fontSize: 15 },
-  configBoxBody: { color: "rgba(255,255,255,0.75)", fontSize: 14, lineHeight: 20 },
-  configBody: { color: "rgba(255,255,255,0.82)", fontSize: 14, lineHeight: 20 },
+  configBoxTitle: { fontWeight: "700", color: themeColor().coral, marginBottom: 8, fontSize: 16, fontFamily: "Inter_700Bold" },
+  configBoxBody: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  configBody: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   configMono: {
     marginTop: 10,
     marginBottom: 6,
     fontFamily: Platform.select({ ios: "Menlo", android: "monospace", default: undefined }),
     fontSize: 13,
-    color: "rgba(255,255,255,0.9)",
+    color: themeColor().text,
     lineHeight: 20,
   },
   secondaryBtn: {
@@ -908,57 +913,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: themeColor().line,
     alignItems: "center",
   },
-  secondaryBtnText: { color: "#e5e5e5", fontWeight: "600", fontSize: 15 },
+  secondaryBtnText: { color: themeColor().text, fontWeight: "600", fontSize: 16, fontFamily: "Inter_600SemiBold" },
   card: {
     marginTop: 20,
     padding: 22,
     paddingLeft: 26,
-    borderRadius: 20,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: themeColor().line,
     borderLeftWidth: 4,
-    borderLeftColor: LIME,
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderLeftColor: themeColor().pitch,
+    backgroundColor: themeColor().overlaySubtle,
   },
   cardPremium: {
     padding: 24,
     paddingLeft: 28,
-    borderRadius: 22,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.035)",
+    borderRadius: 999,
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   fieldLabel: {
-    fontSize: 12,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    color: LIME,
-    textTransform: "uppercase",
-    letterSpacing: 1,
+    color: themeColor().pitchText,
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    borderRadius: 14,
+    borderColor: themeColor().line,
+    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 16,
-    fontSize: 16,
-    color: "#fff",
-    backgroundColor: "#1a1a1a",
+    fontSize: 16, fontFamily: "Inter_400Regular",
+    color: themeColor().text,
+    backgroundColor: themeColor().card,
     marginBottom: 18,
   },
   fieldLabelSpaced: { marginTop: 4 },
   inputFocused: {
-    borderColor: LIME,
+    borderColor: themeColor().pitch,
     borderWidth: 1.5,
   },
   primaryBtn: {
     marginTop: 4,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     paddingVertical: 16,
-    borderRadius: 14,
+    borderRadius: 12,
     alignItems: "center",
   },
   primaryBtnRow: {
@@ -968,7 +971,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 8,
   },
-  primaryBtnText: { color: "#0a0a0a", fontWeight: "900", fontSize: 16 },
+  primaryBtnText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
   bioBtn: {
     marginTop: 14,
     flexDirection: "row",
@@ -976,19 +979,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 10,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  bioBtnText: { color: "#e5e5e5", fontWeight: "700", fontSize: 15 },
+  bioBtnText: { color: themeColor().text, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
   disabled: { opacity: 0.5 },
   createAccountRow: { marginTop: 18, alignItems: "center" },
-  createAccountText: { color: "rgba(255,255,255,0.75)", fontSize: 15, fontWeight: "500" },
-  createAccountStrong: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  createAccountText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_500Medium", fontWeight: "500" },
+  createAccountStrong: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
   textBtn: { marginTop: 16, alignItems: "center" },
-  textBtnLabelStrong: { color: LIME, fontSize: 14.5, fontWeight: "700" },
-  textBtnLabelMuted: { color: "rgba(255,255,255,0.55)", fontSize: 14.5, fontWeight: "700" },
-  msg: { marginTop: 16, color: "#fca5a5", fontSize: 14, textAlign: "center" },
-  msgMuted: { color: "rgba(252,211,212,0.92)" },
+  textBtnLabelStrong: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  textBtnLabelMuted: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  msg: { marginTop: 16, color: themeColor().coral, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  msgMuted: { color: themeColor().coral },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

@@ -2,7 +2,7 @@ import { hapticTap } from "@/lib/haptics";
 import { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-const LIME = "#a3e635";
+import { themeColor, useThemedStyles } from "@/theme";
 const TZ = "America/New_York";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
@@ -67,6 +67,8 @@ type Props = {
 };
 
 export default function AvailabilityPollDateCalendar({ value, onChange }: Props) {
+  useThemedStyles(publish_styles);
+
   const days = useMemo(() => buildUpcomingPollCalendarDays(35), []);
 
   return (
@@ -103,28 +105,35 @@ export default function AvailabilityPollDateCalendar({ value, onChange }: Props)
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   wrap: { marginBottom: 12 },
-  label: { color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: "700", textTransform: "uppercase", marginBottom: 4 },
-  hint: { color: "rgba(255,255,255,0.45)", fontSize: 12, lineHeight: 16, marginBottom: 10 },
+  label: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 4 },
+  hint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 16, marginBottom: 10 },
   row: { gap: 8, paddingRight: 8 },
   dayCell: {
     width: 56,
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     alignItems: "center",
   },
   dayCellActive: {
-    borderColor: LIME,
-    backgroundColor: "rgba(163,230,53,0.15)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  weekday: { color: "rgba(255,255,255,0.45)", fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
-  weekdayActive: { color: LIME },
-  dayNum: { color: "#fff", fontSize: 18, fontWeight: "800", marginTop: 2 },
-  dayNumActive: { color: LIME },
-  month: { color: "rgba(255,255,255,0.4)", fontSize: 10, fontWeight: "600", marginTop: 2 },
-  monthActive: { color: "rgba(163,230,53,0.85)" },
+  weekday: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", },
+  weekdayActive: { color: themeColor().pitchText },
+  dayNum: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginTop: 2 },
+  dayNumActive: { color: themeColor().pitchText },
+  month: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", marginTop: 2 },
+  monthActive: { color: themeColor().pitchText },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

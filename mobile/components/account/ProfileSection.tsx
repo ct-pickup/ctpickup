@@ -8,8 +8,7 @@ import * as Location from "expo-location";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import {
-  accountStyles as styles,
-  LIME,
+  accountStyles as styles, publish_accountStyles,
   POSITION_OPTIONS,
   SPECIFIC_POSITION_OPTIONS,
   EXPERIENCE_LEVEL_OPTIONS,
@@ -19,6 +18,7 @@ import {
 } from "./accountStyles";
 import { SelectModal } from "./SelectModal";
 
+import { themeColor, useThemedStyles } from "@/theme";
 function labelFor<T extends { value: string; label: string }>(options: readonly T[], value: string | null): string {
   if (!value) return "";
   return options.find((o) => o.value === value)?.label ?? value;
@@ -99,6 +99,8 @@ export function ProfileSection({
   editOk,
   onSave,
 }: Props) {
+  useThemedStyles(publish_accountStyles);
+
   const [zipLocationBusy, setZipLocationBusy] = useState(false);
   const [zipLocationError, setZipLocationError] = useState<string | null>(null);
 
@@ -137,12 +139,12 @@ export function ProfileSection({
         <Text style={styles.fieldLabel}>First name</Text>
         <TextInput style={styles.input} value={editFirstName} onChangeText={setEditFirstName}
           autoCapitalize="words" autoCorrect={false} placeholder="First name"
-          placeholderTextColor="rgba(255,255,255,0.35)" editable={!editBusy} />
+          placeholderTextColor={themeColor().muted} editable={!editBusy} />
 
         <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Last name</Text>
         <TextInput style={styles.input} value={editLastName} onChangeText={setEditLastName}
           autoCapitalize="words" autoCorrect={false} placeholder="Last name"
-          placeholderTextColor="rgba(255,255,255,0.35)" editable={!editBusy} />
+          placeholderTextColor={themeColor().muted} editable={!editBusy} />
 
         <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Playing position</Text>
         <Pressable onPress={() => setPositionPickerOpen(true)} disabled={editBusy}
@@ -154,7 +156,7 @@ export function ProfileSection({
         </Pressable>
 
         {/* Soccer Background Section */}
-        <Text style={[styles.fieldLabel, { marginTop: 20, marginBottom: 4, fontSize: 11, letterSpacing: 1.2, color: LIME }]}>
+        <Text style={[styles.fieldLabel, { marginTop: 20, marginBottom: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().pitchText }]}>
           SOCCER BACKGROUND
         </Text>
 
@@ -178,13 +180,13 @@ export function ProfileSection({
                   <Pressable key={o.value} onPress={() => toggleSecondary(o.value)}
                     disabled={editBusy || disabled}
                     style={{
-                      paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8,
+                      paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10,
                       borderWidth: 1,
-                      borderColor: selected ? LIME : "rgba(255,255,255,0.18)",
-                      backgroundColor: selected ? "rgba(163,230,53,0.12)" : "rgba(255,255,255,0.04)",
+                      borderColor: selected ? themeColor().pitch : themeColor().overlayStrong,
+                      backgroundColor: selected ? themeColor().pitch : themeColor().overlaySubtle,
                       opacity: disabled ? 0.35 : 1,
                     }}>
-                    <Text style={{ fontSize: 13, color: selected ? LIME : "rgba(255,255,255,0.65)", fontWeight: "600" }}>
+                    <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: selected ? themeColor().pitch : themeColor().text, fontWeight: "600" }}>
                       {o.value}
                     </Text>
                   </Pressable>
@@ -214,7 +216,7 @@ export function ProfileSection({
               setEditDateOfBirth(`${parts[0] ?? ""}-${parts[1]}-${parts[2] ?? ""}`);
             }}
             placeholder="MM"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
             keyboardType="numeric" maxLength={2} autoCorrect={false} editable={!editBusy}
           />
           <TextInput
@@ -226,7 +228,7 @@ export function ProfileSection({
               setEditDateOfBirth(`${parts[0] ?? ""}-${parts[1] ?? ""}-${parts[2]}`);
             }}
             placeholder="DD"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
             keyboardType="numeric" maxLength={2} autoCorrect={false} editable={!editBusy}
           />
           <TextInput
@@ -238,7 +240,7 @@ export function ProfileSection({
               setEditDateOfBirth(`${parts[0]}-${parts[1] ?? ""}-${parts[2] ?? ""}`);
             }}
             placeholder="YYYY"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
             keyboardType="numeric" maxLength={4} autoCorrect={false} editable={!editBusy}
           />
         </View>
@@ -246,37 +248,37 @@ export function ProfileSection({
 
         <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Club / team</Text>
         <TextInput style={styles.input} value={editClubName} onChangeText={setEditClubName}
-          placeholder="e.g. Westport FC, ECNL Academy" placeholderTextColor="rgba(255,255,255,0.35)"
+          placeholder="e.g. Westport FC, ECNL Academy" placeholderTextColor={themeColor().muted}
           autoCorrect={false} editable={!editBusy} />
 
         <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Roster URL</Text>
         <TextInput style={styles.input} value={editRosterUrl} onChangeText={setEditRosterUrl}
-          placeholder="TopDrawer, MaxPreps, team site…" placeholderTextColor="rgba(255,255,255,0.35)"
+          placeholder="TopDrawer, MaxPreps, team site…" placeholderTextColor={themeColor().muted}
           autoCapitalize="none" autoCorrect={false} keyboardType="url" editable={!editBusy} />
         <Text style={styles.bioHint}>Paste a link to your roster page for verification.</Text>
 
         <Text style={[styles.fieldLabel, { marginTop: 20 }]}>Instagram</Text>
         <TextInput style={styles.input} value={editInstagram} onChangeText={setEditInstagram}
           autoCapitalize="none" autoCorrect={false} placeholder="@handle"
-          placeholderTextColor="rgba(255,255,255,0.35)" editable={!editBusy} />
+          placeholderTextColor={themeColor().muted} editable={!editBusy} />
 
         <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Phone</Text>
         <TextInput style={styles.input} value={editPhone} onChangeText={setEditPhone}
           keyboardType="phone-pad" autoCorrect={false} placeholder="Phone number"
-          placeholderTextColor="rgba(255,255,255,0.35)" editable={!editBusy} />
+          placeholderTextColor={themeColor().muted} editable={!editBusy} />
 
         <View style={styles.zipLabelRow}>
           <Text style={styles.fieldLabel}>ZIP CODE</Text>
           <Pressable onPress={() => void onUseMyLocation()} disabled={editBusy || zipLocationBusy}
             style={editBusy || zipLocationBusy ? styles.zipLocationBtnDisabled : undefined} hitSlop={8}>
-            {zipLocationBusy ? <ActivityIndicator size="small" color={LIME} /> :
+            {zipLocationBusy ? <ActivityIndicator size="small" color={themeColor().pitchText} /> :
               <Text style={styles.zipLocationBtn}>Use my location</Text>}
           </Pressable>
         </View>
         <TextInput style={styles.input} value={editZipCode}
           onChangeText={(t) => { setZipLocationError(null); setEditZipCode(t.replace(/\D/g, "").slice(0, 5)); }}
           keyboardType="numeric" maxLength={5} autoCorrect={false} placeholder="5-digit zip"
-          placeholderTextColor="rgba(255,255,255,0.35)" editable={!editBusy} />
+          placeholderTextColor={themeColor().muted} editable={!editBusy} />
         <Text style={styles.zipHelper}>Your ZIP determines which runs appear on your Pickup tab.</Text>
         {zipLocationError ? <Text style={styles.zipLocationError}>{zipLocationError}</Text> : null}
         {editZipCode.replace(/\D/g, "").length === 5 && !String(profileNearestVenue ?? "").trim() ?
@@ -287,7 +289,7 @@ export function ProfileSection({
           <Text style={styles.regionValue}>{serviceRegionName(profileRegionCode)} ({profileRegionCode})</Text>
         ) : hubRegionResolving ? (
           <View style={styles.regionResolvingRow}>
-            <ActivityIndicator color={LIME} size="small" />
+            <ActivityIndicator color={themeColor().pitchText} size="small" />
             <Text style={styles.regionResolvingText}>Finding your hub…</Text>
           </View>
         ) : String(profileZipCode ?? "").replace(/\D/g, "").slice(0, 5).length === 5 && hubVenueResolveDone ? (
@@ -300,7 +302,7 @@ export function ProfileSection({
         {editUsername.trim() ? <Text style={styles.usernameAtPreview}>@{editUsername.trim()}</Text> : null}
         <TextInput style={styles.input} value={editUsername} onChangeText={setEditUsername}
           autoCapitalize="none" autoCorrect={false} placeholder="letters and numbers"
-          placeholderTextColor="rgba(255,255,255,0.35)" editable={!editBusy}
+          placeholderTextColor={themeColor().muted} editable={!editBusy}
           maxLength={PROFILE_USERNAME_MAX_LEN} />
         <Text style={styles.bioHint}>Your username is how other players find you</Text>
         {usernameAutoFromName ? <Text style={styles.bioHint}>Auto-generated from your name</Text> : null}
@@ -308,7 +310,7 @@ export function ProfileSection({
         <Pressable style={[styles.primaryBtn, editBusy && styles.disabled]} disabled={editBusy} onPress={onSave}>
           {editBusy ? (
             <View style={styles.saveBtnBusy}>
-              <ActivityIndicator color="#111" />
+              <ActivityIndicator color={themeColor().onPitch} />
               <Text style={styles.primaryBtnText}>Saving…</Text>
             </View>
           ) : <Text style={styles.primaryBtnText}>Save profile</Text>}

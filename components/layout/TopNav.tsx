@@ -57,7 +57,7 @@ function MobileChevron({ expanded }: { expanded: boolean }) {
   return (
     <span
       aria-hidden
-      className="flex h-[44px] w-8 shrink-0 items-center justify-center text-[15px] font-light leading-none tabular-nums text-white/[0.28] antialiased"
+      className="flex h-[44px] w-8 shrink-0 items-center justify-center text-body font-light leading-none tabular-nums text-muted antialiased"
     >
       {expanded ? "\u2212" : "+"}
     </span>
@@ -68,9 +68,7 @@ function MobileChevron({ expanded }: { expanded: boolean }) {
 function MobileAccordionPanel({ open, children }: { open: boolean; children: ReactNode }) {
   return (
     <div
-      className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${
-        open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-      }`}
+      className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${ open ? "grid-rows-[1fr]" : "grid-rows-[0fr]" }`}
     >
       <div className="relative z-[1] min-h-0 overflow-hidden [touch-action:manipulation]">{children}</div>
     </div>
@@ -118,7 +116,7 @@ function MobileNavSheetPortal({
         role="dialog"
         aria-modal="true"
         aria-label="Site navigation"
-        className="relative z-10 min-h-0 w-full shrink-0 overflow-y-auto overscroll-y-contain border-b border-white/[0.08] bg-[#121213] shadow-[0_28px_80px_rgba(0,0,0,0.55)] [touch-action:manipulation]"
+        className="relative z-10 min-h-0 w-full shrink-0 overflow-y-auto overscroll-y-contain border-b border-line bg-canvas [touch-action:manipulation]"
         style={{
           maxHeight: `calc(100dvh - ${topPx}px)`,
           paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))",
@@ -130,7 +128,7 @@ function MobileNavSheetPortal({
       <div
         role="presentation"
         aria-hidden
-        className="relative z-0 min-h-0 flex-1 bg-black/70 backdrop-blur-[3px] [touch-action:manipulation]"
+        className="relative z-0 min-h-0 flex-1 bg-scrim backdrop-blur-[3px] [touch-action:manipulation]"
         onClick={onClose}
       />
     </div>,
@@ -145,7 +143,7 @@ function UserIcon() {
       height="18"
       viewBox="0 0 24 24"
       fill="none"
-      className="text-white/75"
+      className="text-muted"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
     >
@@ -172,7 +170,7 @@ function MobileMenuIcon({ open }: { open: boolean }) {
       height="20"
       viewBox="0 0 24 24"
       fill="none"
-      className="text-white/80"
+      className="text-ink"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
     >
@@ -381,9 +379,9 @@ export function TopNav({
   const aboutOpen = openMenu === "about";
 
   const linkBase =
-    "shrink-0 whitespace-nowrap text-[13px] font-medium transition xl:text-sm";
-  const linkIdle = `${linkBase} text-white/80 hover:text-white`;
-  const linkActive = `${linkBase} text-white`;
+    "shrink-0 whitespace-nowrap text-caption font-medium transition xl:text-small";
+  const linkIdle = `${linkBase}text-ink hover:text-ink`;
+  const linkActive = `${linkBase}text-ink`;
 
   const trainingOn = navItemActive(pathname, "/training");
   const u23On = navItemActive(pathname, "/u23");
@@ -396,39 +394,39 @@ export function TopNav({
       : pathname === homeBasePath || pathname.startsWith(`${homeBasePath}/`);
 
   const backClass =
-    "shrink-0 text-sm text-white/75 transition hover:text-white inline-flex items-center justify-center min-h-[44px] rounded-lg px-2 -mx-0.5 active:bg-white/5 lg:min-h-0 lg:rounded-none lg:px-0 lg:mx-0 lg:active:bg-transparent";
+    "shrink-0 text-small text-muted transition hover:text-ink inline-flex items-center justify-center min-h-[44px] rounded-button px-2 -mx-0.5 active:bg-overlay-subtle lg:min-h-0 lg:rounded-none lg:px-0 lg:mx-0 lg:active:bg-transparent";
 
   /** Compact back control for the mobile header row only */
   const mobileHeaderBackClass =
-    "shrink-0 text-[13px] font-medium text-white/65 transition hover:text-white inline-flex items-center justify-center min-h-10 rounded-lg px-2.5 active:bg-white/[0.07]";
+    "shrink-0 text-caption font-medium text-muted transition hover:text-ink inline-flex items-center justify-center min-h-10 rounded-button px-2.5 active:bg-overlay";
 
   const showHistoryBack = topNavShowsHistoryBack(pathname);
 
   const mobileRowBase =
-    "touch-manipulation flex min-h-[44px] w-full items-center rounded-[6px] pl-1.5 pr-1.5 text-left text-[15px] font-medium leading-none tracking-[-0.012em] transition-colors active:bg-white/[0.055]";
+    "touch-manipulation flex min-h-[44px] w-full items-center rounded-[6px] pl-1.5 pr-1.5 text-left text-body font-medium leading-none transition-colors active:bg-overlay-subtle";
 
   const mobileNavItem = (active: boolean) =>
     [
       mobileRowBase,
-      active ? "text-white" : "text-white/[0.82] hover:bg-white/[0.035] hover:text-white/[0.94]",
-    ].join(" ");
+      active ? "text-ink" : "text-ink hover:bg-overlay-subtle hover:text-ink",
+    ].join("  ");
 
   const mobileAccordionBtn = (active: boolean) =>
     [
-      "touch-manipulation flex min-h-[44px] w-full items-center rounded-[6px] pl-1.5 pr-0 text-left text-[15px] font-medium leading-none tracking-[-0.012em] transition-colors active:bg-white/[0.055]",
+      "touch-manipulation flex min-h-[44px] w-full items-center rounded-[6px] pl-1.5 pr-0 text-left text-body font-medium leading-none transition-colors active:bg-overlay-subtle",
       "justify-between gap-1",
-      active ? "text-white" : "text-white/[0.82] hover:bg-white/[0.035] hover:text-white/[0.94]",
-    ].join(" ");
+      active ? "text-ink" : "text-ink hover:bg-overlay-subtle hover:text-ink",
+    ].join("  ");
 
   const mobileSubLink =
-    "relative z-[2] flex min-h-[36px] w-full items-center border-l border-white/[0.09] py-[7px] pl-3.5 pr-1.5 text-[11px] font-normal leading-[1.4] tracking-[0.01em] text-white/[0.38] transition-colors [touch-action:manipulation] hover:bg-white/[0.025] hover:text-white/[0.62] active:bg-white/[0.04]";
+    "relative z-[2] flex min-h-[36px] w-full items-center border-l border-line py-[7px] pl-3.5 pr-1.5 text-caption font-normal leading-[1.4] text-muted transition-colors [touch-action:manipulation] hover:bg-overlay-subtle hover:text-muted active:bg-overlay-subtle";
 
   const profilePill = profileSection ? (
-    <div className="flex shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5">
-      <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20">
+    <div className="flex shrink-0 items-center gap-2 rounded-pill border border-line bg-overlay px-3 py-1.5">
+      <div className="flex h-8 w-8 items-center justify-center rounded-pill border border-line">
         <UserIcon />
       </div>
-      <div className="max-w-[140px] truncate text-sm font-medium text-white/90">
+      <div className="max-w-[140px] truncate text-small font-medium text-ink">
         {profileSection.displayName}
       </div>
     </div>
@@ -604,19 +602,15 @@ export function TopNav({
     <div className={`mb-3 sm:mb-4 lg:mb-10 ${className}`}>
       <div
         ref={navRef}
-        className={`max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none max-lg:backdrop-blur-none rounded-2xl border border-white/15 bg-white/6 px-3 py-2 backdrop-blur-none sm:px-4 sm:py-2.5 lg:rounded-full lg:border lg:bg-white/6 lg:px-4 lg:py-3 lg:backdrop-blur-sm xl:px-5 ${innerClassName}`}
+        className={`max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:backdrop-blur-none rounded-card border border-line bg-overlay px-3 py-2 backdrop-blur-none sm:px-4 sm:py-2.5 lg:rounded-pill lg:border lg:bg-overlay lg:px-4 lg:py-3 lg:backdrop-blur-sm xl:px-5${innerClassName}`}
       >
         {/* Desktop — lg+; 3-column grid keeps brand / links / profile in separate tracks so centered links never paint over the icon */}
         <div
-          className={`hidden w-full min-w-0 items-center gap-x-2 gap-y-1 sm:gap-x-3 lg:grid xl:gap-x-4 ${
-            showPrimaryNav
-              ? "grid-cols-[auto_minmax(0,1fr)_auto]"
-              : "grid-cols-[auto_auto] justify-between"
-          }`}
+          className={`hidden w-full min-w-0 items-center gap-x-2 gap-y-1 sm:gap-x-3 lg:grid xl:gap-x-4 ${ showPrimaryNav ? "grid-cols-[auto_minmax(0,1fr)_auto]" : "grid-cols-[auto_auto] justify-between" }`}
         >
           <Link
             href={brandHref}
-            className="shrink-0 self-center whitespace-nowrap text-xs font-semibold uppercase tracking-[0.18em] text-white/90 xl:text-sm xl:tracking-[0.22em]"
+            className="shrink-0 self-center whitespace-nowrap text-caption font-semibold text-ink xl:text-small"
           >
             CT Pickup
           </Link>
@@ -643,12 +637,12 @@ export function TopNav({
                   Pickup Games
                 </button>
                 {pickupOpen ? (
-                  <div className="absolute left-0 top-full z-[100] mt-2 min-w-[220px] rounded-xl border border-white/15 bg-[#141415] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.55)] backdrop-blur-md">
+                  <div className="absolute left-0 top-full z-[100] mt-2 min-w-[220px] rounded-card border border-line bg-canvas p-2 backdrop-blur-md">
                     {HUB_NAV_PICKUP.map((item) => (
                       <Link
                         key={item.href + item.label}
                         href={item.href}
-                        className="block rounded-lg px-3 py-2 text-sm text-white/85 transition hover:bg-white/10 hover:text-white"
+                        className="block rounded-button px-3 py-2 text-small text-ink transition hover:bg-overlay hover:text-ink"
                         onClick={(e) => {
                           if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
                           e.preventDefault();
@@ -677,12 +671,12 @@ export function TopNav({
                   Tournaments
                 </button>
                 {tournamentsOpen ? (
-                  <div className="absolute left-0 top-full z-[100] mt-2 min-w-[220px] rounded-xl border border-white/15 bg-[#141415] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.55)] backdrop-blur-md">
+                  <div className="absolute left-0 top-full z-[100] mt-2 min-w-[220px] rounded-card border border-line bg-canvas p-2 backdrop-blur-md">
                     {HUB_NAV_TOURNAMENT.map((item) => (
                       <Link
                         key={item.href + item.label}
                         href={item.href}
-                        className="block rounded-lg px-3 py-2 text-sm text-white/85 transition hover:bg-white/10 hover:text-white"
+                        className="block rounded-button px-3 py-2 text-small text-ink transition hover:bg-overlay hover:text-ink"
                         onClick={(e) => {
                           if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
                           e.preventDefault();
@@ -758,12 +752,12 @@ export function TopNav({
                   About
                 </button>
                 {aboutOpen ? (
-                  <div className="absolute right-0 top-full z-[100] mt-2 min-w-[200px] rounded-xl border border-white/15 bg-[#141415] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.55)] backdrop-blur-md">
+                  <div className="absolute right-0 top-full z-[100] mt-2 min-w-[200px] rounded-card border border-line bg-canvas p-2 backdrop-blur-md">
                     {HUB_NAV_ABOUT.map((item) => (
                       <Link
                         key={item.href}
                         href={item.href}
-                        className="block rounded-lg px-3 py-2 text-sm text-white/85 transition hover:bg-white/10 hover:text-white"
+                        className="block rounded-button px-3 py-2 text-small text-ink transition hover:bg-overlay hover:text-ink"
                       >
                         {item.label}
                       </Link>
@@ -780,12 +774,12 @@ export function TopNav({
         {/* Tablet & mobile — compact bar; full nav in portal sheet */}
         <div
           ref={mobileBarRef}
-          className="lg:hidden sticky top-0 z-[320] -mx-1 flex flex-col border-b border-white/[0.07] bg-[#0f0f10]/92 px-1 pb-2 pt-[max(0.5rem,env(safe-area-inset-top,0px))] backdrop-blur-md supports-[backdrop-filter]:bg-[#0f0f10]/88"
+          className="lg:hidden sticky top-0 z-[320] -mx-1 flex flex-col border-b border-line bg-canvas px-1 pb-2 pt-[max(0.5rem,env(safe-area-inset-top,0px))] backdrop-blur-md"
         >
           <div className="flex min-h-[44px] items-center justify-between gap-2">
             <Link
               href={brandHref}
-              className="min-w-0 -ml-0.5 py-2 pl-0.5 pr-2 text-[11px] font-semibold uppercase leading-none tracking-[0.17em] text-white/[0.88] sm:tracking-[0.18em]"
+              className="min-w-0 -ml-0.5 py-2 pl-0.5 pr-2 text-caption font-semibold leading-none text-ink"
             >
               CT Pickup
             </Link>
@@ -800,7 +794,7 @@ export function TopNav({
               {profileSection ? (
                 <Link
                   href="/profile"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/[0.055] hover:text-white/90 active:bg-white/[0.08]"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-pill text-muted transition-colors hover:bg-overlay-subtle hover:text-ink active:bg-overlay"
                   aria-label={`Profile (${profileSection.displayName})`}
                   title={profileSection.displayName}
                 >
@@ -812,7 +806,7 @@ export function TopNav({
               {showPrimaryNav ? (
                 <button
                   type="button"
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white/80 transition-colors hover:bg-white/[0.06] active:bg-white/[0.09]"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-button text-ink transition-colors hover:bg-overlay active:bg-overlay"
                   aria-expanded={mobileSheetOpen}
                   aria-controls="mobile-nav-sheet"
                   aria-label={mobileSheetOpen ? "Close menu" : "Open menu"}

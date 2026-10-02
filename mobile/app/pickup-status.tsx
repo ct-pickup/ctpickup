@@ -2,6 +2,7 @@ import { useAuth } from "@/context/AuthContext";
 import { fmtPickupDt } from "@/lib/pickupPublic";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -10,9 +11,6 @@ import {
   Text,
   View,
 } from "react-native";
-
-const BG = "#0a0a0a";
-const LIME = "#a3e635";
 
 type PickupRunRow = {
   id: string;
@@ -41,6 +39,8 @@ function statusPillPresentation(status: string): { label: string; pill: object; 
 }
 
 export default function PickupStatusScreen() {
+  useThemedStyles(publish_styles);
+
   const { supabase, isReady } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -150,10 +150,10 @@ export default function PickupStatusScreen() {
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={LIME} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeColor().pitchText} />}
     >
       {!isReady || loading ? (
-        <ActivityIndicator size="large" color="#fff" style={styles.spinner} />
+        <ActivityIndicator size="large" color={themeColor().text} style={styles.spinner} />
       ) : error ? (
         <View style={styles.card}>
           <Text style={styles.errTitle}>Couldn&apos;t load status</Text>
@@ -162,7 +162,7 @@ export default function PickupStatusScreen() {
       ) : !hasSomething ? (
         <View style={styles.card}>
           <View style={styles.emptyHeaderRow}>
-            <FontAwesome name="bell-o" size={18} color={LIME} />
+            <FontAwesome name="bell-o" size={18} color={themeColor().pitchText} />
             <Text style={styles.cardEyebrow}>Pickup status</Text>
           </View>
           <Text style={styles.emptyTitle}>No updates right now</Text>
@@ -225,32 +225,29 @@ export default function PickupStatusScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: BG },
+function make_styles() {
+  return StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 20, paddingBottom: 36 },
   spinner: { marginTop: 32 },
   card: {
     marginTop: 0,
     marginBottom: 16,
     padding: 18,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   cardEyebrow: {
-    fontSize: 12,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    letterSpacing: 1,
-    color: "rgba(255,255,255,0.7)",
-    textTransform: "uppercase",
+    color: themeColor().muted,
   },
   sectionEyebrow: {
-    fontSize: 12,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    letterSpacing: 1,
-    color: "rgba(255,255,255,0.7)",
-    textTransform: "uppercase",
+    color: themeColor().muted,
     marginBottom: 14,
   },
   cardTopRow: {
@@ -265,42 +262,40 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.45)",
-    backgroundColor: "rgba(163,230,53,0.12)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  labelBadgeEveryoneText: { color: LIME, fontSize: 12, fontWeight: "800", letterSpacing: 0.5 },
+  labelBadgeEveryoneText: { color: themeColor().pitch, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
   labelBadgeMuted: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   labelBadgeMutedText: {
-    fontSize: 11,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    color: "rgba(255,255,255,0.65)",
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
+    color: themeColor().muted,
   },
-  metaTime: { fontSize: 12, color: "rgba(255,255,255,0.5)", flexShrink: 0 },
-  metaTimeSmall: { fontSize: 11, color: "rgba(255,255,255,0.45)", flexShrink: 0 },
+  metaTime: { fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, flexShrink: 0 },
+  metaTimeSmall: { fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, flexShrink: 0 },
   message: {
-    color: "#fff",
-    fontSize: 15,
+    color: themeColor().text,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 22,
   },
   messageRun: {
     marginTop: 12,
-    color: "rgba(255,255,255,0.9)",
-    fontSize: 15,
+    color: themeColor().text,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 22,
   },
   noRunUpdate: {
     marginTop: 12,
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 14,
+    color: themeColor().muted,
+    fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 20,
   },
   runHeaderRow: {
@@ -317,35 +312,35 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
-  statusPillText: { fontWeight: "800", fontSize: 13, letterSpacing: 0.3 },
-  pillTextMuted: { color: "rgba(255,255,255,0.82)" },
-  pillTextLimeSoft: { color: "rgba(163,230,53,0.95)" },
-  pillTextActive: { color: LIME },
+  statusPillText: { fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold",},
+  pillTextMuted: { color: themeColor().text },
+  pillTextLimeSoft: { color: themeColor().pitchText },
+  pillTextActive: { color: themeColor().pitchText },
   pillPlanning: {
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: themeColor().overlaySubtle,
+    borderColor: themeColor().line,
   },
   pillLikely: {
-    backgroundColor: "rgba(163,230,53,0.1)",
-    borderColor: "rgba(163,230,53,0.35)",
+    backgroundColor: themeColor().pitchSoft,
+    borderColor: themeColor().pitch,
   },
   pillActive: {
-    backgroundColor: "rgba(163,230,53,0.18)",
-    borderColor: "rgba(163,230,53,0.5)",
+    backgroundColor: themeColor().pitchSoft,
+    borderColor: themeColor().pitch,
   },
   runTitle: {
     marginTop: 14,
-    fontSize: 20,
+    fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "700",
-    color: "#fff",
+    color: themeColor().text,
   },
   feedList: { gap: 10 },
   feedItem: {
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(0,0,0,0.35)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   feedTop: {
     flexDirection: "row",
@@ -355,8 +350,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   feedMessage: {
-    color: "rgba(255,255,255,0.88)",
-    fontSize: 14,
+    color: themeColor().text,
+    fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 21,
   },
   emptyHeaderRow: {
@@ -365,9 +360,15 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 10,
   },
-  emptyTitle: { fontSize: 18, fontWeight: "700", color: "#fff" },
-  emptyBody: { marginTop: 8, color: "rgba(255,255,255,0.6)", fontSize: 14, lineHeight: 21 },
-  errTitle: { fontSize: 16, fontWeight: "700", color: "#fca5a5" },
-  errBody: { marginTop: 8, color: "rgba(255,255,255,0.7)", fontSize: 14, lineHeight: 20 },
+  emptyTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text },
+  emptyBody: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 },
+  errTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().coral },
+  errBody: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+
 

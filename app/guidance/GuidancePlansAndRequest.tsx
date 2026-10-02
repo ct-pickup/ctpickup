@@ -49,10 +49,10 @@ export function GuidancePlansAndRequest() {
   return (
     <section className="space-y-6">
       <div>
-        <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/55">
+        <h2 className="text-small font-semibold text-muted">
           Player development plans
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
+        <p className="mt-2 max-w-2xl text-small leading-relaxed text-muted">
           Choose the level of support that fits your goals. Final pricing and
           details are confirmed with you before anything moves forward.
         </p>
@@ -62,37 +62,37 @@ export function GuidancePlansAndRequest() {
         {GUIDANCE_PLAN_DEFINITIONS.map((p) => (
           <Panel
             key={p.key}
-            className="flex flex-col border-white/12 p-6 md:p-8 lg:min-h-0"
+            className="flex flex-col border-line p-6 md:p-8 lg:min-h-0"
           >
-            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-4">
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-4">
               <div>
-                <h3 className="text-xl font-semibold tracking-tight text-white md:text-2xl">
+                <h3 className="text-h3 font-serif font-semibold text-ink md:text-h2">
                   {p.title}
                 </h3>
-                <p className="mt-1 text-xs font-medium uppercase tracking-[0.14em] text-white/40">
+                <p className="mt-1 text-caption font-medium text-muted">
                   Experience-based guidance — not licensed professional advising
                 </p>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-semibold tabular-nums text-white md:text-3xl">
+                <div className="text-h2 font-serif font-semibold tabular-nums text-ink md:text-h1">
                   {formatGuidancePriceUsd(p.priceUsd)}
                 </div>
-                <div className="text-[11px] text-white/45">Starting at</div>
+                <div className="text-caption text-muted">Starting at</div>
               </div>
             </div>
 
-            <p className="mt-4 text-sm leading-relaxed text-white/78 md:text-base">
+            <p className="mt-4 text-small leading-relaxed text-muted md:text-body">
               {p.description}
             </p>
 
             <div className="mt-5 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/45">
+              <p className="text-caption font-semibold text-muted">
                 Includes
               </p>
-              <ul className="mt-3 space-y-2.5 text-sm leading-relaxed text-white/80 md:text-base">
+              <ul className="mt-3 space-y-2.5 text-small leading-relaxed text-ink md:text-body">
                 {p.includes.map((line) => (
                   <li key={line} className="flex gap-2.5">
-                    <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-white/35" />
+                    <span className="mt-2 h-1 w-1 shrink-0 rounded-pill bg-muted" />
                     <span>{line}</span>
                   </li>
                 ))}
@@ -105,21 +105,21 @@ export function GuidancePlansAndRequest() {
       <div id="guidance-request" className="scroll-mt-24">
         <Panel className="space-y-6 p-6 md:p-8">
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/55">
+            <h2 className="text-small font-semibold text-muted">
               Request guidance
             </h2>
-            <div className="mt-3 max-w-xl space-y-3 text-sm leading-relaxed text-white/70 md:text-base">
+            <div className="mt-3 max-w-xl space-y-3 text-small leading-relaxed text-muted md:text-body">
               <p>No corporate pitch. Just real conversation.</p>
               <p>
                 If this sounds like what you need, send us a note and we will
                 take it from there.
               </p>
-              <p className="text-white/55">
+              <p className="text-muted">
                 Sign in to submit. Your name and email are pulled from your
                 account so we can respond.
               </p>
               {profileHint ? (
-                <p className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/60">
+                <p className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-caption text-muted">
                   Submitting as: {profileHint}
                 </p>
               ) : null}

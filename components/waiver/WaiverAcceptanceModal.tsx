@@ -37,7 +37,7 @@ export function WaiverAcceptanceModal({ token, onClose, onAccepted }: Props) {
       if (!r.ok) {
         setError(
           typeof j?.error === "string"
-            ? j.error.replace(/_/g, " ")
+            ? j.error.replace(/_/g, "  ")
             : "Could not save acceptance. Try again."
         );
         return;
@@ -55,14 +55,14 @@ export function WaiverAcceptanceModal({ token, onClose, onAccepted }: Props) {
       <button
         type="button"
         aria-label="Close"
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-scrim backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/15 bg-[#141415] p-6 shadow-2xl">
-        <h2 className="text-lg font-semibold uppercase tracking-tight text-white">
+      <div className="relative z-10 w-full max-w-md rounded-card border border-line bg-canvas p-6">
+        <h2 className="text-h3 font-serif font-semibold text-ink">
           Liability waiver required
         </h2>
-        <p className="mt-3 text-sm leading-relaxed text-white/70">
+        <p className="mt-3 text-small leading-relaxed text-muted">
           Our participation agreement was updated or you have not accepted the current
           version ({CURRENT_WAIVER_VERSION}). Review the full waiver, then confirm below
           to continue.
@@ -72,17 +72,17 @@ export function WaiverAcceptanceModal({ token, onClose, onAccepted }: Props) {
             href="/liability-waiver"
             target="_blank"
             rel="noreferrer"
-            className="text-sm font-semibold text-[var(--brand)] underline-offset-4 hover:underline"
+            className="text-small font-semibold text-pitch-text underline-offset-4 hover:underline"
           >
             Read Liability Waiver &amp; Participation Agreement
           </Link>
         </p>
-        <label className="mt-5 flex cursor-pointer items-start gap-3 text-sm text-white/80">
+        <label className="mt-5 flex cursor-pointer items-start gap-3 text-small text-ink">
           <input
             type="checkbox"
             checked={checked}
             onChange={(e) => setChecked(e.target.checked)}
-            className="mt-1 h-4 w-4 shrink-0 rounded border-white/30 bg-black"
+            className="mt-1 h-4 w-4 shrink-0 rounded-button border-line bg-canvas"
           />
           <span>
             I have read the Liability Waiver &amp; Participation Agreement and agree to
@@ -90,21 +90,21 @@ export function WaiverAcceptanceModal({ token, onClose, onAccepted }: Props) {
           </span>
         </label>
         {error ? (
-          <p className="mt-4 text-sm font-medium text-red-300/95">{error}</p>
+          <p className="mt-4 text-small font-medium text-coral">{error}</p>
         ) : null}
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             type="button"
             onClick={() => void submit()}
             disabled={!checked || busy}
-            className="rounded-md bg-[var(--brand)] px-5 py-2.5 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-button bg-pitch px-5 py-2.5 text-small font-semibold text-on-pitch disabled:cursor-not-allowed disabled:opacity-40"
           >
             {busy ? "Saving…" : "Accept & continue"}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-white/20 px-5 py-2.5 text-sm font-semibold text-white/85 hover:bg-white/5"
+            className="rounded-button border border-line px-5 py-2.5 text-small font-semibold text-ink hover:bg-overlay-subtle"
           >
             Cancel
           </button>

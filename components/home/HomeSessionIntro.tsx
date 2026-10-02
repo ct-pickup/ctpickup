@@ -59,7 +59,7 @@ export function HomeSessionIntro({ children }: { children: ReactNode }) {
           pageVisible
             ? "opacity-100 visible"
             : "opacity-0 invisible pointer-events-none",
-        ].join(" ")}
+        ].join("  ")}
         style={{
           transitionDuration: pageVisible ? `${HOME_INTRO_EXIT_MS}ms` : "0ms",
         }}
@@ -71,10 +71,10 @@ export function HomeSessionIntro({ children }: { children: ReactNode }) {
       {showOverlay ? (
         <div
           className={[
-            "fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[var(--bg)]",
+            "fixed inset-0 z-[100] flex flex-col items-center justify-center bg-canvas",
             "transition-opacity ease-out",
             overlayFading ? "opacity-0 pointer-events-none" : "opacity-100",
-          ].join(" ")}
+          ].join("  ")}
           style={{ transitionDuration: `${HOME_INTRO_EXIT_MS}ms` }}
           aria-hidden
         >
@@ -85,13 +85,13 @@ export function HomeSessionIntro({ children }: { children: ReactNode }) {
               introReady
                 ? "opacity-100 translate-y-0 scale-100"
                 : "opacity-0 translate-y-1 scale-[0.98]",
-            ].join(" ")}
+            ].join("  ")}
           >
             <div
               className={[
                 "transition-opacity duration-[480ms] ease-out",
                 introReady ? "opacity-100 delay-150" : "opacity-0",
-              ].join(" ")}
+              ].join("  ")}
             >
               <HomeHeroBrand logoAlt="" titleAs="div" />
             </div>

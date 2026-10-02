@@ -25,22 +25,22 @@ const UI: Record<
     label: "Confirmed",
     headline: "Tournament confirmed",
     blurb: "Date is locked. Details will be posted here first.",
-    card: "border border-emerald-500/25 bg-emerald-500/10",
-    pillActive: "border border-emerald-500/25 bg-emerald-500/15 text-emerald-200",
+    card: "border border-pitch bg-pitch-soft",
+    pillActive: "border border-pitch bg-pitch-soft text-pitch",
   },
   planning: {
     label: "Planning",
     headline: "Tournament planning",
     blurb: "We’re organizing the next tournament. Updates will be posted here first.",
-    card: "border border-white/10 bg-white/[0.03]",
-    pillActive: "border border-white/15 bg-white/10 text-white/85",
+    card: "border border-line bg-overlay-subtle",
+    pillActive: "border border-line bg-overlay text-ink",
   },
   inactive: {
     label: "Not announced",
     headline: "No tournament announced",
     blurb: "No tournament is currently scheduled.",
-    card: "border border-red-500/25 bg-red-500/10",
-    pillActive: "border border-red-500/25 bg-red-500/15 text-red-200",
+    card: "border border-coral bg-overlay-subtle",
+    pillActive: "border border-coral bg-overlay-subtle text-coral",
   },
 };
 
@@ -48,33 +48,33 @@ const ORDER: TourneyStatus[] = ["inactive", "planning", "confirmed"];
 
 export default function StatusPage() {
   return (
-    <main className="min-h-screen bg-[#0f0f10] text-white">
+    <main className="min-h-screen bg-canvas text-ink">
       <PageTop title="STATUS" fallbackHref="/" />
       <div className="mx-auto max-w-5xl px-5 py-14 space-y-10">
 
         {/* Main Status Card */}
-        <section className={`rounded-2xl p-8 ${UI[tourneyStatus].card}`}>
+        <section className={`rounded-card p-8${UI[tourneyStatus].card}`}>
           <div className="flex items-center gap-3">
             {/* Bigger pill */}
             <div
-              className={`rounded-full px-4 py-2 text-sm font-semibold ${UI[tourneyStatus].pillActive}`}
+              className={`rounded-pill px-4 py-2 text-small font-semibold${UI[tourneyStatus].pillActive}`}
             >
               {UI[tourneyStatus].label}
             </div>
 
             {/* Slightly bigger label */}
-            <div className="text-sm uppercase tracking-widest text-white/55">
+            <div className="text-small text-muted">
               Tournament status
             </div>
           </div>
 
           {/* Bigger headline */}
-          <div className="mt-5 text-2xl font-semibold uppercase tracking-wide text-white/90">
+          <div className="mt-5 text-h2 font-serif font-semibold text-ink">
             {UI[tourneyStatus].headline}
           </div>
 
           {/* Bigger blurb */}
-          <p className="mt-2 text-base text-white/80 max-w-3xl">
+          <p className="mt-2 text-body text-ink max-w-3xl">
             {UI[tourneyStatus].blurb}
           </p>
 
@@ -84,9 +84,9 @@ export default function StatusPage() {
               <div
                 key={k}
                 className={[
-                  "rounded-full px-4 py-2 text-sm border",
-                  k === tourneyStatus ? UI[k].pillActive : "border-white/10 text-white/45",
-                ].join(" ")}
+                  "rounded-pill px-4 py-2 text-small border",
+                  k === tourneyStatus ? UI[k].pillActive : "border-line text-muted",
+                ].join("  ")}
               >
                 {UI[k].label}
               </div>
@@ -95,11 +95,11 @@ export default function StatusPage() {
         </section>
 
         {/* Updates box */}
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 space-y-3">
-          <div className="text-sm font-semibold uppercase tracking-wide text-white/70">
+        <section className="rounded-card border border-line bg-overlay-subtle p-8 space-y-3">
+          <div className="text-small font-semibold text-muted">
             Updates
           </div>
-          <div className="text-base text-white/75">
+          <div className="text-body text-muted">
             Updates will be posted here first. If something changes, check this page before messaging.
           </div>
         </section>

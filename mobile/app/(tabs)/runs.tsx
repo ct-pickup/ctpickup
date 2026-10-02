@@ -41,10 +41,7 @@ import {
 import Animated, { FadeIn } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-const BG = "#0a0a0a";
-const LIME = "#a3e635";
-const DIVIDER = "rgba(255,255,255,0.06)";
-
+import { themeColor, useThemedStyles } from "@/theme";
 type PickupCreditItem = {
   id: string;
   reason: string;
@@ -94,6 +91,8 @@ function feeCentsAfterCredit(feeCents: number, credit: PickupCreditItem | null):
 }
 
 function SkeletonCard() {
+  useThemedStyles(publish_styles);
+
   return (
     <View style={styles.skeletonCard}>
       <View style={[styles.skelLine, { width: "35%", height: 12 }]} />
@@ -130,6 +129,8 @@ function rsvpStatusMessage(myStatus: string | null, waitlistMinutesLeft: number 
 }
 
 function CardDivider() {
+  useThemedStyles(publish_styles);
+
   return <View style={styles.divider} />;
 }
 
@@ -215,6 +216,8 @@ function RunSummaryCard({
   /** Planning runs on the list show the poll below — no tap hint. */
   inlinePlanning?: boolean;
 }) {
+  useThemedStyles(publish_styles);
+
   const runStatus = typeof row.status === "string" ? row.status : null;
   const finalSlotId =
     typeof (row as RegionRunListItem).final_slot_id === "string"
@@ -260,7 +263,7 @@ function RunSummaryCard({
           <View style={styles.statusPill}>
             <Text style={styles.statusPillText}>{runStatusPillLabel(runStatus)}</Text>
           </View>
-          {showChevron ? <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" /> : null}
+          {showChevron ? <FontAwesome name="chevron-right" size={14} color={themeColor().muted} /> : null}
         </View>
       </View>
 
@@ -287,7 +290,7 @@ function RunSummaryCard({
       <CardDivider />
 
       <View style={styles.locationRow}>
-        <FontAwesome name="map-marker" size={14} color="rgba(255,255,255,0.35)" style={styles.locationIcon} />
+        <FontAwesome name="map-marker" size={14} color={themeColor().muted} style={styles.locationIcon} />
         <View style={styles.locationTextBlock}>
           <Text style={styles.venue} numberOfLines={2}>
             {venue}
@@ -349,6 +352,8 @@ function InlinePlanningPoll({
   onListRefresh: () => void;
   refreshNonce: number;
 }) {
+  useThemedStyles(publish_styles);
+
   const {
     loading,
     error,
@@ -551,6 +556,8 @@ function InlinePlanningPoll({
 }
 
 export default function RunsScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -591,11 +598,11 @@ export default function RunsScreen() {
       title: showStatePicker ? "Pickup by state" : "Pickup",
       headerTitleAlign: "center",
       headerStyle: {
-        backgroundColor: BG,
+        backgroundColor: themeColor().bg,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: "rgba(255,255,255,0.08)",
+        borderBottomColor: themeColor().line,
       },
-      headerTintColor: "#fff",
+      headerTintColor: themeColor().text,
       headerShadowVisible: false,
     });
   }, [navigation, showStatePicker]);
@@ -1021,7 +1028,7 @@ export default function RunsScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={listLoading || detailLoading} onRefresh={onRefresh} tintColor={LIME} />
+          <RefreshControl refreshing={listLoading || detailLoading} onRefresh={onRefresh} tintColor={themeColor().pitchText} />
         }
       >
         <View style={styles.header}>
@@ -1040,7 +1047,7 @@ export default function RunsScreen() {
               onPress={() => setShowStatePicker(true)}
               style={styles.statesChip}
             >
-              <FontAwesome name="map-marker" size={14} color={LIME} />
+              <FontAwesome name="map-marker" size={14} color={themeColor().pitchText} />
               <Text style={styles.statesChipText}> States</Text>
             </AnimatedPressScale>
           </View>
@@ -1103,7 +1110,7 @@ export default function RunsScreen() {
                   <View style={styles.sheetHeader}>
                     <Text style={styles.sheetTitle}>Run details</Text>
                     <Pressable onPress={closeRunDetail} hitSlop={12} accessibilityLabel="Close">
-                      <FontAwesome name="times" size={20} color="#fff" />
+                      <FontAwesome name="times" size={20} color={themeColor().text} />
                     </Pressable>
                   </View>
                   <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetScroll}>
@@ -1237,7 +1244,7 @@ export default function RunsScreen() {
                       onPress={onOpenChat}
                       style={({ pressed }) => [styles.chatBtn, pressed && { opacity: 0.9 }]}
                     >
-                      <FontAwesome name="comments" size={16} color={LIME} />
+                      <FontAwesome name="comments" size={16} color={themeColor().pitchText} />
                       <Text style={styles.chatBtnText}> Open run chat</Text>
                     </Pressable>
                   )}
@@ -1328,22 +1335,23 @@ export default function RunsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  pickerSafe: { flex: 1, backgroundColor: BG },
-  screen: { flex: 1, backgroundColor: BG },
+function make_styles() {
+  return StyleSheet.create({
+  pickerSafe: { flex: 1, backgroundColor: themeColor().bg },
+  screen: { flex: 1, backgroundColor: themeColor().bg },
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0 },
-  h1: { fontSize: 28, fontWeight: "900", color: "#ffffff", flex: 1, minWidth: 0 },
+  h1: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().text, flex: 1, minWidth: 0 },
   reliabilityPill: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.06)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  reliabilityScoreText: { color: LIME, fontWeight: "900", fontSize: 15 },
+  reliabilityScoreText: { color: themeColor().pitchText, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
   statesChip: {
     flexDirection: "row",
     alignItems: "center",
@@ -1351,17 +1359,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  statesChipText: { fontSize: 13, fontWeight: "800", color: LIME },
-  regionSub: { color: "rgba(255,255,255,0.45)", marginTop: 4, marginBottom: 20, fontSize: 14 },
+  statesChipText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().pitch },
+  regionSub: { color: themeColor().muted, marginTop: 4, marginBottom: 20, fontSize: 14, fontFamily: "Inter_400Regular" },
   runsList: { gap: 12 },
   runBlock: {
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     overflow: "hidden",
   },
   inlinePoll: {
@@ -1369,20 +1377,20 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     paddingTop: 4,
     borderTopWidth: 1,
-    borderTopColor: DIVIDER,
+    borderTopColor: themeColor().overlaySubtle,
     gap: 12,
   },
-  inlinePollLoading: { color: "rgba(255,255,255,0.45)", fontSize: 14 },
-  inlinePollError: { color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
+  inlinePollLoading: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
+  inlinePollError: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   empty: {
     padding: 24,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  emptyTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
-  emptyBody: { color: "rgba(255,255,255,0.55)", marginTop: 8, lineHeight: 22 },
+  emptyTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  emptyBody: { color: themeColor().muted, marginTop: 8, lineHeight: 22 },
   retryBtn: {
     marginTop: 16,
     alignSelf: "flex-start",
@@ -1390,45 +1398,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.4)",
+    borderColor: themeColor().pitch,
   },
-  retryBtnText: { color: LIME, fontWeight: "700" },
+  retryBtnText: { color: themeColor().pitchText, fontWeight: "700" },
   card: {
     padding: 20,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     gap: 20,
   },
   cardInlinePlanning: {
     borderWidth: 0,
-    borderRadius: 0,
+    borderRadius: 10,
     backgroundColor: "transparent",
     marginBottom: 0,
   },
-  divider: { height: 1, backgroundColor: DIVIDER, marginVertical: -4 },
+  divider: { height: 1, backgroundColor: themeColor().overlaySubtle, marginVertical: -4 },
   creditPreviewRow: { gap: 6 },
-  creditPreviewTitle: { color: "rgba(255,255,255,0.65)", fontWeight: "800", fontSize: 12, letterSpacing: 0.2 },
-  creditPreviewBody: { color: "rgba(255,255,255,0.75)", lineHeight: 20, fontSize: 14, flex: 1 },
+  creditPreviewTitle: { color: themeColor().muted, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold",},
+  creditPreviewBody: { color: themeColor().text, lineHeight: 20, fontSize: 14, fontFamily: "Inter_400Regular", flex: 1 },
   creditApplyRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   creditApplyBtn: {
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.45)",
-    backgroundColor: "rgba(163,230,53,0.1)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
     flexShrink: 0,
   },
-  creditApplyBtnText: { color: LIME, fontWeight: "800", fontSize: 14 },
+  creditApplyBtnText: { color: themeColor().pitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.65)" },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: themeColor().scrim },
   detailSheet: {
     maxHeight: "92%",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    backgroundColor: "#111",
+    backgroundColor: themeColor().bg,
     paddingHorizontal: 16,
     paddingTop: 16,
   },
@@ -1438,7 +1446,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  sheetTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
+  sheetTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
   sheetScroll: { paddingBottom: 24 },
   cardHeader: {
     flexDirection: "row",
@@ -1449,29 +1457,27 @@ const styles = StyleSheet.create({
   cardHeaderRight: { flexDirection: "row", alignItems: "center", gap: 10, flexShrink: 0 },
   titleBlock: { flex: 1, minWidth: 0 },
   titleRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", gap: 8 },
-  cardTitle: { color: "#ffffff", fontSize: 22, fontWeight: "900", lineHeight: 28 },
+  cardTitle: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", lineHeight: 28 },
   typeLabel: {
-    color: "rgba(255,255,255,0.35)",
-    fontSize: 11,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
-    letterSpacing: 0.3,
-    textTransform: "uppercase",
   },
   statusPill: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     flexShrink: 0,
   },
-  statusPillText: { color: "rgba(255,255,255,0.65)", fontSize: 11, fontWeight: "700", letterSpacing: 0.2 },
+  statusPillText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700",},
   dateTimeRow: { gap: 6 },
-  dateEt: { color: "#ffffff", fontSize: 18, fontWeight: "700", letterSpacing: -0.2 },
-  datePlanning: { color: "#ffffff", fontSize: 18, fontWeight: "700", letterSpacing: -0.2 },
-  planningTimeHint: { color: LIME, fontSize: 14, fontWeight: "500", lineHeight: 20 },
-  timeEt: { color: LIME, fontSize: 16, fontWeight: "700" },
+  dateEt: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700",},
+  datePlanning: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700",},
+  planningTimeHint: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_500Medium", fontWeight: "500", lineHeight: 20 },
+  timeEt: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
   locationRow: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -1480,65 +1486,65 @@ const styles = StyleSheet.create({
   },
   locationIcon: { marginTop: 3 },
   locationTextBlock: { flex: 1, gap: 4 },
-  venue: { color: "rgba(255,255,255,0.75)", fontSize: 15, lineHeight: 22 },
-  distanceAway: { color: "rgba(163,230,53,0.85)", fontSize: 13, fontWeight: "600" },
+  venue: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 22 },
+  distanceAway: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   feeSpotsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 16,
   },
-  fee: { color: LIME, fontWeight: "800", fontSize: 15, flexShrink: 0 },
+  fee: { color: themeColor().pitchText, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold", flexShrink: 0 },
   spotsBlock: { flex: 1, maxWidth: 160, gap: 6, alignItems: "flex-end" },
   progressTrack: {
     width: "100%",
     height: 4,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: themeColor().overlay,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     minWidth: 0,
   },
   spotsLabel: {
-    color: LIME,
-    fontSize: 12,
+    color: themeColor().pitchText,
+    fontSize: 13, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
   },
   rsvpBlock: { gap: 12 },
-  rsvpStatus: { color: "rgba(255,255,255,0.75)", lineHeight: 20, fontSize: 14 },
-  countdown: { color: LIME, fontWeight: "800", fontSize: 15, lineHeight: 22 },
+  rsvpStatus: { color: themeColor().text, lineHeight: 20, fontSize: 14, fontFamily: "Inter_400Regular" },
+  countdown: { color: themeColor().pitchText, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold", lineHeight: 22 },
   refreshStatusBtn: {
     paddingVertical: 12,
     alignItems: "center",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: themeColor().line,
   },
-  refreshStatusBtnText: { color: "rgba(255,255,255,0.65)", fontWeight: "600", fontSize: 14 },
+  refreshStatusBtnText: { color: themeColor().muted, fontWeight: "600", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   ctaBlock: { gap: 10, alignItems: "center" },
   primaryBtn: {
     width: "100%",
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
   },
-  primaryBtnText: { color: "#111", fontWeight: "800", fontSize: 17 },
+  primaryBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   btnDisabled: { opacity: 0.65 },
   destructiveBtn: {
     width: "100%",
-    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    backgroundColor: themeColor().overlaySubtle,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ef4444",
+    borderColor: themeColor().coral,
   },
-  destructiveBtnText: { color: "#ef4444", fontWeight: "800", fontSize: 17 },
+  destructiveBtnText: { color: themeColor().coral, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   chatBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -1546,18 +1552,24 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.06)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  chatBtnText: { color: LIME, fontWeight: "700", fontSize: 15 },
-  hint: { color: "rgba(255,255,255,0.45)", lineHeight: 20, fontSize: 14 },
+  chatBtnText: { color: themeColor().pitch, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
+  hint: { color: themeColor().muted, lineHeight: 20, fontSize: 14, fontFamily: "Inter_400Regular" },
   skeletonCard: {
     padding: 18,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  skelLine: { height: 14, borderRadius: 6, backgroundColor: "rgba(255,255,255,0.08)" },
-  skelBtn: { height: 48, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.06)" },
+  skelLine: { height: 14, borderRadius: 10, backgroundColor: themeColor().overlay },
+  skelBtn: { height: 48, borderRadius: 12, backgroundColor: themeColor().overlaySubtle },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

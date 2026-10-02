@@ -2,17 +2,18 @@ import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator, Alert, FlatList, Pressable,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 
-const LIME = "#a3e635";
-
-const TIER_COLORS: Record<string, string> = {
-  bronze: "#B87333", silver: "#A8B0B5", gold: "#E3B23C",
-  platinum: "#E8E8E8", diamond: "#9B59B6",
+function TIER_COLORS(): Record<string, string> {
+  return {
+  bronze: themeColor().muted, silver: themeColor().muted, gold: themeColor().muted,
+  platinum: themeColor().muted, diamond: themeColor().muted,
 };
+}
 
 const TIERS = ["bronze", "silver", "gold", "platinum", "diamond"];
 const VERIF_LEVELS = ["self", "document", "vouched"];
@@ -27,6 +28,8 @@ type Player = {
 };
 
 export default function AdminTierManagementScreen() {
+  useThemedStyles(publish_s);
+
   const { supabase, session } = useAuth();
   const [search, setSearch] = useState("");
   const [players, setPlayers] = useState<Player[]>([]);
@@ -111,10 +114,10 @@ export default function AdminTierManagementScreen() {
           value={search}
           onChangeText={(t) => void searchPlayers(t)}
           placeholder="Search by name or username…"
-          placeholderTextColor="rgba(255,255,255,0.3)"
+          placeholderTextColor={themeColor().muted}
           autoCorrect={false}
         />
-        {searching && <ActivityIndicator color={LIME} style={{ marginLeft: 10 }} />}
+        {searching && <ActivityIndicator color={themeColor().pitchText} style={{ marginLeft: 10 }} />}
       </View>
 
       {players.map((player) => {
@@ -136,15 +139,15 @@ export default function AdminTierManagementScreen() {
                   Score: {player.rating?.score?.toFixed(1) ?? "—"} · {currentTier.charAt(0).toUpperCase() + currentTier.slice(1)}
                 </Text>
               </View>
-              {busy && <ActivityIndicator color={LIME} />}
+              {busy && <ActivityIndicator color={themeColor().pitchText} />}
             </View>
 
             <Text style={s.sectionLabel}>SET TIER</Text>
             <View style={s.chipRow}>
               {TIERS.map((t) => (
                 <Pressable key={t} onPress={() => void setTier(player, t)} disabled={!!busy}
-                  style={[s.chip, currentTier === t && { borderColor: TIER_COLORS[t], backgroundColor: `${TIER_COLORS[t]}22` }]}>
-                  <Text style={[s.chipText, currentTier === t && { color: TIER_COLORS[t] }]}>
+                  style={[s.chip, currentTier === t && { borderColor: TIER_COLORS()[t], backgroundColor: `${TIER_COLORS()[t]}22` }]}>
+                  <Text style={[s.chipText, currentTier === t && { color: TIER_COLORS()[t] }]}>
                     {t.charAt(0).toUpperCase() + t.slice(1)}
                   </Text>
                 </Pressable>
@@ -155,8 +158,8 @@ export default function AdminTierManagementScreen() {
             <View style={s.chipRow}>
               {VERIF_LEVELS.map((v) => (
                 <Pressable key={v} onPress={() => void setVerification(player, v)} disabled={!!busy}
-                  style={[s.chip, currentVerif === v && { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.1)" }]}>
-                  <Text style={[s.chipText, currentVerif === v && { color: LIME }]}>
+                  style={[s.chip, currentVerif === v && { borderColor: themeColor().pitch, backgroundColor: themeColor().pitch }]}>
+                  <Text style={[s.chipText, currentVerif === v && { color: themeColor().pitchText }]}>
                     {v === "self" ? "Self" : v === "document" ? "✓ Document" : "✓ Vouched"}
                   </Text>
                 </Pressable>
@@ -176,20 +179,27 @@ export default function AdminTierManagementScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0a0a0a", padding: 16 },
-  title: { color: "#fff", fontSize: 22, fontWeight: "800", marginBottom: 16, marginTop: 8 },
-  searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.07)", borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16 },
-  searchInput: { flex: 1, color: "#fff", fontSize: 15 },
-  card: { backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", padding: 16, marginBottom: 14 },
+function make_s() {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: themeColor().bg, padding: 16 },
+  title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginBottom: 16, marginTop: 8 },
+  searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: themeColor().overlay, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16 },
+  searchInput: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular" },
+  card: { backgroundColor: themeColor().overlaySubtle, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 14 },
   cardHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(163,230,53,0.15)", alignItems: "center", justifyContent: "center" },
-  avatarText: { color: LIME, fontWeight: "700", fontSize: 16 },
-  name: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  meta: { color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 2 },
-  sectionLabel: { fontSize: 10, fontWeight: "700", letterSpacing: 1.2, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", marginBottom: 8 },
+  avatar: { width: 40, height: 40, borderRadius: 999, backgroundColor: themeColor().pitchSoft, alignItems: "center", justifyContent: "center" },
+  avatarText: { color: themeColor().pitch, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
+  name: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  meta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  sectionLabel: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "500", color: themeColor().muted, marginBottom: 8 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.04)" },
-  chipText: { color: "rgba(255,255,255,0.55)", fontWeight: "600", fontSize: 13 },
-  empty: { color: "rgba(255,255,255,0.35)", fontSize: 14, textAlign: "center", marginTop: 20 },
+  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
+  chipText: { color: themeColor().muted, fontWeight: "600", fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  empty: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: 20 },
 });
+}
+let s = make_s();
+function publish_s() {
+  s = make_s();
+}
+

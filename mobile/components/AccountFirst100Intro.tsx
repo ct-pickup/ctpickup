@@ -2,6 +2,7 @@ import { appAsyncStorage } from "@/lib/appAsyncStorage";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { themeColor, useThemedStyles } from "@/theme";
 /** AsyncStorage key — remove this value to show the intro again (or use `clearAccountFirstIntroFlag`). */
 export const ACCOUNT_FIRST_INTRO_STORAGE_KEY = "ctpickup_account_100_intro_v1";
 
@@ -32,6 +33,8 @@ async function persistSeen(): Promise<void> {
 
 /** First visit to Account: brief “100 / 100” stat-style reveal, then hides forever (skippable). */
 export function AccountFirst100Intro(props?: { trackedPickups?: number; scorePct?: number | null }) {
+  useThemedStyles(publish_styles);
+
   const [checking, setChecking] = useState(true);
   const [visible, setVisible] = useState(false);
 
@@ -183,46 +186,46 @@ export function AccountFirst100Intro(props?: { trackedPickups?: number; scorePct
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(10,10,10,0.94)",
+    backgroundColor: themeColor().bg,
     zIndex: 100,
   },
   panel: {
     alignItems: "center",
     paddingVertical: 32,
     paddingHorizontal: 44,
-    borderRadius: 20,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(74,222,128,0.35)",
-    backgroundColor: "rgba(34,197,94,0.1)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
     minWidth: 272,
-    shadowColor: "#000",
-    shadowOpacity: 0.55,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 18 },
-    elevation: 18,
   },
   label: {
-    fontSize: 12,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    letterSpacing: 3,
-    textTransform: "uppercase",
-    color: "rgba(255,255,255,0.4)",
+    color: themeColor().muted,
     marginBottom: 10,
   },
   fractionRow: { flexDirection: "row", alignItems: "baseline" },
-  numLeft: { fontSize: 58, fontWeight: "900", color: "#4ade80", fontVariant: ["tabular-nums"] },
+  numLeft: { fontSize: 40, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().pitchText, fontVariant: ["tabular-nums"] },
   slash: {
-    fontSize: 44,
+    fontSize: 40, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "300",
-    color: "rgba(255,255,255,0.32)",
+    color: themeColor().muted,
     marginHorizontal: 6,
     marginBottom: 4,
   },
-  numRight: { fontSize: 56, fontWeight: "800", color: "#fafafa", fontVariant: ["tabular-nums"] },
-  hint: { marginTop: 20, fontSize: 13, color: "rgba(255,255,255,0.38)" },
+  numRight: { fontSize: 40, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text, fontVariant: ["tabular-nums"] },
+  hint: { marginTop: 20, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

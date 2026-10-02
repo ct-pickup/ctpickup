@@ -18,7 +18,7 @@ import {
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const LIME = "#a3e635";
+import { themeColor, useThemedStyles } from "@/theme";
 const SPOTS_MIN = 0;
 const SPOTS_MAX = 20;
 
@@ -33,6 +33,8 @@ function fmt12Hour(date: Date): string {
 }
 
 export default function TrainingPostScreen() {
+  useThemedStyles(publish_s);
+
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
@@ -165,7 +167,7 @@ export default function TrainingPostScreen() {
         <View style={s.header}>
           <Text style={s.headerTitle}>Start Training</Text>
           <Pressable onPress={() => router.back()} hitSlop={10}>
-            <FontAwesome name="times" size={20} color="rgba(255,255,255,0.6)" />
+            <FontAwesome name="times" size={20} color={themeColor().muted} />
           </Pressable>
         </View>
 
@@ -176,16 +178,16 @@ export default function TrainingPostScreen() {
             value={fieldQuery}
             onChangeText={(t) => void searchField(t)}
             placeholder="Search field name or address…"
-            placeholderTextColor="rgba(255,255,255,0.3)"
+            placeholderTextColor={themeColor().muted}
             autoCorrect={false}
             returnKeyType="search"
           />
-          {fieldSearching && <ActivityIndicator color={LIME} style={{ marginTop: 8 }} />}
+          {fieldSearching && <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 8 }} />}
           {fieldSuggestions.length > 0 && (
             <View style={s.suggestBox}>
               {fieldSuggestions.map((item) => (
                 <Pressable key={item.place_id} onPress={() => selectField(item)} style={s.suggestRow}>
-                  <FontAwesome name="map-marker" size={13} color={LIME} style={{ marginTop: 2 }} />
+                  <FontAwesome name="map-marker" size={13} color={themeColor().pitchText} style={{ marginTop: 2 }} />
                   <Text style={s.suggestText} numberOfLines={2}>
                     {item.display_name}
                   </Text>
@@ -195,7 +197,7 @@ export default function TrainingPostScreen() {
           )}
           {fieldSelected && (
             <View style={s.selectedBadge}>
-              <FontAwesome name="check-circle" size={13} color={LIME} />
+              <FontAwesome name="check-circle" size={13} color={themeColor().pitchText} />
               <Text style={s.selectedText} numberOfLines={1}>
                 {fieldSelected.display_name}
               </Text>
@@ -204,7 +206,7 @@ export default function TrainingPostScreen() {
 
           <Text style={[s.fieldLabel, { marginTop: 20 }]}>START TIME</Text>
           <Pressable onPress={() => setShowStartPicker(true)} style={s.pickerBtn}>
-            <FontAwesome name="clock-o" size={15} color={LIME} />
+            <FontAwesome name="clock-o" size={15} color={themeColor().pitchText} />
             <Text style={s.pickerBtnText}>{fmt12Hour(startedAt)}</Text>
           </Pressable>
           {showStartPicker && (
@@ -232,7 +234,7 @@ export default function TrainingPostScreen() {
             value={workingOn}
             onChangeText={setWorkingOn}
             placeholder="e.g. Finishing, Defensive shape, 1v1…"
-            placeholderTextColor="rgba(255,255,255,0.3)"
+            placeholderTextColor={themeColor().muted}
           />
 
           <Text style={[s.fieldLabel, { marginTop: 20 }]}>SPOTS AVAILABLE</Text>
@@ -242,7 +244,7 @@ export default function TrainingPostScreen() {
             value={spotsText}
             onChangeText={(t) => setSpotsText(t.replace(/[^\d]/g, ""))}
             placeholder="0"
-            placeholderTextColor="rgba(255,255,255,0.3)"
+            placeholderTextColor={themeColor().muted}
             keyboardType="number-pad"
             maxLength={2}
           />
@@ -264,7 +266,7 @@ export default function TrainingPostScreen() {
                 onPress={() => setShowTimePicker(true)}
                 style={[s.pickerBtn, { marginTop: 10 }]}
               >
-                <FontAwesome name="clock-o" size={15} color={LIME} />
+                <FontAwesome name="clock-o" size={15} color={themeColor().pitchText} />
                 <Text style={s.pickerBtnText}>{fmt12Hour(trainingUntil)}</Text>
               </Pressable>
               {showTimePicker && (
@@ -289,61 +291,60 @@ export default function TrainingPostScreen() {
             value={notes}
             onChangeText={setNotes}
             placeholder="Anything else people should know…"
-            placeholderTextColor="rgba(255,255,255,0.3)"
+            placeholderTextColor={themeColor().muted}
             multiline
           />
         </View>
 
         <Pressable onPress={() => void goLive()} disabled={publishing} style={[s.goLiveBtn, publishing && { opacity: 0.5 }]}>
-          {publishing ? <ActivityIndicator color="#0a0a0a" /> : <Text style={s.goLiveBtnText}>GO LIVE →</Text>}
+          {publishing ? <ActivityIndicator color={themeColor().onPitch} /> : <Text style={s.goLiveBtnText}>GO LIVE →</Text>}
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0a0a0a", padding: 20 },
+function make_s() {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: themeColor().bg, padding: 20 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 24 },
-  headerTitle: { color: "#fff", fontSize: 20, fontWeight: "800" },
+  headerTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
   card: {
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderRadius: 16,
+    backgroundColor: themeColor().overlaySubtle,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: themeColor().line,
     padding: 18,
     marginBottom: 16,
   },
   fieldLabel: {
-    fontSize: 11,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    letterSpacing: 1.2,
-    color: "rgba(255,255,255,0.45)",
+    color: themeColor().muted,
     marginBottom: 8,
-    textTransform: "uppercase",
   },
   fieldHint: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 12,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     marginTop: -4,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: "rgba(255,255,255,0.07)",
+    backgroundColor: themeColor().overlay,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    color: "#fff",
+    borderColor: themeColor().line,
+    color: themeColor().text,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 16,
+    fontSize: 16, fontFamily: "Inter_400Regular",
   },
   suggestBox: {
     marginTop: 6,
-    backgroundColor: "#1a1a1a",
+    backgroundColor: themeColor().card,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: themeColor().line,
     overflow: "hidden",
   },
   suggestRow: {
@@ -352,44 +353,50 @@ const s = StyleSheet.create({
     gap: 10,
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.06)",
+    borderBottomColor: themeColor().line,
   },
-  suggestText: { flex: 1, color: "#fff", fontSize: 13, lineHeight: 18 },
+  suggestText: { flex: 1, color: themeColor().text, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   selectedBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     marginTop: 8,
     padding: 10,
-    backgroundColor: "rgba(163,230,53,0.08)",
-    borderRadius: 8,
+    backgroundColor: themeColor().pitchSoft,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.2)",
+    borderColor: themeColor().pitch,
   },
-  selectedText: { flex: 1, color: LIME, fontSize: 13 },
+  selectedText: { flex: 1, color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular" },
   pickerBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "rgba(255,255,255,0.07)",
+    backgroundColor: themeColor().overlay,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: themeColor().line,
     paddingHorizontal: 14,
     paddingVertical: 13,
   },
-  pickerBtnText: { color: "#fff", fontSize: 16, fontWeight: "500" },
+  pickerBtnText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_500Medium", fontWeight: "500" },
   toggleBtn: {
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: themeColor().line,
     alignItems: "center",
   },
-  toggleBtnActive: { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.12)" },
-  toggleBtnText: { color: "rgba(255,255,255,0.5)", fontWeight: "700", fontSize: 14 },
-  toggleBtnTextActive: { color: LIME },
-  goLiveBtn: { backgroundColor: LIME, borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 4 },
-  goLiveBtnText: { color: "#0a0a0a", fontWeight: "800", fontSize: 16, letterSpacing: 0.5 },
+  toggleBtnActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  toggleBtnText: { color: themeColor().muted, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
+  toggleBtnTextActive: { color: themeColor().pitchText },
+  goLiveBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", marginTop: 4 },
+  goLiveBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold",},
 });
+}
+let s = make_s();
+function publish_s() {
+  s = make_s();
+}
+

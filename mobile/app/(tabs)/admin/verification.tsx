@@ -2,6 +2,7 @@ import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -12,8 +13,6 @@ import {
   Text,
   View,
 } from "react-native";
-
-const LIME = "#a3e635";
 
 type VerificationRequest = {
   id: string;
@@ -31,6 +30,8 @@ type VerificationRequest = {
 };
 
 export default function AdminVerificationScreen() {
+  useThemedStyles(publish_s);
+
   const { supabase, session } = useAuth();
   const [requests, setRequests] = useState<VerificationRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,7 +92,7 @@ export default function AdminVerificationScreen() {
   const reviewed = requests.filter((r) => r.status !== "pending");
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator color={LIME} size="large" /></View>;
+    return <View style={s.center}><ActivityIndicator color={themeColor().pitchText} size="large" /></View>;
   }
 
   return (
@@ -117,8 +118,8 @@ export default function AdminVerificationScreen() {
                 <Text style={s.name}>{name}</Text>
                 <Text style={s.meta}>@{req.profiles?.username ?? "—"} · {new Date(req.created_at).toLocaleDateString()}</Text>
               </View>
-              <View style={[s.statusPill, { borderColor: "#facc15" }]}>
-                <Text style={[s.statusText, { color: "#facc15" }]}>Pending</Text>
+              <View style={[s.statusPill, { borderColor: themeColor().coral }]}>
+                <Text style={[s.statusText, { color: themeColor().coral }]}>Pending</Text>
               </View>
             </View>
 
@@ -148,7 +149,7 @@ export default function AdminVerificationScreen() {
                 disabled={!!busy}
                 style={[s.approveBtn, busy && { opacity: 0.5 }]}
               >
-                {busy ? <ActivityIndicator color="#0a0a0a" size="small" /> :
+                {busy ? <ActivityIndicator color={themeColor().onPitch} size="small" /> :
                   <Text style={s.approveBtnText}>Approve ✓</Text>}
               </Pressable>
             </View>
@@ -172,8 +173,8 @@ export default function AdminVerificationScreen() {
                     <Text style={s.name}>{name}</Text>
                     <Text style={s.meta}>{new Date(req.created_at).toLocaleDateString()}</Text>
                   </View>
-                  <View style={[s.statusPill, { borderColor: approved ? LIME : "#ef4444" }]}>
-                    <Text style={[s.statusText, { color: approved ? LIME : "#ef4444" }]}>
+                  <View style={[s.statusPill, { borderColor: approved ? themeColor().pitch : themeColor().coral }]}>
+                    <Text style={[s.statusText, { color: approved ? themeColor().pitch : themeColor().coral }]}>
                       {approved ? "Approved" : "Rejected"}
                     </Text>
                   </View>
@@ -188,28 +189,35 @@ export default function AdminVerificationScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0a0a0a", padding: 16 },
-  center: { flex: 1, backgroundColor: "#0a0a0a", alignItems: "center", justifyContent: "center" },
-  pageTitle: { color: "#fff", fontSize: 22, fontWeight: "800", marginBottom: 20, marginTop: 8 },
-  emptyCard: { backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 20, alignItems: "center" },
-  emptyText: { color: "rgba(255,255,255,0.4)", fontSize: 14 },
-  card: { backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", padding: 16, marginBottom: 14 },
+function make_s() {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: themeColor().bg, padding: 16 },
+  center: { flex: 1, backgroundColor: themeColor().bg, alignItems: "center", justifyContent: "center" },
+  pageTitle: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginBottom: 20, marginTop: 8 },
+  emptyCard: { backgroundColor: themeColor().overlaySubtle, borderRadius: 12, padding: 20, alignItems: "center" },
+  emptyText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
+  card: { backgroundColor: themeColor().overlaySubtle, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 14 },
   cardHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(163,230,53,0.15)", alignItems: "center", justifyContent: "center" },
-  avatarText: { color: LIME, fontWeight: "700", fontSize: 16 },
-  name: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  meta: { color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 2 },
+  avatar: { width: 40, height: 40, borderRadius: 999, backgroundColor: themeColor().pitchSoft, alignItems: "center", justifyContent: "center" },
+  avatarText: { color: themeColor().pitch, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
+  name: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  meta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1 },
-  statusText: { fontSize: 11, fontWeight: "700" },
-  claimLabel: { fontSize: 10, fontWeight: "700", letterSpacing: 1.2, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", marginBottom: 6 },
-  claimText: { color: "rgba(255,255,255,0.8)", fontSize: 14, lineHeight: 20, marginBottom: 12 },
-  urlRow: { backgroundColor: "rgba(163,230,53,0.06)", borderRadius: 8, borderWidth: 1, borderColor: "rgba(163,230,53,0.2)", padding: 10, marginBottom: 14 },
-  urlText: { color: LIME, fontSize: 13 },
+  statusText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  claimLabel: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted, marginBottom: 6 },
+  claimText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20, marginBottom: 12 },
+  urlRow: { backgroundColor: themeColor().pitchSoft, borderRadius: 10, borderWidth: 1, borderColor: themeColor().pitch, padding: 10, marginBottom: 14 },
+  urlText: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular" },
   actions: { flexDirection: "row", gap: 10 },
-  rejectBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: "#ef4444", alignItems: "center" },
-  rejectBtnText: { color: "#ef4444", fontWeight: "700", fontSize: 14 },
-  approveBtn: { flex: 2, paddingVertical: 12, borderRadius: 10, backgroundColor: LIME, alignItems: "center" },
-  approveBtnText: { color: "#0a0a0a", fontWeight: "800", fontSize: 14 },
-  sectionTitle: { color: "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: "700", letterSpacing: 1.5, marginTop: 24, marginBottom: 12 },
+  rejectBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: themeColor().coral, alignItems: "center" },
+  rejectBtnText: { color: themeColor().coral, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
+  approveBtn: { flex: 2, paddingVertical: 12, borderRadius: 10, backgroundColor: themeColor().pitch, alignItems: "center" },
+  approveBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
+  sectionTitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 24, marginBottom: 12 },
 });
+}
+let s = make_s();
+function publish_s() {
+  s = make_s();
+}
+

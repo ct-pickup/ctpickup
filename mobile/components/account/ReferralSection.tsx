@@ -8,8 +8,9 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { accountStyles as styles } from "./accountStyles";
+import { accountStyles as styles, publish_accountStyles } from "./accountStyles";
 
+import { themeColor, useThemedStyles } from "@/theme";
 type ReferralStatus = {
   referral_code: string;
   referrals_count: number;
@@ -58,6 +59,8 @@ function formatCreditExpiry(iso: string): string {
 }
 
 export function ReferralSection({ accessToken }: Props) {
+  useThemedStyles(publish_accountStyles);
+
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<ReferralStatus | null>(null);
   const [pickupCredits, setPickupCredits] = useState<PickupCreditItem[]>([]);
@@ -154,7 +157,7 @@ export function ReferralSection({ accessToken }: Props) {
       <View style={styles.card}>
         {loading ? (
           <View style={styles.cardLoadingRow}>
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={themeColor().text} />
             <Text style={styles.cardLoadingText}>Loading referral info…</Text>
           </View>
         ) : status ? (
@@ -173,7 +176,7 @@ export function ReferralSection({ accessToken }: Props) {
               autoCapitalize="characters"
               autoCorrect={false}
               placeholder="Enter code"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
               editable={!applyBusy}
             />
             <Pressable
@@ -207,7 +210,7 @@ export function ReferralSection({ accessToken }: Props) {
       <View style={styles.card}>
         {loading ? (
           <View style={styles.cardLoadingRow}>
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={themeColor().text} />
           </View>
         ) : activeCredits.length === 0 && inactiveCredits.length === 0 ? (
           <Text style={styles.cardMuted}>

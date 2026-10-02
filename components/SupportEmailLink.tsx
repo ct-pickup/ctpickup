@@ -8,7 +8,7 @@ type Props = {
 };
 
 const defaultClass =
-  "font-medium text-[var(--brand)] underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-black rounded-sm";
+  "font-medium text-pitch-text underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-line focus-visible:ring-offset-2 focus-visible:ring-offset-black rounded-button";
 
 /**
  * Accessible mailto link; visible text is the address so screen readers get a clear label.

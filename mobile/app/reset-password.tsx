@@ -15,9 +15,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { themeColor, useThemedStyles } from "@/theme";
 const PASSWORD_MIN_LEN = 8;
 
 export default function ResetPasswordScreen() {
+  useThemedStyles(publish_styles);
+
   const { supabase } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -94,7 +97,7 @@ export default function ResetPasswordScreen() {
   if (!sessionChecked) {
     return (
       <View style={[styles.screen, styles.centered]}>
-        <ActivityIndicator color="#a3e635" size="large" />
+        <ActivityIndicator color={themeColor().pitchText} size="large" />
       </View>
     );
   }
@@ -139,7 +142,7 @@ export default function ResetPasswordScreen() {
           <TextInput
             style={styles.input}
             placeholder={`At least ${PASSWORD_MIN_LEN} characters`}
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
             secureTextEntry
             autoCapitalize="none"
             autoCorrect={false}
@@ -151,7 +154,7 @@ export default function ResetPasswordScreen() {
           <TextInput
             style={styles.input}
             placeholder="Re-enter password"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
             secureTextEntry
             autoCapitalize="none"
             autoCorrect={false}
@@ -165,7 +168,7 @@ export default function ResetPasswordScreen() {
             disabled={!canSubmit}
             onPress={() => void submitNewPassword()}
           >
-            {busy ? <ActivityIndicator color="#0a0a0a" /> : <Text style={styles.primaryBtnText}>Save password</Text>}
+            {busy ? <ActivityIndicator color={themeColor().onPitch} /> : <Text style={styles.primaryBtnText}>Save password</Text>}
           </Pressable>
         </View>
       </ScrollView>
@@ -173,46 +176,53 @@ export default function ResetPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0a0a0a" },
+function make_styles() {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: themeColor().bg },
   centered: { justifyContent: "center", alignItems: "stretch" },
   content: { paddingHorizontal: 20 },
-  title: { fontSize: 32, fontWeight: "900", color: "#fff", letterSpacing: -0.6, lineHeight: 36 },
-  lead: { marginTop: 10, color: "rgba(255,255,255,0.62)", fontSize: 15.5, lineHeight: 22 },
+  title: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().text, lineHeight: 36 },
+  lead: { marginTop: 10, color: themeColor().muted, fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 22 },
   errorText: {
     marginTop: 14,
-    color: "rgba(255,255,255,0.72)",
-    fontSize: 15.5,
+    color: themeColor().muted,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 22,
   },
   card: {
     marginTop: 18,
     padding: 18,
-    borderRadius: 18,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  fieldLabel: { fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.55)" },
+  fieldLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().muted },
   fieldLabelSpaced: { marginTop: 14 },
   input: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    borderRadius: 14,
+    borderColor: themeColor().line,
+    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 16,
-    fontSize: 16,
-    color: "#fff",
-    backgroundColor: "rgba(0,0,0,0.28)",
+    fontSize: 16, fontFamily: "Inter_400Regular",
+    color: themeColor().text,
+    backgroundColor: themeColor().bg,
   },
   primaryBtn: {
     marginTop: 24,
-    backgroundColor: "#a3e635",
+    backgroundColor: themeColor().pitch,
     paddingVertical: 15,
-    borderRadius: 14,
+    borderRadius: 12,
     alignItems: "center",
   },
-  primaryBtnText: { color: "#0a0a0a", fontWeight: "900", fontSize: 16 },
+  primaryBtnText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
   disabled: { opacity: 0.5 },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

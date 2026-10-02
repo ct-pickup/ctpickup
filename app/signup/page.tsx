@@ -61,7 +61,7 @@ function cleanInstagramHandle(s: string) {
 function SidePhoto({ src, alt }: { src: string; alt: string }) {
   return (
     <div className="hidden xl:block w-[280px]">
-      <div className="overflow-hidden rounded-[30px] border border-white/10 bg-white/[0.03] shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
+      <div className="overflow-hidden rounded-[30px] border border-line bg-overlay-subtle">
         <img
           src={src}
           alt={alt}
@@ -87,13 +87,13 @@ function StepBadge({
     <div className="flex items-center gap-3">
       <div
         className={[
-          "relative flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold transition-all duration-300",
+          "relative flex h-9 w-9 items-center justify-center rounded-pill border text-small font-semibold transition-all duration-300",
           done
-            ? "border-white bg-white text-black"
+            ? "border-line bg-pitch text-on-pitch"
             : active
-            ? "border-white/40 bg-white/10 text-white"
-            : "border-white/15 bg-transparent text-white/45",
-        ].join(" ")}
+            ? "border-line bg-overlay text-ink"
+            : "border-line bg-transparent text-muted",
+        ].join("  ")}
       >
         {done ? "✓" : number}
       </div>
@@ -101,17 +101,17 @@ function StepBadge({
       <div className="flex flex-col">
         <span
           className={[
-            "text-[11px] uppercase tracking-[0.18em]",
-            active || done ? "text-white/80" : "text-white/35",
-          ].join(" ")}
+            "text-caption",
+            active || done ? "text-ink" : "text-muted",
+          ].join("  ")}
         >
           Step {number}
         </span>
         <span
           className={[
-            "text-sm font-medium",
-            active ? "text-white" : done ? "text-white/80" : "text-white/45",
-          ].join(" ")}
+            "text-small font-medium",
+            active ? "text-ink" : done ? "text-ink" : "text-muted",
+          ].join("  ")}
         >
           {label}
         </span>
@@ -123,11 +123,11 @@ function StepBadge({
 function InfoIcon() {
   return (
     <div className="group relative inline-flex">
-      <div className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-white/20 text-[11px] font-semibold text-white/75">
+      <div className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-pill border border-line text-caption font-semibold text-muted">
         i
       </div>
 
-      <div className="pointer-events-none absolute left-7 top-1/2 z-20 hidden w-[280px] -translate-y-1/2 rounded-xl border border-white/10 bg-black px-3 py-2 text-xs leading-relaxed text-white/75 shadow-xl group-hover:block group-focus-within:block">
+      <div className="pointer-events-none absolute left-7 top-1/2 z-20 hidden w-[280px] -translate-y-1/2 rounded-card border border-line bg-canvas px-3 py-2 text-caption leading-relaxed text-muted group-hover:block group-focus-within:block">
         We’ll only store your personal information once. If you run into issues,
         someone from CT Pickup may be able to help.
       </div>
@@ -273,8 +273,8 @@ function SignupForm({
         setMsg(
           <>
             Sign-up isn’t available right now (missing Supabase configuration).
-            Please refresh, or email{" "}
-            <SupportEmailLink className="font-medium text-white underline underline-offset-2 hover:text-white/90" />{" "}
+            Please refresh, or email{"  "}
+            <SupportEmailLink className="font-medium text-ink underline underline-offset-2 hover:text-ink" />{"  "}
             for help.
           </>,
         );
@@ -321,8 +321,8 @@ function SignupForm({
         setMsg(
           <>
             Sign-up isn’t available right now (missing Supabase configuration).
-            Please refresh, or email{" "}
-            <SupportEmailLink className="font-medium text-white underline underline-offset-2 hover:text-white/90" />{" "}
+            Please refresh, or email{"  "}
+            <SupportEmailLink className="font-medium text-ink underline underline-offset-2 hover:text-ink" />{"  "}
             for help.
           </>,
         );
@@ -370,8 +370,8 @@ function SignupForm({
         setMsg(
           <>
             Sign-up isn’t available right now (missing Supabase configuration).
-            Please refresh, or email{" "}
-            <SupportEmailLink className="font-medium text-white underline underline-offset-2 hover:text-white/90" />{" "}
+            Please refresh, or email{"  "}
+            <SupportEmailLink className="font-medium text-ink underline underline-offset-2 hover:text-ink" />{"  "}
             for help.
           </>,
         );
@@ -422,8 +422,8 @@ function SignupForm({
         setMsg(
           <>
             Sign-up isn’t available right now (missing Supabase configuration).
-            Please refresh, or email{" "}
-            <SupportEmailLink className="font-medium text-white underline underline-offset-2 hover:text-white/90" />{" "}
+            Please refresh, or email{"  "}
+            <SupportEmailLink className="font-medium text-ink underline underline-offset-2 hover:text-ink" />{"  "}
             for help.
           </>,
         );
@@ -574,23 +574,23 @@ function SignupForm({
   const currentStep = stage === "email" ? 1 : stage === "code" ? 2 : 3;
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-canvas text-ink">
       <div
         className={[
-          "fixed inset-0 bg-black pointer-events-none transition-opacity duration-300",
+          "fixed inset-0 bg-canvas pointer-events-none transition-opacity duration-300",
           transitioning ? "opacity-100" : "opacity-0",
-        ].join(" ")}
+        ].join("  ")}
       />
 
       <div className="mx-auto max-w-7xl px-6 py-10">
         <div className="mb-8 flex items-center justify-between">
-          <div className="text-base md:text-lg font-semibold tracking-wide text-white/90">
+          <div className="text-body md:text-h3 font-serif font-semibold text-ink">
             CT Pickup
           </div>
 
           <HistoryBack
             fallbackHref="/"
-            className="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-white/70 underline-offset-4 transition hover:text-white hover:underline"
+            className="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-small text-muted underline-offset-4 transition hover:text-ink hover:underline"
           />
         </div>
 
@@ -598,23 +598,23 @@ function SignupForm({
           <SidePhoto src={LEFT_IMAGE} alt="CT Pickup left" />
 
           <div className="w-full max-w-[420px]">
-            <div className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 md:p-6 shadow-[0_20px_70px_rgba(0,0,0,0.34)]">
+            <div className="rounded-[30px] border border-line bg-overlay-subtle p-5 md:p-6">
               {showGateNotice ? (
                 <p
                   role="status"
-                  className="mb-5 rounded-2xl border border-amber-400/35 bg-amber-400/[0.09] px-4 py-3 text-sm leading-relaxed text-amber-50/95"
+                  className="mb-5 rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small leading-relaxed text-coral"
                 >
                   You must sign up first to get access.
                 </p>
               ) : null}
               <div className="space-y-3">
-                <h1 className="text-4xl md:text-[52px] font-semibold uppercase tracking-tight">
+                <h1 className="text-display font-serif md:text-display font-semibold">
                   {copy.title}
                 </h1>
 
-                <p className="text-sm md:text-base text-white/75 leading-relaxed">{copy.lead}</p>
+                <p className="text-small md:text-body text-muted leading-relaxed">{copy.lead}</p>
 
-                <p className="text-sm text-white/60 leading-relaxed">
+                <p className="text-small text-muted leading-relaxed">
                   We’ll email you an 8-digit verification code, so no password is needed. Use
                   your primary email.
                 </p>
@@ -624,7 +624,7 @@ function SignupForm({
                 </div>
               </div>
 
-              <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
+              <div className="mt-7 rounded-card border border-line bg-overlay-subtle px-4 py-4">
                 <div className="grid gap-4 sm:grid-cols-3">
                   <StepBadge number={1} label="Email" active={currentStep === 1} done={currentStep > 1} />
                   <StepBadge number={2} label="Verify" active={currentStep === 2} done={currentStep > 2} />
@@ -632,7 +632,7 @@ function SignupForm({
                 </div>
               </div>
 
-              <div className="mt-6 rounded-2xl border border-white/10 bg-black/30 p-5 space-y-4">
+              <div className="mt-6 rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
                 {stage === "email" && (
                   <>
                     <Input
@@ -646,7 +646,7 @@ function SignupForm({
 
                     <button
                       type="button"
-                      className="w-full rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-black disabled:opacity-50"
+                      className="w-full rounded-card bg-pitch px-4 py-3.5 text-small font-semibold text-on-pitch disabled:opacity-50"
                       onClick={() => void sendCode()}
                       disabled={!emailLooksValid || busy || !isReady}
                     >
@@ -657,13 +657,13 @@ function SignupForm({
 
                 {stage === "code" && (
                   <>
-                    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm">
-                      <span className="min-w-0 truncate text-white/80" title={emailClean}>
+                    <div className="flex items-center justify-between gap-3 rounded-card border border-line bg-overlay-subtle px-4 py-3 text-small">
+                      <span className="min-w-0 truncate text-ink" title={emailClean}>
                         {emailClean}
                       </span>
                       <button
                         type="button"
-                        className="shrink-0 font-medium text-white/85 underline underline-offset-4 transition hover:text-white disabled:opacity-50"
+                        className="shrink-0 font-medium text-ink underline underline-offset-4 transition hover:text-ink disabled:opacity-50"
                         onClick={goBackToEmail}
                         disabled={busy || resendBusy}
                       >
@@ -673,7 +673,7 @@ function SignupForm({
 
                     <p
                       role="status"
-                      className="text-sm text-white/80 leading-relaxed"
+                      className="text-small text-ink leading-relaxed"
                     >
                       We sent an 8-digit code to your email. Enter it below to continue.
                     </p>
@@ -687,13 +687,13 @@ function SignupForm({
                       maxLength={16}
                       aria-describedby="signup-code-hint"
                     />
-                    <p id="signup-code-hint" className="text-xs text-white/45">
+                    <p id="signup-code-hint" className="text-caption text-muted">
                       Enter the 8-digit code from your email (spaces are OK).
                     </p>
 
                     <button
                       type="button"
-                      className="w-full rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-black disabled:opacity-50"
+                      className="w-full rounded-card bg-pitch px-4 py-3.5 text-small font-semibold text-on-pitch disabled:opacity-50"
                       onClick={() => void verifyCode()}
                       disabled={!code.trim() || busy || !isReady}
                     >
@@ -701,13 +701,13 @@ function SignupForm({
                     </button>
 
                     {resendCooldownSec > 0 ? (
-                      <p className="text-center text-xs text-white/50">
+                      <p className="text-center text-caption text-muted">
                         Resend code in {resendCooldownSec}s
                       </p>
                     ) : (
                       <button
                         type="button"
-                        className="w-full rounded-xl border border-white/15 bg-black px-4 py-3.5 text-sm font-medium text-white/85 hover:bg-white/[0.04] disabled:opacity-50"
+                        className="w-full rounded-card border border-line bg-canvas px-4 py-3.5 text-small font-medium text-ink hover:bg-overlay-subtle disabled:opacity-50"
                         onClick={() => void resendCode()}
                         disabled={resendBusy || busy || !isReady}
                       >
@@ -738,7 +738,7 @@ function SignupForm({
                     </div>
 
                     <div className="w-full">
-                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-white/55">
+                      <label className="mb-2 block text-caption font-semibold text-muted">
                         Sex
                       </label>
                       <select
@@ -757,7 +757,7 @@ function SignupForm({
                     </div>
 
                     <div className="w-full">
-                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-white/55">
+                      <label className="mb-2 block text-caption font-semibold text-muted">
                         Gender
                       </label>
                       <select
@@ -830,24 +830,24 @@ function SignupForm({
                       disabled={busy}
                     />
 
-                    <label className="flex cursor-pointer items-start gap-3 text-left text-sm leading-relaxed text-white/75">
+                    <label className="flex cursor-pointer items-start gap-3 text-left text-small leading-relaxed text-muted">
                       <input
                         type="checkbox"
                         checked={waiverAccepted}
                         onChange={(e) => setWaiverAccepted(e.target.checked)}
                         disabled={busy}
-                        className="mt-1 h-4 w-4 shrink-0 rounded border-white/30 bg-black"
+                        className="mt-1 h-4 w-4 shrink-0 rounded-button border-line bg-canvas"
                       />
                       <span>
-                        I agree to the{" "}
+                        I agree to the{"  "}
                         <Link
                           href={`/liability-waiver?returnTo=${encodeURIComponent(signupUrlForIntent(intent))}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="font-semibold text-white underline-offset-4 hover:underline"
+                          className="font-semibold text-ink underline-offset-4 hover:underline"
                         >
                           Liability Waiver &amp; Participation Agreement
-                        </Link>{" "}
+                        </Link>{"  "}
                         ({CURRENT_WAIVER_VERSION}), including eligibility (13+; parental
                         consent if under 18). I understand I must accept the current waiver
                         version to use tournaments and related services.
@@ -856,7 +856,7 @@ function SignupForm({
 
                     <button
                       type="button"
-                      className="w-full rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-black disabled:opacity-50"
+                      className="w-full rounded-card bg-pitch px-4 py-3.5 text-small font-semibold text-on-pitch disabled:opacity-50"
                       onClick={() => void saveProfileAndContinue()}
                       disabled={!canSaveProfile || busy || !isReady}
                     >
@@ -866,13 +866,13 @@ function SignupForm({
                 )}
 
                 {msg ? (
-                  <p className="text-sm text-white/70 whitespace-pre-line leading-relaxed">{msg}</p>
+                  <p className="text-small text-muted whitespace-pre-line leading-relaxed">{msg}</p>
                 ) : null}
 
                 {typeof msg === "string" && msg.includes("already have this account") && (
                   <Link
                     href="/login"
-                    className="block text-sm text-white/70 hover:text-white hover:underline underline-offset-4"
+                    className="block text-small text-muted hover:text-ink hover:underline underline-offset-4"
                   >
                     Go to log in
                   </Link>
@@ -904,7 +904,7 @@ function SignupGate() {
 
   if (intent === null) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-black text-sm text-white/60">
+      <main className="flex min-h-screen items-center justify-center bg-canvas text-small text-muted">
         Returning to home…
       </main>
     );
@@ -919,7 +919,7 @@ export default function SignupPage() {
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-screen items-center justify-center bg-black text-sm text-white/60">
+        <main className="flex min-h-screen items-center justify-center bg-canvas text-small text-muted">
           Loading…
         </main>
       }

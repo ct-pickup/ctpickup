@@ -26,11 +26,11 @@ export function HomeHeroBrand({
         draggable={false}
       />
 
-      <TitleTag className="mt-4 text-2xl font-bold tracking-[0.32em] text-white sm:mt-6 sm:text-3xl sm:tracking-[0.48em] md:text-4xl md:tracking-[0.55em]">
+      <TitleTag className="mt-4 text-h2 font-serif font-bold text-ink sm:mt-6 sm:text-h1 md:text-display">
         PICKUP
       </TitleTag>
 
-      <p className="mt-3 max-w-[20rem] text-[11px] uppercase leading-relaxed tracking-[0.2em] text-white/75 sm:mt-5 sm:max-w-none sm:text-xs sm:tracking-[0.24em] md:text-sm md:tracking-[0.28em]">
+      <p className="mt-3 max-w-[20rem] text-caption leading-relaxed text-muted sm:mt-5 sm:max-w-none sm:text-caption md:text-small">
         Community. Culture. Competition.
       </p>
     </>

@@ -21,10 +21,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const LIME = "#a3e635";
-const BG = "#0a0a0a";
-
+import { themeColor, useThemedStyles } from "@/theme";
 export default function TournamentsScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const { setRegion, region } = useSelectedRegion();
   const { session, supabase } = useAuth();
@@ -114,11 +114,11 @@ export default function TournamentsScreen() {
       title: showStatePicker ? "" : "Tournaments",
       headerTitleAlign: "center",
       headerStyle: {
-        backgroundColor: BG,
+        backgroundColor: themeColor().bg,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: "rgba(255,255,255,0.08)",
+        borderBottomColor: themeColor().line,
       },
-      headerTintColor: "#fff",
+      headerTintColor: themeColor().text,
       headerShadowVisible: false,
     });
   }, [navigation, showStatePicker]);
@@ -200,7 +200,7 @@ export default function TournamentsScreen() {
                     <FontAwesome
                       name="chevron-right"
                       size={14}
-                      color="rgba(255,255,255,0.35)"
+                      color={themeColor().muted}
                       style={styles.chevron}
                     />
                   </View>
@@ -223,7 +223,7 @@ export default function TournamentsScreen() {
         <RefreshControl
           refreshing={listRefreshing}
           onRefresh={() => void onTournamentRefresh()}
-          tintColor={LIME}
+          tintColor={themeColor().pitchText}
         />
       }
     >
@@ -238,7 +238,7 @@ export default function TournamentsScreen() {
             onPress={() => setShowStatePicker(true)}
             style={styles.statesChip}
           >
-            <FontAwesome name="map-marker" size={14} color={LIME} />
+            <FontAwesome name="map-marker" size={14} color={themeColor().pitchText} />
             <Text style={styles.statesChipText}> States</Text>
           </AnimatedPressScale>
         </View>
@@ -250,7 +250,7 @@ export default function TournamentsScreen() {
             <MaterialCommunityIcons
               name="wifi-off"
               size={18}
-              color="#fff"
+              color={themeColor().text}
               style={styles.offlineBannerIcon}
             />
             <Text style={styles.offlineBannerText}>
@@ -287,7 +287,7 @@ export default function TournamentsScreen() {
             <FontAwesome
               name="trophy"
               size={16}
-              color="#111"
+              color={themeColor().onPitch}
               style={{ marginRight: 8 }}
             />
             <Text style={styles.bracketBtnText}>View bracket & standings</Text>
@@ -298,41 +298,34 @@ export default function TournamentsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   /* ── Picker ── */
-  pickerSafe: { flex: 1, backgroundColor: BG },
-  pickerScroll: { flex: 1, backgroundColor: BG },
+  pickerSafe: { flex: 1, backgroundColor: themeColor().bg },
+  pickerScroll: { flex: 1, backgroundColor: themeColor().bg },
   pickerContent: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 48 },
 
   kicker: {
-    fontSize: 11,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 2,
-    color: "rgba(163,230,53,0.75)",
+    color: themeColor().pitchText,
     marginBottom: 8,
-    textTransform: "uppercase",
   },
   headline: {
-    fontSize: 30,
+    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "800",
-    color: "#fff",
-    letterSpacing: -0.6,
+    color: themeColor().text,
     marginBottom: 28,
   },
 
   cardList: { gap: 12 },
 
   card: {
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "rgba(255,255,255,0.04)",
-    shadowColor: "#000",
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   cardAccent: {
     position: "absolute",
@@ -340,7 +333,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 4,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderTopLeftRadius: 16,
     borderBottomLeftRadius: 16,
   },
@@ -355,42 +348,42 @@ const styles = StyleSheet.create({
   iconBadge: {
     width: 52,
     height: 52,
-    borderRadius: 14,
-    backgroundColor: "rgba(163,230,53,0.1)",
+    borderRadius: 12,
+    backgroundColor: themeColor().pitchSoft,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.3)",
+    borderColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
   },
   cardBody: { flex: 1, marginLeft: 16 },
-  stateName: { fontSize: 18, fontWeight: "700", color: "#fff" },
-  stateHint: { marginTop: 3, fontSize: 13, color: "rgba(255,255,255,0.45)" },
+  stateName: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text },
+  stateHint: { marginTop: 3, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
 
   sessionBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(163,230,53,0.15)",
+    backgroundColor: themeColor().pitchSoft,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
+    borderColor: themeColor().pitch,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
     marginRight: 10,
   },
   sessionBadgeText: {
-    fontSize: 12,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    color: LIME,
+    color: themeColor().pitch,
   },
   sessionBadgeLabel: {
-    fontSize: 11,
+    fontSize: 13, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
-    color: "rgba(163,230,53,0.7)",
+    color: themeColor().pitch,
   },
   chevron: { marginLeft: 4 },
 
   /* ── Tournament list ── */
-  container: { flex: 1, backgroundColor: BG },
+  container: { flex: 1, backgroundColor: themeColor().bg },
   scrollContent: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 40 },
   offlineBanner: {
     flexDirection: "row",
@@ -401,20 +394,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 14,
     marginBottom: 4,
-    backgroundColor: "#f59e0b",
+    backgroundColor: themeColor().coral,
   },
   offlineBannerIcon: { flexShrink: 0 },
   offlineBannerText: {
     flex: 1,
-    color: "#fff",
-    fontSize: 14,
+    color: themeColor().onPitch,
+    fontSize: 14, fontFamily: "Inter_700Bold",
     fontWeight: "700",
     lineHeight: 20,
   },
   offlineNoCacheText: {
     marginTop: 20,
-    color: "rgba(255,255,255,0.72)",
-    fontSize: 16,
+    color: themeColor().muted,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 22,
     textAlign: "center",
   },
@@ -426,10 +419,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "800",
-    color: "#fff",
-    letterSpacing: -0.2,
+    color: themeColor().text,
     flex: 1,
     minWidth: 0,
   },
@@ -440,15 +432,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  statesChipText: { fontSize: 13, fontWeight: "800", color: LIME },
+  statesChipText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().pitch },
   sub: {
     marginTop: 8,
     marginBottom: 4,
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 13,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     lineHeight: 18,
   },
   bracketBtn: {
@@ -458,8 +450,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 14,
-    backgroundColor: LIME,
+    borderRadius: 12,
+    backgroundColor: themeColor().pitch,
   },
-  bracketBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  bracketBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

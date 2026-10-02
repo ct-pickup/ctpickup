@@ -5,9 +5,7 @@ import type { ComponentProps } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const LIME = "#a3e635";
-const BG = "#0a0a0a";
-
+import { themeColor, useThemedStyles } from "@/theme";
 type ToolDef = {
   id: string;
   title: string;
@@ -55,31 +53,35 @@ const TOOLS: ToolDef[] = [
 ];
 
 function ToolCard({ tool, onPress }: { tool: ToolDef; onPress: () => void }) {
+  useThemedStyles(publish_styles);
+
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.88, transform: [{ scale: 0.99 }] }]}
     >
       <View style={styles.cardIconWrap}>
-        <FontAwesome name={tool.icon} size={20} color={LIME} />
+        <FontAwesome name={tool.icon} size={20} color={themeColor().pitchText} />
       </View>
       <View style={styles.cardBody}>
         <Text style={styles.cardTitle}>{tool.title}</Text>
         <Text style={styles.cardDesc}>{tool.description}</Text>
       </View>
-      <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+      <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
     </Pressable>
   );
 }
 
 export default function AdminToolsScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <View style={styles.topBar}>
         <Pressable onPress={() => goToAdminMenu(router)} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}>
-          <FontAwesome name="chevron-left" size={18} color="#fff" />
+          <FontAwesome name="chevron-left" size={18} color={themeColor().text} />
           <Text style={styles.backBtnText}>Back</Text>
         </Pressable>
         <Text style={styles.topTitle}>Admin Tools</Text>
@@ -98,8 +100,9 @@ export default function AdminToolsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: BG },
+function make_styles() {
+  return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: themeColor().bg },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -108,23 +111,23 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 8 },
-  backBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  topTitle: { flex: 1, fontSize: 18, fontWeight: "800", color: "#fff", textAlign: "center" },
+  backBtnText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  topTitle: { flex: 1, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text, textAlign: "center" },
   topBarSpacer: { width: 72 },
-  scroll: { flex: 1, backgroundColor: BG },
+  scroll: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 20, paddingBottom: 40 },
-  h1: { fontSize: 32, fontWeight: "800", color: "#fff", letterSpacing: 0.2 },
-  sub: { marginTop: 8, fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 20 },
+  h1: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text,},
+  sub: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 20 },
   list: { marginTop: 20, gap: 12 },
   card: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   cardIconWrap: {
     width: 44,
@@ -132,11 +135,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(163,230,53,0.12)",
+    backgroundColor: themeColor().pitchSoft,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.25)",
+    borderColor: themeColor().pitch,
   },
   cardBody: { flex: 1, minWidth: 0 },
-  cardTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
-  cardDesc: { marginTop: 4, fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 18 },
+  cardTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
+  cardDesc: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 18 },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

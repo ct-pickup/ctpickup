@@ -25,8 +25,8 @@ export function EsportsMark({
           y2="30"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stopColor="var(--brand, #22c55e)" stopOpacity="0.9" />
-          <stop offset="1" stopColor="var(--brand, #22c55e)" stopOpacity="0.12" />
+          <stop stopColor="var(--pitch)" stopOpacity="0.9" />
+          <stop offset="1" stopColor="var(--pitch)" stopOpacity="0.12" />
         </linearGradient>
         <filter
           id="esports-ctrl-glow"
@@ -61,7 +61,7 @@ export function EsportsMark({
         stroke="currentColor"
         strokeOpacity="0.24"
         strokeWidth="1.35"
-        className="text-white"
+        className="text-ink"
       />
       <ellipse
         cx="68"
@@ -71,7 +71,7 @@ export function EsportsMark({
         stroke="currentColor"
         strokeOpacity="0.24"
         strokeWidth="1.35"
-        className="text-white"
+        className="text-ink"
       />
       <rect
         x="33"
@@ -82,7 +82,7 @@ export function EsportsMark({
         stroke="currentColor"
         strokeOpacity="0.22"
         strokeWidth="1.25"
-        className="text-white"
+        className="text-ink"
       />
       <rect
         x="35.5"
@@ -93,7 +93,7 @@ export function EsportsMark({
         stroke="currentColor"
         strokeOpacity="0.09"
         strokeWidth="0.65"
-        className="text-white"
+        className="text-ink"
       />
 
       {/* D-pad */}
@@ -103,7 +103,7 @@ export function EsportsMark({
         strokeOpacity="0.48"
         strokeWidth="1.45"
         strokeLinecap="round"
-        className="text-white"
+        className="text-ink"
       />
       <rect
         x="20"
@@ -114,17 +114,17 @@ export function EsportsMark({
         stroke="currentColor"
         strokeOpacity="0.18"
         strokeWidth="0.85"
-        className="text-white"
+        className="text-ink"
       />
 
       {/* Face buttons */}
-      <circle cx="63.5" cy="48.5" r="2.2" fill="currentColor" className="text-white/32" />
-      <circle cx="68.5" cy="53.5" r="2.2" fill="currentColor" className="text-white/32" />
+      <circle cx="63.5" cy="48.5" r="2.2" fill="currentColor" className="text-muted" />
+      <circle cx="68.5" cy="53.5" r="2.2" fill="currentColor" className="text-muted" />
       <circle
         cx="63.5"
         cy="58.5"
         r="2.2"
-        fill="var(--brand, #22c55e)"
+        fill="var(--pitch)"
         fillOpacity="0.92"
       />
       <circle
@@ -134,9 +134,9 @@ export function EsportsMark({
         stroke="currentColor"
         strokeOpacity="0.22"
         strokeWidth="0.35"
-        className="text-white"
+        className="text-ink"
       />
-      <circle cx="58.5" cy="53.5" r="2.2" fill="currentColor" className="text-white/32" />
+      <circle cx="58.5" cy="53.5" r="2.2" fill="currentColor" className="text-muted" />
 
       <path
         d="M48 39v14"
@@ -144,9 +144,9 @@ export function EsportsMark({
         strokeOpacity="0.1"
         strokeWidth="0.8"
         strokeLinecap="round"
-        className="text-white"
+        className="text-ink"
       />
-      <circle cx="48" cy="46" r="1.1" fill="currentColor" className="text-white/22" />
+      <circle cx="48" cy="46" r="1.1" fill="currentColor" className="text-muted" />
     </svg>
   );
 }

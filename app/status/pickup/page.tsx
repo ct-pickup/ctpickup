@@ -43,26 +43,26 @@ function pillForRunStatus(status: string) {
   if (status === "in_progress")
     return {
       label: "In progress",
-      cls: "border-lime-400/30 bg-lime-400/15 text-lime-200",
+      cls: "border-pitch bg-pitch-soft text-pitch",
     };
   if (status === "active")
     return {
       label: "Active",
-      cls: "border-emerald-500/25 bg-emerald-500/15 text-emerald-200",
+      cls: "border-pitch bg-pitch-soft text-pitch",
     };
   if (status === "likely_on")
     return {
       label: "Likely on",
-      cls: "border-white/15 bg-white/10 text-white/85",
+      cls: "border-line bg-overlay text-ink",
     };
   if (status === "planning")
     return {
       label: "Planning",
-      cls: "border-white/15 bg-white/10 text-white/85",
+      cls: "border-line bg-overlay text-ink",
     };
   return {
-    label: status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " "),
-    cls: "border-white/15 bg-white/10 text-white/85",
+    label: status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, "  "),
+    cls: "border-line bg-overlay text-ink",
   };
 }
 
@@ -158,21 +158,21 @@ export default async function PickupStatusPage() {
   const hasSomething = !!globalUpdate || !!runUpdate || !!run;
 
   return (
-    <main className="min-h-screen bg-[#0f0f10] text-white">
+    <main className="min-h-screen bg-canvas text-ink">
       <div className="mx-auto max-w-6xl px-6 pt-2">
         <PageTop flush title="STATUS" fallbackHref="/pickup" />
       </div>
       <div className="mx-auto max-w-6xl px-6 py-14 space-y-10">
         {/* Neutral fallback if nothing exists */}
         {!hasSomething && (
-          <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
-            <div className="text-sm font-semibold uppercase tracking-wide text-white/80">
+          <section className="rounded-card border border-line bg-overlay-subtle p-8">
+            <div className="text-small font-semibold text-ink">
               Pickup Status
             </div>
-            <div className="mt-4 text-lg font-semibold text-white/90">
+            <div className="mt-4 text-h3 font-serif font-semibold text-ink">
               No updates right now.
             </div>
-            <div className="mt-2 text-sm text-white/60">
+            <div className="mt-2 text-small text-muted">
               When a run is being formed or finalized, updates will appear here.
             </div>
           </section>
@@ -180,17 +180,17 @@ export default async function PickupStatusPage() {
 
         {/* 1) Global update first */}
         {globalUpdate && (
-          <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 space-y-4">
+          <section className="rounded-card border border-line bg-overlay-subtle p-8 space-y-4">
             <div className="flex items-center justify-between gap-4">
-              <div className="text-sm font-semibold uppercase tracking-wide text-white/80">
+              <div className="text-small font-semibold text-ink">
                 Everyone
               </div>
-              <div className="text-xs text-white/55">
+              <div className="text-caption text-muted">
                 {formatNY(globalUpdate.created_at)}
               </div>
             </div>
 
-            <div className="text-base text-white/85 whitespace-pre-line leading-relaxed">
+            <div className="text-body text-ink whitespace-pre-line leading-relaxed">
               {globalUpdate.message}
             </div>
           </section>
@@ -198,34 +198,34 @@ export default async function PickupStatusPage() {
 
         {/* 2) Most relevant run update underneath */}
         {run && (
-          <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 space-y-5">
+          <section className="rounded-card border border-line bg-overlay-subtle p-8 space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div
                   className={[
-                    "inline-flex rounded-full px-4 py-2 text-sm font-semibold border",
+                    "inline-flex rounded-pill px-4 py-2 text-small font-semibold border",
                     pillForRunStatus(run.status).cls,
-                  ].join(" ")}
+                  ].join("  ")}
                 >
                   Pickup · {pillForRunStatus(run.status).label}
                 </div>
 
-                <div className="text-sm text-white/70">
+                <div className="text-small text-muted">
                   {run.start_at ? formatNY(run.start_at) : "TBD"}
                 </div>
               </div>
 
-              <div className="text-xs text-white/55">
+              <div className="text-caption text-muted">
                 {run.title ? run.title : "Pickup run"}
               </div>
             </div>
 
             {runUpdate ? (
-              <div className="text-base text-white/85 whitespace-pre-line leading-relaxed">
+              <div className="text-body text-ink whitespace-pre-line leading-relaxed">
                 {runUpdate.message}
               </div>
             ) : (
-              <div className="text-sm text-white/70">
+              <div className="text-small text-muted">
                 No run-specific update yet.
               </div>
             )}
@@ -236,8 +236,8 @@ export default async function PickupStatusPage() {
 
         {/* 3) Optional recent feed */}
         {feed.length > 0 && (
-          <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 space-y-4">
-            <div className="text-sm font-semibold uppercase tracking-wide text-white/70">
+          <section className="rounded-card border border-line bg-overlay-subtle p-8 space-y-4">
+            <div className="text-small font-semibold text-muted">
               Recent
             </div>
 
@@ -245,18 +245,18 @@ export default async function PickupStatusPage() {
               {feed.map((u) => (
                 <div
                   key={String(u.id)}
-                  className="rounded-xl border border-white/10 bg-black/30 p-4"
+                  className="rounded-card border border-line bg-overlay-subtle p-4"
                 >
                   <div className="flex items-center justify-between gap-4">
-                    <div className="text-xs uppercase tracking-widest text-white/55">
+                    <div className="text-caption text-muted">
                       {u.run_id ? "One run" : "Everyone"}
                     </div>
-                    <div className="text-xs text-white/55">
+                    <div className="text-caption text-muted">
                       {formatNY(u.created_at)}
                     </div>
                   </div>
 
-                  <div className="mt-2 text-sm text-white/80 whitespace-pre-line leading-relaxed">
+                  <div className="mt-2 text-small text-ink whitespace-pre-line leading-relaxed">
                     {u.message}
                   </div>
                 </div>

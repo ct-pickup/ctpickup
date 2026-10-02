@@ -84,30 +84,30 @@ export default function AdminStatusPage() {
 
   if (!row) {
     return (
-      <main className="min-h-screen bg-black text-white">
+      <main className="min-h-screen bg-canvas text-ink">
         <div className="mx-auto max-w-xl space-y-4 pt-2 pb-8">
           <PageTop flush title="Staff · Site-wide status" fallbackHref={APP_HOME_URL} />
-          <p className="text-sm text-white/55">{msg ?? "Loading…"}</p>
+          <p className="text-small text-muted">{msg ?? "Loading…"}</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-canvas text-ink">
       <div className="mx-auto max-w-xl space-y-6 pt-2 pb-8">
         <PageTop flush title="Staff · Site-wide status" fallbackHref={APP_HOME_URL} />
 
         <AdminWorkArea question="What should visitors read on status pages right now, and when did you promise the next update?">
           {chips}
-          <div className="mb-6 flex flex-wrap gap-3 text-xs">
-            <Link href="/status/pickup" target="_blank" className="text-white/55 hover:text-white">
+          <div className="mb-6 flex flex-wrap gap-3 text-caption">
+            <Link href="/status/pickup" target="_blank" className="text-muted hover:text-ink">
               Preview pickup status ↗
             </Link>
-            <Link href="/status/tournament" target="_blank" className="text-white/55 hover:text-white">
+            <Link href="/status/tournament" target="_blank" className="text-muted hover:text-ink">
               Preview tournament status ↗
             </Link>
-            <Link href="/admin/content" className="text-white/55 hover:text-white">
+            <Link href="/admin/content" className="text-muted hover:text-ink">
               Content workflow
             </Link>
           </div>
@@ -115,21 +115,21 @@ export default function AdminStatusPage() {
 
         <div className="space-y-3">
           <label className="block">
-            <div className="text-sm text-white/55">Phase</div>
+            <div className="text-small text-muted">Phase</div>
             <input
-              className="w-full rounded-lg border border-white/15 bg-black px-3 py-3 text-sm text-white outline-none"
+              className="w-full rounded-button border border-line bg-canvas px-3 py-3 text-small text-ink outline-none"
               value={row.phase}
               onChange={(e) => setRow({ ...row, phase: e.target.value })}
             />
           </label>
 
-          <details className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
-            <summary className="cursor-pointer text-sm text-white/70">Slot lines &amp; schedule (advanced)</summary>
+          <details className="rounded-button border border-line bg-overlay-subtle px-3 py-2">
+            <summary className="cursor-pointer text-small text-muted">Slot lines &amp; schedule (advanced)</summary>
             <div className="mt-3 space-y-3">
               <label className="block">
-                <div className="text-sm text-white/55">Primary slot</div>
+                <div className="text-small text-muted">Primary slot</div>
                 <input
-                  className="w-full rounded-lg border border-white/15 bg-black px-3 py-3 text-sm text-white outline-none"
+                  className="w-full rounded-button border border-line bg-canvas px-3 py-3 text-small text-ink outline-none"
                   value={row.primary_slot ?? ""}
                   onChange={(e) =>
                     setRow({ ...row, primary_slot: e.target.value || null })
@@ -138,9 +138,9 @@ export default function AdminStatusPage() {
               </label>
 
               <label className="block">
-                <div className="text-sm text-white/55">Secondary slot</div>
+                <div className="text-small text-muted">Secondary slot</div>
                 <input
-                  className="w-full rounded-lg border border-white/15 bg-black px-3 py-3 text-sm text-white outline-none"
+                  className="w-full rounded-button border border-line bg-canvas px-3 py-3 text-small text-ink outline-none"
                   value={row.secondary_slot ?? ""}
                   onChange={(e) =>
                     setRow({ ...row, secondary_slot: e.target.value || null })
@@ -149,9 +149,9 @@ export default function AdminStatusPage() {
               </label>
 
               <label className="block">
-                <div className="text-sm text-white/55">Next update by (ISO)</div>
+                <div className="text-small text-muted">Next update by (ISO)</div>
                 <input
-                  className="w-full rounded-lg border border-white/15 bg-black px-3 py-3 text-sm text-white outline-none"
+                  className="w-full rounded-button border border-line bg-canvas px-3 py-3 text-small text-ink outline-none"
                   placeholder="2026-03-02T18:00:00Z"
                   value={row.next_update_by ?? ""}
                   onChange={(e) =>
@@ -163,9 +163,9 @@ export default function AdminStatusPage() {
           </details>
 
           <label className="block">
-            <div className="text-sm text-white/55">Announcement</div>
+            <div className="text-small text-muted">Announcement</div>
             <textarea
-              className="min-h-[140px] w-full rounded-lg border border-white/15 bg-black px-3 py-3 text-sm text-white outline-none"
+              className="min-h-[140px] w-full rounded-button border border-line bg-canvas px-3 py-3 text-small text-ink outline-none"
               value={row.announcement ?? ""}
               onChange={(e) =>
                 setRow({ ...row, announcement: e.target.value || null })
@@ -175,13 +175,13 @@ export default function AdminStatusPage() {
 
           <button
             type="button"
-            className="rounded-lg border border-white/20 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:opacity-90"
+            className="rounded-button border border-line bg-pitch px-4 py-3 text-small font-semibold text-on-pitch transition hover:opacity-90"
             onClick={save}
           >
             Save
           </button>
 
-          {msg ? <p className="text-sm text-white/70">{msg}</p> : null}
+          {msg ? <p className="text-small text-muted">{msg}</p> : null}
         </div>
       </div>
     </main>

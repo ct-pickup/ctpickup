@@ -2,12 +2,12 @@ import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import { Stack, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator, Pressable, ScrollView,
   StyleSheet, Text, View,
 } from "react-native";
 
-const LIME = "#a3e635";
 const RAKE = 0.20;
 
 type Payment = {
@@ -34,6 +34,8 @@ type Run = {
 };
 
 export default function SessionEconomicsScreen() {
+  useThemedStyles(publish_s);
+
   const { supabase } = useAuth();
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,22 +137,22 @@ export default function SessionEconomicsScreen() {
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator color={LIME} size="large" /></View>;
+    return <View style={s.center}><ActivityIndicator color={themeColor().pitchText} size="large" /></View>;
   }
 
   return (
     <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 60 }}>
-      <Stack.Screen options={{ title: "Session Economics", headerStyle: { backgroundColor: "#0a0a0a" }, headerTintColor: "#fff", headerShadowVisible: false }} />
+      <Stack.Screen options={{ title: "Session Economics", headerStyle: { backgroundColor: themeColor().bg }, headerTintColor: themeColor().text, headerShadowVisible: false }} />
       <Text style={s.title}>Session Economics</Text>
       <Text style={s.sub}>Who to pay after each session settles.</Text>
 
       {/* Diamond Payouts */}
       <View style={s.card}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-          <Text style={s.runTitle}><Text style={{ color: "#9B59B6" }}>◆</Text> Diamond Payouts (this week)</Text>
-          <Pressable onPress={() => void loadDiamondPayouts()} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" }}>
-            {diamondLoading ? <ActivityIndicator color={LIME} size="small" /> :
-              <Text style={{ color: LIME, fontSize: 12, fontWeight: "700" }}>Load</Text>}
+          <Text style={s.runTitle}><Text style={{ color: themeColor().muted }}>◆</Text> Diamond Payouts (this week)</Text>
+          <Pressable onPress={() => void loadDiamondPayouts()} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line }}>
+            {diamondLoading ? <ActivityIndicator color={themeColor().pitchText} size="small" /> :
+              <Text style={{ color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" }}>Load</Text>}
           </Pressable>
         </View>
         {diamondPayouts.length === 0 ? (
@@ -163,12 +165,12 @@ export default function SessionEconomicsScreen() {
                   <Text style={s.payoutName}>{p.name}</Text>
                   <Text style={s.payoutLabel}>{p.sessions} session{p.sessions === 1 ? "" : "s"}</Text>
                 </View>
-                <Text style={[s.payoutAmount, { color: "#9B59B6" }]}>{p.payout_dollars}</Text>
+                <Text style={[s.payoutAmount, { color: themeColor().muted }]}>{p.payout_dollars}</Text>
               </View>
             ))}
-            <View style={[s.payoutRow, { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)", marginTop: 8, paddingTop: 8 }]}>
-              <Text style={[s.payoutLabel, { color: "#fff", fontWeight: "700" }]}>Total to pay out</Text>
-              <Text style={[s.payoutAmount, { color: "#9B59B6", fontWeight: "800" }]}>{diamondTotal}</Text>
+            <View style={[s.payoutRow, { borderTopWidth: 1, borderTopColor: themeColor().line, marginTop: 8, paddingTop: 8 }]}>
+              <Text style={[s.payoutLabel, { color: themeColor().text, fontWeight: "700" }]}>Total to pay out</Text>
+              <Text style={[s.payoutAmount, { color: themeColor().muted, fontWeight: "800" }]}>{diamondTotal}</Text>
             </View>
           </>
         )}
@@ -200,8 +202,8 @@ export default function SessionEconomicsScreen() {
                   {" · "}{run.status}
                 </Text>
               </View>
-              <View style={[s.statusPill, { borderColor: run.status === "completed" ? LIME : "#facc15" }]}>
-                <Text style={[s.statusText, { color: run.status === "completed" ? LIME : "#facc15" }]}>
+              <View style={[s.statusPill, { borderColor: run.status === "completed" ? themeColor().pitch : themeColor().coral }]}>
+                <Text style={[s.statusText, { color: run.status === "completed" ? themeColor().pitch : themeColor().coral }]}>
                   {run.payments.length} paid
                 </Text>
               </View>
@@ -218,17 +220,17 @@ export default function SessionEconomicsScreen() {
               </View>
               <View style={s.row}>
                 <Text style={s.rowLabel}>Your rake (20%)</Text>
-                <Text style={[s.rowValue, { color: LIME }]}>+${(rake / 100).toFixed(2)}</Text>
+                <Text style={[s.rowValue, { color: themeColor().pitchText }]}>+${(rake / 100).toFixed(2)}</Text>
               </View>
               {run.diamond_attendees.length > 0 && (
                 <View style={s.row}>
                   <Text style={s.rowLabel}>Diamond payouts ({run.diamond_attendees.length}×$8)</Text>
-                  <Text style={[s.rowValue, { color: "#ef4444" }]}>−${(diamondPayout / 100).toFixed(2)}</Text>
+                  <Text style={[s.rowValue, { color: themeColor().coral }]}>−${(diamondPayout / 100).toFixed(2)}</Text>
                 </View>
               )}
               <View style={[s.row, s.rowTotal]}>
-                <Text style={[s.rowLabel, { color: "#fff", fontWeight: "700" }]}>Net to you</Text>
-                <Text style={[s.rowValue, { color: netToYou >= 0 ? LIME : "#ef4444", fontWeight: "800" }]}>
+                <Text style={[s.rowLabel, { color: themeColor().text, fontWeight: "700" }]}>Net to you</Text>
+                <Text style={[s.rowValue, { color: netToYou >= 0 ? themeColor().pitch : themeColor().coral, fontWeight: "800" }]}>
                   ${(netToYou / 100).toFixed(2)}
                 </Text>
               </View>
@@ -265,7 +267,7 @@ export default function SessionEconomicsScreen() {
                   return (
                     <View key={p.id} style={s.payoutRow}>
                       <Text style={s.payoutName}>{name}</Text>
-                      <Text style={[s.payoutAmount, { color: LIME }]}>+${(p.amount_cents / 100).toFixed(2)}</Text>
+                      <Text style={[s.payoutAmount, { color: themeColor().pitchText }]}>+${(p.amount_cents / 100).toFixed(2)}</Text>
                     </View>
                   );
                 })}
@@ -278,27 +280,34 @@ export default function SessionEconomicsScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0a0a0a", padding: 16 },
-  center: { flex: 1, backgroundColor: "#0a0a0a", alignItems: "center", justifyContent: "center" },
-  title: { color: "#fff", fontSize: 22, fontWeight: "800", marginBottom: 4, marginTop: 8 },
-  sub: { color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 20 },
-  emptyCard: { backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 20, alignItems: "center" },
-  emptyText: { color: "rgba(255,255,255,0.4)", fontSize: 14 },
-  card: { backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", padding: 16, marginBottom: 16 },
+function make_s() {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: themeColor().bg, padding: 16 },
+  center: { flex: 1, backgroundColor: themeColor().bg, alignItems: "center", justifyContent: "center" },
+  title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginBottom: 4, marginTop: 8 },
+  sub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 20 },
+  emptyCard: { backgroundColor: themeColor().overlaySubtle, borderRadius: 12, padding: 20, alignItems: "center" },
+  emptyText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
+  card: { backgroundColor: themeColor().overlaySubtle, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 16 },
   cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 14 },
-  runTitle: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  runMeta: { color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 2 },
+  runTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  runMeta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1 },
-  statusText: { fontSize: 11, fontWeight: "700" },
-  breakdownCard: { backgroundColor: "rgba(0,0,0,0.3)", borderRadius: 10, padding: 12, marginBottom: 14, gap: 8 },
+  statusText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  breakdownCard: { backgroundColor: themeColor().bg, borderRadius: 10, padding: 12, marginBottom: 14, gap: 8 },
   row: { flexDirection: "row", justifyContent: "space-between" },
-  rowTotal: { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)", paddingTop: 8, marginTop: 4 },
-  rowLabel: { color: "rgba(255,255,255,0.5)", fontSize: 13 },
-  rowValue: { color: "#fff", fontSize: 13, fontWeight: "600" },
-  payoutRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
-  payoutLabel: { fontSize: 10, fontWeight: "700", letterSpacing: 1.2, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" },
-  payoutName: { color: "#fff", fontSize: 14, fontWeight: "500" },
-  payoutAmount: { color: "#fff", fontSize: 14, fontWeight: "700" },
-  freeNote: { color: "rgba(255,255,255,0.35)", fontSize: 12, fontStyle: "italic", marginBottom: 8 },
+  rowTotal: { borderTopWidth: 1, borderTopColor: themeColor().line, paddingTop: 8, marginTop: 4 },
+  rowLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
+  rowValue: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  payoutRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: themeColor().line },
+  payoutLabel: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted, },
+  payoutName: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_500Medium", fontWeight: "500" },
+  payoutAmount: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  freeNote: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", fontStyle: "italic", marginBottom: 8 },
 });
+}
+let s = make_s();
+function publish_s() {
+  s = make_s();
+}
+

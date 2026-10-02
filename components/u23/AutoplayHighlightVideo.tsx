@@ -25,7 +25,7 @@ export function AutoplayHighlightVideo({
   return (
     <video
       ref={ref}
-      className="w-full rounded-lg border border-white/10 bg-black"
+      className="w-full rounded-button border border-line bg-canvas"
       autoPlay
       muted
       loop

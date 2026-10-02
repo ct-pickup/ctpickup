@@ -5,8 +5,9 @@ import {
   PASSCODE_REQUIREMENTS,
 } from "@/lib/appLock";
 import { ActivityIndicator, Alert, Pressable, Switch, Text, TextInput, View } from "react-native";
-import { accountStyles as styles, LIME } from "./accountStyles";
+import { accountStyles as styles, publish_accountStyles } from "./accountStyles";
 
+import { themeColor, useThemedStyles } from "@/theme";
 type Props = {
   hasPin: boolean;
   lockEnabled: boolean;
@@ -58,6 +59,8 @@ export function AppLockSection({
   removePin,
   lockNow,
 }: Props) {
+  useThemedStyles(publish_accountStyles);
+
   if (!hasPin) {
     return (
       <>
@@ -76,8 +79,8 @@ export function AppLockSection({
               onValueChange={(next) => {
                 if (next) onEnableAppLock();
               }}
-              trackColor={{ false: "rgba(255,255,255,0.18)", true: LIME }}
-              thumbColor="#f4f4f5"
+              trackColor={{ false: themeColor().overlayStrong, true: themeColor().pitch }}
+              thumbColor={themeColor().text}
             />
           </View>
         </View>
@@ -105,8 +108,8 @@ export function AppLockSection({
               value={biometricsEnabled}
               onValueChange={onToggleBiometrics}
               disabled={!biometricsAvailable && !biometricsEnabled}
-              trackColor={{ false: "rgba(255,255,255,0.18)", true: LIME }}
-              thumbColor="#f4f4f5"
+              trackColor={{ false: themeColor().overlayStrong, true: themeColor().pitch }}
+              thumbColor={themeColor().text}
             />
           </View>
           {!biometricsAvailable ? (
@@ -140,7 +143,7 @@ export function AppLockSection({
             value={removeCurrent}
             onChangeText={(t) => setRemoveCurrent(t.slice(0, PASSCODE_MAX_LEN))}
             placeholder="Confirm to remove"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
           />
           <Pressable
             style={[styles.deleteAccountBtn, lockBusy && styles.disabled]}
@@ -181,7 +184,7 @@ export function AppLockSection({
             secureTextEntry
             value={changeOld}
             onChangeText={(t) => setChangeOld(t.slice(0, PASSCODE_MAX_LEN))}
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
           />
           <Text style={[styles.fieldLabel, { marginTop: 12 }]}>New passcode</Text>
           <TextInput
@@ -190,7 +193,7 @@ export function AppLockSection({
             secureTextEntry
             value={changeNewA}
             onChangeText={(t) => setChangeNewA(t.slice(0, PASSCODE_MAX_LEN))}
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
           />
           <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Confirm new</Text>
           <TextInput
@@ -199,7 +202,7 @@ export function AppLockSection({
             secureTextEntry
             value={changeNewB}
             onChangeText={(t) => setChangeNewB(t.slice(0, PASSCODE_MAX_LEN))}
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
           />
           <Pressable
             style={[styles.primaryBtn, lockBusy && styles.disabled]}

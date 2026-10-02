@@ -15,7 +15,10 @@ import { useWaiver } from "@/context/WaiverContext";
 import { RunsPickerBridgeProvider } from "@/context/RunsPickerBridge";
 import { hasCompletedOnboarding } from "@/lib/onboarding";
 
+import { themeColor, useThemedStyles } from "@/theme";
 export default function TabLayout() {
+  useThemedStyles(publish_tabStyles);
+
   const { session, isReady } = useAuth();
   const { enabled: adminModeEnabled, isReady: adminModeReady } = useAdminMode();
   const { isAdmin, isReady: profileAdminReady } = useProfileAdmin();
@@ -52,8 +55,8 @@ export default function TabLayout() {
 
   if (!isReady || !adminModeReady || !profileAdminReady) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#0a0a0a", justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#fff" />
+      <View style={{ flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color={themeColor().text} />
       </View>
     );
   }
@@ -64,8 +67,8 @@ export default function TabLayout() {
 
   if (waiverLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#0a0a0a", justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#fff" />
+      <View style={{ flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color={themeColor().text} />
       </View>
     );
   }
@@ -76,8 +79,8 @@ export default function TabLayout() {
 
   if (profileGateLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#0a0a0a", justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#fff" />
+      <View style={{ flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color={themeColor().text} />
       </View>
     );
   }
@@ -88,8 +91,8 @@ export default function TabLayout() {
 
   if (!onboardingChecked) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#0a0a0a", justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#fff" />
+      <View style={{ flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color={themeColor().text} />
       </View>
     );
   }
@@ -105,15 +108,14 @@ export default function TabLayout() {
   );
 }
 
-const LIME = "#a3e635";
-const INACTIVE = "rgba(255,255,255,0.42)";
-
 /**
  * The redesigned 5-slot bar: Home · Sessions · Host (elevated) · Rankings · Profile,
  * plus a conditional 6th Admin slot. Host jumps via the create menu; Rankings /
  * Home / Sessions / Profile / Admin map to registered tab screens.
  */
 function CTTabBar({ state, navigation, isAdmin }: BottomTabBarProps & { isAdmin: boolean }) {
+  useThemedStyles(publish_tabStyles);
+
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const activeName = state.routes[state.index]?.name ?? "index";
@@ -182,7 +184,9 @@ function TabItem(props: {
   active: boolean;
   onPress: () => void;
 }) {
-  const color = props.active ? LIME : INACTIVE;
+  useThemedStyles(publish_tabStyles);
+
+  const color = props.active ? themeColor().pitch : themeColor().text;
   return (
     <Pressable
       accessibilityRole="button"
@@ -201,6 +205,8 @@ function TabItem(props: {
 }
 
 function HostButton({ onPress }: { onPress: () => void }) {
+  useThemedStyles(publish_tabStyles);
+
   return (
     <View style={tabStyles.hostSlot}>
       <Pressable
@@ -209,44 +215,46 @@ function HostButton({ onPress }: { onPress: () => void }) {
         onPress={onPress}
         style={({ pressed }) => [tabStyles.hostBtn, pressed && { transform: [{ scale: 0.94 }] }]}
       >
-        <FontAwesome name="plus" size={26} color="#0a0a0a" />
+        <FontAwesome name="plus" size={26} color={themeColor().onPitch} />
       </Pressable>
     </View>
   );
 }
 
-const tabStyles = StyleSheet.create({
+function make_tabStyles() {
+  return StyleSheet.create({
   bar: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: "#050505",
+    backgroundColor: themeColor().bg,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(255,255,255,0.08)",
+    borderTopColor: themeColor().line,
     paddingTop: 8,
   },
   item: { flex: 1, alignItems: "center", justifyContent: "flex-start", gap: 3 },
-  label: { fontSize: 10, fontWeight: "600", letterSpacing: 0.2 },
+  label: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600",},
   hostSlot: { flex: 1, alignItems: "center" },
   hostBtn: {
     position: "absolute",
     top: -26,
     width: 56,
     height: 56,
-    borderRadius: 28,
-    backgroundColor: LIME,
+    borderRadius: 999,
+    backgroundColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 4,
-    borderColor: "#050505",
-    shadowColor: LIME,
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 10,
   },
 });
+}
+let tabStyles = make_tabStyles();
+function publish_tabStyles() {
+  tabStyles = make_tabStyles();
+}
+
 
 function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; isAdmin: boolean }) {
+  useThemedStyles(publish_tabStyles);
+
   const showAdmin = props.isAdmin && props.adminModeEnabled;
 
   return (
@@ -254,8 +262,8 @@ function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; isAdmin: bo
       tabBar={(bar) => <CTTabBar {...bar} isAdmin={showAdmin} />}
       screenOptions={{
         headerShown: useClientOnlyValue(false, true),
-        headerStyle: { backgroundColor: "#0a0a0a" },
-        headerTintColor: "#fff",
+        headerStyle: { backgroundColor: themeColor().bg },
+        headerTintColor: themeColor().text,
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Home", headerShown: false }} />

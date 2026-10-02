@@ -17,8 +17,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const LIME = "#a3e635";
-const BG = "#0a0a0a";
+import { themeColor, useThemedStyles } from "@/theme";
 const MIN_MINUTES = 15;
 const MAX_MINUTES = 90;
 const SLIDER_STEP = 5;
@@ -47,6 +46,8 @@ function formatInstagram(handle: string | null): string {
 }
 
 export default function ProximitySearchScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const { session } = useAuth();
   const token = session?.access_token ?? null;
@@ -95,7 +96,7 @@ export default function ProximitySearchScreen() {
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <View style={styles.topBar}>
         <Pressable onPress={() => goToAdminMenu(router)} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}>
-          <FontAwesome name="chevron-left" size={18} color="#fff" />
+          <FontAwesome name="chevron-left" size={18} color={themeColor().text} />
           <Text style={styles.backBtnText}>Back</Text>
         </Pressable>
         <Text style={styles.topTitle}>Player Proximity Search</Text>
@@ -111,13 +112,13 @@ export default function ProximitySearchScreen() {
         <View style={styles.venueInputWrap}>
           <Text style={styles.label}>Venue name</Text>
           <View style={styles.venueInputRow}>
-            <FontAwesome name="map-marker" size={16} color={LIME} style={styles.venueInputIcon} />
+            <FontAwesome name="map-marker" size={16} color={themeColor().pitchText} style={styles.venueInputIcon} />
             <TextInput
               style={styles.venueInput}
               value={venue}
               onChangeText={setVenue}
               placeholder="e.g. Sofive Meadowlands 5v5"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
               autoCapitalize="words"
               autoCorrect={false}
             />
@@ -127,13 +128,13 @@ export default function ProximitySearchScreen() {
         <View style={styles.venueInputWrap}>
           <Text style={styles.label}>Venue ZIP code</Text>
           <View style={styles.venueInputRow}>
-            <FontAwesome name="location-arrow" size={16} color={LIME} style={styles.venueInputIcon} />
+            <FontAwesome name="location-arrow" size={16} color={themeColor().pitchText} style={styles.venueInputIcon} />
             <TextInput
               style={styles.venueInput}
               value={venueZip}
               onChangeText={(text) => setVenueZip(text.replace(/\D/g, "").slice(0, 5))}
               placeholder="06880"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
               keyboardType="number-pad"
               maxLength={5}
             />
@@ -153,9 +154,9 @@ export default function ProximitySearchScreen() {
             step={SLIDER_STEP}
             value={maxMinutes}
             onValueChange={(v) => setMaxMinutes(Math.round(v / SLIDER_STEP) * SLIDER_STEP)}
-            minimumTrackTintColor={LIME}
-            maximumTrackTintColor="rgba(255,255,255,0.18)"
-            thumbTintColor="#f4f4f5"
+            minimumTrackTintColor={themeColor().pitch}
+            maximumTrackTintColor={themeColor().overlayStrong}
+            thumbTintColor={themeColor().text}
           />
           <View style={styles.sliderTicks}>
             <Text style={styles.sliderTick}>{MIN_MINUTES} min</Text>
@@ -168,7 +169,7 @@ export default function ProximitySearchScreen() {
           disabled={loading}
           style={({ pressed }) => [styles.searchBtn, (pressed || loading) && { opacity: 0.88 }]}
         >
-          {loading ? <ActivityIndicator color="#111" /> : <Text style={styles.searchBtnText}>Search</Text>}
+          {loading ? <ActivityIndicator color={themeColor().onPitch} /> : <Text style={styles.searchBtnText}>Search</Text>}
         </Pressable>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -202,8 +203,9 @@ export default function ProximitySearchScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: BG },
+function make_styles() {
+  return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: themeColor().bg },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -212,11 +214,11 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { flexDirection: "row", alignItems: "center", gap: 6, padding: 8 },
-  backBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  topTitle: { flex: 1, fontSize: 18, fontWeight: "800", color: "#fff" },
+  backBtnText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  topTitle: { flex: 1, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
   scroll: { flex: 1 },
   content: { padding: 20, paddingBottom: 40 },
-  label: { fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.55)", textTransform: "uppercase" },
+  label: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted, },
   venueInputWrap: { marginTop: 16 },
   venueInputRow: {
     marginTop: 8,
@@ -226,52 +228,58 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     gap: 10,
   },
   venueInputIcon: { marginTop: 1 },
-  venueInput: { flex: 1, color: "#fff", fontSize: 15, padding: 0 },
-  zipHint: { marginTop: 8, fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 17 },
+  venueInput: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", padding: 0 },
+  zipHint: { marginTop: 8, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 17 },
   sliderBlock: { marginTop: 24 },
   sliderHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  sliderValue: { color: LIME, fontSize: 16, fontWeight: "800" },
+  sliderValue: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
   slider: { width: "100%", height: 40, marginTop: 8 },
   sliderTicks: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
-  sliderTick: { fontSize: 12, color: "rgba(255,255,255,0.45)" },
+  sliderTick: { fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
   searchBtn: {
     marginTop: 24,
     paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: LIME,
+    borderRadius: 12,
+    backgroundColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
     minHeight: 48,
   },
-  searchBtnText: { color: "#111", fontSize: 16, fontWeight: "800" },
-  error: { marginTop: 14, color: "#f87171", fontSize: 14, lineHeight: 20 },
+  searchBtnText: { color: themeColor().onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  error: { marginTop: 14, color: themeColor().coral, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   results: { marginTop: 28 },
-  countHeader: { color: LIME, fontSize: 15, fontWeight: "800", lineHeight: 22, marginBottom: 14 },
-  empty: { color: "rgba(255,255,255,0.5)", fontSize: 14, fontStyle: "italic" },
+  countHeader: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", lineHeight: 22, marginBottom: 14 },
+  empty: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", fontStyle: "italic" },
   resultCard: {
     marginBottom: 10,
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   resultTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10 },
-  resultName: { flex: 1, color: "#fff", fontSize: 16, fontWeight: "800" },
+  resultName: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
   tierBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: "rgba(163,230,53,0.15)",
+    borderRadius: 10,
+    backgroundColor: themeColor().pitchSoft,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.3)",
+    borderColor: themeColor().pitch,
   },
-  tierBadgeText: { color: LIME, fontSize: 11, fontWeight: "800" },
-  resultMeta: { marginTop: 6, color: "rgba(255,255,255,0.6)", fontSize: 13 },
-  resultDrive: { marginTop: 8, color: "#fff", fontSize: 14, fontWeight: "700" },
+  tierBadgeText: { color: themeColor().pitch, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  resultMeta: { marginTop: 6, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
+  resultDrive: { marginTop: 8, color: themeColor().text, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

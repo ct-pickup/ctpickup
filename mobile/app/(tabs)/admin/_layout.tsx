@@ -6,7 +6,10 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Redirect, Stack, usePathname, useRouter } from "expo-router";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
+import { themeColor, useTheme } from "@/theme";
 function AdminHeaderBack({ tintColor }: { tintColor?: string }) {
+  useTheme();
+
   const router = useRouter();
   const pathname = usePathname();
   if (isAdminMenuPath(pathname)) return null;
@@ -22,21 +25,23 @@ function AdminHeaderBack({ tintColor }: { tintColor?: string }) {
         opacity: pressed ? 0.85 : 1,
       })}
     >
-      <FontAwesome name="chevron-left" size={14} color={tintColor ?? "#fff"} />
-      <Text style={{ color: tintColor ?? "#fff", fontSize: 16, fontWeight: "600" }}>Back</Text>
+      <FontAwesome name="chevron-left" size={14} color={tintColor ?? themeColor().text} />
+      <Text style={{ color: tintColor ?? themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" }}>Back</Text>
     </Pressable>
   );
 }
 
 export default function AdminLayout() {
+  useTheme();
+
   const { session, isReady: authReady } = useAuth();
   const { isAdmin, isReady: profileAdminReady } = useProfileAdmin();
   const { enabled: adminModeEnabled, isReady: adminModeReady } = useAdminMode();
 
   if (!authReady || !profileAdminReady || !adminModeReady) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#0a0a0a", justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#fff" />
+      <View style={{ flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color={themeColor().text} />
       </View>
     );
   }
@@ -52,11 +57,11 @@ export default function AdminLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: "#0a0a0a" },
-        headerTintColor: "#fff",
+        headerStyle: { backgroundColor: themeColor().bg },
+        headerTintColor: themeColor().text,
         headerBackTitle: "Back",
         headerLeft: ({ tintColor }) => <AdminHeaderBack tintColor={tintColor} />,
-        contentStyle: { backgroundColor: "#0a0a0a" },
+        contentStyle: { backgroundColor: themeColor().bg },
       }}
     >
       <Stack.Screen name="index" options={{ title: "Admin", headerShown: false }} />

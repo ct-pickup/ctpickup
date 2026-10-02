@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { themeColor, useThemedStyles } from "@/theme";
 type Props = {
   value: string;
   onChange: (iso: string) => void;
@@ -341,6 +342,8 @@ export default function DateTimePicker({
   enforceFuture,
   prominent,
 }: Props) {
+  useThemedStyles(publish_styles);
+
   const [open, setOpen] = useState(false);
   const partsOptions = { enforceFuture, pollDateEt, useNextSundayWhenEmpty };
   const initial = partsFromValue(value, partsOptions);
@@ -545,57 +548,64 @@ export default function DateTimePicker({
   );
 }
 
-const styles = StyleSheet.create({
-  label: { color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: "700", textTransform: "uppercase", marginBottom: 6 },
+function make_styles() {
+  return StyleSheet.create({
+  label: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 6 },
   trigger: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#1a1a1a",
+    backgroundColor: themeColor().card,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: themeColor().line,
     padding: 12,
     marginBottom: 12,
   },
   triggerProminent: {
     paddingVertical: 16,
     paddingHorizontal: 14,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 2,
-    borderColor: "rgba(163,230,53,0.5)",
+    borderColor: themeColor().pitch,
     marginBottom: 10,
-    backgroundColor: "#141414",
+    backgroundColor: themeColor().card,
   },
   triggerDisabled: { opacity: 0.45 },
-  triggerText: { color: "#fff", fontSize: 14, flex: 1, paddingRight: 8 },
-  triggerTextProminent: { fontSize: 16, fontWeight: "700" },
-  placeholder: { color: "rgba(255,255,255,0.35)", fontWeight: "600" },
-  icon: { fontSize: 16 },
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#111", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 60 },
-  title: { color: "#fff", fontSize: 17, fontWeight: "700", marginBottom: 12, textAlign: "center" },
-  rowDivider: { height: 1, backgroundColor: "rgba(163,230,53,0.15)", marginVertical: 12 },
+  triggerText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_400Regular", flex: 1, paddingRight: 8 },
+  triggerTextProminent: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  placeholder: { color: themeColor().muted, fontWeight: "600" },
+  icon: { fontSize: 16, fontFamily: "Inter_400Regular" },
+  overlay: { flex: 1, backgroundColor: themeColor().scrim, justifyContent: "flex-end" },
+  sheet: { backgroundColor: themeColor().bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 60 },
+  title: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 12, textAlign: "center" },
+  rowDivider: { height: 1, backgroundColor: themeColor().pitchSoft, marginVertical: 12 },
   pickerRow: { flexDirection: "row", gap: 8, height: 220 },
   colWide: { flex: 1.35 },
   colMedium: { flex: 1 },
   colNarrow: { flex: 0.85 },
-  colLabel: { color: "rgba(255,255,255,0.3)", fontSize: 9, textAlign: "center", marginBottom: 4 },
+  colLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", marginBottom: 4 },
   scroll: { flex: 1 },
   preview: {
-    color: "#a3e635",
-    fontSize: 18,
+    color: themeColor().pitchText,
+    fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "900",
     textAlign: "center",
     marginTop: 16,
     marginBottom: 8,
   },
-  item: { paddingVertical: 8, alignItems: "center", borderRadius: 6 },
-  itemActive: { backgroundColor: "rgba(163,230,53,0.2)", borderRadius: 8 },
-  itemText: { color: "rgba(255,255,255,0.55)", fontSize: 13 },
-  itemTextActive: { color: "#a3e635", fontWeight: "700", fontSize: 15 },
-  confirmBtn: { backgroundColor: "#a3e635", borderRadius: 10, padding: 14, alignItems: "center", marginTop: 16 },
-  confirmText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  item: { paddingVertical: 8, alignItems: "center", borderRadius: 10 },
+  itemActive: { backgroundColor: themeColor().pitchSoft, borderRadius: 10 },
+  itemText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
+  itemTextActive: { color: themeColor().pitchText, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
+  confirmBtn: { backgroundColor: themeColor().pitch, borderRadius: 10, padding: 14, alignItems: "center", marginTop: 16 },
+  confirmText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   cancelBtn: { alignItems: "center", marginTop: 10 },
-  cancelText: { color: "rgba(255,255,255,0.45)", fontSize: 14 },
+  cancelText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

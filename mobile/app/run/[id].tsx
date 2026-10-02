@@ -5,9 +5,7 @@ import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-const BG = "#0a0a0a";
-const LIME = "#a3e635";
-
+import { themeColor, useThemedStyles } from "@/theme";
 type Team = "A" | "B" | "C";
 
 type AwardSlot = "player" | "goalie" | "attacker" | "midfielder" | "defender";
@@ -45,6 +43,8 @@ function venueLine(locationPrivate: string | null): string {
 }
 
 export default function RunDetailScreen() {
+  useThemedStyles(publish_styles);
+
   const { id: raw } = useLocalSearchParams<{ id: string | string[] }>();
   const runId = typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : "";
   const navigation = useNavigation();
@@ -72,8 +72,8 @@ export default function RunDetailScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       title: "Run",
-      headerStyle: { backgroundColor: BG },
-      headerTintColor: "#fff",
+      headerStyle: { backgroundColor: themeColor().bg },
+      headerTintColor: themeColor().text,
       headerShadowVisible: false,
     });
   }, [navigation]);
@@ -244,7 +244,7 @@ export default function RunDetailScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={LIME} />
+        <ActivityIndicator size="large" color={themeColor().pitchText} />
       </View>
     );
   }
@@ -287,7 +287,7 @@ export default function RunDetailScreen() {
         ) : null}
         {outcome ? (
           <View style={[styles.pill, outcome === "Won" ? styles.pillWin : styles.pillLoss]}>
-            <FontAwesome name={outcome === "Won" ? "trophy" : "flag"} size={14} color={outcome === "Won" ? "#111" : "#fff"} />
+            <FontAwesome name={outcome === "Won" ? "trophy" : "flag"} size={14} color={outcome === "Won" ? themeColor().bg : themeColor().text} />
             <Text style={[styles.pillText, outcome === "Won" ? styles.pillTextWin : styles.pillTextLoss]}>
               {outcome}
             </Text>
@@ -328,32 +328,32 @@ export default function RunDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: BG },
+function make_styles() {
+  return StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 20, paddingBottom: 40 },
-  center: { flex: 1, backgroundColor: BG, justifyContent: "center", alignItems: "center", padding: 24 },
-  errText: { color: "#fca5a5", fontSize: 15, textAlign: "center" },
-  h1: { fontSize: 26, fontWeight: "900", color: "#fff" },
-  sub: { marginTop: 10, color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
+  center: { flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center", padding: 24 },
+  errText: { color: themeColor().coral, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center" },
+  h1: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().text },
+  sub: { marginTop: 10, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
 
   card: {
     marginTop: 14,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   row: { flexDirection: "row", gap: 12 },
-  label: { fontSize: 11, fontWeight: "800", letterSpacing: 1.1, color: "rgba(255,255,255,0.45)", textTransform: "uppercase" },
-  value: { marginTop: 8, color: "#fff", fontSize: 16, fontWeight: "800" },
-  valueMuted: { marginTop: 8, color: "rgba(255,255,255,0.55)", fontSize: 16, fontWeight: "700" },
+  label: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted, },
+  value: { marginTop: 8, color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  valueMuted: { marginTop: 8, color: themeColor().muted, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
   winningTeamHeadline: {
     marginTop: 14,
-    color: LIME,
-    fontSize: 17,
+    color: themeColor().pitchText,
+    fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "900",
-    letterSpacing: 0.2,
   },
 
   awardRow: {
@@ -363,24 +363,30 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.06)",
+    borderBottomColor: themeColor().line,
   },
-  awardLabel: { color: "rgba(255,255,255,0.65)", fontWeight: "700", fontSize: 14 },
+  awardLabel: { color: themeColor().muted, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
   awardNameWrap: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.10)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  awardName: { color: LIME, fontWeight: "900", fontSize: 14 },
-  awardNameMuted: { color: "rgba(255,255,255,0.4)", fontWeight: "700", fontSize: 14 },
+  awardName: { color: themeColor().pitchText, fontWeight: "900", fontSize: 14, fontFamily: "Inter_700Bold" },
+  awardNameMuted: { color: themeColor().muted, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
 
   pill: { marginTop: 14, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1 },
-  pillWin: { borderColor: "rgba(163,230,53,0.55)", backgroundColor: LIME },
-  pillLoss: { borderColor: "rgba(248,113,113,0.45)", backgroundColor: "rgba(248,113,113,0.10)" },
-  pillText: { fontWeight: "900", fontSize: 13 },
-  pillTextWin: { color: "#111" },
-  pillTextLoss: { color: "#fff" },
+  pillWin: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitch },
+  pillLoss: { borderColor: themeColor().coral, backgroundColor: themeColor().overlaySubtle },
+  pillText: { fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
+  pillTextWin: { color: themeColor().onPitch },
+  pillTextLoss: { color: themeColor().text },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

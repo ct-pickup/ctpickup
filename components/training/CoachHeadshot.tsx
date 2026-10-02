@@ -19,7 +19,7 @@ export function CoachHeadshot({
   loading = "lazy",
 }: CoachHeadshotProps) {
   return (
-    <div className={`relative overflow-hidden bg-[#0a0b0c] ${className}`}>
+    <div className={`relative overflow-hidden bg-canvas${className}`}>
       <img
         src={coachPhotoSrc(slug)}
         alt={name}
@@ -31,7 +31,7 @@ export function CoachHeadshot({
         }}
       />
       <div
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(15,15,16,0.82)_0%,rgba(15,15,16,0.28)_48%,transparent_70%)]"
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,var(--scrim)_0%,var(--overlay-strong)_48%,transparent_70%)]"
         aria-hidden
       />
     </div>

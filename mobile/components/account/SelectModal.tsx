@@ -1,6 +1,7 @@
 import { Modal, Pressable, Text, View } from "react-native";
-import { accountStyles as styles } from "./accountStyles";
+import { accountStyles as styles, publish_accountStyles } from "./accountStyles";
 
+import { useThemedStyles } from "@/theme";
 type SelectModalProps<T extends string> = {
   visible: boolean;
   title: string;
@@ -18,6 +19,8 @@ export function SelectModal<T extends string>({
   onSelect,
   onClose,
 }: SelectModalProps<T>) {
+  useThemedStyles(publish_accountStyles);
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalRoot}>

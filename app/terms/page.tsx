@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 const linkClass =
-  "font-medium text-[var(--brand)] underline-offset-4 hover:underline";
+  "font-medium text-pitch-text underline-offset-4 hover:underline";
 
 export default function TermsPage() {
   return (
@@ -26,16 +26,16 @@ export default function TermsPage() {
       <div className="mt-4">
         <HistoryBack
           fallbackHref="/"
-          className="cursor-pointer border-0 bg-transparent p-0 text-sm text-white/75 transition hover:text-white"
+          className="cursor-pointer border-0 bg-transparent p-0 text-small text-muted transition hover:text-ink"
         />
       </div>
-      <h1 className="mt-6 text-3xl font-semibold uppercase tracking-tight text-white md:text-4xl">
+      <h1 className="mt-6 text-h1 font-serif font-semibold text-ink md:text-display">
         Terms of Service
       </h1>
       <Panel className="mt-6 p-6 md:p-8">
-        <div className="space-y-8 text-sm leading-relaxed text-white/75 md:text-base">
+        <div className="space-y-8 text-small leading-relaxed text-muted md:text-body">
           <section>
-            <h2 className="text-base font-semibold text-white">
+            <h2 className="text-body font-semibold text-ink">
               1. Acceptance of Terms
             </h2>
             <p className="mt-3">
@@ -45,7 +45,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white">
+            <h2 className="text-body font-semibold text-ink">
               2. Intellectual Property
             </h2>
             <p className="mt-3">
@@ -58,7 +58,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white">
+            <h2 className="text-body font-semibold text-ink">
               3. Prohibited Activities
             </h2>
             <p className="mt-3">Users may not:</p>
@@ -90,7 +90,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white">4. User Content</h2>
+            <h2 className="text-body font-semibold text-ink">4. User Content</h2>
             <p className="mt-3">
               By posting messages or content on CT Pickup you grant CT Pickup a non-exclusive
               license to display your content within the platform. You retain ownership of your
@@ -99,7 +99,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white">5. Code of Conduct</h2>
+            <h2 className="text-body font-semibold text-ink">5. Code of Conduct</h2>
             <p className="mt-3">
               Users must treat all other players and staff with respect. CT Pickup reserves the
               right to suspend or permanently ban any user for harassment, abusive behavior,
@@ -108,7 +108,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white">6. Payments and Refunds</h2>
+            <h2 className="text-body font-semibold text-ink">6. Payments and Refunds</h2>
             <p className="mt-3">
               All pickup run and tournament fees are processed securely through Stripe. Refund
               eligibility is determined by the cancellation policy displayed at the time of
@@ -117,7 +117,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white">7. Assumption of Risk</h2>
+            <h2 className="text-body font-semibold text-ink">7. Assumption of Risk</h2>
             <p className="mt-3">
               Participation in CT Pickup pickup runs and tournaments involves physical activity
               and inherent risk of injury. By participating you acknowledge and accept these risks.
@@ -127,7 +127,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white">8. Termination</h2>
+            <h2 className="text-body font-semibold text-ink">8. Termination</h2>
             <p className="mt-3">
               CT Pickup reserves the right to suspend or terminate any account at any time, with
               or without notice, for violation of these terms or for any other reason at our
@@ -136,7 +136,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white">
+            <h2 className="text-body font-semibold text-ink">
               9. Disclaimer of Warranties
             </h2>
             <p className="mt-3">
@@ -147,7 +147,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white">
+            <h2 className="text-body font-semibold text-ink">
               10. Limitation of Liability
             </h2>
             <p className="mt-3">
@@ -158,7 +158,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white">11. Governing Law</h2>
+            <h2 className="text-body font-semibold text-ink">11. Governing Law</h2>
             <p className="mt-3">
               These terms are governed by and construed in accordance with the laws of the State
               of Connecticut, United States, without regard to its conflict of law provisions.
@@ -166,7 +166,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white">12. Changes to Terms</h2>
+            <h2 className="text-body font-semibold text-ink">12. Changes to Terms</h2>
             <p className="mt-3">
               We reserve the right to update these terms at any time. Continued use of the
               platform after changes constitutes acceptance of the new terms. We will notify
@@ -175,27 +175,27 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-base font-semibold text-white">13. Contact</h2>
+            <h2 className="text-body font-semibold text-ink">13. Contact</h2>
             <p className="mt-3">
-              For questions about these terms contact us at:{" "}
+              For questions about these terms contact us at:{"  "}
               <SupportEmailLink className={linkClass} />
             </p>
           </section>
 
-          <p className="border-t border-white/10 pt-6 text-sm text-white/55">
-            Related:{" "}
-            <Link href="/privacy" className="text-white/75 underline-offset-4 hover:underline">
+          <p className="border-t border-line pt-6 text-small text-muted">
+            Related:{"  "}
+            <Link href="/privacy" className="text-muted underline-offset-4 hover:underline">
               Privacy
             </Link>
-            ,{" "}
+            ,{"  "}
             <Link
               href="/liability-waiver"
-              className="text-white/75 underline-offset-4 hover:underline"
+              className="text-muted underline-offset-4 hover:underline"
             >
               Liability Waiver
             </Link>
-            . For general help, visit{" "}
-            <Link href="/help" className="text-white/75 underline-offset-4 hover:underline">
+            . For general help, visit{"  "}
+            <Link href="/help" className="text-muted underline-offset-4 hover:underline">
               Help
             </Link>
             .

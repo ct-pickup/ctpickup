@@ -10,6 +10,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -23,8 +24,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-
-const LIME = "#a3e635";
 
 type MuteRow = {
   id: string;
@@ -74,6 +73,8 @@ function formatMsgTime(iso: string): string {
 }
 
 export default function AdminChatRoomScreen() {
+  useThemedStyles(publish_styles);
+
   const { session, supabase, isReady: authReady } = useAuth();
   const token = session?.access_token ?? null;
   const params = useLocalSearchParams();
@@ -317,7 +318,7 @@ export default function AdminChatRoomScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Room controls</Text>
-          {loading && !room ? <ActivityIndicator color="#fff" style={{ marginTop: 12 }} /> : null}
+          {loading && !room ? <ActivityIndicator color={themeColor().text} style={{ marginTop: 12 }} /> : null}
           {roomLoadErr ? <Text style={styles.err}>{roomLoadErr}</Text> : null}
           {room ? (
             <>
@@ -326,8 +327,8 @@ export default function AdminChatRoomScreen() {
                 <Switch
                   value={draftActive}
                   onValueChange={setDraftActive}
-                  trackColor={{ false: "rgba(255,255,255,0.18)", true: LIME }}
-                  thumbColor="#f4f4f5"
+                  trackColor={{ false: themeColor().overlayStrong, true: themeColor().pitch }}
+                  thumbColor={themeColor().text}
                 />
               </View>
               <View style={[styles.rowBetween, { marginTop: 12 }]}>
@@ -335,8 +336,8 @@ export default function AdminChatRoomScreen() {
                 <Switch
                   value={draftAnnOnly}
                   onValueChange={setDraftAnnOnly}
-                  trackColor={{ false: "rgba(255,255,255,0.18)", true: LIME }}
-                  thumbColor="#f4f4f5"
+                  trackColor={{ false: themeColor().overlayStrong, true: themeColor().pitch }}
+                  thumbColor={themeColor().text}
                 />
               </View>
               <Text style={styles.label}>closes_at (ISO, optional)</Text>
@@ -345,7 +346,7 @@ export default function AdminChatRoomScreen() {
                 value={draftClosesAt}
                 onChangeText={setDraftClosesAt}
                 placeholder="2026-05-04T18:00:00.000Z or leave empty"
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                placeholderTextColor={themeColor().muted}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
@@ -401,11 +402,11 @@ export default function AdminChatRoomScreen() {
             value={profileQuery}
             onChangeText={setProfileQuery}
             placeholder="First name, last name, or email"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
             autoCapitalize="none"
             autoCorrect={false}
           />
-          {profileSearchBusy ? <ActivityIndicator color="#fff" style={{ marginTop: 8 }} /> : null}
+          {profileSearchBusy ? <ActivityIndicator color={themeColor().text} style={{ marginTop: 8 }} /> : null}
           {profileHits.length > 0 ? (
             <View style={styles.hitBox}>
               {profileHits.map((p) => (
@@ -426,7 +427,7 @@ export default function AdminChatRoomScreen() {
             value={userId}
             onChangeText={setUserId}
             placeholder="Supabase user id (uuid)"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
             autoCapitalize="none"
             autoCorrect={false}
           />
@@ -436,7 +437,7 @@ export default function AdminChatRoomScreen() {
             value={reason}
             onChangeText={setReason}
             placeholder="Spam, abuse…"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
           />
           <Pressable
             onPress={() => void muteNow()}
@@ -485,56 +486,57 @@ export default function AdminChatRoomScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0a0a0a" },
+function make_styles() {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 16, paddingBottom: 40 },
-  h1: { fontSize: 28, fontWeight: "800", color: "#fff" },
+  h1: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  chipText: { color: LIME, fontWeight: "800", fontSize: 13 },
-  err: { marginTop: 10, color: "#fca5a5" },
-  muted: { marginTop: 10, color: "rgba(255,255,255,0.6)" },
-  bodyMuted: { marginTop: 8, color: "rgba(255,255,255,0.55)", fontSize: 13, lineHeight: 18 },
+  chipText: { color: themeColor().pitch, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
+  err: { marginTop: 10, color: themeColor().coral },
+  muted: { marginTop: 10, color: themeColor().muted },
+  bodyMuted: { marginTop: 8, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   card: {
     marginTop: 14,
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  cardTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
-  label: { marginTop: 12, fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.55)" },
-  labelInline: { fontSize: 13, fontWeight: "800", color: "rgba(255,255,255,0.75)" },
+  cardTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
+  label: { marginTop: 12, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
+  labelInline: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
   input: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: themeColor().line,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 15,
-    color: "#fff",
-    backgroundColor: "rgba(0,0,0,0.35)",
+    fontSize: 16, fontFamily: "Inter_400Regular",
+    color: themeColor().text,
+    backgroundColor: themeColor().overlaySubtle,
   },
   primary: {
     marginTop: 14,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
   },
-  primaryText: { color: "#111", fontWeight: "900", fontSize: 15 },
+  primaryText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
   muteRow: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 10 },
-  muteUser: { color: "#fff", fontWeight: "800" },
-  muteSub: { marginTop: 2, color: "rgba(255,255,255,0.5)", fontSize: 12, lineHeight: 16 },
+  muteUser: { color: themeColor().text, fontWeight: "800" },
+  muteSub: { marginTop: 2, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 16 },
   msgRow: {
     marginTop: 12,
     flexDirection: "row",
@@ -542,35 +544,41 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.08)",
+    borderTopColor: themeColor().line,
   },
-  msgName: { color: LIME, fontWeight: "800", fontSize: 14 },
-  msgBody: { marginTop: 4, color: "#fff", fontSize: 14, lineHeight: 20 },
-  msgTime: { marginTop: 4, color: "rgba(255,255,255,0.45)", fontSize: 12 },
+  msgName: { color: themeColor().pitchText, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
+  msgBody: { marginTop: 4, color: themeColor().text, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  msgTime: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
   smallChip: {
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  smallChipText: { color: "#fff", fontWeight: "900", fontSize: 12 },
+  smallChipText: { color: themeColor().text, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
   smallChipDanger: {
-    borderColor: "rgba(248,113,113,0.35)",
-    backgroundColor: "rgba(248,113,113,0.10)",
+    borderColor: themeColor().coral,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  smallChipDangerText: { color: "#fecaca", fontWeight: "900", fontSize: 12 },
+  smallChipDangerText: { color: themeColor().coral, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
   hitBox: {
     marginTop: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.25)",
+    borderColor: themeColor().pitch,
     overflow: "hidden",
-    backgroundColor: "rgba(0,0,0,0.25)",
+    backgroundColor: themeColor().bg,
   },
-  hitRow: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
-  hitTitle: { color: "#fff", fontWeight: "800", fontSize: 14 },
-  hitSub: { marginTop: 2, color: "rgba(255,255,255,0.5)", fontSize: 12 },
+  hitRow: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: themeColor().line },
+  hitTitle: { color: themeColor().text, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
+  hitSub: { marginTop: 2, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
   disabled: { opacity: 0.55 },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

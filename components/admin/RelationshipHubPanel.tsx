@@ -83,28 +83,28 @@ export function RelationshipHubPanel({
     }
   }
 
-  if (!isReady) return <p className="text-sm text-white/50">Loading hub controls…</p>;
+  if (!isReady) return <p className="text-small text-muted">Loading hub controls…</p>;
 
   return (
-    <div className="mt-8 space-y-8 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] p-5">
+    <div className="mt-8 space-y-8 rounded-card border border-pitch bg-pitch-soft p-5">
       <div>
-        <h3 className="text-sm font-semibold text-white">Fix hub links here</h3>
-        <p className="mt-1 text-xs text-white/50">
+        <h3 className="text-small font-semibold text-ink">Fix hub links here</h3>
+        <p className="mt-1 text-caption text-muted">
           Confirm once — this is the same as promoting a pickup run or choosing a live tournament elsewhere.
         </p>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
-        <section className="space-y-3 rounded-xl border border-white/10 bg-black/30 p-4">
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-white/45">Pickup hub</h4>
-          <p className="text-xs text-white/55">
-            <span className="text-white/75">Players see this on:</span> pickup hub, RSVPs, and the pickup status page when the
+        <section className="space-y-3 rounded-card border border-line bg-overlay-subtle p-4">
+          <h4 className="text-caption font-semibold text-muted">Pickup hub</h4>
+          <p className="text-caption text-muted">
+            <span className="text-muted">Players see this on:</span> pickup hub, RSVPs, and the pickup status page when the
             run is public.
           </p>
           <select
             value={pickupChoice}
             onChange={(e) => setPickupChoice(e.target.value)}
-            className="w-full rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white outline-none"
+            className="w-full rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink outline-none"
           >
             <option value="">— No run on the hub —</option>
             {pickupRuns.map((r) => (
@@ -113,7 +113,7 @@ export function RelationshipHubPanel({
               </option>
             ))}
           </select>
-          <label className="flex items-center gap-2 text-xs text-white/65">
+          <label className="flex items-center gap-2 text-caption text-muted">
             <input type="checkbox" checked={confirmPickup} onChange={(e) => setConfirmPickup(e.target.checked)} />
             I understand this chooses which run the pickup hub shows.
           </label>
@@ -121,7 +121,7 @@ export function RelationshipHubPanel({
             type="button"
             disabled={busy || !confirmPickup}
             onClick={() => void applyPickup(pickupChoice || null)}
-            className="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-40"
+            className="rounded-button bg-pitch px-4 py-2 text-caption font-semibold text-on-pitch disabled:opacity-40"
           >
             Apply pickup hub
           </button>
@@ -135,15 +135,15 @@ export function RelationshipHubPanel({
           ) : null}
         </section>
 
-        <section className="space-y-3 rounded-xl border border-white/10 bg-black/30 p-4">
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-white/45">Tournament hub</h4>
-          <p className="text-xs text-white/55">
-            <span className="text-white/75">Players see this on:</span> tournament hub and tournament status page.
+        <section className="space-y-3 rounded-card border border-line bg-overlay-subtle p-4">
+          <h4 className="text-caption font-semibold text-muted">Tournament hub</h4>
+          <p className="text-caption text-muted">
+            <span className="text-muted">Players see this on:</span> tournament hub and tournament status page.
           </p>
           <select
             value={tourneyChoice}
             onChange={(e) => setTourneyChoice(e.target.value)}
-            className="w-full rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white outline-none"
+            className="w-full rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink outline-none"
           >
             <option value="">— No live tournament —</option>
             {tournaments.map((t) => (
@@ -152,7 +152,7 @@ export function RelationshipHubPanel({
               </option>
             ))}
           </select>
-          <label className="flex items-center gap-2 text-xs text-white/65">
+          <label className="flex items-center gap-2 text-caption text-muted">
             <input type="checkbox" checked={confirmTourney} onChange={(e) => setConfirmTourney(e.target.checked)} />
             I understand only one tournament can be live — others are taken offline first.
           </label>
@@ -160,7 +160,7 @@ export function RelationshipHubPanel({
             type="button"
             disabled={busy || !confirmTourney}
             onClick={() => void applyTournament(tourneyChoice || null)}
-            className="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-40"
+            className="rounded-button bg-pitch px-4 py-2 text-caption font-semibold text-on-pitch disabled:opacity-40"
           >
             Apply tournament hub
           </button>

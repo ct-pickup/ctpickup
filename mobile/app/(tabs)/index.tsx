@@ -10,25 +10,23 @@ import Svg, { Circle, Line, Rect } from "react-native-svg";
 
 import type { Session } from "../session-map";
 
-const LIME = "#a3e635";
-const CARD_BG = "rgba(255,255,255,0.04)";
-const CARD_BORDER = "rgba(255,255,255,0.08)";
-
-
+import { themeColor, useThemedStyles } from "@/theme";
 /* ----------------------------------------------------------------- tiers */
 
 type TierMeta = { label: string; color: string; diamond?: boolean };
-const TIER_META: Record<string, TierMeta> = {
-  diamond: { label: "Diamond", color: "#9B59B6", diamond: true },
-  platinum: { label: "Platinum", color: "#E8E8E8" },
-  gold: { label: "Gold", color: "#E3B23C" },
-  silver: { label: "Silver", color: "#A8B0B5" },
-  bronze: { label: "Bronze", color: "#B87333" },
+function TIER_META(): Record<string, TierMeta> {
+  return {
+  diamond: { label: "Diamond", color: themeColor().muted, diamond: true },
+  platinum: { label: "Platinum", color: themeColor().muted },
+  gold: { label: "Gold", color: themeColor().muted },
+  silver: { label: "Silver", color: themeColor().muted },
+  bronze: { label: "Bronze", color: themeColor().muted },
 };
+}
 
 function tierMeta(raw: string | null | undefined): TierMeta | null {
   const key = (raw ?? "").toLowerCase().trim();
-  return TIER_META[key] ?? null;
+  return TIER_META()[key] ?? null;
 }
 
 /* --------------------------------------------------------------- helpers */
@@ -96,6 +94,8 @@ function isSessionLive(startAt: string | null | undefined): boolean {
 }
 
 function LivePulseDot({ size = 8 }: { size?: number }) {
+  useThemedStyles(publish_styles);
+
   const opacity = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     const anim = Animated.loop(
@@ -113,7 +113,7 @@ function LivePulseDot({ size = 8 }: { size?: number }) {
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: "#4ADE80",
+        backgroundColor: themeColor().pitch,
         opacity,
       }}
     />
@@ -123,15 +123,17 @@ function LivePulseDot({ size = 8 }: { size?: number }) {
 type RateBanner = { run_id: string; title: string | null };
 
 function pinColor(left: number, minTier: string | null): string {
-  if (left >= 1 && left <= 2) return "#ef4444"; // almost full
+  if (left >= 1 && left <= 2) return themeColor().coral; // almost full
   const t = (minTier ?? "").toLowerCase();
-  if (t === "gold" || t === "diamond" || t === "platinum") return "#9B59B6"; // Gold+
-  return LIME; // open
+  if (t === "gold" || t === "diamond" || t === "platinum") return themeColor().muted; // Gold+
+  return themeColor().pitch; // open
 }
 
 /* --------------------------------------------------------------- data */
 
 function useHomeData() {
+  useThemedStyles(publish_styles);
+
   const { session, supabase } = useAuth();
   const myUserId = session?.user?.id ?? null;
 
@@ -336,6 +338,8 @@ function useHomeData() {
 /* --------------------------------------------------------------- pieces */
 
 function SectionLabel({ children, style }: { children: React.ReactNode; style?: object }) {
+  useThemedStyles(publish_styles);
+
   return <Text style={[styles.sectionLabel, style]}>{children}</Text>;
 }
 
@@ -348,6 +352,8 @@ function SectionHeader({
   actionLabel?: string;
   onAction?: () => void;
 }) {
+  useThemedStyles(publish_styles);
+
   return (
     <View style={styles.sectionHeaderRow}>
       <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>{label}</SectionLabel>
@@ -362,9 +368,11 @@ function SectionHeader({
 
 /** Faded top-down pitch outline for the next-match card. */
 function PitchGraphic() {
+  useThemedStyles(publish_styles);
+
   const W = 120;
   const H = 74;
-  const stroke = "rgba(255,255,255,0.05)";
+  const stroke = themeColor().muted;
   return (
     <Svg width={W} height={H} style={styles.pitch}>
       <Rect x={2} y={2} width={W - 4} height={H - 4} rx={4} stroke={stroke} strokeWidth={2} fill="none" />
@@ -377,6 +385,8 @@ function PitchGraphic() {
 }
 
 function TierBadge({ tier, size = "sm" }: { tier: string | null; size?: "sm" | "md" }) {
+  useThemedStyles(publish_styles);
+
   const meta = tierMeta(tier);
   if (!meta) return null;
   return (
@@ -394,6 +404,8 @@ function TierBadge({ tier, size = "sm" }: { tier: string | null; size?: "sm" | "
 }
 
 function MapDot({ run }: { run: MapRun }) {
+  useThemedStyles(publish_styles);
+
   const [track, setTrack] = useState(true);
   useEffect(() => {
     const t = setTimeout(() => setTrack(false), 500);
@@ -440,8 +452,10 @@ function friendDotStatus(startAt: string): "playing" | "soon" | null {
 }
 
 function FriendAvatar({ friend, onPress }: { friend: FriendPlaying; onPress: () => void }) {
+  useThemedStyles(publish_styles);
+
   const meta = tierMeta(friend.tier);
-  const borderColor = meta?.color ?? "rgba(255,255,255,0.15)";
+  const borderColor = meta?.color ?? themeColor().line;
   const initials = [friend.first_name, friend.last_name]
     .filter(Boolean)
     .map((n) => n!.charAt(0).toUpperCase())
@@ -453,7 +467,7 @@ function FriendAvatar({ friend, onPress }: { friend: FriendPlaying; onPress: () 
       ? `${friend.first_name}${friend.last_name ? ` ${friend.last_name.charAt(0)}.` : ""}`
       : "Player";
   const statusLabel = dot === "playing" ? "Playing" : "On the way";
-  const statusColor = dot === "playing" ? LIME : "rgba(255,255,255,0.45)";
+  const statusColor = dot === "playing" ? themeColor().pitch : themeColor().text;
 
   return (
     <Pressable onPress={onPress} style={styles.friendItem} hitSlop={4}>
@@ -466,7 +480,7 @@ function FriendAvatar({ friend, onPress }: { friend: FriendPlaying; onPress: () 
           </View>
         )}
         {dot ? (
-          <View style={[styles.friendDot, { backgroundColor: dot === "playing" ? "#22c55e" : "#6b7280" }]} />
+          <View style={[styles.friendDot, { backgroundColor: dot === "playing" ? themeColor().pitch : themeColor().muted }]} />
         ) : null}
       </View>
       <Text style={styles.friendName} numberOfLines={1}>{shortName}</Text>
@@ -484,6 +498,8 @@ function FriendsPlayingSection({
   onSeeAll: () => void;
   onFriendPress: (id: string) => void;
 }) {
+  useThemedStyles(publish_styles);
+
   return (
     <View style={{ marginTop: 10 }}>
       <SectionHeader label="Friends Playing Tonight" actionLabel="See all" onAction={onSeeAll} />
@@ -510,6 +526,8 @@ const QUICK_ACTIONS = [
 ] as const;
 
 function QuickActions({ onPress }: { onPress: (href: string) => void }) {
+  useThemedStyles(publish_styles);
+
   return (
     <View style={styles.quickActionsRow}>
       {QUICK_ACTIONS.map((a) => (
@@ -520,7 +538,7 @@ function QuickActions({ onPress }: { onPress: (href: string) => void }) {
           accessibilityRole="button"
           accessibilityLabel={a.label}
         >
-          <FontAwesome name={a.icon} size={18} color={LIME} />
+          <FontAwesome name={a.icon} size={18} color={themeColor().pitchText} />
           <Text style={styles.quickActionLabel}>{a.label}</Text>
         </Pressable>
       ))}
@@ -531,6 +549,8 @@ function QuickActions({ onPress }: { onPress: (href: string) => void }) {
 /* --------------------------------------------------------------- screen */
 
 export default function HomeScreen() {
+  useThemedStyles(publish_styles);
+
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const push = router.push as (href: string) => void;
@@ -540,7 +560,7 @@ export default function HomeScreen() {
   const name = firstName || firstNameFromEmail(session?.user?.email ?? undefined);
   const notVerified = verificationLevel === "self";
   const myTierMeta = tierMeta(tier);
-  const avatarBorderColor = notVerified ? "#ef4444" : (myTierMeta?.color ?? LIME);
+  const avatarBorderColor = notVerified ? themeColor().coral : (myTierMeta?.color ?? themeColor().pitch);
 
   const nextTierMeta = tierMeta(nextMatch?.min_tier);
   const isDiamondRun = nextTierMeta?.diamond === true;
@@ -578,7 +598,7 @@ export default function HomeScreen() {
                 { borderWidth: 2, borderColor: avatarBorderColor },
               ]}
             >
-              <FontAwesome name="user" size={16} color={notVerified ? "#ef4444" : LIME} />
+              <FontAwesome name="user" size={16} color={notVerified ? themeColor().coral : themeColor().pitch} />
             </View>
           )}
         </Pressable>
@@ -595,7 +615,7 @@ export default function HomeScreen() {
           accessibilityRole="button"
           accessibilityLabel="Rate your recent session"
         >
-          <FontAwesome name="star" size={14} color="#0a0a0a" />
+          <FontAwesome name="star" size={14} color={themeColor().onPitch} />
           <Text style={styles.rateBannerText}>You have a session to rate →</Text>
         </Pressable>
       ) : null}
@@ -603,18 +623,18 @@ export default function HomeScreen() {
       {/* 2. YOUR NEXT MATCH */}
       <SectionLabel>Your Next Match</SectionLabel>
       {nextMatch ? (
-        <View style={[styles.matchCard, { borderLeftColor: isDiamondRun ? "#9B59B6" : LIME }]}>
+        <View style={[styles.matchCard, { borderLeftColor: isDiamondRun ? themeColor().line : themeColor().pitch }]}>
           <PitchGraphic />
           <TierBadge tier={nextMatch.min_tier} />
           <Text style={styles.matchTitle} numberOfLines={1}>
             {nextMatch.title || "Pickup run"}
           </Text>
           <View style={styles.matchMetaRow}>
-            <FontAwesome name="clock-o" size={12} color="rgba(255,255,255,0.55)" />
+            <FontAwesome name="clock-o" size={12} color={themeColor().muted} />
             <Text style={styles.matchMeta}>{whenLabel(nextMatch.start_at)}</Text>
           </View>
           <View style={styles.matchMetaRow}>
-            <FontAwesome name="map-marker" size={12} color="rgba(255,255,255,0.55)" />
+            <FontAwesome name="map-marker" size={12} color={themeColor().muted} />
             <Text style={styles.matchMeta} numberOfLines={1}>
               {nextMatch.location_text || "Location TBD"}
             </Text>
@@ -640,7 +660,7 @@ export default function HomeScreen() {
           </Pressable>
         </View>
       ) : (
-        <View style={[styles.matchCard, styles.matchEmpty, { borderLeftColor: LIME }]}>
+        <View style={[styles.matchCard, styles.matchEmpty, { borderLeftColor: themeColor().pitch }]}>
           <Text style={styles.matchEmptyTitle}>NO UPCOMING SESSIONS</Text>
           <Text style={styles.matchEmptySub}>You have no confirmed matches coming up.</Text>
           <Pressable
@@ -667,8 +687,8 @@ export default function HomeScreen() {
             pointerEvents="none"
             initialRegion={mapRegion}
             userInterfaceStyle="dark"
-            backgroundColor="#1a2420"
-            loadingBackgroundColor="#1a2420"
+            backgroundColor={themeColor().card}
+            loadingBackgroundColor={themeColor().card}
             scrollEnabled={false}
             zoomEnabled={false}
             pitchEnabled={false}
@@ -682,15 +702,15 @@ export default function HomeScreen() {
           </MapView>
           <View style={styles.mapLegend} pointerEvents="none">
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: LIME }]} />
+              <View style={[styles.legendDot, { backgroundColor: themeColor().pitch }]} />
               <Text style={styles.legendText}>Open</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: "#9B59B6" }]} />
+              <View style={[styles.legendDot, { backgroundColor: themeColor().card }]} />
               <Text style={styles.legendText}>Gold+</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: "#ef4444" }]} />
+              <View style={[styles.legendDot, { backgroundColor: themeColor().coral }]} />
               <Text style={styles.legendText}>Almost Full</Text>
             </View>
           </View>
@@ -712,8 +732,9 @@ export default function HomeScreen() {
 
 /* --------------------------------------------------------------- styles */
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0a0a0a", paddingHorizontal: 20 },
+function make_styles() {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: themeColor().bg, paddingHorizontal: 20 },
 
   /* header */
   header: {
@@ -722,39 +743,37 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     gap: 10,
   },
-  headerAvatar: { width: 36, height: 36, borderRadius: 999, backgroundColor: "#1a1a1a" },
+  headerAvatar: { width: 36, height: 36, borderRadius: 999, backgroundColor: themeColor().card },
   headerAvatarFallback: {
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.5)",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  avatarUnverified: { borderWidth: 2, borderColor: "#ef4444" },
+  avatarUnverified: { borderWidth: 2, borderColor: themeColor().coral },
 
-  greeting: { marginTop: 10, fontSize: 20, fontWeight: "800", color: "#fff", letterSpacing: -0.3 },
-  greetingName: { color: LIME },
+  greeting: { marginTop: 10, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text,},
+  greetingName: { color: themeColor().pitchText },
   rateBanner: {
     marginTop: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 14,
   },
-  rateBannerText: { color: "#0a0a0a", fontWeight: "800", fontSize: 14, flex: 1 },
+  rateBannerText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold", flex: 1 },
 
   /* section labels */
   sectionLabel: {
     marginTop: 12,
     marginBottom: 8,
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1.5,
-    color: LIME,
-    textTransform: "uppercase",
+    fontSize: 13, fontFamily: "Inter_700Bold",
+    fontWeight: "500",
+    color: themeColor().pitchText,
   },
   sectionHeaderRow: {
     flexDirection: "row",
@@ -762,7 +781,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 8,
   },
-  sectionAction: { fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.6)" },
+  sectionAction: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
 
   /* tier badge */
   tierBadge: {
@@ -774,64 +793,64 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
-  tierBadgeText: { fontSize: 10, fontWeight: "800", letterSpacing: 0.8 },
-  tierDiamond: { fontSize: 10, fontWeight: "800" },
+  tierBadgeText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
+  tierDiamond: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
 
   /* next match card — compact */
   matchCard: {
-    backgroundColor: CARD_BG,
+    backgroundColor: themeColor().overlaySubtle,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: themeColor().overlay,
     borderLeftWidth: 4,
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 10,
     overflow: "hidden",
   },
   pitch: { position: "absolute", top: 6, right: 6 },
-  matchTitle: { marginTop: 5, fontSize: 17, fontWeight: "800", color: "#fff", letterSpacing: -0.3 },
+  matchTitle: { marginTop: 5, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text,},
   matchMetaRow: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 3 },
-  matchMeta: { fontSize: 12, color: "rgba(255,255,255,0.7)", flexShrink: 1 },
+  matchMeta: { fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, flexShrink: 1 },
   matchBottom: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
     marginTop: 7,
   },
-  matchSpots: { fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.85)", flexShrink: 1 },
+  matchSpots: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().text, flexShrink: 1 },
   priceBox: { alignItems: "flex-end" },
-  priceText: { fontSize: 20, fontWeight: "800", color: "#fff", letterSpacing: -0.5 },
-  priceTier: { fontSize: 10, fontWeight: "600", color: "rgba(255,255,255,0.5)" },
+  priceText: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text,},
+  priceTier: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().muted },
   primaryBtn: {
     marginTop: 8,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 9,
     alignItems: "center",
   },
-  primaryBtnText: { color: "#0a0a0a", fontSize: 15, fontWeight: "800", letterSpacing: 0.5 },
+  primaryBtnText: { color: themeColor().onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800",},
   matchEmpty: { alignItems: "flex-start" },
-  matchEmptyTitle: { fontSize: 16, fontWeight: "800", color: "#fff", letterSpacing: 0.5 },
-  matchEmptySub: { marginTop: 5, fontSize: 13, color: "rgba(255,255,255,0.55)" },
+  matchEmptyTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text,},
+  matchEmptySub: { marginTop: 5, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
   findRunPill: {
     marginTop: 12,
     alignSelf: "flex-start",
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: LIME,
+    borderColor: themeColor().pitch,
     backgroundColor: "transparent",
   },
-  findRunPillText: { color: LIME, fontSize: 14, fontWeight: "600" },
+  findRunPillText: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
 
   /* map */
   mapWrap: {
     height: 200,
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: CARD_BORDER,
-    backgroundColor: "#111",
+    borderColor: themeColor().overlay,
+    backgroundColor: themeColor().bg,
   },
   mapLegend: {
     position: "absolute",
@@ -839,21 +858,21 @@ const styles = StyleSheet.create({
     left: 10,
     flexDirection: "row",
     gap: 12,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: themeColor().card,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
   },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { fontSize: 11, fontWeight: "600", color: "#fff" },
+  legendDot: { width: 8, height: 8, borderRadius: 10 },
+  legendText: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().text },
   markerWrap: { alignItems: "center" },
   markerDot: {
     width: 16,
     height: 16,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 2,
-    borderColor: "#0a0a0a",
+    borderColor: themeColor().line,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -863,25 +882,25 @@ const styles = StyleSheet.create({
     right: -4,
     width: 10,
     height: 10,
-    borderRadius: 5,
-    backgroundColor: "#0a0a0a",
+    borderRadius: 10,
+    backgroundColor: themeColor().bg,
     alignItems: "center",
     justifyContent: "center",
   },
   markerLabel: {
     marginTop: 2,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    backgroundColor: themeColor().card,
     paddingHorizontal: 6,
     paddingVertical: 1,
-    borderRadius: 6,
+    borderRadius: 10,
     maxWidth: 90,
   },
-  markerLabelText: { fontSize: 9, fontWeight: "700", color: "#fff" },
+  markerLabelText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().text },
 
   /* friends playing tonight */
   friendsEmpty: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.3)",
+    fontSize: 13, fontFamily: "Inter_400Regular",
+    color: themeColor().muted,
     fontStyle: "italic",
     marginTop: 2,
     marginBottom: 8,
@@ -891,36 +910,36 @@ const styles = StyleSheet.create({
   friendAvatarWrap: {
     width: 60,
     height: 60,
-    borderRadius: 30,
+    borderRadius: 999,
     borderWidth: 2,
     overflow: "visible",
   },
-  friendAvatarImg: { width: 56, height: 56, borderRadius: 28, margin: 0 },
+  friendAvatarImg: { width: 56, height: 56, borderRadius: 999, margin: 0 },
   friendAvatarFallback: {
-    backgroundColor: "#1e1e1e",
+    backgroundColor: themeColor().card,
     alignItems: "center",
     justifyContent: "center",
   },
-  friendInitials: { fontSize: 18, fontWeight: "700", color: "#fff" },
+  friendInitials: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text },
   friendDot: {
     position: "absolute",
     bottom: -1,
     right: -1,
     width: 14,
     height: 14,
-    borderRadius: 7,
+    borderRadius: 10,
     borderWidth: 2,
-    borderColor: "#0a0a0a",
+    borderColor: themeColor().line,
   },
   friendName: {
     marginTop: 6,
-    fontSize: 11,
+    fontSize: 13, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
-    color: "#fff",
+    color: themeColor().text,
     textAlign: "center",
     width: 68,
   },
-  friendStatus: { marginTop: 2, fontSize: 10, fontWeight: "500", textAlign: "center" },
+  friendStatus: { marginTop: 2, fontSize: 13, fontFamily: "Inter_500Medium", fontWeight: "500", textAlign: "center" },
 
   /* quick actions */
   quickActionsRow: {
@@ -930,19 +949,24 @@ const styles = StyleSheet.create({
   },
   quickActionBtn: {
     flex: 1,
-    backgroundColor: CARD_BG,
+    backgroundColor: themeColor().overlaySubtle,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
-    borderRadius: 14,
+    borderColor: themeColor().overlay,
+    borderRadius: 12,
     height: 68,
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
   },
   quickActionLabel: {
-    fontSize: 11,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    color: "rgba(255,255,255,0.65)",
-    letterSpacing: 0.2,
+    color: themeColor().muted,
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

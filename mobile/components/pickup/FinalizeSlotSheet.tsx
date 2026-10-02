@@ -5,8 +5,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useMemo, useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-const LIME = "#a3e635";
-
+import { themeColor, useThemedStyles } from "@/theme";
 function s(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
@@ -46,6 +45,8 @@ export default function FinalizeSlotSheet({
   onConfirmSlot,
   onConfirmCustom,
 }: FinalizeSlotSheetProps) {
+  useThemedStyles(publish_styles);
+
   const availBySlot = useMemo(() => countAvailablePerSlot(availability), [availability]);
   const [customOpen, setCustomOpen] = useState(false);
   const [customStartAt, setCustomStartAt] = useState("");
@@ -125,7 +126,7 @@ export default function FinalizeSlotSheet({
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Finalize time slot</Text>
             <Pressable onPress={onClose} hitSlop={12}>
-              <FontAwesome name="times" size={20} color="#fff" />
+              <FontAwesome name="times" size={20} color={themeColor().text} />
             </Pressable>
           </View>
           <Text style={styles.subtitle}>
@@ -172,7 +173,7 @@ export default function FinalizeSlotSheet({
             style={({ pressed }) => [styles.customToggle, pressed && { opacity: 0.9 }]}
           >
             <Text style={styles.customToggleText}>Use custom time</Text>
-            <FontAwesome name={customOpen ? "chevron-up" : "chevron-down"} size={14} color="rgba(255,255,255,0.5)" />
+            <FontAwesome name={customOpen ? "chevron-up" : "chevron-down"} size={14} color={themeColor().muted} />
           </Pressable>
 
           {customOpen ? (
@@ -205,65 +206,70 @@ export default function FinalizeSlotSheet({
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   modalRoot: { flex: 1, justifyContent: "flex-end" },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.65)" },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: themeColor().scrim },
   sheet: {
     maxHeight: "88%",
-    backgroundColor: "#111",
+    backgroundColor: themeColor().bg,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
   },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  sheetTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
-  subtitle: { color: "rgba(255,255,255,0.5)", lineHeight: 20, marginBottom: 12, fontSize: 13 },
-  hint: { color: "rgba(255,255,255,0.5)", lineHeight: 20, marginBottom: 12 },
+  sheetTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  subtitle: { color: themeColor().muted, lineHeight: 20, marginBottom: 12, fontSize: 13, fontFamily: "Inter_400Regular" },
+  hint: { color: themeColor().muted, lineHeight: 20, marginBottom: 12 },
   slotList: { maxHeight: 340, marginBottom: 12 },
   slotRow: {
     padding: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: themeColor().line,
     marginBottom: 8,
   },
-  slotRowActive: { borderColor: "rgba(163,230,53,0.35)", backgroundColor: "rgba(163,230,53,0.05)" },
-  slotRowPopular: { borderColor: "rgba(163,230,53,0.55)", backgroundColor: "rgba(163,230,53,0.1)" },
+  slotRowActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  slotRowPopular: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
   popularBadge: {
-    color: LIME,
-    fontSize: 11,
+    color: themeColor().pitchText,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
     marginBottom: 6,
   },
-  slotRowTitle: { color: "#fff", fontWeight: "600", fontSize: 14, lineHeight: 20, marginBottom: 10 },
-  slotRowTitleActive: { color: LIME },
+  slotRowTitle: { color: themeColor().text, fontWeight: "600", fontSize: 14, fontFamily: "Inter_600SemiBold", lineHeight: 20, marginBottom: 10 },
+  slotRowTitleActive: { color: themeColor().pitchText },
   useBtn: {
     alignSelf: "flex-start",
     paddingVertical: 8,
     paddingHorizontal: 14,
-    borderRadius: 8,
-    backgroundColor: LIME,
+    borderRadius: 10,
+    backgroundColor: themeColor().pitch,
   },
-  useBtnText: { color: "#111", fontWeight: "800", fontSize: 13 },
+  useBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
   customToggle: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(255,255,255,0.1)",
+    borderTopColor: themeColor().line,
     marginTop: 4,
   },
-  customToggleText: { color: "rgba(255,255,255,0.75)", fontWeight: "700", fontSize: 14 },
+  customToggleText: { color: themeColor().text, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
   customBlock: { marginTop: 8, gap: 12 },
   primaryBtn: {
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
   },
   primaryBtnDisabled: { opacity: 0.55 },
-  primaryBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  primaryBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

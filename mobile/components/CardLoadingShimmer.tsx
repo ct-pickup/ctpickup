@@ -2,6 +2,7 @@ import { useReduceMotion } from "@/hooks/useReduceMotion";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useEffect } from "react";
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { themeColor, useThemedStyles } from "@/theme";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -12,10 +13,10 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-const LIME_DIM = "rgba(255,255,255,0.55)";
-
 /** Tournament-style card skeleton with lime-adjacent breathing bars (respects Reduce motion). */
 export function CardLoadingShimmer({ style }: { style?: StyleProp<ViewStyle> }) {
+  useThemedStyles(publish_styles);
+
   const reduceMotion = useReduceMotion();
   const pulse = useSharedValue(0.38);
 
@@ -44,7 +45,7 @@ export function CardLoadingShimmer({ style }: { style?: StyleProp<ViewStyle> }) 
     <View style={[styles.card, style]}>
       <View style={styles.row}>
         <View style={styles.iconWrap}>
-          <FontAwesome name="trophy" size={20} color={LIME_DIM} />
+          <FontAwesome name="trophy" size={20} color={themeColor().text} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.statusKicker}>Checking…</Text>
@@ -57,51 +58,57 @@ export function CardLoadingShimmer({ style }: { style?: StyleProp<ViewStyle> }) 
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   card: {
-    borderRadius: 18,
+    borderRadius: 12,
     padding: 18,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   row: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   iconWrap: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 999,
     borderWidth: 1,
     borderStyle: "dashed",
-    borderColor: "rgba(255,255,255,0.18)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     alignItems: "center",
     justifyContent: "center",
   },
   statusKicker: {
-    fontSize: 12,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 0.6,
-    color: "rgba(255,255,255,0.92)",
+    color: themeColor().text,
     marginBottom: 12,
   },
   barLg: {
     height: 18,
-    borderRadius: 8,
-    backgroundColor: "rgba(163,230,53,0.35)",
+    borderRadius: 10,
+    backgroundColor: themeColor().pitch,
     width: "88%",
     marginBottom: 10,
   },
   barMd: {
     height: 14,
-    borderRadius: 7,
-    backgroundColor: "rgba(255,255,255,0.16)",
+    borderRadius: 10,
+    backgroundColor: themeColor().overlay,
     width: "70%",
     marginBottom: 12,
   },
   barSm: {
     height: 12,
-    borderRadius: 6,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 10,
+    backgroundColor: themeColor().overlay,
     width: "55%",
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

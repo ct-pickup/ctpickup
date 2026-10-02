@@ -7,8 +7,6 @@ import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { useCallback, useEffect, useMemo, useState, startTransition } from "react";
 
-const LIME = "#a3e635";
-
 type Team = "A" | "B" | "C";
 
 type ConfirmedRow = { id: string; full_name: string | null; photo_package?: boolean };
@@ -155,15 +153,15 @@ export default function RunResultClient({ runId }: { runId: string }) {
 
   if (!token && isReady) {
     return (
-      <main className="min-h-screen bg-black text-white">
+      <main className="min-h-screen bg-canvas text-ink">
         <div className="mx-auto max-w-6xl pt-2">
           <PageTop flush title="Mark run result" fallbackHref={APP_HOME_URL} />
         </div>
         <div className="mx-auto max-w-2xl px-6 py-12 space-y-4">
-          <p className="text-white/75">Log in to continue.</p>
+          <p className="text-muted">Log in to continue.</p>
           <Link
             href={`/login?next=/admin/run-result?run_id=${encodeURIComponent(runId)}`}
-            className="inline-flex rounded-lg bg-[#a3e635] px-5 py-3 text-sm font-semibold text-black"
+            className="inline-flex rounded-button bg-pitch px-5 py-3 text-small font-semibold text-on-pitch"
           >
             Log in
           </Link>
@@ -174,21 +172,21 @@ export default function RunResultClient({ runId }: { runId: string }) {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-black text-white flex items-center justify-center">
-        <p className="text-white/60 text-sm">Loading…</p>
+      <main className="min-h-screen bg-canvas text-ink flex items-center justify-center">
+        <p className="text-muted text-small">Loading…</p>
       </main>
     );
   }
 
   if (err) {
     return (
-      <main className="min-h-screen bg-black text-white">
+      <main className="min-h-screen bg-canvas text-ink">
         <div className="mx-auto max-w-6xl pt-2">
           <PageTop flush title="Mark run result" fallbackHref="/admin/pickup" />
         </div>
         <div className="mx-auto max-w-2xl px-6 py-12">
-          <p className="text-red-300/90">{err}</p>
-          <Link href="/admin/pickup" className="mt-6 inline-block text-[#a3e635] underline-offset-4 hover:underline">
+          <p className="text-coral">{err}</p>
+          <Link href="/admin/pickup" className="mt-6 inline-block text-pitch-text underline-offset-4 hover:underline">
             Back to pickups
           </Link>
         </div>
@@ -197,26 +195,26 @@ export default function RunResultClient({ runId }: { runId: string }) {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-canvas text-ink">
       <div className="mx-auto max-w-6xl pt-2">
         <PageTop flush title="Mark run result" fallbackHref="/admin/pickup" />
       </div>
 
       <div className="mx-auto max-w-2xl space-y-6 px-4 py-8 sm:px-0">
-        <div className="rounded-xl border border-[#a3e63540] bg-[#a3e6350f] p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-white/45">Run</p>
-          <p className="mt-2 text-sm text-white/70">
+        <div className="rounded-card border border-pitch bg-pitch-soft p-5">
+          <p className="text-caption font-semibold text-muted">Run</p>
+          <p className="mt-2 text-small text-muted">
             {region ? serviceRegionName(region) : "Region —"} · {confirmed.length} confirmed
           </p>
-          <Link href="/admin/pickup" className="mt-3 inline-block text-sm font-semibold text-[#d9f99d] hover:underline">
+          <Link href="/admin/pickup" className="mt-3 inline-block text-small font-semibold text-pitch-text hover:underline">
             ← Pickup admin
           </Link>
         </div>
 
-        {msg ? <p className="text-sm text-white/70">{msg}</p> : null}
+        {msg ? <p className="text-small text-muted">{msg}</p> : null}
 
         <section className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-white/45">Teams</p>
+          <p className="text-caption font-semibold text-muted">Teams</p>
           <div className="flex gap-2">
             <button
               type="button"
@@ -224,9 +222,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
                 setTotalTeams(2);
                 setWinningTeam("A");
               }}
-              className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold ${
-                totalTeams === 2 ? "border-[#a3e63555] bg-[#a3e63512] text-[#d9f99d]" : "border-white/15 bg-black/40 text-white/65"
-              }`}
+              className={`flex-1 rounded-card border px-4 py-3 text-small font-semibold ${ totalTeams === 2 ? "border-pitch bg-pitch-soft text-pitch" : "border-line bg-overlay-subtle text-muted" }`}
             >
               2 teams
             </button>
@@ -236,9 +232,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
                 setTotalTeams(3);
                 setWinningTeam("A");
               }}
-              className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold ${
-                totalTeams === 3 ? "border-[#a3e63555] bg-[#a3e63512] text-[#d9f99d]" : "border-white/15 bg-black/40 text-white/65"
-              }`}
+              className={`flex-1 rounded-card border px-4 py-3 text-small font-semibold ${ totalTeams === 3 ? "border-pitch bg-pitch-soft text-pitch" : "border-line bg-overlay-subtle text-muted" }`}
             >
               3 teams
             </button>
@@ -246,11 +240,11 @@ export default function RunResultClient({ runId }: { runId: string }) {
         </section>
 
         <section className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-white/45">Winning team</label>
+          <label className="text-caption font-semibold text-muted">Winning team</label>
           <select
             value={winningTeamEffective}
             onChange={(e) => setWinningTeam(e.target.value as Team)}
-            className="w-full rounded-xl border border-white/15 bg-black/50 px-4 py-3 text-sm text-white"
+            className="w-full rounded-card border border-line bg-overlay-subtle px-4 py-3 text-small text-ink"
           >
             {allowedTeams.map((t) => (
               <option key={t} value={t}>
@@ -261,15 +255,15 @@ export default function RunResultClient({ runId }: { runId: string }) {
         </section>
 
         <section className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-white/45">Roster</p>
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
-            {confirmed.length === 0 ? <p className="text-sm text-white/55">No confirmed players.</p> : null}
+          <p className="text-caption font-semibold text-muted">Roster</p>
+          <div className="rounded-card border border-line bg-overlay-subtle p-4 space-y-3">
+            {confirmed.length === 0 ? <p className="text-small text-muted">No confirmed players.</p> : null}
             {confirmed.map((p) => (
               <div key={p.id} className="flex flex-wrap items-center gap-3">
                 <div className="min-w-0 flex-1 flex items-center gap-2 truncate">
-                  <span className="text-sm font-semibold text-white truncate">{nameFor(p)}</span>
+                  <span className="text-small font-semibold text-ink truncate">{nameFor(p)}</span>
                   {p.photo_package ? (
-                    <span className="shrink-0 rounded-full bg-[#a3e63520] border border-[#a3e63540] px-2 py-0.5 text-xs font-semibold text-[#d9f99d]">
+                    <span className="shrink-0 rounded-pill bg-pitch-soft border border-pitch px-2 py-0.5 text-caption font-semibold text-pitch">
                       📸 Photos
                     </span>
                   ) : null}
@@ -279,7 +273,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
                   onChange={(e) =>
                     setTeamByUser((c) => ({ ...c, [p.id]: e.target.value as Team }))
                   }
-                  className="rounded-full border border-[#a3e63544] bg-[#a3e63510] px-3 py-2 text-xs font-bold text-[#d9f99d]"
+                  className="rounded-pill border border-pitch bg-pitch-soft px-3 py-2 text-caption font-bold text-pitch"
                 >
                   {allowedTeams.map((t) => (
                     <option key={t} value={t}>
@@ -293,8 +287,8 @@ export default function RunResultClient({ runId }: { runId: string }) {
         </section>
 
         <section className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-white/45">Awards</p>
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-4">
+          <p className="text-caption font-semibold text-muted">Awards</p>
+          <div className="rounded-card border border-line bg-overlay-subtle p-4 space-y-4">
             {(
               [
                 ["player", "Player of the Day", playerOfDay, setPlayerOfDay],
@@ -305,11 +299,11 @@ export default function RunResultClient({ runId }: { runId: string }) {
               ] as const
             ).map(([key, label, val, setVal]) => (
               <label key={key} className="block space-y-1">
-                <span className="text-xs font-semibold text-white/55">{label}</span>
+                <span className="text-caption font-semibold text-muted">{label}</span>
                 <select
                   value={val}
                   onChange={(e) => setVal(e.target.value)}
-                  className="w-full rounded-lg border border-white/15 bg-black/50 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                 >
                   <option value="">None</option>
                   {confirmed.map((p) => (
@@ -327,8 +321,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
           type="button"
           disabled={submitting}
           onClick={() => void onSubmit()}
-          className="w-full rounded-xl py-3.5 text-sm font-bold text-black disabled:opacity-50"
-          style={{ backgroundColor: LIME }}
+          className="w-full rounded-card bg-pitch py-3.5 text-small font-bold text-on-pitch disabled:opacity-50"
         >
           {submitting ? "Saving…" : "Submit result"}
         </button>

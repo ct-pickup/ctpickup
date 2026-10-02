@@ -15,7 +15,7 @@ function UserGlyph({ className }: { className?: string }) {
       height="18"
       viewBox="0 0 24 24"
       fill="none"
-      className={className ?? "text-white/75"}
+      className={className ?? "text-muted"}
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
     >
@@ -126,11 +126,11 @@ export function AuthenticatedProfileMenu({
   if (!isReady || !ready) {
     return (
       <div
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/25 lg:h-9 lg:w-9 lg:border lg:border-white/20 lg:bg-white/5"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-pill text-muted lg:h-9 lg:w-9 lg:border lg:border-line lg:bg-overlay-subtle"
         aria-busy="true"
         aria-label="Loading account"
       >
-        <UserGlyph className="text-white/25" />
+        <UserGlyph className="text-muted" />
       </div>
     );
   }
@@ -148,7 +148,7 @@ export function AuthenticatedProfileMenu({
     return (
       <Link
         href={href}
-        className="flex min-h-[44px] shrink-0 items-center rounded-md px-2 text-sm font-semibold text-white/85 transition-colors hover:bg-white/[0.05] hover:text-white active:bg-white/[0.07] lg:h-9 lg:min-h-0 lg:rounded-full lg:border lg:border-white/20 lg:bg-white/10 lg:px-3 lg:py-1.5 lg:text-sm lg:font-medium lg:hover:bg-white/[0.14]"
+        className="flex min-h-[44px] shrink-0 items-center rounded-button px-2 text-small font-semibold text-ink transition-colors hover:bg-overlay-subtle hover:text-ink active:bg-overlay lg:h-9 lg:min-h-0 lg:rounded-pill lg:border lg:border-line lg:bg-overlay lg:px-3 lg:py-1.5 lg:text-small lg:font-medium lg:hover:bg-overlay-strong"
       >
         {label}
       </Link>
@@ -161,7 +161,7 @@ export function AuthenticatedProfileMenu({
     <Link
       href="/profile"
       title={esportsIncomplete ? "Profile — finish online tournament preference" : undefined}
-      className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-white/80 transition-colors hover:bg-white/[0.06] hover:text-white active:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40 lg:h-9 lg:w-9 lg:border lg:border-white/20 lg:bg-white/10 lg:hover:bg-white/[0.14]"
+      className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-pill text-ink transition-colors hover:bg-overlay hover:text-ink active:bg-overlay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:h-9 lg:w-9 lg:border lg:border-line lg:bg-overlay lg:hover:bg-overlay-strong"
       aria-label={
         esportsIncomplete
           ? "Your profile — finish online tournament setup"
@@ -170,7 +170,7 @@ export function AuthenticatedProfileMenu({
     >
       {esportsIncomplete ? (
         <span
-          className="pointer-events-none absolute right-0 top-0 z-[1] h-2.5 w-2.5 rounded-full bg-amber-400 shadow-[0_0_0_2px_rgba(15,15,16,0.95)]"
+          className="pointer-events-none absolute right-0 top-0 z-[1] h-2.5 w-2.5 rounded-pill bg-coral"
           aria-hidden
         />
       ) : null}
@@ -182,7 +182,7 @@ export function AuthenticatedProfileMenu({
           onError={() => setAvatarBroken(true)}
         />
       ) : (
-        <UserGlyph className="text-white/70" />
+        <UserGlyph className="text-muted" />
       )}
     </Link>
   );

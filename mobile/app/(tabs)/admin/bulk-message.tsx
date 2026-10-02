@@ -19,9 +19,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const LIME = "#a3e635";
-const RED = "#ef4444";
-
+import { themeColor, useThemedStyles } from "@/theme";
 const REGIONS = ["CT", "NY", "NJ", "MD"] as const;
 
 /** API filter_value; matches server tier_rank mapping (last chip = open/public rank 6). */
@@ -63,6 +61,8 @@ function fmtRunLine(row: Record<string, unknown>): string {
 }
 
 export default function AdminBulkMessageScreen() {
+  useThemedStyles(publish_styles);
+
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const token = session?.access_token ?? null;
@@ -308,7 +308,7 @@ export default function AdminBulkMessageScreen() {
           <View style={styles.subBlock}>
             <Text style={styles.subLabel}>Run</Text>
             {runsLoading ? (
-              <ActivityIndicator color="#fff" style={{ marginVertical: 12 }} />
+              <ActivityIndicator color={themeColor().text} style={{ marginVertical: 12 }} />
             ) : runs.length === 0 ? (
               <Text style={styles.muted}>No runs found.</Text>
             ) : (
@@ -342,7 +342,7 @@ export default function AdminBulkMessageScreen() {
             <Text style={styles.muted}>Select who should receive this message.</Text>
           ) : countLoading ? (
             <View style={styles.previewRow}>
-              <ActivityIndicator color={LIME} size="small" />
+              <ActivityIndicator color={themeColor().pitchText} size="small" />
               <Text style={styles.previewMain}>Loading count…</Text>
             </View>
           ) : countError ? (
@@ -360,7 +360,7 @@ export default function AdminBulkMessageScreen() {
         <TextInput
           style={styles.input}
           placeholder="Write your announcement…"
-          placeholderTextColor="rgba(255,255,255,0.35)"
+          placeholderTextColor={themeColor().muted}
           multiline
           maxLength={500}
           value={message}
@@ -390,26 +390,26 @@ export default function AdminBulkMessageScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0a0a0a" },
+function make_styles() {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: themeColor().bg },
   scroll: { flex: 1 },
   content: { padding: 20, paddingTop: 12 },
   sectionLabel: {
     marginTop: 8,
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    color: "rgba(255,255,255,0.45)",
+    fontSize: 13, fontFamily: "Inter_700Bold",
+    fontWeight: "500",
+    color: themeColor().muted,
   },
-  fieldLabel: { marginTop: 10, fontSize: 14, fontWeight: "600", color: "rgba(255,255,255,0.85)" },
+  fieldLabel: { marginTop: 10, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().text },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
   chip: {
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     maxWidth: "48%",
     flexGrow: 1,
   },
@@ -418,60 +418,66 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   chipOn: {
-    borderColor: LIME,
-    backgroundColor: "rgba(163,230,53,0.12)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  chipText: { color: "rgba(255,255,255,0.82)", fontSize: 13, fontWeight: "600", textAlign: "center" },
-  chipTextOn: { color: "#fff" },
+  chipText: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", textAlign: "center" },
+  chipTextOn: { color: themeColor().text },
   subBlock: { marginTop: 14 },
-  subLabel: { fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.7)", marginBottom: 6 },
-  muted: { color: "rgba(255,255,255,0.45)", fontSize: 14, lineHeight: 20 },
+  subLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().muted, marginBottom: 6 },
+  muted: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   runList: { gap: 8, marginTop: 4 },
   runCard: {
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  runCardOn: { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.1)" },
-  runCardText: { color: "rgba(255,255,255,0.88)", fontSize: 14, lineHeight: 20 },
+  runCardOn: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  runCardText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   previewBox: {
     marginTop: 10,
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   previewRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  previewMain: { color: "#fff", fontSize: 15, fontWeight: "600", lineHeight: 22, flex: 1 },
+  previewMain: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600", lineHeight: 22, flex: 1 },
   input: {
     marginTop: 10,
     minHeight: 120,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.05)",
-    color: "#fff",
-    fontSize: 15,
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
+    color: themeColor().text,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 22,
   },
-  counter: { marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.45)", textAlign: "right" },
-  errText: { marginTop: 10, color: RED, fontSize: 14, lineHeight: 20 },
-  okText: { marginTop: 10, color: LIME, fontSize: 15, fontWeight: "600" },
+  counter: { marginTop: 6, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, textAlign: "right" },
+  errText: { marginTop: 10, color: themeColor().coral, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  okText: { marginTop: 10, color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   sendBtn: {
     marginTop: 20,
     paddingVertical: 16,
-    borderRadius: 14,
-    backgroundColor: LIME,
+    borderRadius: 12,
+    backgroundColor: themeColor().pitch,
     alignItems: "center",
   },
   sendBtnDisabled: { opacity: 0.35 },
-  sendBtnText: { color: "#0a0a0a", fontSize: 16, fontWeight: "800" },
+  sendBtnText: { color: themeColor().onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

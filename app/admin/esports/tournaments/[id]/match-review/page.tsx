@@ -95,14 +95,14 @@ export default async function AdminMatchReviewPage({
   const stageById = new Map((stages || []).map((s: { id: string }) => [s.id, s]));
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-canvas text-ink">
       <div className="mx-auto max-w-6xl space-y-8 px-4 py-10 md:px-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <PageTop flush title="Staff · Match review" fallbackHref={APP_HOME_URL} />
-          <div className="flex flex-wrap gap-2 text-sm">
+          <div className="flex flex-wrap gap-2 text-small">
             <Link
               href={`/admin/esports/tournaments/${id}/engine`}
-              className="rounded-lg border border-white/15 bg-white/[0.04] px-3 py-2 text-white/85 transition hover:bg-white/[0.08]"
+              className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-ink transition hover:bg-overlay"
             >
               ← Tournament engine
             </Link>
@@ -110,7 +110,7 @@ export default async function AdminMatchReviewPage({
               href={`/esports/tournaments/${id}`}
               target="_blank"
               rel="noreferrer"
-              className="rounded-lg border border-white/15 px-3 py-2 text-white/55 hover:text-white"
+              className="rounded-button border border-line px-3 py-2 text-muted hover:text-ink"
             >
               Public page ↗
             </a>
@@ -118,20 +118,20 @@ export default async function AdminMatchReviewPage({
         </div>
 
         {sp.ok ? (
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+          <div className="rounded-card border border-pitch bg-pitch-soft px-4 py-3 text-small text-pitch">
             Saved ({sp.ok}).
           </div>
         ) : null}
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-white/80">{tour?.title ?? "Tournament"}</h2>
-          <p className="mt-2 text-sm text-white/55">
+        <section className="rounded-card border border-line bg-overlay-subtle p-6">
+          <h2 className="text-small font-semibold text-ink">{tour?.title ?? "Tournament"}</h2>
+          <p className="mt-2 text-small text-muted">
             Defaults for this tournament: confirmation window, proof requirement, and what happens if the opponent
             never responds before the deadline.
           </p>
           <form action={staffUpdateTournamentMatchPolicies} className="mt-6 grid max-w-xl gap-3">
             <input type="hidden" name="tournament_id" value={id} />
-            <label className="text-[11px] text-white/45">
+            <label className="text-caption text-muted">
               Hours to confirm after a report (1–336)
               <input
                 name="match_confirmation_deadline_hours"
@@ -139,31 +139,31 @@ export default async function AdminMatchReviewPage({
                 min={1}
                 max={336}
                 defaultValue={tour?.match_confirmation_deadline_hours ?? 48}
-                className="mt-1 w-full rounded-md border border-white/15 bg-black/40 px-2 py-2 text-sm"
+                className="mt-1 w-full rounded-button border border-line bg-overlay-subtle px-2 py-2 text-small"
               />
             </label>
-            <label className="flex items-center gap-2 text-sm text-white/75">
+            <label className="flex items-center gap-2 text-small text-muted">
               <input
                 type="checkbox"
                 name="require_match_proof"
                 value="on"
                 defaultChecked={Boolean(tour?.require_match_proof)}
-                className="h-4 w-4 rounded border-white/30"
+                className="h-4 w-4 rounded-button border-line"
               />
               Require score screenshot before accepting a report
             </label>
-            <label className="text-[11px] text-white/45">
+            <label className="text-caption text-muted">
               If the opponent does not respond before the deadline
               <select
                 name="match_no_response_policy"
                 defaultValue={tour?.match_no_response_policy === "auto_finalize_report" ? "auto_finalize_report" : "staff_review"}
-                className="mt-1 w-full rounded-md border border-white/15 bg-black/40 px-2 py-2 text-sm"
+                className="mt-1 w-full rounded-button border border-line bg-overlay-subtle px-2 py-2 text-small"
               >
                 <option value="staff_review">Escalate to staff review (recommended)</option>
                 <option value="auto_finalize_report">Auto-finalize using reporter’s score (use sparingly)</option>
               </select>
             </label>
-            <button type="submit" className="w-fit rounded-md bg-white px-4 py-2 text-sm font-semibold text-black">
+            <button type="submit" className="w-fit rounded-button bg-pitch px-4 py-2 text-small font-semibold text-on-pitch">
               Save tournament match rules
             </button>
           </form>
@@ -178,14 +178,14 @@ export default async function AdminMatchReviewPage({
           <option value="other" />
         </datalist>
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-white/80">Conduct history (recent)</h2>
+        <section className="rounded-card border border-line bg-overlay-subtle p-6">
+          <h2 className="text-small font-semibold text-ink">Conduct history (recent)</h2>
           {(conduct || []).length === 0 ? (
-            <p className="mt-3 text-sm text-white/45">No conduct records for this tournament yet.</p>
+            <p className="mt-3 text-small text-muted">No conduct records for this tournament yet.</p>
           ) : (
-            <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
-              <table className="min-w-[900px] w-full border-collapse text-left text-[11px]">
-                <thead className="border-b border-white/10 bg-[#121213] text-[10px] font-semibold uppercase tracking-wider text-white/50">
+            <div className="mt-4 overflow-x-auto rounded-card border border-line">
+              <table className="min-w-[900px] w-full border-collapse text-left text-caption">
+                <thead className="border-b border-line bg-canvas text-caption font-semibold text-muted">
                   <tr>
                     <th className="px-3 py-2">When</th>
                     <th className="px-3 py-2">User</th>
@@ -194,7 +194,7 @@ export default async function AdminMatchReviewPage({
                     <th className="px-3 py-2">Match</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/[0.06]">
+                <tbody className="divide-line">
                   {(conduct || []).map((c) => {
                     const row = c as {
                       id: string;
@@ -205,14 +205,14 @@ export default async function AdminMatchReviewPage({
                       match_id: string | null;
                     };
                     return (
-                      <tr key={row.id} className="text-white/75">
+                      <tr key={row.id} className="text-muted">
                         <td className="px-3 py-2 whitespace-nowrap">{fmtEt(row.created_at)}</td>
-                        <td className="px-3 py-2 font-mono text-[10px]">{row.user_id}</td>
+                        <td className="px-3 py-2 font-mono text-caption">{row.user_id}</td>
                         <td className="px-3 py-2">
                           <StatusChip tone="neutral">{row.severity}</StatusChip>
                         </td>
                         <td className="px-3 py-2">{row.reason_category ?? "—"}</td>
-                        <td className="px-3 py-2 font-mono text-[10px]">{row.match_id ?? "—"}</td>
+                        <td className="px-3 py-2 font-mono text-caption">{row.match_id ?? "—"}</td>
                       </tr>
                     );
                   })}
@@ -222,14 +222,14 @@ export default async function AdminMatchReviewPage({
           )}
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-white/80">Open cases</h2>
-          <p className="mt-2 text-sm text-white/55">
+        <section className="rounded-card border border-line bg-overlay-subtle p-6">
+          <h2 className="text-small font-semibold text-ink">Open cases</h2>
+          <p className="mt-2 text-small text-muted">
             Awaiting opponent confirmation, disputed results, or matches escalated after the confirmation deadline.
           </p>
 
           {(matches || []).length === 0 ? (
-            <p className="mt-4 text-sm text-white/45">No matches need review right now.</p>
+            <p className="mt-4 text-small text-muted">No matches need review right now.</p>
           ) : (
             <div className="mt-6 space-y-10">
               {(matches || []).map((raw) => {
@@ -265,32 +265,32 @@ export default async function AdminMatchReviewPage({
                   : null;
 
                 return (
-                  <div key={m.id} className="rounded-2xl border border-white/10 bg-black/30 p-5">
+                  <div key={m.id} className="rounded-card border border-line bg-overlay-subtle p-5">
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusChip tone={m.status === "under_review" ? "published" : "neutral"}>{m.status}</StatusChip>
-                      <span className="text-xs text-white/45">{st?.name ?? "—"}</span>
+                      <span className="text-caption text-muted">{st?.name ?? "—"}</span>
                     </div>
                     <div className="mt-3 grid gap-4 md:grid-cols-2">
                       <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-white/45">Player 1</div>
-                        <div className="mt-1 font-mono text-[11px] text-white/80">{m.player1_user_id}</div>
+                        <div className="text-caption font-semibold text-muted">Player 1</div>
+                        <div className="mt-1 font-mono text-caption text-ink">{m.player1_user_id}</div>
                         {(() => {
                           const r = conductRollup.get(m.player1_user_id);
                           return r ? (
-                            <div className="mt-1 text-[10px] text-white/40">
+                            <div className="mt-1 text-caption text-muted">
                               This tournament: warnings {r.warnings} · strikes {r.strikes}
                               {r.severe > 0 ? ` · forfeit/DQ ${r.severe}` : ""}
                             </div>
                           ) : null;
                         })()}
-                        <div className="mt-3 text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                        <div className="mt-3 text-caption font-semibold text-muted">
                           Player 2
                         </div>
-                        <div className="mt-1 font-mono text-[11px] text-white/80">{m.player2_user_id}</div>
+                        <div className="mt-1 font-mono text-caption text-ink">{m.player2_user_id}</div>
                         {(() => {
                           const r = conductRollup.get(m.player2_user_id);
                           return r ? (
-                            <div className="mt-1 text-[10px] text-white/40">
+                            <div className="mt-1 text-caption text-muted">
                               This tournament: warnings {r.warnings} · strikes {r.strikes}
                               {r.severe > 0 ? ` · forfeit/DQ ${r.severe}` : ""}
                             </div>
@@ -298,19 +298,19 @@ export default async function AdminMatchReviewPage({
                         })()}
                       </div>
                       <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-white/45">Play deadline</div>
-                        <div className="mt-1 text-sm text-white/75">{fmtEt(m.scheduled_deadline)}</div>
+                        <div className="text-caption font-semibold text-muted">Play deadline</div>
+                        <div className="mt-1 text-small text-muted">{fmtEt(m.scheduled_deadline)}</div>
                         {rep ? (
                           <div className="mt-4 grid gap-3">
-                            <div className="rounded-lg border border-white/10 bg-black/40 p-3">
-                              <div className="text-[10px] font-semibold uppercase tracking-wider text-white/50">
+                            <div className="rounded-button border border-line bg-overlay-subtle p-3">
+                              <div className="text-caption font-semibold text-muted">
                                 Reporter submission
                               </div>
-                              <div className="mt-2 font-mono text-sm text-white">
+                              <div className="mt-2 font-mono text-small text-ink">
                                 Score (P1–P2): {rep.score_player1} – {rep.score_player2}
                               </div>
-                              <div className="mt-1 text-[11px] text-white/50">
-                                Submitted by {rep.reporter_user_id === m.player1_user_id ? "P1" : "P2"} ·{" "}
+                              <div className="mt-1 text-caption text-muted">
+                                Submitted by {rep.reporter_user_id === m.player1_user_id ? "P1" : "P2"} ·{"  "}
                                 {fmtEt(rep.submitted_at)}
                               </div>
                               {proofHref ? (
@@ -318,17 +318,17 @@ export default async function AdminMatchReviewPage({
                                   href={proofHref}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="mt-2 inline-block text-sm text-[var(--brand)] underline-offset-4 hover:underline"
+                                  className="mt-2 inline-block text-small text-pitch-text underline-offset-4 hover:underline"
                                 >
                                   Open screenshot
                                 </a>
                               ) : (
-                                <div className="mt-2 text-[11px] text-white/40">No screenshot on file.</div>
+                                <div className="mt-2 text-caption text-muted">No screenshot on file.</div>
                               )}
                             </div>
-                            <div className="rounded-lg border border-white/10 bg-black/40 p-3">
-                              <div className="text-[10px] font-semibold uppercase tracking-wider text-white/50">Opponent</div>
-                              <div className="mt-2 text-sm text-white/85">
+                            <div className="rounded-button border border-line bg-overlay-subtle p-3">
+                              <div className="text-caption font-semibold text-muted">Opponent</div>
+                              <div className="mt-2 text-small text-ink">
                                 {rep.opponent_response === "pending"
                                   ? "Awaiting confirmation"
                                   : rep.opponent_response === "confirmed"
@@ -340,31 +340,31 @@ export default async function AdminMatchReviewPage({
                                         : rep.opponent_response}
                               </div>
                               {rep.dispute_reason ? (
-                                <div className="mt-2 text-[11px] text-rose-200/90">“{rep.dispute_reason}”</div>
+                                <div className="mt-2 text-caption text-coral">“{rep.dispute_reason}”</div>
                               ) : null}
-                              <div className="mt-2 text-[11px] text-white/45">
+                              <div className="mt-2 text-caption text-muted">
                                 Confirm by {fmtEt(rep.confirmation_deadline_at)}
                               </div>
                             </div>
                           </div>
                         ) : (
-                          <p className="mt-3 text-sm text-amber-200/80">No structured report row (legacy or cleared).</p>
+                          <p className="mt-3 text-small text-coral">No structured report row (legacy or cleared).</p>
                         )}
                       </div>
                     </div>
 
                     <div className="mt-6 grid gap-6 lg:grid-cols-2">
                       <div>
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-white/70">Finalize / adjust</h3>
+                        <h3 className="text-caption font-semibold text-muted">Finalize / adjust</h3>
                         <form action={staffFinalizeMatch} className="mt-3 grid gap-2">
                           <input type="hidden" name="tournament_id" value={id} />
                           <input type="hidden" name="match_id" value={m.id} />
-                          <label className="text-[11px] text-white/45">
+                          <label className="text-caption text-muted">
                             Status
                             <select
                               name="status"
                               defaultValue={m.status}
-                              className="mt-1 w-full rounded-md border border-white/15 bg-black/40 px-2 py-2 text-sm"
+                              className="mt-1 w-full rounded-button border border-line bg-overlay-subtle px-2 py-2 text-small"
                             >
                               <option value="scheduled">scheduled</option>
                               <option value="awaiting_confirmation">awaiting_confirmation</option>
@@ -375,42 +375,42 @@ export default async function AdminMatchReviewPage({
                               <option value="forfeit">forfeit</option>
                             </select>
                           </label>
-                          <label className="text-[11px] text-white/45">
+                          <label className="text-caption text-muted">
                             Score P1
                             <input
                               name="score_player1"
                               defaultValue={typeof m.score_player1 === "number" ? String(m.score_player1) : ""}
-                              className="mt-1 w-full rounded-md border border-white/15 bg-black/40 px-2 py-2 text-sm font-mono"
+                              className="mt-1 w-full rounded-button border border-line bg-overlay-subtle px-2 py-2 text-small font-mono"
                             />
                           </label>
-                          <label className="text-[11px] text-white/45">
+                          <label className="text-caption text-muted">
                             Score P2
                             <input
                               name="score_player2"
                               defaultValue={typeof m.score_player2 === "number" ? String(m.score_player2) : ""}
-                              className="mt-1 w-full rounded-md border border-white/15 bg-black/40 px-2 py-2 text-sm font-mono"
+                              className="mt-1 w-full rounded-button border border-line bg-overlay-subtle px-2 py-2 text-small font-mono"
                             />
                           </label>
-                          <label className="text-[11px] text-white/45">
+                          <label className="text-caption text-muted">
                             Winner user id (optional; draws may be empty)
                             <input
                               name="winner_user_id"
                               defaultValue={m.winner_user_id ?? ""}
-                              className="mt-1 w-full rounded-md border border-white/15 bg-black/40 px-2 py-2 text-sm font-mono"
+                              className="mt-1 w-full rounded-button border border-line bg-overlay-subtle px-2 py-2 text-small font-mono"
                             />
                           </label>
-                          <label className="text-[11px] text-white/45">
+                          <label className="text-caption text-muted">
                             Internal notes
                             <textarea
                               name="admin_notes_internal"
                               rows={3}
                               defaultValue={m.admin_notes_internal ?? ""}
-                              className="mt-1 w-full rounded-md border border-white/15 bg-black/40 px-2 py-2 text-sm"
+                              className="mt-1 w-full rounded-button border border-line bg-overlay-subtle px-2 py-2 text-small"
                             />
                           </label>
                           <button
                             type="submit"
-                            className="mt-2 w-fit rounded-md bg-white px-4 py-2 text-sm font-semibold text-black"
+                            className="mt-2 w-fit rounded-button bg-pitch px-4 py-2 text-small font-semibold text-on-pitch"
                           >
                             Save decision
                           </button>
@@ -419,46 +419,46 @@ export default async function AdminMatchReviewPage({
 
                       <div className="space-y-6">
                         <div>
-                          <h3 className="text-xs font-semibold uppercase tracking-wider text-white/70">
+                          <h3 className="text-caption font-semibold text-muted">
                             Issue conduct action
                           </h3>
                           <form action={staffIssueConduct} className="mt-3 grid gap-2">
                             <input type="hidden" name="tournament_id" value={id} />
                             <input type="hidden" name="match_id" value={m.id} />
-                            <label className="text-[11px] text-white/45">
+                            <label className="text-caption text-muted">
                               Target user id
                               <input
                                 name="user_id"
                                 placeholder="UUID"
-                                className="mt-1 w-full rounded-md border border-white/15 bg-black/40 px-2 py-2 text-sm font-mono"
+                                className="mt-1 w-full rounded-button border border-line bg-overlay-subtle px-2 py-2 text-small font-mono"
                                 required
                               />
                             </label>
-                            <label className="text-[11px] text-white/45">
+                            <label className="text-caption text-muted">
                               Severity
-                              <select name="severity" className="mt-1 w-full rounded-md border border-white/15 bg-black/40 px-2 py-2 text-sm">
+                              <select name="severity" className="mt-1 w-full rounded-button border border-line bg-overlay-subtle px-2 py-2 text-small">
                                 <option value="warning">warning</option>
                                 <option value="strike">strike</option>
                                 <option value="forfeit">forfeit</option>
                                 <option value="disqualification">disqualification</option>
                               </select>
                             </label>
-                            <label className="text-[11px] text-white/45">
+                            <label className="text-caption text-muted">
                               Category (optional)
                               <input
                                 name="reason_category"
                                 list="esports-conduct-reasons"
                                 placeholder="Pick or type"
-                                className="mt-1 w-full rounded-md border border-white/15 bg-black/40 px-2 py-2 text-sm"
+                                className="mt-1 w-full rounded-button border border-line bg-overlay-subtle px-2 py-2 text-small"
                               />
                             </label>
-                            <label className="text-[11px] text-white/45">
+                            <label className="text-caption text-muted">
                               Notes (internal)
-                              <textarea name="notes_internal" rows={3} className="mt-1 w-full rounded-md border border-white/15 bg-black/40 px-2 py-2 text-sm" />
+                              <textarea name="notes_internal" rows={3} className="mt-1 w-full rounded-button border border-line bg-overlay-subtle px-2 py-2 text-small" />
                             </label>
                             <button
                               type="submit"
-                              className="mt-2 w-fit rounded-md border border-white/20 px-4 py-2 text-sm font-semibold text-white/90"
+                              className="mt-2 w-fit rounded-button border border-line px-4 py-2 text-small font-semibold text-ink"
                             >
                               Record conduct
                             </button>
@@ -466,10 +466,10 @@ export default async function AdminMatchReviewPage({
                         </div>
 
                         <div>
-                          <h3 className="text-xs font-semibold uppercase tracking-wider text-white/70">
+                          <h3 className="text-caption font-semibold text-muted">
                             Reset for new player report
                           </h3>
-                          <p className="mt-2 text-[11px] text-white/45">
+                          <p className="mt-2 text-caption text-muted">
                             Clears the structured report row and returns the match to scheduled (use after a bad dispute
                             or bad submission).
                           </p>
@@ -478,7 +478,7 @@ export default async function AdminMatchReviewPage({
                             <input type="hidden" name="match_id" value={m.id} />
                             <button
                               type="submit"
-                              className="rounded-md border border-rose-500/40 px-4 py-2 text-sm font-semibold text-rose-100/90"
+                              className="rounded-button border border-coral px-4 py-2 text-small font-semibold text-coral"
                             >
                               Reset match report
                             </button>

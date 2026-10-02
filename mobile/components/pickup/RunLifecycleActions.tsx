@@ -12,8 +12,7 @@ import { hapticTap } from "@/lib/haptics";
 import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-const LIME = "#a3e635";
-
+import { themeColor, useThemedStyles } from "@/theme";
 function s(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
@@ -40,6 +39,8 @@ function isCanceled(run: Record<string, unknown>): boolean {
 }
 
 export default function RunLifecycleActions({ run, actionBusy, onAction }: RunLifecycleActionsProps) {
+  useThemedStyles(publish_styles);
+
   const lifecycleRow = useMemo(
     () => ({
       status: s(run.status) || null,
@@ -193,18 +194,17 @@ export default function RunLifecycleActions({ run, actionBusy, onAction }: RunLi
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   wrap: { marginTop: 20, gap: 16 },
   group: { gap: 10 },
   groupLabel: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 11,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
   },
   primaryBtn: {
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
@@ -214,8 +214,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   destructiveBtn: {
     marginTop: 4,
@@ -223,10 +223,16 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(248,113,113,0.5)",
+    borderColor: themeColor().coral,
   },
   disabled: { opacity: 0.55 },
-  primaryBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
-  secondaryBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  destructiveBtnText: { color: "#fca5a5", fontWeight: "700", fontSize: 15 },
+  primaryBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  secondaryBtnText: { color: themeColor().text, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
+  destructiveBtnText: { color: themeColor().coral, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

@@ -125,23 +125,23 @@ export default async function AdminEsportsPage({
   const liveCount = list.filter((r) => r.status === "upcoming" || r.status === "active").length;
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-canvas text-ink">
       <div className="mx-auto max-w-6xl space-y-10 py-10">
         <PageTop flush title="Staff · Esports" fallbackHref={APP_HOME_URL} />
 
-        <section className="rounded-2xl border border-[var(--brand)]/25 bg-[var(--brand)]/[0.06] p-6">
+        <section className="rounded-card border border-[var(--brand)]/25 bg-[var(--brand)]/[0.06] p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-white">Tournament registrations</h2>
-              <p className="mt-2 max-w-xl text-sm text-white/65">
-                View every signup joined to the player&apos;s{" "}
-                <span className="text-white/85">esports_player_profiles</span> record (platform IDs,
+              <h2 className="text-h3 font-serif font-semibold text-ink">Tournament registrations</h2>
+              <p className="mt-2 max-w-xl text-small text-muted">
+                View every signup joined to the player&apos;s{"  "}
+                <span className="text-ink">esports_player_profiles</span> record (platform IDs,
                 contact, eligibility). Filter by tournament, payment, or missing profile link.
               </p>
-              <p className="mt-2 text-xs text-white/45">
+              <p className="mt-2 text-caption text-muted">
                 {typeof regCount === "number" ? (
                   <>
-                    <span className="text-white/70">{regCount}</span> registration row
+                    <span className="text-muted">{regCount}</span> registration row
                     {regCount === 1 ? "" : "s"} in the database.
                   </>
                 ) : (
@@ -157,7 +157,7 @@ export default async function AdminEsportsPage({
             </div>
           </div>
           {regCountErr ? (
-            <p className="mt-4 text-sm text-red-200/90">
+            <p className="mt-4 text-small text-coral">
               {regCountErr.message}
               {regCountErr.message.includes("schema cache") ? (
                 <> (Supabase migrations may not be applied in production yet.)</>
@@ -165,7 +165,7 @@ export default async function AdminEsportsPage({
             </p>
           ) : null}
           {regErr ? (
-            <p className="mt-2 text-sm text-red-200/90">{regErr.message}</p>
+            <p className="mt-2 text-small text-coral">{regErr.message}</p>
           ) : null}
         </section>
 
@@ -177,7 +177,7 @@ export default async function AdminEsportsPage({
               href="/esports/tournaments"
               target="_blank"
               rel="noreferrer"
-              className="text-xs text-white/50 hover:text-white"
+              className="text-caption text-muted hover:text-ink"
             >
               Preview listing ↗
             </a>
@@ -185,17 +185,17 @@ export default async function AdminEsportsPage({
         </AdminWorkArea>
 
         <section className="space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-white/45">
+          <h2 className="text-caption font-semibold text-muted">
             Tournament registrations (latest 200)
           </h2>
           {registrations.length === 0 ? (
-            <p className="text-sm text-white/50">
+            <p className="text-small text-muted">
               {regErr ? "Registrations unavailable (DB issue)." : "No registration rows yet."}
             </p>
           ) : (
-            <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03]">
-              <table className="min-w-[1100px] w-full text-left text-xs">
-                <thead className="border-b border-white/10 text-white/55">
+            <div className="overflow-x-auto rounded-card border border-line bg-overlay-subtle">
+              <table className="min-w-[1100px] w-full text-left text-caption">
+                <thead className="border-b border-line text-muted">
                   <tr>
                     <th className="px-4 py-3">Tournament</th>
                     <th className="px-4 py-3">User</th>
@@ -209,7 +209,7 @@ export default async function AdminEsportsPage({
                     <th className="px-4 py-3">Updated</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-line">
                   {registrations.map((r) => {
                     const p = Array.isArray(r.player) ? r.player[0] : r.player;
                     const t = Array.isArray(r.tournament) ? r.tournament[0] : r.tournament;
@@ -221,29 +221,29 @@ export default async function AdminEsportsPage({
                     const consentOk = !!r.consent_recorded_at;
                     const pay = r.payment_status;
                     return (
-                      <tr key={r.id} className="text-white/80">
+                      <tr key={r.id} className="text-ink">
                         <td className="px-4 py-3">
-                          <div className="font-semibold text-white/90">
+                          <div className="font-semibold text-ink">
                             {t?.title || r.tournament_id}
                           </div>
-                          <div className="text-[10px] text-white/40">{r.tournament_id}</div>
+                          <div className="text-caption text-muted">{r.tournament_id}</div>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="font-mono text-[11px] text-white/70">{r.user_id}</div>
+                          <div className="font-mono text-caption text-muted">{r.user_id}</div>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="text-white/90">{p?.legal_name || r.signed_full_name}</div>
-                          <div className="text-[11px] text-white/50">
+                          <div className="text-ink">{p?.legal_name || r.signed_full_name}</div>
+                          <div className="text-caption text-muted">
                             {p?.contact_email || r.auth_email || "—"}
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="text-[11px] text-white/70">{p?.platform || "—"}</div>
-                          <div className="text-[11px] text-white/55">
+                          <div className="text-caption text-muted">{p?.platform || "—"}</div>
+                          <div className="text-caption text-muted">
                             {p?.platform === "playstation" ? `PSN: ${p.psn_id || "—"}` : null}
                             {p?.platform === "xbox" ? `Xbox: ${p.xbox_gamertag || "—"}` : null}
                           </div>
-                          <div className="text-[11px] text-white/55">EA: {p?.ea_account || "—"}</div>
+                          <div className="text-caption text-muted">EA: {p?.ea_account || "—"}</div>
                         </td>
                         <td className="px-4 py-3">{p?.state || "—"}</td>
                         <td className="px-4 py-3">
@@ -255,8 +255,8 @@ export default async function AdminEsportsPage({
                           <StatusChip tone={consentOk ? "published" : "neutral"}>
                             {consentOk ? "signed" : "missing"}
                           </StatusChip>
-                          <div className="text-[10px] text-white/40 mt-1">
-                            {r.doc_version_official_rules} / {r.doc_version_terms} /{" "}
+                          <div className="text-caption text-muted mt-1">
+                            {r.doc_version_official_rules} / {r.doc_version_terms} /{"  "}
                             {r.doc_version_privacy_publicity}
                           </div>
                         </td>
@@ -272,12 +272,12 @@ export default async function AdminEsportsPage({
                           >
                             {pay}
                           </StatusChip>
-                          <div className="text-[10px] text-white/40 mt-1">
+                          <div className="text-caption text-muted mt-1">
                             {r.paid_at ? fmtEt(r.paid_at) : ""}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-white/55">{fmtEt(r.created_at)}</td>
-                        <td className="px-4 py-3 text-white/55">{fmtEt(r.updated_at)}</td>
+                        <td className="px-4 py-3 text-muted">{fmtEt(r.created_at)}</td>
+                        <td className="px-4 py-3 text-muted">{fmtEt(r.updated_at)}</td>
                       </tr>
                     );
                   })}
@@ -288,83 +288,83 @@ export default async function AdminEsportsPage({
         </section>
 
         {sp.ok ? (
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+          <div className="rounded-card border border-pitch bg-pitch-soft px-4 py-3 text-small text-pitch">
             {sp.ok === "created" && "Esports tournament created."}
             {sp.ok === "saved" && "Esports tournament updated."}
             {sp.ok === "deleted" && "Esports tournament deleted."}
           </div>
         ) : null}
         {sp.e ? (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          <div className="rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral">
             {sp.e}
           </div>
         ) : null}
 
         {error ? (
-          <p className="text-sm text-red-300">{error.message}</p>
+          <p className="text-small text-coral">{error.message}</p>
         ) : null}
 
-        <section className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-          <h2 className="text-lg font-semibold uppercase tracking-tight text-white">
+        <section className="space-y-4 rounded-card border border-line bg-overlay-subtle p-6">
+          <h2 className="text-h3 font-serif font-semibold text-ink">
             Create esports tournament
           </h2>
-          <p className="text-sm text-white/55">
-            The public listing only shows tournaments marked{" "}
-            <span className="text-white/80">upcoming</span> or{" "}
-            <span className="text-white/80">active</span>.
+          <p className="text-small text-muted">
+            The public listing only shows tournaments marked{"  "}
+            <span className="text-ink">upcoming</span> or{"  "}
+            <span className="text-ink">active</span>.
           </p>
           <form
             action={createEsportsTournament}
             className="grid gap-3 md:grid-cols-2 lg:grid-cols-3"
           >
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Title
               <input
                 name="title"
                 required
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink placeholder:text-muted"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Game
               <input
                 name="game"
                 required
                 placeholder="e.g. EA SPORTS FC 26"
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink placeholder:text-muted"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Prize
               <input
                 name="prize"
                 required
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink placeholder:text-muted"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Tournament starts
               <input
                 name="start_date"
                 type="datetime-local"
                 required
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Tournament ends
               <input
                 name="end_date"
                 type="datetime-local"
                 required
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Status
               <select
                 name="status"
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                 defaultValue="upcoming"
               >
                 <option value="upcoming">upcoming</option>
@@ -372,96 +372,96 @@ export default async function AdminEsportsPage({
                 <option value="completed">completed</option>
               </select>
             </label>
-            <label className="md:col-span-2 lg:col-span-3 flex flex-col gap-1 text-xs text-white/55">
+            <label className="md:col-span-2 lg:col-span-3 flex flex-col gap-1 text-caption text-muted">
               Description (optional)
               <textarea
                 name="description"
                 rows={3}
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink placeholder:text-muted"
               />
             </label>
-            <label className="md:col-span-2 lg:col-span-3 flex flex-col gap-1 text-xs text-white/55">
+            <label className="md:col-span-2 lg:col-span-3 flex flex-col gap-1 text-caption text-muted">
               Public format summary
               <textarea
                 name="format_summary"
                 rows={3}
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/35"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink placeholder:text-muted"
               />
-              <span className="text-[11px] font-normal text-white/45">
+              <span className="text-caption font-normal text-muted">
                 Short simple explanation players will see.
               </span>
             </label>
 
-            <div className="md:col-span-2 lg:col-span-3 space-y-1 border-t border-white/10 pt-4">
-              <p className="text-sm font-semibold text-white">Tournament schedule</p>
-              <p className="text-xs text-white/55">Enter all times in Eastern Time.</p>
+            <div className="md:col-span-2 lg:col-span-3 space-y-1 border-t border-line pt-4">
+              <p className="text-small font-semibold text-ink">Tournament schedule</p>
+              <p className="text-caption text-muted">Enter all times in Eastern Time.</p>
             </div>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Group stage deadline — Monday
               <input
                 name="group_stage_deadline_1"
                 type="datetime-local"
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Group stage deadline — Tuesday
               <input
                 name="group_stage_deadline_2"
                 type="datetime-local"
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Group stage final deadline — Wednesday 11:59 PM
               <input
                 name="group_stage_final_deadline"
                 type="datetime-local"
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
-              <span className="text-[11px] font-normal text-white/45">
+              <span className="text-caption font-normal text-muted">
                 Pick the date and 11:59 PM Eastern.
               </span>
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Knockout starts — Thursday
               <input
                 name="knockout_start_at"
                 type="datetime-local"
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Quarterfinal deadline
               <input
                 name="quarterfinal_deadline"
                 type="datetime-local"
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Semifinal deadline
               <input
                 name="semifinal_deadline"
                 type="datetime-local"
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-white/55">
+            <label className="flex flex-col gap-1 text-caption text-muted">
               Final deadline — Sunday 10:30 PM
               <input
                 name="final_deadline"
                 type="datetime-local"
-                className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
               />
-              <span className="text-[11px] font-normal text-white/45">
+              <span className="text-caption font-normal text-muted">
                 Pick the date and 10:30 PM Eastern.
               </span>
             </label>
             <div className="md:col-span-2 lg:col-span-3">
               <button
                 type="submit"
-                className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-black"
+                className="rounded-button bg-pitch px-4 py-2 text-small font-semibold text-on-pitch"
               >
                 Create
               </button>
@@ -470,187 +470,187 @@ export default async function AdminEsportsPage({
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-white/45">
+          <h2 className="text-caption font-semibold text-muted">
             All esports tournaments
           </h2>
           {list.length === 0 ? (
-            <p className="text-sm text-white/50">No rows yet.</p>
+            <p className="text-small text-muted">No rows yet.</p>
           ) : (
             <div className="space-y-6">
               {list.map((row) => (
                 <div
                   key={row.id}
-                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-5"
+                  className="rounded-card border border-line bg-overlay-subtle p-5"
                 >
                   <form
                     action={updateEsportsTournament}
                     className="grid gap-3 md:grid-cols-2 lg:grid-cols-3"
                   >
                     <input type="hidden" name="id" value={row.id} />
-                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                    <label className="flex flex-col gap-1 text-caption text-muted">
                       Title
                       <input
                         name="title"
                         required
                         defaultValue={row.title}
-                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                        className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                       />
                     </label>
-                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                    <label className="flex flex-col gap-1 text-caption text-muted">
                       Game
                       <input
                         name="game"
                         required
                         defaultValue={row.game}
-                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                        className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                       />
                     </label>
-                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                    <label className="flex flex-col gap-1 text-caption text-muted">
                       Prize
                       <input
                         name="prize"
                         required
                         defaultValue={row.prize}
-                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                        className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                       />
                     </label>
-                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                    <label className="flex flex-col gap-1 text-caption text-muted">
                       Tournament starts
                       <input
                         name="start_date"
                         type="datetime-local"
                         required
                         defaultValue={easternLocalInputValue(row.start_date)}
-                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                        className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                       />
                     </label>
-                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                    <label className="flex flex-col gap-1 text-caption text-muted">
                       Tournament ends
                       <input
                         name="end_date"
                         type="datetime-local"
                         required
                         defaultValue={easternLocalInputValue(row.end_date)}
-                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                        className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                       />
                     </label>
-                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                    <label className="flex flex-col gap-1 text-caption text-muted">
                       Status
                       <select
                         name="status"
                         defaultValue={row.status}
-                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                        className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                       >
                         <option value="upcoming">upcoming</option>
                         <option value="active">active</option>
                         <option value="completed">completed</option>
                       </select>
                     </label>
-                    <label className="md:col-span-2 lg:col-span-3 flex flex-col gap-1 text-xs text-white/55">
+                    <label className="md:col-span-2 lg:col-span-3 flex flex-col gap-1 text-caption text-muted">
                       Description (optional)
                       <textarea
                         name="description"
                         defaultValue={row.description ?? ""}
                         rows={3}
-                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                        className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                       />
                     </label>
-                    <label className="md:col-span-2 lg:col-span-3 flex flex-col gap-1 text-xs text-white/55">
+                    <label className="md:col-span-2 lg:col-span-3 flex flex-col gap-1 text-caption text-muted">
                       Public format summary
                       <textarea
                         name="format_summary"
                         defaultValue={row.format_summary ?? ""}
                         rows={3}
-                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+                        className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                       />
-                      <span className="text-[11px] font-normal text-white/45">
+                      <span className="text-caption font-normal text-muted">
                         Short simple explanation players will see.
                       </span>
                     </label>
 
-                    <div className="md:col-span-2 lg:col-span-3 space-y-1 border-t border-white/10 pt-4">
-                      <p className="text-sm font-semibold text-white">Tournament schedule</p>
-                      <p className="text-xs text-white/55">Enter all times in Eastern Time.</p>
+                    <div className="md:col-span-2 lg:col-span-3 space-y-1 border-t border-line pt-4">
+                      <p className="text-small font-semibold text-ink">Tournament schedule</p>
+                      <p className="text-caption text-muted">Enter all times in Eastern Time.</p>
                     </div>
-                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                    <label className="flex flex-col gap-1 text-caption text-muted">
                       Group stage deadline — Monday
                       <input
                         name="group_stage_deadline_1"
                         type="datetime-local"
                         defaultValue={easternLocalInputValue(row.group_stage_deadline_1)}
-                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                        className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                       />
                     </label>
-                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                    <label className="flex flex-col gap-1 text-caption text-muted">
                       Group stage deadline — Tuesday
                       <input
                         name="group_stage_deadline_2"
                         type="datetime-local"
                         defaultValue={easternLocalInputValue(row.group_stage_deadline_2)}
-                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                        className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                       />
                     </label>
-                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                    <label className="flex flex-col gap-1 text-caption text-muted">
                       Group stage final deadline — Wednesday 11:59 PM
                       <input
                         name="group_stage_final_deadline"
                         type="datetime-local"
                         defaultValue={easternLocalInputValue(row.group_stage_final_deadline)}
-                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                        className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                       />
-                      <span className="text-[11px] font-normal text-white/45">
+                      <span className="text-caption font-normal text-muted">
                         Pick the date and 11:59 PM Eastern.
                       </span>
                     </label>
-                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                    <label className="flex flex-col gap-1 text-caption text-muted">
                       Knockout starts — Thursday
                       <input
                         name="knockout_start_at"
                         type="datetime-local"
                         defaultValue={easternLocalInputValue(row.knockout_start_at)}
-                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                        className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                       />
                     </label>
-                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                    <label className="flex flex-col gap-1 text-caption text-muted">
                       Quarterfinal deadline
                       <input
                         name="quarterfinal_deadline"
                         type="datetime-local"
                         defaultValue={easternLocalInputValue(row.quarterfinal_deadline)}
-                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                        className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                       />
                     </label>
-                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                    <label className="flex flex-col gap-1 text-caption text-muted">
                       Semifinal deadline
                       <input
                         name="semifinal_deadline"
                         type="datetime-local"
                         defaultValue={easternLocalInputValue(row.semifinal_deadline)}
-                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                        className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                       />
                     </label>
-                    <label className="flex flex-col gap-1 text-xs text-white/55">
+                    <label className="flex flex-col gap-1 text-caption text-muted">
                       Final deadline — Sunday 10:30 PM
                       <input
                         name="final_deadline"
                         type="datetime-local"
                         defaultValue={easternLocalInputValue(row.final_deadline)}
-                        className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white [color-scheme:dark]"
+                        className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                       />
-                      <span className="text-[11px] font-normal text-white/45">
+                      <span className="text-caption font-normal text-muted">
                         Pick the date and 10:30 PM Eastern.
                       </span>
                     </label>
                     <div className="flex flex-wrap gap-2 md:col-span-2 lg:col-span-3">
                       <button
                         type="submit"
-                        className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-black"
+                        className="rounded-button bg-pitch px-4 py-2 text-small font-semibold text-on-pitch"
                       >
                         Save changes
                       </button>
                       <Link
                         href={`/admin/esports/tournaments/${row.id}/engine`}
-                        className="rounded-md border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white/85 hover:bg-white/[0.08]"
+                        className="rounded-button border border-line bg-overlay-subtle px-4 py-2 text-small font-semibold text-ink hover:bg-overlay"
                       >
                         Tournament engine
                       </Link>
@@ -663,15 +663,15 @@ export default async function AdminEsportsPage({
                       row.knockout_bracket ? JSON.stringify(row.knockout_bracket, null, 2) : ""
                     }
                   />
-                  <p className="mt-3 text-xs text-white/40">
-                    Created {fmtEt(row.created_at)} · Start {fmtEt(row.start_date)} · End{" "}
+                  <p className="mt-3 text-caption text-muted">
+                    Created {fmtEt(row.created_at)} · Start {fmtEt(row.start_date)} · End{"  "}
                     {fmtEt(row.end_date)}
                   </p>
                   <form action={deleteEsportsTournament} className="mt-3">
                     <input type="hidden" name="id" value={row.id} />
                     <button
                       type="submit"
-                      className="rounded-md border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-200/95 hover:bg-red-500/10"
+                      className="rounded-button border border-coral px-3 py-1.5 text-caption font-semibold text-coral hover:bg-overlay-subtle"
                     >
                       Delete
                     </button>

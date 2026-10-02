@@ -33,7 +33,7 @@ import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { DateTime } from "luxon";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-const LIME = "#a3e635";
+const LIME = "var(--pitch)";
 
 function fmtEt(dt: string | null) {
   if (!dt) return "No time set yet";
@@ -76,22 +76,8 @@ function parseEtDatetimeLocalToIso(localVal: string): string | null {
 }
 
 const LOCATION_PRESETS = {
-  new_haven: `New Haven SoccerRoof
-1018 Sherman Ave, Hamden, CT 06514
-
-Parking
-Parking lot directly outside the building on Sherman Ave (in front of the facility entrance).
-
-Field Number
-Leave blank.`,
-  new_rochelle: `New Rochelle SoccerRoof
-29 LeCount Pl, 3rd Floor, New Rochelle, NY 10801
-
-Parking
-New Roc City Garage - parking garage attached to the New Roc City complex next to the facility.
-
-Field Number
-Leave blank.`,
+  new_haven: `New Haven SoccerRoof 1018 Sherman Ave, Hamden, CT 06514 Parking Parking lot directly outside the building on Sherman Ave (in front of the facility entrance). Field Number Leave blank.`,
+  new_rochelle: `New Rochelle SoccerRoof 29 LeCount Pl, 3rd Floor, New Rochelle, NY 10801 Parking New Roc City Garage - parking garage attached to the New Roc City complex next to the facility. Field Number Leave blank.`,
 } as const;
 
 function pickupNextSteps(
@@ -409,15 +395,15 @@ export default function PickupOperatorClient() {
 
   if (!token) {
     return (
-      <main className="min-h-screen bg-black text-white">
+      <main className="min-h-screen bg-canvas text-ink">
         <div className="mx-auto max-w-6xl pt-2">
           <PageTop flush title="Staff · Pickups" fallbackHref={APP_HOME_URL} />
         </div>
         <div className="mx-auto max-w-4xl px-6 py-12 space-y-4">
-          <div className="text-white/80">Log in to access admin tools.</div>
+          <div className="text-ink">Log in to access admin tools.</div>
           <Link
             href="/login?next=/admin/pickup"
-            className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-semibold bg-white text-black w-full sm:w-auto"
+            className="inline-flex items-center justify-center rounded-button px-5 py-3 text-small font-semibold bg-pitch text-on-pitch w-full sm:w-auto"
           >
             Log in
           </Link>
@@ -430,16 +416,16 @@ export default function PickupOperatorClient() {
   const publishHref = selectedRunId ? `/admin/publish?run=${encodeURIComponent(selectedRunId)}` : "/admin/publish";
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-canvas text-ink">
       <div className="mx-auto max-w-6xl pt-2">
         <PageTop flush title="Staff · Pickups" fallbackHref={APP_HOME_URL} />
       </div>
 
       <div className="mx-auto max-w-6xl py-8 space-y-6 px-4 sm:px-0">
-        <div className="text-sm text-white/55">
+        <div className="text-small text-muted">
           <Link
             href="/admin/pickup/standing"
-            className="text-white/80 underline-offset-4 hover:text-white hover:underline"
+            className="text-ink underline-offset-4 hover:text-ink hover:underline"
           >
             Player standing &amp; reliability
           </Link>
@@ -452,7 +438,7 @@ export default function PickupOperatorClient() {
           previewHref="/pickup"
         />
 
-        {msg ? <div className="text-sm text-white/60">{msg}</div> : null}
+        {msg ? <div className="text-small text-muted">{msg}</div> : null}
 
         {selectedRunId && opCtx ? (
           <div className="space-y-4">
@@ -474,40 +460,40 @@ export default function PickupOperatorClient() {
             <OperatorNextSteps items={nextItems} />
           </div>
         ) : selectedRunId && opCtxErr ? (
-          <p className="text-sm text-red-300/90">Couldn’t load where posts appear or delivery status.</p>
+          <p className="text-small text-coral">Couldn’t load where posts appear or delivery status.</p>
         ) : selectedRunId ? (
-          <p className="text-sm text-white/50">Loading…</p>
+          <p className="text-small text-muted">Loading…</p>
         ) : null}
 
-        <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
-          <div className="text-xs font-semibold uppercase tracking-wider text-white/45">New run</div>
+        <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+          <div className="text-caption font-semibold text-muted">New run</div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <label className="flex flex-col gap-1 text-sm text-white/80">
+            <label className="flex flex-col gap-1 text-small text-ink">
               <span>Title</span>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
                 placeholder="Friday night run"
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm text-white/80">
+            <label className="flex flex-col gap-1 text-small text-ink">
               <span>Who can join</span>
               <select
                 value={runType}
                 onChange={(e) => setRunType(e.target.value as "select" | "public")}
-                className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
               >
                 <option value="select">Select (invite)</option>
                 <option value="public">Public</option>
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-sm text-white/80">
+            <label className="flex flex-col gap-1 text-small text-ink">
               <span>State / region</span>
               <select
                 value={createServiceRegion}
                 onChange={(e) => setCreateServiceRegion(e.target.value as "CT" | "NY" | "NJ" | "MD")}
-                className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
               >
                 <option value="CT">CT</option>
                 <option value="NY">NY</option>
@@ -515,38 +501,38 @@ export default function PickupOperatorClient() {
                 <option value="MD">MD</option>
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-sm text-white/80 sm:col-span-2">
+            <label className="flex flex-col gap-1 text-small text-ink sm:col-span-2">
               <span>Date &amp; time (Eastern)</span>
               <input
                 type="datetime-local"
                 value={createKickoffLocal}
                 onChange={(e) => setCreateKickoffLocal(e.target.value)}
-                className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
               />
-              <span className="text-xs text-white/45">Stored in UTC; displayed in ET everywhere in admin.</span>
+              <span className="text-caption text-muted">Stored in UTC; displayed in ET everywhere in admin.</span>
             </label>
-            <label className="flex flex-col gap-1 text-sm text-white/80">
+            <label className="flex flex-col gap-1 text-small text-ink">
               <span>Player capacity</span>
               <input
                 type="number"
                 value={capacity}
                 onChange={(e) => setCapacity(Number(e.target.value))}
                 min={1}
-                className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm text-white/80">
+            <label className="flex flex-col gap-1 text-small text-ink">
               <span>Fee (cents)</span>
-              <span className="text-xs text-white/45">Whole dollars × 100, e.g. 1500 = $15.00</span>
+              <span className="text-caption text-muted">Whole dollars × 100, e.g. 1500 = $15.00</span>
               <input
                 type="number"
                 value={feeCents}
                 onChange={(e) => setFeeCents(Number(e.target.value))}
                 min={0}
-                className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm text-white/80 sm:col-span-2">
+            <label className="flex flex-col gap-1 text-small text-ink sm:col-span-2">
               <span>Venue preset</span>
               <select
                 value={locationPreset}
@@ -557,7 +543,7 @@ export default function PickupOperatorClient() {
                   else if (next === "new_rochelle") setLocationPrivate(LOCATION_PRESETS.new_rochelle);
                   else if (next === "other") setLocationPrivate("");
                 }}
-                className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
               >
                 <option value="">Choose…</option>
                 <option value="new_haven">New Haven</option>
@@ -565,18 +551,18 @@ export default function PickupOperatorClient() {
                 <option value="other">Other</option>
               </select>
             </label>
-            <label className="flex items-center gap-2 text-sm text-white/70 sm:col-span-2">
+            <label className="flex items-center gap-2 text-small text-muted sm:col-span-2">
               <input type="checkbox" checked={locConfirmedOnly} onChange={(e) => setLocConfirmedOnly(e.target.checked)} />
               Location visible to confirmed only
             </label>
           </div>
-          <label className="flex flex-col gap-1 text-sm text-white/80">
+          <label className="flex flex-col gap-1 text-small text-ink">
             <span>Full venue text for players</span>
             <textarea
               value={locationPrivate}
               onChange={(e) => setLocationPrivate(e.target.value)}
               rows={5}
-              className="w-full rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+              className="w-full rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
             />
           </label>
           <button
@@ -600,14 +586,14 @@ export default function PickupOperatorClient() {
                 start_at: iso,
               });
             }}
-            className="rounded-md bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-50"
+            className="rounded-button bg-pitch px-4 py-2 text-caption font-semibold text-on-pitch disabled:opacity-50"
           >
             Create run
           </button>
         </section>
 
-        <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
-          <div className="text-xs font-semibold uppercase tracking-wider text-white/45">Pickup runs</div>
+        <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+          <div className="text-caption font-semibold text-muted">Pickup runs</div>
           <div className="flex flex-wrap gap-2">
             {(["planning", "active", "past"] as const).map((tab) => {
               const active = workflowTab === tab;
@@ -619,15 +605,15 @@ export default function PickupOperatorClient() {
                   type="button"
                   onClick={() => setWorkflowTabOverride(tab)}
                   className={[
-                    "rounded-full border px-4 py-2 text-xs font-semibold transition-colors",
+                    "rounded-pill border px-4 py-2 text-caption font-semibold transition-colors",
                     active
-                      ? "bg-[#a3e63514] text-[#d9f99d]"
-                      : "border-white/15 bg-black/30 text-white/70 hover:border-white/25",
-                  ].join(" ")}
-                  style={active ? { borderColor: `${LIME}55` } : undefined}
+                      ? "bg-pitch-soft text-pitch"
+                      : "border-line bg-overlay-subtle text-muted hover:border-line",
+                  ].join("  ")}
+                  style={active ? { borderColor: LIME } : undefined}
                 >
                   {label}
-                  <span className="ml-1.5 text-white/45">({count})</span>
+                  <span className="ml-1.5 text-muted">({count})</span>
                 </button>
               );
             })}
@@ -635,7 +621,7 @@ export default function PickupOperatorClient() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             {visibleRuns.length === 0 ? (
-              <div className="rounded-lg border border-white/10 bg-black/25 px-4 py-6 text-sm text-white/55 sm:col-span-2">
+              <div className="rounded-button border border-line bg-overlay-strong px-4 py-6 text-small text-muted sm:col-span-2">
                 No runs in this tab.
               </div>
             ) : (
@@ -658,38 +644,38 @@ export default function PickupOperatorClient() {
                     tabIndex={0}
                     onClick={() => setSelectedRunId(id)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
+                      if (e.key === "Enter" || e.key === "  ") {
                         e.preventDefault();
                         setSelectedRunId(id);
                       }
                     }}
                     className={[
-                      "cursor-pointer rounded-xl border p-4 text-left transition-colors",
+                      "cursor-pointer rounded-card border p-4 text-left transition-colors",
                       selected
-                        ? "border-[#a3e63555] bg-[#a3e63510]"
-                        : "border-white/10 bg-black/30 hover:border-white/20",
-                    ].join(" ")}
+                        ? "border-pitch bg-pitch-soft"
+                        : "border-line bg-overlay-subtle hover:border-line",
+                    ].join("  ")}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold text-white">{String(r.title || "Pickup run")}</div>
-                        <div className="mt-1 text-xs text-white/50">{fmtEt(r.start_at as string | null)}</div>
+                        <div className="truncate text-small font-semibold text-ink">{String(r.title || "Pickup run")}</div>
+                        <div className="mt-1 text-caption text-muted">{fmtEt(r.start_at as string | null)}</div>
                         <div className="mt-2 flex flex-wrap gap-2">
-                          <span className="rounded-full border border-white/15 bg-black/50 px-2 py-0.5 text-[10px] font-bold text-white/80">
+                          <span className="rounded-pill border border-line bg-overlay-subtle px-2 py-0.5 text-caption font-bold text-ink">
                             {isPublicPickupRunType(r.run_type) ? "Public" : "Select"}
                           </span>
-                          <span className="rounded-full border border-white/15 bg-black/50 px-2 py-0.5 text-[10px] font-bold text-white/80">
+                          <span className="rounded-pill border border-line bg-overlay-subtle px-2 py-0.5 text-caption font-bold text-ink">
                             {r.service_region ? String(r.service_region) : "—"}
                           </span>
                         </div>
                       </div>
                       {r.is_current ? (
-                        <span className="shrink-0 rounded-full border border-[#a3e63544] bg-[#a3e63512] px-2 py-0.5 text-[10px] font-bold text-[#d9f99d]">
+                        <span className="shrink-0 rounded-pill border border-pitch bg-pitch-soft px-2 py-0.5 text-caption font-bold text-pitch">
                           HUB
                         </span>
                       ) : null}
                     </div>
-                    <div className="mt-3 inline-flex rounded-full border border-white/12 bg-black/40 px-3 py-1 text-[11px] font-semibold text-white/85">
+                    <div className="mt-3 inline-flex rounded-pill border border-line bg-overlay-subtle px-3 py-1 text-caption font-semibold text-ink">
                       {pillLabel}
                     </div>
                     {(() => {
@@ -699,22 +685,22 @@ export default function PickupOperatorClient() {
                       const waitlist = Number(lc.waitlist ?? 0) || 0;
                       const pending = Number(lc.pending_payment ?? 0) || 0;
                       return (
-                        <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] text-white/55 sm:grid-cols-4">
+                        <div className="mt-2 grid grid-cols-2 gap-2 text-caption text-muted sm:grid-cols-4">
                           <div>
-                            <span className="block text-white/40">Confirmed</span>
-                            <span className="font-semibold text-white/90">{confirmed}</span>
+                            <span className="block text-muted">Confirmed</span>
+                            <span className="font-semibold text-ink">{confirmed}</span>
                           </div>
                           <div>
-                            <span className="block text-white/40">Standby</span>
-                            <span className="font-semibold text-white/90">{standby}</span>
+                            <span className="block text-muted">Standby</span>
+                            <span className="font-semibold text-ink">{standby}</span>
                           </div>
                           <div>
-                            <span className="block text-white/40">Waitlist</span>
-                            <span className="font-semibold text-white/90">{waitlist}</span>
+                            <span className="block text-muted">Waitlist</span>
+                            <span className="font-semibold text-ink">{waitlist}</span>
                           </div>
                           <div>
-                            <span className="block text-white/40">Pending $</span>
-                            <span className="font-semibold text-white/90">{pending}</span>
+                            <span className="block text-muted">Pending $</span>
+                            <span className="font-semibold text-ink">{pending}</span>
                           </div>
                         </div>
                       );
@@ -730,7 +716,7 @@ export default function PickupOperatorClient() {
                             <Link
                               href={`/admin/run-result?run_id=${encodeURIComponent(id)}`}
                               onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center rounded-full bg-[#a3e635] px-3 py-1.5 text-[11px] font-semibold text-black"
+                              className="inline-flex items-center rounded-pill bg-pitch px-3 py-1.5 text-caption font-semibold text-on-pitch"
                             >
                               Post Results
                             </Link>
@@ -739,7 +725,7 @@ export default function PickupOperatorClient() {
                             <Link
                               href={`/admin/run-result?run_id=${encodeURIComponent(id)}&readonly=1`}
                               onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center rounded-full border border-white/25 px-3 py-1.5 text-[11px] font-semibold text-white/90"
+                              className="inline-flex items-center rounded-pill border border-line px-3 py-1.5 text-caption font-semibold text-ink"
                             >
                               View Results
                             </Link>
@@ -759,7 +745,7 @@ export default function PickupOperatorClient() {
                                 e.stopPropagation();
                                 void promoteHubRun(id);
                               }}
-                              className="rounded-full border border-[#a3e63555] bg-[#a3e63514] px-3 py-1.5 text-[11px] font-semibold text-[#d9f99d] disabled:opacity-50"
+                              className="rounded-pill border border-pitch bg-pitch-soft px-3 py-1.5 text-caption font-semibold text-pitch disabled:opacity-50"
                             >
                               Promote to hub
                             </button>
@@ -785,7 +771,7 @@ export default function PickupOperatorClient() {
                                   date_or_tbd: r.start_at ? fmtEtShort(String(r.start_at)) : "TBD",
                                 });
                               }}
-                              className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-40"
+                              className="rounded-pill border border-line bg-overlay px-3 py-1.5 text-caption font-semibold text-ink disabled:opacity-40"
                             >
                               Launch outreach phase
                             </button>
@@ -801,7 +787,7 @@ export default function PickupOperatorClient() {
                                 e.stopPropagation();
                                 setSelectedRunId(id);
                               }}
-                              className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white"
+                              className="rounded-pill border border-line bg-overlay px-3 py-1.5 text-caption font-semibold text-ink"
                             >
                               Finalize time
                             </button>
@@ -816,7 +802,7 @@ export default function PickupOperatorClient() {
                                 e.stopPropagation();
                                 setSelectedRunId(id);
                               }}
-                              className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white"
+                              className="rounded-pill border border-line bg-overlay px-3 py-1.5 text-caption font-semibold text-ink"
                             >
                               Edit settings
                             </button>
@@ -839,7 +825,7 @@ export default function PickupOperatorClient() {
                                 }
                                 void act({ action: "start_run_now", run_id: id });
                               }}
-                              className="rounded-full bg-[#a3e635] px-3 py-1.5 text-[11px] font-semibold text-black disabled:opacity-50"
+                              className="rounded-pill bg-pitch px-3 py-1.5 text-caption font-semibold text-on-pitch disabled:opacity-50"
                             >
                               Begin Pickup Now
                             </button>
@@ -852,7 +838,7 @@ export default function PickupOperatorClient() {
                                 e.stopPropagation();
                                 void endRunNow(id);
                               }}
-                              className="rounded-full border border-red-400/40 bg-red-500/10 px-3 py-1.5 text-[11px] font-semibold text-red-200 disabled:opacity-50"
+                              className="rounded-pill border border-coral bg-overlay-subtle px-3 py-1.5 text-caption font-semibold text-coral disabled:opacity-50"
                             >
                               End Run
                             </button>
@@ -866,12 +852,12 @@ export default function PickupOperatorClient() {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
-            <div className="text-xs font-semibold uppercase tracking-wider text-white/45">Selected run</div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+            <div className="text-caption font-semibold text-muted">Selected run</div>
             <select
               value={selectedRunId}
               onChange={(e) => setSelectedRunId(e.target.value)}
-              className="max-w-md rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+              className="max-w-md rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
             >
               <option value="">Choose a run…</option>
               {runs.map((r) => (
@@ -884,64 +870,64 @@ export default function PickupOperatorClient() {
 
           {selectedRun ? (
             <>
-              <div className="flex flex-wrap items-center gap-2 text-sm text-white/70">
+              <div className="flex flex-wrap items-center gap-2 text-small text-muted">
                 <span>{labelPickupRunStatus(String(selectedRun.status))}</span>
                 <span>·</span>
                 <span>{fmtEt(selectedRun.start_at as string | null)}</span>
-                {selectedRun.is_current ? <span className="text-emerald-200/90">· on hub</span> : null}
+                {selectedRun.is_current ? <span className="text-pitch-text">· on hub</span> : null}
               </div>
-              <div className="text-xs text-white/40">Run ID: {String(selectedRun.id)}</div>
+              <div className="text-caption text-muted">Run ID: {String(selectedRun.id)}</div>
             </>
           ) : null}
 
           {selectedRunId && selectedRun && selectedRun.status !== "canceled" ? (
-            <div className="space-y-3 rounded-lg border border-white/10 bg-black/25 p-4">
-              <div className="text-xs font-semibold uppercase tracking-wider text-white/45">Run settings</div>
-              <p className="text-xs text-white/50">
+            <div className="space-y-3 rounded-button border border-line bg-overlay-strong p-4">
+              <div className="text-caption font-semibold text-muted">Run settings</div>
+              <p className="text-caption text-muted">
                 Who can join, capacity, fee, and venue text apply to this run. Save after changes.
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="flex flex-col gap-1 text-sm text-white/80">
+                <label className="flex flex-col gap-1 text-small text-ink">
                   <span>Title</span>
                   <input
                     value={selTitle}
                     onChange={(e) => setSelTitle(e.target.value)}
-                    className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                    className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
                   />
                 </label>
-                <label className="flex flex-col gap-1 text-sm text-white/80">
+                <label className="flex flex-col gap-1 text-small text-ink">
                   <span>Who can join</span>
                   <select
                     value={selRunType}
                     onChange={(e) => setSelRunType(e.target.value as "select" | "public")}
-                    className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                    className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
                   >
                     <option value="select">Select (invite)</option>
                     <option value="public">Public</option>
                   </select>
                 </label>
-                <label className="flex flex-col gap-1 text-sm text-white/80">
+                <label className="flex flex-col gap-1 text-small text-ink">
                   <span>Player capacity</span>
                   <input
                     type="number"
                     value={selCapacity}
                     onChange={(e) => setSelCapacity(Number(e.target.value))}
                     min={1}
-                    className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                    className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
                   />
                 </label>
-                <label className="flex flex-col gap-1 text-sm text-white/80">
+                <label className="flex flex-col gap-1 text-small text-ink">
                   <span>Fee (cents)</span>
                   <input
                     type="number"
                     value={selFeeCents}
                     onChange={(e) => setSelFeeCents(Number(e.target.value))}
                     min={0}
-                    className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                    className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
                   />
                 </label>
               </div>
-              <label className="flex items-center gap-2 text-sm text-white/70">
+              <label className="flex items-center gap-2 text-small text-muted">
                 <input
                   type="checkbox"
                   checked={selLocConfirmedOnly}
@@ -949,13 +935,13 @@ export default function PickupOperatorClient() {
                 />
                 Location visible to confirmed only
               </label>
-              <label className="flex flex-col gap-1 text-sm text-white/80">
+              <label className="flex flex-col gap-1 text-small text-ink">
                 <span>Full venue text for players</span>
                 <textarea
                   value={selLocationPrivate}
                   onChange={(e) => setSelLocationPrivate(e.target.value)}
                   rows={4}
-                  className="w-full rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                  className="w-full rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
                 />
               </label>
               <button
@@ -974,7 +960,7 @@ export default function PickupOperatorClient() {
                     show_location_to_confirmed_only: selLocConfirmedOnly,
                   })
                 }
-                className="rounded-md bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-50"
+                className="rounded-button bg-pitch px-4 py-2 text-caption font-semibold text-on-pitch disabled:opacity-50"
               >
                 Save run settings
               </button>
@@ -1008,23 +994,23 @@ export default function PickupOperatorClient() {
                   { key: "confirmed" as const, label: "Confirmed" },
                 ] as const
               ).map(({ key: k, label }) => (
-                <div key={k} className="rounded-lg border border-white/10 bg-black/40 py-2">
-                  <div className="text-[10px] uppercase tracking-wider text-white/45">{label}</div>
-                  <div className="text-lg font-semibold text-white">{detail.counts?.[k]}</div>
+                <div key={k} className="rounded-button border border-line bg-overlay-subtle py-2">
+                  <div className="text-caption text-muted">{label}</div>
+                  <div className="text-h3 font-serif font-semibold text-ink">{detail.counts?.[k]}</div>
                 </div>
               ))}
             </div>
           ) : null}
 
           {auto ? (
-            <details className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white/75">
-              <summary className="cursor-pointer text-white/85">Auto pipeline</summary>
-              <div className="mt-2 space-y-1 text-xs">
+            <details className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-muted">
+              <summary className="cursor-pointer text-ink">Auto pipeline</summary>
+              <div className="mt-2 space-y-1 text-caption">
                 <div>Next: {String(auto.next_step)}</div>
-                <div className="font-mono text-white/55">
-                  24h {fmtEtShort((auto as any).checkpoints?.cp_24h_at)} · 12h{" "}
-                  {fmtEtShort((auto as any).checkpoints?.cp_12h_at)} · 6h{" "}
-                  {fmtEtShort((auto as any).checkpoints?.cp_6h_at)} · 1h{" "}
+                <div className="font-mono text-muted">
+                  24h {fmtEtShort((auto as any).checkpoints?.cp_24h_at)} · 12h{"  "}
+                  {fmtEtShort((auto as any).checkpoints?.cp_12h_at)} · 6h{"  "}
+                  {fmtEtShort((auto as any).checkpoints?.cp_6h_at)} · 1h{"  "}
                   {fmtEtShort((auto as any).checkpoints?.cp_1h_at)}
                 </div>
               </div>
@@ -1039,7 +1025,7 @@ export default function PickupOperatorClient() {
             outreach_started_at: selectedRun.outreach_started_at as string | null,
             is_completed: selectedRun.is_completed === true,
           }) ? (
-            <div className="flex flex-wrap gap-2 border-t border-white/10 pt-4">
+            <div className="flex flex-wrap gap-2 border-t border-line pt-4">
               <button
                 disabled={busy || !!launchBlockedReason}
                 title={launchBlockedReason || undefined}
@@ -1052,24 +1038,24 @@ export default function PickupOperatorClient() {
                     date_or_tbd: selectedRun.start_at ? fmtEtShort(String(selectedRun.start_at)) : "TBD",
                   });
                 }}
-                className="rounded-md bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-50"
+                className="rounded-button bg-pitch px-4 py-2 text-caption font-semibold text-on-pitch disabled:opacity-50"
               >
                 Launch outreach phase
               </button>
               <button
                 disabled={busy}
                 onClick={() => act({ action: "cancel_run", run_id: selectedRunId })}
-                className="rounded-md border border-white/20 px-4 py-2 text-xs font-semibold text-white/85"
+                className="rounded-button border border-line px-4 py-2 text-caption font-semibold text-ink"
               >
                 Cancel run
               </button>
             </div>
           ) : selectedRunId ? (
-            <div className="flex flex-wrap gap-2 border-t border-white/10 pt-4">
+            <div className="flex flex-wrap gap-2 border-t border-line pt-4">
               <button
                 disabled={busy}
                 onClick={() => act({ action: "cancel_run", run_id: selectedRunId })}
-                className="rounded-md border border-white/20 px-4 py-2 text-xs font-semibold text-white/85"
+                className="rounded-button border border-line px-4 py-2 text-caption font-semibold text-ink"
               >
                 Cancel run
               </button>
@@ -1077,39 +1063,39 @@ export default function PickupOperatorClient() {
           ) : null}
 
           {wave1Result ? (
-            <details className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm">
-              <summary className="cursor-pointer text-white/85">Outreach copy ({wave1Result.invited} invited)</summary>
-              <textarea readOnly value={wave1Result.handles.join("\n")} className="mt-2 w-full bg-black text-xs text-white" rows={4} />
-              <textarea readOnly value={wave1Result.dm_template} className="mt-2 w-full bg-black text-xs text-white" rows={5} />
+            <details className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small">
+              <summary className="cursor-pointer text-ink">Outreach copy ({wave1Result.invited} invited)</summary>
+              <textarea readOnly value={wave1Result.handles.join("\n")} className="mt-2 w-full bg-canvas text-caption text-ink" rows={4} />
+              <textarea readOnly value={wave1Result.dm_template} className="mt-2 w-full bg-canvas text-caption text-ink" rows={5} />
             </details>
           ) : null}
 
           {selectedRunId ? (
-            <div className="space-y-2 border-t border-white/10 pt-4">
-              <div className="text-xs font-semibold uppercase tracking-wider text-white/45">Kickoff slot</div>
+            <div className="space-y-2 border-t border-line pt-4">
+              <div className="text-caption font-semibold text-muted">Kickoff slot</div>
               <div className="flex flex-wrap gap-2">
-                <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-xs text-white/55">
+                <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-caption text-muted">
                   <span>Kickoff date &amp; time</span>
                   <input
                     value={slotStart}
                     onChange={(e) => setSlotStart(e.target.value)}
-                    className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                    className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
                     placeholder="UTC ISO, e.g. 2026-04-10T22:00:00.000Z"
                   />
                 </label>
-                <label className="flex flex-col gap-1 text-xs text-white/55">
+                <label className="flex flex-col gap-1 text-caption text-muted">
                   <span>Label (optional)</span>
                   <input
                     value={slotLabel}
                     onChange={(e) => setSlotLabel(e.target.value)}
-                    className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                    className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
                     placeholder="Field 2"
                   />
                 </label>
                 <button
                   disabled={busy || !slotStart}
                   onClick={() => act({ action: "add_slot", run_id: selectedRunId, start_at: slotStart, label: slotLabel || null })}
-                  className="rounded-md bg-white/90 px-3 py-2 text-xs font-semibold text-black disabled:opacity-50"
+                  className="rounded-button bg-pitch px-3 py-2 text-caption font-semibold text-on-pitch disabled:opacity-50"
                 >
                   Add slot
                 </button>
@@ -1119,11 +1105,11 @@ export default function PickupOperatorClient() {
 
           {selectedRunId && detail?.slots?.length ? (
             <div className="space-y-2">
-              <div className="text-xs font-semibold uppercase tracking-wider text-white/45">Finalize</div>
+              <div className="text-caption font-semibold text-muted">Finalize</div>
               <select
                 value={finalSlotId}
                 onChange={(e) => setFinalSlotId(e.target.value)}
-                className="w-full rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                className="w-full rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
               >
                 <option value="">Slot…</option>
                 {(detail.slots as { id: string; start_at: string; label?: string }[]).map((s) => (
@@ -1135,7 +1121,7 @@ export default function PickupOperatorClient() {
               <button
                 disabled={busy || !finalSlotId}
                 onClick={() => act({ action: "finalize_slot", run_id: selectedRunId, slot_id: finalSlotId })}
-                className="rounded-md bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-50"
+                className="rounded-button bg-pitch px-4 py-2 text-caption font-semibold text-on-pitch disabled:opacity-50"
               >
                 Finalize slot
               </button>

@@ -1,6 +1,7 @@
 import { siteOrigin } from "@/lib/env";
 import type { AdminApiResult } from "@/lib/adminApi";
 
+import { themeColor } from "@/theme";
 export const ADMIN_DB_TABLE_KEYS = [
   "runs",
   "invites",
@@ -158,7 +159,7 @@ export function statusBadgeStyle(status: string | null | undefined): StatusBadge
     s === "invited" ||
     s === "pending_confirm"
   ) {
-    return { bg: "rgba(255,255,255,0.08)", border: "rgba(255,255,255,0.2)", text: "rgba(255,255,255,0.75)" };
+    return { bg: themeColor().overlay, border: themeColor().overlayStrong, text: themeColor().text };
   }
   if (
     s === "active" ||
@@ -169,22 +170,22 @@ export function statusBadgeStyle(status: string | null | undefined): StatusBadge
     s === "succeeded" ||
     s === "in_progress"
   ) {
-    return { bg: "rgba(163,230,53,0.18)", border: "rgba(163,230,53,0.45)", text: "#a3e635" };
+    return { bg: themeColor().pitchSoft, border: themeColor().pitch, text: themeColor().pitch };
   }
   if (s === "completed" || s === "fulfillment_succeeded") {
-    return { bg: "rgba(34,197,94,0.12)", border: "rgba(34,197,94,0.35)", text: "#86efac" };
+    return { bg: themeColor().pitchSoft, border: themeColor().pitch, text: themeColor().pitch };
   }
   if (s === "canceled" || s === "cancelled" || s === "declined" || s === "rejected" || s === "payment_failed") {
-    return { bg: "rgba(239,68,68,0.15)", border: "rgba(239,68,68,0.4)", text: "#f87171" };
+    return { bg: themeColor().overlaySubtle, border: themeColor().coral, text: themeColor().coral };
   }
   if (s === "waitlist" || s === "standby") {
-    return { bg: "rgba(59,130,246,0.15)", border: "rgba(59,130,246,0.4)", text: "#93c5fd" };
+    return { bg: themeColor().card, border: themeColor().line, text: themeColor().muted };
   }
   if (s === "pending_payment") {
-    return { bg: "rgba(251,191,36,0.15)", border: "rgba(251,191,36,0.45)", text: "#fbbf24" };
+    return { bg: themeColor().overlaySubtle, border: themeColor().coral, text: themeColor().coral };
   }
 
-  return { bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.15)", text: "rgba(255,255,255,0.6)" };
+  return { bg: themeColor().overlaySubtle, border: themeColor().overlay, text: themeColor().text };
 }
 
 function str(v: unknown): string {

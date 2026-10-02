@@ -50,13 +50,13 @@ export function PromotePickupRunButton({
   if (!isReady) return null;
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 space-y-3">
-      <div className="text-sm font-semibold text-white">Pickup hub</div>
-      <p className="text-xs text-white/55">
-        Make <span className="text-white/85">{title || runId}</span> the run players see on the pickup hub, RSVPs, and
+    <div className="rounded-card border border-line bg-overlay-subtle p-4 space-y-3">
+      <div className="text-small font-semibold text-ink">Pickup hub</div>
+      <p className="text-caption text-muted">
+        Make <span className="text-ink">{title || runId}</span> the run players see on the pickup hub, RSVPs, and
         related pages.
       </p>
-      <label className="flex items-center gap-2 text-xs text-white/65">
+      <label className="flex items-center gap-2 text-caption text-muted">
         <input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />
         Public pickup hub will switch to this run.
       </label>
@@ -64,7 +64,7 @@ export function PromotePickupRunButton({
         type="button"
         disabled={busy || !confirm}
         onClick={() => void apply()}
-        className="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-40"
+        className="rounded-button bg-pitch px-4 py-2 text-caption font-semibold text-on-pitch disabled:opacity-40"
       >
         {busy ? "Applying…" : "Make this the hub run"}
       </button>

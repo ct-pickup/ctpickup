@@ -14,6 +14,7 @@ import * as LocalAuthentication from "expo-local-authentication";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, type AppStateStatus, View } from "react-native";
 
+import { themeColor, useTheme } from "@/theme";
 type AppLockContextValue = {
   bootReady: boolean;
   hasPin: boolean;
@@ -43,6 +44,8 @@ const AppLockContext = createContext<AppLockContextValue | undefined>(undefined)
 const BACKGROUND_LOCK_GRACE_MS = 5 * 60 * 1000;
 
 export function AppLockProvider({ children }: { children: React.ReactNode }) {
+  useTheme();
+
   const { session } = useAuth();
   const userId = session?.user?.id ?? null;
   const [bootReady, setBootReady] = useState(false);
@@ -249,7 +252,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   );
 
   if (!bootReady) {
-    return <View style={{ flex: 1, backgroundColor: "#0a0a0a" }} />;
+    return <View style={{ flex: 1, backgroundColor: themeColor().bg }} />;
   }
 
   return <AppLockContext.Provider value={value}>{children}</AppLockContext.Provider>;

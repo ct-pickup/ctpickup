@@ -217,25 +217,25 @@ export function StaffPublishPanel({
   }
 
   if (!isReady) {
-    return <p className="text-sm text-white/50">Loading…</p>;
+    return <p className="text-small text-muted">Loading…</p>;
   }
 
   return (
-    <div className={`rounded-2xl border border-white/12 bg-white/[0.04] p-5 space-y-5 ${className}`}>
+    <div className={`rounded-card border border-line bg-overlay-subtle p-5 space-y-5${className}`}>
       <div>
-        <h3 className="text-sm font-semibold text-white">Publish</h3>
-        <p className="mt-1 text-xs text-white/50">
+        <h3 className="text-small font-semibold text-ink">Publish</h3>
+        <p className="mt-1 text-caption text-muted">
           One submission can update the site-wide announcement and/or add a pickup post for a run. Optional title becomes
           the first line of the stored message everywhere it is written.
         </p>
       </div>
 
       <label className="block space-y-2">
-        <span className="text-xs font-medium uppercase tracking-wider text-white/45">Where it goes</span>
+        <span className="text-caption font-medium text-muted">Where it goes</span>
         <select
           value={destination}
           onChange={(e) => setDestination(e.target.value as Destination)}
-          className="w-full max-w-md rounded-lg border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none"
+          className="w-full max-w-md rounded-button border border-line bg-canvas px-3 py-2.5 text-small text-ink outline-none"
         >
           <option value="site">Site-wide announcement only</option>
           <option value="pickup">Pickup run only</option>
@@ -245,11 +245,11 @@ export function StaffPublishPanel({
 
       {(destination === "pickup" || destination === "both") && pickupRuns.length > 0 ? (
         <label className="block space-y-2">
-          <span className="text-xs font-medium uppercase tracking-wider text-white/45">Pickup run</span>
+          <span className="text-caption font-medium text-muted">Pickup run</span>
           <select
             value={runId}
             onChange={(e) => setRunId(e.target.value)}
-            className="w-full max-w-md rounded-lg border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none"
+            className="w-full max-w-md rounded-button border border-line bg-canvas px-3 py-2.5 text-small text-ink outline-none"
           >
             <option value="">Select run…</option>
             {pickupRuns.map((r) => (
@@ -263,28 +263,28 @@ export function StaffPublishPanel({
       ) : null}
 
       <label className="block space-y-2">
-        <span className="text-xs font-medium uppercase tracking-wider text-white/45">Title (optional)</span>
+        <span className="text-caption font-medium text-muted">Title (optional)</span>
         <input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           placeholder="Short headline — optional"
-          className="w-full rounded-lg border border-white/15 bg-black px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/35"
+          className="w-full rounded-button border border-line bg-canvas px-3 py-2.5 text-small text-ink outline-none placeholder:text-muted"
         />
       </label>
 
       <label className="block space-y-2">
-        <span className="text-xs font-medium uppercase tracking-wider text-white/45">Message</span>
+        <span className="text-caption font-medium text-muted">Message</span>
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           rows={5}
           placeholder="What players and staff should know…"
-          className="w-full rounded-lg border border-white/15 bg-black px-3 py-3 text-sm text-white outline-none placeholder:text-white/35"
+          className="w-full rounded-button border border-line bg-canvas px-3 py-3 text-small text-ink outline-none placeholder:text-muted"
         />
       </label>
 
-      <details className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white/70">
-        <summary className="cursor-pointer select-none text-white/80">More destinations</summary>
+      <details className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-muted">
+        <summary className="cursor-pointer select-none text-ink">More destinations</summary>
         <div className="mt-3 space-y-3 pb-1">
           <label className="flex cursor-pointer items-start gap-3">
             <input
@@ -294,8 +294,8 @@ export function StaffPublishPanel({
               onChange={(e) => setAdvancedAllPickup(e.target.checked)}
             />
             <span>
-              <span className="font-medium text-white">All pickup players</span>
-              <span className="block text-xs text-white/45">
+              <span className="font-medium text-ink">All pickup players</span>
+              <span className="block text-caption text-muted">
                 Adds a global pickup post (not tied to one run). Shown on pickup status and feeds.
               </span>
             </span>
@@ -309,8 +309,8 @@ export function StaffPublishPanel({
               onChange={(e) => setAdvancedTournament(e.target.checked)}
             />
             <span>
-              <span className="font-medium text-white">Live tournament hub</span>
-              <span className="block text-xs text-white/45">
+              <span className="font-medium text-ink">Live tournament hub</span>
+              <span className="block text-caption text-muted">
                 {hasActiveTournament
                   ? "Uses the tournament that is marked live in admin."
                   : "No live tournament — set one in Tournaments first."}
@@ -321,20 +321,20 @@ export function StaffPublishPanel({
       </details>
 
       {blockedReasons.length > 0 ? (
-        <p className="text-xs text-amber-200/90">{blockedReasons.join(" ")}</p>
+        <p className="text-caption text-coral">{blockedReasons.join("  ")}</p>
       ) : null}
 
       <button
         type="button"
         disabled={busy || !message.trim() || blockedReasons.length > 0}
         onClick={() => void onPublish()}
-        className="rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-black hover:opacity-95 disabled:opacity-40"
+        className="rounded-button bg-pitch px-5 py-2.5 text-small font-semibold text-on-pitch hover:opacity-95 disabled:opacity-40"
       >
         {busy ? "Publishing…" : "Publish"}
       </button>
 
       {!publishLayerOk ? (
-        <p className="text-xs text-amber-200/85">
+        <p className="text-caption text-coral">
           Full publish logging isn’t enabled in the database — publishes still apply, but you won’t get idempotent retries or
           per-destination history until migrations are applied.
         </p>

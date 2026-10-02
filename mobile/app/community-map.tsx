@@ -17,27 +17,18 @@ import * as Location from "expo-location";
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 
+import { themeColor, useThemedStyles } from "@/theme";
 // ─── design tokens ──────────────────────────────────────────────────────────
 
-const LIME = "#a3e635";
-const BG = "#0B0F0D";
-const SURFACE = "#151B18";
-const SURFACE_LIFT = "#1E2723";
-const HAIRLINE = "rgba(255,255,255,0.08)";
-const CHALK = "#F2F4F1";
-const MUTED = "#8A968F";
-const GREEN_MED = "#4a7c59";
-const GREEN_DARK = "#3a6b42";
-const GRAY = "#555555";
-const DIAMOND_PURPLE = "#9B59B6";
-
-const TIER_COLORS: Record<string, string> = {
-  diamond: "#9B59B6",
-  platinum: "#E8E8E8",
-  gold: "#E3B23C",
-  silver: "#A8B0B5",
-  bronze: "#B87333",
+function TIER_COLORS(): Record<string, string> {
+  return {
+  diamond: themeColor().muted,
+  platinum: themeColor().muted,
+  gold: themeColor().muted,
+  silver: themeColor().muted,
+  bronze: themeColor().muted,
 };
+}
 
 /** Northeast service area: CT, NY, NJ, and MD. */
 const SERVICE_REGION: Region = {
@@ -619,19 +610,19 @@ function circleSize(count: number): number {
 }
 
 function circleBg(count: number): string {
-  if (count >= 61) return LIME;
-  if (count >= 31) return "rgba(163,230,53,0.70)";
-  if (count >= 16) return GREEN_MED;
-  if (count >= 6) return GREEN_DARK;
-  return GRAY;
+  if (count >= 61) return themeColor().pitch;
+  if (count >= 31) return themeColor().pitch;
+  if (count >= 16) return themeColor().muted;
+  if (count >= 6) return themeColor().muted;
+  return themeColor().muted;
 }
 
 function circleNameColor(count: number): string {
-  return count >= 31 ? BG : CHALK;
+  return count >= 31 ? themeColor().bg : themeColor().text;
 }
 
 function circleCountColor(count: number): string {
-  return count >= 61 ? BG : LIME;
+  return count >= 61 ? themeColor().bg : themeColor().pitch;
 }
 
 // ─── types ───────────────────────────────────────────────────────────────────
@@ -690,6 +681,8 @@ type ActivityStats = {
 // ─── data hooks ──────────────────────────────────────────────────────────────
 
 function useCommunityData() {
+  useThemedStyles(publish_s);
+
   const { supabase, session } = useAuth();
   const [counties, setCounties] = useState<CountyCell[]>([]);
   const [loading, setLoading] = useState(true);
@@ -829,6 +822,8 @@ function useCommunityData() {
 }
 
 function useSessionPins() {
+  useThemedStyles(publish_s);
+
   const { supabase } = useAuth();
   const [sessions, setSessions] = useState<SessionPin[]>([]);
   const [loading, setLoading] = useState(true);
@@ -858,6 +853,8 @@ function useSessionPins() {
 }
 
 function useActivityStats() {
+  useThemedStyles(publish_s);
+
   const { supabase } = useAuth();
   const [stats, setStats] = useState<ActivityStats | null>(null);
 
@@ -904,6 +901,8 @@ function CountyCircleMarker({
   cell: CountyCell;
   onPress: () => void;
 }) {
+  useThemedStyles(publish_s);
+
   const hasDiamonds = cell.verifiedDiamondCount > 0;
   const base = circleSize(cell.count);
   const sz = hasDiamonds ? Math.max(base, base + 12) : base;
@@ -934,14 +933,14 @@ function CountyCircleMarker({
           alignItems: "center",
           justifyContent: "center",
           borderWidth: 1.5,
-          borderColor: "rgba(255,255,255,0.22)",
+          borderColor: themeColor().line,
           paddingHorizontal: 3,
         }}
       >
         <Text
           style={{
             color: nameCol,
-            fontSize: 9,
+            fontSize: 13, fontFamily: "Inter_600SemiBold",
             fontWeight: "600",
             lineHeight: 11,
             textAlign: "center",
@@ -954,7 +953,7 @@ function CountyCircleMarker({
         <Text
           style={{
             color: countCol,
-            fontSize: 14,
+            fontSize: 14, fontFamily: "Inter_700Bold",
             fontWeight: "800",
             lineHeight: 16,
           }}
@@ -965,8 +964,8 @@ function CountyCircleMarker({
         {hasDiamonds ? (
           <Text
             style={{
-              color: DIAMOND_PURPLE,
-              fontSize: 10,
+              color: themeColor().muted,
+              fontSize: 13, fontFamily: "Inter_700Bold",
               fontWeight: "800",
               lineHeight: 12,
               marginTop: 1,
@@ -992,13 +991,15 @@ function SessionMarker({
   selected: boolean;
   onPress: () => void;
 }) {
+  useThemedStyles(publish_s);
+
   const left = session.capacity - session.spots_taken;
   const full = left <= 0;
   const sz = selected ? 52 : 44;
   const r = sz / 2 - 4;
   const circ = 2 * Math.PI * r;
   const pct = Math.min(session.spots_taken / session.capacity, 1);
-  const color = full ? MUTED : LIME;
+  const color = full ? themeColor().muted : themeColor().pitch;
 
   const [tracking, setTracking] = useState(true);
   useEffect(() => {
@@ -1016,8 +1017,8 @@ function SessionMarker({
     >
       <View style={{ width: sz, height: sz }}>
         <Svg width={sz} height={sz} style={StyleSheet.absoluteFill}>
-          <Circle cx={sz / 2} cy={sz / 2} r={r} fill={SURFACE} />
-          <Circle cx={sz / 2} cy={sz / 2} r={r} stroke={HAIRLINE} strokeWidth={2} fill="none" />
+          <Circle cx={sz / 2} cy={sz / 2} r={r} fill={themeColor().card} />
+          <Circle cx={sz / 2} cy={sz / 2} r={r} stroke={themeColor().overlay} strokeWidth={2} fill="none" />
           <Circle
             cx={sz / 2}
             cy={sz / 2}
@@ -1031,7 +1032,7 @@ function SessionMarker({
           />
         </Svg>
         <View style={s.pinCenter}>
-          <Text style={[s.pinNum, { color: full ? MUTED : CHALK }]} allowFontScaling={false}>
+          <Text style={[s.pinNum, { color: full ? themeColor().muted : themeColor().text }]} allowFontScaling={false}>
             {full ? "—" : left}
           </Text>
         </View>
@@ -1067,6 +1068,8 @@ function CountyPopupModal({
   onClose: () => void;
   onOpenPlayer: (userId: string) => void;
 }) {
+  useThemedStyles(publish_s);
+
   const { session } = useAuth();
   const [loading, setLoading] = useState(true);
   const [tierCounts, setTierCounts] = useState<TierCounts | null>(null);
@@ -1147,12 +1150,12 @@ function CountyPopupModal({
                 {tierParts
                   .filter((t) => (tierCounts[t.key] ?? 0) > 0)
                   .map((t) => (
-                    <Text key={t.key} style={{ color: TIER_COLORS[t.key], fontWeight: "700" }}>
+                    <Text key={t.key} style={{ color: TIER_COLORS()[t.key], fontWeight: "700" }}>
                       {t.glyph} {tierCounts[t.key]} {t.label}
                     </Text>
                   ))
                   .reduce<React.ReactNode[]>((acc, node, i) => {
-                    if (i > 0) acc.push(<Text key={`sep-${i}`} style={{ color: MUTED }}> · </Text>);
+                    if (i > 0) acc.push(<Text key={`sep-${i}`} style={{ color: themeColor().muted }}> · </Text>);
                     acc.push(node);
                     return acc;
                   }, [])}
@@ -1164,13 +1167,13 @@ function CountyPopupModal({
             <Text style={s.eliteLabel}>ELITE PLAYERS</Text>
 
             {loading ? (
-              <ActivityIndicator color={LIME} style={{ marginVertical: 16 }} />
+              <ActivityIndicator color={themeColor().pitchText} style={{ marginVertical: 16 }} />
             ) : elite.length === 0 ? (
               <Text style={s.eliteEmpty}>No verified Diamond or Platinum players in this county yet.</Text>
             ) : (
               <View style={s.eliteList}>
                 {shown.map((p) => {
-                  const color = TIER_COLORS[p.tier];
+                  const color = TIER_COLORS()[p.tier];
                   const pos = (p.playing_position ?? "").trim();
                   return (
                     <Pressable
@@ -1225,6 +1228,8 @@ function CountyPopupModal({
 }
 
 function PopupRow({ icon, label, accent }: { icon: string; label: string; accent?: string }) {
+  useThemedStyles(publish_s);
+
   return (
     <View style={s.popupRow}>
       <Text style={s.popupRowIcon}>{icon}</Text>
@@ -1244,6 +1249,8 @@ function SessionDetailCard({
   onClose: () => void;
   onNavigate: () => void;
 }) {
+  useThemedStyles(publish_s);
+
   const left = session.capacity - session.spots_taken;
   const full = left <= 0;
   const d = new Date(session.start_at);
@@ -1272,7 +1279,7 @@ function SessionDetailCard({
         <PopupRow
           icon="🎟"
           label={full ? "Full — join waitlist" : `${left} spots left`}
-          accent={full ? MUTED : LIME}
+          accent={full ? themeColor().muted : themeColor().pitch}
         />
         <PopupRow icon="💵" label={`$${(session.fee_cents / 100).toFixed(0)} entry`} />
       </View>
@@ -1287,10 +1294,12 @@ function SessionDetailCard({
 // ─── activity overlay ────────────────────────────────────────────────────────
 
 function ActivityOverlay({ stats }: { stats: ActivityStats | null }) {
+  useThemedStyles(publish_s);
+
   if (!stats) {
     return (
       <View style={s.activityOverlay}>
-        <ActivityIndicator color={LIME} />
+        <ActivityIndicator color={themeColor().pitchText} />
       </View>
     );
   }
@@ -1305,19 +1314,19 @@ function ActivityOverlay({ stats }: { stats: ActivityStats | null }) {
           value={stats.recentlyActiveCount}
           label="Active today"
           sub="Updated profile in last 24h"
-          dot={LIME}
+          dot={themeColor().pitch}
         />
         <ActCard
           value={stats.soonCount}
           label="Sessions soon"
           sub="Starting in next 6 hours"
-          dot="#4ADE80"
+          dot={themeColor().pitch}
         />
         <ActCard
           value={stats.totalApproved}
           label="Total members"
           sub="Approved CT Pickup players"
-          dot={GREEN_MED}
+          dot={themeColor().muted}
         />
       </View>
 
@@ -1337,6 +1346,8 @@ function ActCard({
   sub: string;
   dot: string;
 }) {
+  useThemedStyles(publish_s);
+
   return (
     <View style={s.actCard}>
       <View style={[s.actDot, { backgroundColor: dot }]} />
@@ -1362,6 +1373,8 @@ function YourAreaCard({
   userLon: number;
   onPress: (cell: CountyCell) => void;
 }) {
+  useThemedStyles(publish_s);
+
   const nearest = useMemo(() => {
     if (counties.length === 0) return null;
     let best: CountyCell | null = null;
@@ -1398,6 +1411,8 @@ const LAYERS: Array<{ id: Layer; label: string }> = [
 ];
 
 export default function CommunityMapScreen() {
+  useThemedStyles(publish_s);
+
   const router = useRouter();
   const [layer, setLayer] = useState<Layer>("members");
   const [selectedCounty, setSelectedCounty] = useState<CountyCell | null>(null);
@@ -1511,8 +1526,8 @@ export default function CommunityMapScreen() {
           style={StyleSheet.absoluteFill}
           initialRegion={hasOutsideNortheast ? WIDE_REGION : SERVICE_REGION}
           userInterfaceStyle="dark"
-          backgroundColor="#1a2420"
-          loadingBackgroundColor="#1a2420"
+          backgroundColor={themeColor().card}
+          loadingBackgroundColor={themeColor().card}
           showsUserLocation
           showsMyLocationButton={false}
           showsPointsOfInterest={false}
@@ -1564,7 +1579,7 @@ export default function CommunityMapScreen() {
 
         {loading ? (
           <View style={s.loadingCenter} pointerEvents="none">
-            <ActivityIndicator color={LIME} />
+            <ActivityIndicator color={themeColor().pitchText} />
           </View>
         ) : null}
 
@@ -1607,8 +1622,9 @@ export default function CommunityMapScreen() {
 
 // ─── styles ──────────────────────────────────────────────────────────────────
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BG },
+function make_s() {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: themeColor().bg },
 
   topBar: {
     position: "absolute",
@@ -1620,43 +1636,43 @@ const s = StyleSheet.create({
   },
   backBtn: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(0,0,0,0.68)",
+    backgroundColor: themeColor().card,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 999,
   },
-  backBtnText: { color: CHALK, fontWeight: "600", fontSize: 15 },
+  backBtnText: { color: themeColor().text, fontWeight: "600", fontSize: 16, fontFamily: "Inter_600SemiBold" },
 
   layerToggle: {
     flexDirection: "row",
     alignSelf: "center",
-    backgroundColor: "rgba(0,0,0,0.74)",
+    backgroundColor: themeColor().card,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: HAIRLINE,
+    borderColor: themeColor().overlay,
     padding: 3,
     gap: 2,
   },
   layerBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999 },
-  layerBtnActive: { backgroundColor: LIME },
-  layerBtnText: { color: MUTED, fontWeight: "700", fontSize: 13 },
-  layerBtnTextActive: { color: BG },
+  layerBtnActive: { backgroundColor: themeColor().pitch },
+  layerBtnText: { color: themeColor().muted, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
+  layerBtnTextActive: { color: themeColor().bg },
 
   zoomBtn: {
     position: "absolute",
     top: 120,
     right: 14,
-    backgroundColor: "rgba(0,0,0,0.74)",
-    borderRadius: 20,
+    backgroundColor: themeColor().card,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: HAIRLINE,
+    borderColor: themeColor().overlay,
     paddingHorizontal: 14,
     paddingVertical: 9,
   },
-  zoomBtnText: { color: CHALK, fontWeight: "700", fontSize: 13 },
+  zoomBtnText: { color: themeColor().text, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
 
   pinCenter: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
-  pinNum: { fontSize: 15, fontWeight: "700" },
+  pinNum: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
 
   loadingCenter: {
     ...StyleSheet.absoluteFillObject,
@@ -1668,29 +1684,28 @@ const s = StyleSheet.create({
     position: "absolute",
     bottom: 34,
     left: 14,
-    backgroundColor: "rgba(11,15,13,0.90)",
-    borderRadius: 14,
+    backgroundColor: themeColor().card,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: HAIRLINE,
+    borderColor: themeColor().overlay,
     padding: 12,
     maxWidth: 180,
   },
   yourAreaKicker: {
-    color: MUTED,
-    fontSize: 10,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    letterSpacing: 1,
     marginBottom: 3,
   },
-  yourAreaCity: { color: CHALK, fontSize: 16, fontWeight: "800" },
-  yourAreaStat: { color: MUTED, fontSize: 11, marginTop: 3, lineHeight: 15 },
+  yourAreaCity: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  yourAreaStat: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 3, lineHeight: 15 },
 
   popupWrap: { position: "absolute", bottom: 34, left: 14, right: 14 },
   popupCard: {
-    backgroundColor: SURFACE,
-    borderRadius: 18,
+    backgroundColor: themeColor().card,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: HAIRLINE,
+    borderColor: themeColor().overlay,
     padding: 16,
   },
   popupHeader: {
@@ -1699,32 +1714,32 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  popupCity: { color: CHALK, fontSize: 20, fontWeight: "800" },
-  popupMembersMuted: { color: MUTED, fontSize: 14, marginTop: 6, fontWeight: "500" },
-  popupSub: { color: MUTED, fontSize: 13, marginTop: 2 },
+  popupCity: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  popupMembersMuted: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_500Medium", marginTop: 6, fontWeight: "500" },
+  popupSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   popupClose: {
     width: 28,
     height: 28,
-    borderRadius: 14,
-    backgroundColor: SURFACE_LIFT,
+    borderRadius: 12,
+    backgroundColor: themeColor().card,
     alignItems: "center",
     justifyContent: "center",
   },
-  popupCloseText: { color: MUTED, fontSize: 14, fontWeight: "700" },
+  popupCloseText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
 
   popupRows: { gap: 8 },
   popupRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  popupRowIcon: { fontSize: 16, width: 22, textAlign: "center" },
-  popupRowText: { color: CHALK, fontSize: 14, fontWeight: "500", flex: 1 },
+  popupRowIcon: { fontSize: 16, fontFamily: "Inter_400Regular", width: 22, textAlign: "center" },
+  popupRowText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_500Medium", fontWeight: "500", flex: 1 },
 
   popupCta: {
     marginTop: 14,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     paddingVertical: 12,
     borderRadius: 999,
     alignItems: "center",
   },
-  popupCtaText: { color: BG, fontSize: 14, fontWeight: "700" },
+  popupCtaText: { color: themeColor().bg, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
 
   modalRoot: {
     flex: 1,
@@ -1732,16 +1747,16 @@ const s = StyleSheet.create({
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.62)",
+    backgroundColor: themeColor().scrim,
   },
   modalCard: {
     marginHorizontal: 14,
     marginBottom: 34,
     maxHeight: "78%",
-    backgroundColor: SURFACE,
-    borderRadius: 18,
+    backgroundColor: themeColor().card,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: HAIRLINE,
+    borderColor: themeColor().overlay,
     overflow: "hidden",
   },
   modalScroll: {
@@ -1752,25 +1767,24 @@ const s = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     marginTop: 10,
-    fontSize: 13,
+    fontSize: 13, fontFamily: "Inter_400Regular",
   },
   tierBreakdownPart: {
-    fontSize: 13,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
   },
   popupDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: HAIRLINE,
+    backgroundColor: themeColor().overlay,
     marginVertical: 14,
   },
   eliteLabel: {
-    color: LIME,
-    fontSize: 11,
+    color: themeColor().pitchText,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 1.4,
     marginBottom: 10,
   },
-  eliteEmpty: { color: MUTED, fontSize: 13, marginBottom: 8 },
+  eliteEmpty: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 8 },
   eliteList: { gap: 10 },
   eliteRow: {
     flexDirection: "row",
@@ -1780,63 +1794,69 @@ const s = StyleSheet.create({
   eliteAvatarRing: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 999,
     borderWidth: 2,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },
-  eliteAvatarImg: { width: 36, height: 36, borderRadius: 18 },
+  eliteAvatarImg: { width: 36, height: 36, borderRadius: 12 },
   eliteAvatarFallback: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
-  eliteInitials: { fontSize: 12, fontWeight: "800" },
-  eliteName: { color: CHALK, fontSize: 15, fontWeight: "700" },
+  eliteInitials: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  eliteName: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
   eliteMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
-  eliteTierBadge: { fontSize: 12, fontWeight: "700" },
-  elitePos: { color: MUTED, fontSize: 12, fontWeight: "500" },
-  eliteMore: { color: LIME, fontSize: 13, fontWeight: "700", marginTop: 4 },
-  sessionsLine: { color: MUTED, fontSize: 14, marginTop: 16, fontWeight: "500" },
+  eliteTierBadge: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  elitePos: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_500Medium", fontWeight: "500" },
+  eliteMore: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 4 },
+  sessionsLine: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_500Medium", marginTop: 16, fontWeight: "500" },
   popupCloseBtn: {
     marginTop: 16,
-    backgroundColor: SURFACE_LIFT,
+    backgroundColor: themeColor().card,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: HAIRLINE,
+    borderColor: themeColor().overlay,
     paddingVertical: 12,
     alignItems: "center",
   },
-  popupCloseBtnText: { color: CHALK, fontSize: 15, fontWeight: "700" },
+  popupCloseBtnText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
 
   activityOverlay: {
     position: "absolute",
     bottom: 34,
     left: 14,
     right: 14,
-    backgroundColor: "rgba(11,15,13,0.93)",
-    borderRadius: 20,
+    backgroundColor: themeColor().bg,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: HAIRLINE,
+    borderColor: themeColor().overlay,
     padding: 20,
   },
-  actKicker: { color: LIME, fontSize: 10, fontWeight: "800", letterSpacing: 2, marginBottom: 4 },
-  actHeadline: { color: CHALK, fontSize: 22, fontWeight: "800", marginBottom: 16 },
+  actKicker: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", marginBottom: 4 },
+  actHeadline: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginBottom: 16 },
   actCards: { gap: 10 },
   actCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    backgroundColor: themeColor().overlaySubtle,
     borderRadius: 12,
     padding: 12,
     gap: 12,
   },
-  actDot: { width: 10, height: 10, borderRadius: 5 },
-  actLabel: { color: CHALK, fontSize: 14, fontWeight: "700" },
-  actSub: { color: MUTED, fontSize: 12, marginTop: 1 },
-  actValue: { fontSize: 22, fontWeight: "800", minWidth: 40, textAlign: "right" },
-  actNote: { color: MUTED, fontSize: 11, marginTop: 14 },
+  actDot: { width: 10, height: 10, borderRadius: 10 },
+  actLabel: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  actSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 1 },
+  actValue: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", minWidth: 40, textAlign: "right" },
+  actNote: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 14 },
 });
+}
+let s = make_s();
+function publish_s() {
+  s = make_s();
+}
+

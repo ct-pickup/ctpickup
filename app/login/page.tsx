@@ -65,8 +65,8 @@ function LoginForm() {
         setMsg(
           <>
             Sign-in isn’t available right now (missing Supabase configuration).
-            Please refresh, or email{" "}
-            <SupportEmailLink className="font-medium text-white underline underline-offset-2 hover:text-white/90" />{" "}
+            Please refresh, or email{"  "}
+            <SupportEmailLink className="font-medium text-ink underline underline-offset-2 hover:text-ink" />{"  "}
             for help.
           </>,
         );
@@ -108,8 +108,8 @@ function LoginForm() {
         setMsg(
           <>
             Sign-in isn’t available right now (missing Supabase configuration).
-            Please refresh, or email{" "}
-            <SupportEmailLink className="font-medium text-white underline underline-offset-2 hover:text-white/90" />{" "}
+            Please refresh, or email{"  "}
+            <SupportEmailLink className="font-medium text-ink underline underline-offset-2 hover:text-ink" />{"  "}
             for help.
           </>,
         );
@@ -150,8 +150,8 @@ function LoginForm() {
         setMsg(
           <>
             Sign-in isn’t available right now (missing Supabase configuration).
-            Please refresh, or email{" "}
-            <SupportEmailLink className="font-medium text-white underline underline-offset-2 hover:text-white/90" />{" "}
+            Please refresh, or email{"  "}
+            <SupportEmailLink className="font-medium text-ink underline underline-offset-2 hover:text-ink" />{"  "}
             for help.
           </>,
         );
@@ -192,36 +192,36 @@ function LoginForm() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-canvas text-ink">
       <div
         className={[
-          "fixed inset-0 bg-black pointer-events-none transition-opacity duration-300",
+          "fixed inset-0 bg-canvas pointer-events-none transition-opacity duration-300",
           transitioning ? "opacity-100" : "opacity-0",
-        ].join(" ")}
+        ].join("  ")}
       />
 
       <div className="mx-auto max-w-md px-6 py-14 space-y-6">
         <div className="flex items-start justify-between gap-6">
           <div className="space-y-2">
-            <h1 className="text-3xl font-semibold uppercase tracking-tight">LOG IN</h1>
-            <p className="text-sm text-white/75">Log in to save your info and manage invites.</p>
-            <p className="text-sm text-white/55">
+            <h1 className="text-h1 font-serif font-semibold">LOG IN</h1>
+            <p className="text-small text-muted">Log in to save your info and manage invites.</p>
+            <p className="text-small text-muted">
               We’ll email you an 8-digit verification code. No password needed.
             </p>
           </div>
 
           <HistoryBack
             fallbackHref="/"
-            className="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-white/70 underline-offset-4 transition hover:text-white hover:underline"
+            className="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-small text-muted underline-offset-4 transition hover:text-ink hover:underline"
           />
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-4">
+        <div className="rounded-card border border-line bg-overlay-subtle p-6 space-y-4">
           <div className="space-y-2">
             {stage === "email" ? (
               <>
                 <input
-                  className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                  className="w-full rounded-card border border-line bg-canvas px-4 py-3 text-small text-ink placeholder:text-muted outline-none focus:border-line"
                   placeholder="you@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -229,16 +229,16 @@ function LoginForm() {
                   inputMode="email"
                   autoComplete="email"
                 />
-                <div className="text-xs text-white/45">We’ll never share your email.</div>
+                <div className="text-caption text-muted">We’ll never share your email.</div>
               </>
             ) : (
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm">
-                <span className="min-w-0 truncate text-white/80" title={emailClean}>
+              <div className="flex items-center justify-between gap-3 rounded-card border border-line bg-overlay-subtle px-4 py-3 text-small">
+                <span className="min-w-0 truncate text-ink" title={emailClean}>
                   {emailClean}
                 </span>
                 <button
                   type="button"
-                  className="shrink-0 font-medium text-white/85 underline underline-offset-4 transition hover:text-white disabled:opacity-50"
+                  className="shrink-0 font-medium text-ink underline underline-offset-4 transition hover:text-ink disabled:opacity-50"
                   onClick={goBackToEmail}
                   disabled={busy || resendBusy}
                 >
@@ -251,7 +251,7 @@ function LoginForm() {
           {stage === "email" ? (
             <button
               type="button"
-              className="w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
+              className="w-full rounded-card bg-pitch px-4 py-3 text-small font-semibold text-on-pitch disabled:opacity-50"
               onClick={() => void sendCode()}
               disabled={!emailLooksValid || busy || !isReady}
             >
@@ -259,11 +259,11 @@ function LoginForm() {
             </button>
           ) : (
             <>
-              <p role="status" className="text-sm text-white/80 leading-relaxed">
+              <p role="status" className="text-small text-ink leading-relaxed">
                 We sent an 8-digit code to your email. Enter it below to continue.
               </p>
               <input
-                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                className="w-full rounded-card border border-line bg-canvas px-4 py-3 text-small text-ink placeholder:text-muted outline-none focus:border-line"
                 placeholder="8-digit code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
@@ -273,13 +273,13 @@ function LoginForm() {
                 maxLength={16}
                 aria-describedby="login-code-hint"
               />
-              <p id="login-code-hint" className="text-xs text-white/45">
+              <p id="login-code-hint" className="text-caption text-muted">
                 Enter the 8-digit code from your email (spaces are OK).
               </p>
 
               <button
                 type="button"
-                className="w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
+                className="w-full rounded-card bg-pitch px-4 py-3 text-small font-semibold text-on-pitch disabled:opacity-50"
                 onClick={() => void verifyCode()}
                 disabled={!code.trim() || busy || !isReady}
               >
@@ -287,13 +287,13 @@ function LoginForm() {
               </button>
 
               {resendCooldownSec > 0 ? (
-                <p className="text-center text-xs text-white/50">
+                <p className="text-center text-caption text-muted">
                   Resend code in {resendCooldownSec}s
                 </p>
               ) : (
                 <button
                   type="button"
-                  className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm font-medium text-white/85 hover:bg-white/[0.04] disabled:opacity-50"
+                  className="w-full rounded-card border border-line bg-canvas px-4 py-3 text-small font-medium text-ink hover:bg-overlay-subtle disabled:opacity-50"
                   onClick={() => void resendCode()}
                   disabled={resendBusy || busy || !isReady}
                 >
@@ -303,20 +303,20 @@ function LoginForm() {
             </>
           )}
 
-          {msg ? <p className="text-sm text-white/70">{msg}</p> : null}
+          {msg ? <p className="text-small text-muted">{msg}</p> : null}
 
           {typeof msg === "string" && msg.includes("No account on file") && (
-            <div className="space-y-2 text-sm text-white/70">
-              <p className="text-white/55">Create an account when you are joining:</p>
+            <div className="space-y-2 text-small text-muted">
+              <p className="text-muted">Create an account when you are joining:</p>
               <Link
                 href={signupUrlForIntent("pickup")}
-                className="block hover:text-white hover:underline underline-offset-4"
+                className="block hover:text-ink hover:underline underline-offset-4"
               >
                 Join Pickup (sign up)
               </Link>
               <Link
                 href={signupUrlForIntent("tournament")}
-                className="block hover:text-white hover:underline underline-offset-4"
+                className="block hover:text-ink hover:underline underline-offset-4"
               >
                 Join Tournament (sign up)
               </Link>
@@ -332,7 +332,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-black text-white flex items-center justify-center text-sm text-white/60">
+        <main className="min-h-screen bg-canvas text-ink flex items-center justify-center text-small text-muted">
           Loading…
         </main>
       }

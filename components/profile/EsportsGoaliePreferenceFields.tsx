@@ -18,27 +18,27 @@ type Variant = "signup" | "light";
 
 const shell = {
   signup: {
-    legend: "text-sm font-medium text-white/90",
-    sub: "text-xs text-white/50 leading-relaxed",
+    legend: "text-small font-medium text-ink",
+    sub: "text-caption text-muted leading-relaxed",
     group: "flex flex-col gap-2 sm:flex-row sm:flex-wrap",
     optBase:
-      "rounded-xl border px-4 py-3 text-sm font-medium text-center transition outline-none focus-visible:ring-2 focus-visible:ring-white/30",
-    optOff: "border-white/15 bg-black text-white/75 hover:border-white/25",
-    optOn: "border-white bg-white text-black",
-    block: "space-y-3 rounded-xl border border-white/10 bg-white/[0.02] p-4",
-    callout: "rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs text-amber-100/90 leading-relaxed",
+      "rounded-card border px-4 py-3 text-small font-medium text-center transition outline-none focus-visible:ring-2 focus-visible:ring-line",
+    optOff: "border-line bg-canvas text-muted hover:border-line",
+    optOn: "border-line bg-pitch text-on-pitch",
+    block: "space-y-3 rounded-card border border-line bg-overlay-subtle p-4",
+    callout: "rounded-button border border-coral bg-overlay-subtle px-3 py-2 text-caption text-coral leading-relaxed",
     textInput: "",
   },
   light: {
-    legend: "text-sm font-medium text-gray-900",
-    sub: "text-xs text-gray-600 leading-relaxed",
+    legend: "text-small font-medium text-muted",
+    sub: "text-caption text-muted leading-relaxed",
     group: "flex flex-col gap-2 sm:flex-row sm:flex-wrap",
-    optBase: "rounded-lg border px-4 py-3 text-sm font-medium text-center transition outline-none focus-visible:ring-2 focus-visible:ring-gray-400",
-    optOff: "border-gray-300 bg-white text-gray-800 hover:border-gray-400",
-    optOn: "border-gray-900 bg-gray-900 text-white",
-    block: "space-y-3 rounded-lg border border-gray-200 bg-gray-50/50 p-4",
-    callout: "rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900/90 leading-relaxed",
-    textInput: "w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-gray-500",
+    optBase: "rounded-button border px-4 py-3 text-small font-medium text-center transition outline-none focus-visible:ring-2 focus-visible:ring-line",
+    optOff: "border-line bg-card text-muted hover:border-line",
+    optOn: "border-line bg-canvas text-ink",
+    block: "space-y-3 rounded-button border border-line bg-overlay p-4",
+    callout: "rounded-button border border-coral bg-overlay-subtle px-3 py-2 text-caption text-coral leading-relaxed",
+    textInput: "w-full rounded-button border border-line bg-card px-3 py-3 text-small text-muted placeholder:text-muted outline-none focus:border-line",
   },
 } as const;
 
@@ -74,7 +74,7 @@ function ChoiceRow<T extends string>({
               type="button"
               disabled={disabled}
               onClick={() => onChange(o.id)}
-              className={[s.optBase, on ? s.optOn : s.optOff, "flex-1 min-w-[7rem]"].join(" ")}
+              className={[s.optBase, on ? s.optOn : s.optOff, "flex-1 min-w-[7rem]"].join("  ")}
             >
               {o.label}
             </button>

@@ -25,6 +25,13 @@ import { SelectedRegionProvider } from "@/context/SelectedRegionContext";
 import { ReplayOpeningThemeContext } from "@/context/ReplayOpeningThemeContext";
 import { authRouteRef } from "@/lib/authRouteRef";
 import { useFonts } from "expo-font";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
+import { InstrumentSerif_400Regular } from "@expo-google-fonts/instrument-serif";
 import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -34,9 +41,9 @@ import Constants from "expo-constants";
 import * as Linking from "expo-linking";
 
 import { useColorScheme } from "@/components/useColorScheme";
-import Colors, { CT_PICKUP_LIME } from "@/constants/Colors";
 import { siteOrigin } from "@/lib/env";
 
+import { themeColor, useThemedStyles } from "@/theme";
 export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
@@ -57,8 +64,15 @@ function AuthRouteTracker() {
 }
 
 function RootLayout() {
+  useThemedStyles(publish_stylesUpdateGate);
+
   const [loaded, error] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    InstrumentSerif_400Regular,
     ...FontAwesome.font,
   });
 
@@ -82,6 +96,8 @@ function RootLayout() {
 }
 
 function RootLayoutNav() {
+  useThemedStyles(publish_stylesUpdateGate);
+
   const colorScheme = useColorScheme();
   const [openingThemeKey, setOpeningThemeKey] = useState(0);
   const [minVersionBlocked, setMinVersionBlocked] = useState(false);
@@ -135,22 +151,18 @@ function RootLayoutNav() {
                         <ReviewModeBanner />
                         <PushRegistrar />
                         <ThemeProvider
-                          value={
-                            colorScheme === "dark"
-                              ? DarkTheme
-                              : {
-                                  ...DefaultTheme,
-                                  colors: {
-                                    ...DefaultTheme.colors,
-                                    background: Colors.light.background,
-                                    card: Colors.light.background,
-                                    primary: CT_PICKUP_LIME,
-                                    text: Colors.light.text,
-                                    border: "rgba(10,10,10,0.12)",
-                                    notification: "#111",
-                                  },
-                                }
-                          }
+                          value={{
+                            ...(colorScheme === "dark" ? DarkTheme : DefaultTheme),
+                            colors: {
+                              ...(colorScheme === "dark" ? DarkTheme : DefaultTheme).colors,
+                              background: themeColor().bg,
+                              card: themeColor().card,
+                              primary: themeColor().pitchText,
+                              text: themeColor().text,
+                              border: themeColor().line,
+                              notification: themeColor().pitch,
+                            },
+                          }}
                         >
                           <Stack>
                             <Stack.Screen
@@ -198,8 +210,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Rules",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                             }}
                           />
                           <Stack.Screen
@@ -207,8 +219,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Set new password",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                             }}
                           />
                           <Stack.Screen
@@ -216,8 +228,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Tournament",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                             }}
                           />
                           <Stack.Screen
@@ -225,8 +237,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Pickup by state",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                               headerShadowVisible: false,
                             }}
                           />
@@ -235,8 +247,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Region",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                               headerShadowVisible: false,
                             }}
                           />
@@ -245,8 +257,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "How pickup works",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                             }}
                           />
                           <Stack.Screen
@@ -254,8 +266,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Pickup status",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                             }}
                           />
                           <Stack.Screen
@@ -263,8 +275,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Tournament status",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                             }}
                           />
                           <Stack.Screen
@@ -272,8 +284,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Help",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                             }}
                           />
                           <Stack.Screen
@@ -281,8 +293,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Privacy Policy",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                             }}
                           />
                           <Stack.Screen
@@ -290,8 +302,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Terms of Service",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                             }}
                           />
                           <Stack.Screen
@@ -299,8 +311,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Find a team",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                             }}
                           />
                           <Stack.Screen
@@ -308,8 +320,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Live bracket",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                             }}
                           />
                           <Stack.Screen
@@ -317,8 +329,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Followers & following",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                               headerShadowVisible: false,
                             }}
                           />
@@ -327,8 +339,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Players",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                               headerShadowVisible: false,
                             }}
                           />
@@ -337,8 +349,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Profile",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                               headerShadowVisible: false,
                               headerBackTitle: "",
                             }}
@@ -350,8 +362,8 @@ function RootLayoutNav() {
                               headerShown: true,
                               title: "Leaderboards",
                               headerTitleAlign: "center",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                               headerShadowVisible: false,
                             }}
                           />
@@ -360,8 +372,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Run history",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                               headerShadowVisible: false,
                             }}
                           />
@@ -370,8 +382,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Run",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                               headerShadowVisible: false,
                             }}
                           />
@@ -384,8 +396,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Session",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                               headerShadowVisible: false,
                             }}
                           />
@@ -394,8 +406,8 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Host a Session",
-                              headerStyle: { backgroundColor: "#0a0a0a" },
-                              headerTintColor: "#fff",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
                             }}
                           />
                           <Stack.Screen
@@ -447,6 +459,8 @@ function compareSemver(aRaw: string, bRaw: string): -1 | 0 | 1 {
 }
 
 function UpdateRequiredGate() {
+  useThemedStyles(publish_stylesUpdateGate);
+
   return (
     <View style={stylesUpdateGate.root} pointerEvents="auto">
       <View style={stylesUpdateGate.card}>
@@ -467,10 +481,11 @@ function UpdateRequiredGate() {
   );
 }
 
-const stylesUpdateGate = StyleSheet.create({
+function make_stylesUpdateGate() {
+  return StyleSheet.create({
   root: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#0a0a0a",
+    backgroundColor: themeColor().bg,
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
@@ -479,27 +494,33 @@ const stylesUpdateGate = StyleSheet.create({
   card: {
     width: "100%",
     maxWidth: 520,
-    borderRadius: 18,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     padding: 20,
   },
-  title: { color: "#fff", fontSize: 22, fontWeight: "900", textAlign: "center" },
+  title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", textAlign: "center" },
   body: {
     marginTop: 10,
-    color: "rgba(255,255,255,0.72)",
-    fontSize: 14,
+    color: themeColor().muted,
+    fontSize: 14, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
     lineHeight: 20,
     textAlign: "center",
   },
   btn: {
     marginTop: 18,
-    backgroundColor: CT_PICKUP_LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
   },
-  btnText: { color: "#111", fontSize: 16, fontWeight: "900" },
+  btnText: { color: themeColor().onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "900" },
 });
+}
+let stylesUpdateGate = make_stylesUpdateGate();
+function publish_stylesUpdateGate() {
+  stylesUpdateGate = make_stylesUpdateGate();
+}
+

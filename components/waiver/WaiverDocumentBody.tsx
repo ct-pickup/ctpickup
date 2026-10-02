@@ -5,9 +5,9 @@ import Link from "next/link";
  */
 export function WaiverDocumentBody() {
   return (
-    <div className="space-y-8 text-sm leading-relaxed text-white/75 md:text-base md:leading-8">
+    <div className="space-y-8 text-small leading-relaxed text-muted md:text-body md:leading-8">
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">
           1. Assumption of Risk
         </h2>
         <p>
@@ -26,7 +26,7 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">
           2. Release of Liability
         </h2>
         <p>
@@ -43,7 +43,7 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">
           3. Platform Role Clarification
         </h2>
         <p>
@@ -57,7 +57,7 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">
           4. No Professional Services
         </h2>
         <p>
@@ -72,7 +72,7 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">
           5. Scope of Coverage
         </h2>
         <p>
@@ -84,7 +84,7 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">6. No Guarantees</h2>
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">6. No Guarantees</h2>
         <p>
           We do not guarantee outcomes, including but not limited to performance
           improvement, recruitment, or opportunities. All results depend on individual
@@ -93,11 +93,11 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">
           7. User Responsibility
         </h2>
         <p>You are responsible for:</p>
-        <ul className="list-disc space-y-2 pl-5 text-white/70">
+        <ul className="list-disc space-y-2 pl-5 text-muted">
           <li>Scheduling and showing up for activities you commit to</li>
           <li>Submitting accurate results where reporting is required</li>
           <li>Maintaining appropriate conduct toward other participants</li>
@@ -106,7 +106,7 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">
           8. Remote or Digital Participation
         </h2>
         <p>
@@ -117,11 +117,11 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">
           9. Additional Limitations
         </h2>
         <p>To the fullest extent permitted by law, CT Pickup and its operators shall not be liable for:</p>
-        <ul className="list-disc space-y-2 pl-5 text-white/70">
+        <ul className="list-disc space-y-2 pl-5 text-muted">
           <li>Loss of data or results</li>
           <li>Disputes between users</li>
           <li>Missed opportunities or outcomes unrelated to the releases above</li>
@@ -129,7 +129,7 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">
           10. Conduct &amp; Fair Play
         </h2>
         <p>
@@ -144,7 +144,7 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">11. Modifications</h2>
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">11. Modifications</h2>
         <p>
           We reserve the right to update this agreement at any time. Continued use of
           the platform constitutes acceptance of any changes.
@@ -152,13 +152,13 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">
           12. Photo, Video, Audio &amp; Public Use
         </h2>
         <p>
           Participation in pickup games, tournaments, training, events, or any other
           activities connected to CT Pickup is voluntary. If you participate, you give
-          <span className="font-semibold text-white/90"> full, irrevocable consent</span>{" "}
+          <span className="font-semibold text-ink"> full, irrevocable consent</span>{"  "}
           for CT Pickup, its operators, organizers, volunteers, and anyone they authorize
           to photograph, film, livestream, and make audio or video recordings of you, and
           to capture your name, image, likeness, voice, and performance (your
@@ -180,7 +180,7 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">
           13. Eligibility &amp; Acceptance
         </h2>
         <p>
@@ -192,31 +192,31 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">
           14. Payments &amp; Prizes
         </h2>
         <p>
           Unless different terms apply to a specific product you accept at registration or checkout,
-          all purchases are non-refundable unless otherwise stated.{" "}
-          <span className="text-white/90">
+          all purchases are non-refundable unless otherwise stated.{"  "}
+          <span className="text-ink">
             Tournament and pickup fees are generally non-refundable except as stated in the applicable
             refund policy: for in-person tournaments, refunds must be requested more than 48 hours before
             the tournament begins; for pickups, refunds are available if you cancel more than 24 hours before
             the run&apos;s scheduled start time. Full refund if the organizer cancels the run.
-          </span>{" "}
-          Online esports entry fees and refunds are in the{" "}
+          </span>{"  "}
+          Online esports entry fees and refunds are in the{"  "}
           <Link
             href="/legal/esports/official-rules#refund-policy"
-            className="text-[var(--brand)] underline-offset-4 hover:underline"
+            className="text-pitch-text underline-offset-4 hover:underline"
           >
             Official Tournament Rules
           </Link>
-          . Pickup fee details appear on{" "}
-          <Link href="/pickup/how-it-works" className="text-[var(--brand)] underline-offset-4 hover:underline">
+          . Pickup fee details appear on{"  "}
+          <Link href="/pickup/how-it-works" className="text-pitch-text underline-offset-4 hover:underline">
             How pickup works
-          </Link>{" "}
-          and the{" "}
-          <Link href="/rules" className="text-[var(--brand)] underline-offset-4 hover:underline">
+          </Link>{"  "}
+          and the{"  "}
+          <Link href="/rules" className="text-pitch-text underline-offset-4 hover:underline">
             CT Pickup Rules
           </Link>
           . Prizes are subject to verification and eligibility requirements.
@@ -224,7 +224,7 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">
           16. Injury Liability
         </h2>
         <p>
@@ -237,7 +237,7 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">
           17. Field &amp; Venue Ejection
         </h2>
         <p>
@@ -250,7 +250,7 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">
           18. Host Liability
         </h2>
         <p>
@@ -262,7 +262,7 @@ export function WaiverDocumentBody() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-white md:text-lg">19. No Affiliation</h2>
+        <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">19. No Affiliation</h2>
         <p>
           This platform is not affiliated with or endorsed by EA SPORTS or other third
           parties referenced only in connection with user-run activities.

@@ -28,10 +28,10 @@ export default async function CoachPage({
 
       <div className="mb-8">
         <SectionEyebrow>Training</SectionEyebrow>
-        <h1 className="mt-3 text-2xl font-bold uppercase tracking-[0.18em] text-white sm:text-3xl md:tracking-[0.22em]">
+        <h1 className="mt-3 text-h2 font-serif font-bold text-ink sm:text-h1">
           {coach.name}
         </h1>
-        <p className="mt-2 text-sm text-white/70">
+        <p className="mt-2 text-small text-muted">
           {[coach.college, coach.position].filter(Boolean).join(" · ")}
         </p>
       </div>
@@ -40,7 +40,7 @@ export default async function CoachPage({
         <CoachHeadshot
           slug={coach.slug}
           name={coach.name}
-          className="aspect-[4/5] w-full max-w-sm mx-auto lg:mx-0 rounded-2xl border border-white/15 bg-[#141415]"
+          className="aspect-[4/5] w-full max-w-sm mx-auto lg:mx-0 rounded-card border border-line bg-canvas"
           imagePosition={coach.imagePosition}
           loading="eager"
         />
@@ -48,13 +48,13 @@ export default async function CoachPage({
         <div className="space-y-4">
           <Panel>
             <SectionEyebrow>Experience</SectionEyebrow>
-            <p className="mt-3 text-sm leading-relaxed text-white/80 sm:text-base">
+            <p className="mt-3 text-small leading-relaxed text-ink sm:text-body">
               {coach.experience}
             </p>
 
             <div className="mt-8">
               <SectionEyebrow>Coaching Background</SectionEyebrow>
-              <p className="mt-3 text-sm leading-relaxed text-white/80 sm:text-base">
+              <p className="mt-3 text-small leading-relaxed text-ink sm:text-body">
                 {coach.coaching}
               </p>
             </div>
@@ -62,13 +62,13 @@ export default async function CoachPage({
 
           <Panel>
             <SectionEyebrow>Specialty</SectionEyebrow>
-            <p className="mt-3 text-sm leading-relaxed text-white sm:text-base">
+            <p className="mt-3 text-small leading-relaxed text-ink sm:text-body">
               {coach.specialty}
             </p>
 
             <div className="mt-6">
               <SectionEyebrow>Hometown</SectionEyebrow>
-              <p className="mt-3 text-sm text-white sm:text-base">
+              <p className="mt-3 text-small text-ink sm:text-body">
                 {coach.hometown || "Connecticut"}
               </p>
             </div>
@@ -78,7 +78,7 @@ export default async function CoachPage({
                 href={coach.bookingLink}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-white px-5 text-sm font-semibold text-black transition hover:opacity-90"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-button bg-pitch px-5 text-small font-semibold text-on-pitch transition hover:opacity-90"
               >
                 Request {coach.name}
               </a>

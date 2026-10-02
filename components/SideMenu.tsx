@@ -50,7 +50,7 @@ export default function SideMenu() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center justify-center rounded-md px-3 py-2 text-black hover:bg-black/5"
+        className="inline-flex items-center justify-center rounded-button px-3 py-2 text-ink hover:bg-overlay-subtle"
         aria-label="Open menu"
       >
         <HamburgerIcon />
@@ -58,26 +58,26 @@ export default function SideMenu() {
 
       <div
         className={[
-          "fixed inset-0 z-40 bg-black/60 transition-opacity",
+          "fixed inset-0 z-40 bg-scrim transition-opacity",
           open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
-        ].join(" ")}
+        ].join("  ")}
         onClick={closeAll}
         aria-hidden="true"
       />
 
       <aside
         className={[
-          "fixed right-0 top-0 z-50 h-full w-[340px] max-w-[85vw] border-l border-white/10 bg-black text-white",
+          "fixed right-0 top-0 z-50 h-full w-[340px] max-w-[85vw] border-l border-line bg-canvas text-ink",
           "transition-transform duration-200",
           open ? "translate-x-0" : "translate-x-full",
-        ].join(" ")}
+        ].join("  ")}
         role="dialog"
         aria-modal="true"
         aria-label="Menu"
       >
-        <div className="p-6 flex items-center justify-between border-b border-white/10">
-          <div className="text-sm font-semibold uppercase tracking-wide text-white/70">Menu</div>
-          <button type="button" onClick={closeAll} className="text-sm underline text-white/70">
+        <div className="p-6 flex items-center justify-between border-b border-line">
+          <div className="text-small font-semibold text-muted">Menu</div>
+          <button type="button" onClick={closeAll} className="text-small underline text-muted">
             Close
           </button>
         </div>
@@ -86,50 +86,50 @@ export default function SideMenu() {
           <Link
             href="/info"
             onClick={closeAll}
-            className="block rounded-md px-3 py-2 text-white/85 hover:bg-white/5"
+            className="block rounded-button px-3 py-2 text-ink hover:bg-overlay-subtle"
           >
             Info
           </Link>
 
-          <Link href="/pickup" onClick={closeAll} className="block rounded-md px-3 py-2 text-white/85 hover:bg-white/5">
+          <Link href="/pickup" onClick={closeAll} className="block rounded-button px-3 py-2 text-ink hover:bg-overlay-subtle">
             Pickup
           </Link>
 
-          <Link href="/tournament" onClick={closeAll} className="block rounded-md px-3 py-2 text-white/85 hover:bg-white/5">
+          <Link href="/tournament" onClick={closeAll} className="block rounded-button px-3 py-2 text-ink hover:bg-overlay-subtle">
             Tournament
           </Link>
 
-          <Link href="/training" onClick={closeAll} className="block rounded-md px-3 py-2 text-white/85 hover:bg-white/5">
+          <Link href="/training" onClick={closeAll} className="block rounded-button px-3 py-2 text-ink hover:bg-overlay-subtle">
             Training
           </Link>
 
-          <Link href="/u23" onClick={closeAll} className="block rounded-md px-3 py-2 text-white/85 hover:bg-white/5">
+          <Link href="/u23" onClick={closeAll} className="block rounded-button px-3 py-2 text-ink hover:bg-overlay-subtle">
             U23 Select Team
           </Link>
           <button
             type="button"
             onClick={() => setStatusOpen((v) => !v)}
-            className="w-full flex items-center justify-between rounded-md px-3 py-2 text-white/85 hover:bg-white/5"
+            className="w-full flex items-center justify-between rounded-button px-3 py-2 text-ink hover:bg-overlay-subtle"
           >
             <span>Status</span>
-            <span className="text-white/70">
+            <span className="text-muted">
               <Chevron open={statusOpen} />
             </span>
           </button>
 
           {statusOpen && (
-            <div className="ml-6 mt-1 space-y-1 border-l border-white/10 pl-4">
+            <div className="ml-6 mt-1 space-y-1 border-l border-line pl-4">
               <Link
                 href="/status/pickup"
                 onClick={closeAll}
-                className="block rounded-md px-3 py-2 text-white/80 hover:bg-white/5"
+                className="block rounded-button px-3 py-2 text-ink hover:bg-overlay-subtle"
               >
                 Pickup
               </Link>
               <Link
                 href="/status/tournament"
                 onClick={closeAll}
-                className="block rounded-md px-3 py-2 text-white/80 hover:bg-white/5"
+                className="block rounded-button px-3 py-2 text-ink hover:bg-overlay-subtle"
               >
                 Tournament
               </Link>

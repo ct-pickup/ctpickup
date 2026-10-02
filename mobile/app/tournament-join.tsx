@@ -10,6 +10,7 @@ import { siteOrigin } from "@/lib/env";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -21,9 +22,9 @@ import {
   View,
 } from "react-native";
 
-const LIME = "#a3e635";
-
 export default function TournamentJoinScreen() {
+  useThemedStyles(publish_styles);
+
   const navigation = useNavigation();
   const router = useRouter();
   const { region } = useSelectedRegion();
@@ -66,8 +67,8 @@ export default function TournamentJoinScreen() {
   useEffect(() => {
     navigation.setOptions({
       title: "Find a team",
-      headerStyle: { backgroundColor: "#0a0a0a" },
-      headerTintColor: "#fff",
+      headerStyle: { backgroundColor: themeColor().bg },
+      headerTintColor: themeColor().text,
     });
   }, [navigation]);
 
@@ -143,19 +144,19 @@ export default function TournamentJoinScreen() {
       <Text style={styles.lead}>Confirmed teams for the live tournament. Request to join and the captain can approve you onto the roster.</Text>
 
       <View style={styles.searchWrap}>
-        <FontAwesome name="search" size={14} color="rgba(255,255,255,0.35)" style={styles.searchIcon} />
+        <FontAwesome name="search" size={14} color={themeColor().muted} style={styles.searchIcon} />
         <TextInput
           value={search}
           onChangeText={setSearch}
           placeholder="Search by team or captain"
-          placeholderTextColor="rgba(255,255,255,0.35)"
+          placeholderTextColor={themeColor().muted}
           style={styles.searchInput}
           autoCapitalize="none"
           autoCorrect={false}
         />
       </View>
 
-      {loading ? <ActivityIndicator color={LIME} style={{ marginTop: 16 }} /> : null}
+      {loading ? <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 16 }} /> : null}
 
       {!loading && filtered.length === 0 ? (
         <Text style={styles.muted}>No teams match your search.</Text>
@@ -185,7 +186,7 @@ export default function TournamentJoinScreen() {
                 {t.expected_players ? ` · Roster cap ${t.expected_players}` : ""}
               </Text>
             </View>
-            <FontAwesome name={active ? "chevron-up" : "chevron-down"} size={14} color="rgba(255,255,255,0.4)" />
+            <FontAwesome name={active ? "chevron-up" : "chevron-down"} size={14} color={themeColor().muted} />
           </Pressable>
         );
       })}
@@ -217,7 +218,7 @@ export default function TournamentJoinScreen() {
                 value={message}
                 onChangeText={setMessage}
                 placeholder="e.g. position, availability…"
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                placeholderTextColor={themeColor().muted}
                 style={styles.messageInput}
                 multiline
                 maxLength={500}
@@ -228,7 +229,7 @@ export default function TournamentJoinScreen() {
                 onPress={() => void onRequestJoin()}
               >
                 {busy ? (
-                  <ActivityIndicator color="#111" />
+                  <ActivityIndicator color={themeColor().onPitch} />
                 ) : (
                   <Text style={styles.primaryBtnText}>Request to join</Text>
                 )}
@@ -241,93 +242,99 @@ export default function TournamentJoinScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0a0a0a" },
+function make_styles() {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 20, paddingBottom: 48 },
-  center: { flex: 1, backgroundColor: "#0a0a0a", padding: 24, justifyContent: "center" },
+  center: { flex: 1, backgroundColor: themeColor().bg, padding: 24, justifyContent: "center" },
   kicker: {
-    fontSize: 11,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 1.4,
-    color: "rgba(163,230,53,0.65)",
+    color: themeColor().pitchText,
   },
   lead: {
     marginTop: 10,
-    fontSize: 15,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 22,
-    color: "rgba(255,255,255,0.58)",
+    color: themeColor().muted,
   },
-  muted: { color: "rgba(255,255,255,0.5)", fontSize: 15, lineHeight: 22 },
+  muted: { color: themeColor().muted, fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 22 },
   searchWrap: {
     marginTop: 16,
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     paddingHorizontal: 12,
   },
   searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, color: "#fff", paddingVertical: 12, fontSize: 15 },
+  searchInput: { flex: 1, color: themeColor().text, paddingVertical: 12, fontSize: 16, fontFamily: "Inter_400Regular" },
   teamCard: {
     marginTop: 10,
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
   teamCardActive: {
-    borderColor: "rgba(163,230,53,0.45)",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  teamName: { fontSize: 16, fontWeight: "800", color: "#fff" },
-  captainLine: { marginTop: 4, fontSize: 13, color: "rgba(255,255,255,0.55)" },
-  spotsLine: { marginTop: 4, fontSize: 12, color: "rgba(163,230,53,0.85)", fontWeight: "700" },
+  teamName: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
+  captainLine: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
+  spotsLine: { marginTop: 4, fontSize: 13, fontFamily: "Inter_700Bold", color: themeColor().pitchText, fontWeight: "700" },
   detailCard: {
     marginTop: 16,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  detailTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
-  detailSub: { marginTop: 6, fontSize: 14, color: "rgba(255,255,255,0.6)" },
+  detailTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
+  detailSub: { marginTop: 6, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
   pendingBox: {
     marginTop: 12,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: "rgba(163,230,53,0.06)",
+    backgroundColor: themeColor().pitchSoft,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.25)",
+    borderColor: themeColor().pitch,
   },
-  pendingTitle: { fontSize: 12, fontWeight: "800", color: LIME, textTransform: "uppercase" },
-  pendingText: { marginTop: 6, fontSize: 13, color: "rgba(255,255,255,0.75)", lineHeight: 20 },
-  label: { marginTop: 14, fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.45)" },
+  pendingTitle: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().pitchText, },
+  pendingText: { marginTop: 6, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().text, lineHeight: 20 },
+  label: { marginTop: 14, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
   messageInput: {
     marginTop: 8,
     minHeight: 72,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: themeColor().line,
     padding: 12,
-    color: "#fff",
-    fontSize: 15,
+    color: themeColor().text,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     textAlignVertical: "top",
   },
-  warn: { marginTop: 12, color: "rgba(251,191,36,0.95)", fontSize: 14, fontWeight: "600" },
+  warn: { marginTop: 12, color: themeColor().coral, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   primaryBtn: {
     marginTop: 14,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
   },
   primaryBtnDisabled: { opacity: 0.5 },
-  primaryBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  primaryBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

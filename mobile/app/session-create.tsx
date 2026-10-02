@@ -18,8 +18,7 @@ import {
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
-const LIME = "#a3e635";
-
+import { themeColor } from "@/theme";
 const CAPACITY_MIN = 4;
 const CAPACITY_MAX = 30;
 const FORMATS = ["5v5", "6v6", "7v7", "Open"];
@@ -235,7 +234,7 @@ export default function SessionCreateScreen() {
         {/* Header */}
         <View style={s.header}>
           <Pressable onPress={() => step === 1 ? router.back() : setStep((step - 1) as Step)} hitSlop={10}>
-            <FontAwesome name="chevron-left" size={16} color="rgba(255,255,255,0.6)" />
+            <FontAwesome name="chevron-left" size={16} color={themeColor().muted} />
           </Pressable>
           <Text style={s.headerTitle}>Host a Session</Text>
           <View style={{ width: 20 }} />
@@ -258,16 +257,16 @@ export default function SessionCreateScreen() {
               value={locationQuery}
               onChangeText={(t) => void searchLocation(t)}
               placeholder="Search field name or address…"
-              placeholderTextColor="rgba(255,255,255,0.3)"
+              placeholderTextColor={themeColor().muted}
               autoCorrect={false}
               returnKeyType="search"
             />
-            {locationSearching && <ActivityIndicator color={LIME} style={{ marginTop: 8 }} />}
+            {locationSearching && <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 8 }} />}
             {locationSuggestions.length > 0 && (
               <View style={s.suggestBox}>
                 {locationSuggestions.map((item) => (
                   <Pressable key={item.place_id} onPress={() => selectLocation(item)} style={s.suggestRow}>
-                    <FontAwesome name="map-marker" size={13} color={LIME} style={{ marginTop: 2 }} />
+                    <FontAwesome name="map-marker" size={13} color={themeColor().pitchText} style={{ marginTop: 2 }} />
                     <Text style={s.suggestText} numberOfLines={2}>{item.display_name}</Text>
                   </Pressable>
                 ))}
@@ -275,14 +274,14 @@ export default function SessionCreateScreen() {
             )}
             {locationSelected && (
               <View style={s.selectedBadge}>
-                <FontAwesome name="check-circle" size={13} color={LIME} />
+                <FontAwesome name="check-circle" size={13} color={themeColor().pitchText} />
                 <Text style={s.selectedText} numberOfLines={1}>{locationSelected.display_name}</Text>
               </View>
             )}
 
             <Text style={[s.fieldLabel, { marginTop: 20 }]}>DATE</Text>
             <Pressable onPress={() => { setShowDatePicker(true); setShowTimePicker(false); }} style={s.pickerBtn}>
-              <FontAwesome name="calendar" size={15} color={LIME} />
+              <FontAwesome name="calendar" size={15} color={themeColor().pitchText} />
               <Text style={s.pickerBtnText}>{fmtDate(sessionDate)}</Text>
             </Pressable>
             {showDatePicker && (
@@ -298,7 +297,7 @@ export default function SessionCreateScreen() {
 
             <Text style={[s.fieldLabel, { marginTop: 16 }]}>KICKOFF TIME</Text>
             <Pressable onPress={() => { setShowTimePicker(true); setShowDatePicker(false); }} style={s.pickerBtn}>
-              <FontAwesome name="clock-o" size={15} color={LIME} />
+              <FontAwesome name="clock-o" size={15} color={themeColor().pitchText} />
               <Text style={s.pickerBtnText}>{fmt12Hour(sessionTime)}</Text>
             </Pressable>
             {showTimePicker && (
@@ -326,7 +325,7 @@ export default function SessionCreateScreen() {
               returnKeyType="done"
               maxLength={2}
               placeholder="10"
-              placeholderTextColor="rgba(255,255,255,0.3)"
+              placeholderTextColor={themeColor().muted}
             />
             <Text style={s.capacityHint}>Min {CAPACITY_MIN} · Max {CAPACITY_MAX}</Text>
 
@@ -351,23 +350,23 @@ export default function SessionCreateScreen() {
               </Pressable>
             ))}
             {locationSelected && playerCounts && (
-              <View style={{ marginTop: 14, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 12, gap: 6 }}>
-                <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, fontWeight: "700", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 }}>
+              <View style={{ marginTop: 14, backgroundColor: themeColor().overlaySubtle, borderRadius: 10, padding: 12, gap: 6 }}>
+                <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 4 }}>
                   Players within 30 miles
                 </Text>
                 {[
-                  { tier: "diamond", label: "Diamond", color: "#9B59B6" },
-                  { tier: "platinum", label: "Platinum", color: "#E8E8E8" },
-                  { tier: "gold", label: "Gold", color: "#E3B23C" },
-                  { tier: "silver", label: "Silver", color: "#A8B0B5" },
-                  { tier: "bronze", label: "Bronze", color: "#B87333" },
+                  { tier: "diamond", label: "Diamond", color: themeColor().muted },
+                  { tier: "platinum", label: "Platinum", color: themeColor().text },
+                  { tier: "gold", label: "Gold", color: themeColor().coral },
+                  { tier: "silver", label: "Silver", color: themeColor().muted },
+                  { tier: "bronze", label: "Bronze", color: themeColor().coral },
                 ].map((t) => (
                   <View key={t.tier} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.color }} />
-                      <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 13 }}>{t.label}</Text>
+                      <View style={{ width: 8, height: 8, borderRadius: 10, backgroundColor: t.color }} />
+                      <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" }}>{t.label}</Text>
                     </View>
-                    <Text style={{ color: t.color, fontWeight: "700", fontSize: 13 }}>
+                    <Text style={{ color: t.color, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" }}>
                       {playerCounts[t.tier] ?? 0}
                     </Text>
                   </View>
@@ -375,11 +374,11 @@ export default function SessionCreateScreen() {
               </View>
             )}
             {locationSelected && countLoading && (
-              <ActivityIndicator color={LIME} style={{ marginTop: 10 }} />
+              <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 10 }} />
             )}
             {locationSelected && !playerCounts && !countLoading && (
               <Pressable onPress={() => void fetchPlayerCounts(skillLevel)} style={{ marginTop: 10, alignItems: "center" }}>
-                <Text style={{ color: LIME, fontSize: 13 }}>Tap a tier to see player counts →</Text>
+                <Text style={{ color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular" }}>Tap a tier to see player counts →</Text>
               </Pressable>
             )}
           </View>
@@ -406,7 +405,7 @@ export default function SessionCreateScreen() {
                 <Text style={[s.fieldLabel, { marginTop: 20 }]}>BUY-IN PER PLAYER ($)</Text>
                 <TextInput
                   style={s.input} value={buyIn} onChangeText={setBuyIn}
-                  placeholder="e.g. 10" placeholderTextColor="rgba(255,255,255,0.3)"
+                  placeholder="e.g. 10" placeholderTextColor={themeColor().muted}
                   keyboardType="decimal-pad"
                 />
                 {buyIn && !isNaN(parseFloat(buyIn)) && (
@@ -419,9 +418,9 @@ export default function SessionCreateScreen() {
                       <Text style={s.payoutLabel}>CT Pickup rake (20%)</Text>
                       <Text style={s.payoutValue}>−${(parseFloat(buyIn) * playerLimit * 0.2).toFixed(2)}</Text>
                     </View>
-                    <View style={[s.payoutRow, { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)", paddingTop: 10, marginTop: 4 }]}>
-                      <Text style={[s.payoutLabel, { color: "#fff", fontWeight: "700" }]}>You take home</Text>
-                      <Text style={[s.payoutValue, { color: LIME, fontWeight: "800" }]}>${(parseFloat(buyIn) * playerLimit * 0.8).toFixed(2)}</Text>
+                    <View style={[s.payoutRow, { borderTopWidth: 1, borderTopColor: themeColor().line, paddingTop: 10, marginTop: 4 }]}>
+                      <Text style={[s.payoutLabel, { color: themeColor().text, fontWeight: "700" }]}>You take home</Text>
+                      <Text style={[s.payoutValue, { color: themeColor().pitchText, fontWeight: "800" }]}>${(parseFloat(buyIn) * playerLimit * 0.8).toFixed(2)}</Text>
                     </View>
                   </View>
                 )}
@@ -437,10 +436,10 @@ export default function SessionCreateScreen() {
                   <View style={s.payoutRow}><Text style={s.payoutLabel}>Silver players pay</Text><Text style={s.payoutValue}>$9</Text></View>
                   <View style={s.payoutRow}><Text style={s.payoutLabel}>Gold players pay</Text><Text style={s.payoutValue}>$6</Text></View>
                   <View style={s.payoutRow}><Text style={s.payoutLabel}>Platinum</Text><Text style={s.payoutValue}>Free</Text></View>
-                  <View style={s.payoutRow}><Text style={[s.payoutLabel, { color: "#a3e635" }]}>Diamond players earn</Text><Text style={[s.payoutValue, { color: "#a3e635" }]}>$8</Text></View>
-                  <View style={[s.payoutRow, { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)", paddingTop: 10, marginTop: 4 }]}>
-                    <Text style={[s.payoutLabel, { color: "#fff", fontWeight: "700" }]}>CT Pickup rake</Text>
-                    <Text style={[s.payoutValue, { color: "#a3e635" }]}>20% of collected</Text>
+                  <View style={s.payoutRow}><Text style={[s.payoutLabel, { color: themeColor().pitchText }]}>Diamond players earn</Text><Text style={[s.payoutValue, { color: themeColor().pitchText }]}>$8</Text></View>
+                  <View style={[s.payoutRow, { borderTopWidth: 1, borderTopColor: themeColor().line, paddingTop: 10, marginTop: 4 }]}>
+                    <Text style={[s.payoutLabel, { color: themeColor().text, fontWeight: "700" }]}>CT Pickup rake</Text>
+                    <Text style={[s.payoutValue, { color: themeColor().pitchText }]}>20% of collected</Text>
                   </View>
                 </View>
                 <Text style={s.hint}>Prices are set automatically based on each player's tier. Diamond players get paid to show up.</Text>
@@ -502,7 +501,7 @@ export default function SessionCreateScreen() {
             <Pressable onPress={() => void publish()} disabled={publishing}
               style={[s.publishBtn, publishing && { opacity: 0.5 }]}>
               {publishing
-                ? <ActivityIndicator color="#0a0a0a" />
+                ? <ActivityIndicator color={themeColor().onPitch} />
                 : <Text style={s.publishBtnText}>Publish session →</Text>}
             </Pressable>
           </View>
@@ -518,52 +517,59 @@ export default function SessionCreateScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0a0a0a", padding: 20 },
+function make_s() {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: themeColor().bg, padding: 20 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 16, marginBottom: 24 },
-  headerTitle: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  headerTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
   stepRow: { flexDirection: "row", gap: 8, marginBottom: 6 },
-  stepDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.15)" },
-  stepDotActive: { backgroundColor: LIME },
-  stepLabel: { color: "rgba(255,255,255,0.45)", fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 20 },
-  card: { backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", padding: 18, marginBottom: 16 },
-  fieldLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 1.2, color: "rgba(255,255,255,0.45)", marginBottom: 8, textTransform: "uppercase" },
-  input: { backgroundColor: "rgba(255,255,255,0.07)", borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", color: "#fff", paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
-  suggestBox: { marginTop: 6, backgroundColor: "#1a1a1a", borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", overflow: "hidden" },
-  suggestRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, padding: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
-  suggestText: { flex: 1, color: "#fff", fontSize: 13, lineHeight: 18 },
-  selectedBadge: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, padding: 10, backgroundColor: "rgba(163,230,53,0.08)", borderRadius: 8, borderWidth: 1, borderColor: "rgba(163,230,53,0.2)" },
-  selectedText: { flex: 1, color: LIME, fontSize: 13 },
-  pickerBtn: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "rgba(255,255,255,0.07)", borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", paddingHorizontal: 14, paddingVertical: 13 },
-  pickerBtnText: { color: "#fff", fontSize: 16, fontWeight: "500" },
+  stepDot: { width: 8, height: 8, borderRadius: 10, backgroundColor: themeColor().overlay },
+  stepDotActive: { backgroundColor: themeColor().pitch },
+  stepLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 20 },
+  card: { backgroundColor: themeColor().overlaySubtle, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 18, marginBottom: 16 },
+  fieldLabel: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted, marginBottom: 8, },
+  input: { backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, fontFamily: "Inter_400Regular" },
+  suggestBox: { marginTop: 6, backgroundColor: themeColor().card, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, overflow: "hidden" },
+  suggestRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, padding: 12, borderBottomWidth: 1, borderBottomColor: themeColor().line },
+  suggestText: { flex: 1, color: themeColor().text, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  selectedBadge: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, padding: 10, backgroundColor: themeColor().pitchSoft, borderRadius: 10, borderWidth: 1, borderColor: themeColor().pitch },
+  selectedText: { flex: 1, color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular" },
+  pickerBtn: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 14, paddingVertical: 13 },
+  pickerBtnText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_500Medium", fontWeight: "500" },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.04)" },
-  chipActive: { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.12)" },
-  chipText: { color: "rgba(255,255,255,0.55)", fontWeight: "600", fontSize: 14 },
-  chipTextActive: { color: LIME },
-  capacityInput: { backgroundColor: "rgba(255,255,255,0.07)", borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", color: "#fff", fontSize: 20, fontWeight: "700", paddingHorizontal: 16, paddingVertical: 12, textAlign: "center", width: 100 },
-  capacityHint: { color: "rgba(255,255,255,0.35)", fontSize: 12, marginTop: 6 },
-  radioRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, paddingHorizontal: 4, borderRadius: 8 },
-  radioRowActive: { backgroundColor: "rgba(163,230,53,0.06)" },
-  radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: "rgba(255,255,255,0.3)" },
-  radioActive: { borderColor: LIME, backgroundColor: LIME },
-  radioLabel: { color: "#fff", fontSize: 15, fontWeight: "500" },
+  chip: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
+  chipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  chipText: { color: themeColor().muted, fontWeight: "600", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  chipTextActive: { color: themeColor().pitchText },
+  capacityInput: { backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", paddingHorizontal: 16, paddingVertical: 12, textAlign: "center", width: 100 },
+  capacityHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 6 },
+  radioRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, paddingHorizontal: 4, borderRadius: 10 },
+  radioRowActive: { backgroundColor: themeColor().pitchSoft },
+  radio: { width: 18, height: 18, borderRadius: 10, borderWidth: 2, borderColor: themeColor().line },
+  radioActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitch },
+  radioLabel: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_500Medium", fontWeight: "500" },
   toggleRow: { flexDirection: "row", gap: 10 },
-  toggleBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", alignItems: "center" },
-  toggleBtnActive: { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.12)" },
-  toggleBtnText: { color: "rgba(255,255,255,0.5)", fontWeight: "700", fontSize: 15 },
-  toggleBtnTextActive: { color: LIME },
-  payoutCard: { marginTop: 16, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 14, gap: 8 },
+  toggleBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, alignItems: "center" },
+  toggleBtnActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  toggleBtnText: { color: themeColor().muted, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
+  toggleBtnTextActive: { color: themeColor().pitchText },
+  payoutCard: { marginTop: 16, backgroundColor: themeColor().overlaySubtle, borderRadius: 10, padding: 14, gap: 8 },
   payoutRow: { flexDirection: "row", justifyContent: "space-between" },
-  payoutLabel: { color: "rgba(255,255,255,0.5)", fontSize: 13 },
-  payoutValue: { color: "#fff", fontSize: 13, fontWeight: "600" },
-  hint: { color: "rgba(255,255,255,0.35)", fontSize: 12, marginTop: 12, lineHeight: 18 },
-  reviewTitle: { fontSize: 17, fontWeight: "700", color: "#fff", marginBottom: 16 },
-  reviewRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
-  reviewLabel: { color: "rgba(255,255,255,0.45)", fontSize: 14 },
-  reviewValue: { color: "#fff", fontSize: 14, fontWeight: "600", maxWidth: "60%", textAlign: "right" },
-  nextBtn: { backgroundColor: LIME, borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 4 },
-  nextBtnText: { color: "#0a0a0a", fontWeight: "800", fontSize: 16 },
-  publishBtn: { backgroundColor: LIME, borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 24 },
-  publishBtnText: { color: "#0a0a0a", fontWeight: "800", fontSize: 16 },
+  payoutLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
+  payoutValue: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  hint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 12, lineHeight: 18 },
+  reviewTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().text, marginBottom: 16 },
+  reviewRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: themeColor().line },
+  reviewLabel: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
+  reviewValue: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", maxWidth: "60%", textAlign: "right" },
+  nextBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", marginTop: 4 },
+  nextBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  publishBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", marginTop: 24 },
+  publishBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
 });
+}
+let s = make_s();
+function publish_s() {
+  s = make_s();
+}
+

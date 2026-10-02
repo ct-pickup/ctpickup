@@ -40,17 +40,17 @@ export function EsportsTournamentRegisterSection({ tournamentId, buttonClassName
 
   const footnote =
     authed === true && paymentRecorded === true ? null : authed === true ? (
-      <p className="mt-3 text-xs text-white/45">
+      <p className="mt-3 text-caption text-muted">
         You will review and sign legal documents before paying the entry fee.
       </p>
     ) : (
-      <p className="mt-3 text-xs text-white/45">
+      <p className="mt-3 text-caption text-muted">
         Sign in required. You will review and sign legal documents before paying the entry fee.
       </p>
     );
 
   return (
-    <div className="mt-8 border-t border-white/10 pt-8">
+    <div className="mt-8 border-t border-line pt-8">
       <EsportsRegisterCtaButton
         tournamentId={tournamentId}
         className={buttonClassName}

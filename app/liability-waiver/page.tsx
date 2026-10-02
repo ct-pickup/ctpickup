@@ -39,13 +39,13 @@ export default async function LiabilityWaiverPage({ searchParams }: PageProps) {
       <LiabilityWaiverReturnBack returnTo={returnTo} />
 
       <header className="mt-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/55">
+        <p className="text-caption font-semibold text-muted">
           Version {CURRENT_WAIVER_VERSION}
         </p>
-        <h1 className="mt-3 text-3xl font-semibold uppercase tracking-tight text-white md:text-4xl">
+        <h1 className="mt-3 text-h1 font-serif font-semibold text-ink md:text-display">
           Liability Waiver &amp; Participation Agreement
         </h1>
-        <p className="mt-4 text-sm leading-relaxed text-white/65 md:text-base">
+        <p className="mt-4 text-small leading-relaxed text-muted md:text-body">
           By using this platform or participating in any activities connected to it
           — including pickup games, scrimmages, informal matches, tournaments, training,
           guidance, or any other activities related to soccer or association football —
@@ -57,13 +57,13 @@ export default async function LiabilityWaiverPage({ searchParams }: PageProps) {
         <WaiverDocumentBody />
       </Panel>
 
-      <p className="mt-8 text-center text-sm text-white/45">
-        Questions? Visit{" "}
-        <Link href="/help" className="text-white/70 underline-offset-4 hover:underline">
+      <p className="mt-8 text-center text-small text-muted">
+        Questions? Visit{"  "}
+        <Link href="/help" className="text-muted underline-offset-4 hover:underline">
           Help
-        </Link>{" "}
-        or email{" "}
-        <SupportEmailLink className="text-white/70 underline underline-offset-4 hover:text-white/90" />
+        </Link>{"  "}
+        or email{"  "}
+        <SupportEmailLink className="text-muted underline underline-offset-4 hover:text-ink" />
         .
       </p>
     </PageShell>

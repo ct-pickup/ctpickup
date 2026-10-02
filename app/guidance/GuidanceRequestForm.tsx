@@ -20,7 +20,7 @@ type Props = {
 };
 
 const errLinkClass =
-  "font-medium text-amber-200 underline underline-offset-2 hover:text-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f10] rounded-sm";
+  "font-medium text-coral underline underline-offset-2 hover:text-coral focus:outline-none focus-visible:ring-2 focus-visible:ring-line focus-visible:ring-offset-2 focus-visible:ring-offset-canvas rounded-button";
 
 function apiErrorWithMailto(text: string): ReactNode {
   if (!text.includes(SUPPORT_EMAIL_ADDRESS)) return text;
@@ -102,7 +102,7 @@ export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
             apiErrorWithMailto(j.error)
           ) : (
             <>
-              Something went wrong. Try again or email{" "}
+              Something went wrong. Try again or email{"  "}
               <SupportEmailLink className={errLinkClass} />.
             </>
           ),
@@ -123,9 +123,9 @@ export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
 
   if (done) {
     return (
-      <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-5 py-6 text-sm leading-relaxed text-white/90">
-        <p className="font-semibold text-white">Request received.</p>
-        <p className="mt-2 text-white/80">
+      <div className="rounded-card border border-pitch bg-pitch-soft px-5 py-6 text-small leading-relaxed text-pitch">
+        <p className="font-semibold text-ink">Request received.</p>
+        <p className="mt-2 text-ink">
           Your request is saved to our system. We will follow up using the path
           that fits your request. You can send another note anytime if
           something changes.
@@ -133,7 +133,7 @@ export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
         <button
           type="button"
           onClick={() => setDone(false)}
-          className="mt-4 text-sm font-medium text-white/90 underline underline-offset-4 hover:text-white"
+          className="mt-4 text-small font-medium text-ink underline underline-offset-4 hover:text-ink"
         >
           Send another request
         </button>
@@ -158,7 +158,7 @@ export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
       <div className="space-y-2">
         <label
           htmlFor="guidance-plan"
-          className="block text-xs font-semibold uppercase tracking-[0.16em] text-white/50"
+          className="block text-caption font-semibold text-muted"
         >
           Plan
         </label>
@@ -166,7 +166,7 @@ export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
           id="guidance-plan"
           value={plan}
           onChange={(e) => onPlanChange(e.target.value as GuidancePlan)}
-          className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-white/30"
+          className="w-full rounded-card border border-line bg-canvas px-4 py-3 text-small text-ink outline-none focus:border-line"
         >
           {PLAN_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -179,10 +179,10 @@ export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
       <div className="space-y-2">
         <label
           htmlFor="guidance-sport"
-          className="block text-xs font-semibold uppercase tracking-[0.16em] text-white/50"
+          className="block text-caption font-semibold text-muted"
         >
-          Sport or focus{" "}
-          <span className="font-normal normal-case tracking-normal text-white/35">
+          Sport or focus{"  "}
+          <span className="font-normal normal-case text-muted">
             (optional)
           </span>
         </label>
@@ -193,14 +193,14 @@ export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
           onChange={(e) => setSportFocus(e.target.value)}
           maxLength={280}
           placeholder="e.g. soccer, position, school year, goal"
-          className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/30"
+          className="w-full rounded-card border border-line bg-canvas px-4 py-3 text-small text-ink placeholder:text-muted outline-none focus:border-line"
         />
       </div>
 
       <div className="space-y-2">
         <label
           htmlFor="guidance-message"
-          className="block text-xs font-semibold uppercase tracking-[0.16em] text-white/50"
+          className="block text-caption font-semibold text-muted"
         >
           What do you need help with?
         </label>
@@ -211,13 +211,13 @@ export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
           rows={6}
           required
           placeholder="Context, goals, where you feel stuck — whatever helps us understand."
-          className="w-full resize-y rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/30"
+          className="w-full resize-y rounded-card border border-line bg-canvas px-4 py-3 text-small text-ink placeholder:text-muted outline-none focus:border-line"
         />
       </div>
 
       {error ? (
-        <p className="text-sm text-amber-200/90" role="alert">
-          {error}{" "}
+        <p className="text-small text-coral" role="alert">
+          {error}{"  "}
           {typeof error === "string" && error.includes("Sign in") ? (
             <Link href="/login" className="underline underline-offset-2">
               Log in
@@ -229,7 +229,7 @@ export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
       <button
         type="submit"
         disabled={busy || !isReady}
-        className="inline-flex min-h-[44px] w-full items-center justify-center rounded-md border border-white/25 bg-white px-6 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-50 sm:w-auto"
+        className="inline-flex min-h-[44px] w-full items-center justify-center rounded-button border border-line bg-pitch px-6 text-small font-semibold text-on-pitch transition hover:bg-overlay-subtle disabled:opacity-50 sm:w-auto"
       >
         {busy ? "Sending…" : "Request guidance"}
       </button>

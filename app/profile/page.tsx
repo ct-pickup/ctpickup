@@ -65,7 +65,7 @@ function UserGlyph({ className }: { className?: string }) {
       height="48"
       viewBox="0 0 24 24"
       fill="none"
-      className={className ?? "text-white/45"}
+      className={className ?? "text-muted"}
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
     >
@@ -89,11 +89,11 @@ function fieldRow(label: string, value: string | null | undefined) {
   const v = value != null && String(value).trim() ? String(value).trim() : null;
   if (!v) return null;
   return (
-    <div className="border-b border-white/10 py-4 last:border-0">
-      <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">
+    <div className="border-b border-line py-4 last:border-0">
+      <dt className="text-caption font-semibold text-muted">
         {label}
       </dt>
-      <dd className="mt-1 text-sm text-white/90 break-words">{v}</dd>
+      <dd className="mt-1 text-small text-ink break-words">{v}</dd>
     </div>
   );
 }
@@ -478,7 +478,7 @@ export default function ProfilePage() {
         <TopNav
           rightSlot={<AuthenticatedProfileMenu />}
         />
-        <p className="py-12 text-center text-sm text-white/50">Loading profile…</p>
+        <p className="py-12 text-center text-small text-muted">Loading profile…</p>
       </PageShell>
     );
   }
@@ -493,14 +493,14 @@ export default function ProfilePage() {
         rightSlot={<AuthenticatedProfileMenu />}
       />
       <div className="pb-16 pt-4">
-        <h1 className="text-2xl font-semibold uppercase tracking-tight text-white md:text-3xl">
+        <h1 className="text-h2 font-serif font-semibold text-ink md:text-h1">
           Profile
         </h1>
-        <p className="mt-2 text-sm text-white/55">{displayName}</p>
+        <p className="mt-2 text-small text-muted">{displayName}</p>
 
         <Panel className="mt-8 space-y-6 p-6 md:p-8">
-          <div className="flex flex-col items-center gap-4 border-b border-white/10 pb-8">
-            <div className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-white/5">
+          <div className="flex flex-col items-center gap-4 border-b border-line pb-8">
+            <div className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-pill border border-line bg-overlay-subtle">
               {showAvatarImg ? (
                 <img
                   src={avatarSrc!}
@@ -512,7 +512,7 @@ export default function ProfilePage() {
                 <UserGlyph />
               )}
             </div>
-            <label className="cursor-pointer rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white/90 transition hover:bg-white/10">
+            <label className="cursor-pointer rounded-button border border-line bg-overlay-subtle px-4 py-2.5 text-small font-semibold text-ink transition hover:bg-overlay">
               <input
                 type="file"
                 accept="image/*"
@@ -553,35 +553,35 @@ export default function ProfilePage() {
             {fieldRow("Online tournaments", formatEsportsSummary(profile ?? {}))}
             {fieldRow("Phone", profile?.phone)}
             {fieldRow("Instagram", ig)}
-            <div className="border-b border-white/10 py-4 last:border-0">
-              <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">
+            <div className="border-b border-line py-4 last:border-0">
+              <dt className="text-caption font-semibold text-muted">
                 Waiver
               </dt>
-              <dd className="mt-1 text-sm text-white/90 break-words">
+              <dd className="mt-1 text-small text-ink break-words">
                 <Link
                   href="/liability-waiver"
-                  className="font-semibold text-white underline-offset-4 hover:underline"
+                  className="font-semibold text-ink underline-offset-4 hover:underline"
                 >
                   Liability Waiver &amp; Participation Agreement
-                </Link>{" "}
+                </Link>{"  "}
                 ({CURRENT_WAIVER_VERSION})
               </dd>
             </div>
           </dl>
 
-          <div className="space-y-4 border-t border-white/10 pt-8">
+          <div className="space-y-4 border-t border-line pt-8">
             <div>
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/80">
+              <h2 className="text-small font-semibold text-ink">
                 Basics
               </h2>
-              <p className="mt-1 text-xs text-white/45 leading-relaxed">
+              <p className="mt-1 text-caption text-muted leading-relaxed">
                 These are used for identity and roster basics. Update anytime.
               </p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <input
-                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                className="w-full rounded-card border border-line bg-canvas px-4 py-3 text-small text-ink placeholder:text-muted outline-none focus:border-line"
                 value={basicsFirstName}
                 onChange={(e) => setBasicsFirstName(e.target.value)}
                 disabled={basicsBusy}
@@ -589,7 +589,7 @@ export default function ProfilePage() {
                 autoComplete="given-name"
               />
               <input
-                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                className="w-full rounded-card border border-line bg-canvas px-4 py-3 text-small text-ink placeholder:text-muted outline-none focus:border-line"
                 value={basicsLastName}
                 onChange={(e) => setBasicsLastName(e.target.value)}
                 disabled={basicsBusy}
@@ -599,11 +599,11 @@ export default function ProfilePage() {
             </div>
 
             <div className="w-full">
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-white/55">
+              <label className="mb-2 block text-caption font-semibold text-muted">
                 Sex
               </label>
               <select
-                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-white/25"
+                className="w-full rounded-card border border-line bg-canvas px-4 py-3 text-small text-ink outline-none focus:border-line"
                 value={basicsSex}
                 onChange={(e) => setBasicsSex(e.target.value as ProfileGender)}
                 disabled={basicsBusy}
@@ -618,11 +618,11 @@ export default function ProfilePage() {
             </div>
 
             <div className="w-full">
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-white/55">
+              <label className="mb-2 block text-caption font-semibold text-muted">
                 Gender
               </label>
               <select
-                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-white/25"
+                className="w-full rounded-card border border-line bg-canvas px-4 py-3 text-small text-ink outline-none focus:border-line"
                 value={basicsGender}
                 onChange={(e) => setBasicsGender(e.target.value as ProfileGender)}
                 disabled={basicsBusy}
@@ -638,7 +638,7 @@ export default function ProfilePage() {
 
             {basicsGender === "other" ? (
               <input
-                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                className="w-full rounded-card border border-line bg-canvas px-4 py-3 text-small text-ink placeholder:text-muted outline-none focus:border-line"
                 value={basicsGenderOther}
                 onChange={(e) => setBasicsGenderOther(e.target.value)}
                 disabled={basicsBusy}
@@ -648,7 +648,7 @@ export default function ProfilePage() {
             ) : null}
 
             <input
-              className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+              className="w-full rounded-card border border-line bg-canvas px-4 py-3 text-small text-ink placeholder:text-muted outline-none focus:border-line"
               value={basicsPlayingPosition}
               onChange={(e) => setBasicsPlayingPosition(e.target.value)}
               disabled={basicsBusy}
@@ -656,7 +656,7 @@ export default function ProfilePage() {
             />
 
             <input
-              className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+              className="w-full rounded-card border border-line bg-canvas px-4 py-3 text-small text-ink placeholder:text-muted outline-none focus:border-line"
               value={basicsUsername}
               onChange={(e) => setBasicsUsername(e.target.value)}
               disabled={basicsBusy}
@@ -666,7 +666,7 @@ export default function ProfilePage() {
             />
 
             {basicsMsg ? (
-              <p className="text-sm text-amber-200/90 leading-relaxed whitespace-pre-line">
+              <p className="text-small text-coral leading-relaxed whitespace-pre-line">
                 {basicsMsg}
               </p>
             ) : null}
@@ -675,25 +675,25 @@ export default function ProfilePage() {
               type="button"
               onClick={() => void saveBasics()}
               disabled={basicsBusy}
-              className="w-full rounded-lg bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-50 sm:w-auto"
+              className="w-full rounded-button bg-pitch px-4 py-3 text-small font-semibold text-on-pitch transition hover:opacity-90 disabled:opacity-50 sm:w-auto"
             >
               {basicsBusy ? "Saving…" : "Save basics"}
             </button>
           </div>
 
-          <div className="space-y-4 border-t border-white/10 pt-8">
+          <div className="space-y-4 border-t border-line pt-8">
             <div>
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/80">
+              <h2 className="text-small font-semibold text-ink">
                 Pickup &amp; online preferences
               </h2>
-              <p className="mt-1 text-xs text-white/45 leading-relaxed">
+              <p className="mt-1 text-caption text-muted leading-relaxed">
                 Update anytime. Prize tournaments need platform details only if you choose &quot;Yes, interested.&quot; You can
                 always get back here from the profile icon.
               </p>
             </div>
 
             {!hasEsportsSchema ? (
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/95 leading-relaxed whitespace-pre-line">
+              <div className="rounded-card border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral leading-relaxed whitespace-pre-line">
                 {profileSchemaMismatchUserMessage()}
               </div>
             ) : (
@@ -716,32 +716,32 @@ export default function ProfilePage() {
             )}
 
             {prefsMsg ? (
-              <p className="text-sm text-amber-200/90 leading-relaxed whitespace-pre-line">{prefsMsg}</p>
+              <p className="text-small text-coral leading-relaxed whitespace-pre-line">{prefsMsg}</p>
             ) : null}
 
             <button
               type="button"
               onClick={() => void savePreferences()}
               disabled={prefsBusy || !hasEsportsSchema}
-              className="w-full rounded-lg bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-50 sm:w-auto"
+              className="w-full rounded-button bg-pitch px-4 py-3 text-small font-semibold text-on-pitch transition hover:opacity-90 disabled:opacity-50 sm:w-auto"
             >
               {prefsBusy ? "Saving…" : "Save preferences"}
             </button>
           </div>
 
-          <div className="space-y-4 border-t border-white/10 pt-8">
+          <div className="space-y-4 border-t border-line pt-8">
             <div>
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/80">
+              <h2 className="text-small font-semibold text-ink">
                 Contact
               </h2>
-              <p className="mt-1 text-xs text-white/45 leading-relaxed">
+              <p className="mt-1 text-caption text-muted leading-relaxed">
                 Used for contacting you about pickup sessions and tournaments.
               </p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <input
-                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                className="w-full rounded-card border border-line bg-canvas px-4 py-3 text-small text-ink placeholder:text-muted outline-none focus:border-line"
                 value={basicsPhone}
                 onChange={(e) => setBasicsPhone(e.target.value)}
                 disabled={contactBusy}
@@ -750,7 +750,7 @@ export default function ProfilePage() {
                 autoComplete="tel"
               />
               <input
-                className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+                className="w-full rounded-card border border-line bg-canvas px-4 py-3 text-small text-ink placeholder:text-muted outline-none focus:border-line"
                 value={basicsInstagram}
                 onChange={(e) => setBasicsInstagram(e.target.value)}
                 disabled={contactBusy}
@@ -760,7 +760,7 @@ export default function ProfilePage() {
             </div>
 
             {contactMsg ? (
-              <p className="text-sm text-amber-200/90 leading-relaxed whitespace-pre-line">
+              <p className="text-small text-coral leading-relaxed whitespace-pre-line">
                 {contactMsg}
               </p>
             ) : null}
@@ -769,27 +769,27 @@ export default function ProfilePage() {
               type="button"
               onClick={() => void saveContact()}
               disabled={contactBusy}
-              className="w-full rounded-lg bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-50 sm:w-auto"
+              className="w-full rounded-button bg-pitch px-4 py-3 text-small font-semibold text-on-pitch transition hover:opacity-90 disabled:opacity-50 sm:w-auto"
             >
               {contactBusy ? "Saving…" : "Save contact"}
             </button>
           </div>
 
           {msg ? (
-            <p className="text-sm text-amber-200/90 leading-relaxed whitespace-pre-line">{msg}</p>
+            <p className="text-small text-coral leading-relaxed whitespace-pre-line">{msg}</p>
           ) : null}
 
-          <div className="flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:flex-wrap">
+          <div className="flex flex-col gap-3 border-t border-line pt-6 sm:flex-row sm:flex-wrap">
             <Link
               href={APP_HOME_URL}
-              className="rounded-lg border border-white/15 bg-white/5 px-4 py-3 text-center text-sm font-medium text-white/90 transition hover:bg-white/10"
+              className="rounded-button border border-line bg-overlay-subtle px-4 py-3 text-center text-small font-medium text-ink transition hover:bg-overlay"
             >
               Home
             </Link>
             <button
               type="button"
               onClick={signOut}
-              className="rounded-lg border border-white/15 px-4 py-3 text-sm font-medium text-white/80 transition hover:bg-white/10"
+              className="rounded-button border border-line px-4 py-3 text-small font-medium text-ink transition hover:bg-overlay"
             >
               Log out
             </button>

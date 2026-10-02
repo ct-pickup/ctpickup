@@ -11,9 +11,10 @@ import { useEffect, useLayoutEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const LIME = "#a3e635";
-
+import { themeColor, useThemedStyles } from "@/theme";
 export default function RegionDetailScreen() {
+  useThemedStyles(publish_styles);
+
   const { code: raw } = useLocalSearchParams<{ code: string }>();
   const code = typeof raw === "string" ? raw.toUpperCase() : "";
   const router = useRouter();
@@ -31,8 +32,8 @@ export default function RegionDetailScreen() {
     if (!valid) return;
     navigation.setOptions({
       title: name,
-      headerStyle: { backgroundColor: "#0a0a0a" },
-      headerTintColor: "#fff",
+      headerStyle: { backgroundColor: themeColor().bg },
+      headerTintColor: themeColor().text,
       headerShadowVisible: false,
       headerBackTitle: "States",
     });
@@ -63,62 +64,63 @@ export default function RegionDetailScreen() {
         </View>
 
         <Pressable style={styles.primary} onPress={() => router.replace("/(tabs)/runs")}>
-          <FontAwesome name="futbol-o" size={18} color="#0a0a0a" />
+          <FontAwesome name="futbol-o" size={18} color={themeColor().onPitch} />
           <Text style={styles.primaryText}> Open Runs</Text>
         </Pressable>
 
         <Pressable style={styles.secondary} onPress={() => router.replace("/(tabs)/runs")}>
           <Text style={styles.secondaryText}>All states</Text>
-          <FontAwesome name="map" size={14} color={LIME} style={{ marginLeft: 8 }} />
+          <FontAwesome name="map" size={14} color={themeColor().pitchText} style={{ marginLeft: 8 }} />
         </Pressable>
       </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#0a0a0a", paddingHorizontal: 20 },
+function make_styles() {
+  return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: themeColor().bg, paddingHorizontal: 20 },
   hero: { alignItems: "center", paddingTop: 12, paddingBottom: 8 },
   heroBadge: {
     width: 88,
     height: 88,
-    borderRadius: 24,
-    backgroundColor: "rgba(163,230,53,0.1)",
+    borderRadius: 999,
+    backgroundColor: themeColor().pitchSoft,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
+    borderColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
   },
-  heroCode: { fontSize: 36, fontWeight: "900", color: LIME, letterSpacing: 2 },
-  heroTitle: { marginTop: 20, fontSize: 26, fontWeight: "800", color: "#fff", textAlign: "center" },
+  heroCode: { fontSize: 40, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().pitchText,},
+  heroTitle: { marginTop: 20, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text, textAlign: "center" },
   heroSub: {
     marginTop: 12,
-    fontSize: 16,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 24,
-    color: "rgba(255,255,255,0.55)",
+    color: themeColor().muted,
     textAlign: "center",
     maxWidth: 340,
   },
   panel: {
     marginTop: 28,
     padding: 18,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  panelTitle: { fontSize: 13, fontWeight: "800", letterSpacing: 1, color: "rgba(255,255,255,0.45)" },
-  panelBody: { marginTop: 10, fontSize: 15, lineHeight: 23, color: "rgba(255,255,255,0.72)" },
-  bold: { fontWeight: "700", color: "#fff" },
+  panelTitle: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted },
+  panelBody: { marginTop: 10, fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 23, color: themeColor().muted },
+  bold: { fontWeight: "700", color: themeColor().text },
   primary: {
     marginTop: 24,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 16,
-    borderRadius: 14,
-    backgroundColor: LIME,
+    borderRadius: 12,
+    backgroundColor: themeColor().pitch,
   },
-  primaryText: { color: "#0a0a0a", fontWeight: "800", fontSize: 17 },
+  primaryText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   secondary: {
     marginTop: 14,
     flexDirection: "row",
@@ -126,5 +128,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 14,
   },
-  secondaryText: { color: LIME, fontWeight: "700", fontSize: 16 },
+  secondaryText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

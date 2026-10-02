@@ -51,7 +51,7 @@ function assistantTextWithHttpsLinks(text: string): ReactNode {
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="font-medium text-sky-300 underline underline-offset-2 hover:text-sky-200"
+          className="font-medium text-muted underline underline-offset-2 hover:text-muted"
         >
           {href}
         </a>
@@ -176,8 +176,8 @@ export default function HelpPage() {
             role: "assistant",
             text: (
               <>
-                Invalid response from help service. Please try again, or email{" "}
-                <SupportEmailLink className="font-medium text-sky-300 underline underline-offset-2 hover:text-sky-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50 rounded-sm" />
+                Invalid response from help service. Please try again, or email{"  "}
+                <SupportEmailLink className="font-medium text-muted underline underline-offset-2 hover:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-line rounded-button" />
                 .
               </>
             ),
@@ -190,9 +190,9 @@ export default function HelpPage() {
         ? String(j?.text || "I couldn’t generate a reply.")
         : (
             <>
-              {String(j?.error || "Something went wrong.")}{" "}
-              You can also email{" "}
-              <SupportEmailLink className="font-medium text-sky-300 underline underline-offset-2 hover:text-sky-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50 rounded-sm" />
+              {String(j?.error || "Something went wrong.")}{"  "}
+              You can also email{"  "}
+              <SupportEmailLink className="font-medium text-muted underline underline-offset-2 hover:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-line rounded-button" />
               .
             </>
           );
@@ -215,8 +215,8 @@ export default function HelpPage() {
           role: "assistant",
           text: (
             <>
-              Something went wrong connecting to help. You can email{" "}
-              <SupportEmailLink className="font-medium text-sky-300 underline underline-offset-2 hover:text-sky-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50 rounded-sm" />{" "}
+              Something went wrong connecting to help. You can email{"  "}
+              <SupportEmailLink className="font-medium text-muted underline underline-offset-2 hover:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-line rounded-button" />{"  "}
               for assistance.
             </>
           ),
@@ -245,7 +245,7 @@ export default function HelpPage() {
 
       <div className="mx-auto max-w-4xl space-y-8 pb-16 pt-4">
         <div className="space-y-2">
-          <div className="min-h-[64px] text-4xl md:text-5xl font-semibold tracking-tight text-white leading-none">
+          <div className="min-h-[64px] text-display font-serif md:text-display font-semibold text-ink leading-none">
             {typedIntro}
             {typedIntro.length < fullIntro.length ? (
               <span className="animate-pulse">|</span>
@@ -253,9 +253,9 @@ export default function HelpPage() {
           </div>
         </div>
 
-        <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm leading-relaxed text-white/80 md:px-5">
-          Need help from a person? Email{" "}
-          <SupportEmailLink className="font-medium text-sky-300 underline underline-offset-2 hover:text-sky-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f10] rounded-sm" />
+        <p className="rounded-card border border-line bg-overlay-subtle px-4 py-3 text-small leading-relaxed text-ink md:px-5">
+          Need help from a person? Email{"  "}
+          <SupportEmailLink className="font-medium text-muted underline underline-offset-2 hover:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-line focus-visible:ring-offset-2 focus-visible:ring-offset-canvas rounded-button" />
           .
         </p>
 
@@ -270,11 +270,11 @@ export default function HelpPage() {
                 <div
                   key={i}
                   className={[
-                    "max-w-[90%] rounded-2xl px-4 py-3 text-sm whitespace-pre-line",
+                    "max-w-[90%] rounded-card px-4 py-3 text-small whitespace-pre-line",
                     m.role === "user"
-                      ? "ml-auto bg-white text-black"
-                      : "bg-black/40 text-white border border-white/10",
-                  ].join(" ")}
+                      ? "ml-auto bg-pitch text-on-pitch"
+                      : "bg-overlay-subtle text-ink border border-line",
+                  ].join("  ")}
                 >
                   {m.role === "assistant" ? (
                     typeof m.text === "string" ? (
@@ -286,13 +286,13 @@ export default function HelpPage() {
                     m.text
                   )}
                   {safeActions.length ? (
-                    <div className="mt-3 flex flex-wrap gap-2 border-t border-white/10 pt-3">
+                    <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
                       {safeActions.map((a) => (
                         <Link
                           key={`${a.href}-${a.label}`}
                           href={a.href}
                           title={a.reason}
-                          className="inline-flex items-center rounded-full border border-white/20 bg-white/[0.08] px-3 py-1.5 text-xs font-semibold text-white/90 transition hover:border-white/30 hover:bg-white/[0.12]"
+                          className="inline-flex items-center rounded-pill border border-line bg-overlay px-3 py-1.5 text-caption font-semibold text-ink transition hover:border-line hover:bg-overlay-strong"
                         >
                           {a.label}
                         </Link>
@@ -304,7 +304,7 @@ export default function HelpPage() {
             })}
 
             {busy ? (
-              <div className="max-w-[90%] rounded-2xl px-4 py-3 text-sm bg-black/40 text-white border border-white/10">
+              <div className="max-w-[90%] rounded-card px-4 py-3 text-small bg-overlay-subtle text-ink border border-line">
                 Thinking...
               </div>
             ) : null}
@@ -315,11 +315,11 @@ export default function HelpPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask something here..."
-              className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-white/25"
+              className="w-full rounded-card border border-line bg-canvas px-4 py-3 text-small text-ink placeholder:text-muted outline-none focus:border-line"
               rows={4}
             />
 
-            <div className="text-xs text-white/45">
+            <div className="text-caption text-muted">
               Words remaining: {wordsRemaining}
             </div>
 
@@ -328,7 +328,7 @@ export default function HelpPage() {
                 type="button"
                 onClick={send}
                 disabled={!canSend}
-                className="rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-black disabled:opacity-50"
+                className="rounded-button bg-pitch px-5 py-2.5 text-small font-semibold text-on-pitch disabled:opacity-50"
               >
                 Ask
               </button>
@@ -336,14 +336,14 @@ export default function HelpPage() {
               <button
                 type="button"
                 onClick={pickRandomExample}
-                className="rounded-md border border-white/15 bg-black px-5 py-2.5 text-sm font-semibold text-white/85 hover:bg-white/[0.04]"
+                className="rounded-button border border-line bg-canvas px-5 py-2.5 text-small font-semibold text-ink hover:bg-overlay-subtle"
               >
                 Example questions
               </button>
             </div>
 
             {wordsRemaining <= 0 ? (
-              <div className="text-sm text-white/60">
+              <div className="text-small text-muted">
                 You’ve reached the current word limit.
               </div>
             ) : null}

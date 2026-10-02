@@ -1,19 +1,15 @@
 @import "tailwindcss";
+@import "./theme.css";
 
 /* ===== ROOT DESIGN SYSTEM ===== */
 :root {
-  --bg: #0f0f10;
-  --surface: #1a1a1b;
-  --surface-2: #222224;
-
-  --text: #f5f5f5;
-  --muted: #a1a1aa;
-
-  --border: rgba(255,255,255,0.08);
-
-  --brand: #22c55e;
-
-  --radius: 16px;
+  --bg: var(--canvas);
+  --surface: var(--card);
+  --surface-2: var(--overlay);
+  --text: var(--ink);
+  --border: var(--line);
+  --brand: var(--pitch);
+  --radius: 12px;
   --container: 720px;
 }
 
@@ -26,7 +22,7 @@ html, body {
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-sora), ui-sans-serif, system-ui;
+  font-family: var(--font-sans), ui-sans-serif, system-ui;
 }
 
 /* ===== HERO PHOTO STRIP (after-login hub — global name so Tailwind arbitrary keyframes aren’t required) ===== */
@@ -179,8 +175,9 @@ body {
 
 /* ===== TEXT ===== */
 .ct-title {
+  font-family: var(--font-serif), Georgia, serif;
   font-size: 32px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .ct-sub {
@@ -190,17 +187,18 @@ body {
 
 /* ===== BUTTON ===== */
 .ct-btn {
-  border-radius: 12px;
-  padding: 12px 14px;
+  border-radius: 10px;
+  padding: 12px 16px;
   font-weight: 600;
   border: 1px solid var(--border);
-  background: var(--surface-2);
+  background: var(--card);
   color: var(--text);
 }
 
 .ct-btn-primary {
-  background: var(--brand);
-  color: black;
+  background: var(--pitch);
+  color: var(--on-pitch);
+  border-color: var(--pitch);
 }
 
 /* ===== INPUT (legacy + dark field shell) ===== */
@@ -208,44 +206,34 @@ body {
   box-sizing: border-box;
   width: 100%;
   min-height: 56px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
   padding: 16px;
-  color: #ffffff;
+  color: var(--ink);
   font-weight: 500;
-  caret-color: rgba(255, 255, 255, 0.7);
+  caret-color: var(--pitch-text);
   outline: none;
-  transition:
-    caret-color 200ms ease,
-    color 200ms ease,
-    background-color 200ms ease,
-    border-color 200ms ease,
-    box-shadow 200ms ease;
 }
 
 .ct-input::placeholder {
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--muted);
 }
 
 .ct-input:focus {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.2);
-  caret-color: #ffffff;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.05);
+  background: var(--card);
+  border-color: var(--pitch);
+  caret-color: var(--pitch-text);
 }
 
-/* WebKit autofill: keep dark field look (use with .ct-input-field from components/ui/input) */
 .ct-input-field:-webkit-autofill,
 .ct-input-field:-webkit-autofill:hover,
 .ct-input-field:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.06) inset;
-  -webkit-text-fill-color: #ffffff;
-  caret-color: rgba(255, 255, 255, 0.7);
+  -webkit-text-fill-color: var(--ink);
+  caret-color: var(--pitch-text);
   transition: background-color 999999s ease-out 0s;
 }
 
 .ct-input-field:focus:-webkit-autofill {
-  caret-color: #ffffff;
-  -webkit-box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.06) inset;
+  caret-color: var(--pitch-text);
 }

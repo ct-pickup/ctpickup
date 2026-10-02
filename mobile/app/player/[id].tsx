@@ -7,6 +7,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Stack, useLocalSearchParams, useNavigation, useRouter, type Href } from "expo-router";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { useEffect, useLayoutEffect, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -18,9 +19,6 @@ import {
   Text,
   View,
 } from "react-native";
-
-const LIME = "#a3e635";
-const BG = "#0a0a0a";
 
 type HostRatingAgg = {
   avg_overall: number | null;
@@ -43,17 +41,19 @@ function fmtAvg(avg: number | null): string {
   return avg.toFixed(1);
 }
 
-const TIER_COLORS: Record<string, string> = {
-  bronze: "#B87333",
-  silver: "#A8B0B5",
-  gold: "#E3B23C",
-  platinum: "#E8E8E8",
-  diamond: "#9B59B6",
+function TIER_COLORS(): Record<string, string> {
+  return {
+  bronze: themeColor().muted,
+  silver: themeColor().muted,
+  gold: themeColor().muted,
+  platinum: themeColor().muted,
+  diamond: themeColor().muted,
 };
+}
 
 function tierColor(tier: string | null | undefined): string {
-  if (!tier) return "rgba(255,255,255,0.18)"; // neutral grey until tier is known
-  return TIER_COLORS[tier] ?? LIME;
+  if (!tier) return themeColor().overlayStrong; // neutral grey until tier is known
+  return TIER_COLORS()[tier] ?? themeColor().pitch;
 }
 
 const PROFILE_REPORT_REASONS = [
@@ -104,6 +104,8 @@ async function fetchConfirmedRsvpRunIds(supabase: SupabaseClient, uid: string): 
 }
 
 export default function PlayerProfileScreen() {
+  useThemedStyles(publish_styles);
+
   const { id: raw } = useLocalSearchParams<{ id: string | string[] }>();
   const userId = typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : "";
   const navigation = useNavigation();
@@ -588,8 +590,8 @@ export default function PlayerProfileScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       title: nameForTitle,
-      headerStyle: { backgroundColor: BG },
-      headerTintColor: "#fff",
+      headerStyle: { backgroundColor: themeColor().bg },
+      headerTintColor: themeColor().text,
       headerShadowVisible: false,
     });
   }, [navigation, nameForTitle]);
@@ -597,7 +599,7 @@ export default function PlayerProfileScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={LIME} />
+        <ActivityIndicator size="large" color={themeColor().pitchText} />
       </View>
     );
   }
@@ -634,8 +636,8 @@ export default function PlayerProfileScreen() {
         options={{
           headerBackTitle: "",
           title: nameForTitle,
-          headerStyle: { backgroundColor: BG },
-          headerTintColor: "#fff",
+          headerStyle: { backgroundColor: themeColor().bg },
+          headerTintColor: themeColor().text,
           headerShadowVisible: false,
           headerRight: isOwnProfile
             ? () => (
@@ -646,7 +648,7 @@ export default function PlayerProfileScreen() {
                   hitSlop={10}
                   style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1, paddingHorizontal: 12 })}
                 >
-                  <FontAwesome name="cog" size={20} color="#fff" />
+                  <FontAwesome name="cog" size={20} color={themeColor().text} />
                 </Pressable>
               )
             : undefined,
@@ -748,13 +750,13 @@ export default function PlayerProfileScreen() {
 
       {/* Soccer Background */}
       {(profile.primary_position || profile.experience_level || profile.club_name || profile.age || profile.tier) && (
-        <View style={{ marginHorizontal: 16, marginBottom: 16, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+        <View style={{ marginHorizontal: 16, marginBottom: 16, backgroundColor: themeColor().overlaySubtle, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, overflow: "hidden" }}>
           {profile.tier && (
-            <View style={{ backgroundColor: `${tierColor(profile.tier)}18`, paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" }}>
-              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: "700", letterSpacing: 1.2, textTransform: "uppercase" }}>CT Pickup Tier</Text>
+            <View style={{ backgroundColor: `${tierColor(profile.tier)}18`, paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: themeColor().line }}>
+              <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", }}>CT Pickup Tier</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tierColor(profile.tier) }} />
-                <Text style={{ color: tierColor(profile.tier), fontWeight: "800", fontSize: 14 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 10, backgroundColor: tierColor(profile.tier) }} />
+                <Text style={{ color: tierColor(profile.tier), fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" }}>
                   {profile.tier.charAt(0).toUpperCase() + profile.tier.slice(1)}
                 </Text>
 
@@ -805,32 +807,30 @@ export default function PlayerProfileScreen() {
           style={{
             marginHorizontal: 16,
             marginBottom: 16,
-            backgroundColor: "rgba(255,255,255,0.04)",
-            borderRadius: 16,
+            backgroundColor: themeColor().overlaySubtle,
+            borderRadius: 12,
             borderWidth: 1,
-            borderColor: "rgba(255,255,255,0.08)",
+            borderColor: themeColor().line,
             padding: 16,
           }}
         >
           <Text
             style={{
-              color: "rgba(255,255,255,0.5)",
-              fontSize: 11,
+              color: themeColor().muted,
+              fontSize: 13, fontFamily: "Inter_700Bold",
               fontWeight: "700",
-              letterSpacing: 1.2,
-              textTransform: "uppercase",
               marginBottom: 12,
             }}
           >
             Host Rating
           </Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 }}>
-            <Text style={{ color: "#fff", fontSize: 36, fontWeight: "800" }}>
+            <Text style={{ color: themeColor().text, fontSize: 40, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" }}>
               {fmtAvg(hostRating.avg_overall)}
             </Text>
-            <FontAwesome name="star" size={22} color={LIME} />
+            <FontAwesome name="star" size={22} color={themeColor().pitchText} />
           </View>
-          <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, marginBottom: 14 }}>
+          <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 14 }}>
             {hostRating.sessions_hosted} session{hostRating.sessions_hosted === 1 ? "" : "s"} hosted
           </Text>
           {(
@@ -850,13 +850,13 @@ export default function PlayerProfileScreen() {
                 paddingVertical: 5,
               }}
             >
-              <Text style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, width: 110 }}>
+              <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", width: 110 }}>
                 {row.label}
               </Text>
-              <Text style={{ color: LIME, fontSize: 13, letterSpacing: 1, flex: 1 }}>
+              <Text style={{ color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 }}>
                 {ratingDots(row.avg)}
               </Text>
-              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700", width: 36, textAlign: "right" }}>
+              <Text style={{ color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", width: 36, textAlign: "right" }}>
                 {fmtAvg(row.avg)}
               </Text>
             </View>
@@ -880,7 +880,7 @@ export default function PlayerProfileScreen() {
             onPress={() => void Linking.openURL(`https://instagram.com/${encodeURIComponent(ig)}`)}
             style={styles.linkRow}
           >
-            <FontAwesome name="instagram" size={18} color={LIME} />
+            <FontAwesome name="instagram" size={18} color={themeColor().pitchText} />
             <Text style={styles.linkText}>@{ig}</Text>
           </Pressable>
         ) : (
@@ -1081,17 +1081,18 @@ const CIRCLE_OFFSET = (AVATAR_SIZE - CIRCLE_SIZE) / 2; // 3
 const DIAMOND_CIRCLE_SIZE = 80;
 const DIAMOND_OFFSET = (AVATAR_SIZE - DIAMOND_CIRCLE_SIZE) / 2; // 8
 
-const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: BG },
+function make_styles() {
+  return StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 20, paddingBottom: 40 },
   center: {
     flex: 1,
-    backgroundColor: BG,
+    backgroundColor: themeColor().bg,
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
   },
-  errText: { color: "#fca5a5", fontSize: 15, textAlign: "center" },
+  errText: { color: themeColor().coral, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center" },
   hero: { alignItems: "center", marginBottom: 28 },
 
   /* Avatar — same container size for all tiers */
@@ -1134,42 +1135,40 @@ const styles = StyleSheet.create({
     right: 0,
     width: 26,
     height: 26,
-    borderRadius: 13,
-    backgroundColor: "#3B82F6",
+    borderRadius: 12,
+    backgroundColor: themeColor().card,
     borderWidth: 2,
-    borderColor: BG,
+    borderColor: themeColor().bg,
     alignItems: "center",
     justifyContent: "center",
   },
-  checkBadgeText: { color: "#fff", fontSize: 13, fontWeight: "900" },
-  avatarInitialsText: { fontSize: 28, fontWeight: "800" },
+  checkBadgeText: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "900" },
+  avatarInitialsText: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
 
   /* Legacy — kept to avoid removing referenced styles elsewhere */
-  avatarImg: { width: 96, height: 96, borderRadius: 48, marginBottom: 14 },
+  avatarImg: { width: 96, height: 96, borderRadius: 999, marginBottom: 14 },
   avatarPh: {
     width: 96,
     height: 96,
-    borderRadius: 48,
-    backgroundColor: "rgba(163,230,53,0.2)",
+    borderRadius: 999,
+    backgroundColor: themeColor().pitchSoft,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 14,
   },
-  avatarPhText: { fontSize: 32, fontWeight: "800", color: LIME },
+  avatarPhText: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().pitch },
   heroLabel: {
     marginTop: 4,
-    fontSize: 11,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    color: "rgba(255,255,255,0.45)",
+    color: themeColor().muted,
     marginBottom: 6,
   },
-  displayName: { fontSize: 22, fontWeight: "700", color: "#fff", textAlign: "center" },
+  displayName: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text, textAlign: "center" },
   followCountsMuted: {
     marginTop: 8,
-    fontSize: 13,
-    color: "rgba(255,255,255,0.45)",
+    fontSize: 13, fontFamily: "Inter_400Regular",
+    color: themeColor().muted,
     textAlign: "center",
   },
   followBtn: {
@@ -1178,9 +1177,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 28,
     borderRadius: 10,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
   },
-  followBtnText: { fontSize: 15, fontWeight: "800", color: "#0a0a0a" },
+  followBtnText: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().onPitch },
   followBtnFollowing: {
     marginTop: 14,
     alignSelf: "center",
@@ -1188,63 +1187,67 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.35)",
+    borderColor: themeColor().line,
     backgroundColor: "transparent",
   },
-  followBtnFollowingText: { fontSize: 15, fontWeight: "700", color: "rgba(255,255,255,0.85)" },
+  followBtnFollowingText: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().text },
   block: {
     marginBottom: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.08)",
+    borderBottomColor: themeColor().line,
   },
   label: {
-    fontSize: 11,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    color: "rgba(255,255,255,0.45)",
+    color: themeColor().muted,
     marginBottom: 6,
   },
-  value: { fontSize: 16, color: "rgba(255,255,255,0.92)" },
-  valueMuted: { fontSize: 16, color: "rgba(255,255,255,0.55)", fontWeight: "700" },
-  valueLine: { fontSize: 15, color: "rgba(255,255,255,0.9)", fontWeight: "700", marginTop: 8 },
+  value: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().text },
+  valueMuted: { fontSize: 16, fontFamily: "Inter_700Bold", color: themeColor().muted, fontWeight: "700" },
+  valueLine: { fontSize: 16, fontFamily: "Inter_700Bold", color: themeColor().text, fontWeight: "700", marginTop: 8 },
   streakHotLime: {
     marginTop: 10,
-    fontSize: 17,
+    fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    color: LIME,
+    color: themeColor().pitchText,
   },
   streakHotWhite: {
     marginTop: 10,
-    fontSize: 15,
+    fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    color: "#fff",
+    color: themeColor().text,
   },
   streakBest: {
     marginTop: 6,
-    fontSize: 12,
-    color: "rgba(255,255,255,0.4)",
+    fontSize: 13, fontFamily: "Inter_600SemiBold",
+    color: themeColor().muted,
     fontWeight: "600",
   },
-  valueK: { color: "rgba(255,255,255,0.45)", fontWeight: "900" },
+  valueK: { color: themeColor().muted, fontWeight: "900" },
   linkRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  linkText: { fontSize: 16, color: LIME },
+  linkText: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().pitchText },
   h2hHairline: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: themeColor().overlay,
     marginVertical: 10,
   },
-  h2hYouWon: { color: LIME },
-  h2hYouWonK: { color: LIME },
-  h2hTheyWon: { color: "rgba(255,255,255,0.55)" },
-  h2hNeverFaced: { color: "rgba(255,255,255,0.55)", marginTop: 8 },
-  note: { marginTop: 8, fontSize: 13, color: "rgba(255,255,255,0.35)", lineHeight: 18 },
+  h2hYouWon: { color: themeColor().pitchText },
+  h2hYouWonK: { color: themeColor().pitchText },
+  h2hTheyWon: { color: themeColor().muted },
+  h2hNeverFaced: { color: themeColor().muted, marginTop: 8 },
+  note: { marginTop: 8, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 18 },
   reportLink: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.38)",
+    fontSize: 13, fontFamily: "Inter_500Medium",
+    color: themeColor().muted,
     fontWeight: "500",
     textAlign: "center",
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+
 

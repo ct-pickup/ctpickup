@@ -10,7 +10,7 @@ export function Panel({
   return (
     <div
       id={id}
-      className={`rounded-2xl border border-white/15 bg-white/5 p-5 md:p-6 ${className}`}
+      className={`rounded-card border border-line bg-overlay-subtle p-5 md:p-6${className}`}
     >
       {children}
     </div>

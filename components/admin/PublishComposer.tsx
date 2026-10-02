@@ -158,43 +158,43 @@ export function PublishComposer({
   };
 
   if (!isReady) {
-    return <p className="text-sm text-white/55">Loading session…</p>;
+    return <p className="text-small text-muted">Loading session…</p>;
   }
 
   return (
     <div className="space-y-8">
       <div className="space-y-3">
         <label className="block">
-          <span className="text-xs font-semibold uppercase tracking-wider text-white/45">Message</span>
+          <span className="text-caption font-semibold text-muted">Message</span>
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={6}
-            className="mt-2 w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none"
+            className="mt-2 w-full rounded-card border border-line bg-canvas px-4 py-3 text-small text-ink outline-none"
             placeholder="One message — choose where it should land."
           />
         </label>
       </div>
 
       <div className="space-y-4">
-        <div className="text-xs font-semibold uppercase tracking-wider text-white/45">Targets</div>
+        <div className="text-caption font-semibold text-muted">Targets</div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+          <label className="flex cursor-pointer items-start gap-3 rounded-card border border-line bg-overlay-subtle p-4">
             <input type="checkbox" checked={siteStatus} onChange={(e) => setSiteStatus(e.target.checked)} />
             <div>
-              <div className="text-sm font-medium text-white">Site-wide status card</div>
-              <p className="mt-1 text-xs text-white/50">Main announcement for help chat and staff — not the pickup post feed.</p>
+              <div className="text-small font-medium text-ink">Site-wide status card</div>
+              <p className="mt-1 text-caption text-muted">Main announcement for help chat and staff — not the pickup post feed.</p>
             </div>
           </label>
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+          <label className="flex cursor-pointer items-start gap-3 rounded-card border border-line bg-overlay-subtle p-4">
             <input type="checkbox" checked={pickupGlobal} onChange={(e) => setPickupGlobal(e.target.checked)} />
             <div>
-              <div className="text-sm font-medium text-white">Pickup · all players</div>
-              <p className="mt-1 text-xs text-white/50">One post everyone following pickup sees.</p>
+              <div className="text-small font-medium text-ink">Pickup · all players</div>
+              <p className="mt-1 text-caption text-muted">One post everyone following pickup sees.</p>
             </div>
           </label>
           <label
-            className={`flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4 ${!hasActiveTournament ? "opacity-45" : ""}`}
+            className={`flex cursor-pointer items-start gap-3 rounded-card border border-line bg-overlay-subtle p-4${!hasActiveTournament ? "opacity-45" : ""}`}
           >
             <input
               type="checkbox"
@@ -203,8 +203,8 @@ export function PublishComposer({
               onChange={(e) => setTournamentActive(e.target.checked)}
             />
             <div>
-              <div className="text-sm font-medium text-white">Live tournament</div>
-              <p className="mt-1 text-xs text-white/50">
+              <div className="text-small font-medium text-ink">Live tournament</div>
+              <p className="mt-1 text-caption text-muted">
                 {hasActiveTournament
                   ? "Announcement on the tournament players see publicly."
                   : "No tournament is live — make one live in Tournaments first."}
@@ -213,16 +213,16 @@ export function PublishComposer({
           </label>
         </div>
 
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <div className="text-sm font-medium text-white">Pickup runs (per-run posts)</div>
-          <p className="mt-1 text-xs text-white/50">Adds a separate post for each run you check.</p>
-          <ul className="mt-3 max-h-48 space-y-2 overflow-y-auto text-sm">
+        <div className="rounded-card border border-line bg-overlay-subtle p-4">
+          <div className="text-small font-medium text-ink">Pickup runs (per-run posts)</div>
+          <p className="mt-1 text-caption text-muted">Adds a separate post for each run you check.</p>
+          <ul className="mt-3 max-h-48 space-y-2 overflow-y-auto text-small">
             {runs.length === 0 ? (
-              <li className="text-white/45">No runs.</li>
+              <li className="text-muted">No runs.</li>
             ) : (
               runs.map((r) => (
                 <li key={r.id}>
-                  <label className="flex cursor-pointer items-center gap-2 text-white/80">
+                  <label className="flex cursor-pointer items-center gap-2 text-ink">
                     <input type="checkbox" checked={selectedRuns.has(r.id)} onChange={() => toggleRun(r.id)} />
                     <span>{r.title || "Untitled"}</span>
                     {r.is_current ? <StatusChip tone="published">Hub</StatusChip> : null}
@@ -239,7 +239,7 @@ export function PublishComposer({
           type="button"
           disabled={busy}
           onClick={() => void preview()}
-          className="rounded-lg border border-white/20 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+          className="rounded-button border border-line px-5 py-2.5 text-small font-semibold text-ink hover:bg-overlay disabled:opacity-50"
         >
           Preview destinations
         </button>
@@ -247,21 +247,21 @@ export function PublishComposer({
           type="button"
           disabled={busy}
           onClick={() => void publish()}
-          className="rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-black hover:opacity-90 disabled:opacity-50"
+          className="rounded-button bg-pitch px-5 py-2.5 text-small font-semibold text-on-pitch hover:opacity-90 disabled:opacity-50"
         >
           Publish once
         </button>
       </div>
 
-      {note ? <p className="text-sm text-white/70">{note}</p> : null}
+      {note ? <p className="text-small text-muted">{note}</p> : null}
 
       {previews?.length ? (
         <div className="space-y-4">
-          <div className="text-xs font-semibold uppercase tracking-wider text-white/45">Preview</div>
+          <div className="text-caption font-semibold text-muted">Preview</div>
           {previews.map((p) => (
-            <div key={p.key} className="rounded-xl border border-white/10 bg-black/40 p-4">
-              <div className="text-sm font-semibold text-white">{p.title}</div>
-              <pre className="mt-2 whitespace-pre-wrap text-xs text-white/65 font-sans">{p.body}</pre>
+            <div key={p.key} className="rounded-card border border-line bg-overlay-subtle p-4">
+              <div className="text-small font-semibold text-ink">{p.title}</div>
+              <pre className="mt-2 whitespace-pre-wrap text-caption text-muted font-sans">{p.body}</pre>
             </div>
           ))}
         </div>

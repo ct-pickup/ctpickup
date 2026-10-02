@@ -30,15 +30,15 @@ export default function PickupCheckoutReturnPage() {
 
   return (
     <main className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-4 px-6 text-center">
-      <h1 className="text-2xl font-bold text-white">{title}</h1>
-      <p className="text-sm text-white/65">
+      <h1 className="text-h2 font-serif font-bold text-ink">{title}</h1>
+      <p className="text-small text-muted">
         {paid
           ? "If you paid in the CT Pickup app, switch back to the app to see your updated status."
           : canceled
             ? "You can return to the app and try again when you're ready."
             : "You can close this tab or open the CT Pickup app."}
       </p>
-      <Link href="/pickup" className="text-sm font-semibold text-lime-300 underline">
+      <Link href="/pickup" className="text-small font-semibold text-pitch-text underline">
         Continue on the website
       </Link>
     </main>

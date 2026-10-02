@@ -3,6 +3,7 @@ import { siteOrigin } from "@/lib/env";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -14,9 +15,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-
-const BG = "#0a0a0a";
-const LIME = "#a3e635";
 
 const POSITION_OPTIONS = ["Goalkeeper", "Defender", "Midfielder", "Attacker"] as const;
 type PositionValue = (typeof POSITION_OPTIONS)[number];
@@ -65,6 +63,8 @@ function toggleInSet<T extends string>(cur: readonly T[], v: T): T[] {
 }
 
 export default function PlayersScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const navigation = useNavigation();
   const { supabase, isReady, session } = useAuth();
@@ -85,8 +85,8 @@ export default function PlayersScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       title: "Players",
-      headerStyle: { backgroundColor: BG },
-      headerTintColor: "#fff",
+      headerStyle: { backgroundColor: themeColor().bg },
+      headerTintColor: themeColor().text,
       headerShadowVisible: false,
     });
   }, [navigation]);
@@ -251,12 +251,12 @@ export default function PlayersScreen() {
           contentInsetAdjustmentBehavior="automatic"
         >
           <View style={styles.searchRow}>
-            <FontAwesome name="search" size={16} color="rgba(255,255,255,0.55)" />
+            <FontAwesome name="search" size={16} color={themeColor().muted} />
             <TextInput
               value={q}
               onChangeText={setQ}
               placeholder="Search name or username"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
               style={styles.searchInput}
               autoCapitalize="none"
               autoCorrect={false}
@@ -298,7 +298,7 @@ export default function PlayersScreen() {
 
           {loading ? (
             <View style={styles.centerRow}>
-              <ActivityIndicator color={LIME} />
+              <ActivityIndicator color={themeColor().pitchText} />
               <Text style={styles.centerText}>Loading players…</Text>
             </View>
           ) : err ? (
@@ -322,7 +322,7 @@ export default function PlayersScreen() {
                         {p.username ? `@${p.username}` : "—"}
                       </Text>
                     </View>
-                    <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+                    <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
                   </View>
 
                   <View style={styles.metaRow}>
@@ -376,9 +376,10 @@ export default function PlayersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   flex: { flex: 1 },
-  screen: { flex: 1, backgroundColor: BG },
+  screen: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 20, paddingBottom: 40 },
 
   searchRow: {
@@ -386,22 +387,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-    backgroundColor: "rgba(0,0,0,0.35)",
-    borderRadius: 14,
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  searchInput: { flex: 1, color: "#fff", fontSize: 16, padding: 0 },
+  searchInput: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", padding: 0 },
 
   filterLabel: {
     marginTop: 18,
     marginBottom: 10,
-    fontSize: 12,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 1.1,
-    textTransform: "uppercase",
-    color: "rgba(255,255,255,0.45)",
+    color: themeColor().muted,
   },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   chip: {
@@ -409,34 +408,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  chipOn: { borderColor: "rgba(163,230,53,0.55)", backgroundColor: "rgba(163,230,53,0.10)" },
-  chipText: { color: "rgba(255,255,255,0.7)", fontWeight: "700", fontSize: 13 },
-  chipTextOn: { color: LIME },
+  chipOn: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  chipText: { color: themeColor().muted, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
+  chipTextOn: { color: themeColor().pitchText },
 
   centerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 18 },
-  centerText: { color: "rgba(255,255,255,0.55)", fontSize: 14 },
-  errText: { marginTop: 18, color: "#fca5a5", fontSize: 14, lineHeight: 20 },
-  emptyText: { marginTop: 18, color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
+  centerText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
+  errText: { marginTop: 18, color: themeColor().coral, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  emptyText: { marginTop: 18, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
 
   list: { marginTop: 18, gap: 12 },
   card: {
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
-  name: { color: "#fff", fontSize: 16, fontWeight: "800" },
-  username: { marginTop: 4, color: "rgba(255,255,255,0.55)", fontSize: 14, fontWeight: "600" },
+  name: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  username: { marginTop: 4, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
-  meta: { color: "rgba(255,255,255,0.72)", fontSize: 13, fontWeight: "600" },
-  metaValue: { color: "rgba(255,255,255,0.72)", fontSize: 13, fontWeight: "600" },
-  metaMuted: { color: "rgba(255,255,255,0.45)", fontSize: 13, fontWeight: "600" },
-  metaK: { color: "rgba(255,255,255,0.45)", fontWeight: "800" },
-  metaSep: { color: "rgba(255,255,255,0.28)", fontWeight: "900" },
+  meta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  metaValue: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  metaMuted: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  metaK: { color: themeColor().muted, fontWeight: "800" },
+  metaSep: { color: themeColor().muted, fontWeight: "900" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+
 

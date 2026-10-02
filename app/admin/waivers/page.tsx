@@ -29,7 +29,7 @@ function fmt(dt: string) {
 function displayName(r: Row) {
   const p = r.profile;
   const parts = [p?.first_name, p?.last_name].filter(Boolean).map(String);
-  if (parts.length) return parts.join(" ");
+  if (parts.length) return parts.join("  ");
   if (p?.instagram) return `@${String(p.instagram).replace(/^@/, "")}`;
   return "—";
 }
@@ -101,10 +101,10 @@ export default function AdminWaiversPage() {
 
   if (!isReady || !sessionReady) {
     return (
-      <main className="min-h-screen bg-black text-white">
+      <main className="min-h-screen bg-canvas text-ink">
         <div className="mx-auto max-w-6xl pt-2 pb-8">
           <PageTop flush title="Staff · Waivers" fallbackHref={APP_HOME_URL} />
-          <p className="mt-6 text-sm text-white/50">Loading…</p>
+          <p className="mt-6 text-small text-muted">Loading…</p>
         </div>
       </main>
     );
@@ -112,13 +112,13 @@ export default function AdminWaiversPage() {
 
   if (!token) {
     return (
-      <main className="min-h-screen bg-black text-white">
+      <main className="min-h-screen bg-canvas text-ink">
         <div className="mx-auto max-w-6xl pt-2 pb-8">
           <PageTop flush title="Staff · Waivers" fallbackHref={APP_HOME_URL} />
-          <p className="text-sm text-white/60">
+          <p className="text-small text-muted">
             <a href="/login?next=/admin" className="underline-offset-4 hover:underline">
               Log in
-            </a>{" "}
+            </a>{"  "}
             as an admin to view waiver acceptance records.
           </p>
         </div>
@@ -127,14 +127,14 @@ export default function AdminWaiversPage() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-canvas text-ink">
       <div className="mx-auto max-w-6xl space-y-6 py-8">
         <PageTop flush title="Staff · Waivers" fallbackHref={APP_HOME_URL} />
 
         <AdminWorkArea question="Who has accepted the current waiver version, and what blocks checkout or guidance until they do?">
-          <p className="text-sm text-white/55">
-            The active waiver version ships with the app — engineering bumps it when terms change. See also{" "}
-            <a href="/admin/settings" className="text-white/80 underline-offset-4 hover:underline">
+          <p className="text-small text-muted">
+            The active waiver version ships with the app — engineering bumps it when terms change. See also{"  "}
+            <a href="/admin/settings" className="text-ink underline-offset-4 hover:underline">
               Settings
             </a>
             .
@@ -146,63 +146,63 @@ export default function AdminWaiversPage() {
           placeholder="Search by name, account ID, or waiver version…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full max-w-md rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white outline-none placeholder:text-white/35"
+          className="w-full max-w-md rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink outline-none placeholder:text-muted"
         />
 
-        <p className="text-sm text-white/60">
+        <p className="text-small text-muted">
           Each line is one acceptance for a specific waiver version. When engineering bumps the version in code, players
           must accept again before tournament checkout or guidance requests.
         </p>
 
         {currentVersion ? (
-          <p className="text-xs uppercase tracking-widest text-white/45">
-            Waiver version in the app:{" "}
-            <span className="font-semibold text-white/70">{currentVersion}</span>
+          <p className="text-caption text-muted">
+            Waiver version in the app:{"  "}
+            <span className="font-semibold text-muted">{currentVersion}</span>
           </p>
         ) : null}
 
         <button
           type="button"
           onClick={() => void load()}
-          className="text-sm text-white/55 underline-offset-4 hover:text-white hover:underline"
+          className="text-small text-muted underline-offset-4 hover:text-ink hover:underline"
         >
           Refresh
         </button>
 
         {msg ? (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          <div className="rounded-button border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral">
             {msg}
           </div>
         ) : null}
 
         {loading ? (
-          <p className="text-sm text-white/50">Loading…</p>
+          <p className="text-small text-muted">Loading…</p>
         ) : rows.length === 0 ? (
-          <p className="text-sm text-white/50">No acceptance records yet.</p>
+          <p className="text-small text-muted">No acceptance records yet.</p>
         ) : filteredRows.length === 0 ? (
-          <p className="text-sm text-white/50">No matches for that search.</p>
+          <p className="text-small text-muted">No matches for that search.</p>
         ) : (
           <div className="space-y-3">
             {filteredRows.map((r) => (
               <div
                 key={r.id}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 md:p-6"
+                className="rounded-card border border-line bg-overlay-subtle p-5 md:p-6"
               >
-                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-3">
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-3">
                   <div>
-                    <div className="text-xs uppercase tracking-widest text-white/45">
+                    <div className="text-caption text-muted">
                       {fmt(r.accepted_at)}
                     </div>
-                    <div className="mt-1 font-semibold text-white">{displayName(r)}</div>
+                    <div className="mt-1 font-semibold text-ink">{displayName(r)}</div>
                   </div>
-                  <span className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-xs font-medium text-white/80">
+                  <span className="rounded-pill border border-line bg-overlay-subtle px-2.5 py-1 text-caption font-medium text-ink">
                     {r.version}
                   </span>
                 </div>
-                <div className="mt-3 grid gap-1 text-sm text-white/70">
+                <div className="mt-3 grid gap-1 text-small text-muted">
                   <div>
-                    <span className="text-white/45">User ID: </span>
-                    <code className="text-xs text-white/60">{r.user_id}</code>
+                    <span className="text-muted">User ID: </span>
+                    <code className="text-caption text-muted">{r.user_id}</code>
                   </div>
                 </div>
               </div>

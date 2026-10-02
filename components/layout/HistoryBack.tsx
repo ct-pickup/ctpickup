@@ -5,7 +5,7 @@ import { useCallback } from "react";
 import { useTransitionNav } from "@/components/TransitionNavContext";
 
 const defaultClassName =
-  "shrink-0 cursor-pointer border-0 bg-transparent p-0 text-inherit font-inherit text-sm text-white/75 transition hover:text-white";
+  "shrink-0 cursor-pointer border-0 bg-transparent p-0 text-inherit font-inherit text-small text-muted transition hover:text-ink";
 
 type HistoryBackProps = {
   /** When browser history does not yield a safe in-app “previous” step. */

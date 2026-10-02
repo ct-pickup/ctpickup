@@ -7,8 +7,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
-const LIME = "#a3e635";
-
+import { themeColor, useThemedStyles } from "@/theme";
 /** Fallback when the run has no `pickup_run_time_slots` rows yet (commit creates them by label). */
 const DEFAULT_TIME_SLOTS = [
   { label: "10am – 12pm", display: "10am – 12pm" },
@@ -107,6 +106,8 @@ function resolveSubmittedChipKeys(
 }
 
 export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
+  useThemedStyles(publish_styles);
+
   const { session } = useAuth();
   const token = session?.access_token ?? null;
   const runId = typeof run.id === "string" ? run.id : null;
@@ -175,7 +176,7 @@ export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
       {hasSubmitted && !editing ? (
         <View style={styles.submittedBlock}>
           <View style={styles.submittedRow}>
-            <FontAwesome name="check-circle" size={16} color={LIME} />
+            <FontAwesome name="check-circle" size={16} color={themeColor().pitchText} />
             <Text style={styles.submittedText}>Submitted</Text>
           </View>
           {submittedSummary ? (
@@ -224,7 +225,7 @@ export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
             ]}
           >
             {availabilityBusy && pendingSlotKey === "multi" ? (
-              <ActivityIndicator color="#111" size="small" />
+              <ActivityIndicator color={themeColor().onPitch} size="small" />
             ) : (
               <Text style={styles.submitBtnText}>Submit Availability</Text>
             )}
@@ -244,46 +245,53 @@ export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   wrap: { gap: 10 },
-  heading: { color: "rgba(255,255,255,0.55)", fontSize: 14, fontWeight: "600", lineHeight: 20 },
+  heading: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", lineHeight: 20 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: LIME,
+    borderColor: themeColor().pitch,
     backgroundColor: "transparent",
     maxWidth: "100%",
   },
   chipSelected: {
-    borderColor: LIME,
-    backgroundColor: LIME,
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitch,
   },
   chipDisabled: { opacity: 0.5 },
-  chipText: { color: LIME, fontWeight: "600", fontSize: 13, lineHeight: 18 },
-  chipTextSelected: { color: "#111", fontWeight: "700" },
+  chipText: { color: themeColor().pitchText, fontWeight: "600", fontSize: 13, fontFamily: "Inter_600SemiBold", lineHeight: 18 },
+  chipTextSelected: { color: themeColor().onPitch, fontWeight: "700" },
   submitBtn: {
     marginTop: 4,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: "center",
   },
   submitBtnDisabled: { opacity: 0.4 },
-  submitBtnText: { color: "#111", fontWeight: "800", fontSize: 14 },
+  submitBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
   submittedBlock: { gap: 4, paddingVertical: 2 },
   submittedRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  submittedText: { color: LIME, fontSize: 14, fontWeight: "700" },
-  submittedSummary: { color: "rgba(255,255,255,0.55)", fontSize: 13, lineHeight: 18 },
+  submittedText: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  submittedSummary: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   changeBtn: {
     alignSelf: "flex-start",
     paddingVertical: 4,
   },
-  changeBtnText: { color: "rgba(255,255,255,0.45)", fontSize: 12, fontWeight: "600" },
+  changeBtnText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

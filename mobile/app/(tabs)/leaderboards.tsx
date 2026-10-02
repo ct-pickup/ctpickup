@@ -17,24 +17,20 @@ import {
   Text,
   View,
 } from "react-native";
-import Svg, { Circle, Defs, Ellipse, Polygon, RadialGradient, Rect, Stop } from "react-native-svg";
 
-const BG = "#0a0a0a";
-const LIME = "#a3e635";
-const CARD = "rgba(255,255,255,0.04)";
-const CARD_BORDER = "rgba(255,255,255,0.08)";
-const MUTED = "rgba(255,255,255,0.45)";
-
-const TIER_COLORS: Record<string, string> = {
-  diamond: "#9B59B6",
-  platinum: "#E8E8E8",
-  gold: "#E3B23C",
-  silver: "#A8B0B5",
-  bronze: "#B87333",
+import { themeColor, useThemedStyles } from "@/theme";
+function TIER_COLORS(): Record<string, string> {
+  return {
+  diamond: themeColor().muted,
+  platinum: themeColor().muted,
+  gold: themeColor().muted,
+  silver: themeColor().muted,
+  bronze: themeColor().muted,
 };
+}
 
 function tierColor(tier: string | null | undefined): string {
-  return tier ? (TIER_COLORS[tier.toLowerCase()] ?? LIME) : LIME;
+  return tier ? (TIER_COLORS()[tier.toLowerCase()] ?? themeColor().pitch) : themeColor().pitch;
 }
 
 function tierLabel(tier: string | null | undefined): string {
@@ -185,48 +181,28 @@ function initials(name: string): string {
 
 /* ----------------------------------------------------------- tier gems */
 
-function DiamondGem({ size }: { size: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 100 100">
-      {/* crown */}
-      <Polygon points="32,14 68,14 60,36 40,36" fill="#C89BE0" />
-      <Polygon points="32,14 18,36 40,36" fill="#A56FC9" />
-      <Polygon points="68,14 82,36 60,36" fill="#8E57B8" />
-      {/* pavilion */}
-      <Polygon points="18,36 50,36 50,92" fill="#8E57B8" />
-      <Polygon points="50,36 82,36 50,92" fill="#6B3E86" />
-      <Polygon points="40,36 60,36 50,92" fill="#A56FC9" />
-      {/* table highlight */}
-      <Polygon points="38,17 62,17 57,33 43,33" fill="#D9B8EC" opacity={0.55} />
-    </Svg>
-  );
-}
+function TierGem({ size }: { tier: string; size: number; gid?: string }) {
+  useThemedStyles(publish_styles);
 
-function CircleGem({ color, size, gid }: { color: string; size: number; gid: string }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 100 100">
-      <Defs>
-        <RadialGradient id={gid} cx="38%" cy="32%" r="80%">
-          <Stop offset="0" stopColor="#ffffff" stopOpacity="0.9" />
-          <Stop offset="0.4" stopColor={color} stopOpacity="1" />
-          <Stop offset="1" stopColor={color} stopOpacity="1" />
-        </RadialGradient>
-      </Defs>
-      <Circle cx="50" cy="50" r="46" fill={`url(#${gid})`} />
-      <Ellipse cx="37" cy="33" rx="17" ry="11" fill="#ffffff" opacity={0.28} />
-    </Svg>
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 999,
+        backgroundColor: themeColor().overlay,
+        borderWidth: 1,
+        borderColor: themeColor().line,
+      }}
+    />
   );
-}
-
-function TierGem({ tier, size, gid }: { tier: string; size: number; gid: string }) {
-  const t = (tier ?? "").toLowerCase();
-  if (t === "diamond") return <DiamondGem size={size} />;
-  return <CircleGem color={TIER_COLORS[t] ?? "#A8B0B5"} size={size} gid={gid} />;
 }
 
 /* --------------------------------------------------------------- screen */
 
 export default function LeaderboardsScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const navigation = useNavigation();
   const { session, supabase } = useAuth();
@@ -443,7 +419,7 @@ export default function LeaderboardsScreen() {
           style={({ pressed }) => [styles.headerFilterBtn, pressed && { opacity: 0.75 }]}
           accessibilityLabel="Filter by region"
         >
-          <Ionicons name="options-outline" size={22} color="#fff" />
+          <Ionicons name="options-outline" size={22} color={themeColor().text} />
         </Pressable>
       ),
     });
@@ -482,7 +458,7 @@ export default function LeaderboardsScreen() {
               style={[styles.tabPill, on ? styles.tabPillOn : styles.tabPillOff]}
             >
               {t.icon ? (
-                <FontAwesome name={t.icon} size={13} color={on ? "#0a0a0a" : "#fff"} style={{ marginRight: 6 }} />
+                <FontAwesome name={t.icon} size={13} color={on ? themeColor().onPitch : themeColor().text} style={{ marginRight: 6 }} />
               ) : null}
               <Text style={[styles.tabPillText, on && styles.tabPillTextOn]} numberOfLines={1}>
                 {t.label}
@@ -503,7 +479,7 @@ export default function LeaderboardsScreen() {
           <FontAwesome
             name="caret-down"
             size={13}
-            color={moreActive ? "#0a0a0a" : "#fff"}
+            color={moreActive ? themeColor().onPitch : themeColor().text}
             style={{ marginLeft: 6 }}
           />
         </Pressable>
@@ -518,9 +494,7 @@ export default function LeaderboardsScreen() {
 
     const t = myTier?.tier ?? "bronze";
     const color = tierColor(t);
-    const isDiamond = t === "diamond";
-    const gInner = isDiamond ? "#5B2A82" : `${color}`;
-    const gOuter = isDiamond ? "#160a24" : "#0d0d0d";
+
     const subtitle = !myTier
       ? "Play a session to earn your tier"
       : myTier.percentile != null
@@ -529,15 +503,6 @@ export default function LeaderboardsScreen() {
 
     return (
       <View style={[styles.hero, { borderColor: `${color}55` }]}>
-        <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
-          <Defs>
-            <RadialGradient id="heroGrad" cx="72%" cy="30%" r="95%">
-              <Stop offset="0" stopColor={gInner} stopOpacity={isDiamond ? 0.9 : 0.35} />
-              <Stop offset="1" stopColor={gOuter} stopOpacity="1" />
-            </RadialGradient>
-          </Defs>
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#heroGrad)" />
-        </Svg>
 
         <View style={styles.heroLeft}>
           <Text style={styles.heroLabel}>YOUR TIER</Text>
@@ -585,7 +550,7 @@ export default function LeaderboardsScreen() {
 
         <View style={styles.playerInfo}>
           <View style={styles.playerNameRow}>
-            <Text style={[styles.playerName, mine && { color: LIME }]} numberOfLines={1}>
+            <Text style={[styles.playerName, mine && { color: themeColor().pitchText }]} numberOfLines={1}>
               {item.name}
             </Text>
             <TierGem tier={item.tier} size={15} gid={`gem-${item.user_id}`} />
@@ -602,7 +567,7 @@ export default function LeaderboardsScreen() {
           <Text style={styles.ptsValue}>{pts.toLocaleString()}</Text>
           <Text style={styles.ptsLabel}>PTS</Text>
         </View>
-        <FontAwesome name="chevron-right" size={13} color="rgba(255,255,255,0.3)" style={{ marginLeft: 4 }} />
+        <FontAwesome name="chevron-right" size={13} color={themeColor().muted} style={{ marginLeft: 4 }} />
       </Pressable>
     );
   }
@@ -612,23 +577,23 @@ export default function LeaderboardsScreen() {
       <ScrollView
         style={styles.listFlex}
         contentContainerStyle={styles.tierContent}
-        refreshControl={<RefreshControl refreshing={tierLoading} onRefresh={() => void loadTier()} tintColor={LIME} />}
+        refreshControl={<RefreshControl refreshing={tierLoading} onRefresh={() => void loadTier()} tintColor={themeColor().pitchText} />}
       >
         {renderHero()}
 
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionHeaderLeft}>
-            <Ionicons name="people" size={16} color={LIME} />
+            <Ionicons name="people" size={16} color={themeColor().pitchText} />
             <Text style={styles.sectionTitle}>Top Players</Text>
           </View>
           <Pressable onPress={() => setFilterOpen(true)} hitSlop={8} style={styles.regionDropdown}>
             <Text style={styles.regionDropdownText}>{regionLabel}</Text>
-            <FontAwesome name="caret-down" size={13} color="rgba(255,255,255,0.55)" />
+            <FontAwesome name="caret-down" size={13} color={themeColor().muted} />
           </Pressable>
         </View>
 
         {tierLoading && tierPlayers.length === 0 ? (
-          <ActivityIndicator color={LIME} style={{ marginTop: 32 }} />
+          <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 32 }} />
         ) : filteredTierPlayers.length === 0 ? (
           <View style={styles.emptyStatsWrap}>
             <Text style={styles.emptyEmoji}>🏆</Text>
@@ -642,7 +607,7 @@ export default function LeaderboardsScreen() {
         {/* Climb the ranks */}
         <View style={styles.climbCard}>
           <View style={styles.climbIcon}>
-            <FontAwesome name="line-chart" size={18} color={LIME} />
+            <FontAwesome name="line-chart" size={18} color={themeColor().pitchText} />
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={styles.climbTitle}>Climb the ranks</Text>
@@ -667,11 +632,11 @@ export default function LeaderboardsScreen() {
         data={err ? [] : rowsForTab}
         keyExtractor={(item) => item.id}
         contentContainerStyle={err || rowsForTab.length === 0 ? styles.listContentGrow : styles.listContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={LIME} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeColor().pitchText} />}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         ListEmptyComponent={
           loading ? (
-            <ActivityIndicator color={LIME} style={{ marginTop: 32 }} />
+            <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 32 }} />
           ) : err ? (
             <View style={styles.emptyStateBlock}>
               <Text style={styles.errText}>{err}</Text>
@@ -700,9 +665,9 @@ export default function LeaderboardsScreen() {
               <View style={[styles.rankCell, top3 && styles.rankCircleTop3]}>
                 <Text style={[styles.rankText, top3 && styles.rankTextTop3]}>{rank}</Text>
               </View>
-              <View style={[styles.avatarRing, { borderColor: "rgba(255,255,255,0.15)" }]}>
+              <View style={[styles.avatarRing, { borderColor: themeColor().line }]}>
                 <View style={[styles.avatarImg, styles.avatarFallback]}>
-                  <Text style={[styles.avatarFallbackText, { color: "#fff" }]}>{initials(name)}</Text>
+                  <Text style={[styles.avatarFallbackText, { color: themeColor().text }]}>{initials(name)}</Text>
                 </View>
               </View>
               <View style={styles.playerInfo}>
@@ -778,11 +743,11 @@ export default function LeaderboardsScreen() {
             </Text>
             <View style={styles.howCard}>
               {([
-                { tier: "diamond", label: "Diamond", pts: 80, color: "#9B59B6", dot: "◆" },
-                { tier: "platinum", label: "Platinum", pts: 60, color: "#E8E8E8", dot: "●" },
-                { tier: "gold", label: "Gold", pts: 40, color: "#E3B23C", dot: "●" },
-                { tier: "silver", label: "Silver", pts: 20, color: "#A8B0B5", dot: "●" },
-                { tier: "bronze", label: "Bronze", pts: 0, color: "#B87333", dot: "●" },
+                { tier: "diamond", label: "Diamond", pts: 80, color: themeColor().muted, dot: "◆" },
+                { tier: "platinum", label: "Platinum", pts: 60, color: themeColor().text, dot: "●" },
+                { tier: "gold", label: "Gold", pts: 40, color: themeColor().coral, dot: "●" },
+                { tier: "silver", label: "Silver", pts: 20, color: themeColor().muted, dot: "●" },
+                { tier: "bronze", label: "Bronze", pts: 0, color: themeColor().coral, dot: "●" },
               ] as const).map(({ tier, label, pts, color, dot }) => (
                 <View key={tier} style={styles.howRow}>
                   <Text style={[styles.howDot, { color }]}>{dot}</Text>
@@ -799,11 +764,11 @@ export default function LeaderboardsScreen() {
             </Text>
             <View style={styles.howCard}>
               {([
-                { label: "Bronze", desc: "Score 0–39 · Self-declared players", color: "#B87333", dot: "●" },
-                { label: "Silver", desc: "Score 40–59 · Consistent rec level", color: "#A8B0B5", dot: "●" },
-                { label: "Gold", desc: "Score 60–77 · Club / competitive level", color: "#E3B23C", dot: "●" },
-                { label: "Platinum", desc: "Score 78–89 · College / semi-pro · Verification required", color: "#E8E8E8", dot: "●" },
-                { label: "Diamond", desc: "Score 90+ · Elite level · Verification required · You earn $8/session", color: "#9B59B6", dot: "◆" },
+                { label: "Bronze", desc: "Score 0–39 · Self-declared players", color: themeColor().coral, dot: "●" },
+                { label: "Silver", desc: "Score 40–59 · Consistent rec level", color: themeColor().muted, dot: "●" },
+                { label: "Gold", desc: "Score 60–77 · Club / competitive level", color: themeColor().coral, dot: "●" },
+                { label: "Platinum", desc: "Score 78–89 · College / semi-pro · Verification required", color: themeColor().text, dot: "●" },
+                { label: "Diamond", desc: "Score 90+ · Elite level · Verification required · You earn $8/session", color: themeColor().muted, dot: "◆" },
               ] as const).map(({ label, desc, color, dot }) => (
                 <View key={label} style={[styles.howRow, { alignItems: "flex-start" }]}>
                   <Text style={[styles.howDot, { color, marginTop: 2 }]}>{dot}</Text>
@@ -846,10 +811,10 @@ export default function LeaderboardsScreen() {
                     setTab(m.id);
                     setMoreOpen(false);
                   }}
-                  style={({ pressed }) => [styles.moreRow, pressed && { backgroundColor: "rgba(255,255,255,0.05)" }]}
+                  style={({ pressed }) => [styles.moreRow, pressed && { backgroundColor: themeColor().overlaySubtle }]}
                 >
-                  <Text style={[styles.moreRowText, on && { color: LIME, fontWeight: "800" }]}>{m.label}</Text>
-                  {on ? <FontAwesome name="check" size={14} color={LIME} /> : null}
+                  <Text style={[styles.moreRowText, on && { color: themeColor().pitchText, fontWeight: "800" }]}>{m.label}</Text>
+                  {on ? <FontAwesome name="check" size={14} color={themeColor().pitchText} /> : null}
                 </Pressable>
               );
             })}
@@ -860,8 +825,9 @@ export default function LeaderboardsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BG },
+function make_styles() {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: themeColor().bg },
   headerFilterBtn: { marginRight: 4, padding: 6, justifyContent: "center", alignItems: "center" },
 
   /* tab bar */
@@ -870,7 +836,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     maxHeight: 54,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255,255,255,0.08)",
+    borderBottomColor: themeColor().line,
   },
   tabRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
   tabPill: {
@@ -881,10 +847,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 999,
   },
-  tabPillOff: { borderWidth: 1, borderColor: "#262626", backgroundColor: "transparent" },
-  tabPillOn: { backgroundColor: LIME, borderWidth: 0 },
-  tabPillText: { color: "#fff", fontWeight: "600", fontSize: 14 },
-  tabPillTextOn: { color: "#0a0a0a", fontWeight: "800" },
+  tabPillOff: { borderWidth: 1, borderColor: themeColor().line, backgroundColor: "transparent" },
+  tabPillOn: { backgroundColor: themeColor().pitch, borderWidth: 0 },
+  tabPillText: { color: themeColor().text, fontWeight: "600", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  tabPillTextOn: { color: themeColor().onPitch, fontWeight: "800" },
 
   listWrap: { flex: 1, minHeight: 0 },
   listFlex: { flex: 1 },
@@ -894,7 +860,7 @@ const styles = StyleSheet.create({
 
   /* hero */
   hero: {
-    borderRadius: 20,
+    borderRadius: 999,
     borderWidth: 1,
     padding: 18,
     flexDirection: "row",
@@ -903,23 +869,23 @@ const styles = StyleSheet.create({
     minHeight: 148,
   },
   heroSkeleton: {
-    backgroundColor: CARD,
-    borderColor: CARD_BORDER,
+    backgroundColor: themeColor().overlaySubtle,
+    borderColor: themeColor().overlay,
   },
   heroLeft: { flex: 1, minWidth: 0 },
-  heroLabel: { color: LIME, fontSize: 11, fontWeight: "800", letterSpacing: 1.5 },
-  heroTier: { color: "#fff", fontSize: 34, fontWeight: "900", letterSpacing: -0.5, marginTop: 4 },
-  heroSub: { color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 4 },
+  heroLabel: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
+  heroTier: { color: themeColor().text, fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", marginTop: 4 },
+  heroSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   heroBtn: {
     alignSelf: "flex-start",
     marginTop: 14,
     borderWidth: 1,
-    borderColor: LIME,
+    borderColor: themeColor().pitch,
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
-  heroBtnText: { color: LIME, fontWeight: "800", fontSize: 13 },
+  heroBtnText: { color: themeColor().pitchText, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
   heroGem: { width: 100, alignItems: "center", justifyContent: "center" },
 
   /* section header */
@@ -931,55 +897,55 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionHeaderLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
-  sectionTitle: { color: "#fff", fontSize: 17, fontWeight: "800", letterSpacing: -0.2 },
+  sectionTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800",},
   regionDropdown: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
-    backgroundColor: CARD,
+    borderColor: themeColor().overlay,
+    backgroundColor: themeColor().overlaySubtle,
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
-  regionDropdownText: { color: "rgba(255,255,255,0.75)", fontSize: 13, fontWeight: "700" },
+  regionDropdownText: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
 
   /* player row */
   playerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: CARD,
-    borderRadius: 16,
+    backgroundColor: themeColor().overlaySubtle,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: themeColor().overlay,
     padding: 12,
   },
-  playerRowMine: { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.06)" },
+  playerRowMine: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
   rankCell: { width: 30, alignItems: "center", justifyContent: "center" },
   rankCircleTop3: {
     width: 30,
     height: 30,
-    borderRadius: 15,
+    borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: LIME,
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  rankText: { color: "rgba(255,255,255,0.4)", fontSize: 14, fontWeight: "800" },
-  rankTextTop3: { color: LIME },
-  avatarRing: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, padding: 2 },
-  avatarImg: { width: "100%", height: "100%", borderRadius: 20 },
-  avatarFallback: { backgroundColor: "rgba(255,255,255,0.06)", alignItems: "center", justifyContent: "center" },
-  avatarFallbackText: { fontSize: 15, fontWeight: "800" },
+  rankText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  rankTextTop3: { color: themeColor().pitchText },
+  avatarRing: { width: 46, height: 46, borderRadius: 999, borderWidth: 2, padding: 2 },
+  avatarImg: { width: "100%", height: "100%", borderRadius: 999 },
+  avatarFallback: { backgroundColor: themeColor().overlaySubtle, alignItems: "center", justifyContent: "center" },
+  avatarFallbackText: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
   playerInfo: { flex: 1, minWidth: 0 },
   playerNameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  playerName: { color: "#fff", fontSize: 15, fontWeight: "700", flexShrink: 1 },
-  playerTier: { fontSize: 12, fontWeight: "700", marginTop: 2 },
-  playerStats: { color: "rgba(255,255,255,0.4)", fontSize: 11, marginTop: 2 },
+  playerName: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", flexShrink: 1 },
+  playerTier: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 2 },
+  playerStats: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   ptsBlock: { alignItems: "flex-end", minWidth: 52 },
-  ptsValue: { color: "#fff", fontSize: 24, fontWeight: "900", letterSpacing: -0.5 },
-  ptsLabel: { color: "rgba(255,255,255,0.4)", fontSize: 10, fontWeight: "700", letterSpacing: 0.8 },
+  ptsValue: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900",},
+  ptsLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700",},
 
   /* climb card */
   climbCard: {
@@ -987,98 +953,96 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    backgroundColor: CARD,
-    borderRadius: 16,
+    backgroundColor: themeColor().overlaySubtle,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: themeColor().overlay,
     padding: 16,
   },
   climbIcon: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "rgba(163,230,53,0.12)",
+    backgroundColor: themeColor().pitchSoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  climbTitle: { color: "#fff", fontSize: 15, fontWeight: "800" },
-  climbSub: { color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 3, lineHeight: 16 },
-  climbBtn: { borderWidth: 1, borderColor: LIME, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12 },
-  climbBtnText: { color: LIME, fontWeight: "800", fontSize: 12 },
+  climbTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  climbSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 3, lineHeight: 16 },
+  climbBtn: { borderWidth: 1, borderColor: themeColor().pitch, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12 },
+  climbBtnText: { color: themeColor().pitchText, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
 
   /* empty / error */
   emptyStateBlock: { alignItems: "center", justifyContent: "center", gap: 16, paddingVertical: 24 },
   emptyStatsWrap: { alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 48 },
-  emptyEmoji: { fontSize: 48, lineHeight: 56 },
-  emptyTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
-  emptySubtitle: { color: MUTED, fontSize: 15, textAlign: "center", lineHeight: 22, paddingHorizontal: 24 },
-  errText: { color: "#fca5a5", fontSize: 14, textAlign: "center", lineHeight: 20 },
+  emptyEmoji: { fontSize: 40, fontFamily: "InstrumentSerif_400Regular", lineHeight: 56 },
+  emptyTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  emptySubtitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22, paddingHorizontal: 24 },
+  errText: { color: themeColor().coral, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
   retryBtn: {
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.45)",
-    backgroundColor: "rgba(163,230,53,0.12)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  retryBtnText: { color: LIME, fontWeight: "800", fontSize: 14 },
+  retryBtnText: { color: themeColor().pitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
 
   /* region modal */
-  modalRoot: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.6)" },
+  modalRoot: { flex: 1, justifyContent: "flex-end", backgroundColor: themeColor().scrim },
   modalBackdrop: { ...StyleSheet.absoluteFillObject },
   modalSheet: {
-    backgroundColor: "#121212",
+    backgroundColor: themeColor().bg,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderTopWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: themeColor().overlay,
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 28,
   },
-  modalHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.15)", marginBottom: 16 },
-  modalTitle: { color: "#fff", fontWeight: "800", fontSize: 18, marginBottom: 18, textAlign: "center" },
+  modalHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 10, backgroundColor: themeColor().overlay, marginBottom: 16 },
+  modalTitle: { color: themeColor().text, fontWeight: "800", fontSize: 20, fontFamily: "InstrumentSerif_400Regular", marginBottom: 18, textAlign: "center" },
   modalChips: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center", marginBottom: 22 },
   modalChip: {
     minWidth: 72,
     paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#3f3f3f",
-    backgroundColor: CARD,
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     alignItems: "center",
   },
-  modalChipOn: { borderColor: LIME, backgroundColor: LIME },
-  modalChipText: { color: "rgba(255,255,255,0.85)", fontWeight: "800", fontSize: 16 },
-  modalChipTextOn: { color: "#0a0a0a" },
+  modalChipOn: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitch },
+  modalChipText: { color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  modalChipTextOn: { color: themeColor().onPitch },
   modalCloseBtn: {
     marginTop: 4,
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
-    backgroundColor: CARD,
+    borderColor: themeColor().overlay,
+    backgroundColor: themeColor().overlaySubtle,
     alignItems: "center",
   },
-  modalCloseBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  modalCloseBtnText: { color: themeColor().text, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
 
   /* how it works sheet */
   howSheet: { maxHeight: "88%" },
   howSectionHeader: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_700Bold",
+    fontWeight: "500",
     marginBottom: 8,
   },
-  howBody: { color: "rgba(255,255,255,0.6)", fontSize: 13, lineHeight: 20, marginBottom: 12 },
+  howBody: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20, marginBottom: 12 },
   howCard: {
-    backgroundColor: CARD,
+    backgroundColor: themeColor().overlaySubtle,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: themeColor().overlay,
     paddingVertical: 4,
     paddingHorizontal: 14,
     gap: 0,
@@ -1089,39 +1053,37 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 9,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.06)",
+    borderBottomColor: themeColor().line,
   },
-  howDot: { fontSize: 13, width: 16, textAlign: "center" },
-  howRowLabel: { color: "#fff", fontSize: 14, fontWeight: "700", flex: 1 },
-  howRowValue: { color: "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: "600" },
-  howRowDesc: { color: "rgba(255,255,255,0.45)", fontSize: 12, lineHeight: 17, marginTop: 1 },
+  howDot: { fontSize: 13, fontFamily: "Inter_400Regular", width: 16, textAlign: "center" },
+  howRowLabel: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700", flex: 1 },
+  howRowValue: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  howRowDesc: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 17, marginTop: 1 },
   howCloseBtn: {
     marginTop: 20,
-    backgroundColor: LIME,
-    borderRadius: 14,
+    backgroundColor: themeColor().pitch,
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
   },
-  howCloseBtnText: { color: "#0a0a0a", fontWeight: "900", fontSize: 16 },
+  howCloseBtnText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
 
   /* more dropdown */
-  moreBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", paddingTop: 96, paddingHorizontal: 16 },
+  moreBackdrop: { flex: 1, backgroundColor: themeColor().scrim, paddingTop: 96, paddingHorizontal: 16 },
   moreSheet: {
     alignSelf: "flex-end",
     minWidth: 200,
-    backgroundColor: "#161616",
-    borderRadius: 16,
+    backgroundColor: themeColor().card,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: CARD_BORDER,
+    borderColor: themeColor().overlay,
     paddingVertical: 8,
     paddingHorizontal: 6,
   },
   moreTitle: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 11,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    letterSpacing: 1,
-    textTransform: "uppercase",
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
@@ -1133,5 +1095,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 10,
   },
-  moreRowText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+  moreRowText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

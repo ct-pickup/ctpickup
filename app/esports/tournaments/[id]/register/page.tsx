@@ -38,7 +38,7 @@ export default async function EsportsTournamentRegisterPage({ params }: Props) {
 
       <Panel className="mt-8 p-6 md:p-8">
         <Suspense
-          fallback={<p className="text-sm text-white/60">Loading registration…</p>}
+          fallback={<p className="text-small text-muted">Loading registration…</p>}
         >
           <EsportsTournamentRegistrationClient tournament={tournament} />
         </Suspense>

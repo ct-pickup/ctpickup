@@ -24,10 +24,10 @@ export default async function AdminContentPage() {
     supabase = supabaseService();
   } catch {
     return (
-      <main className="min-h-screen text-white">
+      <main className="min-h-screen text-ink">
         <PageTop flush title="Staff · Content" fallbackHref={APP_HOME_URL} />
         <AdminWorkArea question="What copy is drafted, scheduled, or live — and where does it surface publicly?">
-          <p className="text-sm text-white/55">Database isn’t configured.</p>
+          <p className="text-small text-muted">Database isn’t configured.</p>
         </AdminWorkArea>
       </main>
     );
@@ -79,24 +79,24 @@ export default async function AdminContentPage() {
     nu !== null && !Number.isNaN(nu) && nu > new Date().getTime();
 
   return (
-    <main className="min-h-screen text-white">
+    <main className="min-h-screen text-ink">
       <PageTop flush title="Staff · Content" fallbackHref={APP_HOME_URL} />
 
       <AdminWorkArea question="What copy is drafted, scheduled, or live — and where does it surface on pickup, tournament, and status pages?">
-        <div className="mb-6 flex flex-wrap gap-3 text-sm">
-          <Link href="/admin/publish" className="font-semibold text-white underline-offset-4 hover:underline">
+        <div className="mb-6 flex flex-wrap gap-3 text-small">
+          <Link href="/admin/publish" className="font-semibold text-ink underline-offset-4 hover:underline">
             Full-screen publish
           </Link>
-          <Link href="/admin/sync" className="text-white/55 hover:text-white underline-offset-4 hover:underline">
+          <Link href="/admin/sync" className="text-muted hover:text-ink underline-offset-4 hover:underline">
             Sync &amp; retries
           </Link>
-          <Link href="/admin/relationships" className="text-white/55 hover:text-white underline-offset-4 hover:underline">
+          <Link href="/admin/relationships" className="text-muted hover:text-ink underline-offset-4 hover:underline">
             Repair hub links
           </Link>
         </div>
 
         <section className="mb-10 space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-white/45">Publish here</h2>
+          <h2 className="text-caption font-semibold text-muted">Publish here</h2>
           <StaffPublishPanel
             pickupRuns={publishRuns}
             defaultRunId={(promotedRes.data?.id as string) ?? null}
@@ -104,8 +104,8 @@ export default async function AdminContentPage() {
             publishLayerOk={publishLayerOk}
           />
           {publishLayerOk ? (
-            <details className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-              <summary className="cursor-pointer text-sm font-medium text-white/80">
+            <details className="rounded-card border border-line bg-overlay-subtle p-4">
+              <summary className="cursor-pointer text-small font-medium text-ink">
                 Advanced — multi-run &amp; preview
               </summary>
               <div className="mt-4">
@@ -125,89 +125,89 @@ export default async function AdminContentPage() {
 
         <div className="grid gap-5 lg:grid-cols-2">
           {/* Site-wide status */}
-          <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
+          <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold text-white">Site-wide status card</h2>
+              <h2 className="text-small font-semibold text-ink">Site-wide status card</h2>
               <div className="flex flex-wrap gap-2">
                 {!announcement ? <StatusChip tone="draft">Draft</StatusChip> : <StatusChip tone="published">Has copy</StatusChip>}
                 {scheduled ? <StatusChip tone="scheduled">Commitment date</StatusChip> : null}
               </div>
             </div>
-            <p className="text-xs uppercase tracking-wider text-white/40">
+            <p className="text-caption text-muted">
               Used for help chat and staff tools — not the pickup status feed (that comes from pickup posts below).
             </p>
-            <p className="text-sm text-white/75">{clip(status?.announcement, 280) || "—"}</p>
-            <p className="text-xs text-white/45">
+            <p className="text-small text-muted">{clip(status?.announcement, 280) || "—"}</p>
+            <p className="text-caption text-muted">
               Saves apply immediately — visitors see changes on their next load.
             </p>
-            <div className="flex flex-wrap gap-3 text-sm">
-              <Link href="/admin/status" className="font-semibold text-white underline-offset-4 hover:underline">
+            <div className="flex flex-wrap gap-3 text-small">
+              <Link href="/admin/status" className="font-semibold text-ink underline-offset-4 hover:underline">
                 Edit &amp; save
               </Link>
-              <Link href="/status/pickup" target="_blank" rel="noreferrer" className="text-white/55 hover:text-white">
+              <Link href="/status/pickup" target="_blank" rel="noreferrer" className="text-muted hover:text-ink">
                 Preview pickup status ↗
               </Link>
-              <Link href="/status/tournament" target="_blank" rel="noreferrer" className="text-white/55 hover:text-white">
+              <Link href="/status/tournament" target="_blank" rel="noreferrer" className="text-muted hover:text-ink">
                 Preview tournament status ↗
               </Link>
             </div>
           </section>
 
           {/* Pickup feed posts */}
-          <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-4">
+          <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold text-white">Pickup player posts</h2>
+              <h2 className="text-small font-semibold text-ink">Pickup player posts</h2>
               <StatusChip tone="published">Immediate on send</StatusChip>
             </div>
-            <p className="text-xs uppercase tracking-wider text-white/40">
+            <p className="text-caption text-muted">
               Global message or per-run message · appears in pickup feeds players see
             </p>
             <div>
-              <div className="text-xs text-white/45">Latest global</div>
-              <p className="text-sm text-white/80">{clip(globalPostRes.data?.message, 200) || "—"}</p>
+              <div className="text-caption text-muted">Latest global</div>
+              <p className="text-small text-ink">{clip(globalPostRes.data?.message, 200) || "—"}</p>
             </div>
-            <p className="text-xs text-white/45">
+            <p className="text-caption text-muted">
               Write in Pickups and send — that’s the publish step. Run-scoped posts go to the hub run (
               {promotedRes.data ? "set" : "not set"}).
             </p>
-            <div className="flex flex-wrap gap-3 text-sm">
-              <Link href="/admin/pickup" className="font-semibold text-white underline-offset-4 hover:underline">
+            <div className="flex flex-wrap gap-3 text-small">
+              <Link href="/admin/pickup" className="font-semibold text-ink underline-offset-4 hover:underline">
                 Open pickup composer
               </Link>
-              <Link href="/pickup" target="_blank" rel="noreferrer" className="text-white/55 hover:text-white">
+              <Link href="/pickup" target="_blank" rel="noreferrer" className="text-muted hover:text-ink">
                 Preview hub ↗
               </Link>
             </div>
           </section>
 
           {/* Program surfaces */}
-          <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-4 lg:col-span-2">
-            <h2 className="text-sm font-semibold text-white">Program pages</h2>
-            <p className="text-sm text-white/55">
+          <section className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4 lg:col-span-2">
+            <h2 className="text-small font-semibold text-ink">Program pages</h2>
+            <p className="text-small text-muted">
               These are edited on their own admin tools; they are separate from the status card and pickup posts.
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-white/10 bg-black/30 p-4 space-y-2">
+              <div className="rounded-card border border-line bg-overlay-subtle p-4 space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-white">Guidance</span>
+                  <span className="font-medium text-ink">Guidance</span>
                   {(guidanceRes.count ?? 0) > 0 ? (
                     <StatusChip tone="pending">{guidanceRes.count} pending</StatusChip>
                   ) : (
                     <StatusChip tone="synced">Inbox clear</StatusChip>
                   )}
                 </div>
-                <p className="text-xs text-white/50">Public guidance page — these are requests, not a static page edit.</p>
-                <Link href="/admin/guidance" className="text-sm text-white underline-offset-4 hover:underline">
+                <p className="text-caption text-muted">Public guidance page — these are requests, not a static page edit.</p>
+                <Link href="/admin/guidance" className="text-small text-ink underline-offset-4 hover:underline">
                   Manage requests
                 </Link>
               </div>
-              <div className="rounded-xl border border-white/10 bg-black/30 p-4 space-y-2">
+              <div className="rounded-card border border-line bg-overlay-subtle p-4 space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-white">Esports</span>
+                  <span className="font-medium text-ink">Esports</span>
                   <StatusChip tone="neutral">{esportsRes.count ?? 0} listed</StatusChip>
                 </div>
-                <p className="text-xs text-white/50">Public esports listing — shows tournaments marked upcoming or active.</p>
-                <Link href="/admin/esports" className="text-sm text-white underline-offset-4 hover:underline">
+                <p className="text-caption text-muted">Public esports listing — shows tournaments marked upcoming or active.</p>
+                <Link href="/admin/esports" className="text-small text-ink underline-offset-4 hover:underline">
                   Manage tournaments
                 </Link>
               </div>

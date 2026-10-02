@@ -1,0 +1,86 @@
+/* Generated from shared/theme/tokens.ts. Do not edit by hand. */
+:root {
+  --canvas: #F4F1EA;
+  --card: #FFFFFF;
+  --ink: #111111;
+  --muted: #6B6B66;
+  --line: #E2DED4;
+  --pitch: #1F4D3A;
+  --pitch-text: #1F4D3A;
+  --pitch-soft: #E3ECE6;
+  --coral: #FF6B4A;
+  --on-pitch: #FFFFFF;
+  --overlay-subtle: rgba(17,17,17,0.04);
+  --overlay: rgba(17,17,17,0.08);
+  --overlay-strong: rgba(17,17,17,0.14);
+  --scrim: rgba(17,17,17,0.45);
+  --chalk: #F4F1EA;
+  --paper: #FFFFFF;
+  --ink-solid: #111111;
+  --ink-card: #1A1A1A;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+  --canvas: #111111;
+  --card: #1A1A1A;
+  --ink: #F4F1EA;
+  --muted: #A3A39E;
+  --line: #2A2A2A;
+  --pitch: #1F4D3A;
+  --pitch-text: #E3ECE6;
+  --pitch-soft: #E3ECE6;
+  --coral: #FF6B4A;
+  --on-pitch: #FFFFFF;
+  --overlay-subtle: rgba(255,255,255,0.04);
+  --overlay: rgba(255,255,255,0.08);
+  --overlay-strong: rgba(255,255,255,0.14);
+  --scrim: rgba(0,0,0,0.55);
+  --chalk: #F4F1EA;
+  --paper: #FFFFFF;
+  --ink-solid: #111111;
+  --ink-card: #1A1A1A;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-pitch: var(--pitch);
+  --color-pitch-text: var(--pitch-text);
+  --color-pitch-soft: var(--pitch-soft);
+  --color-coral: var(--coral);
+  --color-on-pitch: var(--on-pitch);
+  --color-overlay-subtle: var(--overlay-subtle);
+  --color-overlay: var(--overlay);
+  --color-overlay-strong: var(--overlay-strong);
+  --color-scrim: var(--scrim);
+  --color-chalk: var(--chalk);
+  --color-paper: var(--paper);
+  --color-ink-solid: var(--ink-solid);
+  --color-ink-card: var(--ink-card);
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-serif), Georgia, "Times New Roman", serif;
+  --radius-card: 12px;
+  --radius-button: 10px;
+  --radius-pill: 999px;
+  --text-caption: 13px;
+  --text-caption--line-height: 1.35;
+  --text-small: 14px;
+  --text-small--line-height: 1.45;
+  --text-body: 16px;
+  --text-body--line-height: 1.5;
+  --text-h3: 20px;
+  --text-h3--line-height: 1.3;
+  --text-h2: 24px;
+  --text-h2--line-height: 1.25;
+  --text-h1: 32px;
+  --text-h1--line-height: 1.15;
+  --text-display: 40px;
+  --text-display--line-height: 1.1;
+}

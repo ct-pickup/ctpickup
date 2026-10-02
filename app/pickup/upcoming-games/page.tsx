@@ -62,7 +62,7 @@ function levelLabel(runType: string | null | undefined) {
 
 function myStatusLabel(myStatus: string | null | undefined) {
   if (!myStatus) return "Not joined yet";
-  return myStatus.replace(/_/g, " ");
+  return myStatus.replace(/_/g, "  ");
 }
 
 function SelectedRunJoin({ runId }: { runId: string }) {
@@ -109,10 +109,10 @@ function SelectedRunJoin({ runId }: { runId: string }) {
   const spotsLeft = Math.max(0, Number(capacity) - Number(confirmed));
 
   if (loading) {
-    return <p className="text-sm text-white/60">Loading run…</p>;
+    return <p className="text-small text-muted">Loading run…</p>;
   }
   if (error) {
-    return <p className="text-sm text-white/60">{error}</p>;
+    return <p className="text-small text-muted">{error}</p>;
   }
   if (!run) {
     return (
@@ -124,11 +124,11 @@ function SelectedRunJoin({ runId }: { runId: string }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/55">Join this run</p>
+      <p className="text-caption font-semibold text-muted">Join this run</p>
       <Panel className="space-y-5">
         <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/55">Selected run</p>
-          <h2 className="text-2xl font-bold uppercase tracking-tight text-white md:text-3xl">
+          <p className="text-caption font-semibold text-muted">Selected run</p>
+          <h2 className="text-h2 font-serif font-bold text-ink md:text-h1">
             {run.title || "Pickup run"}
           </h2>
         </div>
@@ -145,13 +145,13 @@ function SelectedRunJoin({ runId }: { runId: string }) {
       </Panel>
 
       <Panel className="space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/55">Your status</p>
-        <p className="text-lg font-semibold text-white">{myStatusLabel(data?.my_status)}</p>
+        <p className="text-caption font-semibold text-muted">Your status</p>
+        <p className="text-h3 font-serif font-semibold text-ink">{myStatusLabel(data?.my_status)}</p>
 
         <div className="flex flex-wrap gap-3">
           <Link
             href="/pickup/intake"
-            className="inline-flex min-w-[200px] items-center justify-center rounded-md bg-white px-5 py-3 text-sm font-semibold text-black"
+            className="inline-flex min-w-[200px] items-center justify-center rounded-button bg-pitch px-5 py-3 text-small font-semibold text-on-pitch"
           >
             Continue
           </Link>
@@ -201,13 +201,13 @@ function UpcomingGamesContent() {
 
         <div className="space-y-4">
           {selectedRunId ? (
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/55">All upcoming</p>
+            <p className="text-caption font-semibold text-muted">All upcoming</p>
           ) : null}
 
           {loading ? (
-            <p className="text-sm text-white/60">Loading…</p>
+            <p className="text-small text-muted">Loading…</p>
           ) : error ? (
-            <p className="text-sm text-white/60">{error}</p>
+            <p className="text-small text-muted">{error}</p>
           ) : runs.length === 0 ? (
             <Panel className="space-y-2">
               <EmptyStateMessage>No active pickup games</EmptyStateMessage>
@@ -216,7 +216,7 @@ function UpcomingGamesContent() {
             <div className="space-y-4">
               {runs.map((run) => (
                 <Panel key={run.id} className="space-y-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/55">
+                  <p className="text-caption font-semibold text-muted">
                     {run.title || "Pickup run"}
                   </p>
 
@@ -233,7 +233,7 @@ function UpcomingGamesContent() {
                   <div className="flex flex-wrap gap-3">
                     <Link
                       href={`/pickup/upcoming-games?run=${encodeURIComponent(run.id)}`}
-                      className="inline-flex min-w-[160px] items-center justify-center rounded-md bg-white px-5 py-3 text-sm font-semibold text-black"
+                      className="inline-flex min-w-[160px] items-center justify-center rounded-button bg-pitch px-5 py-3 text-small font-semibold text-on-pitch"
                     >
                       Join
                     </Link>

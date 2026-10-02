@@ -1,7 +1,8 @@
 import Slider from "@react-native-community/slider";
 import { ActivityIndicator, Switch, Text, View } from "react-native";
-import { accountStyles as styles, LIME } from "./accountStyles";
+import { accountStyles as styles, publish_accountStyles } from "./accountStyles";
 
+import { themeColor, useThemedStyles } from "@/theme";
 type Props = {
   pushEnabled: boolean;
   pushBusy: boolean;
@@ -47,6 +48,8 @@ export function PreferencesSection({
   onMaxDriveCommit,
   maxDriveDisabled,
 }: Props) {
+  useThemedStyles(publish_accountStyles);
+
   return (
     <>
       <Text style={styles.sectionTitle}>Preferences</Text>
@@ -60,8 +63,8 @@ export function PreferencesSection({
             value={pushEnabled}
             onValueChange={onTogglePush}
             disabled={pushBusy || pushDisabled}
-            trackColor={{ false: "rgba(255,255,255,0.18)", true: LIME }}
-            thumbColor="#f4f4f5"
+            trackColor={{ false: themeColor().overlayStrong, true: themeColor().pitch }}
+            thumbColor={themeColor().text}
           />
         </View>
         {pushMsg ? <Text style={styles.msg}>{pushMsg}</Text> : null}
@@ -75,8 +78,8 @@ export function PreferencesSection({
             value={marketingPushEnabled}
             onValueChange={onToggleMarketingPush}
             disabled={marketingPushBusy || marketingPushDisabled || !pushEnabled}
-            trackColor={{ false: "rgba(255,255,255,0.18)", true: LIME }}
-            thumbColor="#f4f4f5"
+            trackColor={{ false: themeColor().overlayStrong, true: themeColor().pitch }}
+            thumbColor={themeColor().text}
           />
         </View>
         {marketingPushMsg ? <Text style={styles.msg}>{marketingPushMsg}</Text> : null}
@@ -101,9 +104,9 @@ export function PreferencesSection({
             onValueChange={onMaxDriveChange}
             onSlidingComplete={onMaxDriveCommit}
             disabled={maxDriveBusy || maxDriveDisabled}
-            minimumTrackTintColor={LIME}
-            maximumTrackTintColor="rgba(255,255,255,0.18)"
-            thumbTintColor="#f4f4f5"
+            minimumTrackTintColor={themeColor().pitch}
+            maximumTrackTintColor={themeColor().overlayStrong}
+            thumbTintColor={themeColor().text}
           />
           <View style={styles.maxDriveTicks}>
             <Text style={styles.maxDriveTick}>{minDrive} min</Text>
@@ -111,7 +114,7 @@ export function PreferencesSection({
           </View>
           {maxDriveBusy ? (
             <View style={styles.maxDriveSaving}>
-              <ActivityIndicator color={LIME} size="small" />
+              <ActivityIndicator color={themeColor().pitchText} size="small" />
               <Text style={styles.bioHint}>Saving…</Text>
             </View>
           ) : null}

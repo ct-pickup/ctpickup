@@ -15,7 +15,7 @@ export function AdminWorkArea({
 }) {
   return (
     <div className={className}>
-      <p className="mb-6 max-w-3xl text-sm leading-relaxed text-white/60">{question}</p>
+      <p className="mb-6 max-w-3xl text-small leading-relaxed text-muted">{question}</p>
       {children}
     </div>
   );

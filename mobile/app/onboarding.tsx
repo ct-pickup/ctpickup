@@ -1,4 +1,3 @@
-import { CT_PICKUP_LIME } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
 import { useProfileCompletionGate } from "@/context/ProfileCompletionContext";
 import { useWaiver } from "@/context/WaiverContext";
@@ -20,6 +19,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { themeColor, useThemedStyles } from "@/theme";
 type Slide =
   | { kind: "logo"; title: string; body: string }
   | { kind: "emoji"; icon: string; title: string; body: string };
@@ -76,6 +76,8 @@ function parseReplayParam(replay: string | string[] | undefined): boolean {
 }
 
 export default function OnboardingScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { session, isReady } = useAuth();
@@ -137,7 +139,7 @@ export default function OnboardingScreen() {
     if (!isReady) {
       return (
         <View style={[styles.screen, styles.center]}>
-          <ActivityIndicator size="large" color="#fff" />
+          <ActivityIndicator size="large" color={themeColor().text} />
         </View>
       );
     }
@@ -149,7 +151,7 @@ export default function OnboardingScreen() {
     if (waiverLoading || profileGateLoading) {
       return (
         <View style={[styles.screen, styles.center]}>
-          <ActivityIndicator size="large" color="#fff" />
+          <ActivityIndicator size="large" color={themeColor().text} />
         </View>
       );
     }
@@ -224,10 +226,11 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: themeColor().bg,
   },
   center: {
     justifyContent: "center",
@@ -241,8 +244,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   skipText: {
-    color: "#fff",
-    fontSize: 15,
+    color: themeColor().text,
+    fontSize: 16, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
   },
   list: {
@@ -260,21 +263,21 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   emoji: {
-    fontSize: 72,
+    fontSize: 40, fontFamily: "InstrumentSerif_400Regular",
     lineHeight: 84,
     marginBottom: 28,
     textAlign: "center",
   },
   title: {
-    color: "#fff",
-    fontSize: 28,
+    color: themeColor().text,
+    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "900",
     textAlign: "center",
     marginBottom: 16,
   },
   body: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 16,
+    color: themeColor().muted,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 24,
     textAlign: "center",
     maxWidth: 340,
@@ -293,11 +296,11 @@ const styles = StyleSheet.create({
   dot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
-    backgroundColor: "rgba(255,255,255,0.22)",
+    borderRadius: 10,
+    backgroundColor: themeColor().overlayStrong,
   },
   dotActive: {
-    backgroundColor: CT_PICKUP_LIME,
+    backgroundColor: themeColor().pitch,
     width: 22,
   },
   nextRow: {
@@ -305,7 +308,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   nextBtn: {
-    backgroundColor: CT_PICKUP_LIME,
+    backgroundColor: themeColor().pitch,
     paddingVertical: 14,
     paddingHorizontal: 28,
     borderRadius: 999,
@@ -313,19 +316,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   nextText: {
-    color: "#0a0a0a",
-    fontSize: 16,
+    color: themeColor().onPitch,
+    fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "800",
   },
   getStartedBtn: {
-    backgroundColor: CT_PICKUP_LIME,
+    backgroundColor: themeColor().pitch,
     paddingVertical: 16,
     borderRadius: 999,
     alignItems: "center",
   },
   getStartedText: {
-    color: "#0a0a0a",
-    fontSize: 17,
+    color: themeColor().onPitch,
+    fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "800",
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

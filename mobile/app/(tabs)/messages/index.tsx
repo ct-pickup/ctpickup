@@ -13,6 +13,7 @@ import {
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Pressable,
@@ -22,8 +23,6 @@ import {
   Text,
   View,
 } from "react-native";
-
-const LIME = "#a3e635";
 
 function titleForRoomRow(
   r: ChatRoomSummary,
@@ -50,6 +49,8 @@ function runChatTitle(r: ChatRoomSummary): string {
 }
 
 export default function MessagesIndex() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const { isReady, session } = useAuth();
   const signedIn = !!session?.user?.id;
@@ -106,7 +107,7 @@ export default function MessagesIndex() {
   if (!isReady) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={LIME} />
+        <ActivityIndicator color={themeColor().pitchText} />
       </View>
     );
   }
@@ -127,7 +128,7 @@ export default function MessagesIndex() {
     return (
       <View style={styles.center}>
         <View style={styles.iconWrap}>
-          <FontAwesome name="comment-o" size={28} color="#0a0a0a" />
+          <FontAwesome name="comment-o" size={28} color={themeColor().onPitch} />
         </View>
         <Text style={styles.title}>Messaging isn’t unlocked yet</Text>
         <Text style={styles.body}>Once your player profile is approved, you’ll see team updates and staff messages here.</Text>
@@ -143,13 +144,13 @@ export default function MessagesIndex() {
         <RefreshControl
           refreshing={listRefreshing}
           onRefresh={() => void onRefresh()}
-          tintColor={LIME}
+          tintColor={themeColor().pitchText}
         />
       }
     >
       <Text style={styles.heading}>Messages</Text>
       {loading && !listRefreshing ? (
-        <ActivityIndicator color={LIME} style={{ marginVertical: 24 }} />
+        <ActivityIndicator color={themeColor().pitchText} style={{ marginVertical: 24 }} />
       ) : null}
       {error ? <Text style={styles.err}>Couldn’t load rooms: {error}</Text> : null}
 
@@ -160,23 +161,23 @@ export default function MessagesIndex() {
           router.push({ pathname: "/(tabs)/messages/thread", params: { slug: ANNOUNCEMENTS_CHAT_SLUG } })
         }
       >
-        <FontAwesome name="bullhorn" size={18} color={LIME} style={styles.rowIcon} />
+        <FontAwesome name="bullhorn" size={18} color={themeColor().pitchText} style={styles.rowIcon} />
         <View style={{ flex: 1 }}>
           <Text style={styles.rowTitle}>{announcementsTitle}</Text>
           <Text style={styles.rowSub}>Staff updates</Text>
         </View>
-        <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+        <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
       </Pressable>
       <Pressable
         style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
         onPress={() => router.push({ pathname: "/(tabs)/messages/thread", params: { slug: TEAM_CHAT_SLUG } })}
       >
-        <FontAwesome name="comments" size={18} color={LIME} style={styles.rowIcon} />
+        <FontAwesome name="comments" size={18} color={themeColor().pitchText} style={styles.rowIcon} />
         <View style={{ flex: 1 }}>
           <Text style={styles.rowTitle}>{teamTitle}</Text>
           <Text style={styles.rowSub}>Team chat</Text>
         </View>
-        <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+        <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
       </Pressable>
 
       {groupRoomsNonDm.length > 0 ? (
@@ -188,12 +189,12 @@ export default function MessagesIndex() {
               style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
               onPress={() => router.push({ pathname: "/(tabs)/messages/thread", params: { id: r.id } })}
             >
-              <FontAwesome name="users" size={18} color={LIME} style={styles.rowIcon} />
+              <FontAwesome name="users" size={18} color={themeColor().pitchText} style={styles.rowIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle}>{titleForRoomRow(r, isAdmin === true, adminDmPeerLabels)}</Text>
                 <Text style={styles.rowSub}>Group chat</Text>
               </View>
-              <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+              <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
             </Pressable>
           ))}
         </>
@@ -208,12 +209,12 @@ export default function MessagesIndex() {
               style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
               onPress={() => router.push({ pathname: "/(tabs)/messages/thread", params: { id: r.id } })}
             >
-              <FontAwesome name="users" size={18} color={LIME} style={styles.rowIcon} />
+              <FontAwesome name="users" size={18} color={themeColor().pitchText} style={styles.rowIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle}>{r.title}</Text>
                 <Text style={styles.rowSub}>Tournament team</Text>
               </View>
-              <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+              <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
             </Pressable>
           ))}
         </>
@@ -250,12 +251,12 @@ export default function MessagesIndex() {
                 style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
                 onPress={() => router.push({ pathname: "/(tabs)/messages/thread", params: { id: r.id } })}
               >
-                <FontAwesome name="comments" size={18} color={LIME} style={styles.rowIcon} />
+                <FontAwesome name="comments" size={18} color={themeColor().pitchText} style={styles.rowIcon} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rowTitle}>{runChatTitle(r)}</Text>
                   <Text style={styles.rowSub}>{r.description?.trim() || "Pickup run"}</Text>
                 </View>
-                <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+                <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
               </Pressable>
             ))
           )}
@@ -271,12 +272,12 @@ export default function MessagesIndex() {
               style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
               onPress={() => router.push({ pathname: "/(tabs)/messages/thread", params: { id: r.id } })}
             >
-              <FontAwesome name="user" size={18} color={LIME} style={styles.rowIcon} />
+              <FontAwesome name="user" size={18} color={themeColor().pitchText} style={styles.rowIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle}>{titleForRoomRow(r, isAdmin === true, adminDmPeerLabels)}</Text>
                 <Text style={styles.rowSub}>Direct message</Text>
               </View>
-              <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+              <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
             </Pressable>
           ))}
         </>
@@ -285,80 +286,85 @@ export default function MessagesIndex() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0a0a0a" },
+function make_styles() {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 18, paddingBottom: 40 },
   center: {
     flex: 1,
-    backgroundColor: "#0a0a0a",
+    backgroundColor: themeColor().bg,
     padding: 24,
     justifyContent: "center",
     alignItems: "center",
   },
-  pad: { flex: 1, backgroundColor: "#0a0a0a", padding: 18 },
-  heading: { color: "#fff", fontSize: 24, fontWeight: "900", marginBottom: 6 },
+  pad: { flex: 1, backgroundColor: themeColor().bg, padding: 18 },
+  heading: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", marginBottom: 6 },
   title: {
-    fontSize: 20,
+    fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "800",
-    color: "#fff",
+    color: themeColor().text,
     textAlign: "center",
     marginBottom: 12,
   },
   body: {
-    fontSize: 15,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 22,
-    color: "rgba(255,255,255,0.55)",
+    color: themeColor().muted,
     textAlign: "center",
   },
   signInWrap: { marginTop: 14 },
   iconWrap: {
     width: 56,
     height: 56,
-    borderRadius: 16,
-    backgroundColor: LIME,
+    borderRadius: 12,
+    backgroundColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
   },
   section: {
-    color: "rgba(255,255,255,0.45)",
-    fontSize: 11,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
     marginBottom: 10,
     marginTop: 4,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderRadius: 14,
+    backgroundColor: themeColor().overlaySubtle,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: themeColor().line,
     paddingVertical: 14,
     paddingHorizontal: 14,
     marginBottom: 10,
   },
   rowPressed: { opacity: 0.92 },
   rowIcon: { marginRight: 12 },
-  rowTitle: { color: "#fff", fontSize: 16, fontWeight: "800" },
-  rowSub: { color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 2 },
-  err: { color: "#f87171", marginBottom: 12, fontSize: 13 },
+  rowTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  rowSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  err: { color: themeColor().coral, marginBottom: 12, fontSize: 13, fontFamily: "Inter_400Regular" },
   runTabRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
   runTab: {
     paddingVertical: 6,
     paddingHorizontal: 16,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   runTabActive: {
-    borderColor: LIME,
-    backgroundColor: "rgba(163,230,53,0.12)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  runTabText: { fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.5)" },
-  runTabTextActive: { color: LIME },
-  runTabEmpty: { color: "rgba(255,255,255,0.35)", fontSize: 14, marginBottom: 10 },
+  runTabText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
+  runTabTextActive: { color: themeColor().pitchText },
+  runTabEmpty: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", marginBottom: 10 },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

@@ -15,9 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const LIME = "#a3e635";
-const BG = "#0a0a0a";
-
+import { themeColor, useThemedStyles } from "@/theme";
 function winnerLabel(reason: string, discountPct: number | null): string {
   if (reason === "monthly_pod") return "POD winner · Free run";
   if (reason === "monthly_attendance") {
@@ -35,6 +33,8 @@ function LeaderList({
   emptyText: string;
   countSuffix?: string;
 }) {
+  useThemedStyles(publish_styles);
+
   if (rows.length === 0) {
     return <Text style={styles.muted}>{emptyText}</Text>;
   }
@@ -57,6 +57,8 @@ function LeaderList({
 }
 
 export default function MonthlyLeadersScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const { session } = useAuth();
   const token = session?.access_token ?? null;
@@ -108,7 +110,7 @@ export default function MonthlyLeadersScreen() {
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <View style={styles.topBar}>
         <Pressable onPress={() => goToAdminMenu(router)} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}>
-          <FontAwesome name="chevron-left" size={18} color="#fff" />
+          <FontAwesome name="chevron-left" size={18} color={themeColor().text} />
           <Text style={styles.backBtnText}>Back</Text>
         </Pressable>
         <Text style={styles.topTitle}>Monthly Leaders</Text>
@@ -121,12 +123,12 @@ export default function MonthlyLeadersScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => void load(true)}
-            tintColor={LIME}
+            tintColor={themeColor().pitchText}
           />
         }
       >
         {loading && !data ? (
-          <ActivityIndicator color={LIME} style={{ marginTop: 24 }} />
+          <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 24 }} />
         ) : null}
         {error ? <Text style={styles.err}>{error}</Text> : null}
 
@@ -155,7 +157,7 @@ export default function MonthlyLeadersScreen() {
                 <>
                   {podWinner ? (
                     <View style={styles.winnerRow}>
-                      <FontAwesome name="trophy" size={16} color={LIME} />
+                      <FontAwesome name="trophy" size={16} color={themeColor().pitchText} />
                       <View style={styles.winnerBody}>
                         <Text style={styles.winnerName}>{podWinner.name}</Text>
                         <Text style={styles.winnerMeta}>{winnerLabel(podWinner.reason, podWinner.discount_pct)}</Text>
@@ -164,7 +166,7 @@ export default function MonthlyLeadersScreen() {
                   ) : null}
                   {attendanceWinner ? (
                     <View style={[styles.winnerRow, podWinner ? { marginTop: 12 } : null]}>
-                      <FontAwesome name="calendar-check-o" size={16} color={LIME} />
+                      <FontAwesome name="calendar-check-o" size={16} color={themeColor().pitchText} />
                       <View style={styles.winnerBody}>
                         <Text style={styles.winnerName}>{attendanceWinner.name}</Text>
                         <Text style={styles.winnerMeta}>
@@ -183,8 +185,9 @@ export default function MonthlyLeadersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: BG },
+function make_styles() {
+  return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: themeColor().bg },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -199,34 +202,40 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingRight: 8,
   },
-  backBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  topTitle: { flex: 1, fontSize: 22, fontWeight: "800", color: "#fff" },
+  backBtnText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  topTitle: { flex: 1, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
   scroll: { flex: 1 },
   content: { padding: 16, paddingBottom: 40, gap: 14 },
-  err: { color: "#fca5a5", lineHeight: 20, marginBottom: 8 },
+  err: { color: themeColor().coral, lineHeight: 20, marginBottom: 8 },
   card: {
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.25)",
-    backgroundColor: "rgba(163,230,53,0.06)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  cardTitle: { color: LIME, fontSize: 16, fontWeight: "800" },
-  cardSub: { color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 4, marginBottom: 12 },
+  cardTitle: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  cardSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4, marginBottom: 12 },
   leaderRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.08)",
+    borderTopColor: themeColor().line,
   },
-  rank: { width: 22, color: LIME, fontWeight: "800", fontSize: 15 },
-  leaderName: { flex: 1, color: "#fff", fontSize: 15, fontWeight: "600" },
-  leaderCount: { color: "rgba(255,255,255,0.65)", fontSize: 14, fontWeight: "700" },
-  muted: { color: "rgba(255,255,255,0.45)", fontSize: 14, fontStyle: "italic" },
+  rank: { width: 22, color: themeColor().pitchText, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  leaderName: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  leaderCount: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  muted: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", fontStyle: "italic" },
   winnerRow: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   winnerBody: { flex: 1, minWidth: 0 },
-  winnerName: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  winnerMeta: { color: "rgba(255,255,255,0.55)", fontSize: 13, marginTop: 4 },
+  winnerName: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  winnerMeta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

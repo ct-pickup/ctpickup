@@ -251,7 +251,7 @@ export default function TournamentPage() {
         }
         setError(
           typeof data?.error === "string"
-            ? data.error.replace(/_/g, " ")
+            ? data.error.replace(/_/g, "  ")
             : "Could not submit claim. Please try again."
         );
         return;
@@ -286,7 +286,7 @@ export default function TournamentPage() {
         }
         setError(
           typeof j?.error === "string"
-            ? j.error.replace(/_/g, " ")
+            ? j.error.replace(/_/g, "  ")
             : "Could not start checkout."
         );
         return;
@@ -311,15 +311,15 @@ export default function TournamentPage() {
           <div className="space-y-3">
             <SectionEyebrow>Tournament Status</SectionEyebrow>
             {publicLoading ? (
-              <div className="text-2xl font-semibold text-white/60 md:text-3xl">Loading…</div>
+              <div className="text-h2 font-serif font-semibold text-muted md:text-h1">Loading…</div>
             ) : publicError ? (
               <>
-                <div className="text-2xl font-semibold text-white md:text-3xl">Unavailable</div>
-                <p className="text-sm text-white/55">{publicError}</p>
+                <div className="text-h2 font-serif font-semibold text-ink md:text-h1">Unavailable</div>
+                <p className="text-small text-muted">{publicError}</p>
               </>
             ) : (
               <>
-                <div className="text-4xl font-semibold text-white md:text-5xl">
+                <div className="text-display font-serif font-semibold text-ink md:text-display">
                   {statusHeadline(publicData)}
                 </div>
                 {!t ? (
@@ -327,17 +327,17 @@ export default function TournamentPage() {
                     No tournament is open right now
                   </EmptyStateMessage>
                 ) : (
-                  <p className="text-sm text-white/55">{statusBlurb(publicData)}</p>
+                  <p className="text-small text-muted">{statusBlurb(publicData)}</p>
                 )}
               </>
             )}
           </div>
 
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold uppercase tracking-tight text-white md:text-2xl">
+            <h2 className="text-h3 font-serif font-semibold text-ink md:text-h2">
               Captain-Based Entry
             </h2>
-            <p className="text-sm leading-7 text-white/70">
+            <p className="text-small leading-7 text-muted">
               Captains claim a team slot first. Final approval depends on payment,
               roster verification, eligibility review, and admin approval.
             </p>
@@ -346,38 +346,38 @@ export default function TournamentPage() {
               type="button"
               onClick={() => void openClaimModal()}
               disabled={claimDisabled || !!publicError || checkingWaiver}
-              className="rounded-md bg-white px-5 py-3 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-button bg-pitch px-5 py-3 text-small font-semibold text-on-pitch disabled:cursor-not-allowed disabled:opacity-40"
             >
               {checkingWaiver ? "Checking…" : "CLAIM A TEAM"}
             </button>
             {waiverGateMessage ? (
-              <p className="text-xs font-medium text-red-300/95">{waiverGateMessage}</p>
+              <p className="text-caption font-medium text-coral">{waiverGateMessage}</p>
             ) : null}
             {!publicLoading && t && claimsClosed ? (
-              <p className="text-xs text-white/50">Captain claim slots are currently full.</p>
+              <p className="text-caption text-muted">Captain claim slots are currently full.</p>
             ) : null}
             {!publicLoading && t && publicData?.full ? (
-              <p className="text-xs text-white/50">Tournament field is full.</p>
+              <p className="text-caption text-muted">Tournament field is full.</p>
             ) : null}
             {!token && t ? (
-              <p className="text-xs text-white/50">Log in to submit a captain claim.</p>
+              <p className="text-caption text-muted">Log in to submit a captain claim.</p>
             ) : null}
           </div>
         </div>
 
         <Panel className="p-6 md:p-8">
-          <h2 className="text-2xl font-bold uppercase tracking-tight text-white md:text-3xl">
+          <h2 className="text-h2 font-serif font-bold text-ink md:text-h1">
             Tournament Overview
           </h2>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-white/75">
+          <p className="mt-4 max-w-2xl text-small leading-7 text-muted">
             A captain claim reserves one potential team place. The tournament is only confirmed
             once the minimum number of approved teams is reached, and it locks once all team spots are filled.
           </p>
 
           {publicLoading ? (
-            <p className="mt-8 text-sm text-white/60">Loading…</p>
+            <p className="mt-8 text-small text-muted">Loading…</p>
           ) : publicError ? (
-            <p className="mt-8 text-sm text-white/60">{publicError}</p>
+            <p className="mt-8 text-small text-muted">{publicError}</p>
           ) : !t ? (
             <EmptyStateMessage className="mt-8">
               No tournaments available
@@ -385,32 +385,32 @@ export default function TournamentPage() {
           ) : (
             <>
               {t.title ? (
-                <p className="mt-4 text-sm font-medium text-white/85">{t.title}</p>
+                <p className="mt-4 text-small font-medium text-ink">{t.title}</p>
               ) : null}
               <div className="mt-8 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-white/15 bg-white/5 p-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/55">
+                <div className="rounded-card border border-line bg-overlay-subtle p-4">
+                  <div className="text-caption font-semibold text-muted">
                     Minimum to Confirm
                   </div>
-                  <div className="mt-2 text-2xl font-semibold text-white">
+                  <div className="mt-2 text-h2 font-serif font-semibold text-ink">
                     {t.officialThreshold} Teams
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-white/15 bg-white/5 p-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/55">
+                <div className="rounded-card border border-line bg-overlay-subtle p-4">
+                  <div className="text-caption font-semibold text-muted">
                     Teams Claimed
                   </div>
-                  <div className="mt-2 text-2xl font-semibold text-white">
+                  <div className="mt-2 text-h2 font-serif font-semibold text-ink">
                     {publicData?.claimedTeams ?? 0} / {t.maxTeams}
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-white/15 bg-white/5 p-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/55">
+                <div className="rounded-card border border-line bg-overlay-subtle p-4">
+                  <div className="text-caption font-semibold text-muted">
                     Spots Remaining
                   </div>
-                  <div className="mt-2 text-2xl font-semibold text-white">
+                  <div className="mt-2 text-h2 font-serif font-semibold text-ink">
                     {Math.max(0, t.maxTeams - (publicData?.claimedTeams ?? 0))}
                   </div>
                 </div>
@@ -433,15 +433,15 @@ export default function TournamentPage() {
 
       {modalOpen && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center px-6">
-          <div className="absolute inset-0 bg-black" />
+          <div className="absolute inset-0 bg-canvas" />
 
-          <div className="relative z-10 w-full max-w-2xl rounded-2xl border border-black/10 bg-white p-6 text-black shadow-2xl">
+          <div className="relative z-10 w-full max-w-2xl rounded-card border border-line bg-card p-6 text-ink">
             <div className="flex items-start justify-between gap-6">
               <div className="space-y-1">
-                <div className="text-sm font-semibold uppercase tracking-wide text-black/60">
+                <div className="text-small font-semibold text-ink">
                   {step === "rules" ? "Submission Agreement" : "Claim Your Captain Spot"}
                 </div>
-                <div className="text-black/80">
+                <div className="text-ink">
                   {step === "rules"
                     ? "You must read and agree before submitting."
                     : "Claiming a captain slot reserves one potential team place for this tournament."}
@@ -451,7 +451,7 @@ export default function TournamentPage() {
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="text-sm underline text-black/60"
+                className="text-small underline text-ink"
               >
                 Close
               </button>
@@ -466,9 +466,9 @@ export default function TournamentPage() {
                       el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
                     if (nearBottom) setRulesRead(true);
                   }}
-                  className="mt-5 h-64 overflow-y-auto rounded-xl border border-black/10 bg-white p-6 space-y-4 text-black/80"
+                  className="mt-5 h-64 overflow-y-auto rounded-card border border-line bg-card p-6 space-y-4 text-ink"
                 >
-                  <div className="font-semibold uppercase text-black/90">
+                  <div className="font-semibold text-ink">
                     Rules and Eligibility
                   </div>
 
@@ -477,7 +477,7 @@ export default function TournamentPage() {
                     the tournament start time.
                   </p>
 
-                  <div className="font-semibold uppercase text-black/90">Entry fees &amp; refunds</div>
+                  <div className="font-semibold text-ink">Entry fees &amp; refunds</div>
                   <p>{IN_PERSON_TOURNAMENT_REFUND_NOTICE_UI}</p>
 
                   <p>
@@ -499,7 +499,7 @@ export default function TournamentPage() {
                     depends on payment, roster verification, eligibility, and admin review.
                   </p>
 
-                  <div className="font-semibold uppercase text-black/90">
+                  <div className="font-semibold text-ink">
                     Photo, video &amp; online use
                   </div>
 
@@ -514,7 +514,7 @@ export default function TournamentPage() {
                 </div>
 
                 <div className="mt-5 space-y-3">
-                  <label className="flex items-center gap-2 text-sm text-black/80">
+                  <label className="flex items-center gap-2 text-small text-ink">
                     <input
                       type="checkbox"
                       checked={agreed}
@@ -528,14 +528,14 @@ export default function TournamentPage() {
                     placeholder="Type your full name"
                     value={typedName}
                     onChange={(e) => setTypedName(e.target.value)}
-                    className="w-full rounded-md border border-black/20 px-4 py-2 text-sm"
+                    className="w-full rounded-button border border-line px-4 py-2 text-small"
                   />
 
                   <button
                     type="button"
                     onClick={submitAgreement}
                     disabled={!rulesRead || !agreed || !typedName.trim()}
-                    className="w-full rounded-md bg-black px-5 py-3 text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="w-full rounded-button bg-canvas px-5 py-3 text-small font-semibold text-ink disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Submit
                   </button>
@@ -543,8 +543,8 @@ export default function TournamentPage() {
               </>
             ) : !claimDone ? (
               <div className="mt-6 space-y-6">
-                <div className="rounded-xl border border-black/10 bg-black/5 p-5 space-y-4">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-black/80">
+                <div className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+                  <div className="text-small font-semibold text-ink">
                     Captain Info
                   </div>
 
@@ -553,19 +553,19 @@ export default function TournamentPage() {
                       value={captainName}
                       onChange={(e) => setCaptainName(e.target.value)}
                       placeholder="Full name"
-                      className="w-full rounded-xl border border-black/15 bg-white px-4 py-3 text-sm text-black placeholder:text-black/35 outline-none"
+                      className="w-full rounded-card border border-line bg-card px-4 py-3 text-small text-ink placeholder:text-muted outline-none"
                     />
                     <input
                       value={captainIg}
                       onChange={(e) => setCaptainIg(e.target.value)}
                       placeholder="Instagram handle"
-                      className="w-full rounded-xl border border-black/15 bg-white px-4 py-3 text-sm text-black placeholder:text-black/35 outline-none"
+                      className="w-full rounded-card border border-line bg-card px-4 py-3 text-small text-ink placeholder:text-muted outline-none"
                     />
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-black/10 bg-black/5 p-5 space-y-4">
-                  <div className="text-sm font-semibold uppercase tracking-wide text-black/80">
+                <div className="rounded-card border border-line bg-overlay-subtle p-5 space-y-4">
+                  <div className="text-small font-semibold text-ink">
                     Team Info
                   </div>
 
@@ -574,7 +574,7 @@ export default function TournamentPage() {
                       value={teamName}
                       onChange={(e) => setTeamName(e.target.value)}
                       placeholder="Team name"
-                      className="w-full rounded-xl border border-black/15 bg-white px-4 py-3 text-sm text-black placeholder:text-black/35 outline-none"
+                      className="w-full rounded-card border border-line bg-card px-4 py-3 text-small text-ink placeholder:text-muted outline-none"
                     />
                     <input
                       type="number"
@@ -583,11 +583,11 @@ export default function TournamentPage() {
                       min={5}
                       max={25}
                       placeholder="Expected players"
-                      className="w-full rounded-xl border border-black/15 bg-white px-4 py-3 text-sm text-black placeholder:text-black/35 outline-none"
+                      className="w-full rounded-card border border-line bg-card px-4 py-3 text-small text-ink placeholder:text-muted outline-none"
                     />
                   </div>
 
-                  <div className="text-xs text-black/55">
+                  <div className="text-caption text-ink">
                     Optional: early roster entries (preliminary only). These do not count as verified registration.
                   </div>
 
@@ -598,18 +598,18 @@ export default function TournamentPage() {
                           value={p.fullName}
                           onChange={(e) => updatePrelim(i, "fullName", e.target.value)}
                           placeholder="Full name"
-                          className="sm:col-span-2 rounded-xl border border-black/15 bg-white px-4 py-3 text-sm text-black placeholder:text-black/35 outline-none"
+                          className="sm:col-span-2 rounded-card border border-line bg-card px-4 py-3 text-small text-ink placeholder:text-muted outline-none"
                         />
                         <input
                           value={p.instagram}
                           onChange={(e) => updatePrelim(i, "instagram", e.target.value)}
                           placeholder="Instagram"
-                          className="sm:col-span-2 rounded-xl border border-black/15 bg-white px-4 py-3 text-sm text-black placeholder:text-black/35 outline-none"
+                          className="sm:col-span-2 rounded-card border border-line bg-card px-4 py-3 text-small text-ink placeholder:text-muted outline-none"
                         />
                         <button
                           type="button"
                           onClick={() => removePrelim(i)}
-                          className="rounded-xl border border-black/15 bg-white px-4 py-3 text-sm text-black/80"
+                          className="rounded-card border border-line bg-pitch px-4 py-3 text-small text-on-pitch"
                         >
                           Remove
                         </button>
@@ -619,7 +619,7 @@ export default function TournamentPage() {
                     <button
                       type="button"
                       onClick={addPrelimRow}
-                      className="text-sm text-black/70 hover:underline underline-offset-4"
+                      className="text-small text-ink hover:underline underline-offset-4"
                     >
                       Add early roster entry
                     </button>
@@ -637,7 +637,7 @@ export default function TournamentPage() {
                       !expectedPlayers ||
                       submitting
                     }
-                    className="rounded-md bg-black px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                    className="rounded-button bg-canvas px-5 py-2.5 text-small font-semibold text-ink disabled:opacity-50"
                   >
                     {submitting ? "Submitting…" : "Claim Your Captain Spot"}
                   </button>
@@ -645,22 +645,22 @@ export default function TournamentPage() {
                   <button
                     type="button"
                     onClick={() => setModalOpen(false)}
-                    className="rounded-md border border-black/15 bg-white px-5 py-2.5 text-sm font-semibold text-black/85"
+                    className="rounded-button border border-line bg-pitch px-5 py-2.5 text-small font-semibold text-on-pitch"
                   >
                     Cancel
                   </button>
                 </div>
 
-                {error ? <div className="text-sm text-red-600">{error}</div> : null}
+                {error ? <div className="text-small text-coral">{error}</div> : null}
               </div>
             ) : (
               <div className="mt-6 space-y-5">
-                <div className="rounded-xl border border-black/10 bg-black/5 p-6 text-sm text-black/80 whitespace-pre-line">
+                <div className="rounded-card border border-line bg-overlay-subtle p-6 text-small text-ink whitespace-pre-line">
                   Your captain interest has been recorded. Your team spot is not confirmed yet. Confirmation only happens after payment, eligibility review, roster verification, and final approval.
                 </div>
 
-                <div className="rounded-xl border border-amber-200/60 bg-amber-50/90 p-4 text-xs leading-relaxed text-black/80">
-                  <span className="font-semibold text-black/90">Before you pay:</span>{" "}
+                <div className="rounded-card border border-coral bg-overlay-subtle p-4 text-caption leading-relaxed text-ink">
+                  <span className="font-semibold text-ink">Before you pay:</span>{"  "}
                   {IN_PERSON_TOURNAMENT_REFUND_NOTICE_UI}
                 </div>
 
@@ -669,7 +669,7 @@ export default function TournamentPage() {
                     type="button"
                     onClick={goToPayment}
                     disabled={payBusy}
-                    className="rounded-md bg-black px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                    className="rounded-button bg-canvas px-5 py-2.5 text-small font-semibold text-ink disabled:opacity-50"
                   >
                     {payBusy ? "Starting checkout…" : `Proceed to payment ($${Math.max(5, Math.min(25, expectedPlayers)) * 50})`}
                   </button>
@@ -677,13 +677,13 @@ export default function TournamentPage() {
                   <button
                     type="button"
                     onClick={() => setModalOpen(false)}
-                    className="rounded-md border border-black/15 bg-white px-5 py-2.5 text-sm font-semibold text-black/85"
+                    className="rounded-button border border-line bg-pitch px-5 py-2.5 text-small font-semibold text-on-pitch"
                   >
                     Close
                   </button>
                 </div>
 
-                {error ? <div className="text-sm text-red-600">{error}</div> : null}
+                {error ? <div className="text-small text-coral">{error}</div> : null}
               </div>
             )}
           </div>

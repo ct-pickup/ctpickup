@@ -44,25 +44,25 @@ export function EsportsRegisterPageHeader({ tournamentId, tournamentTitle }: Pro
   return (
     <header className="mt-4">
       <SectionEyebrow>{entryComplete ? "Tournament entry" : "Esports registration"}</SectionEyebrow>
-      <h1 className="mt-4 text-2xl font-semibold uppercase tracking-tight text-white md:text-3xl">
+      <h1 className="mt-4 text-h2 font-serif font-semibold text-ink md:text-h1">
         {tournamentTitle}
       </h1>
       {entryComplete ? (
-        <p className="mt-3 text-sm text-white/60">
-          Your entry fee is recorded.{" "}
+        <p className="mt-3 text-small text-muted">
+          Your entry fee is recorded.{"  "}
           <Link
             href={`/esports/tournaments/${tournamentId}`}
-            className="text-[var(--brand)] underline-offset-4 hover:underline"
+            className="text-pitch-text underline-offset-4 hover:underline"
           >
             Tournament overview
           </Link>
         </p>
       ) : (
-        <p className="mt-3 text-sm text-white/60">
-          Consent, signature, and $10 entry. You must be signed in.{" "}
+        <p className="mt-3 text-small text-muted">
+          Consent, signature, and $10 entry. You must be signed in.{"  "}
           <Link
             href={`/esports/tournaments/${tournamentId}`}
-            className="text-[var(--brand)] underline-offset-4 hover:underline"
+            className="text-pitch-text underline-offset-4 hover:underline"
           >
             Tournament overview
           </Link>

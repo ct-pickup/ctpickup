@@ -19,11 +19,11 @@ export default function CommunityPage() {
           <div className="max-w-[620px]">
             <SectionEyebrow>CT Pickup</SectionEyebrow>
 
-            <h1 className="mt-4 text-3xl font-semibold uppercase tracking-tight text-white md:text-5xl">
+            <h1 className="mt-4 text-h1 font-serif font-semibold text-ink md:text-display">
               Community
             </h1>
 
-            <div className="mt-8 space-y-8 border-l border-white/15 pl-5 text-base leading-relaxed text-white/80 md:pl-8 md:text-lg">
+            <div className="mt-8 space-y-8 border-l border-line pl-5 text-body leading-relaxed text-ink md:pl-8 md:text-h3 font-serif">
               <p>
                 CT Pickup is an organized pickup soccer community built for players
                 who want quality games without the commitment of a traditional league.

@@ -1,6 +1,7 @@
 import { ActivityIndicator, Text, View } from "react-native";
-import { accountStyles as styles } from "./accountStyles";
+import { accountStyles as styles, publish_accountStyles } from "./accountStyles";
 
+import { themeColor, useThemedStyles } from "@/theme";
 type Props = {
   loading: boolean;
   label: string | null;
@@ -9,13 +10,15 @@ type Props = {
 };
 
 export function ReliabilitySection({ loading, label, scorePct, subtext }: Props) {
+  useThemedStyles(publish_accountStyles);
+
   return (
     <>
       <Text style={styles.sectionTitle}>Reliability</Text>
       <View style={styles.card}>
         {loading ? (
           <View style={styles.cardLoadingRow}>
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={themeColor().text} />
             <Text style={styles.cardLoadingText}>Loading score…</Text>
           </View>
         ) : label == null && scorePct == null ? (

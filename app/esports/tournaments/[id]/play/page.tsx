@@ -53,7 +53,7 @@ export default async function EsportsTournamentPlayPage({ params }: Props) {
       <PageShell maxWidthClass="max-w-3xl" className="pb-16">
         <TopNav rightSlot={<AuthenticatedProfileMenu />} />
         <Panel className="mt-8 p-6 md:p-8">
-          <p className="text-sm text-red-200">Could not load your matches.</p>
+          <p className="text-small text-coral">Could not load your matches.</p>
         </Panel>
       </PageShell>
     );
@@ -135,10 +135,10 @@ export default async function EsportsTournamentPlayPage({ params }: Props) {
 
       <header className="mt-4">
         <SectionEyebrow>Esports</SectionEyebrow>
-        <h1 className="mt-4 text-2xl font-semibold uppercase tracking-tight text-white md:text-3xl">
+        <h1 className="mt-4 text-h2 font-serif font-semibold text-ink md:text-h1">
           Tournament play
         </h1>
-        <p className="mt-3 text-sm text-white/60">
+        <p className="mt-3 text-small text-muted">
           Report results, upload a score screenshot, and confirm or dispute when you are the opponent.
         </p>
       </header>
@@ -146,11 +146,11 @@ export default async function EsportsTournamentPlayPage({ params }: Props) {
       <div className="mt-8">
         {entries.length === 0 ? (
           <Panel className="p-6 md:p-8">
-            <p className="text-sm text-white/70">You don’t have any matches for this tournament yet.</p>
-            <p className="mt-4 text-sm">
+            <p className="text-small text-muted">You don’t have any matches for this tournament yet.</p>
+            <p className="mt-4 text-small">
               <Link
                 href={`/esports/tournaments/${tournamentId}`}
-                className="text-[var(--brand)] underline-offset-4 hover:underline"
+                className="text-pitch-text underline-offset-4 hover:underline"
               >
                 Back to tournament page
               </Link>
@@ -161,7 +161,7 @@ export default async function EsportsTournamentPlayPage({ params }: Props) {
         )}
       </div>
 
-      <p className="mt-8 text-center text-sm text-white/45">
+      <p className="mt-8 text-center text-small text-muted">
         <Link href={`/esports/tournaments/${tournamentId}`} className="underline-offset-4 hover:underline">
           Back to tournament
         </Link>

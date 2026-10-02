@@ -2,6 +2,7 @@ import { autoBalanceTeams, type PickupTeam } from "@/lib/pickupTeamBalance";
 import { hapticTap } from "@/lib/haptics";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useEffect, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -13,8 +14,6 @@ import {
   Text,
   View,
 } from "react-native";
-
-const LIME = "#a3e635";
 
 export type TeamAssignmentPlayer = {
   id: string;
@@ -37,6 +36,8 @@ export default function TeamAssignmentSheet({
   onClose,
   onLockTeams,
 }: TeamAssignmentSheetProps) {
+  useThemedStyles(publish_styles);
+
   const [totalTeams, setTotalTeams] = useState<2 | 3>(2);
   const [teamByUser, setTeamByUser] = useState<Record<string, PickupTeam>>({});
 
@@ -88,7 +89,7 @@ export default function TeamAssignmentSheet({
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Assign teams</Text>
             <Pressable onPress={onClose} hitSlop={12}>
-              <FontAwesome name="times" size={20} color="#fff" />
+              <FontAwesome name="times" size={20} color={themeColor().text} />
             </Pressable>
           </View>
           <Text style={styles.subtitle}>Auto-balance by position, or tap a team chip to reassign.</Text>
@@ -164,67 +165,74 @@ export default function TeamAssignmentSheet({
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   modalRoot: { flex: 1, justifyContent: "flex-end" },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.65)" },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: themeColor().scrim },
   sheet: {
     maxHeight: "88%",
-    backgroundColor: "#111",
+    backgroundColor: themeColor().bg,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
   },
   teamsSheet: { minHeight: "55%" },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  sheetTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
-  subtitle: { color: "rgba(255,255,255,0.5)", lineHeight: 20, marginBottom: 12, fontSize: 13 },
+  sheetTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  subtitle: { color: themeColor().muted, lineHeight: 20, marginBottom: 12, fontSize: 13, fontFamily: "Inter_400Regular" },
   teamToggleRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12, alignItems: "center" },
   teamToggle: {
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: themeColor().line,
   },
-  teamToggleActive: { borderColor: "rgba(163,230,53,0.45)", backgroundColor: "rgba(163,230,53,0.1)" },
-  teamToggleText: { color: "rgba(255,255,255,0.55)", fontWeight: "700", fontSize: 13 },
-  teamToggleTextActive: { color: LIME },
+  teamToggleActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  teamToggleText: { color: themeColor().muted, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
+  teamToggleTextActive: { color: themeColor().pitchText },
   rebalanceBtn: {
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
+    borderColor: themeColor().pitch,
   },
-  rebalanceText: { color: LIME, fontWeight: "700", fontSize: 12 },
+  rebalanceText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   teamList: { maxHeight: 360, marginBottom: 12 },
   teamPlayerRow: {
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.08)",
+    borderBottomColor: themeColor().line,
   },
   teamPlayerInfo: { marginBottom: 8 },
-  teamPlayerName: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  teamPlayerPos: { color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 2 },
+  teamPlayerName: { color: themeColor().text, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
+  teamPlayerPos: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   teamPickRow: { flexDirection: "row", gap: 8 },
   teamChip: {
     minWidth: 40,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: themeColor().line,
     alignItems: "center",
   },
-  teamChipActive: { borderColor: LIME, backgroundColor: "rgba(163,230,53,0.12)" },
-  teamChipText: { color: "rgba(255,255,255,0.6)", fontWeight: "800" },
-  teamChipTextActive: { color: LIME },
+  teamChipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  teamChipText: { color: themeColor().muted, fontWeight: "800" },
+  teamChipTextActive: { color: themeColor().pitchText },
   primaryBtn: {
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
   },
   primaryBtnDisabled: { opacity: 0.55 },
-  primaryBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  primaryBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

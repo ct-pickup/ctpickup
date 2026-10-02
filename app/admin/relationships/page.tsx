@@ -14,10 +14,10 @@ export default async function AdminRelationshipsPage() {
     supabase = supabaseService();
   } catch {
     return (
-      <main className="min-h-screen text-white">
+      <main className="min-h-screen text-ink">
         <PageTop flush title="Staff · Relationships" fallbackHref={APP_HOME_URL} />
         <AdminWorkArea question="What is wired together — and what is missing so the public site goes quiet?">
-          <p className="text-sm text-white/55">Database isn’t configured.</p>
+          <p className="text-small text-muted">Database isn’t configured.</p>
         </AdminWorkArea>
       </main>
     );
@@ -83,11 +83,11 @@ export default async function AdminRelationshipsPage() {
   ];
 
   return (
-    <main className="min-h-screen text-white">
+    <main className="min-h-screen text-ink">
       <PageTop flush title="Staff · Relationships" fallbackHref={APP_HOME_URL} />
 
       <AdminWorkArea question="What is this item connected to, what updates automatically, and what dependency is still missing?">
-        <p className="mb-6 max-w-3xl text-sm text-white/55">
+        <p className="mb-6 max-w-3xl text-small text-muted">
           A few “what’s live” choices power what players see. When one is missing, hubs look empty even if older data exists.
         </p>
 
@@ -95,33 +95,33 @@ export default async function AdminRelationshipsPage() {
           {rows.map((r) => (
             <li
               key={r.name}
-              className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+              className="rounded-card border border-line bg-overlay-subtle p-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
             >
               <div className="min-w-0 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-semibold text-white">{r.name}</span>
+                  <span className="font-semibold text-ink">{r.name}</span>
                   {r.ok ? <StatusChip tone="synced">Linked</StatusChip> : <StatusChip tone="incomplete">Gap</StatusChip>}
                 </div>
-                <div className="text-xs text-white/45">
-                  <span className="text-white/60">What drives it:</span> {r.from}
+                <div className="text-caption text-muted">
+                  <span className="text-muted">What drives it:</span> {r.from}
                 </div>
-                <div className="text-xs text-white/45">
-                  <span className="text-white/60">Where players see it:</span> {r.to}
+                <div className="text-caption text-muted">
+                  <span className="text-muted">Where players see it:</span> {r.to}
                 </div>
                 {r.name.startsWith("Pickup hub") && promotedRes.data ? (
-                  <div className="text-sm text-white/70 pt-1">
-                    Current: <span className="text-white">{promotedRes.data.title}</span> ({promotedRes.data.status})
+                  <div className="text-small text-muted pt-1">
+                    Current: <span className="text-ink">{promotedRes.data.title}</span> ({promotedRes.data.status})
                   </div>
                 ) : null}
                 {r.name.startsWith("Tournament") && activeTRes.data ? (
-                  <div className="text-sm text-white/70 pt-1">
-                    Current: <span className="text-white">{activeTRes.data.title}</span> · {activeTRes.data.slug}
+                  <div className="text-small text-muted pt-1">
+                    Current: <span className="text-ink">{activeTRes.data.title}</span> · {activeTRes.data.slug}
                   </div>
                 ) : null}
               </div>
               <Link
                 href={r.fix}
-                className="shrink-0 rounded-lg border border-white/20 px-4 py-2 text-xs font-semibold text-white hover:bg-white/10"
+                className="shrink-0 rounded-button border border-line px-4 py-2 text-caption font-semibold text-ink hover:bg-overlay"
               >
                 Open
               </Link>
@@ -136,9 +136,9 @@ export default async function AdminRelationshipsPage() {
           activeTournamentId={activeTRes.data?.id ?? null}
         />
 
-        <section className="mt-10 rounded-2xl border border-white/10 bg-black/40 p-5">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-white/45">What updates automatically</h3>
-          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-white/65">
+        <section className="mt-10 rounded-card border border-line bg-overlay-subtle p-5">
+          <h3 className="text-caption font-semibold text-muted">What updates automatically</h3>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-small text-muted">
             <li>Pickup auto-pipeline checkpoints after you launch outreach and leave automation on.</li>
             <li>Stripe finishes captain payments and pickup holds after checkout.</li>
             <li>Pickup posts and hub changes show up on the next page load for visitors.</li>

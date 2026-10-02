@@ -3,6 +3,7 @@ import { fmtPickupDtEt } from "@/lib/pickupPublic";
 import { hapticTap } from "@/lib/haptics";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useEffect, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -14,8 +15,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-
-const LIME = "#a3e635";
 
 export type EditRunSheetProps = {
   visible: boolean;
@@ -38,6 +37,8 @@ export default function EditRunSheet({
   onClose,
   onSave,
 }: EditRunSheetProps) {
+  useThemedStyles(publish_styles);
+
   const [startAt, setStartAt] = useState(initialStartAt);
   const [capacity, setCapacity] = useState(String(initialCapacity));
   const [feeDollars, setFeeDollars] = useState(((initialFeeCents || 0) / 100).toFixed(2));
@@ -57,7 +58,7 @@ export default function EditRunSheet({
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Edit run</Text>
             <Pressable onPress={onClose} hitSlop={12}>
-              <FontAwesome name="times" size={20} color="#fff" />
+              <FontAwesome name="times" size={20} color={themeColor().text} />
             </Pressable>
           </View>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -68,7 +69,7 @@ export default function EditRunSheet({
               value={capacity}
               onChangeText={setCapacity}
               keyboardType="number-pad"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
             />
             <Text style={styles.label}>Fee per player ($)</Text>
             <TextInput
@@ -76,7 +77,7 @@ export default function EditRunSheet({
               value={feeDollars}
               onChangeText={setFeeDollars}
               keyboardType="decimal-pad"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
             />
             <Text style={styles.hint}>
               Current kickoff: {initialStartAt ? fmtPickupDtEt(initialStartAt) : "—"} · Status: {statusLabel}
@@ -104,43 +105,49 @@ export default function EditRunSheet({
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   modalRoot: { flex: 1, justifyContent: "flex-end" },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.65)" },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: themeColor().scrim },
   sheet: {
     maxHeight: "88%",
-    backgroundColor: "#111",
+    backgroundColor: themeColor().bg,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
   },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
-  sheetTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
+  sheetTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
   label: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 11,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    textTransform: "uppercase",
     marginTop: 12,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: themeColor().card,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: themeColor().line,
     padding: 12,
-    color: "#fff",
-    fontSize: 16,
+    color: themeColor().text,
+    fontSize: 16, fontFamily: "Inter_400Regular",
   },
-  hint: { color: "rgba(255,255,255,0.45)", lineHeight: 20, marginTop: 12, marginBottom: 8, fontSize: 13 },
+  hint: { color: themeColor().muted, lineHeight: 20, marginTop: 12, marginBottom: 8, fontSize: 13, fontFamily: "Inter_400Regular" },
   primaryBtn: {
     marginTop: 16,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
   },
   primaryBtnDisabled: { opacity: 0.55 },
-  primaryBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  primaryBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

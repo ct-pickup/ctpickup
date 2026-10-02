@@ -40,15 +40,15 @@ type StandingRow = {
 function chipTone(eff: string): string {
   switch (eff) {
     case "good":
-      return "border-emerald-400/50 bg-emerald-400/10 text-emerald-100";
+      return "border-pitch bg-pitch-soft text-pitch";
     case "warning":
-      return "border-amber-400/50 bg-amber-400/10 text-amber-50";
+      return "border-coral bg-overlay-subtle text-coral";
     case "suspended":
-      return "border-orange-400/50 bg-orange-400/10 text-orange-50";
+      return "border-coral bg-overlay-subtle text-coral";
     case "banned":
-      return "border-red-400/55 bg-red-400/10 text-red-100";
+      return "border-coral bg-overlay-subtle text-coral";
     default:
-      return "border-white/15 bg-white/[0.06] text-white/80";
+      return "border-line bg-overlay text-ink";
   }
 }
 
@@ -196,15 +196,15 @@ export default function PickupStandingAdminClient() {
 
   if (!token) {
     return (
-      <main className="min-h-screen bg-black text-white">
+      <main className="min-h-screen bg-canvas text-ink">
         <div className="mx-auto max-w-6xl pt-2">
           <PageTop flush title="Staff · Pickup standing" fallbackHref={APP_HOME_URL} />
         </div>
         <div className="mx-auto max-w-4xl px-6 py-12 space-y-4">
-          <p className="text-white/80">Log in to access admin tools.</p>
+          <p className="text-ink">Log in to access admin tools.</p>
           <Link
             href="/login?next=/admin/pickup/standing"
-            className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-semibold bg-white text-black"
+            className="inline-flex items-center justify-center rounded-button px-5 py-3 text-small font-semibold bg-pitch text-on-pitch"
           >
             Log in
           </Link>
@@ -214,38 +214,38 @@ export default function PickupStandingAdminClient() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-canvas text-ink">
       <div className="mx-auto max-w-6xl pt-2">
         <PageTop flush title="Staff · Pickup standing" fallbackHref={APP_HOME_URL} />
       </div>
 
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-white/60">
-          <Link href="/admin/pickup" className="text-white/80 underline-offset-4 hover:text-white hover:underline">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-small text-muted">
+          <Link href="/admin/pickup" className="text-ink underline-offset-4 hover:text-ink hover:underline">
             ← Pickup runs
           </Link>
           {waiverVersion ? (
             <span>
-              Current waiver version: <span className="text-white/85">{waiverVersion}</span>
+              Current waiver version: <span className="text-ink">{waiverVersion}</span>
             </span>
           ) : null}
         </div>
 
-        <p className="max-w-3xl text-sm leading-relaxed text-white/55">
+        <p className="max-w-3xl text-small leading-relaxed text-muted">
           Effective standing is manual override when set; otherwise automatic rules apply from no-shows (90d),
           late cancellations, failed pickup payments, and waiver status. Players with suspended or banned
           effective standing cannot RSVP or pay for pickup.
         </p>
 
-        {msg ? <p className="text-sm text-white/60">{msg}</p> : null}
+        {msg ? <p className="text-small text-muted">{msg}</p> : null}
 
-        <div className="flex flex-wrap items-end gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <label className="flex flex-col gap-1 text-xs text-white/55">
+        <div className="flex flex-wrap items-end gap-3 rounded-card border border-line bg-overlay-subtle p-4">
+          <label className="flex flex-col gap-1 text-caption text-muted">
             Filter
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+              className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
             >
               <option value="all">All approved</option>
               <option value="good">Good + waiver (join-ready)</option>
@@ -255,12 +255,12 @@ export default function PickupStandingAdminClient() {
               <option value="missing_waiver">Missing waiver</option>
             </select>
           </label>
-          <label className="flex min-w-[220px] flex-col gap-1 text-xs text-white/55">
+          <label className="flex min-w-[220px] flex-col gap-1 text-caption text-muted">
             Reliability
             <select
               value={reliabilityFilter}
               onChange={(e) => setReliabilityFilter(e.target.value)}
-              className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+              className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
             >
               <option value="all">All</option>
               <option value="good">Good Standing</option>
@@ -268,12 +268,12 @@ export default function PickupStandingAdminClient() {
               <option value="below">Below standard</option>
             </select>
           </label>
-          <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-xs text-white/55">
+          <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-caption text-muted">
             Search (name, IG, email)
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+              className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
               placeholder="Optional"
             />
           </label>
@@ -281,15 +281,15 @@ export default function PickupStandingAdminClient() {
             type="button"
             disabled={loading}
             onClick={() => void load()}
-            className="rounded-md bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-50"
+            className="rounded-button bg-pitch px-4 py-2 text-caption font-semibold text-on-pitch disabled:opacity-50"
           >
             Refresh
           </button>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/10">
-          <table className="w-full min-w-[880px] text-left text-sm">
-            <thead className="border-b border-white/10 bg-white/[0.04] text-xs uppercase tracking-wider text-white/45">
+        <div className="overflow-x-auto rounded-card border border-line">
+          <table className="w-full min-w-[880px] text-left text-small">
+            <thead className="border-b border-line bg-overlay-subtle text-caption text-muted">
               <tr>
                 <th className="px-3 py-3">Player</th>
                 <th className="px-3 py-3">Effective</th>
@@ -301,77 +301,77 @@ export default function PickupStandingAdminClient() {
                 <th className="px-3 py-3" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/10">
+            <tbody className="divide-line">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-3 py-8 text-center text-white/45">
+                  <td colSpan={8} className="px-3 py-8 text-center text-muted">
                     Loading…
                   </td>
                 </tr>
               ) : displayedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-3 py-8 text-center text-white/45">
+                  <td colSpan={8} className="px-3 py-8 text-center text-muted">
                     No rows for this filter.
                   </td>
                 </tr>
               ) : (
                 displayedRows.map((row) => (
-                  <tr key={row.user_id} className="text-white/85">
+                  <tr key={row.user_id} className="text-ink">
                     <td className="px-3 py-3 align-top">
-                      <div className="font-medium text-white">
-                        {[row.first_name, row.last_name].filter(Boolean).join(" ") || "—"}
+                      <div className="font-medium text-ink">
+                        {[row.first_name, row.last_name].filter(Boolean).join("  ") || "—"}
                       </div>
-                      <div className="text-xs text-white/45">{row.instagram ? `@${row.instagram}` : row.user_id}</div>
-                      {row.tier ? <div className="text-[11px] text-white/40">Tier {row.tier}</div> : null}
+                      <div className="text-caption text-muted">{row.instagram ? `@${row.instagram}` : row.user_id}</div>
+                      {row.tier ? <div className="text-caption text-muted">Tier {row.tier}</div> : null}
                     </td>
                     <td className="px-3 py-3 align-top">
                       <span
-                        className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold ${chipTone(row.effective_standing)}`}
+                        className={`inline-block rounded-pill border px-2.5 py-0.5 text-caption font-semibold${chipTone(row.effective_standing)}`}
                       >
                         {row.effective_standing}
                       </span>
                       {row.manual_override ? (
-                        <div className="mt-1 text-[11px] text-white/45">Manual override active</div>
+                        <div className="mt-1 text-caption text-muted">Manual override active</div>
                       ) : null}
                     </td>
-                    <td className="px-3 py-3 align-top text-xs text-white/60">
+                    <td className="px-3 py-3 align-top text-caption text-muted">
                       <div>{row.auto_standing}</div>
                       {row.standing?.auto_codes?.length ? (
-                        <ul className="mt-1 list-inside list-disc text-[11px] text-white/45">
+                        <ul className="mt-1 list-inside list-disc text-caption text-muted">
                           {row.standing.auto_codes.map((c) => (
                             <li key={c}>{pickupAutoCodeLabel(c)}</li>
                           ))}
                         </ul>
                       ) : null}
                     </td>
-                    <td className="px-3 py-3 align-top text-xs">
+                    <td className="px-3 py-3 align-top text-caption">
                       {row.waiver_current ? (
-                        <span className="text-emerald-200/90">On file</span>
+                        <span className="text-pitch-text">On file</span>
                       ) : (
-                        <span className="text-amber-200/90">Missing</span>
+                        <span className="text-coral">Missing</span>
                       )}
                     </td>
-                    <td className="px-3 py-3 align-top text-xs">
+                    <td className="px-3 py-3 align-top text-caption">
                       {row.join_ok ? (
-                        <span className="text-emerald-200/90">Yes</span>
+                        <span className="text-pitch-text">Yes</span>
                       ) : (
-                        <span className="text-red-200/85">No</span>
+                        <span className="text-coral">No</span>
                       )}
                     </td>
-                    <td className="px-3 py-3 align-top font-mono text-[11px] text-white/55">
-                      <div className="text-xs text-white/80">
+                    <td className="px-3 py-3 align-top font-mono text-caption text-muted">
+                      <div className="text-caption text-ink">
                         {reliabilityLabel(row)}
                       </div>
-                      <div className="mt-1 text-[11px] text-white/45">
+                      <div className="mt-1 text-caption text-muted">
                         Tracked pickups: {row.reliability_tracked_pickups ?? 0}
                       </div>
                     </td>
-                    <td className="px-3 py-3 align-top font-mono text-[11px] text-white/55">
-                      NS {row.standing?.rollup_no_shows_90d ?? 0} · LC{" "}
-                      {row.standing?.rollup_late_cancels_90d ?? 0} · Pay{" "}
+                    <td className="px-3 py-3 align-top font-mono text-caption text-muted">
+                      NS {row.standing?.rollup_no_shows_90d ?? 0} · LC{"  "}
+                      {row.standing?.rollup_late_cancels_90d ?? 0} · Pay{"  "}
                       {row.standing?.rollup_pickup_payment_issues_90d ?? 0}
                       <div className="mt-1">
-                        Attended {row.attended_count ?? 0} / {row.confirmed_count ?? 0} · strikes{" "}
+                        Attended {row.attended_count ?? 0} / {row.confirmed_count ?? 0} · strikes{"  "}
                         {row.strike_count ?? 0}
                       </div>
                     </td>
@@ -379,7 +379,7 @@ export default function PickupStandingAdminClient() {
                       <button
                         type="button"
                         onClick={() => openEdit(row)}
-                        className="rounded-md border border-white/20 px-2 py-1 text-xs font-semibold text-white/85"
+                        className="rounded-button border border-line px-2 py-1 text-caption font-semibold text-ink"
                       >
                         Edit
                       </button>
@@ -394,54 +394,54 @@ export default function PickupStandingAdminClient() {
 
       {edit ? (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-scrim p-4 sm:items-center"
           role="dialog"
           aria-modal="true"
           aria-labelledby="standing-edit-title"
         >
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-white/15 bg-neutral-950 p-5 shadow-xl">
-            <h2 id="standing-edit-title" className="text-lg font-semibold text-white">
-              Standing · {[edit.first_name, edit.last_name].filter(Boolean).join(" ") || edit.user_id}
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-card border border-line bg-canvas p-5">
+            <h2 id="standing-edit-title" className="text-h3 font-serif font-semibold text-ink">
+              Standing · {[edit.first_name, edit.last_name].filter(Boolean).join("  ") || edit.user_id}
             </h2>
-            <p className="mt-2 text-xs text-white/45">
+            <p className="mt-2 text-caption text-muted">
               Automatic: {edit.auto_standing}. Effective now: {edit.effective_standing}.
             </p>
 
             <div className="mt-4 space-y-3">
-              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                <div className="text-xs font-semibold text-white/70">Reliability score override</div>
-                <p className="mt-1 text-[11px] leading-relaxed text-white/45">
+              <div className="rounded-button border border-line bg-overlay-subtle p-3">
+                <div className="text-caption font-semibold text-muted">Reliability score override</div>
+                <p className="mt-1 text-caption leading-relaxed text-muted">
                   Optional. Set a manual score (0–100) to override the computed reliability score shown to the player.
                 </p>
                 <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label className="flex flex-col gap-1 text-xs text-white/55">
+                  <label className="flex flex-col gap-1 text-caption text-muted">
                     Override score (0–100)
                     <input
                       value={relOverride}
                       onChange={(e) => setRelOverride(e.target.value)}
-                      className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                      className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
                       placeholder="(none)"
                       inputMode="numeric"
                     />
                   </label>
-                  <label className="flex flex-col gap-1 text-xs text-white/55">
+                  <label className="flex flex-col gap-1 text-caption text-muted">
                     Override reason (optional)
                     <input
                       value={relOverrideReason}
                       onChange={(e) => setRelOverrideReason(e.target.value)}
-                      className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                      className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
                       placeholder="Internal note"
                     />
                   </label>
                 </div>
               </div>
 
-              <label className="flex flex-col gap-1 text-xs text-white/55">
+              <label className="flex flex-col gap-1 text-caption text-muted">
                 Manual override
                 <select
                   value={manual}
                   onChange={(e) => setManual(e.target.value)}
-                  className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                  className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
                 >
                   <option value="">(none — use automatic only)</option>
                   <option value="good">good</option>
@@ -450,22 +450,22 @@ export default function PickupStandingAdminClient() {
                   <option value="banned">banned</option>
                 </select>
               </label>
-              <label className="flex flex-col gap-1 text-xs text-white/55">
+              <label className="flex flex-col gap-1 text-caption text-muted">
                 Reason (player-facing ops note)
                 <input
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                  className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
                   placeholder="Why this override exists"
                 />
               </label>
-              <label className="flex flex-col gap-1 text-xs text-white/55">
+              <label className="flex flex-col gap-1 text-caption text-muted">
                 Staff notes
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={4}
-                  className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white"
+                  className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
                   placeholder="Internal context"
                 />
               </label>
@@ -476,7 +476,7 @@ export default function PickupStandingAdminClient() {
                 type="button"
                 disabled={saving}
                 onClick={() => void saveEdit(false)}
-                className="rounded-md bg-white px-4 py-2 text-xs font-semibold text-black disabled:opacity-50"
+                className="rounded-button bg-pitch px-4 py-2 text-caption font-semibold text-on-pitch disabled:opacity-50"
               >
                 Save
               </button>
@@ -484,7 +484,7 @@ export default function PickupStandingAdminClient() {
                 type="button"
                 disabled={saving}
                 onClick={() => void saveEdit(true)}
-                className="rounded-md border border-white/25 px-4 py-2 text-xs font-semibold text-white/85 disabled:opacity-50"
+                className="rounded-button border border-line px-4 py-2 text-caption font-semibold text-ink disabled:opacity-50"
               >
                 Clear override
               </button>
@@ -492,7 +492,7 @@ export default function PickupStandingAdminClient() {
                 type="button"
                 disabled={saving}
                 onClick={() => setEdit(null)}
-                className="rounded-md px-4 py-2 text-xs text-white/55"
+                className="rounded-button px-4 py-2 text-caption text-muted"
               >
                 Cancel
               </button>

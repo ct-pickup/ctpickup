@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   clearStoredPin,
   isValidPinFormat,
@@ -34,6 +35,8 @@ async function biometricLabel(): Promise<string> {
 }
 
 export function AppLockOverlay() {
+  useThemedStyles(publish_styles);
+
   const { session, signOut } = useAuth();
   const {
     hasPin,
@@ -193,7 +196,7 @@ export function AppLockOverlay() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 placeholder="Anything you want"
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                placeholderTextColor={themeColor().muted}
                 editable={!enrollBusy}
               />
 
@@ -208,7 +211,7 @@ export function AppLockOverlay() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 placeholder="Repeat it"
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                placeholderTextColor={themeColor().muted}
                 editable={!enrollBusy}
                 onSubmitEditing={() => void onEnrollSave()}
               />
@@ -221,7 +224,7 @@ export function AppLockOverlay() {
                 onPress={() => void onEnrollSave()}
               >
                 {enrollBusy ? (
-                  <ActivityIndicator color="#111" />
+                  <ActivityIndicator color={themeColor().onPitch} />
                 ) : (
                   <Text style={styles.primaryText}>Continue</Text>
                 )}
@@ -257,7 +260,7 @@ export function AppLockOverlay() {
           <View style={styles.card}>
             <View style={styles.iconWrap} accessibilityElementsHidden>
               <View style={styles.iconInner}>
-                <FontAwesome name="lock" size={18} color="#0a0a0a" />
+                <FontAwesome name="lock" size={18} color={themeColor().onPitch} />
               </View>
             </View>
             <Text style={styles.title}>App locked</Text>
@@ -274,7 +277,7 @@ export function AppLockOverlay() {
               autoCorrect={false}
               autoFocus
               placeholder="Your passcode"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
               editable={!busy}
               onSubmitEditing={() => void onUnlock()}
             />
@@ -286,7 +289,7 @@ export function AppLockOverlay() {
               disabled={busy}
               onPress={() => void onUnlock()}
             >
-              {busy ? <ActivityIndicator color="#111" /> : <Text style={styles.primaryText}>Unlock</Text>}
+              {busy ? <ActivityIndicator color={themeColor().onPitch} /> : <Text style={styles.primaryText}>Unlock</Text>}
             </Pressable>
 
             {showBio ? (
@@ -297,9 +300,9 @@ export function AppLockOverlay() {
                     <FontAwesome name="square-o" size={18} color="transparent" />
                     <View style={styles.faceIdIcon}>
                       {bioLabel === "Touch ID" ? (
-                        <MaterialCommunityIcons name="fingerprint" size={18} color="#a3e635" />
+                        <MaterialCommunityIcons name="fingerprint" size={18} color={themeColor().pitchText} />
                       ) : (
-                        <MaterialCommunityIcons name="face-recognition" size={18} color="#a3e635" />
+                        <MaterialCommunityIcons name="face-recognition" size={18} color={themeColor().pitchText} />
                       )}
                     </View>
                     <Text style={styles.secondaryBtnText}>{bioLabel}</Text>
@@ -323,10 +326,11 @@ export function AppLockOverlay() {
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.96)",
+    backgroundColor: themeColor().bg,
     justifyContent: "center",
   },
   safe: { flex: 1, justifyContent: "center", paddingHorizontal: 24 },
@@ -335,24 +339,19 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 360,
     padding: 22,
-    borderRadius: 26,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(18,18,18,0.92)",
-    shadowColor: "#000",
-    shadowOpacity: 0.55,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 18 },
-    elevation: 18,
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().bg,
   },
   iconWrap: {
     alignSelf: "center",
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.12)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 10,
@@ -360,76 +359,79 @@ const styles = StyleSheet.create({
   iconInner: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "#a3e635",
+    borderRadius: 999,
+    backgroundColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
   },
-  title: { fontSize: 22, fontWeight: "700", color: "#fff", textAlign: "center" },
-  sub: { marginTop: 10, fontSize: 15, color: "rgba(255,255,255,0.65)", textAlign: "center", lineHeight: 21 },
+  title: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text, textAlign: "center" },
+  sub: { marginTop: 10, fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().muted, textAlign: "center", lineHeight: 21 },
   fieldLabel: {
     alignSelf: "flex-start",
-    fontSize: 12,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    letterSpacing: 0.6,
-    color: "rgba(255,255,255,0.45)",
-    textTransform: "uppercase",
+    color: themeColor().muted,
     marginTop: 16,
     marginBottom: 8,
   },
   input: {
     marginTop: 20,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
+    borderColor: themeColor().line,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    fontSize: 17,
-    color: "#fff",
-    backgroundColor: "rgba(0,0,0,0.45)",
+    fontSize: 16, fontFamily: "Inter_400Regular",
+    color: themeColor().text,
+    backgroundColor: themeColor().overlaySubtle,
     textAlign: "left",
   },
-  err: { marginTop: 12, color: "#fca5a5", fontSize: 14, textAlign: "center" },
+  err: { marginTop: 12, color: themeColor().coral, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
   primary: {
     marginTop: 18,
-    backgroundColor: "#a3e635",
+    backgroundColor: themeColor().pitch,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
   },
-  primaryText: { color: "#0a0a0a", fontWeight: "900", fontSize: 16 },
+  primaryText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
   or: {
     marginTop: 14,
     textAlign: "center",
-    color: "rgba(255,255,255,0.35)",
-    fontSize: 12,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 2,
   },
   secondaryBtn: {
     marginTop: 12,
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    backgroundColor: "rgba(0,0,0,0.25)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().bg,
     alignItems: "center",
   },
   secondaryBtnInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
   faceIdIcon: {
     width: 28,
     height: 28,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
+    borderColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(163,230,53,0.06)",
+    backgroundColor: themeColor().pitchSoft,
   },
-  secondaryBtnText: { color: "#a3e635", fontWeight: "900", fontSize: 16 },
+  secondaryBtnText: { color: themeColor().pitchText, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
   secondary: { marginTop: 14, paddingVertical: 12, alignItems: "center" },
-  secondaryText: { color: "#93c5fd", fontWeight: "600", fontSize: 16 },
+  secondaryText: { color: themeColor().muted, fontWeight: "600", fontSize: 16, fontFamily: "Inter_600SemiBold" },
   forgotLink: { marginTop: 18, paddingVertical: 8, alignItems: "center" },
-  forgotLinkText: { color: "rgba(255,255,255,0.4)", fontSize: 13, fontWeight: "500" },
+  forgotLinkText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_500Medium", fontWeight: "500" },
   disabled: { opacity: 0.55 },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

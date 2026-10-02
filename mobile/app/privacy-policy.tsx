@@ -1,8 +1,7 @@
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const BG = "#0a0a0a";
-const LIME = "#a3e635";
+import { themeColor, useThemedStyles } from "@/theme";
 const SUPPORT_EMAIL = "pickupct@gmail.com";
 
 type PolicyLink = {
@@ -118,6 +117,8 @@ function openUrl(url: string) {
 }
 
 export default function PrivacyPolicyScreen() {
+  useThemedStyles(publish_styles);
+
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, 16) + 24;
 
@@ -152,51 +153,56 @@ export default function PrivacyPolicyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: BG },
+function make_styles() {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: themeColor().bg },
   scrollContent: { paddingHorizontal: 20, paddingTop: 20 },
   docTitle: {
-    color: "#fff",
-    fontSize: 28,
+    color: themeColor().text,
+    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "800",
-    letterSpacing: 0.2,
     marginBottom: 8,
   },
   docSubtitle: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 14,
+    color: themeColor().muted,
+    fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 20,
     marginBottom: 24,
   },
   list: { gap: 12 },
   card: {
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     paddingVertical: 16,
     paddingHorizontal: 16,
   },
   cardTitle: {
-    color: "#fff",
-    fontSize: 16,
+    color: themeColor().text,
+    fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 0.2,
     marginBottom: 8,
   },
   cardBody: {
-    color: "rgba(255,255,255,0.75)",
-    fontSize: 14,
+    color: themeColor().text,
+    fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 21,
   },
   linkRow: {
     marginTop: 10,
   },
   linkText: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: "Inter_600SemiBold",
     lineHeight: 20,
-    color: LIME,
+    color: themeColor().pitchText,
     fontWeight: "600",
     textDecorationLine: "underline",
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

@@ -48,19 +48,19 @@ export function SyncPickupTable({ summaries }: { summaries: PickupSyncSummary[] 
   );
 
   if (!isReady) {
-    return <p className="text-sm text-white/50">Loading sync actions…</p>;
+    return <p className="text-small text-muted">Loading sync actions…</p>;
   }
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-white/45">
+      <p className="text-caption text-muted">
         Run processor does the same timed checks as when you open a run in Pickups. If nothing is due yet, you’ll see a
         no-op message — that’s normal.
       </p>
-      <div className="overflow-x-auto rounded-xl border border-white/10">
-        <table className="w-full min-w-[720px] text-sm">
-          <thead className="text-left text-white/50">
-            <tr className="border-b border-white/10">
+      <div className="overflow-x-auto rounded-card border border-line">
+        <table className="w-full min-w-[720px] text-small">
+          <thead className="text-left text-muted">
+            <tr className="border-b border-line">
               <th className="p-3">Run</th>
               <th className="p-3">Status</th>
               <th className="p-3">Auto</th>
@@ -78,9 +78,9 @@ export function SyncPickupTable({ summaries }: { summaries: PickupSyncSummary[] 
                   s.next_step.includes("checkpoint") ||
                   s.next_step.includes("Add at least one time slot"));
               return (
-                <tr key={s.id} className="border-b border-white/10 align-top">
-                  <td className="p-3 font-medium text-white">{s.title}</td>
-                  <td className="p-3 text-white/70" title={s.status}>
+                <tr key={s.id} className="border-b border-line align-top">
+                  <td className="p-3 font-medium text-ink">{s.title}</td>
+                  <td className="p-3 text-muted" title={s.status}>
                     {labelPickupRunStatus(s.status)}
                   </td>
                   <td className="p-3">
@@ -90,17 +90,17 @@ export function SyncPickupTable({ summaries }: { summaries: PickupSyncSummary[] 
                       <StatusChip tone="neutral">Off</StatusChip>
                     )}
                   </td>
-                  <td className="p-3 text-xs text-white/55 whitespace-nowrap">{fmt(s.updated_at)}</td>
-                  <td className="p-3 text-xs text-white/55 font-mono whitespace-nowrap">
+                  <td className="p-3 text-caption text-muted whitespace-nowrap">{fmt(s.updated_at)}</td>
+                  <td className="p-3 text-caption text-muted font-mono whitespace-nowrap">
                     {fmt(s.checkpoints.cp_24h_at)} · {fmt(s.checkpoints.cp_12h_at)}
                     <br />
                     {fmt(s.checkpoints.cp_6h_at)} · {fmt(s.checkpoints.cp_1h_at)}
                   </td>
-                  <td className="p-3 text-white/70">
+                  <td className="p-3 text-muted">
                     <div className="flex flex-wrap items-center gap-2">
                       {pending ? <StatusChip tone="pending">Pending</StatusChip> : <StatusChip tone="synced">OK</StatusChip>}
                     </div>
-                    <div className="mt-1 text-xs">{s.next_step}</div>
+                    <div className="mt-1 text-caption">{s.next_step}</div>
                   </td>
                   <td className="p-3">
                     <button
@@ -108,7 +108,7 @@ export function SyncPickupTable({ summaries }: { summaries: PickupSyncSummary[] 
                       disabled={busyId !== null || !s.auto_managed}
                       title={!s.auto_managed ? "Launch outreach from Pickups to enable auto pipeline." : undefined}
                       onClick={() => void runProcessor(s.id)}
-                      className="rounded-md border border-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10 disabled:opacity-40"
+                      className="rounded-button border border-line px-3 py-1.5 text-caption font-semibold text-ink hover:bg-overlay disabled:opacity-40"
                     >
                       {busyId === s.id ? "Running…" : "Run processor"}
                     </button>
@@ -118,7 +118,7 @@ export function SyncPickupTable({ summaries }: { summaries: PickupSyncSummary[] 
             })}
             {summaries.length === 0 ? (
               <tr>
-                <td className="p-6 text-white/50" colSpan={7}>
+                <td className="p-6 text-muted" colSpan={7}>
                   No pickup runs found.
                 </td>
               </tr>

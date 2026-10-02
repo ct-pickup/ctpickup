@@ -2,9 +2,10 @@ import { useReviewMode } from "@/context/ReviewModeContext";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const LIME = "#a3e635";
-
+import { themeColor, useThemedStyles } from "@/theme";
 export function ReviewModeBanner() {
+  useThemedStyles(publish_styles);
+
   const insets = useSafeAreaInsets();
   const { enabled, isReady, setEnabled } = useReviewMode();
 
@@ -25,7 +26,8 @@ export function ReviewModeBanner() {
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   wrap: {
     position: "absolute",
     top: 0,
@@ -35,21 +37,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   banner: {
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: "center",
   },
   text: {
-    color: "#0a0a0a",
-    fontSize: 13,
+    color: themeColor().onPitch,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 0.3,
   },
   hint: {
-    color: "rgba(10,10,10,0.65)",
-    fontSize: 10,
+    color: themeColor().onPitch,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     marginTop: 2,
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

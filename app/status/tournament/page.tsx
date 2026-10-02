@@ -66,44 +66,44 @@ export default function TournamentStatusPage() {
   const t = data?.tournament ?? null;
 
   return (
-    <main className="min-h-screen bg-[#0f0f10] text-white">
+    <main className="min-h-screen bg-canvas text-ink">
       <div className="mx-auto max-w-6xl px-6 pt-2">
         <PageTop flush title="STATUS" fallbackHref="/tournament" />
       </div>
       <div className="mx-auto max-w-6xl px-6 py-14 space-y-10">
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-8">
-          <div className="text-sm font-semibold uppercase tracking-wide text-white/80">
+        <section className="rounded-card border border-line bg-overlay-subtle p-8">
+          <div className="text-small font-semibold text-ink">
             Tournament Status
           </div>
 
           {loading ? (
-            <div className="mt-4 text-sm text-white/60">Loading…</div>
+            <div className="mt-4 text-small text-muted">Loading…</div>
           ) : err ? (
-            <div className="mt-4 text-sm text-white/70">{err}</div>
+            <div className="mt-4 text-small text-muted">{err}</div>
           ) : !t ? (
             <>
-              <div className="mt-4 text-lg font-semibold text-white/90">{headline(data)}</div>
+              <div className="mt-4 text-h3 font-serif font-semibold text-ink">{headline(data)}</div>
               <EmptyStateMessage className="mt-2">
                 No tournaments available
               </EmptyStateMessage>
             </>
           ) : (
             <>
-              <div className="mt-4 text-lg font-semibold text-white/90">{headline(data)}</div>
-              <div className="mt-2 text-sm text-white/60">
+              <div className="mt-4 text-h3 font-serif font-semibold text-ink">{headline(data)}</div>
+              <div className="mt-2 text-small text-muted">
                 {t.title ? `${t.title}. ` : null}
-                Confirmed teams: {data?.confirmedTeams ?? 0} of {t.maxTeams} max. Teams working through signup:{" "}
+                Confirmed teams: {data?.confirmedTeams ?? 0} of {t.maxTeams} max. Teams working through signup:{"  "}
                 {data?.claimedTeams ?? 0}. Goes official at {t.officialThreshold} confirmed teams.
               </div>
               {t.announcement ? (
-                <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/85 whitespace-pre-wrap">
+                <div className="mt-5 rounded-card border border-line bg-overlay-subtle px-4 py-3 text-small text-ink whitespace-pre-wrap">
                   {t.announcement}
                 </div>
               ) : null}
               <div className="mt-6">
                 <Link
                   href="/tournament"
-                  className="text-sm text-white/75 underline underline-offset-4 hover:text-white"
+                  className="text-small text-muted underline underline-offset-4 hover:text-ink"
                 >
                   Tournament hub
                 </Link>

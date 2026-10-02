@@ -4,10 +4,7 @@ import { useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from "react-native";
 
-const BG = "#0a0a0a";
-const LIME = "#a3e635";
-const MUTED = "rgba(255,255,255,0.45)";
-
+import { themeColor, useThemedStyles } from "@/theme";
 type Team = "A" | "B" | "C";
 
 type AwardSlot = "player" | "goalie" | "attacker" | "midfielder" | "defender";
@@ -82,6 +79,8 @@ function teamLabel(team: Team | null): string {
 }
 
 export default function RunHistoryScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const navigation = useNavigation();
   const { session, supabase, isReady } = useAuth();
@@ -95,8 +94,8 @@ export default function RunHistoryScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       title: "Run history",
-      headerStyle: { backgroundColor: BG },
-      headerTintColor: "#fff",
+      headerStyle: { backgroundColor: themeColor().bg },
+      headerTintColor: themeColor().text,
       headerShadowVisible: false,
     });
   }, [navigation]);
@@ -318,7 +317,7 @@ export default function RunHistoryScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={LIME} />
+        <ActivityIndicator size="large" color={themeColor().pitchText} />
       </View>
     );
   }
@@ -345,11 +344,11 @@ export default function RunHistoryScreen() {
               <Text style={styles.statLabel}>Sessions</Text>
             </View>
             <View style={styles.statCell}>
-              <Text style={[styles.statValue, { color: LIME }]}>{stats.wins}</Text>
+              <Text style={[styles.statValue, { color: themeColor().pitchText }]}>{stats.wins}</Text>
               <Text style={styles.statLabel}>Wins</Text>
             </View>
             <View style={styles.statCell}>
-              <Text style={[styles.statValue, { color: MUTED }]}>{stats.losses}</Text>
+              <Text style={[styles.statValue, { color: themeColor().text }]}>{stats.losses}</Text>
               <Text style={styles.statLabel}>Losses</Text>
             </View>
             <View style={styles.statCell}>
@@ -397,7 +396,7 @@ export default function RunHistoryScreen() {
             >
               <View style={styles.cardTop}>
                 <Text style={styles.date}>{fmtEtDateTime(r.start_at)}</Text>
-                <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" />
+                <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
               </View>
               {r.run_title ? (
                 <Text style={styles.runTitle} numberOfLines={2}>
@@ -434,55 +433,62 @@ export default function RunHistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: BG },
+function make_styles() {
+  return StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 20, paddingBottom: 40 },
-  center: { flex: 1, backgroundColor: BG, justifyContent: "center", alignItems: "center", padding: 24 },
-  errText: { color: "#fca5a5", fontSize: 15, textAlign: "center" },
+  center: { flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center", padding: 24 },
+  errText: { color: themeColor().coral, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center" },
 
-  h1: { fontSize: 26, fontWeight: "900", color: "#fff" },
-  sub: { marginTop: 10, color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
+  h1: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().text },
+  sub: { marginTop: 10, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
 
   statsCard: {
     marginTop: 20,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  statsTitle: { color: "#fff", fontWeight: "900", fontSize: 15, marginBottom: 12 },
+  statsTitle: { color: themeColor().text, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 12 },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   statCell: { flexGrow: 1, minWidth: "42%", paddingVertical: 4 },
-  statValue: { color: "#fff", fontSize: 22, fontWeight: "900" },
-  statLabel: { marginTop: 4, color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: "700" },
-  statsFoot: { marginTop: 12, color: "rgba(255,255,255,0.4)", fontSize: 12, lineHeight: 17 },
+  statValue: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900" },
+  statLabel: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  statsFoot: { marginTop: 12, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 17 },
 
-  empty: { marginTop: 18, color: "rgba(255,255,255,0.55)", fontSize: 14, lineHeight: 20 },
+  empty: { marginTop: 18, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
 
   list: { marginTop: 18, gap: 12 },
   card: {
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
-  date: { color: "#fff", fontWeight: "900", fontSize: 15, flex: 1 },
-  runTitle: { marginTop: 6, color: "rgba(255,255,255,0.85)", fontWeight: "800", fontSize: 14, lineHeight: 19 },
-  venue: { marginTop: 6, color: "rgba(255,255,255,0.55)", fontWeight: "700" },
+  date: { color: themeColor().text, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold", flex: 1 },
+  runTitle: { marginTop: 6, color: themeColor().text, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold", lineHeight: 19 },
+  venue: { marginTop: 6, color: themeColor().muted, fontWeight: "700" },
 
   resultRow: { marginTop: 12 },
-  resultText: { fontSize: 16, fontWeight: "900" },
-  resultWin: { color: LIME },
-  resultLoss: { color: MUTED },
-  resultPending: { color: MUTED, fontWeight: "800" },
+  resultText: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "900" },
+  resultWin: { color: themeColor().pitchText },
+  resultLoss: { color: themeColor().text },
+  resultPending: { color: themeColor().text, fontWeight: "800" },
 
-  teamLine: { marginTop: 10, fontSize: 14 },
-  metaK: { color: "rgba(255,255,255,0.45)", fontWeight: "800" },
-  teamValue: { color: "rgba(255,255,255,0.85)", fontWeight: "800" },
+  teamLine: { marginTop: 10, fontSize: 14, fontFamily: "Inter_400Regular" },
+  metaK: { color: themeColor().muted, fontWeight: "800" },
+  teamValue: { color: themeColor().text, fontWeight: "800" },
 
   myAwards: { marginTop: 10, gap: 4 },
-  awardLine: { color: LIME, fontWeight: "800", fontSize: 14 },
+  awardLine: { color: themeColor().pitchText, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

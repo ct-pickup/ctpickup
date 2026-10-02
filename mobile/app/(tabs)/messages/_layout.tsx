@@ -1,13 +1,16 @@
 import { Stack } from "expo-router";
 
+import { themeColor, useTheme } from "@/theme";
 export default function MessagesStackLayout() {
+  useTheme();
+
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: "#0a0a0a" },
-        headerTintColor: "#fff",
+        headerStyle: { backgroundColor: themeColor().bg },
+        headerTintColor: themeColor().text,
         headerShadowVisible: false,
-        contentStyle: { backgroundColor: "#0a0a0a" },
+        contentStyle: { backgroundColor: themeColor().bg },
       }}
     >
       <Stack.Screen name="index" options={{ title: "Messages" }} />

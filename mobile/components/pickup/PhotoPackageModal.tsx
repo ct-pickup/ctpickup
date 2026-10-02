@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal, Platform, Pressable, StyleSheet, Switch, Text, View } from "react-native";
 
-const LIME = "#a3e635";
-
+import { themeColor, useThemedStyles } from "@/theme";
 type Props = {
   visible: boolean;
   runName: string | null;
@@ -11,6 +10,8 @@ type Props = {
 };
 
 export function PhotoPackageModal({ visible, runName, feeCents, onConfirm }: Props) {
+  useThemedStyles(publish_styles);
+
   const [photoPackage, setPhotoPackage] = useState(false);
 
   // Reset toggle each time modal opens
@@ -43,9 +44,9 @@ export function PhotoPackageModal({ visible, runName, feeCents, onConfirm }: Pro
             <Switch
               value={photoPackage}
               onValueChange={setPhotoPackage}
-              trackColor={{ false: "rgba(255,255,255,0.15)", true: LIME }}
-              thumbColor={Platform.OS === "android" ? (photoPackage ? "#111" : "#fff") : undefined}
-              ios_backgroundColor="rgba(255,255,255,0.15)"
+              trackColor={{ false: themeColor().overlay, true: themeColor().pitch }}
+              thumbColor={Platform.OS === "android" ? (photoPackage ? themeColor().bg : themeColor().text) : undefined}
+              ios_backgroundColor={themeColor().overlay}
             />
           </View>
 
@@ -64,34 +65,35 @@ export function PhotoPackageModal({ visible, runName, feeCents, onConfirm }: Pro
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   backdrop: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.72)",
+    backgroundColor: themeColor().scrim,
   },
   card: {
-    backgroundColor: "#141414",
+    backgroundColor: themeColor().card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: themeColor().line,
     padding: 20,
     paddingBottom: 36,
     gap: 12,
   },
   runName: {
-    color: "#fff",
-    fontSize: 17,
+    color: themeColor().text,
+    fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "800",
   },
   feeLabel: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 14,
+    color: themeColor().muted,
+    fontSize: 14, fontFamily: "Inter_400Regular",
   },
   divider: {
     height: 1,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    backgroundColor: themeColor().overlay,
     marginVertical: 4,
   },
   row: {
@@ -104,25 +106,31 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   rowTitle: {
-    color: "#fff",
-    fontSize: 15,
+    color: themeColor().text,
+    fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "700",
   },
   rowSub: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 13,
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     lineHeight: 18,
   },
   confirmBtn: {
     marginTop: 8,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 15,
     alignItems: "center",
   },
   confirmBtnText: {
-    color: "#111",
-    fontSize: 16,
+    color: themeColor().onPitch,
+    fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "800",
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

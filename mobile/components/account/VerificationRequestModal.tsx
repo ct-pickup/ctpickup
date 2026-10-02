@@ -1,6 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import { useState } from "react";
+import { themeColor } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -15,8 +16,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-
-const LIME = "#a3e635";
 
 type Props = {
   visible: boolean;
@@ -91,7 +90,7 @@ export function VerificationRequestModal({ visible, onClose, onSubmitted }: Prop
             value={claim}
             onChangeText={setClaim}
             placeholder="e.g. Played USL League Two 2023, Stamford FC. College varsity at UConn 2021–2024."
-            placeholderTextColor="rgba(255,255,255,0.3)"
+            placeholderTextColor={themeColor().muted}
             multiline
             numberOfLines={4}
             autoCorrect={false}
@@ -104,25 +103,25 @@ export function VerificationRequestModal({ visible, onClose, onSubmitted }: Prop
             value={evidenceUrl}
             onChangeText={setEvidenceUrl}
             placeholder="https://topdrawersoccer.com/..."
-            placeholderTextColor="rgba(255,255,255,0.3)"
+            placeholderTextColor={themeColor().muted}
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
           />
           <Text style={s.hint}>
             Link to your roster page, athletics bio, team website, or MaxPreps profile.{" "}
-            <Text style={{ color: LIME }} onPress={() => void Linking.openURL("https://topdrawersoccer.com").catch(() => {})}>
+            <Text style={{ color: themeColor().pitchText }} onPress={() => void Linking.openURL("https://topdrawersoccer.com").catch(() => {})}>
               TopDrawer ↗
             </Text>
             {"  "}
-            <Text style={{ color: LIME }} onPress={() => void Linking.openURL("https://www.maxpreps.com").catch(() => {})}>
+            <Text style={{ color: themeColor().pitchText }} onPress={() => void Linking.openURL("https://www.maxpreps.com").catch(() => {})}>
               MaxPreps ↗
             </Text>
           </Text>
 
           <Pressable onPress={() => void submit()} disabled={busy}
             style={[s.btn, busy && { opacity: 0.5 }]}>
-            {busy ? <ActivityIndicator color="#0a0a0a" /> : <Text style={s.btnText}>Submit for verification</Text>}
+            {busy ? <ActivityIndicator color={themeColor().onPitch} /> : <Text style={s.btnText}>Submit for verification</Text>}
           </Pressable>
 
           <Text style={s.footer}>
@@ -134,21 +133,28 @@ export function VerificationRequestModal({ visible, onClose, onSubmitted }: Prop
   );
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0a0a0a", padding: 20 },
+function make_s() {
+  return StyleSheet.create({
+  root: { flex: 1, backgroundColor: themeColor().bg, padding: 20 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 16, marginBottom: 24 },
-  title: { color: "#fff", fontSize: 22, fontWeight: "800" },
-  close: { color: "rgba(255,255,255,0.5)", fontSize: 20 },
-  tierCard: { backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", padding: 16, marginBottom: 24 },
-  tierTitle: { color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: "700", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 },
+  title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
+  close: { color: themeColor().muted, fontSize: 20, fontFamily: "InstrumentSerif_400Regular" },
+  tierCard: { backgroundColor: themeColor().overlaySubtle, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 24 },
+  tierTitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 12 },
   tierRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },
-  tierBadge: { color: LIME, fontWeight: "700", fontSize: 13, borderWidth: 1, borderColor: LIME, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  tierDesc: { color: "rgba(255,255,255,0.65)", fontSize: 13, flex: 1 },
-  tierHint: { color: "rgba(255,255,255,0.35)", fontSize: 12, marginTop: 4 },
-  label: { fontSize: 12, fontWeight: "800", letterSpacing: 1.4, color: "#fff", marginBottom: 10, textTransform: "uppercase" },
-  input: { backgroundColor: "rgba(255,255,255,0.09)", borderRadius: 10, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.25)", color: "#fff", paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, minHeight: 80, textAlignVertical: "top" },
-  hint: { color: "rgba(255,255,255,0.55)", fontSize: 13, marginTop: 8, lineHeight: 19 },
-  btn: { backgroundColor: LIME, borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 28 },
-  btnText: { color: "#0a0a0a", fontWeight: "800", fontSize: 16 },
-  footer: { color: "rgba(255,255,255,0.45)", fontSize: 12, textAlign: "center", marginTop: 16, lineHeight: 18 },
+  tierBadge: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold", borderWidth: 1, borderColor: themeColor().pitch, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  tierDesc: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
+  tierHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
+  label: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text, marginBottom: 10, },
+  input: { backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1.5, borderColor: themeColor().line, color: themeColor().text, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, fontFamily: "Inter_400Regular", minHeight: 80, textAlignVertical: "top" },
+  hint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 8, lineHeight: 19 },
+  btn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", marginTop: 28 },
+  btnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  footer: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: 16, lineHeight: 18 },
 });
+}
+let s = make_s();
+function publish_s() {
+  s = make_s();
+}
+

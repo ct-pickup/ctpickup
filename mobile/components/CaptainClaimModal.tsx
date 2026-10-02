@@ -1,6 +1,7 @@
 import { postTournamentCaptainSubmitClaim, postTournamentConsent } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useEffect, useMemo, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -16,8 +17,6 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
-
-const LIME = "#a3e635";
 
 const REFUND_NOTICE =
   "Tournament entry fees are non-refundable unless you request a refund more than 48 hours before the tournament begins. If your refund request is made within 48 hours of the tournament start time, no refund is issued. If the Organizer cancels the tournament before play begins, entry fees are refunded. Verified duplicate or erroneous charges will be corrected.";
@@ -71,6 +70,8 @@ export function CaptainClaimModal({
   onProceedToPay,
   payBusy,
 }: Props) {
+  useThemedStyles(publish_styles);
+
   const [step, setStep] = useState<Step>("rules");
 
   const [rulesRead, setRulesRead] = useState(false);
@@ -231,7 +232,7 @@ export function CaptainClaimModal({
             </Text>
           </View>
           <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
-            <FontAwesome name="times" size={20} color="rgba(255,255,255,0.7)" />
+            <FontAwesome name="times" size={20} color={themeColor().muted} />
           </Pressable>
         </View>
 
@@ -303,6 +304,8 @@ function RulesStep({
   claimsClosed: boolean;
   onSubmit: () => void;
 }) {
+  useThemedStyles(publish_styles);
+
   const submitDisabled = claimsClosed || !rulesRead || !agreed || !typedName.trim() || consentBusy;
   return (
     <View style={styles.flex}>
@@ -364,7 +367,7 @@ function RulesStep({
           accessibilityState={{ checked: agreed }}
         >
           <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
-            {agreed ? <FontAwesome name="check" size={12} color="#0a0a0a" /> : null}
+            {agreed ? <FontAwesome name="check" size={12} color={themeColor().onPitch} /> : null}
           </View>
           <Text style={styles.checkboxText}>I agree to the rules and media consent.</Text>
         </Pressable>
@@ -374,7 +377,7 @@ function RulesStep({
           value={typedName}
           onChangeText={onChangeName}
           placeholder="Type your full name"
-          placeholderTextColor="rgba(255,255,255,0.35)"
+          placeholderTextColor={themeColor().muted}
           autoCapitalize="words"
           autoCorrect={false}
         />
@@ -386,7 +389,7 @@ function RulesStep({
           accessibilityRole="button"
         >
           {consentBusy ? (
-            <ActivityIndicator color="#0a0a0a" />
+            <ActivityIndicator color={themeColor().onPitch} />
           ) : (
             <Text style={styles.primaryBtnText}>Submit</Text>
           )}
@@ -431,6 +434,8 @@ function FormStep({
   onUpdatePrelim: (i: number, key: keyof PrelimEntry, value: string) => void;
   onSubmit: () => void;
 }) {
+  useThemedStyles(publish_styles);
+
   const addDisabled = prelim.length >= 12;
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
@@ -442,7 +447,7 @@ function FormStep({
           value={captainName}
           onChangeText={onChangeCaptainName}
           placeholder="Captain name"
-          placeholderTextColor="rgba(255,255,255,0.35)"
+          placeholderTextColor={themeColor().muted}
           autoCapitalize="words"
         />
         <Text style={styles.label}>Instagram handle</Text>
@@ -451,7 +456,7 @@ function FormStep({
           value={captainIg}
           onChangeText={onChangeCaptainIg}
           placeholder="@yourhandle"
-          placeholderTextColor="rgba(255,255,255,0.35)"
+          placeholderTextColor={themeColor().muted}
           autoCapitalize="none"
           autoCorrect={false}
         />
@@ -465,7 +470,7 @@ function FormStep({
           value={teamName}
           onChangeText={onChangeTeamName}
           placeholder="Team name"
-          placeholderTextColor="rgba(255,255,255,0.35)"
+          placeholderTextColor={themeColor().muted}
         />
         <Text style={styles.label}>Expected players (5–25)</Text>
         <TextInput
@@ -473,7 +478,7 @@ function FormStep({
           value={expectedPlayers}
           onChangeText={onChangeExpectedPlayers}
           keyboardType="number-pad"
-          placeholderTextColor="rgba(255,255,255,0.35)"
+          placeholderTextColor={themeColor().muted}
         />
         <View style={styles.rosterHeaderRow}>
           <Text style={styles.rosterHeading}>Early roster (optional)</Text>
@@ -490,7 +495,7 @@ function FormStep({
               value={row.fullName}
               onChangeText={(v) => onUpdatePrelim(i, "fullName", v)}
               placeholder="Full name"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
               autoCapitalize="words"
             />
             <TextInput
@@ -498,7 +503,7 @@ function FormStep({
               value={row.instagram}
               onChangeText={(v) => onUpdatePrelim(i, "instagram", v)}
               placeholder="Instagram"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -520,7 +525,7 @@ function FormStep({
           accessibilityRole="button"
           accessibilityState={{ disabled: addDisabled }}
         >
-          <FontAwesome name="plus" size={12} color={LIME} />
+          <FontAwesome name="plus" size={12} color={themeColor().pitchText} />
           <Text style={styles.addBtnText}>Add player</Text>
         </Pressable>
       </View>
@@ -537,7 +542,7 @@ function FormStep({
           accessibilityRole="button"
         >
           {submitBusy ? (
-            <ActivityIndicator color="#0a0a0a" />
+            <ActivityIndicator color={themeColor().onPitch} />
           ) : (
             <Text style={styles.primaryBtnText}>Claim Your Captain Spot</Text>
           )}
@@ -556,10 +561,12 @@ function SuccessStep({
   onProceedToPay: () => void;
   onClose: () => void;
 }) {
+  useThemedStyles(publish_styles);
+
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.formContent}>
       <View style={styles.successCard}>
-        <FontAwesome name="check-circle" size={28} color={LIME} />
+        <FontAwesome name="check-circle" size={28} color={themeColor().pitchText} />
         <Text style={styles.successTitle}>Your captain interest has been recorded</Text>
         <Text style={styles.body}>
           Your team spot is not confirmed yet. Confirmation only happens after payment, eligibility review, roster
@@ -579,7 +586,7 @@ function SuccessStep({
         accessibilityRole="button"
       >
         {payBusy ? (
-          <ActivityIndicator color="#0a0a0a" />
+          <ActivityIndicator color={themeColor().onPitch} />
         ) : (
           <Text style={styles.primaryBtnText}>Proceed to payment ($250)</Text>
         )}
@@ -592,8 +599,9 @@ function SuccessStep({
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: "#0a0a0a" },
+function make_styles() {
+  return StyleSheet.create({
+  flex: { flex: 1, backgroundColor: themeColor().bg },
   header: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -602,103 +610,98 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255,255,255,0.1)",
+    borderBottomColor: themeColor().line,
   },
   kicker: {
-    fontSize: 11,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 1.4,
-    color: "rgba(163,230,53,0.75)",
+    color: themeColor().pitchText,
   },
-  title: { marginTop: 6, fontSize: 18, fontWeight: "800", color: "#fff" },
+  title: { marginTop: 6, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
   rulesScroll: { flex: 1 },
   rulesContent: { padding: 20, paddingBottom: 32, gap: 8 },
   sectionHeading: {
     marginTop: 14,
-    fontSize: 12,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 0.8,
-    color: "rgba(255,255,255,0.85)",
-    textTransform: "uppercase",
+    color: themeColor().text,
   },
-  body: { fontSize: 14, lineHeight: 21, color: "rgba(255,255,255,0.72)" },
+  body: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21, color: themeColor().muted },
   scrollHint: {
     marginTop: 18,
-    fontSize: 12,
-    color: "rgba(255,255,255,0.45)",
+    fontSize: 13, fontFamily: "Inter_400Regular",
+    color: themeColor().muted,
     textAlign: "center",
   },
-  scrollHintDone: { color: LIME },
+  scrollHintDone: { color: themeColor().pitchText },
   footer: {
     padding: 20,
     gap: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "#0a0a0a",
+    borderTopColor: themeColor().line,
+    backgroundColor: themeColor().bg,
   },
-  claimsClosedText: { fontSize: 13, fontWeight: "800", color: "rgba(251,191,36,0.95)" },
+  claimsClosedText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().coral },
   checkboxRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   checkbox: {
     width: 22,
     height: 22,
-    borderRadius: 6,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.35)",
+    borderColor: themeColor().line,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "transparent",
   },
-  checkboxChecked: { backgroundColor: LIME, borderColor: LIME },
-  checkboxText: { flex: 1, fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 20 },
+  checkboxChecked: { backgroundColor: themeColor().pitch, borderColor: themeColor().pitch },
+  checkboxText: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().text, lineHeight: 20 },
   input: {
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: themeColor().line,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    fontSize: 15,
-    color: "#fff",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    fontSize: 16, fontFamily: "Inter_400Regular",
+    color: themeColor().text,
+    backgroundColor: themeColor().overlaySubtle,
   },
   primaryBtn: {
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     alignItems: "center",
     justifyContent: "center",
   },
   primaryBtnDisabled: { opacity: 0.45 },
-  primaryBtnText: { color: "#111", fontWeight: "800", fontSize: 15 },
+  primaryBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   secondaryBtn: {
     paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center",
   },
-  secondaryBtnText: { color: "rgba(255,255,255,0.7)", fontWeight: "700", fontSize: 14 },
+  secondaryBtnText: { color: themeColor().muted, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
   formContent: { padding: 20, paddingBottom: 40, gap: 16 },
   formCard: {
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     gap: 8,
   },
   formCardTitle: {
-    fontSize: 12,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 1.2,
-    color: "rgba(255,255,255,0.85)",
-    textTransform: "uppercase",
+    color: themeColor().text,
     marginBottom: 4,
   },
-  label: { marginTop: 4, fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.55)" },
-  fieldHint: { fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 18 },
+  label: { marginTop: 4, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
+  fieldHint: { fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 18 },
   rosterHeaderRow: { marginTop: 12, flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
-  rosterHeading: { fontSize: 13, fontWeight: "800", color: "rgba(255,255,255,0.9)" },
-  rosterCount: { fontSize: 12, fontWeight: "700", color: "rgba(163,230,53,0.75)" },
-  rosterSubtext: { fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 18, marginTop: 6 },
+  rosterHeading: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
+  rosterCount: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().pitchText },
+  rosterSubtext: { fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 18, marginTop: 6 },
   prelimRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
   prelimInput: { flex: 1, minWidth: 0 },
   removeTextBtn: {
@@ -706,10 +709,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  removeTextBtnText: { color: "rgba(255,255,255,0.8)", fontWeight: "800", fontSize: 12 },
+  removeTextBtnText: { color: themeColor().text, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
   addBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -718,41 +721,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.06)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
     alignSelf: "flex-start",
     marginTop: 12,
   },
   addBtnDisabled: { opacity: 0.45 },
-  addBtnText: { color: LIME, fontWeight: "700", fontSize: 13 },
+  addBtnText: { color: themeColor().pitch, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   successCard: {
     padding: 18,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.3)",
-    backgroundColor: "rgba(163,230,53,0.06)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
     gap: 10,
   },
-  successTitle: { fontSize: 16, fontWeight: "800", color: "#fff", lineHeight: 22 },
+  successTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text, lineHeight: 22 },
   refundCard: {
     padding: 16,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(251,191,36,0.32)",
-    backgroundColor: "rgba(251,191,36,0.06)",
+    borderColor: themeColor().coral,
+    backgroundColor: themeColor().overlaySubtle,
     gap: 8,
   },
-  refundTitle: { fontSize: 13, fontWeight: "800", color: "rgba(251,191,36,0.95)", letterSpacing: 0.4 },
-  refundBody: { fontSize: 13, lineHeight: 19, color: "rgba(255,255,255,0.78)" },
+  refundTitle: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().coral,},
+  refundBody: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19, color: themeColor().text },
   claimsClosedCard: {
     paddingVertical: 14,
     paddingHorizontal: 14,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(251,191,36,0.32)",
-    backgroundColor: "rgba(251,191,36,0.06)",
+    borderColor: themeColor().coral,
+    backgroundColor: themeColor().overlaySubtle,
     alignItems: "center",
     justifyContent: "center",
   },
-  claimsClosedTitle: { color: "rgba(251,191,36,0.95)", fontWeight: "800", fontSize: 14 },
+  claimsClosedTitle: { color: themeColor().coral, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

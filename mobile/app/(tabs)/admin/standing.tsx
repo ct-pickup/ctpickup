@@ -21,8 +21,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const LIME = "#a3e635";
-
+import { themeColor, useThemedStyles } from "@/theme";
 type ReliabilityFilter = "all" | "good" | "building" | "below";
 type ManualOverride = "" | "good" | "warning" | "suspended" | "banned";
 
@@ -43,15 +42,15 @@ function pickRowName(r: AdminStandingRow): string {
 function effTone(eff: string): { border: string; bg: string; text: string } {
   switch (eff) {
     case "good":
-      return { border: "rgba(52,211,153,0.45)", bg: "rgba(52,211,153,0.12)", text: "#bbf7d0" };
+      return { border: themeColor().pitch, bg: themeColor().pitchSoft, text: themeColor().pitch };
     case "warning":
-      return { border: "rgba(251,191,36,0.45)", bg: "rgba(251,191,36,0.12)", text: "#fde68a" };
+      return { border: themeColor().coral, bg: themeColor().coral, text: themeColor().text };
     case "suspended":
-      return { border: "rgba(251,146,60,0.5)", bg: "rgba(251,146,60,0.12)", text: "#fed7aa" };
+      return { border: themeColor().coral, bg: themeColor().overlaySubtle, text: themeColor().coral };
     case "banned":
-      return { border: "rgba(248,113,113,0.55)", bg: "rgba(248,113,113,0.12)", text: "#fecaca" };
+      return { border: themeColor().coral, bg: themeColor().overlaySubtle, text: themeColor().coral };
     default:
-      return { border: "rgba(255,255,255,0.18)", bg: "rgba(255,255,255,0.06)", text: "rgba(255,255,255,0.85)" };
+      return { border: themeColor().overlayStrong, bg: themeColor().overlaySubtle, text: themeColor().text };
   }
 }
 
@@ -74,6 +73,8 @@ function reliabilityMatches(row: AdminStandingRow, f: ReliabilityFilter): boolea
 }
 
 export default function AdminStandingScreen() {
+  useThemedStyles(publish_styles);
+
   const { session } = useAuth();
   const token = session?.access_token ?? null;
   const insets = useSafeAreaInsets();
@@ -193,7 +194,7 @@ export default function AdminStandingScreen() {
             value={q}
             onChangeText={setQ}
             placeholder="Search…"
-            placeholderTextColor="rgba(255,255,255,0.35)"
+            placeholderTextColor={themeColor().muted}
             autoCapitalize="none"
             autoCorrect={false}
           />
@@ -239,7 +240,7 @@ export default function AdminStandingScreen() {
           </View>
         </View>
 
-        {loading ? <ActivityIndicator color="#fff" style={{ marginTop: 14 }} /> : null}
+        {loading ? <ActivityIndicator color={themeColor().text} style={{ marginTop: 14 }} /> : null}
         {error ? <Text style={styles.err}>{error}</Text> : null}
 
         <View style={styles.card}>
@@ -371,7 +372,7 @@ export default function AdminStandingScreen() {
                       value={relOverride}
                       onChangeText={setRelOverride}
                       placeholder="(none)"
-                      placeholderTextColor="rgba(255,255,255,0.35)"
+                      placeholderTextColor={themeColor().muted}
                       keyboardType="number-pad"
                       inputMode="numeric"
                     />
@@ -381,7 +382,7 @@ export default function AdminStandingScreen() {
                       value={relOverrideReason}
                       onChangeText={setRelOverrideReason}
                       placeholder="Internal note"
-                      placeholderTextColor="rgba(255,255,255,0.35)"
+                      placeholderTextColor={themeColor().muted}
                     />
                   </View>
 
@@ -431,7 +432,7 @@ export default function AdminStandingScreen() {
                       value={reason}
                       onChangeText={setReason}
                       placeholder="Why this override exists"
-                      placeholderTextColor="rgba(255,255,255,0.35)"
+                      placeholderTextColor={themeColor().muted}
                     />
 
                     <Text style={styles.label}>Staff notes</Text>
@@ -440,7 +441,7 @@ export default function AdminStandingScreen() {
                       value={notes}
                       onChangeText={setNotes}
                       placeholder="Internal context"
-                      placeholderTextColor="rgba(255,255,255,0.35)"
+                      placeholderTextColor={themeColor().muted}
                       multiline
                       numberOfLines={4}
                       textAlignVertical="top"
@@ -498,43 +499,44 @@ export default function AdminStandingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0a0a0a" },
+function make_styles() {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 16, paddingBottom: 40 },
-  h1: { fontSize: 28, fontWeight: "800", color: "#fff" },
+  h1: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
-  intro: { marginTop: 10, color: "rgba(255,255,255,0.55)", fontSize: 13, lineHeight: 18 },
+  intro: { marginTop: 10, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
-  chipText: { color: LIME, fontWeight: "800", fontSize: 13 },
-  err: { marginTop: 10, color: "#fca5a5" },
+  chipText: { color: themeColor().pitch, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
+  err: { marginTop: 10, color: themeColor().coral },
   card: {
     marginTop: 14,
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  cardTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
-  bodyMuted: { marginTop: 6, color: "rgba(255,255,255,0.55)", fontSize: 12, lineHeight: 17 },
-  label: { marginTop: 12, fontSize: 12, fontWeight: "700", color: "rgba(255,255,255,0.55)" },
+  cardTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
+  bodyMuted: { marginTop: 6, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  label: { marginTop: 12, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
   input: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: themeColor().line,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 15,
-    color: "#fff",
-    backgroundColor: "rgba(0,0,0,0.35)",
+    fontSize: 16, fontFamily: "Inter_400Regular",
+    color: themeColor().text,
+    backgroundColor: themeColor().overlaySubtle,
   },
   inputMulti: { minHeight: 96, paddingTop: 10 },
   filterRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
@@ -543,106 +545,112 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  filterChipActive: { borderColor: "rgba(163,230,53,0.45)", backgroundColor: "rgba(163,230,53,0.10)" },
-  filterText: { color: "rgba(255,255,255,0.7)", fontWeight: "700", fontSize: 12 },
-  filterTextActive: { color: LIME },
-  muted: { marginTop: 8, color: "rgba(255,255,255,0.55)", fontSize: 12 },
+  filterChipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchSoft },
+  filterText: { color: themeColor().muted, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
+  filterTextActive: { color: themeColor().pitchText },
+  muted: { marginTop: 8, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
 
   person: {
     marginTop: 12,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   personHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
-  personName: { color: "#fff", fontWeight: "800", fontSize: 15 },
-  personSub: { marginTop: 2, color: "rgba(255,255,255,0.5)", fontSize: 12 },
+  personName: { color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  personSub: { marginTop: 2, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
   effBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
   },
-  effBadgeText: { fontWeight: "900", fontSize: 11, letterSpacing: 0.5, textTransform: "uppercase" },
-  overrideHint: { marginTop: 6, color: "rgba(251,191,36,0.85)", fontSize: 11, fontWeight: "700" },
+  effBadgeText: { fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold", },
+  overrideHint: { marginTop: 6, color: themeColor().coral, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
   metaPill: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
     minWidth: 90,
   },
-  metaLabel: { color: "rgba(255,255,255,0.45)", fontSize: 10, fontWeight: "800", letterSpacing: 0.5, textTransform: "uppercase" },
-  metaValue: { marginTop: 2, color: "#fff", fontSize: 13, fontWeight: "800" },
-  metaValueOk: { color: "#bbf7d0" },
-  metaValueWarn: { color: "#fde68a" },
-  metaValueBad: { color: "#fecaca" },
-  relLabel: { marginTop: 10, color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: "700" },
-  history: { marginTop: 4, color: "rgba(255,255,255,0.45)", fontSize: 11, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" },
+  metaLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "500", },
+  metaValue: { marginTop: 2, color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  metaValueOk: { color: themeColor().pitchText },
+  metaValueWarn: { color: themeColor().text },
+  metaValueBad: { color: themeColor().coral },
+  relLabel: { marginTop: 10, color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  history: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" },
 
-  modalRoot: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
+  modalRoot: { flex: 1, backgroundColor: themeColor().scrim, justifyContent: "flex-end" },
   modalDismiss: { flex: 1 },
   modalKb: { maxHeight: "92%" },
   modalSheet: {
     maxHeight: "92%",
-    backgroundColor: "#0a0a0a",
+    backgroundColor: themeColor().bg,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: themeColor().line,
     paddingHorizontal: 16,
     paddingTop: 8,
   },
   modalGrabRow: { alignItems: "center", paddingVertical: 6 },
-  modalGrab: { width: 40, height: 4, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.2)" },
+  modalGrab: { width: 40, height: 4, borderRadius: 999, backgroundColor: themeColor().overlayStrong },
   modalHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 8 },
-  modalTitle: { fontSize: 20, fontWeight: "800", color: "#fff" },
-  modalSub: { marginTop: 4, fontSize: 13, color: "rgba(255,255,255,0.5)" },
+  modalTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
+  modalSub: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
   closeBtn: {
     width: 36,
     height: 36,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: themeColor().line,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: themeColor().overlaySubtle,
   },
-  closeBtnText: { color: "#fff", fontSize: 22, lineHeight: 24, fontWeight: "700" },
-  modalSection: { marginTop: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
-  sectionTitle: { fontSize: 13, fontWeight: "800", color: "rgba(255,255,255,0.85)", letterSpacing: 0.6 },
+  closeBtnText: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", lineHeight: 24, fontWeight: "700" },
+  modalSection: { marginTop: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: themeColor().line },
+  sectionTitle: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text,},
 
   actionRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 16, marginBottom: 8 },
   primary: {
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     paddingVertical: 12,
     paddingHorizontal: 18,
     borderRadius: 12,
     alignItems: "center",
   },
-  primaryText: { color: "#111", fontWeight: "900", fontSize: 14 },
+  primaryText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 14, fontFamily: "Inter_700Bold" },
   secondary: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
-  secondaryText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+  secondaryText: { color: themeColor().text, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
   tertiary: {
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 12,
   },
-  tertiaryText: { color: "rgba(255,255,255,0.65)", fontWeight: "700", fontSize: 13 },
+  tertiaryText: { color: themeColor().muted, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   disabled: { opacity: 0.55 },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

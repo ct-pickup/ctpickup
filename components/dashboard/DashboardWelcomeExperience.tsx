@@ -35,7 +35,7 @@ function HeroSlideshow() {
   const slides = [...HERO_IMAGES, ...HERO_IMAGES];
 
   return (
-    <div className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
+    <div className="mt-6 overflow-hidden rounded-card border border-line bg-overlay-subtle">
       <div
         className="ct-hero-photo-marquee flex w-max"
         style={{ gap: "16px", padding: "16px" }}
@@ -43,7 +43,7 @@ function HeroSlideshow() {
         {slides.map((src, i) => (
           <div
             key={`${src}-${i}`}
-            className="h-[320px] w-[240px] md:h-[420px] md:w-[320px] shrink-0 overflow-hidden rounded-xl bg-white/5"
+            className="h-[320px] w-[240px] md:h-[420px] md:w-[320px] shrink-0 overflow-hidden rounded-card bg-overlay-subtle"
           >
             <img
               src={src}
@@ -185,11 +185,11 @@ export default function DashboardWelcomeExperience() {
       <div className="pt-6 md:pt-8">
         <div className="mx-auto max-w-full">
           <div className="text-center">
-            <h1 className="min-h-[1.35em] text-2xl md:text-3xl font-semibold tracking-tight">
+            <h1 className="min-h-[1.35em] text-h2 font-serif md:text-h1 font-semibold">
               {visible}
               {!typingComplete && welcomeTarget !== null ? (
                 <span
-                  className="inline-block w-[0.4ch] animate-pulse text-white/40"
+                  className="inline-block w-[0.4ch] animate-pulse text-muted"
                   aria-hidden
                 >
                   |
@@ -197,7 +197,7 @@ export default function DashboardWelcomeExperience() {
               ) : null}
             </h1>
 
-            <div className="mt-3 text-sm md:text-base font-semibold text-white/75">
+            <div className="mt-3 text-small md:text-body font-semibold text-muted">
               Use the navigation above to explore pickup games, tournaments, training, and more.
             </div>
           </div>

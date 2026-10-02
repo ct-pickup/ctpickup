@@ -51,10 +51,10 @@ export function RouteBrandOverlay({ session, onComplete }: Props) {
   const layer = (
     <div
       className={[
-        "ct-route-overlay fixed inset-0 flex flex-col items-center justify-center bg-[var(--bg)] text-center",
-        "shadow-[inset_0_0_100px_rgba(0,0,0,0.45)]",
+        "ct-route-overlay fixed inset-0 flex flex-col items-center justify-center bg-canvas text-center",
+        "",
         exiting ? "ct-route-overlay--exiting pointer-events-none" : "",
-      ].join(" ")}
+      ].join("  ")}
       style={{ zIndex: 2147483646 }}
       aria-hidden
     >

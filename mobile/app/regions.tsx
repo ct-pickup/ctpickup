@@ -6,7 +6,10 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { themeColor, useThemedStyles } from "@/theme";
 export default function RegionsScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const { setRegion } = useSelectedRegion();
 
@@ -15,8 +18,8 @@ export default function RegionsScreen() {
       <Stack.Screen
         options={{
           title: "Pickup by state",
-          headerStyle: { backgroundColor: "#0a0a0a" },
-          headerTintColor: "#fff",
+          headerStyle: { backgroundColor: themeColor().bg },
+          headerTintColor: themeColor().text,
           headerShadowVisible: false,
           headerTitleAlign: "center",
           headerRight: () => (
@@ -27,7 +30,7 @@ export default function RegionsScreen() {
               style={({ pressed }) => [styles.moreBtn, pressed && { opacity: 0.85 }]}
               hitSlop={10}
             >
-              <FontAwesome name="ellipsis-h" size={18} color="#a3e635" />
+              <FontAwesome name="ellipsis-h" size={18} color={themeColor().pitchText} />
             </Pressable>
           ),
         }}
@@ -44,16 +47,23 @@ export default function RegionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#0a0a0a" },
+function make_styles() {
+  return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: themeColor().bg },
   moreBtn: {
     width: 40,
     height: 40,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.28)",
-    backgroundColor: "rgba(163,230,53,0.06)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
     alignItems: "center",
     justifyContent: "center",
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

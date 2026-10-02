@@ -101,36 +101,36 @@ export default function PickupIntakePage() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-canvas text-ink">
       <div className="mx-auto max-w-3xl px-6 py-14 space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-semibold uppercase tracking-tight">
+          <h1 className="text-h1 font-serif font-semibold">
             PICKUP INTAKE
           </h1>
           <HistoryBack
             fallbackHref="/pickup"
-            className="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-white/80 underline underline-offset-4 transition hover:text-white"
+            className="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-small text-ink underline underline-offset-4 transition hover:text-ink"
           />
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-4">
+        <div className="rounded-card border border-line bg-overlay-subtle p-6 space-y-4">
           <div className="space-y-3">
             {messages.map((m, i) => (
               <div
                 key={i}
                 className={[
-                  "max-w-[85%] rounded-xl px-4 py-3 text-sm leading-relaxed border",
+                  "max-w-[85%] rounded-card px-4 py-3 text-small leading-relaxed border",
                   m.role === "assistant"
-                    ? "bg-white/[0.03] border-white/10 text-white/85"
-                    : "ml-auto bg-white text-black border-white/20",
-                ].join(" ")}
+                    ? "bg-overlay-subtle border-line text-ink"
+                    : "ml-auto bg-pitch text-on-pitch border-line",
+                ].join("  ")}
               >
                 {m.text}
               </div>
             ))}
           </div>
 
-          <div className="pt-2 border-t border-white/10" />
+          <div className="pt-2 border-t border-line" />
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <input
@@ -141,23 +141,23 @@ export default function PickupIntakePage() {
               }}
               disabled={loading || done}
               placeholder={done ? "Submitted." : "Type your answer…"}
-              className="w-full rounded-md bg-black border border-white/15 px-4 py-3 text-sm text-white placeholder:text-white/40 outline-none"
+              className="w-full rounded-button bg-canvas border border-line px-4 py-3 text-small text-ink placeholder:text-muted outline-none"
             />
 
             <button
               onClick={send}
               disabled={!canSend}
-              className="rounded-md px-5 py-3 text-sm font-semibold bg-white text-black disabled:opacity-50"
+              className="rounded-button px-5 py-3 text-small font-semibold bg-pitch text-on-pitch disabled:opacity-50"
             >
               Send
             </button>
           </div>
 
           {done && !crisis && (
-            <div className="pt-2 text-sm text-white/70">
+            <div className="pt-2 text-small text-muted">
               Submission received.
               <div className="mt-3 flex gap-4">
-                <Link href="/info" className="underline text-white/80">
+                <Link href="/info" className="underline text-ink">
                   Info
                 </Link>
               </div>
@@ -165,10 +165,10 @@ export default function PickupIntakePage() {
           )}
 
           {done && crisis && (
-            <div className="pt-2 text-sm text-white/70">
+            <div className="pt-2 text-small text-muted">
               If you’re in immediate danger, call 911. If you’re in the U.S., call or text 988.
               <div className="mt-3">
-                <Link href="/info" className="underline text-white/80">
+                <Link href="/info" className="underline text-ink">
                   Info
                 </Link>
               </div>
@@ -176,7 +176,7 @@ export default function PickupIntakePage() {
           )}
         </div>
 
-        <div className="text-xs text-white/50">
+        <div className="text-caption text-muted">
           Eligibility: college / former college / ECNL / MLS Next. Minimum age: 16.
         </div>
       </div>

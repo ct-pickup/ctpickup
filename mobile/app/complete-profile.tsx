@@ -1,7 +1,6 @@
 import { useProfileCompletionGate } from "@/context/ProfileCompletionContext";
 import { useAuth } from "@/context/AuthContext";
 import { useWaiver } from "@/context/WaiverContext";
-import { CT_PICKUP_LIME } from "@/constants/Colors";
 import { siteOrigin } from "@/lib/env";
 import {
   normalizeProfileUsername,
@@ -29,9 +28,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const BG = "#0a0a0a";
-const LIME = CT_PICKUP_LIME;
-
+import { themeColor, useThemedStyles } from "@/theme";
 const GENDER_OPTIONS = [
   { value: "male" as const, label: "Male" },
   { value: "female" as const, label: "Female" },
@@ -127,6 +124,8 @@ type SelectModalProps<T extends string> = {
 };
 
 function SelectModal<T extends string>({ visible, title, options, value, onSelect, onClose }: SelectModalProps<T>) {
+  useThemedStyles(publish_styles);
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalRoot}>
@@ -164,6 +163,8 @@ function SelectModal<T extends string>({ visible, title, options, value, onSelec
 }
 
 export default function CompleteProfileScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { session, supabase, isReady } = useAuth();
@@ -453,7 +454,7 @@ export default function CompleteProfileScreen() {
   if (!isReady) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#fff" />
+        <ActivityIndicator size="large" color={themeColor().text} />
       </View>
     );
   }
@@ -465,7 +466,7 @@ export default function CompleteProfileScreen() {
   if (waiverLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#fff" />
+        <ActivityIndicator size="large" color={themeColor().text} />
       </View>
     );
   }
@@ -477,7 +478,7 @@ export default function CompleteProfileScreen() {
   if (profileGateLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#fff" />
+        <ActivityIndicator size="large" color={themeColor().text} />
       </View>
     );
   }
@@ -558,7 +559,7 @@ export default function CompleteProfileScreen() {
             <TextInput
               style={[styles.input, liveErrors.first_name ? styles.inputErr : null]}
               placeholder="First name"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
               value={firstName}
               onChangeText={setFirstName}
               autoCapitalize="words"
@@ -572,7 +573,7 @@ export default function CompleteProfileScreen() {
             <TextInput
               style={[styles.input, liveErrors.last_name ? styles.inputErr : null]}
               placeholder="Last name"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
               value={lastName}
               onChangeText={setLastName}
               autoCapitalize="words"
@@ -620,7 +621,7 @@ export default function CompleteProfileScreen() {
             <TextInput
               style={styles.input}
               placeholder="@handle"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
               value={instagram}
               onChangeText={setInstagram}
               autoCapitalize="none"
@@ -633,7 +634,7 @@ export default function CompleteProfileScreen() {
             <TextInput
               style={styles.input}
               placeholder="Phone number"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
@@ -646,7 +647,7 @@ export default function CompleteProfileScreen() {
             <TextInput
               style={[styles.input, liveErrors.zip_code ? styles.inputErr : null]}
               placeholder="5-digit zip"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
               value={zipCode}
               onChangeText={(t) => setZipCode(t.replace(/\D/g, "").slice(0, 5))}
               keyboardType="numeric"
@@ -671,7 +672,7 @@ export default function CompleteProfileScreen() {
             <TextInput
               style={[styles.input, liveErrors.username ? styles.inputErr : null]}
               placeholder="letters and numbers"
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={themeColor().muted}
               value={username}
               onChangeText={(t) => {
                 usernameUserEdited.current = true;
@@ -714,7 +715,7 @@ export default function CompleteProfileScreen() {
             accessibilityState={{ checked: ageConfirmed }}
           >
             <View style={[styles.checkbox, ageConfirmed && styles.checkboxChecked]}>
-              {ageConfirmed ? <FontAwesome name="check" size={12} color="#0a0a0a" /> : null}
+              {ageConfirmed ? <FontAwesome name="check" size={12} color={themeColor().onPitch} /> : null}
             </View>
             <Text style={styles.checkboxText}>I confirm I am 13 years of age or older</Text>
           </Pressable>
@@ -728,7 +729,7 @@ export default function CompleteProfileScreen() {
             disabled={btnLocked}
           >
             {busy ? (
-              <ActivityIndicator color="#111" />
+              <ActivityIndicator color={themeColor().onPitch} />
             ) : (
               <Text style={[styles.primaryBtnText, btnLocked && styles.primaryBtnTextDisabled]}>Continue</Text>
             )}
@@ -741,18 +742,19 @@ export default function CompleteProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   flex: { flex: 1 },
-  screen: { flex: 1, backgroundColor: BG },
-  center: { flex: 1, backgroundColor: BG, justifyContent: "center", alignItems: "center" },
+  screen: { flex: 1, backgroundColor: themeColor().bg },
+  center: { flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center" },
   bgGlowA: {
     position: "absolute",
     top: -200,
     left: -140,
     width: 380,
     height: 380,
-    borderRadius: 380,
-    backgroundColor: "rgba(163,230,53,0.10)",
+    borderRadius: 999,
+    backgroundColor: themeColor().pitchSoft,
   },
   bgGlowB: {
     position: "absolute",
@@ -760,8 +762,8 @@ const styles = StyleSheet.create({
     right: -200,
     width: 480,
     height: 480,
-    borderRadius: 480,
-    backgroundColor: "rgba(163,230,53,0.06)",
+    borderRadius: 999,
+    backgroundColor: themeColor().pitchSoft,
   },
   content: {
     flexGrow: 1,
@@ -771,60 +773,59 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   title: {
-    fontSize: 28,
+    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "800",
-    color: "#fff",
-    letterSpacing: 0.2,
+    color: themeColor().text,
   },
   subtitle: {
     marginTop: 10,
-    fontSize: 15,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 22,
-    color: "rgba(255,255,255,0.62)",
+    color: themeColor().muted,
   },
   fieldBlock: {
     marginTop: 18,
   },
   label: {
-    fontSize: 13,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    color: "rgba(255,255,255,0.55)",
+    color: themeColor().muted,
   },
   fieldHint: {
     marginTop: 6,
-    fontSize: 13,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     lineHeight: 18,
-    color: "rgba(255,255,255,0.48)",
+    color: themeColor().muted,
   },
   atPreview: {
     marginTop: 6,
-    fontSize: 13,
-    color: "rgba(163,230,53,0.85)",
+    fontSize: 13, fontFamily: "Inter_600SemiBold",
+    color: themeColor().pitchText,
     fontWeight: "600",
   },
   input: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: themeColor().line,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 16,
-    color: "#fff",
-    backgroundColor: "rgba(0,0,0,0.35)",
+    fontSize: 16, fontFamily: "Inter_400Regular",
+    color: themeColor().text,
+    backgroundColor: themeColor().overlaySubtle,
   },
   readonlyBox: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
+    borderColor: themeColor().line,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: "rgba(0,0,0,0.22)",
+    backgroundColor: themeColor().bg,
   },
   readonlyText: {
-    fontSize: 16,
-    color: "rgba(255,255,255,0.45)",
+    fontSize: 16, fontFamily: "Inter_400Regular",
+    color: themeColor().muted,
   },
   selectTrigger: {
     flexDirection: "row",
@@ -832,36 +833,36 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   selectPlaceholder: {
-    fontSize: 16,
-    color: "rgba(255,255,255,0.35)",
+    fontSize: 16, fontFamily: "Inter_400Regular",
+    color: themeColor().muted,
   },
   selectValue: {
-    fontSize: 16,
-    color: "#fff",
+    fontSize: 16, fontFamily: "Inter_400Regular",
+    color: themeColor().text,
   },
   selectChevron: {
-    fontSize: 14,
-    color: LIME,
+    fontSize: 14, fontFamily: "Inter_400Regular",
+    color: themeColor().pitchText,
     marginLeft: 8,
   },
   inputErr: {
-    borderColor: "rgba(252,165,165,0.65)",
+    borderColor: themeColor().coral,
   },
   errText: {
     marginTop: 6,
-    fontSize: 13,
-    color: "#fca5a5",
+    fontSize: 13, fontFamily: "Inter_400Regular",
+    color: themeColor().coral,
   },
   zipVenueInlineHint: {
     marginTop: 8,
-    fontSize: 13,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     lineHeight: 19,
-    color: "rgba(255,255,255,0.5)",
+    color: themeColor().muted,
   },
   zipVenueChecking: {
     marginTop: 6,
-    fontSize: 12,
-    color: "rgba(255,255,255,0.45)",
+    fontSize: 13, fontFamily: "Inter_400Regular",
+    color: themeColor().muted,
   },
   checkboxRow: {
     flexDirection: "row",
@@ -872,67 +873,65 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 22,
     height: 22,
-    borderRadius: 6,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.35)",
+    borderColor: themeColor().line,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "transparent",
   },
   checkboxChecked: {
-    backgroundColor: LIME,
-    borderColor: LIME,
+    backgroundColor: themeColor().pitch,
+    borderColor: themeColor().pitch,
   },
   checkboxText: {
     flex: 1,
-    fontSize: 14,
-    color: "rgba(255,255,255,0.85)",
+    fontSize: 14, fontFamily: "Inter_400Regular",
+    color: themeColor().text,
     lineHeight: 20,
   },
   submitErr: {
     marginTop: 16,
-    fontSize: 14,
-    color: "#fca5a5",
+    fontSize: 14, fontFamily: "Inter_400Regular",
+    color: themeColor().coral,
     lineHeight: 20,
   },
   primaryBtn: {
     marginTop: 28,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     paddingVertical: 15,
     borderRadius: 12,
     alignItems: "center",
   },
   primaryBtnDisabled: {
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: themeColor().overlay,
   },
   primaryBtnText: {
-    color: "#111",
+    color: themeColor().onPitch,
     fontWeight: "800",
-    fontSize: 16,
+    fontSize: 16, fontFamily: "Inter_700Bold",
   },
   primaryBtnTextDisabled: {
-    color: "rgba(255,255,255,0.35)",
+    color: themeColor().muted,
   },
   nearestCard: {
     marginTop: 22,
     padding: 18,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   nearestCardTitle: {
-    fontSize: 15,
+    fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    color: LIME,
-    letterSpacing: 0.3,
+    color: themeColor().pitchText,
     marginBottom: 14,
   },
   nearestSectionHeader: {
-    fontSize: 13,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    color: LIME,
-    letterSpacing: 0.45,
+    color: themeColor().pitchText,
     marginBottom: 6,
   },
   nearestSectionHeaderFirst: {
@@ -948,7 +947,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255,255,255,0.12)",
+    borderBottomColor: themeColor().line,
   },
   nearestRowLast: {
     borderBottomWidth: 0,
@@ -958,32 +957,32 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   nearestVenueName: {
-    fontSize: 15,
+    fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    color: "#fff",
+    color: themeColor().text,
     lineHeight: 21,
   },
   nearestVenueAddress: {
-    fontSize: 12,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     lineHeight: 18,
-    color: "rgba(255,255,255,0.6)",
+    color: themeColor().muted,
   },
   nearestEta: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    color: LIME,
+    color: themeColor().pitchText,
   },
   nearestEmpty: {
-    fontSize: 14,
+    fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 20,
-    color: "rgba(255,255,255,0.55)",
+    color: themeColor().muted,
   },
   modalRoot: {
     flex: 1,
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.65)",
+    backgroundColor: themeColor().scrim,
   },
   modalCardWrap: {
     ...StyleSheet.absoluteFillObject,
@@ -991,17 +990,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   modalCard: {
-    backgroundColor: "#141414",
-    borderRadius: 16,
+    backgroundColor: themeColor().card,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.25)",
+    borderColor: themeColor().pitch,
     paddingVertical: 8,
     paddingHorizontal: 4,
   },
   modalTitle: {
-    fontSize: 15,
+    fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    color: LIME,
+    color: themeColor().pitchText,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
@@ -1012,14 +1011,14 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   modalRowSelected: {
-    backgroundColor: "rgba(163,230,53,0.12)",
+    backgroundColor: themeColor().pitchSoft,
   },
   modalRowText: {
-    fontSize: 16,
-    color: "rgba(255,255,255,0.85)",
+    fontSize: 16, fontFamily: "Inter_400Regular",
+    color: themeColor().text,
   },
   modalRowTextSelected: {
-    color: LIME,
+    color: themeColor().pitchText,
     fontWeight: "700",
   },
   modalCancel: {
@@ -1028,8 +1027,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalCancelText: {
-    fontSize: 15,
+    fontSize: 16, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
-    color: "rgba(255,255,255,0.45)",
+    color: themeColor().muted,
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

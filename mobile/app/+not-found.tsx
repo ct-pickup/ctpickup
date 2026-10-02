@@ -3,10 +3,10 @@ import { Stack, useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const BG = "#0a0a0a";
-const LIME = "#a3e635";
-
+import { themeColor, useThemedStyles } from "@/theme";
 export default function NotFoundScreen() {
+  useThemedStyles(publish_styles);
+
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -15,8 +15,8 @@ export default function NotFoundScreen() {
       <Stack.Screen
         options={{
           title: "Not found",
-          headerStyle: { backgroundColor: BG },
-          headerTintColor: "#fff",
+          headerStyle: { backgroundColor: themeColor().bg },
+          headerTintColor: themeColor().text,
           headerShadowVisible: false,
         }}
       />
@@ -39,45 +39,50 @@ export default function NotFoundScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: BG,
+    backgroundColor: themeColor().bg,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 32,
     gap: 12,
   },
   code: {
-    fontSize: 80,
+    fontSize: 40, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "900",
-    color: LIME,
-    letterSpacing: -3,
+    color: themeColor().pitchText,
     lineHeight: 88,
   },
   title: {
-    fontSize: 24,
+    fontSize: 24, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "800",
-    color: "#fff",
-    letterSpacing: -0.4,
+    color: themeColor().text,
   },
   body: {
-    fontSize: 15,
-    color: "rgba(255,255,255,0.5)",
+    fontSize: 16, fontFamily: "Inter_400Regular",
+    color: themeColor().muted,
     textAlign: "center",
     lineHeight: 22,
   },
   btn: {
     marginTop: 12,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 36,
     alignItems: "center",
   },
   btnText: {
-    color: "#0a0a0a",
-    fontSize: 16,
+    color: themeColor().onPitch,
+    fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "900",
   },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

@@ -212,9 +212,9 @@ export default function OnboardingPage() {
       <main className="min-h-screen p-6 max-w-xl mx-auto">
         <HistoryBack
           fallbackHref="/login"
-          className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900"
+          className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-small text-muted underline underline-offset-4 hover:text-muted"
         />
-        <h1 className="text-2xl font-semibold">Setting up…</h1>
+        <h1 className="text-h2 font-serif font-semibold">Setting up…</h1>
       </main>
     );
   }
@@ -223,26 +223,26 @@ export default function OnboardingPage() {
     <main className="min-h-screen p-6 max-w-xl mx-auto">
       <HistoryBack
         fallbackHref="/"
-        className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900"
+        className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-small text-muted underline underline-offset-4 hover:text-muted"
       />
-      <h1 className="text-2xl font-semibold">New here?</h1>
-      <p className="mt-2 text-sm text-gray-600">
+      <h1 className="text-h2 font-serif font-semibold">New here?</h1>
+      <p className="mt-2 text-small text-muted">
         Instagram + phone are required so we can verify identity and contact you quickly
         once a slot hits critical mass.
       </p>
 
       <div className="mt-6 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <input className="rounded-lg border p-3" placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" />
-          <input className="rounded-lg border p-3" placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" />
+          <input className="rounded-button border p-3" placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" />
+          <input className="rounded-button border p-3" placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" />
         </div>
 
         <div className="w-full">
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600">
+          <label className="mb-1 block text-caption font-semibold text-muted">
             Sex
           </label>
           <select
-            className="rounded-lg border p-3 w-full bg-white"
+            className="rounded-button border p-3 w-full bg-card"
             value={sex}
             onChange={(e) => setSex(e.target.value as ProfileGender)}
           >
@@ -256,11 +256,11 @@ export default function OnboardingPage() {
         </div>
 
         <div className="w-full">
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600">
+          <label className="mb-1 block text-caption font-semibold text-muted">
             Gender
           </label>
           <select
-            className="rounded-lg border p-3 w-full bg-white"
+            className="rounded-button border p-3 w-full bg-card"
             value={gender}
             onChange={(e) => setGender(e.target.value as ProfileGender)}
           >
@@ -275,7 +275,7 @@ export default function OnboardingPage() {
 
         {gender === "other" ? (
           <input
-            className="rounded-lg border p-3 w-full"
+            className="rounded-button border p-3 w-full"
             placeholder="Describe (optional)"
             value={genderOther}
             onChange={(e) => setGenderOther(e.target.value)}
@@ -284,7 +284,7 @@ export default function OnboardingPage() {
         ) : null}
 
         <input
-          className="rounded-lg border p-3 w-full"
+          className="rounded-button border p-3 w-full"
           placeholder="Playing position"
           value={playingPosition}
           onChange={(e) => setPlayingPosition(e.target.value)}
@@ -303,7 +303,7 @@ export default function OnboardingPage() {
         />
 
         <input
-          className="rounded-lg border p-3 w-full"
+          className="rounded-button border p-3 w-full"
           placeholder={`Username (${PROFILE_USERNAME_MAX_LEN} chars max, a–z, 0–9)`}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
@@ -312,20 +312,20 @@ export default function OnboardingPage() {
         />
 
         <input
-          className="rounded-lg border p-3 w-full"
+          className="rounded-button border p-3 w-full"
           placeholder="Phone number"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
         />
 
         <input
-          className="rounded-lg border p-3 w-full"
+          className="rounded-button border p-3 w-full"
           placeholder="Instagram (@handle)"
           value={instagram}
           onChange={(e) => setInstagram(e.target.value)}
         />
 
-        <label className="flex cursor-pointer items-start gap-3 text-sm text-gray-700">
+        <label className="flex cursor-pointer items-start gap-3 text-small text-muted">
           <input
             type="checkbox"
             checked={waiverAccepted}
@@ -333,25 +333,25 @@ export default function OnboardingPage() {
             className="mt-1 h-4 w-4 shrink-0"
           />
           <span>
-            I agree to the{" "}
+            I agree to the{"  "}
             <Link
               href="/liability-waiver"
               target="_blank"
               rel="noreferrer"
-              className="font-semibold text-gray-900 underline"
+              className="font-semibold text-muted underline"
             >
               Liability Waiver
-            </Link>{" "}
+            </Link>{"  "}
             ({CURRENT_WAIVER_VERSION}).
           </span>
         </label>
 
-        <button className="rounded-lg border px-4 py-3 font-medium" onClick={save}>
+        <button className="rounded-button border px-4 py-3 font-medium" onClick={save}>
           Save & continue
         </button>
 
         {msg ? (
-          <p className="text-sm text-red-600 whitespace-pre-line leading-relaxed">{msg}</p>
+          <p className="text-small text-coral whitespace-pre-line leading-relaxed">{msg}</p>
         ) : null}
       </div>
     </main>

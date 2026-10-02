@@ -81,7 +81,7 @@ export default function AdminGuidancePage() {
         r.profile_tier_snapshot,
       ]
         .filter(Boolean)
-        .join(" ")
+        .join("  ")
         .toLowerCase();
       return blob.includes(q);
     });
@@ -101,7 +101,7 @@ export default function AdminGuidancePage() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-canvas text-ink">
       <div className="mx-auto max-w-6xl space-y-6 py-8">
         <PageTop flush title="Staff · Guidance inbox" fallbackHref={APP_HOME_URL} />
 
@@ -110,7 +110,7 @@ export default function AdminGuidancePage() {
             {pendingCount > 0 ? <StatusChip tone="pending">{pendingCount} pending</StatusChip> : (
               <StatusChip tone="synced">Inbox clear</StatusChip>
             )}
-            <Link href="/guidance" target="_blank" className="text-xs text-white/50 hover:text-white">
+            <Link href="/guidance" target="_blank" className="text-caption text-muted hover:text-ink">
               Public page ↗
             </Link>
           </div>
@@ -119,50 +119,50 @@ export default function AdminGuidancePage() {
             placeholder="Search name, email, plan, message…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="mb-4 w-full max-w-md rounded-lg border border-white/15 bg-black px-3 py-2 text-sm text-white outline-none placeholder:text-white/35"
+            className="mb-4 w-full max-w-md rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink outline-none placeholder:text-muted"
           />
         </AdminWorkArea>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-white/60">
-            Table <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs">guidance_requests</code> — tied to the public
+          <p className="text-small text-muted">
+            Table <code className="rounded-button bg-overlay px-1.5 py-0.5 text-caption">guidance_requests</code> — tied to the public
             Guidance page only (not the site-wide status card).
           </p>
           <button
             type="button"
             onClick={() => void load()}
-            className="text-sm text-white/55 underline-offset-4 hover:text-white hover:underline"
+            className="text-small text-muted underline-offset-4 hover:text-ink hover:underline"
           >
             Refresh
           </button>
         </div>
 
         {msg ? (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          <div className="rounded-button border border-coral bg-overlay-subtle px-4 py-3 text-small text-coral">
             {msg}
           </div>
         ) : null}
 
         {loading ? (
-          <p className="text-sm text-white/50">Loading…</p>
+          <p className="text-small text-muted">Loading…</p>
         ) : rows.length === 0 ? (
-          <p className="text-sm text-white/50">No requests yet.</p>
+          <p className="text-small text-muted">No requests yet.</p>
         ) : filtered.length === 0 ? (
-          <p className="text-sm text-white/50">No matches for that search.</p>
+          <p className="text-small text-muted">No matches for that search.</p>
         ) : (
           <div className="space-y-4">
             {filtered.map((r) => (
               <div
                 key={r.id}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 md:p-6"
+                className="rounded-card border border-line bg-overlay-subtle p-5 md:p-6"
               >
-                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-3">
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-3">
                   <div>
-                    <div className="text-xs uppercase tracking-widest text-white/45">
+                    <div className="text-caption text-muted">
                       {fmt(r.created_at)}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <span className="font-semibold capitalize text-white">{r.plan}</span>
+                      <span className="font-semibold capitalize text-ink">{r.plan}</span>
                       {r.status === "pending" ? (
                         <StatusChip tone="pending">Pending</StatusChip>
                       ) : r.status === "assigned" ? (
@@ -172,8 +172,8 @@ export default function AdminGuidancePage() {
                       )}
                     </div>
                   </div>
-                  <label className="flex items-center gap-2 text-sm text-white/70">
-                    <span className="text-white/45">Status</span>
+                  <label className="flex items-center gap-2 text-small text-muted">
+                    <span className="text-muted">Status</span>
                     <select
                       value={r.status}
                       onChange={(e) =>
@@ -182,7 +182,7 @@ export default function AdminGuidancePage() {
                           e.target.value as GuidanceRequestStatus
                         )
                       }
-                      className="rounded-lg border border-white/15 bg-black px-2 py-1.5 text-sm text-white outline-none"
+                      className="rounded-button border border-line bg-canvas px-2 py-1.5 text-small text-ink outline-none"
                     >
                       <option value="pending">pending</option>
                       <option value="assigned">assigned</option>
@@ -191,36 +191,36 @@ export default function AdminGuidancePage() {
                   </label>
                 </div>
 
-                <div className="mt-3 grid gap-1 text-sm text-white/75">
+                <div className="mt-3 grid gap-1 text-small text-muted">
                   <div>
-                    <span className="text-white/45">From: </span>
+                    <span className="text-muted">From: </span>
                     {r.submitter_name || "—"}
                     {r.submitter_email ? (
-                      <span className="text-white/55">
-                        {" "}
+                      <span className="text-muted">
+                        {"  "}
                         · {r.submitter_email}
                       </span>
                     ) : null}
                   </div>
                   {r.profile_tier_snapshot ? (
                     <div>
-                      <span className="text-white/45">Tier snapshot: </span>
+                      <span className="text-muted">Tier snapshot: </span>
                       {r.profile_tier_snapshot}
                     </div>
                   ) : null}
                   {r.sport_focus ? (
                     <div>
-                      <span className="text-white/45">Sport / focus: </span>
+                      <span className="text-muted">Sport / focus: </span>
                       {r.sport_focus}
                     </div>
                   ) : null}
                   <div>
-                    <span className="text-white/45">User ID: </span>
-                    <code className="text-xs text-white/60">{r.user_id}</code>
+                    <span className="text-muted">User ID: </span>
+                    <code className="text-caption text-muted">{r.user_id}</code>
                   </div>
                 </div>
 
-                <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-white/85">
+                <p className="mt-4 whitespace-pre-wrap text-small leading-relaxed text-ink">
                   {r.message}
                 </p>
               </div>
@@ -228,7 +228,7 @@ export default function AdminGuidancePage() {
           </div>
         )}
 
-        <p className="text-xs text-white/40">
+        <p className="text-caption text-muted">
           Plans: foundation, development, elite. Use status for your internal
           workflow (pending → assigned → completed).
         </p>

@@ -29,7 +29,7 @@ export function LiabilityWaiverReturnBack({
       {returnTo ? (
         <Link
           href={returnTo}
-          className="text-sm font-medium text-white/80 underline-offset-4 transition hover:text-white hover:underline sm:ml-1"
+          className="text-small font-medium text-ink underline-offset-4 transition hover:text-ink hover:underline sm:ml-1"
         >
           {returnToLabel(returnTo)}
         </Link>

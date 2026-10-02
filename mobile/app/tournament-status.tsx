@@ -6,6 +6,7 @@ import { fetchTournamentPublic } from "@/lib/siteApi";
 import { siteOrigin } from "@/lib/env";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useCallback, useEffect, useState } from "react";
+import { themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -15,9 +16,6 @@ import {
   View,
 } from "react-native";
 
-const BG = "#0a0a0a";
-const LIME = "#a3e635";
-
 function headlineFor(data: FieldTournamentPayload): string {
   if (!data.tournament) return "No live tournament";
   if (data.full) return "Tournament full";
@@ -26,6 +24,8 @@ function headlineFor(data: FieldTournamentPayload): string {
 }
 
 export default function TournamentStatusScreen() {
+  useThemedStyles(publish_styles);
+
   const { session } = useAuth();
   const { region, ready: regionReady } = useSelectedRegion();
   const [loading, setLoading] = useState(true);
@@ -95,10 +95,10 @@ export default function TournamentStatusScreen() {
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={LIME} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeColor().pitchText} />}
     >
       {!regionReady || loading ? (
-        <ActivityIndicator size="large" color="#fff" style={styles.spinner} />
+        <ActivityIndicator size="large" color={themeColor().text} style={styles.spinner} />
       ) : error ? (
         <View style={styles.card}>
           <Text style={styles.errTitle}>Couldn&apos;t load status</Text>
@@ -109,7 +109,7 @@ export default function TournamentStatusScreen() {
           <Text style={styles.headline}>{headline}</Text>
           <View style={styles.card}>
             <View style={styles.emptyHeaderRow}>
-              <FontAwesome name="trophy" size={18} color={LIME} />
+              <FontAwesome name="trophy" size={18} color={themeColor().pitchText} />
               <Text style={[styles.cardEyebrow, styles.cardEyebrowNoMb]}>Tournament status</Text>
             </View>
             <Text style={styles.emptyTitle}>No updates right now</Text>
@@ -149,7 +149,7 @@ export default function TournamentStatusScreen() {
           {announcement ? (
             <View style={styles.announceCard}>
               <View style={styles.announceTop}>
-                <FontAwesome name="bullhorn" size={18} color={LIME} />
+                <FontAwesome name="bullhorn" size={18} color={themeColor().pitchText} />
                 <Text style={styles.announceEyebrow}>Announcement</Text>
               </View>
               <Text style={styles.announceBody}>{announcement}</Text>
@@ -161,70 +161,68 @@ export default function TournamentStatusScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: BG },
+function make_styles() {
+  return StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 20, paddingBottom: 36 },
   spinner: { marginTop: 32 },
   headline: {
-    fontSize: 28,
+    fontSize: 32, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "800",
-    color: "#fff",
-    letterSpacing: -0.3,
+    color: themeColor().text,
     lineHeight: 34,
     marginBottom: 18,
   },
   card: {
     marginBottom: 16,
     padding: 18,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   cardEyebrow: {
-    fontSize: 12,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    letterSpacing: 1,
-    color: "rgba(255,255,255,0.7)",
-    textTransform: "uppercase",
+    color: themeColor().muted,
     marginBottom: 10,
   },
   cardEyebrowNoMb: { marginBottom: 0 },
   tournamentTitle: {
-    fontSize: 20,
+    fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "700",
-    color: "#fff",
+    color: themeColor().text,
     lineHeight: 26,
     marginBottom: 8,
   },
   startAt: {
-    fontSize: 15,
+    fontSize: 16, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
-    color: "rgba(255,255,255,0.88)",
+    color: themeColor().text,
     lineHeight: 22,
     marginBottom: 14,
   },
   statsBlock: { gap: 8 },
-  statLine: { fontSize: 15, lineHeight: 22 },
-  statLabel: { color: "rgba(255,255,255,0.6)" },
-  statEmph: { color: "#fff", fontWeight: "700" },
+  statLine: { fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 22 },
+  statLabel: { color: themeColor().muted },
+  statEmph: { color: themeColor().text, fontWeight: "700" },
   thresholdLine: {
     marginTop: 8,
     paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(255,255,255,0.12)",
-    fontSize: 14,
+    borderTopColor: themeColor().line,
+    fontSize: 14, fontFamily: "Inter_600SemiBold",
     lineHeight: 20,
-    color: LIME,
+    color: themeColor().pitchText,
     fontWeight: "600",
   },
   announceCard: {
     marginBottom: 16,
     padding: 18,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.28)",
-    backgroundColor: "rgba(163,230,53,0.08)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
   },
   announceTop: {
     flexDirection: "row",
@@ -233,16 +231,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   announceEyebrow: {
-    fontSize: 12,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 1,
-    color: LIME,
-    textTransform: "uppercase",
+    color: themeColor().pitchText,
   },
   announceBody: {
-    fontSize: 15,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 22,
-    color: "rgba(255,255,255,0.92)",
+    color: themeColor().text,
   },
   emptyHeaderRow: {
     flexDirection: "row",
@@ -250,8 +246,14 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 10,
   },
-  emptyTitle: { fontSize: 18, fontWeight: "700", color: "#fff" },
-  emptyBody: { marginTop: 8, color: "rgba(255,255,255,0.6)", fontSize: 14, lineHeight: 21 },
-  errTitle: { fontSize: 16, fontWeight: "700", color: "#fca5a5" },
-  errBody: { marginTop: 8, color: "rgba(255,255,255,0.7)", fontSize: 14, lineHeight: 20 },
+  emptyTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text },
+  emptyBody: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 },
+  errTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().coral },
+  errBody: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+

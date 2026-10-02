@@ -5,8 +5,7 @@ import { formatTournamentStartDisplay } from "@/lib/formatTournament";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 
-const LIME = "#a3e635";
-
+import { themeColor, useThemedStyles } from "@/theme";
 function tournamentStatusLabel(payload: FieldTournamentPayload): string {
   if (payload.full) return "Full";
   if (payload.official) return "Official";
@@ -25,6 +24,8 @@ type Props = {
 };
 
 export function FieldTournamentCard({ loading, error, payload, onPress, style, emptyAlternateMessage }: Props) {
+  useThemedStyles(publish_styles);
+
   if (loading) {
     return <CardLoadingShimmer style={style} />;
   }
@@ -35,7 +36,7 @@ export function FieldTournamentCard({ loading, error, payload, onPress, style, e
           <View style={styles.cardAccent} />
           <View style={styles.row}>
             <View style={styles.iconBadge}>
-              <FontAwesome name="trophy" size={28} color={LIME} />
+              <FontAwesome name="trophy" size={28} color={themeColor().pitchText} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.statusKicker}>Couldn&apos;t load</Text>
@@ -64,7 +65,7 @@ export function FieldTournamentCard({ loading, error, payload, onPress, style, e
           <View style={styles.cardAccent} />
           <View style={styles.row}>
             <View style={styles.iconBadge}>
-              <FontAwesome name="trophy" size={28} color={LIME} />
+              <FontAwesome name="trophy" size={28} color={themeColor().pitchText} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.statusKicker}>No tournament announced</Text>
@@ -85,7 +86,7 @@ export function FieldTournamentCard({ loading, error, payload, onPress, style, e
       <View style={styles.cardAccent} />
       <View style={styles.row}>
         <View style={styles.iconBadge}>
-          <FontAwesome name="trophy" size={28} color={LIME} />
+          <FontAwesome name="trophy" size={28} color={themeColor().pitchText} />
         </View>
         <View style={styles.titleBlock}>
           <View style={styles.titleRow}>
@@ -97,7 +98,7 @@ export function FieldTournamentCard({ loading, error, payload, onPress, style, e
             </View>
           </View>
         </View>
-        {onPress ? <FontAwesome name="chevron-right" size={14} color="rgba(255,255,255,0.35)" /> : null}
+        {onPress ? <FontAwesome name="chevron-right" size={14} color={themeColor().muted} /> : null}
       </View>
       <Text style={styles.meta}>
         Confirmed teams {confirmedTeams} / {maxTeams} · Claims {claimedTeams}
@@ -134,20 +135,16 @@ export function FieldTournamentCard({ loading, error, payload, onPress, style, e
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles() {
+  return StyleSheet.create({
   card: {
-    borderRadius: 18,
+    borderRadius: 12,
     overflow: "hidden",
     padding: 18,
     paddingLeft: 22,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "rgba(255,255,255,0.035)",
-    shadowColor: "#000",
-    shadowOpacity: 0.45,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 2,
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().overlaySubtle,
   },
   cardAccent: {
     position: "absolute",
@@ -155,7 +152,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 4,
-    backgroundColor: LIME,
+    backgroundColor: themeColor().pitch,
     borderTopLeftRadius: 18,
     borderBottomLeftRadius: 18,
   },
@@ -164,10 +161,10 @@ const styles = StyleSheet.create({
   iconBadge: {
     width: 52,
     height: 52,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(163,230,53,0.12)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().pitchSoft,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -184,27 +181,32 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(163,230,53,0.35)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: themeColor().pitch,
+    backgroundColor: themeColor().overlaySubtle,
     flexShrink: 0,
   },
-  statusPillText: { color: LIME, fontSize: 11, fontWeight: "700", letterSpacing: 0.2 },
+  statusPillText: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700",},
   statusKicker: {
-    fontSize: 12,
+    fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    letterSpacing: 0.6,
-    color: "rgba(255,255,255,0.92)",
+    color: themeColor().text,
   },
-  title: { flex: 1, fontSize: 18, fontWeight: "700", color: "#fff", lineHeight: 24, minWidth: 0 },
-  meta: { marginTop: 10, fontSize: 14, color: "rgba(255,255,255,0.72)", lineHeight: 20 },
-  when: { marginTop: 6, fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 20, fontWeight: "600" },
-  announce: { marginTop: 10, fontSize: 14, color: "rgba(255,255,255,0.58)", lineHeight: 21 },
-  emptySub: { marginTop: 8, fontSize: 14, lineHeight: 21, color: "rgba(255,255,255,0.5)" },
+  title: { flex: 1, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text, lineHeight: 24, minWidth: 0 },
+  meta: { marginTop: 10, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 20 },
+  when: { marginTop: 6, fontSize: 14, fontFamily: "Inter_600SemiBold", color: themeColor().text, lineHeight: 20, fontWeight: "600" },
+  announce: { marginTop: 10, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 21 },
+  emptySub: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21, color: themeColor().muted },
   emptyAlternate: {
-    fontSize: 15,
+    fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 22,
-    color: "rgba(255,255,255,0.5)",
+    color: themeColor().muted,
     textAlign: "center",
   },
-  err: { marginTop: 8, fontSize: 14, color: "#fca5a5", lineHeight: 20 },
+  err: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().coral, lineHeight: 20 },
 });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}
+
