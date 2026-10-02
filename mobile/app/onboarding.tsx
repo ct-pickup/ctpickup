@@ -309,7 +309,7 @@ function make_styles() {
   },
   nextBtn: {
     backgroundColor: themeColor().pitch,
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 28,
     borderRadius: 999,
     minWidth: 108,

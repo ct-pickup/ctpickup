@@ -102,14 +102,14 @@ function make_styles() {
   },
   panel: {
     marginTop: 28,
-    padding: 18,
+    padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
     backgroundColor: themeColor().card,
   },
   panelTitle: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted },
-  panelBody: { marginTop: 10, fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 23, color: themeColor().muted },
+  panelBody: { marginTop: 8, fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 23, color: themeColor().muted },
   bold: { fontWeight: "700", color: themeColor().text },
   primary: {
     marginTop: 24,
@@ -122,11 +122,11 @@ function make_styles() {
   },
   primaryText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   secondary: {
-    marginTop: 14,
+    marginTop: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
+    paddingVertical: 12,
   },
   secondaryText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
 });

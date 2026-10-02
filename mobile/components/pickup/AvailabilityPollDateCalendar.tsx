@@ -109,11 +109,11 @@ function make_styles() {
   return StyleSheet.create({
   wrap: { marginBottom: 12 },
   label: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 4 },
-  hint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 16, marginBottom: 10 },
+  hint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 16, marginBottom: 8 },
   row: { gap: 8, paddingRight: 8 },
   dayCell: {
     width: 56,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -126,9 +126,9 @@ function make_styles() {
   },
   weekday: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", },
   weekdayActive: { color: themeColor().pitchText },
-  dayNum: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginTop: 2 },
+  dayNum: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginTop: 4 },
   dayNumActive: { color: themeColor().pitchText },
-  month: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", marginTop: 2 },
+  month: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", marginTop: 4 },
   monthActive: { color: themeColor().pitchText },
 });
 }

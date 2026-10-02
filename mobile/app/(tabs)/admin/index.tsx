@@ -125,17 +125,17 @@ function make_styles() {
   scroll: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 20, paddingBottom: 40 },
   title: { fontSize: 40, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text,},
-  sub: { marginTop: 10, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  sub: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   card: {
-    marginTop: 14,
-    padding: 18,
+    marginTop: 12,
+    padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
     backgroundColor: themeColor().card,
   },
   cardTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
-  cardBody: { marginTop: 10, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 20 },
+  cardBody: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 20 },
 });
 }
 let styles = make_styles();

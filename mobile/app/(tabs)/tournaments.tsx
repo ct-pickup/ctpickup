@@ -268,7 +268,7 @@ export default function TournamentsScreen() {
             error={fieldError}
             payload={fieldPayload}
             emptyAlternateMessage={tournamentEmptyAlternate}
-            style={{ marginTop: 18, marginBottom: 8 }}
+            style={{ marginTop: 16, marginBottom: 8 }}
             onPress={() => router.push("/field-tournament")}
           />
         )}
@@ -341,7 +341,7 @@ function make_styles() {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 16,
-    paddingLeft: 22,
+    paddingLeft: 20,
     paddingRight: 16,
     gap: 0,
   },
@@ -357,7 +357,7 @@ function make_styles() {
   },
   cardBody: { flex: 1, marginLeft: 16 },
   stateName: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text },
-  stateHint: { marginTop: 3, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
+  stateHint: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
 
   sessionBadge: {
     flexDirection: "row",
@@ -366,9 +366,9 @@ function make_styles() {
     borderWidth: 1,
     borderColor: themeColor().pitch,
     borderRadius: 999,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    marginRight: 10,
+    marginRight: 8,
   },
   sessionBadgeText: {
     fontSize: 13, fontFamily: "Inter_700Bold",
@@ -384,15 +384,15 @@ function make_styles() {
 
   /* ── Tournament list ── */
   container: { flex: 1, backgroundColor: themeColor().bg },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 40 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 },
   offlineBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderRadius: 12,
-    marginTop: 14,
+    marginTop: 12,
     marginBottom: 4,
     backgroundColor: themeColor().card,
   },
@@ -415,7 +415,7 @@ function make_styles() {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 10,
+    gap: 8,
     marginBottom: 4,
   },
   title: {
@@ -448,7 +448,7 @@ function make_styles() {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     backgroundColor: themeColor().pitch,

@@ -53,7 +53,7 @@ function make_styles() {
     marginHorizontal: 50,
   },
   homeScreenFilename: {
-    marginVertical: 7,
+    marginVertical: 8,
   },
   codeHighlightContainer: {
     borderRadius: 10,
@@ -65,12 +65,12 @@ function make_styles() {
     textAlign: 'center',
   },
   helpContainer: {
-    marginTop: 15,
+    marginTop: 16,
     marginHorizontal: 20,
     alignItems: 'center',
   },
   helpLink: {
-    paddingVertical: 15,
+    paddingVertical: 16,
   },
   helpLinkText: {
     textAlign: 'center',

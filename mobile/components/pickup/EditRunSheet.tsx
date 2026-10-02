@@ -123,7 +123,7 @@ function make_styles() {
     fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
     marginTop: 12,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   input: {
     backgroundColor: themeColor().card,
@@ -139,7 +139,7 @@ function make_styles() {
     marginTop: 16,
     backgroundColor: themeColor().pitch,
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
   },
   primaryBtnDisabled: { opacity: 0.55 },

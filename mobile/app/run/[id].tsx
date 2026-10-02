@@ -335,10 +335,10 @@ function make_styles() {
   center: { flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center", padding: 24 },
   errText: { color: themeColor().coralText, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center" },
   h1: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().text },
-  sub: { marginTop: 10, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  sub: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
 
   card: {
-    marginTop: 14,
+    marginTop: 12,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
@@ -350,7 +350,7 @@ function make_styles() {
   value: { marginTop: 8, color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
   valueMuted: { marginTop: 8, color: themeColor().muted, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
   winningTeamHeadline: {
-    marginTop: 14,
+    marginTop: 12,
     color: themeColor().pitchText,
     fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "900",
@@ -367,7 +367,7 @@ function make_styles() {
   },
   awardLabel: { color: themeColor().muted, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
   awardNameWrap: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
@@ -377,7 +377,7 @@ function make_styles() {
   awardName: { color: themeColor().pitchText, fontWeight: "900", fontSize: 14, fontFamily: "Inter_700Bold" },
   awardNameMuted: { color: themeColor().muted, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
 
-  pill: { marginTop: 14, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1 },
+  pill: { marginTop: 12, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1 },
   pillWin: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitch },
   pillLoss: { borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
   pillText: { fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },

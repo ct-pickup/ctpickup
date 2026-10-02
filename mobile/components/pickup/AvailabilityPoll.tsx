@@ -247,7 +247,7 @@ export function AvailabilityPoll({ run, planning, onSubmit }: Props) {
 
 function make_styles() {
   return StyleSheet.create({
-  wrap: { gap: 10 },
+  wrap: { gap: 8 },
   heading: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", lineHeight: 20 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
@@ -275,7 +275,7 @@ function make_styles() {
   },
   submitBtnDisabled: { opacity: 0.4 },
   submitBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
-  submittedBlock: { gap: 4, paddingVertical: 2 },
+  submittedBlock: { gap: 4, paddingVertical: 4 },
   submittedRow: {
     flexDirection: "row",
     alignItems: "center",

@@ -240,7 +240,7 @@ export default function AdminStandingScreen() {
           </View>
         </View>
 
-        {loading ? <ActivityIndicator color={themeColor().text} style={{ marginTop: 14 }} /> : null}
+        {loading ? <ActivityIndicator color={themeColor().text} style={{ marginTop: 12 }} /> : null}
         {error ? <Text style={styles.err}>{error}</Text> : null}
 
         <View style={styles.card}>
@@ -505,7 +505,7 @@ function make_styles() {
   content: { padding: 16, paddingBottom: 40 },
   h1: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
-  intro: { marginTop: 10, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  intro: { marginTop: 8, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -515,17 +515,17 @@ function make_styles() {
     backgroundColor: themeColor().pitchPanel,
   },
   chipText: { color: themeColor().onPitchPanel, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
-  err: { marginTop: 10, color: themeColor().coralText },
+  err: { marginTop: 8, color: themeColor().coralText },
   card: {
-    marginTop: 14,
-    padding: 14,
+    marginTop: 12,
+    padding: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
     backgroundColor: themeColor().card,
   },
   cardTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
-  bodyMuted: { marginTop: 6, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  bodyMuted: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 17 },
   label: { marginTop: 12, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
   input: {
     marginTop: 8,
@@ -533,15 +533,15 @@ function make_styles() {
     borderColor: themeColor().line,
     borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     fontSize: 16, fontFamily: "Inter_400Regular",
     color: themeColor().text,
     backgroundColor: themeColor().overlaySubtle,
   },
-  inputMulti: { minHeight: 96, paddingTop: 10 },
-  filterRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
+  inputMulti: { minHeight: 96, paddingTop: 8 },
+  filterRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
   filterChip: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
@@ -561,21 +561,21 @@ function make_styles() {
     borderColor: themeColor().line,
     backgroundColor: themeColor().overlaySubtle,
   },
-  personHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  personHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
   personName: { color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
-  personSub: { marginTop: 2, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
+  personSub: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
   effBadge: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
   },
   effBadgeText: { fontWeight: "900", fontSize: 11, fontFamily: "Inter_700Bold", },
-  overrideHint: { marginTop: 6, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
-  metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
+  overrideHint: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
   metaPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -583,11 +583,11 @@ function make_styles() {
     minWidth: 90,
   },
   metaLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "500", },
-  metaValue: { marginTop: 2, color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  metaValue: { marginTop: 4, color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
   metaValueOk: { color: themeColor().pitchText },
   metaValueWarn: { color: themeColor().text },
   metaValueBad: { color: themeColor().coralText },
-  relLabel: { marginTop: 10, color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  relLabel: { marginTop: 8, color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   history: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" },
 
   modalRoot: { flex: 1, backgroundColor: themeColor().scrim, justifyContent: "flex-end" },
@@ -603,7 +603,7 @@ function make_styles() {
     paddingHorizontal: 16,
     paddingTop: 8,
   },
-  modalGrabRow: { alignItems: "center", paddingVertical: 6 },
+  modalGrabRow: { alignItems: "center", paddingVertical: 4 },
   modalGrab: { width: 40, height: 4, borderRadius: 999, backgroundColor: themeColor().overlayStrong },
   modalHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 8 },
   modalTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
@@ -622,11 +622,11 @@ function make_styles() {
   modalSection: { marginTop: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: themeColor().line },
   sectionTitle: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text,},
 
-  actionRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 16, marginBottom: 8 },
+  actionRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16, marginBottom: 8 },
   primary: {
     backgroundColor: themeColor().pitch,
     paddingVertical: 12,
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     borderRadius: 12,
     alignItems: "center",
   },
@@ -642,7 +642,7 @@ function make_styles() {
   secondaryText: { color: themeColor().text, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
   tertiary: {
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderRadius: 12,
   },
   tertiaryText: { color: themeColor().muted, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },

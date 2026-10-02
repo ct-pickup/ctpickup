@@ -190,7 +190,7 @@ function make_styles() {
     lineHeight: 21,
   },
   linkRow: {
-    marginTop: 10,
+    marginTop: 8,
   },
   linkText: {
     fontSize: 14, fontFamily: "Inter_600SemiBold",

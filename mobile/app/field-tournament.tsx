@@ -563,7 +563,7 @@ export default function FieldTournamentDetailScreen() {
       {t ? (
         <>
           {session && captainClaimLoading ? (
-            <ActivityIndicator style={{ marginTop: 14 }} color={themeColor().pitchText} />
+            <ActivityIndicator style={{ marginTop: 12 }} color={themeColor().pitchText} />
           ) : null}
 
           {session && sessionClaimReady && !captainCanManageRoster(captainClaim?.status ?? "") && tournamentId ? (
@@ -604,7 +604,7 @@ export default function FieldTournamentDetailScreen() {
               {rosterLoading ? <ActivityIndicator style={{ marginTop: 12 }} color={themeColor().pitchText} /> : null}
 
               {rosterRows.length ? (
-                <View style={{ marginTop: 14 }}>
+                <View style={{ marginTop: 12 }}>
                   {rosterRows.map((row) => (
                     <View key={row.id} style={styles.rosterRow}>
                       <View style={{ flex: 1 }}>
@@ -631,7 +631,7 @@ export default function FieldTournamentDetailScreen() {
               ) : null}
 
               {joinRequestRows.length ? (
-                <View style={{ marginTop: 22 }}>
+                <View style={{ marginTop: 20 }}>
                   <Text style={styles.joinReqTitle}>Join requests</Text>
                   {joinRequestRows.map((req) => (
                     <View key={req.id} style={styles.joinReqCard}>
@@ -836,15 +836,15 @@ function make_styles() {
     color: themeColor().pitchText,
   },
   lead: {
-    marginTop: 10,
+    marginTop: 8,
     fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 22,
     color: themeColor().muted,
   },
   statusLinkRow: {
-    marginTop: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -853,7 +853,7 @@ function make_styles() {
     alignItems: "center",
     justifyContent: "space-between",
   },
-  statusLinkLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  statusLinkLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
   statusLinkIconWrap: {
     width: 34,
     height: 34,
@@ -866,7 +866,7 @@ function make_styles() {
   },
   statusLinkText: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().text },
   statsRow: {
-    marginTop: 14,
+    marginTop: 12,
     flexDirection: "row",
     gap: 8,
   },
@@ -885,15 +885,15 @@ function make_styles() {
     color: themeColor().muted,
   },
   chipValue: {
-    marginTop: 6,
+    marginTop: 4,
     fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "800",
     color: themeColor().text,
   },
   claimBtn: {
-    marginTop: 14,
+    marginTop: 12,
     width: "100%",
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     backgroundColor: themeColor().pitch,
@@ -909,11 +909,11 @@ function make_styles() {
     textAlign: "center",
   },
   note: {
-    marginTop: 18,
+    marginTop: 16,
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
-    padding: 14,
+    padding: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().pitch,
@@ -923,16 +923,16 @@ function make_styles() {
   section: { marginTop: 28 },
   sectionTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
   body: {
-    marginTop: 10,
+    marginTop: 8,
     fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 21,
     color: themeColor().muted,
   },
   captainPayBtnInCard: {
-    marginTop: 14,
+    marginTop: 12,
     width: "100%",
     alignSelf: "stretch",
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     backgroundColor: themeColor().pitch,
@@ -942,9 +942,9 @@ function make_styles() {
   captainPayBtnDisabled: { opacity: 0.45 },
   captainPayBtnTextDark: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   confirmedBanner: {
-    marginTop: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().pitch,
@@ -957,8 +957,8 @@ function make_styles() {
     textAlign: "center",
   },
   claimStatusCard: {
-    marginTop: 14,
-    padding: 14,
+    marginTop: 12,
+    padding: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -970,17 +970,17 @@ function make_styles() {
     color: themeColor().text,
   },
   paymentDueLine: {
-    marginTop: 10,
+    marginTop: 8,
     fontSize: 13, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
     color: themeColor().muted,
   },
   findTeamBtn: {
-    marginTop: 14,
+    marginTop: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().pitch,
@@ -1002,7 +1002,7 @@ function make_styles() {
     color: themeColor().muted,
   },
   inviteOpenBtn: {
-    marginTop: 14,
+    marginTop: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1022,30 +1022,30 @@ function make_styles() {
   rosterMeta: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
   removeBtn: {
     paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: themeColor().coral,
   },
   removeBtnText: { color: themeColor().coralText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
-  emptyRoster: { marginTop: 10, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
+  emptyRoster: { marginTop: 8, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
   joinReqTitle: {
     fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
     color: themeColor().pitchText,
   },
   joinReqCard: {
-    marginTop: 10,
+    marginTop: 8,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
     backgroundColor: themeColor().bg,
   },
-  joinReqActions: { marginTop: 12, flexDirection: "row", gap: 10 },
+  joinReqActions: { marginTop: 12, flexDirection: "row", gap: 8 },
   approveBtn: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 10,
     backgroundColor: themeColor().pitch,
     alignItems: "center",
@@ -1053,7 +1053,7 @@ function make_styles() {
   approveBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
   declineBtn: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -1073,11 +1073,11 @@ function make_styles() {
   inviteModalTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
   inviteModalHint: { marginTop: 8, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 18 },
   inviteInput: {
-    marginTop: 14,
+    marginTop: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 12,
     color: themeColor().text,
     fontSize: 16, fontFamily: "Inter_400Regular",
@@ -1091,7 +1091,7 @@ function make_styles() {
   },
   inviteSearchBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
   inviteFoundBox: {
-    marginTop: 14,
+    marginTop: 12,
     padding: 12,
     borderRadius: 12,
     backgroundColor: themeColor().pitchPanel,
@@ -1099,21 +1099,21 @@ function make_styles() {
     borderColor: themeColor().pitch,
   },
   inviteFoundLabel: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().pitchText, },
-  inviteFoundName: { marginTop: 6, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
+  inviteFoundName: { marginTop: 4, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
   inviteFoundUser: { marginTop: 4, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
   inviteSendBtn: {
     marginTop: 16,
     backgroundColor: themeColor().pitch,
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
   },
   inviteSendBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   inviteCancelBtn: { marginTop: 12, paddingVertical: 12, alignItems: "center" },
   inviteCancelBtnText: { color: themeColor().muted, fontWeight: "600", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   detailCard: {
-    marginTop: 14,
-    padding: 14,
+    marginTop: 12,
+    padding: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -1122,7 +1122,7 @@ function make_styles() {
   },
   detailLine: { fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().text, lineHeight: 20 },
   detailLabel: { fontWeight: "800", color: themeColor().pitchText },
-  teamsSection: { marginTop: 18 },
+  teamsSection: { marginTop: 16 },
   teamRow: {
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,

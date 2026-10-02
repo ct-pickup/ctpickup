@@ -1104,7 +1104,7 @@ export default function SessionDetailScreen() {
         )}
 
         {isHost && !isCompleted && (
-          <View style={{ gap: 10 }}>
+          <View style={{ gap: 8 }}>
             <Pressable onPress={() => setInviteOpen(true)} style={s.inviteBtn}>
               <FontAwesome name="user-plus" size={14} color={themeColor().onPitch} />
               <Text style={s.inviteBtnText}>Invite players</Text>
@@ -1333,7 +1333,7 @@ export default function SessionDetailScreen() {
               { tier: "platinum", label: "Platinum", desc: "College / semi-pro", color: themeColor().text },
               { tier: "diamond", label: "Diamond", desc: "Elite / pro level", color: themeColor().muted },
             ].map((t) => (
-              <View key={t.tier} style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <View key={t.tier} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
                 <View style={{ width: 10, height: 10, borderRadius: 10, backgroundColor: t.color }} />
                 <Text style={{ color: t.color, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold", width: 60 }}>{t.label}</Text>
                 <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" }}>{t.desc}</Text>
@@ -1357,7 +1357,7 @@ export default function SessionDetailScreen() {
                   <View style={s.avatar}><Text style={s.avatarText}>{playerInitials(a)}</Text></View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.playerName}>{name}</Text>
-                    <View style={{ flexDirection: "row", gap: 6, marginTop: 8 }}>
+                    <View style={{ flexDirection: "row", gap: 4, marginTop: 8 }}>
                       {TIERS.map((t) => (
                         <Pressable
                           key={t.value}
@@ -1472,7 +1472,7 @@ export default function SessionDetailScreen() {
           </View>
 
           <Text style={s.voteSubtitle}>Who won?</Text>
-          <View style={{ flexDirection: "row", gap: 10, padding: 16, paddingTop: 8 }}>
+          <View style={{ flexDirection: "row", gap: 8, padding: 16, paddingTop: 8 }}>
             <Pressable onPress={() => setWinningTeam("A")}
               style={{ flex: 1, paddingVertical: 16, borderRadius: 12, borderWidth: 2, borderColor: winningTeam === "A" ? themeColor().pitch : themeColor().overlay, backgroundColor: winningTeam === "A" ? themeColor().pitch : "transparent", alignItems: "center" }}>
               <Text style={{ color: winningTeam === "A" ? themeColor().onPitch : themeColor().text, fontWeight: "800", fontSize: 20, fontFamily: "InstrumentSerif_400Regular" }}>Team A</Text>
@@ -1635,32 +1635,32 @@ function make_s() {
     backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   rateBannerText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   pillRow: { flexDirection: "row", gap: 8, marginBottom: 16, flexWrap: "wrap" },
-  pill: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999, borderWidth: 1 },
+  pill: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
   pillText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   card: { backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 16 },
-  detailRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 7 },
+  detailRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
   detailText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", flex: 1 },
   rsvpBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", marginBottom: 12 },
   rsvpBtnDisabled: { opacity: 0.5 },
   rsvpBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
-  voteBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 10, marginBottom: 12 },
+  voteBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 12 },
   voteBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   hostRateBtn: {
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "center",
-    gap: 10,
+    gap: 8,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: themeColor().pitch,
@@ -1669,7 +1669,7 @@ function make_s() {
   hostRateBtnText: { color: themeColor().pitchText, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   hostRatedDone: {
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
     marginBottom: 12,
     backgroundColor: themeColor().overlaySubtle,
@@ -1680,40 +1680,40 @@ function make_s() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    padding: 14,
-    gap: 6,
+    padding: 12,
+    gap: 4,
   },
   hostRatingLabel: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
   hostRatingHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 4 },
   hostRatingStars: { flexDirection: "row", alignItems: "center", gap: 4 },
-  inviteBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 10 },
+  inviteBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 },
   inviteBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
-  shareBtn: { borderRadius: 12, paddingVertical: 14, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 10, borderWidth: 1, borderColor: themeColor().pitch },
+  shareBtn: { borderRadius: 12, paddingVertical: 12, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8, borderWidth: 1, borderColor: themeColor().pitch },
   shareBtnText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
-  endBtn: { borderRadius: 12, paddingVertical: 14, alignItems: "center", borderWidth: 1, borderColor: themeColor().coral },
+  endBtn: { borderRadius: 12, paddingVertical: 12, alignItems: "center", borderWidth: 1, borderColor: themeColor().coral },
   endBtnText: { color: themeColor().coralText, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
-  sectionTitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 10 },
-  attendeeRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
+  sectionTitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 8 },
+  attendeeRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
   attendeeBorder: { borderTopWidth: 1, borderTopColor: themeColor().line },
   avatar: { width: 36, height: 36, borderRadius: 12, backgroundColor: themeColor().pitchPanel, alignItems: "center", justifyContent: "center" },
   avatarText: { color: themeColor().onPitchPanel, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
   attendeeName: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_500Medium", fontWeight: "500" },
-  hostBadge: { color: themeColor().muted, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700", borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  hostBadge: { color: themeColor().muted, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700", borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
   backBtn: { marginTop: 16, backgroundColor: themeColor().pitch, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
   backBtnText: { color: themeColor().onPitch, fontWeight: "800" },
   modalRoot: { flex: 1, backgroundColor: themeColor().bg },
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, paddingTop: 24, borderBottomWidth: 1, borderBottomColor: themeColor().line },
   modalTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700" },
-  modalSearch: { flexDirection: "row", alignItems: "center", gap: 10, margin: 16, backgroundColor: themeColor().overlay, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 14, paddingVertical: 12 },
+  modalSearch: { flexDirection: "row", alignItems: "center", gap: 8, margin: 16, backgroundColor: themeColor().overlay, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 12, paddingVertical: 12 },
   modalSearchInput: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular" },
-  shareLinkRow: { flexDirection: "row", alignItems: "center", gap: 10, marginHorizontal: 16, marginBottom: 8, padding: 14, backgroundColor: themeColor().pitchPanel, borderRadius: 12, borderWidth: 1, borderColor: themeColor().pitch },
+  shareLinkRow: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 16, marginBottom: 8, padding: 12, backgroundColor: themeColor().pitchPanel, borderRadius: 12, borderWidth: 1, borderColor: themeColor().pitch },
   shareLinkText: { flex: 1, color: themeColor().onPitchPanel, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   emptyText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: 20 },
   playerRow: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: themeColor().card, borderRadius: 12, padding: 12 },
   playerName: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-  playerUsername: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
-  playerPos: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
-  inviteRowBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: themeColor().pitch },
+  playerUsername: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
+  playerPos: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
+  inviteRowBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: themeColor().pitch },
   inviteRowBtnDone: { borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
   inviteRowBtnText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   inviteRowBtnTextDone: { color: themeColor().muted },
@@ -1721,15 +1721,15 @@ function make_s() {
   potdResultCard: {
     marginHorizontal: 16,
     marginBottom: 12,
-    padding: 14,
+    padding: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().pitch,
     backgroundColor: themeColor().pitchPanel,
   },
-  potdResultTitle: { color: themeColor().onPitchPanel, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold", marginBottom: 6 },
+  potdResultTitle: { color: themeColor().onPitchPanel, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold", marginBottom: 4 },
   potdResultBody: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", lineHeight: 21, fontWeight: "600" },
-  tierLegend: { margin: 16, padding: 14, backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line },
+  tierLegend: { margin: 16, padding: 12, backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line },
   scoreRow: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: themeColor().card, borderRadius: 12, padding: 12 },
   scoreInput: { width: 56, backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, textAlign: "center", fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", paddingVertical: 8 },
   publishBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center" },
@@ -1737,7 +1737,7 @@ function make_s() {
   assignGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: 8,
     paddingHorizontal: 16,
     paddingBottom: 8,
   },
@@ -1746,11 +1746,11 @@ function make_s() {
     alignItems: "center",
     backgroundColor: themeColor().card,
     borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     borderWidth: 1,
     borderColor: themeColor().line,
-    gap: 6,
+    gap: 4,
   },
   assignCardIdle: {
     borderColor: themeColor().line,
@@ -1791,7 +1791,7 @@ function make_s() {
     fontWeight: "600",
   },
   awardSelectedBadge: {
-    marginTop: 2,
+    marginTop: 4,
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
@@ -1802,15 +1802,15 @@ function make_s() {
   },
   awardSelectedBadgeText: { color: themeColor().onPitchPanel, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700" },
   awardIdleHint: {
-    marginTop: 2,
+    marginTop: 4,
     color: themeColor().muted,
     fontSize: 13, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
   },
   assignTeamBadge: {
-    marginTop: 2,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 10,
     backgroundColor: themeColor().overlay,
   },

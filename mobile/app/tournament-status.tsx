@@ -171,11 +171,11 @@ function make_styles() {
     fontWeight: "800",
     color: themeColor().text,
     lineHeight: 34,
-    marginBottom: 18,
+    marginBottom: 16,
   },
   card: {
     marginBottom: 16,
-    padding: 18,
+    padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -185,7 +185,7 @@ function make_styles() {
     fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: themeColor().muted,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   cardEyebrowNoMb: { marginBottom: 0 },
   tournamentTitle: {
@@ -200,7 +200,7 @@ function make_styles() {
     fontWeight: "600",
     color: themeColor().text,
     lineHeight: 22,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   statsBlock: { gap: 8 },
   statLine: { fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 22 },
@@ -218,7 +218,7 @@ function make_styles() {
   },
   announceCard: {
     marginBottom: 16,
-    padding: 18,
+    padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().pitch,
@@ -227,7 +227,7 @@ function make_styles() {
   announceTop: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     marginBottom: 12,
   },
   announceEyebrow: {
@@ -243,8 +243,8 @@ function make_styles() {
   emptyHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 10,
+    gap: 8,
+    marginBottom: 8,
   },
   emptyTitle: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text },
   emptyBody: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 },

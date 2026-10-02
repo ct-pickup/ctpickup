@@ -111,7 +111,7 @@ export function SoccerBackgroundSection({
           </View>
         ) : null}
 
-        <View style={[styles.bgRow, { marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: themeColor().line }]}>
+        <View style={[styles.bgRow, { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: themeColor().line }]}>
           <Text style={styles.bgLabel}>Verification</Text>
           <Text style={[styles.bgValue, { color: verifColor }]}>
             {verif !== "self" ? "✓ " : ""}{verifLabel}
@@ -144,7 +144,7 @@ export function SoccerBackgroundSection({
             style={({ pressed }) => [{
               backgroundColor: themeColor().pitch,
               borderRadius: 10,
-              paddingVertical: 13,
+              paddingVertical: 12,
               alignItems: "center",
               marginTop: 4,
               opacity: pressed ? 0.85 : 1,

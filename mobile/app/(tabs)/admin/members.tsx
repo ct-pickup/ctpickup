@@ -542,7 +542,7 @@ export default function AdminMembersScreen() {
             >
               <Text style={styles.actionBtnTextLime}>Message player</Text>
             </Pressable>
-            <Text style={[styles.label, { marginTop: 14 }]}>Stats overrides</Text>
+            <Text style={[styles.label, { marginTop: 12 }]}>Stats overrides</Text>
             <View style={styles.statsGrid}>
               {statsFields.map((f) => {
                 const cur = editStats[item.id] || {};
@@ -572,7 +572,7 @@ export default function AdminMembersScreen() {
               style={[styles.actionBtn, styles.actionBtnActive, { marginTop: 8 }]}>
               <Text style={styles.actionBtnTextActive}>{busy === "stats:" + item.id ? "Saving..." : "Save stats"}</Text>
             </Pressable>
-            <Text style={[styles.label, { marginTop: 14 }]}>Ban reason</Text>
+            <Text style={[styles.label, { marginTop: 12 }]}>Ban reason</Text>
             <TextInput
               style={styles.banInput}
               value={banReason[item.id] !== undefined ? banReason[item.id] : (item.ban_reason || "")}
@@ -718,21 +718,21 @@ function make_styles() {
   return StyleSheet.create({
   root: { flex: 1, backgroundColor: themeColor().bg },
   title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", paddingHorizontal: 16, paddingVertical: 12 },
-  card: { backgroundColor: themeColor().bg, borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: themeColor().line },
+  card: { backgroundColor: themeColor().bg, borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: themeColor().line },
   cardBanned: { borderColor: themeColor().coral, backgroundColor: themeColor().card },
-  cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   nameRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
   name: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", flexShrink: 1 },
   pendingBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 10,
     backgroundColor: themeColor().overlaySubtle,
     borderWidth: 1,
     borderColor: themeColor().line,
   },
   pendingBadgeText: { color: themeColor().muted, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "800" },
-  membershipApprovalRow: { flexDirection: "row", gap: 10, marginTop: 12 },
+  membershipApprovalRow: { flexDirection: "row", gap: 8, marginTop: 12 },
   approveMembershipBtn: {
     flex: 2,
     minHeight: 44,
@@ -759,22 +759,22 @@ function make_styles() {
     borderWidth: 1,
     borderColor: themeColor().coral,
     backgroundColor: themeColor().overlaySubtle,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
   },
   rejectMembershipBtnDisabled: { opacity: 0.35 },
   rejectMembershipBtnText: { color: themeColor().coralText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
   rejectMembershipBtnTextDisabled: { color: themeColor().muted },
   messageOnlyBtn: { alignSelf: "stretch", marginTop: 8, flex: 0 },
-  sub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
-  chevron: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
-  label: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 6 },
-  tierRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
+  sub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
+  chevron: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
+  label: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 4 },
+  tierRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
   tierChip: { width: 36, height: 36, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, alignItems: "center", justifyContent: "center" },
   tierChipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
   tierChipText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   tierChipTextActive: { color: themeColor().pitchText },
   actionRow: { flexDirection: "row", gap: 8, marginTop: 8 },
-  actionBtn: { borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 12, paddingVertical: 7, flex: 1, alignItems: "center" },
+  actionBtn: { borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 12, paddingVertical: 8, flex: 1, alignItems: "center" },
   actionBtnActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
   actionBtnDanger: { borderColor: themeColor().coral, backgroundColor: themeColor().overlaySubtle },
   actionBtnText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
@@ -794,7 +794,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    padding: 18,
+    padding: 16,
     width: "100%",
     maxWidth: 400,
   },
@@ -812,10 +812,10 @@ function make_styles() {
     marginBottom: 16,
     backgroundColor: themeColor().bg,
   },
-  modalActions: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
+  modalActions: { flexDirection: "row", gap: 8, justifyContent: "flex-end" },
   modalBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 11,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 10,
     minWidth: 88,
     alignItems: "center",
@@ -827,20 +827,20 @@ function make_styles() {
   modalBtnPrimaryText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 14, fontFamily: "Inter_700Bold" },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   statField: { width: "30%", minWidth: 90 },
-  statLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 3 },
-  statInput: { backgroundColor: themeColor().card, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, padding: 6, fontSize: 13, fontFamily: "Inter_400Regular" },
+  statLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 4 },
+  statInput: { backgroundColor: themeColor().card, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, padding: 4, fontSize: 13, fontFamily: "Inter_400Regular" },
   banInput: { backgroundColor: themeColor().card, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, padding: 8, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 8 },
   err: { color: themeColor().coralText, padding: 16 },
   muted: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
   tabRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
     paddingHorizontal: 16,
     paddingBottom: 8,
   },
   tabBtn: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -854,9 +854,9 @@ function make_styles() {
   reportArrow: { color: themeColor().muted, fontWeight: "600" },
   reasonPill: {
     alignSelf: "flex-start",
-    marginTop: 10,
+    marginTop: 8,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 4,
     borderRadius: 999,
     backgroundColor: themeColor().pitchPanel,
     borderWidth: 1,
@@ -867,10 +867,10 @@ function make_styles() {
     color: themeColor().muted,
     fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    marginTop: 10,
+    marginTop: 8,
   },
   reportDate: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
-  reportActionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 },
+  reportActionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
   reportActionBtn: {
     flexGrow: 1,
     minWidth: "30%",

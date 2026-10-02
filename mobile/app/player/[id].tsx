@@ -752,7 +752,7 @@ export default function PlayerProfileScreen() {
       {(profile.primary_position || profile.experience_level || profile.club_name || profile.age || profile.tier) && (
         <View style={{ marginHorizontal: 16, marginBottom: 16, backgroundColor: themeColor().overlaySubtle, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, overflow: "hidden" }}>
           {profile.tier && (
-            <View style={{ backgroundColor: `${tierColor(profile.tier)}18`, paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: themeColor().line }}>
+            <View style={{ backgroundColor: `${tierColor(profile.tier)}18`, paddingHorizontal: 16, paddingVertical: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: themeColor().line }}>
               <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", }}>CT Pickup Tier</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <View style={{ width: 8, height: 8, borderRadius: 10, backgroundColor: tierColor(profile.tier) }} />
@@ -763,7 +763,7 @@ export default function PlayerProfileScreen() {
               </View>
             </View>
           )}
-          <View style={{ padding: 14, gap: 10 }}>
+          <View style={{ padding: 12, gap: 8 }}>
             {profile.primary_position && (
               <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                 <Text style={styles.label}>Position</Text>
@@ -824,13 +824,13 @@ export default function PlayerProfileScreen() {
           >
             Host Rating
           </Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
             <Text style={{ color: themeColor().text, fontSize: 40, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" }}>
               {fmtAvg(hostRating.avg_overall)}
             </Text>
             <FontAwesome name="star" size={22} color={themeColor().pitchText} />
           </View>
-          <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 14 }}>
+          <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 12 }}>
             {hostRating.sessions_hosted} session{hostRating.sessions_hosted === 1 ? "" : "s"} hosted
           </Text>
           {(
@@ -847,7 +847,7 @@ export default function PlayerProfileScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "space-between",
-                paddingVertical: 5,
+                paddingVertical: 4,
               }}
             >
               <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", width: 110 }}>
@@ -1099,7 +1099,7 @@ function make_styles() {
   avatarContainer: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   /* Default circle (non-diamond): positioned inside container */
   avatarCircle: {
@@ -1146,7 +1146,7 @@ function make_styles() {
   avatarInitialsText: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
 
   /* Legacy — kept to avoid removing referenced styles elsewhere */
-  avatarImg: { width: 96, height: 96, borderRadius: 999, marginBottom: 14 },
+  avatarImg: { width: 96, height: 96, borderRadius: 999, marginBottom: 12 },
   avatarPh: {
     width: 96,
     height: 96,
@@ -1154,7 +1154,7 @@ function make_styles() {
     backgroundColor: themeColor().pitchPanel,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 14,
+    marginBottom: 12,
   },
   avatarPhText: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().onPitchPanel },
   heroLabel: {
@@ -1162,7 +1162,7 @@ function make_styles() {
     fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: themeColor().muted,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   displayName: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", color: themeColor().text, textAlign: "center" },
   followCountsMuted: {
@@ -1172,19 +1172,19 @@ function make_styles() {
     textAlign: "center",
   },
   followBtn: {
-    marginTop: 14,
+    marginTop: 12,
     alignSelf: "center",
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 28,
     borderRadius: 10,
     backgroundColor: themeColor().pitch,
   },
   followBtnText: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().onPitch },
   followBtnFollowing: {
-    marginTop: 14,
+    marginTop: 12,
     alignSelf: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 22,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -1201,36 +1201,36 @@ function make_styles() {
     fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: themeColor().muted,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   value: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().text },
   valueMuted: { fontSize: 16, fontFamily: "Inter_700Bold", color: themeColor().muted, fontWeight: "700" },
   valueLine: { fontSize: 16, fontFamily: "Inter_700Bold", color: themeColor().text, fontWeight: "700", marginTop: 8 },
   streakHotLime: {
-    marginTop: 10,
+    marginTop: 8,
     fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "800",
     color: themeColor().pitchText,
   },
   streakHotWhite: {
-    marginTop: 10,
+    marginTop: 8,
     fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: themeColor().text,
   },
   streakBest: {
-    marginTop: 6,
+    marginTop: 4,
     fontSize: 13, fontFamily: "Inter_600SemiBold",
     color: themeColor().muted,
     fontWeight: "600",
   },
   valueK: { color: themeColor().muted, fontWeight: "900" },
-  linkRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  linkRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   linkText: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().pitchText },
   h2hHairline: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: themeColor().overlay,
-    marginVertical: 10,
+    marginVertical: 8,
   },
   h2hYouWon: { color: themeColor().pitchText },
   h2hYouWonK: { color: themeColor().pitchText },

@@ -96,7 +96,7 @@ function SkeletonCard() {
   return (
     <View style={styles.skeletonCard}>
       <View style={[styles.skelLine, { width: "35%", height: 12 }]} />
-      <View style={[styles.skelLine, { width: "90%", height: 28, marginTop: 14 }]} />
+      <View style={[styles.skelLine, { width: "90%", height: 28, marginTop: 12 }]} />
       <View style={[styles.skelLine, { width: "70%", marginTop: 12 }]} />
       <View style={[styles.skelLine, { width: "50%", marginTop: 12 }]} />
       <View style={[styles.skelBtn, { marginTop: 20 }]} />
@@ -1340,12 +1340,12 @@ function make_styles() {
   pickerSafe: { flex: 1, backgroundColor: themeColor().bg },
   screen: { flex: 1, backgroundColor: themeColor().bg },
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0 },
   h1: { fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().text, flex: 1, minWidth: 0 },
   reliabilityPill: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().pitch,
@@ -1394,7 +1394,7 @@ function make_styles() {
   retryBtn: {
     marginTop: 16,
     alignSelf: "flex-start",
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 10,
     borderWidth: 1,
@@ -1416,13 +1416,13 @@ function make_styles() {
     marginBottom: 0,
   },
   divider: { height: 1, backgroundColor: themeColor().overlaySubtle, marginVertical: -4 },
-  creditPreviewRow: { gap: 6 },
+  creditPreviewRow: { gap: 4 },
   creditPreviewTitle: { color: themeColor().muted, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold",},
   creditPreviewBody: { color: themeColor().text, lineHeight: 20, fontSize: 14, fontFamily: "Inter_400Regular", flex: 1 },
   creditApplyRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   creditApplyBtn: {
     paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: themeColor().pitch,
@@ -1454,7 +1454,7 @@ function make_styles() {
     justifyContent: "space-between",
     gap: 12,
   },
-  cardHeaderRight: { flexDirection: "row", alignItems: "center", gap: 10, flexShrink: 0 },
+  cardHeaderRight: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0 },
   titleBlock: { flex: 1, minWidth: 0 },
   titleRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", gap: 8 },
   cardTitle: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", lineHeight: 28 },
@@ -1464,8 +1464,8 @@ function make_styles() {
     fontWeight: "600",
   },
   statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -1473,7 +1473,7 @@ function make_styles() {
     flexShrink: 0,
   },
   statusPillText: { color: themeColor().muted, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700",},
-  dateTimeRow: { gap: 6 },
+  dateTimeRow: { gap: 4 },
   dateEt: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700",},
   datePlanning: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700",},
   planningTimeHint: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_500Medium", fontWeight: "500", lineHeight: 20 },
@@ -1481,10 +1481,10 @@ function make_styles() {
   locationRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 10,
-    paddingTop: 2,
+    gap: 8,
+    paddingTop: 4,
   },
-  locationIcon: { marginTop: 3 },
+  locationIcon: { marginTop: 4 },
   locationTextBlock: { flex: 1, gap: 4 },
   venue: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 22 },
   distanceAway: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
@@ -1495,7 +1495,7 @@ function make_styles() {
     gap: 16,
   },
   fee: { color: themeColor().pitchText, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold", flexShrink: 0 },
-  spotsBlock: { flex: 1, maxWidth: 160, gap: 6, alignItems: "flex-end" },
+  spotsBlock: { flex: 1, maxWidth: 160, gap: 4, alignItems: "flex-end" },
   progressTrack: {
     width: "100%",
     height: 4,
@@ -1525,7 +1525,7 @@ function make_styles() {
     borderColor: themeColor().line,
   },
   refreshStatusBtnText: { color: themeColor().muted, fontWeight: "600", fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  ctaBlock: { gap: 10, alignItems: "center" },
+  ctaBlock: { gap: 8, alignItems: "center" },
   primaryBtn: {
     width: "100%",
     backgroundColor: themeColor().pitch,
@@ -1549,7 +1549,7 @@ function make_styles() {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().pitch,
@@ -1558,7 +1558,7 @@ function make_styles() {
   chatBtnText: { color: themeColor().onPitchPanel, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
   hint: { color: themeColor().muted, lineHeight: 20, fontSize: 14, fontFamily: "Inter_400Regular" },
   skeletonCard: {
-    padding: 18,
+    padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,

@@ -502,7 +502,7 @@ function make_stylesUpdateGate() {
   },
   title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", textAlign: "center" },
   body: {
-    marginTop: 10,
+    marginTop: 8,
     color: themeColor().muted,
     fontSize: 14, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
@@ -510,10 +510,10 @@ function make_stylesUpdateGate() {
     textAlign: "center",
   },
   btn: {
-    marginTop: 18,
+    marginTop: 16,
     backgroundColor: themeColor().pitch,
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
   },
   btnText: { color: themeColor().onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "900" },

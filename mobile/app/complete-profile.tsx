@@ -767,7 +767,7 @@ function make_styles() {
   },
   content: {
     flexGrow: 1,
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
     maxWidth: 440,
     width: "100%",
     alignSelf: "center",
@@ -778,13 +778,13 @@ function make_styles() {
     color: themeColor().text,
   },
   subtitle: {
-    marginTop: 10,
+    marginTop: 8,
     fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 22,
     color: themeColor().muted,
   },
   fieldBlock: {
-    marginTop: 18,
+    marginTop: 16,
   },
   label: {
     fontSize: 13, fontFamily: "Inter_700Bold",
@@ -792,13 +792,13 @@ function make_styles() {
     color: themeColor().muted,
   },
   fieldHint: {
-    marginTop: 6,
+    marginTop: 4,
     fontSize: 13, fontFamily: "Inter_400Regular",
     lineHeight: 18,
     color: themeColor().muted,
   },
   atPreview: {
-    marginTop: 6,
+    marginTop: 4,
     fontSize: 13, fontFamily: "Inter_600SemiBold",
     color: themeColor().pitchText,
     fontWeight: "600",
@@ -808,7 +808,7 @@ function make_styles() {
     borderWidth: 1,
     borderColor: themeColor().line,
     borderRadius: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16, fontFamily: "Inter_400Regular",
     color: themeColor().text,
@@ -819,7 +819,7 @@ function make_styles() {
     borderWidth: 1,
     borderColor: themeColor().line,
     borderRadius: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 12,
     backgroundColor: themeColor().bg,
   },
@@ -849,7 +849,7 @@ function make_styles() {
     borderColor: themeColor().coral,
   },
   errText: {
-    marginTop: 6,
+    marginTop: 4,
     fontSize: 13, fontFamily: "Inter_400Regular",
     color: themeColor().coralText,
   },
@@ -860,15 +860,15 @@ function make_styles() {
     color: themeColor().muted,
   },
   zipVenueChecking: {
-    marginTop: 6,
+    marginTop: 4,
     fontSize: 13, fontFamily: "Inter_400Regular",
     color: themeColor().muted,
   },
   checkboxRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginTop: 22,
+    gap: 8,
+    marginTop: 20,
   },
   checkbox: {
     width: 22,
@@ -899,7 +899,7 @@ function make_styles() {
   primaryBtn: {
     marginTop: 28,
     backgroundColor: themeColor().pitch,
-    paddingVertical: 15,
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
   },
@@ -915,8 +915,8 @@ function make_styles() {
     color: themeColor().muted,
   },
   nearestCard: {
-    marginTop: 22,
-    padding: 18,
+    marginTop: 20,
+    padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -926,26 +926,26 @@ function make_styles() {
     fontSize: 16, fontFamily: "Inter_700Bold",
     fontWeight: "800",
     color: themeColor().pitchText,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   nearestSectionHeader: {
     fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
     color: themeColor().pitchText,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   nearestSectionHeaderFirst: {
     marginTop: 0,
   },
   nearestSectionHeaderAfter: {
-    marginTop: 14,
+    marginTop: 12,
   },
   nearestRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: themeColor().line,
   },
@@ -1005,7 +1005,7 @@ function make_styles() {
     paddingVertical: 12,
   },
   modalRow: {
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 10,
     marginHorizontal: 4,
@@ -1023,7 +1023,7 @@ function make_styles() {
   },
   modalCancel: {
     marginTop: 4,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
   },
   modalCancelText: {

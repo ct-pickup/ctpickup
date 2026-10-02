@@ -347,7 +347,7 @@ export default function AdminChatScreen() {
             ) : null}
 
             {pickedMembers.length > 0 ? (
-              <View style={{ marginTop: 10 }}>
+              <View style={{ marginTop: 8 }}>
                 <Text style={styles.label}>Selected ({pickedMembers.length})</Text>
                 {pickedMembers.map((p) => (
                   <View key={p.id} style={styles.memberRow}>
@@ -411,7 +411,7 @@ export default function AdminChatScreen() {
         </Pressable>
       </View>
 
-        {loading ? <ActivityIndicator color={themeColor().text} style={{ marginTop: 10 }} /> : null}
+        {loading ? <ActivityIndicator color={themeColor().text} style={{ marginTop: 8 }} /> : null}
         {error ? <Text style={styles.err}>{error}</Text> : null}
 
         <View style={styles.card}>
@@ -477,10 +477,10 @@ function make_styles() {
     backgroundColor: themeColor().pitchPanel,
   },
   chipText: { color: themeColor().onPitchPanel, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
-  err: { marginTop: 10, color: themeColor().coralText },
+  err: { marginTop: 8, color: themeColor().coralText },
   card: {
-    marginTop: 14,
-    padding: 14,
+    marginTop: 12,
+    padding: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -495,21 +495,21 @@ function make_styles() {
     borderColor: themeColor().line,
     borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     fontSize: 16, fontFamily: "Inter_400Regular",
     color: themeColor().text,
     backgroundColor: themeColor().overlaySubtle,
   },
   inputMulti: { minHeight: 88, textAlignVertical: "top" },
   primary: {
-    marginTop: 14,
+    marginTop: 12,
     backgroundColor: themeColor().pitch,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
   },
   primaryText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
-  bodyMuted: { marginTop: 10, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 19 },
+  bodyMuted: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 19 },
   segmentRow: {
     marginTop: 8,
     flexDirection: "row",
@@ -517,8 +517,8 @@ function make_styles() {
     flexWrap: "wrap",
   },
   segment: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -550,28 +550,28 @@ function make_styles() {
     overflow: "hidden",
     backgroundColor: themeColor().bg,
   },
-  hitRow: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: themeColor().line },
+  hitRow: { paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: themeColor().line },
   hitTitle: { color: themeColor().text, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
-  hitSub: { marginTop: 2, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
+  hitSub: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
   memberRow: {
     marginTop: 8,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: themeColor().line,
     backgroundColor: themeColor().card,
   },
   memberName: { color: themeColor().text, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
-  memberSub: { marginTop: 2, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
-  roomRow: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 10 },
+  memberSub: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
+  roomRow: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 8 },
   roomTitle: { color: themeColor().text, fontWeight: "800" },
-  roomSub: { marginTop: 2, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 16 },
+  roomSub: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 16 },
   smallChip: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
@@ -584,7 +584,7 @@ function make_styles() {
     backgroundColor: themeColor().overlaySubtle,
   },
   smallChipDangerText: { color: themeColor().coralText, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
-  muted: { marginTop: 10, color: themeColor().muted },
+  muted: { marginTop: 8, color: themeColor().muted },
   disabled: { opacity: 0.55 },
 });
 }

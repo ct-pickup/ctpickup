@@ -337,7 +337,7 @@ function make_styles() {
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     marginBottom: 24,
   },
   title: {
@@ -350,7 +350,7 @@ function make_styles() {
   aiBadge: {
     flexShrink: 0,
     paddingVertical: 4,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().pitch,
@@ -368,19 +368,19 @@ function make_styles() {
     color: themeColor().muted,
   },
   urgentContact: {
-    marginTop: 6,
+    marginTop: 4,
     fontSize: 13, fontFamily: "Inter_600SemiBold",
     lineHeight: 16,
     color: themeColor().pitchText,
     fontWeight: "600",
   },
   chipsColumn: {
-    gap: 10,
+    gap: 8,
     marginBottom: 28,
   },
   chip: {
     width: "100%",
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
@@ -393,12 +393,12 @@ function make_styles() {
     fontWeight: "600",
     color: themeColor().text,
   },
-  messages: { gap: 14, marginTop: 4 },
+  messages: { gap: 12, marginTop: 4 },
   userRow: { alignItems: "flex-end", width: "100%" },
   userBubble: {
     maxWidth: "85%",
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderRadius: 12,
     backgroundColor: themeColor().pitch,
     borderBottomRightRadius: 6,
@@ -408,7 +408,7 @@ function make_styles() {
   assistantCard: {
     maxWidth: "92%",
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderRadius: 12,
     backgroundColor: themeColor().card,
     borderWidth: 1,
@@ -419,8 +419,8 @@ function make_styles() {
   dotsRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingVertical: 2,
+    gap: 4,
+    paddingVertical: 4,
   },
   dot: {
     fontSize: 24, fontFamily: "InstrumentSerif_400Regular",
@@ -435,7 +435,7 @@ function make_styles() {
     borderTopColor: themeColor().line,
     backgroundColor: themeColor().bg,
   },
-  inputRow: { flexDirection: "row", alignItems: "flex-end", gap: 10 },
+  inputRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   input: {
     flex: 1,
     minHeight: 44,
@@ -443,7 +443,7 @@ function make_styles() {
     borderWidth: 1,
     borderColor: themeColor().line,
     borderRadius: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: Platform.OS === "ios" ? 12 : 10,
     fontSize: 16, fontFamily: "Inter_400Regular",
     color: themeColor().text,
@@ -451,8 +451,8 @@ function make_styles() {
     textAlignVertical: "top",
   },
   sendBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 13,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 12,
     backgroundColor: themeColor().pitch,
     justifyContent: "center",

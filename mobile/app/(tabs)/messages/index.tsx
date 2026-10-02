@@ -182,7 +182,7 @@ export default function MessagesIndex() {
 
       {groupRoomsNonDm.length > 0 ? (
         <>
-          <Text style={[styles.section, { marginTop: 22 }]}>Group chats</Text>
+          <Text style={[styles.section, { marginTop: 20 }]}>Group chats</Text>
           {groupRoomsNonDm.map((r) => (
             <Pressable
               key={r.id}
@@ -202,7 +202,7 @@ export default function MessagesIndex() {
 
       {tournamentTeamRooms.length > 0 ? (
         <>
-          <Text style={[styles.section, { marginTop: 22 }]}>Tournament teams</Text>
+          <Text style={[styles.section, { marginTop: 20 }]}>Tournament teams</Text>
           {tournamentTeamRooms.map((r) => (
             <Pressable
               key={r.id}
@@ -222,7 +222,7 @@ export default function MessagesIndex() {
 
       {runBanterRooms.length > 0 ? (
         <>
-          <Text style={[styles.section, { marginTop: 22 }]}>Run chats</Text>
+          <Text style={[styles.section, { marginTop: 20 }]}>Run chats</Text>
           <View style={styles.runTabRow}>
             {(["active", "past"] as const).map((t) => {
               const active = runChatTab === t;
@@ -265,7 +265,7 @@ export default function MessagesIndex() {
 
       {dmGroupRooms.length > 0 ? (
         <>
-          <Text style={[styles.section, { marginTop: 22 }]}>Direct messages</Text>
+          <Text style={[styles.section, { marginTop: 20 }]}>Direct messages</Text>
           {dmGroupRooms.map((r) => (
             <Pressable
               key={r.id}
@@ -289,7 +289,7 @@ export default function MessagesIndex() {
 function make_styles() {
   return StyleSheet.create({
   root: { flex: 1, backgroundColor: themeColor().bg },
-  content: { padding: 18, paddingBottom: 40 },
+  content: { padding: 16, paddingBottom: 40 },
   center: {
     flex: 1,
     backgroundColor: themeColor().bg,
@@ -297,8 +297,8 @@ function make_styles() {
     justifyContent: "center",
     alignItems: "center",
   },
-  pad: { flex: 1, backgroundColor: themeColor().bg, padding: 18 },
-  heading: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", marginBottom: 6 },
+  pad: { flex: 1, backgroundColor: themeColor().bg, padding: 16 },
+  heading: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", marginBottom: 4 },
   title: {
     fontSize: 20, fontFamily: "InstrumentSerif_400Regular",
     fontWeight: "800",
@@ -312,7 +312,7 @@ function make_styles() {
     color: themeColor().muted,
     textAlign: "center",
   },
-  signInWrap: { marginTop: 14 },
+  signInWrap: { marginTop: 12 },
   iconWrap: {
     width: 56,
     height: 56,
@@ -326,7 +326,7 @@ function make_styles() {
     color: themeColor().muted,
     fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    marginBottom: 10,
+    marginBottom: 8,
     marginTop: 4,
   },
   row: {
@@ -336,18 +336,18 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    marginBottom: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 8,
   },
   rowPressed: { opacity: 0.92 },
   rowIcon: { marginRight: 12 },
   rowTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
-  rowSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  rowSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   err: { color: themeColor().coralText, marginBottom: 12, fontSize: 13, fontFamily: "Inter_400Regular" },
   runTabRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
   runTab: {
-    paddingVertical: 6,
+    paddingVertical: 4,
     paddingHorizontal: 16,
     borderRadius: 999,
     borderWidth: 1,
@@ -360,7 +360,7 @@ function make_styles() {
   },
   runTabText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
   runTabTextActive: { color: themeColor().pitchText },
-  runTabEmpty: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", marginBottom: 10 },
+  runTabEmpty: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", marginBottom: 8 },
 });
 }
 let styles = make_styles();

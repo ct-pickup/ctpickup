@@ -183,7 +183,7 @@ function make_styles() {
   teamToggleRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12, alignItems: "center" },
   teamToggle: {
     paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -201,13 +201,13 @@ function make_styles() {
   rebalanceText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   teamList: { maxHeight: 360, marginBottom: 12 },
   teamPlayerRow: {
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: themeColor().line,
   },
   teamPlayerInfo: { marginBottom: 8 },
   teamPlayerName: { color: themeColor().text, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
-  teamPlayerPos: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  teamPlayerPos: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   teamPickRow: { flexDirection: "row", gap: 8 },
   teamChip: {
     minWidth: 40,
@@ -224,7 +224,7 @@ function make_styles() {
   primaryBtn: {
     backgroundColor: themeColor().pitch,
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
   },
   primaryBtnDisabled: { opacity: 0.55 },

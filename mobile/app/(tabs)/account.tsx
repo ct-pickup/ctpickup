@@ -1881,7 +1881,7 @@ export default function AccountScreen() {
               <View style={{ width: 10, height: 10, borderRadius: 10, backgroundColor: themeColor().muted }} />
               <View style={{ flex: 1 }}>
                 <Text style={{ color: themeColor().text, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" }}>Action required</Text>
-                <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 }}>
+                <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 }}>
                   Your profile is not verified. Scroll down to submit.
                 </Text>
               </View>
@@ -2126,7 +2126,7 @@ export default function AccountScreen() {
               <View style={s.blockHeader}>
                 <Text style={s.blockTitle}>Host Rating</Text>
               </View>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
                 <Text style={{ color: themeColor().text, fontSize: 32, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" }}>
                   {hostRating.avg_overall != null ? hostRating.avg_overall.toFixed(1) : "—"}
                 </Text>
@@ -2441,12 +2441,12 @@ function make_s() {
   actionBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     backgroundColor: themeColor().card,
     borderWidth: 1,
     borderColor: themeColor().line,
     borderRadius: 12,
-    padding: 14,
+    padding: 12,
     marginBottom: 4,
     marginTop: 4,
   },
@@ -2462,7 +2462,7 @@ function make_s() {
   },
   heroTop: { flexDirection: "row", alignItems: "center", gap: 16 },
   avatarWrap: { width: 84, height: 84 },
-  avatarRing: { width: 84, height: 84, borderRadius: 999, borderWidth: 2.5, padding: 3 },
+  avatarRing: { width: 84, height: 84, borderRadius: 999, borderWidth: 2.5, padding: 4 },
   avatarImg: { width: "100%", height: "100%", borderRadius: 999 },
   avatarFallback: { backgroundColor: themeColor().overlaySubtle, alignItems: "center", justifyContent: "center" },
   avatarFallbackText: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
@@ -2480,14 +2480,14 @@ function make_s() {
   },
   heroInfo: { flex: 1, minWidth: 0 },
   heroName: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900",},
-  heroUsername: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 2 },
+  heroUsername: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 4 },
   heroBadgeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" },
   tierBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 4,
     paddingVertical: 4,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     borderRadius: 999,
     borderWidth: 1,
   },
@@ -2498,12 +2498,12 @@ function make_s() {
   /* stats */
   statsRow: {
     flexDirection: "row",
-    marginTop: 18,
+    marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: themeColor().overlay,
   },
-  statCell: { flex: 1, alignItems: "center", gap: 5 },
+  statCell: { flex: 1, alignItems: "center", gap: 4 },
   statValue: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900",},
   statLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
 
@@ -2521,7 +2521,7 @@ function make_s() {
   },
   tierProgressSkeleton: { minHeight: 68, backgroundColor: themeColor().overlaySubtle },
   tierProgressTitle: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "800" },
-  tierProgressSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 15, marginTop: 2 },
+  tierProgressSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 15, marginTop: 4 },
   viewProgressBtn: {
     flexShrink: 0,
     borderWidth: 1,
@@ -2548,22 +2548,22 @@ function make_s() {
   tileGrid: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: -6 },
   tile: {
     width: "33.333%",
-    paddingHorizontal: 6,
-    paddingVertical: 10,
-    gap: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 8,
+    gap: 4,
   },
   tileLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", marginTop: 4 },
   tileValue: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   emptyBackground: { gap: 12 },
   emptyBackgroundText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   verifyPrompt: {
-    marginTop: 14,
+    marginTop: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
     backgroundColor: themeColor().card,
     padding: 12,
-    gap: 6,
+    gap: 4,
   },
   verifyPromptTitle: { color: themeColor().text, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold",},
   verifyPromptSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 17 },
@@ -2578,8 +2578,8 @@ function make_s() {
   },
   sessionHistoryRowLast: { borderBottomWidth: 0 },
   sessionHistoryDate: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-  sessionHistoryVenue: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 2 },
-  sessionHistoryLocation: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_500Medium", fontWeight: "500", marginTop: 2 },
+  sessionHistoryVenue: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 4 },
+  sessionHistoryLocation: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_500Medium", fontWeight: "500", marginTop: 4 },
   sessionHistoryResult: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
   mySessionsCard: {
     marginTop: 16,
@@ -2612,7 +2612,7 @@ function make_s() {
   listRowLast: { borderBottomWidth: 0 },
   listRowIcon: { width: 26 },
   listRowLabel: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-  listRowValue: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", marginRight: 10, maxWidth: "48%", textAlign: "right" },
+  listRowValue: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", marginRight: 8, maxWidth: "48%", textAlign: "right" },
 
   /* edit modal */
   editModalHeader: {
@@ -2620,7 +2620,7 @@ function make_s() {
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: themeColor().overlay,
   },

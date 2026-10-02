@@ -119,7 +119,7 @@ function make_styles() {
     marginTop: 8,
     backgroundColor: themeColor().pitch,
     borderRadius: 12,
-    paddingVertical: 15,
+    paddingVertical: 16,
     alignItems: "center",
   },
   confirmBtnText: {

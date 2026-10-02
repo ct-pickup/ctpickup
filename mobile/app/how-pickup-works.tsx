@@ -100,14 +100,14 @@ function make_styles() {
     color: themeColor().pitchText,
   },
   lead: {
-    marginTop: 10,
+    marginTop: 8,
     fontSize: 16, fontFamily: "Inter_400Regular",
     lineHeight: 22,
     color: themeColor().muted,
   },
   card: {
-    marginTop: 14,
-    padding: 18,
+    marginTop: 12,
+    padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -116,7 +116,7 @@ function make_styles() {
   stepHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
   },
   stepNumber: {
     fontSize: 13, fontFamily: "Inter_700Bold",
@@ -130,13 +130,13 @@ function make_styles() {
     flexShrink: 1,
   },
   stepBody: {
-    marginTop: 10,
+    marginTop: 8,
     fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 21,
     color: themeColor().muted,
   },
   importantCard: {
-    marginTop: 22,
+    marginTop: 20,
     borderColor: themeColor().pitch,
     backgroundColor: themeColor().pitchPanel,
   },
@@ -152,7 +152,7 @@ function make_styles() {
   bulletRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 10,
+    gap: 8,
   },
   bulletDot: {
     fontSize: 14, fontFamily: "Inter_400Regular",

@@ -458,7 +458,7 @@ export default function LeaderboardsScreen() {
               style={[styles.tabPill, on ? styles.tabPillOn : styles.tabPillOff]}
             >
               {t.icon ? (
-                <FontAwesome name={t.icon} size={13} color={on ? themeColor().onPitch : themeColor().text} style={{ marginRight: 6 }} />
+                <FontAwesome name={t.icon} size={13} color={on ? themeColor().onPitch : themeColor().text} style={{ marginRight: 4 }} />
               ) : null}
               <Text style={[styles.tabPillText, on && styles.tabPillTextOn]} numberOfLines={1}>
                 {t.label}
@@ -480,7 +480,7 @@ export default function LeaderboardsScreen() {
             name="caret-down"
             size={13}
             color={moreActive ? themeColor().onPitch : themeColor().text}
-            style={{ marginLeft: 6 }}
+            style={{ marginLeft: 4 }}
           />
         </Pressable>
       </ScrollView>
@@ -600,7 +600,7 @@ export default function LeaderboardsScreen() {
             <Text style={styles.emptySubtitle}>Complete a session to earn a tier.</Text>
           </View>
         ) : (
-          <View style={{ gap: 10 }}>{filteredTierPlayers.map((p, i) => renderTierRow(p, i))}</View>
+          <View style={{ gap: 8 }}>{filteredTierPlayers.map((p, i) => renderTierRow(p, i))}</View>
         )}
 
         {/* Climb the ranks */}
@@ -756,7 +756,7 @@ export default function LeaderboardsScreen() {
             </View>
 
             {/* Tiers */}
-            <Text style={[styles.howSectionHeader, { marginTop: 18 }]}>TIER SYSTEM</Text>
+            <Text style={[styles.howSectionHeader, { marginTop: 16 }]}>TIER SYSTEM</Text>
             <Text style={styles.howBody}>
               Your tier is determined by your rating score, earned through peer votes and organizer ratings after each session.
             </Text>
@@ -769,7 +769,7 @@ export default function LeaderboardsScreen() {
                 { label: "Diamond", desc: "Score 90+ · Elite level · Verification required · You earn $8/session", color: themeColor().muted, dot: "◆" },
               ] as const).map(({ label, desc, color, dot }) => (
                 <View key={label} style={[styles.howRow, { alignItems: "flex-start" }]}>
-                  <Text style={[styles.howDot, { color, marginTop: 2 }]}>{dot}</Text>
+                  <Text style={[styles.howDot, { color, marginTop: 4 }]}>{dot}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.howRowLabel, { color }]}>{label}</Text>
                     <Text style={styles.howRowDesc}>{desc}</Text>
@@ -779,7 +779,7 @@ export default function LeaderboardsScreen() {
             </View>
 
             {/* Verification */}
-            <Text style={[styles.howSectionHeader, { marginTop: 18 }]}>VERIFICATION</Text>
+            <Text style={[styles.howSectionHeader, { marginTop: 16 }]}>VERIFICATION</Text>
             <Text style={styles.howBody}>
               Self-declared players are capped at Gold. Submit for verification in your Profile to unlock Platinum and Diamond.
             </Text>
@@ -826,7 +826,7 @@ export default function LeaderboardsScreen() {
 function make_styles() {
   return StyleSheet.create({
   root: { flex: 1, backgroundColor: themeColor().bg },
-  headerFilterBtn: { marginRight: 4, padding: 6, justifyContent: "center", alignItems: "center" },
+  headerFilterBtn: { marginRight: 4, padding: 4, justifyContent: "center", alignItems: "center" },
 
   /* tab bar */
   tabScroll: {
@@ -853,14 +853,14 @@ function make_styles() {
   listWrap: { flex: 1, minHeight: 0 },
   listFlex: { flex: 1 },
   listContentGrow: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 16, paddingVertical: 24 },
-  listContent: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 32 },
+  listContent: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
   tierContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40 },
 
   /* hero */
   hero: {
     borderRadius: 999,
     borderWidth: 1,
-    padding: 18,
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
     overflow: "hidden",
@@ -876,7 +876,7 @@ function make_styles() {
   heroSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   heroBtn: {
     alignSelf: "flex-start",
-    marginTop: 14,
+    marginTop: 12,
     borderWidth: 1,
     borderColor: themeColor().pitch,
     borderRadius: 999,
@@ -899,12 +899,12 @@ function make_styles() {
   regionDropdown: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 4,
     borderWidth: 1,
     borderColor: themeColor().overlay,
     backgroundColor: themeColor().overlaySubtle,
     borderRadius: 999,
-    paddingVertical: 6,
+    paddingVertical: 4,
     paddingHorizontal: 12,
   },
   regionDropdownText: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
@@ -933,15 +933,15 @@ function make_styles() {
   rankText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "800" },
   rankTextTop3: { color: themeColor().onPitchPanel },
   onPanelText: { color: themeColor().onPitchPanel },
-  avatarRing: { width: 46, height: 46, borderRadius: 999, borderWidth: 2, padding: 2 },
+  avatarRing: { width: 46, height: 46, borderRadius: 999, borderWidth: 2, padding: 4 },
   avatarImg: { width: "100%", height: "100%", borderRadius: 999 },
   avatarFallback: { backgroundColor: themeColor().overlaySubtle, alignItems: "center", justifyContent: "center" },
   avatarFallbackText: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
   playerInfo: { flex: 1, minWidth: 0 },
-  playerNameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  playerNameRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   playerName: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", flexShrink: 1 },
-  playerTier: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 2 },
-  playerStats: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  playerTier: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 4 },
+  playerStats: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   ptsBlock: { alignItems: "flex-end", minWidth: 52 },
   ptsValue: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900",},
   ptsLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700",},
@@ -951,7 +951,7 @@ function make_styles() {
     marginTop: 24,
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 12,
     backgroundColor: themeColor().card,
     borderRadius: 12,
     borderWidth: 1,
@@ -967,7 +967,7 @@ function make_styles() {
     justifyContent: "center",
   },
   climbTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
-  climbSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 3, lineHeight: 16 },
+  climbSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4, lineHeight: 16 },
   climbBtn: { borderWidth: 1, borderColor: themeColor().pitch, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12 },
   climbBtnText: { color: themeColor().pitchText, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
 
@@ -978,8 +978,8 @@ function make_styles() {
   emptySubtitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22, paddingHorizontal: 24 },
   errText: { color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
   retryBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 18,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().pitch,
@@ -997,15 +997,15 @@ function make_styles() {
     borderTopWidth: 1,
     borderColor: themeColor().overlay,
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 8,
     paddingBottom: 28,
   },
   modalHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 10, backgroundColor: themeColor().overlay, marginBottom: 16 },
-  modalTitle: { color: themeColor().text, fontWeight: "800", fontSize: 20, fontFamily: "InstrumentSerif_400Regular", marginBottom: 18, textAlign: "center" },
-  modalChips: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center", marginBottom: 22 },
+  modalTitle: { color: themeColor().text, fontWeight: "800", fontSize: 20, fontFamily: "InstrumentSerif_400Regular", marginBottom: 16, textAlign: "center" },
+  modalChips: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 20 },
   modalChip: {
     minWidth: 72,
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
     borderWidth: 1,
@@ -1018,7 +1018,7 @@ function make_styles() {
   modalChipTextOn: { color: themeColor().onPitch },
   modalCloseBtn: {
     marginTop: 4,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().overlay,
@@ -1042,14 +1042,14 @@ function make_styles() {
     borderWidth: 1,
     borderColor: themeColor().overlay,
     paddingVertical: 4,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     gap: 0,
   },
   howRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 9,
+    gap: 8,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: themeColor().line,
   },
@@ -1061,7 +1061,7 @@ function make_styles() {
     marginTop: 20,
     backgroundColor: themeColor().pitch,
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
   },
   howCloseBtnText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
@@ -1076,7 +1076,7 @@ function make_styles() {
     borderWidth: 1,
     borderColor: themeColor().overlay,
     paddingVertical: 8,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
   },
   moreTitle: {
     color: themeColor().muted,

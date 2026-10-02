@@ -791,7 +791,7 @@ export default function AdminTournamentScreen() {
                     </Text>
                     <Text style={styles.captainMeta}>Submitted {fmtDate(c.claim_submitted_at)}</Text>
                     {c.status === "claim_submitted" && !c.captain_verified ? (
-                      <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+                      <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
                         <Pressable
                           onPress={() =>
                             Alert.alert("Approve captain?", "They will be able to complete Stripe checkout.", [
@@ -910,7 +910,7 @@ export default function AdminTournamentScreen() {
                   disabled={prizesPaidBusy}
                   style={({ pressed }) => [
                     styles.primary,
-                    { marginTop: 14 },
+                    { marginTop: 12 },
                     pressed && { opacity: 0.9 },
                     prizesPaidBusy && styles.disabled,
                   ]}
@@ -1063,10 +1063,10 @@ function make_styles() {
   screen: { flex: 1, backgroundColor: themeColor().bg },
   content: { padding: 16, paddingBottom: 48 },
   segmentLabel: { marginTop: 8, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted,},
-  segmentRow: { marginTop: 10, flexDirection: "row", gap: 8 },
+  segmentRow: { marginTop: 8, flexDirection: "row", gap: 8 },
   segment: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -1077,7 +1077,7 @@ function make_styles() {
   segmentText: { color: themeColor().muted, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
   segmentTextActive: { color: themeColor().pitchText },
   listTabBar: {
-    marginTop: 10,
+    marginTop: 8,
     flexDirection: "row",
     borderRadius: 10,
     borderWidth: 1,
@@ -1087,7 +1087,7 @@ function make_styles() {
   },
   listTabSegment: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 8,
     alignItems: "center",
     borderRightWidth: StyleSheet.hairlineWidth,
     borderRightColor: themeColor().line,
@@ -1096,12 +1096,12 @@ function make_styles() {
   listTabSegmentActive: { backgroundColor: themeColor().pitchPanel },
   listTabSegmentText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted },
   listTabSegmentTextActive: { color: themeColor().pitchText },
-  emptyMuted: { marginTop: 14, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
+  emptyMuted: { marginTop: 12, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
   liveBanner: {
-    marginTop: 14,
+    marginTop: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
@@ -1113,7 +1113,7 @@ function make_styles() {
   err: { marginTop: 12, color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_400Regular" },
   warn: { marginTop: 8, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
   card: {
-    marginTop: 14,
+    marginTop: 12,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
@@ -1122,7 +1122,7 @@ function make_styles() {
   },
   cardHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cardTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
-  fieldHint: { marginTop: 6, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 18 },
+  fieldHint: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 18 },
   label: { marginTop: 12, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
   input: {
     marginTop: 8,
@@ -1140,18 +1140,18 @@ function make_styles() {
   primary: {
     marginTop: 0,
     backgroundColor: themeColor().pitch,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
   },
   primaryText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
-  roomRow: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 10 },
+  roomRow: { marginTop: 12, flexDirection: "row", alignItems: "center", gap: 8 },
   roomActions: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0 },
   roomTitle: { color: themeColor().text, fontWeight: "800" },
   liveBadge: { color: themeColor().pitchText, fontWeight: "900" },
-  roomSub: { marginTop: 2, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 16 },
+  roomSub: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 16 },
   smallChip: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
@@ -1164,7 +1164,7 @@ function make_styles() {
   },
   smallChipPrimaryText: { color: themeColor().onPitchPanel, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
   smallChipMuted: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
@@ -1177,10 +1177,10 @@ function make_styles() {
     backgroundColor: themeColor().overlaySubtle,
   },
   smallChipDangerText: { color: themeColor().coralText, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
-  muted: { marginTop: 10, color: themeColor().muted },
+  muted: { marginTop: 8, color: themeColor().muted },
   disabled: { opacity: 0.55 },
   dangerOutline: {
-    marginTop: 14,
+    marginTop: 12,
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
@@ -1197,7 +1197,7 @@ function make_styles() {
     borderColor: themeColor().line,
     backgroundColor: themeColor().bg,
   },
-  captainTop: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
+  captainTop: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
   badge: { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
   badgeText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "900", color: themeColor().text },
   badgeOk: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
@@ -1206,8 +1206,8 @@ function make_styles() {
   badgeNeutral: { borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
   captainName: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
   captainTeam: { marginTop: 4, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
-  captainMeta: { marginTop: 6, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
-  filterChips: { flexDirection: "row", gap: 8, paddingVertical: 10 },
+  captainMeta: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
+  filterChips: { flexDirection: "row", gap: 8, paddingVertical: 8 },
   filterChip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -1220,17 +1220,17 @@ function make_styles() {
   filterChipText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted, textTransform: "capitalize" },
   filterChipTextActive: { color: themeColor().pitchText },
   subRow: {
-    marginTop: 14,
-    paddingTop: 14,
+    marginTop: 12,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: themeColor().line,
   },
   subName: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
   subIg: { marginTop: 4, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
-  subDate: { marginTop: 2, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
-  decisionRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
+  subDate: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
+  decisionRow: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 8 },
   decChip: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
@@ -1240,7 +1240,7 @@ function make_styles() {
   decChipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
   decChipText: { fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted, textTransform: "capitalize" },
   decChipTextActive: { color: themeColor().pitchText },
-  reviewRow: { marginTop: 10 },
+  reviewRow: { marginTop: 8 },
   reviewToggle: {
     alignSelf: "flex-start",
     paddingHorizontal: 12,
@@ -1256,7 +1256,7 @@ function make_styles() {
     marginTop: 12,
     alignSelf: "flex-start",
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 10,
     backgroundColor: themeColor().pitch,
   },
@@ -1271,11 +1271,11 @@ function make_styles() {
   },
   venueSelectedText: { color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   venuePlaceholder: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
-  venueScroll: { marginTop: 10 },
+  venueScroll: { marginTop: 8 },
   venueScrollContent: { flexDirection: "row", alignItems: "stretch", gap: 8, paddingRight: 8 },
   venueChip: {
     maxWidth: 168,
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
@@ -1291,7 +1291,7 @@ function make_styles() {
   regionChipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
   regionChip: {
     paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -1333,18 +1333,18 @@ function make_styles() {
     borderTopWidth: 1,
     borderTopColor: themeColor().line,
   },
-  prizeRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10 },
-  prizeRowTotal: { marginTop: 6 },
+  prizeRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 },
+  prizeRowTotal: { marginTop: 4 },
   prizeLabel: { fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
   prizeValue: { fontSize: 14, fontFamily: "Inter_700Bold", color: themeColor().text, fontWeight: "700" },
   prizeLabelBold: { fontSize: 16, fontFamily: "Inter_700Bold", color: themeColor().text, fontWeight: "800" },
   prizeValueBold: { fontSize: 16, fontFamily: "Inter_700Bold", color: themeColor().pitchText, fontWeight: "900" },
-  prizeDivider: { marginTop: 14, marginBottom: 4, height: StyleSheet.hairlineWidth, backgroundColor: themeColor().overlay },
-  prizeSplitLabel: { marginTop: 10, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted,},
+  prizeDivider: { marginTop: 12, marginBottom: 4, height: StyleSheet.hairlineWidth, backgroundColor: themeColor().overlay },
+  prizeSplitLabel: { marginTop: 8, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted,},
   earlyTermToggle: {
-    marginTop: 14,
+    marginTop: 12,
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -1358,7 +1358,7 @@ function make_styles() {
   earlyTermToggleText: { fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted },
   earlyTermToggleTextOn: { color: themeColor().muted },
   prizesPaidBanner: {
-    marginTop: 14,
+    marginTop: 12,
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,

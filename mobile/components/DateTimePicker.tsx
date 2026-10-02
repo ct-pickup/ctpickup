@@ -550,7 +550,7 @@ export default function DateTimePicker({
 
 function make_styles() {
   return StyleSheet.create({
-  label: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 6 },
+  label: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 4 },
   trigger: {
     flexDirection: "row",
     alignItems: "center",
@@ -564,11 +564,11 @@ function make_styles() {
   },
   triggerProminent: {
     paddingVertical: 16,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 2,
     borderColor: themeColor().pitch,
-    marginBottom: 10,
+    marginBottom: 8,
     backgroundColor: themeColor().card,
   },
   triggerDisabled: { opacity: 0.45 },
@@ -598,9 +598,9 @@ function make_styles() {
   itemActive: { backgroundColor: themeColor().pitchPanel, borderRadius: 10 },
   itemText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
   itemTextActive: { color: themeColor().pitchText, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
-  confirmBtn: { backgroundColor: themeColor().pitch, borderRadius: 10, padding: 14, alignItems: "center", marginTop: 16 },
+  confirmBtn: { backgroundColor: themeColor().pitch, borderRadius: 10, padding: 12, alignItems: "center", marginTop: 16 },
   confirmText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
-  cancelBtn: { alignItems: "center", marginTop: 10 },
+  cancelBtn: { alignItems: "center", marginTop: 8 },
   cancelText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
 });
 }

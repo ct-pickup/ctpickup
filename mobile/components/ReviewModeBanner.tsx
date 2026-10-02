@@ -51,7 +51,7 @@ function make_styles() {
   hint: {
     color: themeColor().onPitch,
     fontSize: 13, fontFamily: "Inter_400Regular",
-    marginTop: 2,
+    marginTop: 4,
   },
 });
 }

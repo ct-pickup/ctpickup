@@ -62,7 +62,7 @@ function make_styles() {
   return StyleSheet.create({
   card: {
     borderRadius: 12,
-    padding: 18,
+    padding: 16,
     borderWidth: 1,
     borderColor: themeColor().line,
     backgroundColor: themeColor().card,
@@ -90,7 +90,7 @@ function make_styles() {
     borderRadius: 10,
     backgroundColor: themeColor().pitch,
     width: "88%",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   barMd: {
     height: 14,

@@ -441,7 +441,7 @@ function make_styles() {
   errText: { color: themeColor().coralText, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center" },
 
   h1: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().text },
-  sub: { marginTop: 10, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  sub: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
 
   statsCard: {
     marginTop: 20,
@@ -458,9 +458,9 @@ function make_styles() {
   statLabel: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   statsFoot: { marginTop: 12, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 17 },
 
-  empty: { marginTop: 18, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  empty: { marginTop: 16, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
 
-  list: { marginTop: 18, gap: 12 },
+  list: { marginTop: 16, gap: 12 },
   card: {
     padding: 16,
     borderRadius: 12,
@@ -468,10 +468,10 @@ function make_styles() {
     borderColor: themeColor().line,
     backgroundColor: themeColor().card,
   },
-  cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   date: { color: themeColor().text, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold", flex: 1 },
-  runTitle: { marginTop: 6, color: themeColor().text, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold", lineHeight: 19 },
-  venue: { marginTop: 6, color: themeColor().muted, fontWeight: "700" },
+  runTitle: { marginTop: 4, color: themeColor().text, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold", lineHeight: 19 },
+  venue: { marginTop: 4, color: themeColor().muted, fontWeight: "700" },
 
   resultRow: { marginTop: 12 },
   resultText: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "900" },
@@ -479,11 +479,11 @@ function make_styles() {
   resultLoss: { color: themeColor().text },
   resultPending: { color: themeColor().text, fontWeight: "800" },
 
-  teamLine: { marginTop: 10, fontSize: 14, fontFamily: "Inter_400Regular" },
+  teamLine: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular" },
   metaK: { color: themeColor().muted, fontWeight: "800" },
   teamValue: { color: themeColor().text, fontWeight: "800" },
 
-  myAwards: { marginTop: 10, gap: 4 },
+  myAwards: { marginTop: 8, gap: 4 },
   awardLine: { color: themeColor().pitchText, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
 });
 }

@@ -380,7 +380,7 @@ function make_styles() {
   return StyleSheet.create({
   safe: { flex: 1, backgroundColor: themeColor().bg, paddingHorizontal: 16 },
   header: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: 8 },
-  backIcon: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 8, paddingRight: 4 },
+  backIcon: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 8, paddingRight: 4 },
   h1: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
   sub: { marginTop: 4, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
   summary: {
@@ -390,7 +390,7 @@ function make_styles() {
     color: themeColor().pitchText,
   },
   help: {
-    marginTop: 10,
+    marginTop: 8,
     fontSize: 13, fontFamily: "Inter_400Regular",
     lineHeight: 18,
     color: themeColor().muted,
@@ -400,16 +400,16 @@ function make_styles() {
     borderWidth: 1,
     borderColor: themeColor().line,
     borderRadius: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 12,
     color: themeColor().text,
     fontSize: 16, fontFamily: "Inter_400Regular",
   },
   showAllBtn: {
-    marginTop: 10,
+    marginTop: 8,
     alignSelf: "flex-start",
     paddingVertical: 8,
-    paddingHorizontal: 2,
+    paddingHorizontal: 4,
   },
   showAllBtnText: { fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().pitchText },
   list: { flex: 1, marginTop: 8 },
@@ -424,10 +424,10 @@ function make_styles() {
     borderBottomColor: themeColor().line,
   },
   tierTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
-  tierCount: { marginTop: 2, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
+  tierCount: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
   groupActionBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -450,7 +450,7 @@ function make_styles() {
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "transparent",
-    marginTop: 2,
+    marginTop: 4,
   },
   checkboxOn: {
     borderColor: themeColor().pitch,
@@ -459,7 +459,7 @@ function make_styles() {
   rowBody: { flex: 1, minWidth: 0 },
   rowTop: { flexDirection: "row", alignItems: "center", gap: 8 },
   name: { flex: 1, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().text },
-  rowBadges: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 0 },
+  rowBadges: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 0 },
   tierBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -476,8 +476,8 @@ function make_styles() {
     backgroundColor: themeColor().overlaySubtle,
   },
   distanceBadgeText: { fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
-  username: { marginTop: 2, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
-  instagram: { marginTop: 2, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
+  username: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
+  instagram: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
   empty: { marginTop: 24, color: themeColor().muted, fontSize: 16, fontFamily: "Inter_400Regular" },
   err: { marginTop: 16, color: themeColor().coralText, fontSize: 16, fontFamily: "Inter_400Regular" },
   footer: {
@@ -496,7 +496,7 @@ function make_styles() {
   },
   inviteBtnDisabled: { opacity: 0.45 },
   inviteBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
-  backBtn: { marginTop: 16, alignSelf: "flex-start", paddingVertical: 10, paddingHorizontal: 14 },
+  backBtn: { marginTop: 16, alignSelf: "flex-start", paddingVertical: 8, paddingHorizontal: 12 },
   backBtnText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
 });
 }

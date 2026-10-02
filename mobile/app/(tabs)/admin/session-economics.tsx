@@ -148,9 +148,9 @@ export default function SessionEconomicsScreen() {
 
       {/* Diamond Payouts */}
       <View style={s.card}>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <Text style={s.runTitle}><Text style={{ color: themeColor().muted }}>◆</Text> Diamond Payouts (this week)</Text>
-          <Pressable onPress={() => void loadDiamondPayouts()} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line }}>
+          <Pressable onPress={() => void loadDiamondPayouts()} style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line }}>
             {diamondLoading ? <ActivityIndicator color={themeColor().pitchText} size="small" /> :
               <Text style={{ color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" }}>Load</Text>}
           </Pressable>
@@ -248,7 +248,7 @@ export default function SessionEconomicsScreen() {
             {/* Diamond players */}
             {run.diamond_attendees.length > 0 && (
               <>
-                <Text style={[s.payoutLabel, { marginTop: 12, marginBottom: 6 }]}>PAY DIAMOND PLAYERS ($8 each)</Text>
+                <Text style={[s.payoutLabel, { marginTop: 12, marginBottom: 4 }]}>PAY DIAMOND PLAYERS ($8 each)</Text>
                 {run.diamond_attendees.map((d) => (
                   <View key={d.user_id} style={s.payoutRow}>
                     <Text style={s.payoutName}>{d.name}</Text>
@@ -261,7 +261,7 @@ export default function SessionEconomicsScreen() {
             {/* Individual payments */}
             {run.payments.length > 0 && (
               <>
-                <Text style={[s.payoutLabel, { marginTop: 12, marginBottom: 6 }]}>PAYMENTS RECEIVED</Text>
+                <Text style={[s.payoutLabel, { marginTop: 12, marginBottom: 4 }]}>PAYMENTS RECEIVED</Text>
                 {run.payments.map((p) => {
                   const name = [p.profiles?.first_name, p.profiles?.last_name].filter(Boolean).join(" ") || p.profiles?.username || "Player";
                   return (
@@ -289,12 +289,12 @@ function make_s() {
   emptyCard: { backgroundColor: themeColor().card, borderRadius: 12, padding: 20, alignItems: "center" },
   emptyText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
   card: { backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 16 },
-  cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 14 },
+  cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 12 },
   runTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
-  runMeta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
-  statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1 },
+  runMeta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
+  statusPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1 },
   statusText: { fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700" },
-  breakdownCard: { backgroundColor: themeColor().bg, borderRadius: 10, padding: 12, marginBottom: 14, gap: 8 },
+  breakdownCard: { backgroundColor: themeColor().bg, borderRadius: 10, padding: 12, marginBottom: 12, gap: 8 },
   row: { flexDirection: "row", justifyContent: "space-between" },
   rowTotal: { borderTopWidth: 1, borderTopColor: themeColor().line, paddingTop: 8, marginTop: 4 },
   rowLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },

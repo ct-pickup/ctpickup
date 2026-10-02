@@ -188,7 +188,7 @@ function make_styles() {
   },
   closing: {
     marginTop: 28,
-    padding: 18,
+    padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().pitch,

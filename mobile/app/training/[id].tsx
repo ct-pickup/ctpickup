@@ -455,7 +455,7 @@ export default function TrainingDetailScreen() {
                 <Text style={s.emptyText}>No requests yet. You'll get a notification when someone wants to join.</Text>
               </View>
             ) : (
-              <View style={{ gap: 10 }}>
+              <View style={{ gap: 8 }}>
                 {pending.map((req) => {
                   const name = personName(req.person);
                   const t = req.person?.tier ?? null;
@@ -539,7 +539,7 @@ function make_s() {
   endedBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     backgroundColor: themeColor().card,
     borderWidth: 1,
     borderColor: themeColor().coral,
@@ -548,8 +548,8 @@ function make_s() {
     marginBottom: 16,
   },
   endedBannerText: { color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-  identityRow: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 16 },
-  avatarRing: { width: 64, height: 64, borderRadius: 999, borderWidth: 2, padding: 3, alignItems: "center", justifyContent: "center" },
+  identityRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 },
+  avatarRing: { width: 64, height: 64, borderRadius: 999, borderWidth: 2, padding: 4, alignItems: "center", justifyContent: "center" },
   avatarImg: { width: "100%", height: "100%", borderRadius: 999 },
   avatarFallback: { backgroundColor: themeColor().overlaySubtle, alignItems: "center", justifyContent: "center" },
   avatarFallbackText: { fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
@@ -558,9 +558,9 @@ function make_s() {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    marginTop: 6,
+    marginTop: 4,
     paddingVertical: 4,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     borderRadius: 999,
     borderWidth: 1,
   },
@@ -575,10 +575,10 @@ function make_s() {
     padding: 16,
     marginBottom: 16,
   },
-  liveRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 },
+  liveRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
   liveDot: { width: 10, height: 10, borderRadius: 10, backgroundColor: themeColor().pitch },
   liveText: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
-  detailRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 7 },
+  detailRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
   detailText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", flex: 1 },
   sectionTitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 8 },
   workingOnText: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "600", lineHeight: 24 },
@@ -593,7 +593,7 @@ function make_s() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    padding: 18,
+    padding: 16,
   },
   emptyText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   requestRow: {
@@ -619,7 +619,7 @@ function make_s() {
   reqAvatarImg: { width: "100%", height: "100%" },
   reqAvatarText: { fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   reqName: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
-  reqMeta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  reqMeta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   declineBtn: {
     width: 40,
     height: 40,
@@ -629,7 +629,7 @@ function make_s() {
     alignItems: "center",
     justifyContent: "center",
   },
-  acceptBtn: { backgroundColor: themeColor().pitch, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  acceptBtn: { backgroundColor: themeColor().pitch, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8 },
   acceptBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
   attendeeRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
   attendeeBorder: { borderTopWidth: 1, borderTopColor: themeColor().line },

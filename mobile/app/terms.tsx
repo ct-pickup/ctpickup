@@ -187,7 +187,7 @@ function make_styles() {
     lineHeight: 21,
   },
   paragraphGap: {
-    marginTop: 10,
+    marginTop: 8,
   },
   bulletLine: {
     marginTop: 8,

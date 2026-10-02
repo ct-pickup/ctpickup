@@ -394,7 +394,7 @@ function TierBadge({ tier, size = "sm" }: { tier: string | null; size?: "sm" | "
       style={[
         styles.tierBadge,
         { borderColor: meta.color, backgroundColor: `${meta.color}22` },
-        size === "md" && { paddingVertical: 5, paddingHorizontal: 12 },
+        size === "md" && { paddingVertical: 4, paddingHorizontal: 12 },
       ]}
     >
       {meta.diamond ? <Text style={[styles.tierDiamond, { color: meta.color }]}>◆ </Text> : null}
@@ -501,7 +501,7 @@ function FriendsPlayingSection({
   useThemedStyles(publish_styles);
 
   return (
-    <View style={{ marginTop: 10 }}>
+    <View style={{ marginTop: 8 }}>
       <SectionHeader label="Friends Playing Tonight" actionLabel="See all" onAction={onSeeAll} />
       {friends.length === 0 ? (
         <Text style={styles.friendsEmpty}>No friends playing tonight</Text>
@@ -741,7 +741,7 @@ function make_styles() {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
-    gap: 10,
+    gap: 8,
   },
   headerAvatar: { width: 36, height: 36, borderRadius: 999, backgroundColor: themeColor().card },
   headerAvatarFallback: {
@@ -753,17 +753,17 @@ function make_styles() {
   },
   avatarUnverified: { borderWidth: 2, borderColor: themeColor().line },
 
-  greeting: { marginTop: 10, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text,},
+  greeting: { marginTop: 8, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text,},
   greetingName: { color: themeColor().pitchText },
   rateBanner: {
     marginTop: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     backgroundColor: themeColor().pitch,
     borderRadius: 12,
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
   },
   rateBannerText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold", flex: 1 },
 
@@ -788,8 +788,8 @@ function make_styles() {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    paddingVertical: 3,
-    paddingHorizontal: 9,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
     borderRadius: 999,
     borderWidth: 1,
   },
@@ -803,18 +803,18 @@ function make_styles() {
     borderColor: themeColor().overlay,
     borderLeftWidth: 4,
     borderRadius: 12,
-    padding: 10,
+    padding: 8,
     overflow: "hidden",
   },
   pitch: { position: "absolute", top: 6, right: 6 },
-  matchTitle: { marginTop: 5, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text,},
-  matchMetaRow: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 3 },
+  matchTitle: { marginTop: 4, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text,},
+  matchMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   matchMeta: { fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, flexShrink: 1 },
   matchBottom: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    marginTop: 7,
+    marginTop: 8,
   },
   matchSpots: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().text, flexShrink: 1 },
   priceBox: { alignItems: "flex-end" },
@@ -824,13 +824,13 @@ function make_styles() {
     marginTop: 8,
     backgroundColor: themeColor().pitch,
     borderRadius: 12,
-    paddingVertical: 9,
+    paddingVertical: 8,
     alignItems: "center",
   },
   primaryBtnText: { color: themeColor().onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800",},
   matchEmpty: { alignItems: "flex-start" },
   matchEmptyTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text,},
-  matchEmptySub: { marginTop: 5, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
+  matchEmptySub: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
   findRunPill: {
     marginTop: 12,
     alignSelf: "flex-start",
@@ -860,10 +860,10 @@ function make_styles() {
     gap: 12,
     backgroundColor: themeColor().card,
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: 999,
   },
-  legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   legendDot: { width: 8, height: 8, borderRadius: 10 },
   legendText: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().text },
   markerWrap: { alignItems: "center" },
@@ -888,9 +888,9 @@ function make_styles() {
     justifyContent: "center",
   },
   markerLabel: {
-    marginTop: 2,
+    marginTop: 4,
     backgroundColor: themeColor().card,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 10,
     maxWidth: 90,
@@ -902,7 +902,7 @@ function make_styles() {
     fontSize: 13, fontFamily: "Inter_400Regular",
     color: themeColor().muted,
     fontStyle: "italic",
-    marginTop: 2,
+    marginTop: 4,
     marginBottom: 8,
   },
   friendsRow: { paddingBottom: 4, gap: 16 },
@@ -932,20 +932,20 @@ function make_styles() {
     borderColor: themeColor().line,
   },
   friendName: {
-    marginTop: 6,
+    marginTop: 4,
     fontSize: 13, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
     color: themeColor().text,
     textAlign: "center",
     width: 68,
   },
-  friendStatus: { marginTop: 2, fontSize: 13, fontFamily: "Inter_500Medium", fontWeight: "500", textAlign: "center" },
+  friendStatus: { marginTop: 4, fontSize: 13, fontFamily: "Inter_500Medium", fontWeight: "500", textAlign: "center" },
 
   /* quick actions */
   quickActionsRow: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 10,
+    gap: 8,
+    marginTop: 8,
   },
   quickActionBtn: {
     flex: 1,
@@ -956,7 +956,7 @@ function make_styles() {
     height: 68,
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 4,
   },
   quickActionLabel: {
     fontSize: 13, fontFamily: "Inter_700Bold",

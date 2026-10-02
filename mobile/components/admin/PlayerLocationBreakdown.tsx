@@ -85,7 +85,7 @@ export function PlayerLocationBreakdown({
 function make_styles() {
   return StyleSheet.create({
   card: {
-    marginTop: 14,
+    marginTop: 12,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
@@ -94,18 +94,18 @@ function make_styles() {
   },
   cardTitle: { color: themeColor().text, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
   cardHint: {
-    marginTop: 6,
+    marginTop: 4,
     color: themeColor().muted,
     fontSize: 13, fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
     lineHeight: 16,
   },
-  muted: { marginTop: 10, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
+  muted: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
   distRow: {
     marginTop: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
   },
   distLabel: {
     flex: 1,

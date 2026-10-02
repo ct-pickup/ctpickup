@@ -197,7 +197,7 @@ export default function RunLifecycleActions({ run, actionBusy, onAction }: RunLi
 function make_styles() {
   return StyleSheet.create({
   wrap: { marginTop: 20, gap: 16 },
-  group: { gap: 10 },
+  group: { gap: 8 },
   groupLabel: {
     color: themeColor().muted,
     fontSize: 13, fontFamily: "Inter_700Bold",
@@ -206,12 +206,12 @@ function make_styles() {
   primaryBtn: {
     backgroundColor: themeColor().pitch,
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
   },
   secondaryBtn: {
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -220,7 +220,7 @@ function make_styles() {
   destructiveBtn: {
     marginTop: 4,
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
     borderWidth: 1,
     borderColor: themeColor().coral,

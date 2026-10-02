@@ -101,7 +101,7 @@ function make_styles() {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 16,
-    paddingLeft: 22,
+    paddingLeft: 20,
     paddingRight: 16,
   },
   codeBadge: {

@@ -70,7 +70,7 @@ function make_styles() {
     marginTop: 12,
     backgroundColor: themeColor().pitch,
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 36,
     alignItems: "center",
   },

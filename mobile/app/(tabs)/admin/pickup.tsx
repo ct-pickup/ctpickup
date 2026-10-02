@@ -131,8 +131,8 @@ function SkeletonCard() {
   return (
     <View style={styles.skeletonCard}>
       <View style={[styles.skeletonLine, { width: "55%" }]} />
-      <View style={[styles.skeletonLine, { width: "80%", marginTop: 10 }]} />
-      <View style={[styles.skeletonLine, { width: "40%", marginTop: 10 }]} />
+      <View style={[styles.skeletonLine, { width: "80%", marginTop: 8 }]} />
+      <View style={[styles.skeletonLine, { width: "40%", marginTop: 8 }]} />
     </View>
   );
 }
@@ -1254,14 +1254,14 @@ function make_styles() {
     gap: 12,
     marginBottom: 12,
   },
-  backBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4 },
   backBtnText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   topTitle: { flex: 1, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text, textAlign: "center" },
   h1: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
   refreshBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 4,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,
@@ -1269,12 +1269,12 @@ function make_styles() {
     borderColor: themeColor().pitch,
   },
   refreshText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
-  toolbar: { flexDirection: "row", gap: 8, marginBottom: 14 },
+  toolbar: { flexDirection: "row", gap: 8, marginBottom: 12 },
   toolChip: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -1282,7 +1282,7 @@ function make_styles() {
   },
   toolChipText: { color: themeColor().text, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   badge: {
-    marginLeft: 6,
+    marginLeft: 4,
     minWidth: 18,
     height: 18,
     borderRadius: 10,
@@ -1295,7 +1295,7 @@ function make_styles() {
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   chip: {
     paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -1306,7 +1306,7 @@ function make_styles() {
   tabRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
   tab: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -1325,7 +1325,7 @@ function make_styles() {
     marginBottom: 12,
   },
   emptyTitle: { color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
-  emptyBody: { color: themeColor().muted, marginTop: 6, lineHeight: 20 },
+  emptyBody: { color: themeColor().muted, marginTop: 4, lineHeight: 20 },
   card: {
     padding: 16,
     borderRadius: 12,
@@ -1334,7 +1334,7 @@ function make_styles() {
     backgroundColor: themeColor().card,
     marginBottom: 12,
   },
-  cardTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10 },
+  cardTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 },
   cardTitle: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
   typeBadge: {
     paddingHorizontal: 8,
@@ -1343,14 +1343,14 @@ function make_styles() {
     backgroundColor: themeColor().pitchPanel,
   },
   typeBadgeText: { color: themeColor().onPitchPanel, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "800",},
-  cardEt: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 10 },
-  cardVenue: { color: themeColor().text, marginTop: 6, lineHeight: 20 },
+  cardEt: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 8 },
+  cardVenue: { color: themeColor().text, marginTop: 4, lineHeight: 20 },
   cardMeta: { color: themeColor().muted, marginTop: 8, fontSize: 13, fontFamily: "Inter_400Regular" },
   statusBadge: {
     alignSelf: "flex-start",
-    marginTop: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    marginTop: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -1395,8 +1395,8 @@ function make_styles() {
   detailSheet: { minHeight: "50%" },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   sheetTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
-  label: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 12, marginBottom: 6 },
-  typeToggleRow: { flexDirection: "row", gap: 10 },
+  label: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 12, marginBottom: 4 },
+  typeToggleRow: { flexDirection: "row", gap: 8 },
   typeToggle: {
     flex: 1,
     paddingVertical: 16,
@@ -1419,14 +1419,14 @@ function make_styles() {
   },
   publicTimeNote: {
     marginTop: 12,
-    padding: 14,
+    padding: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
     backgroundColor: themeColor().overlaySubtle,
   },
   publicTimeNoteText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
-  slotSectionHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, marginBottom: 10 },
+  slotSectionHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, marginBottom: 8 },
   slotBlock: {
     marginBottom: 12,
     padding: 12,
@@ -1459,21 +1459,21 @@ function make_styles() {
   },
   pricingCalcBox: {
     marginTop: 16,
-    padding: 14,
+    padding: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
     backgroundColor: themeColor().card,
   },
-  pricingCalcTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", marginBottom: 10 },
-  pricingCalcHint: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 10 },
-  pricingCalcSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 6, lineHeight: 18 },
+  pricingCalcTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", marginBottom: 8 },
+  pricingCalcHint: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 8 },
+  pricingCalcSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4, lineHeight: 18 },
   usePriceBtn: {
     marginTop: 12,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: themeColor().pitch,
-    paddingVertical: 10,
+    paddingVertical: 8,
     alignItems: "center",
   },
   usePriceBtnText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
@@ -1481,7 +1481,7 @@ function make_styles() {
     marginTop: 20,
     backgroundColor: themeColor().pitch,
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
   },
   primaryBtnDisabled: { opacity: 0.6 },
@@ -1491,15 +1491,15 @@ function make_styles() {
   detailTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
   detailEt: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 8 },
   detailVenue: { color: themeColor().text, marginTop: 8, lineHeight: 22 },
-  detailMeta: { color: themeColor().muted, marginTop: 6, fontSize: 13, fontFamily: "Inter_400Regular" },
+  detailMeta: { color: themeColor().muted, marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular" },
   rosterHeading: { color: themeColor().text, fontWeight: "800", marginTop: 20, marginBottom: 8 },
   rosterEmpty: { color: themeColor().muted, fontStyle: "italic" },
-  rosterRow: { color: themeColor().text, paddingVertical: 6, fontSize: 16, fontFamily: "Inter_400Regular" },
-  rosterRowMuted: { color: themeColor().muted, paddingVertical: 6, fontSize: 14, fontFamily: "Inter_400Regular" },
+  rosterRow: { color: themeColor().text, paddingVertical: 4, fontSize: 16, fontFamily: "Inter_400Regular" },
+  rosterRowMuted: { color: themeColor().muted, paddingVertical: 4, fontSize: 14, fontFamily: "Inter_400Regular" },
   skipWaveBtn: {
     marginTop: 20,
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
     borderWidth: 1,
     borderColor: themeColor().pitch,
@@ -1509,7 +1509,7 @@ function make_styles() {
   deleteRunBtn: {
     marginTop: 16,
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
     borderWidth: 1,
     borderColor: themeColor().coral,

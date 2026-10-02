@@ -21,7 +21,7 @@ function AdminHeaderBack({ tintColor }: { tintColor?: string }) {
       style={({ pressed }) => ({
         flexDirection: "row",
         alignItems: "center",
-        gap: 6,
+        gap: 4,
         opacity: pressed ? 0.85 : 1,
       })}
     >

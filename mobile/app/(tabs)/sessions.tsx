@@ -618,7 +618,7 @@ export default function SessionsTabScreen() {
                 ) : null}
               </View>
             ) : (
-              <View style={{ gap: 10 }}>
+              <View style={{ gap: 8 }}>
                 {upcoming.map((row) => {
                   const spotsLeft = Math.max(0, row.capacity - row.spots_taken);
                   return (
@@ -659,7 +659,7 @@ export default function SessionsTabScreen() {
                 <Text style={styles.emptyText}>No past sessions yet.</Text>
               </View>
             ) : (
-              <View style={{ gap: 10 }}>
+              <View style={{ gap: 8 }}>
                 {past.map((row) => {
                   const badgeColor =
                     row.result === "Won"
@@ -737,8 +737,8 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().overlay,
-    paddingVertical: 14,
-    marginBottom: 22,
+    paddingVertical: 12,
+    marginBottom: 20,
   },
   statCell: { flex: 1, alignItems: "center", gap: 4 },
   statValue: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
@@ -763,14 +763,14 @@ function make_styles() {
     alignSelf: "flex-start",
     backgroundColor: themeColor().pitch,
     borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
   findBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
   joinCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 12,
     backgroundColor: themeColor().pitchPanel,
     borderRadius: 12,
     borderWidth: 1,
@@ -784,21 +784,21 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: themeColor().pitch,
-    padding: 14,
-    gap: 6,
+    padding: 12,
+    gap: 4,
   },
   liveTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 10,
+    gap: 8,
   },
   liveBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    gap: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 999,
     backgroundColor: themeColor().pitchPanel,
     borderWidth: 1,
@@ -820,12 +820,12 @@ function make_styles() {
   },
   liveBadgeText: { color: themeColor().onPitchPanel, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "900",},
   liveTime: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-  liveTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", marginTop: 2 },
+  liveTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", marginTop: 4 },
   liveFooter: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 10,
+    marginTop: 8,
   },
   avatarRow: { flexDirection: "row", alignItems: "center" },
   avatar: {
@@ -840,27 +840,27 @@ function make_styles() {
     marginRight: -8,
   },
   avatarText: { color: themeColor().onPitchPanel, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
-  avatarMore: { marginLeft: 14, color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  avatarMore: { marginLeft: 12, color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   card: {
     backgroundColor: themeColor().card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().overlay,
-    padding: 14,
+    padding: 12,
     gap: 4,
   },
   cardMeta: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-  cardTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 2 },
+  cardTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 4 },
   cardFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 10,
+    marginTop: 8,
   },
   cardChip: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   cardChipLime: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   pastTop: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  resultBadge: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", marginTop: 2 },
+  resultBadge: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", marginTop: 4 },
   awards: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", marginTop: 8 },
   fab: {
     position: "absolute",

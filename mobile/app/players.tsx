@@ -351,7 +351,7 @@ export default function PlayersScreen() {
                   </View>
 
                   {p.awards.potd || p.awards.gk || p.awards.def || p.awards.mid || p.awards.att ? (
-                    <View style={[styles.metaRow, { marginTop: 10 }]}>
+                    <View style={[styles.metaRow, { marginTop: 8 }]}>
                       <Text style={styles.meta}>
                         <Text style={styles.metaK}>Awards</Text>{" "}
                         {[
@@ -385,26 +385,26 @@ function make_styles() {
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     borderWidth: 1,
     borderColor: themeColor().line,
     backgroundColor: themeColor().overlaySubtle,
     borderRadius: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 12,
   },
   searchInput: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", padding: 0 },
 
   filterLabel: {
-    marginTop: 18,
-    marginBottom: 10,
+    marginTop: 16,
+    marginBottom: 8,
     fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
     color: themeColor().muted,
   },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
@@ -415,12 +415,12 @@ function make_styles() {
   chipText: { color: themeColor().muted, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   chipTextOn: { color: themeColor().pitchText },
 
-  centerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 18 },
+  centerRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 16 },
   centerText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
-  errText: { marginTop: 18, color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
-  emptyText: { marginTop: 18, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  errText: { marginTop: 16, color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  emptyText: { marginTop: 16, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
 
-  list: { marginTop: 18, gap: 12 },
+  list: { marginTop: 16, gap: 12 },
   card: {
     padding: 16,
     borderRadius: 12,
@@ -428,10 +428,10 @@ function make_styles() {
     borderColor: themeColor().line,
     backgroundColor: themeColor().card,
   },
-  cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   name: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
   username: { marginTop: 4, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
   meta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   metaValue: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   metaMuted: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },

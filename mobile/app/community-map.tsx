@@ -934,7 +934,7 @@ function CountyCircleMarker({
           justifyContent: "center",
           borderWidth: 1.5,
           borderColor: themeColor().line,
-          paddingHorizontal: 3,
+          paddingHorizontal: 4,
         }}
       >
         <Text
@@ -1263,7 +1263,7 @@ function SessionDetailCard({
   return (
     <View style={s.popupCard}>
       <View style={s.popupHeader}>
-        <View style={{ flex: 1, marginRight: 10 }}>
+        <View style={{ flex: 1, marginRight: 8 }}>
           <Text style={s.popupCity} numberOfLines={1}>
             {session.location_private?.trim() || "Location TBD"}
           </Text>
@@ -1631,13 +1631,13 @@ function make_s() {
     top: 60,
     left: 0,
     right: 0,
-    paddingHorizontal: 14,
-    gap: 10,
+    paddingHorizontal: 12,
+    gap: 8,
   },
   backBtn: {
     alignSelf: "flex-start",
     backgroundColor: themeColor().card,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
   },
@@ -1650,8 +1650,8 @@ function make_s() {
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().overlay,
-    padding: 3,
-    gap: 2,
+    padding: 4,
+    gap: 4,
   },
   layerBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999 },
   layerBtnActive: { backgroundColor: themeColor().pitch },
@@ -1666,8 +1666,8 @@ function make_s() {
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().overlay,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   zoomBtnText: { color: themeColor().text, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
 
@@ -1695,10 +1695,10 @@ function make_s() {
     color: themeColor().muted,
     fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    marginBottom: 3,
+    marginBottom: 4,
   },
   yourAreaCity: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
-  yourAreaStat: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 3, lineHeight: 15 },
+  yourAreaStat: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4, lineHeight: 15 },
 
   popupWrap: { position: "absolute", bottom: 34, left: 14, right: 14 },
   popupCard: {
@@ -1715,8 +1715,8 @@ function make_s() {
     marginBottom: 12,
   },
   popupCity: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
-  popupMembersMuted: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_500Medium", marginTop: 6, fontWeight: "500" },
-  popupSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  popupMembersMuted: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_500Medium", marginTop: 4, fontWeight: "500" },
+  popupSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   popupClose: {
     width: 28,
     height: 28,
@@ -1728,12 +1728,12 @@ function make_s() {
   popupCloseText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
 
   popupRows: { gap: 8 },
-  popupRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  popupRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   popupRowIcon: { fontSize: 16, fontFamily: "Inter_400Regular", width: 22, textAlign: "center" },
   popupRowText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_500Medium", fontWeight: "500", flex: 1 },
 
   popupCta: {
-    marginTop: 14,
+    marginTop: 12,
     backgroundColor: themeColor().pitch,
     paddingVertical: 12,
     borderRadius: 999,
@@ -1750,8 +1750,8 @@ function make_s() {
     backgroundColor: themeColor().scrim,
   },
   modalCard: {
-    marginHorizontal: 14,
-    marginBottom: 34,
+    marginHorizontal: 12,
+    marginBottom: 32,
     maxHeight: "78%",
     backgroundColor: themeColor().card,
     borderRadius: 12,
@@ -1760,13 +1760,13 @@ function make_s() {
     overflow: "hidden",
   },
   modalScroll: {
-    padding: 18,
+    padding: 16,
     paddingBottom: 20,
   },
   tierBreakdownRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginTop: 10,
+    marginTop: 8,
     fontSize: 13, fontFamily: "Inter_400Regular",
   },
   tierBreakdownPart: {
@@ -1776,16 +1776,16 @@ function make_s() {
   popupDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: themeColor().overlay,
-    marginVertical: 14,
+    marginVertical: 12,
   },
   eliteLabel: {
     color: themeColor().pitchText,
     fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   eliteEmpty: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 8 },
-  eliteList: { gap: 10 },
+  eliteList: { gap: 8 },
   eliteRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1810,7 +1810,7 @@ function make_s() {
   },
   eliteInitials: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
   eliteName: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
-  eliteMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
+  eliteMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   eliteTierBadge: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   elitePos: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_500Medium", fontWeight: "500" },
   eliteMore: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 4 },
@@ -1839,7 +1839,7 @@ function make_s() {
   },
   actKicker: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", marginBottom: 4 },
   actHeadline: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginBottom: 16 },
-  actCards: { gap: 10 },
+  actCards: { gap: 8 },
   actCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -1852,7 +1852,7 @@ function make_s() {
   actLabel: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
   actSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 1 },
   actValue: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", minWidth: 40, textAlign: "right" },
-  actNote: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 14 },
+  actNote: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 12 },
 });
 }
 let s = make_s();

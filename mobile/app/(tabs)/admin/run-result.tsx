@@ -586,7 +586,7 @@ export default function AdminRunResultScreen() {
       </View>
 
       {/* Step 2: Teams (read-only when saved at run start; manual fallback if none) */}
-      <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Step 2: Teams</Text>
+      <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Step 2: Teams</Text>
       {!teamsReadOnly && confirmed.length > 0 ? (
         <Text style={styles.teamFallbackWarn}>
           Teams were not assigned before this run. Please assign teams manually.
@@ -659,7 +659,7 @@ export default function AdminRunResultScreen() {
       </View>
 
       {/* 2) Winning team */}
-      <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Winning team</Text>
+      <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Winning team</Text>
       <Pressable
         onPress={() => {
           if (isReadonly) return;
@@ -674,7 +674,7 @@ export default function AdminRunResultScreen() {
       </Pressable>
 
       {/* 3) Awards */}
-      <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Step 3: Awards</Text>
+      <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Step 3: Awards</Text>
       <View style={styles.card}>
         <View style={styles.potdVoteCard}>
           <Text style={styles.awardLabel}>Player of the Day 🏆 (attendee vote)</Text>
@@ -888,7 +888,7 @@ function make_styles() {
   errText: { color: themeColor().coralText, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center" },
 
   headerCard: {
-    padding: 18,
+    padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().pitch,
@@ -898,12 +898,12 @@ function make_styles() {
   h1: { fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900", color: themeColor().text },
   sub: { marginTop: 8, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, color: themeColor().muted },
 
-  sectionTitle: { marginTop: 18, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "900", color: themeColor().muted, },
+  sectionTitle: { marginTop: 16, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "900", color: themeColor().muted, },
 
   attendanceRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: themeColor().line,
@@ -911,7 +911,7 @@ function make_styles() {
   attendanceChipRow: { flexDirection: "row", alignItems: "center", flexShrink: 0, gap: 8 },
   attendanceChip: {
     paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -930,20 +930,20 @@ function make_styles() {
   teamPillNoShow: { borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
 
   teamFallbackWarn: {
-    marginTop: 10,
+    marginTop: 8,
     fontSize: 14, fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: themeColor().muted,
     lineHeight: 20,
   },
   teamReadOnlyMeta: {
-    marginTop: 10,
+    marginTop: 8,
     fontSize: 14, fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: themeColor().muted,
   },
 
-  segmentRow: { flexDirection: "row", gap: 10, marginTop: 10 },
+  segmentRow: { flexDirection: "row", gap: 8, marginTop: 8 },
   segmentChip: {
     flex: 1,
     paddingVertical: 12,
@@ -967,11 +967,11 @@ function make_styles() {
   },
   muted: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
 
-  rosterRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10 },
+  rosterRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 8 },
   personName: { color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   teamPillReadonly: {
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -980,7 +980,7 @@ function make_styles() {
   teamPillReadonlyText: { color: themeColor().text, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
   teamPill: {
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().pitch,
@@ -998,15 +998,15 @@ function make_styles() {
     borderBottomColor: themeColor().line,
   },
   awardLabel: { color: themeColor().muted, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
-  awardValue: { marginTop: 6, color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  awardValue: { marginTop: 4, color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   awardValueSelected: { color: themeColor().pitchText },
   potdVoteCard: {
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: themeColor().line,
   },
-  potdVoteBody: { marginTop: 6, color: themeColor().pitchText, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold", lineHeight: 21 },
-  potdVoteMuted: { marginTop: 6, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  potdVoteBody: { marginTop: 4, color: themeColor().pitchText, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold", lineHeight: 21 },
+  potdVoteMuted: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   awardClearBtn: {
     width: 36,
     height: 36,
@@ -1020,11 +1020,11 @@ function make_styles() {
   awardClearText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
 
   input: {
-    marginTop: 10,
+    marginTop: 8,
     borderWidth: 1,
     borderColor: themeColor().line,
     borderRadius: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 12,
     backgroundColor: themeColor().overlaySubtle,
   },
@@ -1035,11 +1035,11 @@ function make_styles() {
   primaryBtn: {
     marginTop: 20,
     backgroundColor: themeColor().pitch,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
   },
-  primaryBtnInner: { flexDirection: "row", alignItems: "center", gap: 10 },
+  primaryBtnInner: { flexDirection: "row", alignItems: "center", gap: 8 },
   primaryBtnText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
   disabled: { opacity: 0.6 },
 
@@ -1068,20 +1068,20 @@ function make_styles() {
   },
   modalClearText: { color: themeColor().muted, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
   modalRow: {
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 10,
     marginHorizontal: 4,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 10,
+    gap: 8,
   },
   modalRowSelected: { backgroundColor: themeColor().pitchPanel },
   modalRowText: { flex: 1, fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().text },
   modalRowTextSelected: { color: themeColor().pitchText, fontWeight: "700" },
   modalRowRemove: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
-  modalCancel: { marginTop: 4, paddingVertical: 14, alignItems: "center" },
+  modalCancel: { marginTop: 4, paddingVertical: 12, alignItems: "center" },
   modalCancelText: { fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().muted },
 });
 }

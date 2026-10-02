@@ -103,8 +103,8 @@ export function PickupScorePill({ loading, scorePct, trackedPickups, attendedPic
 function make_styles() {
   return StyleSheet.create({
   pill: {
-    paddingVertical: 7,
-    paddingHorizontal: 11,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().pitch,
@@ -136,7 +136,7 @@ function make_styles() {
   backdrop: {
     flex: 1,
     backgroundColor: themeColor().scrim,
-    padding: 18,
+    padding: 16,
     justifyContent: "flex-end",
   },
   sheet: {
@@ -147,10 +147,10 @@ function make_styles() {
     padding: 16,
   },
   sheetTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "900" },
-  sheetBody: { marginTop: 10, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 },
-  actions: { marginTop: 14, flexDirection: "row", justifyContent: "flex-end", gap: 10 },
+  sheetBody: { marginTop: 8, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 },
+  actions: { marginTop: 12, flexDirection: "row", justifyContent: "flex-end", gap: 8 },
   secondaryBtn: {
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
@@ -158,8 +158,8 @@ function make_styles() {
   },
   secondaryBtnText: { color: themeColor().text, fontWeight: "800" },
   primaryBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 12,
     backgroundColor: themeColor().pitch,
   },

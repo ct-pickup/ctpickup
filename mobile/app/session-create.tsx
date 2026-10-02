@@ -266,7 +266,7 @@ export default function SessionCreateScreen() {
               <View style={s.suggestBox}>
                 {locationSuggestions.map((item) => (
                   <Pressable key={item.place_id} onPress={() => selectLocation(item)} style={s.suggestRow}>
-                    <FontAwesome name="map-marker" size={13} color={themeColor().pitchText} style={{ marginTop: 2 }} />
+                    <FontAwesome name="map-marker" size={13} color={themeColor().pitchText} style={{ marginTop: 4 }} />
                     <Text style={s.suggestText} numberOfLines={2}>{item.display_name}</Text>
                   </Pressable>
                 ))}
@@ -350,7 +350,7 @@ export default function SessionCreateScreen() {
               </Pressable>
             ))}
             {locationSelected && playerCounts && (
-              <View style={{ marginTop: 14, backgroundColor: themeColor().overlaySubtle, borderRadius: 10, padding: 12, gap: 6 }}>
+              <View style={{ marginTop: 12, backgroundColor: themeColor().overlaySubtle, borderRadius: 10, padding: 12, gap: 4 }}>
                 <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 4 }}>
                   Players within 30 miles
                 </Text>
@@ -374,10 +374,10 @@ export default function SessionCreateScreen() {
               </View>
             )}
             {locationSelected && countLoading && (
-              <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 10 }} />
+              <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 8 }} />
             )}
             {locationSelected && !playerCounts && !countLoading && (
-              <Pressable onPress={() => void fetchPlayerCounts(skillLevel)} style={{ marginTop: 10, alignItems: "center" }}>
+              <Pressable onPress={() => void fetchPlayerCounts(skillLevel)} style={{ marginTop: 8, alignItems: "center" }}>
                 <Text style={{ color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular" }}>Tap a tier to see player counts →</Text>
               </Pressable>
             )}
@@ -418,7 +418,7 @@ export default function SessionCreateScreen() {
                       <Text style={s.payoutLabel}>CT Pickup rake (20%)</Text>
                       <Text style={s.payoutValue}>−${(parseFloat(buyIn) * playerLimit * 0.2).toFixed(2)}</Text>
                     </View>
-                    <View style={[s.payoutRow, { borderTopWidth: 1, borderTopColor: themeColor().line, paddingTop: 10, marginTop: 4 }]}>
+                    <View style={[s.payoutRow, { borderTopWidth: 1, borderTopColor: themeColor().line, paddingTop: 8, marginTop: 4 }]}>
                       <Text style={[s.payoutLabel, { color: themeColor().text, fontWeight: "700" }]}>You take home</Text>
                       <Text style={[s.payoutValue, { color: themeColor().pitchText, fontWeight: "800" }]}>${(parseFloat(buyIn) * playerLimit * 0.8).toFixed(2)}</Text>
                     </View>
@@ -437,7 +437,7 @@ export default function SessionCreateScreen() {
                   <View style={s.payoutRow}><Text style={s.payoutLabel}>Gold players pay</Text><Text style={s.payoutValue}>$6</Text></View>
                   <View style={s.payoutRow}><Text style={s.payoutLabel}>Platinum</Text><Text style={s.payoutValue}>Free</Text></View>
                   <View style={s.payoutRow}><Text style={[s.payoutLabel, { color: themeColor().pitchText }]}>Diamond players earn</Text><Text style={[s.payoutValue, { color: themeColor().pitchText }]}>$8</Text></View>
-                  <View style={[s.payoutRow, { borderTopWidth: 1, borderTopColor: themeColor().line, paddingTop: 10, marginTop: 4 }]}>
+                  <View style={[s.payoutRow, { borderTopWidth: 1, borderTopColor: themeColor().line, paddingTop: 8, marginTop: 4 }]}>
                     <Text style={[s.payoutLabel, { color: themeColor().text, fontWeight: "700" }]}>CT Pickup rake</Text>
                     <Text style={[s.payoutValue, { color: themeColor().pitchText }]}>20% of collected</Text>
                   </View>
@@ -522,38 +522,38 @@ function make_s() {
   root: { flex: 1, backgroundColor: themeColor().bg, padding: 20 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 16, marginBottom: 24 },
   headerTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
-  stepRow: { flexDirection: "row", gap: 8, marginBottom: 6 },
+  stepRow: { flexDirection: "row", gap: 8, marginBottom: 4 },
   stepDot: { width: 8, height: 8, borderRadius: 10, backgroundColor: themeColor().overlay },
   stepDotActive: { backgroundColor: themeColor().pitch },
   stepLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 20 },
-  card: { backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 18, marginBottom: 16 },
+  card: { backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 16 },
   fieldLabel: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted, marginBottom: 8, },
-  input: { backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, fontFamily: "Inter_400Regular" },
-  suggestBox: { marginTop: 6, backgroundColor: themeColor().card, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, overflow: "hidden" },
-  suggestRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, padding: 12, borderBottomWidth: 1, borderBottomColor: themeColor().line },
+  input: { backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, paddingHorizontal: 12, paddingVertical: 12, fontSize: 16, fontFamily: "Inter_400Regular" },
+  suggestBox: { marginTop: 4, backgroundColor: themeColor().card, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, overflow: "hidden" },
+  suggestRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderBottomWidth: 1, borderBottomColor: themeColor().line },
   suggestText: { flex: 1, color: themeColor().text, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
-  selectedBadge: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, padding: 10, backgroundColor: themeColor().pitchPanel, borderRadius: 10, borderWidth: 1, borderColor: themeColor().pitch },
+  selectedBadge: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, padding: 8, backgroundColor: themeColor().pitchPanel, borderRadius: 10, borderWidth: 1, borderColor: themeColor().pitch },
   selectedText: { flex: 1, color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular" },
-  pickerBtn: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 14, paddingVertical: 13 },
+  pickerBtn: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 12, paddingVertical: 12 },
   pickerBtnText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_500Medium", fontWeight: "500" },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
+  chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
   chipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
   chipText: { color: themeColor().muted, fontWeight: "600", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   chipTextActive: { color: themeColor().pitchText },
   capacityInput: { backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700", paddingHorizontal: 16, paddingVertical: 12, textAlign: "center", width: 100 },
-  capacityHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 6 },
-  radioRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, paddingHorizontal: 4, borderRadius: 10 },
+  capacityHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
+  radioRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, paddingHorizontal: 4, borderRadius: 10 },
   radioRowActive: { backgroundColor: themeColor().pitchPanel },
   radio: { width: 18, height: 18, borderRadius: 10, borderWidth: 2, borderColor: themeColor().line },
   radioActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitch },
   radioLabel: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_500Medium", fontWeight: "500" },
-  toggleRow: { flexDirection: "row", gap: 10 },
+  toggleRow: { flexDirection: "row", gap: 8 },
   toggleBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, alignItems: "center" },
   toggleBtnActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
   toggleBtnText: { color: themeColor().muted, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
   toggleBtnTextActive: { color: themeColor().pitchText },
-  payoutCard: { marginTop: 16, backgroundColor: themeColor().card, borderRadius: 10, padding: 14, gap: 8 },
+  payoutCard: { marginTop: 16, backgroundColor: themeColor().card, borderRadius: 10, padding: 12, gap: 8 },
   payoutRow: { flexDirection: "row", justifyContent: "space-between" },
   payoutLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
   payoutValue: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },

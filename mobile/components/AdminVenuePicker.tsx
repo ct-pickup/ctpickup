@@ -73,7 +73,7 @@ export default function AdminVenuePicker({ label = "Venue", value, onChange, hin
 function make_styles() {
   return StyleSheet.create({
   label: { marginTop: 12, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },
-  hint: { marginTop: 6, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 18 },
+  hint: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 18 },
   selectedRow: {
     marginTop: 8,
     padding: 12,
@@ -84,11 +84,11 @@ function make_styles() {
   },
   selectedText: { color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   placeholder: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
-  scroll: { marginTop: 10 },
+  scroll: { marginTop: 8 },
   scrollContent: { flexDirection: "row", alignItems: "stretch", gap: 8, paddingRight: 8 },
   chip: {
     maxWidth: 168,
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,

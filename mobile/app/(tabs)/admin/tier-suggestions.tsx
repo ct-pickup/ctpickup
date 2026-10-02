@@ -113,7 +113,7 @@ export default function AdminTierSuggestionsScreen() {
           </Pressable>
         </View>
 
-        {loading ? <ActivityIndicator color={themeColor().text} style={{ marginTop: 14 }} /> : null}
+        {loading ? <ActivityIndicator color={themeColor().text} style={{ marginTop: 12 }} /> : null}
         {error ? <Text style={styles.err}>{error}</Text> : null}
 
         {sorted.length === 0 && !loading && !error ? (
@@ -188,7 +188,7 @@ function make_styles() {
   content: { padding: 16, paddingBottom: 48 },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   h1: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "900" },
-  sub: { marginTop: 6, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  sub: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -198,10 +198,10 @@ function make_styles() {
     backgroundColor: themeColor().pitchPanel,
   },
   chipText: { color: themeColor().onPitchPanel, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
-  actionRow: { marginTop: 14 },
+  actionRow: { marginTop: 12 },
   primary: {
     backgroundColor: themeColor().pitch,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
@@ -209,10 +209,10 @@ function make_styles() {
   },
   primaryText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 14, fontFamily: "Inter_700Bold" },
   disabled: { opacity: 0.55 },
-  err: { marginTop: 14, color: themeColor().coralText },
+  err: { marginTop: 12, color: themeColor().coralText },
   emptyCard: {
-    marginTop: 14,
-    padding: 18,
+    marginTop: 12,
+    padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -228,22 +228,22 @@ function make_styles() {
     borderColor: themeColor().line,
     backgroundColor: themeColor().card,
   },
-  cardTop: { flexDirection: "row", alignItems: "center", gap: 10 },
+  cardTop: { flexDirection: "row", alignItems: "center", gap: 8 },
   cardName: { color: themeColor().text, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
-  cardMeta: { marginTop: 6, color: themeColor().muted, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
+  cardMeta: { marginTop: 4, color: themeColor().muted, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   cardMetaStrong: { color: themeColor().pitchText, fontWeight: "900" },
   factRow: { marginTop: 12, flexDirection: "row", flexWrap: "wrap", gap: 8 },
   factPill: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: themeColor().line,
     backgroundColor: themeColor().bg,
   },
   factText: { color: themeColor().text, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
-  reason: { marginTop: 10, color: themeColor().text, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
-  btnRow: { marginTop: 14, flexDirection: "row", gap: 10 },
+  reason: { marginTop: 8, color: themeColor().text, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  btnRow: { marginTop: 12, flexDirection: "row", gap: 8 },
   acceptBtn: {
     flex: 1,
     backgroundColor: themeColor().pitch,

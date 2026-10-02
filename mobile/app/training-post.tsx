@@ -187,7 +187,7 @@ export default function TrainingPostScreen() {
             <View style={s.suggestBox}>
               {fieldSuggestions.map((item) => (
                 <Pressable key={item.place_id} onPress={() => selectField(item)} style={s.suggestRow}>
-                  <FontAwesome name="map-marker" size={13} color={themeColor().pitchText} style={{ marginTop: 2 }} />
+                  <FontAwesome name="map-marker" size={13} color={themeColor().pitchText} style={{ marginTop: 4 }} />
                   <Text style={s.suggestText} numberOfLines={2}>
                     {item.display_name}
                   </Text>
@@ -264,7 +264,7 @@ export default function TrainingPostScreen() {
             <>
               <Pressable
                 onPress={() => setShowTimePicker(true)}
-                style={[s.pickerBtn, { marginTop: 10 }]}
+                style={[s.pickerBtn, { marginTop: 8 }]}
               >
                 <FontAwesome name="clock-o" size={15} color={themeColor().pitchText} />
                 <Text style={s.pickerBtnText}>{fmt12Hour(trainingUntil)}</Text>
@@ -314,7 +314,7 @@ function make_s() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().line,
-    padding: 18,
+    padding: 16,
     marginBottom: 16,
   },
   fieldLabel: {
@@ -335,12 +335,12 @@ function make_s() {
     borderWidth: 1,
     borderColor: themeColor().line,
     color: themeColor().text,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16, fontFamily: "Inter_400Regular",
   },
   suggestBox: {
-    marginTop: 6,
+    marginTop: 4,
     backgroundColor: themeColor().card,
     borderRadius: 10,
     borderWidth: 1,
@@ -350,7 +350,7 @@ function make_s() {
   suggestRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 10,
+    gap: 8,
     padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: themeColor().line,
@@ -361,7 +361,7 @@ function make_s() {
     alignItems: "center",
     gap: 8,
     marginTop: 8,
-    padding: 10,
+    padding: 8,
     backgroundColor: themeColor().pitchPanel,
     borderRadius: 10,
     borderWidth: 1,
@@ -371,18 +371,18 @@ function make_s() {
   pickerBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     backgroundColor: themeColor().overlay,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: themeColor().line,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
   pickerBtnText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_500Medium", fontWeight: "500" },
   toggleBtn: {
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: themeColor().line,

@@ -172,7 +172,7 @@ export function ProfileSection({
         {editPrimaryPosition ? (
           <>
             <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Secondary positions (up to 2)</Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
               {SPECIFIC_POSITION_OPTIONS.filter((o) => o.value !== editPrimaryPosition).map((o) => {
                 const selected = editSecondaryPositions.includes(o.value);
                 const disabled = !selected && editSecondaryPositions.length >= 2;
@@ -180,7 +180,7 @@ export function ProfileSection({
                   <Pressable key={o.value} onPress={() => toggleSecondary(o.value)}
                     disabled={editBusy || disabled}
                     style={{
-                      paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10,
+                      paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
                       borderWidth: 1,
                       borderColor: selected ? themeColor().pitch : themeColor().overlayStrong,
                       backgroundColor: selected ? themeColor().pitch : themeColor().overlaySubtle,

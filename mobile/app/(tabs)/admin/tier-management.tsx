@@ -117,7 +117,7 @@ export default function AdminTierManagementScreen() {
           placeholderTextColor={themeColor().muted}
           autoCorrect={false}
         />
-        {searching && <ActivityIndicator color={themeColor().pitchText} style={{ marginLeft: 10 }} />}
+        {searching && <ActivityIndicator color={themeColor().pitchText} style={{ marginLeft: 8 }} />}
       </View>
 
       {players.map((player) => {
@@ -183,17 +183,17 @@ function make_s() {
   return StyleSheet.create({
   root: { flex: 1, backgroundColor: themeColor().bg, padding: 16 },
   title: { color: themeColor().text, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", marginBottom: 16, marginTop: 8 },
-  searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: themeColor().overlay, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16 },
+  searchRow: { flexDirection: "row", alignItems: "center", backgroundColor: themeColor().overlay, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 12, paddingVertical: 12, marginBottom: 16 },
   searchInput: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular" },
-  card: { backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 14 },
-  cardHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
+  card: { backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 12 },
+  cardHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 },
   avatar: { width: 40, height: 40, borderRadius: 999, backgroundColor: themeColor().pitchPanel, alignItems: "center", justifyContent: "center" },
   avatarText: { color: themeColor().onPitchPanel, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
   name: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
-  meta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  meta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   sectionLabel: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "500", color: themeColor().muted, marginBottom: 8 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
+  chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
   chipText: { color: themeColor().muted, fontWeight: "600", fontSize: 13, fontFamily: "Inter_600SemiBold" },
   empty: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: 20 },
 });

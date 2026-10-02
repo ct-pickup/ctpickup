@@ -198,14 +198,14 @@ function make_styles() {
   backBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 4,
     paddingVertical: 8,
     paddingRight: 8,
   },
   backBtnText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   topTitle: { flex: 1, fontSize: 24, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800", color: themeColor().text },
   scroll: { flex: 1 },
-  content: { padding: 16, paddingBottom: 40, gap: 14 },
+  content: { padding: 16, paddingBottom: 40, gap: 12 },
   err: { color: themeColor().coralText, lineHeight: 20, marginBottom: 8 },
   card: {
     padding: 16,
@@ -219,7 +219,7 @@ function make_styles() {
   leaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     paddingVertical: 8,
     borderTopWidth: 1,
     borderTopColor: themeColor().line,
