@@ -5,7 +5,8 @@
 --   * POST /api/sessions/result (host posts the first result): +1 for every
 --     confirmed or pending_payment RSVP, rated or not, or a new row with sessions = 1.
 -- settle_session is now the only writer, so a correct value equals the
--- player's rating_events count. Nothing here writes; there is no backfill.
+-- player's rating_events count. Nothing here writes. The backfill is
+-- player_ratings_sessions_correction.sql (preview: player_ratings_sessions_preview.sql).
 --
 -- extra_sessions     = sessions - rated_games (the inflation; 0 when correct).
 -- result_runs_upper  = runs with a posted result where the player has a
