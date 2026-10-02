@@ -18,6 +18,7 @@ const CANCELLED_RUN_UNIQUE_BEFORE_MIGRATION: UniqueIndex = {
 export class FakeSupabase {
   tables: Record<string, Row[]> = {};
   failUpdates: { table: string; message: string }[] = [];
+  deletes: string[] = [];
   uniques: UniqueIndex[] = [CANCELLED_RUN_PLAYER_UNIQUE];
   missingColumns: Record<string, string[]> = {};
   auth = {
@@ -58,7 +59,7 @@ function parseOr(expr: string): Filter {
 
 class Query implements PromiseLike<{ data: unknown; error: { message: string; code?: string } | null }> {
   private filters: Filter[] = [];
-  private op: "select" | "update" | "insert" | "upsert" = "select";
+  private op: "select" | "update" | "insert" | "upsert" | "delete" = "select";
   private conflictCols: string[] = [];
   private patch: Row | null = null;
   private inserted: Row | null = null;
@@ -77,6 +78,10 @@ class Query implements PromiseLike<{ data: unknown; error: { message: string; co
   update(patch: Row) {
     this.op = "update";
     this.patch = patch;
+    return this;
+  }
+  delete() {
+    this.op = "delete";
     return this;
   }
   insert(row: Row) {
@@ -167,6 +172,11 @@ class Query implements PromiseLike<{ data: unknown; error: { message: string; co
       const fail = this.db.failUpdates.find((f) => f.table === this.table);
       if (fail) return { data: null, error: { message: fail.message } };
       for (const r of matched) Object.assign(r, this.patch);
+      return { data: this.returnRows ? matched : null, error: null };
+    }
+    if (this.op === "delete") {
+      this.db.deletes.push(this.table);
+      this.db.tables[this.table] = rows.filter((r) => !matched.includes(r));
       return { data: this.returnRows ? matched : null, error: null };
     }
     let out = [...matched];

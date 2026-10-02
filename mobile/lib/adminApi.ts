@@ -925,6 +925,16 @@ export function postAdminPickupSwitch(accessToken: string, body: Record<string, 
   });
 }
 
+export type AdminRunDeletableResponse = { rsvps: number; payments: number; deletable: boolean };
+
+export function fetchAdminRunDeletable(accessToken: string, runId: string) {
+  return adminFetch<AdminRunDeletableResponse>(
+    `/api/admin/pickup/delete-run?run_id=${encodeURIComponent(runId)}`,
+    accessToken,
+    { method: "GET" },
+  );
+}
+
 export function postAdminDeleteRun(accessToken: string, runId: string) {
   return adminFetch<{ ok: boolean; error?: string }>(
     "/api/admin/pickup/delete-run",

@@ -18,6 +18,7 @@ import {
 import {
   fetchAdminPickupSwitchDetail,
   fetchAdminPickupSwitchList,
+  fetchAdminRunDeletable,
   fetchAdminTierSuggestions,
   postAdminCreateRun,
   postAdminDeleteRun,
@@ -27,6 +28,7 @@ import {
 } from "@/lib/adminApi";
 import { goToAdminMenu } from "@/lib/adminNavigation";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
+import { confirmAdminCancelRun } from "@/lib/pickup/adminCancelRun";
 import { fmtPickupRunScheduleEt } from "@/lib/pickupPublic";
 import { fmtPickupSlotWindowEt } from "@/lib/pickup/fmtPickupSlotWindowEt";
 import { isPublicPickupRunType } from "@/lib/pickupRunType";
@@ -171,6 +173,7 @@ export default function AdminPickupOpsScreen() {
   const [detail, setDetail] = useState<PickupSwitchDetailResponse | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [detailDeletable, setDetailDeletable] = useState<boolean | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
 
   const isCreateCustomVenue = createVenue === CUSTOM_VENUE_OPTION;
@@ -265,8 +268,12 @@ export default function AdminPickupOpsScreen() {
     }
     setDetailLoading(true);
     setDetailError(null);
-    const r = await fetchAdminPickupSwitchDetail(token, detailRunId);
+    const [r, del] = await Promise.all([
+      fetchAdminPickupSwitchDetail(token, detailRunId),
+      fetchAdminRunDeletable(token, detailRunId),
+    ]);
     setDetailLoading(false);
+    setDetailDeletable(del.ok ? del.data.deletable === true : false);
     if (!r.ok) {
       setDetailError(r.error);
       setDetail(null);
@@ -292,6 +299,7 @@ export default function AdminPickupOpsScreen() {
     setDetailRunId(id);
     setDetail(null);
     setDetailError(null);
+    setDetailDeletable(null);
     setDetailOpen(true);
   }
 
@@ -300,6 +308,7 @@ export default function AdminPickupOpsScreen() {
     setDetailRunId(null);
     setDetail(null);
     setDetailError(null);
+    setDetailDeletable(null);
   }
 
   function applyPollDateToTimeSlots(dateEt: string, slots: string[]): string[] {
@@ -616,15 +625,22 @@ export default function AdminPickupOpsScreen() {
     );
   }
 
+  function onCancelRunFromFooter() {
+    if (!token || !detailRun) return;
+    const runId = s(detailRun.id);
+    if (!runId) return;
+    confirmAdminCancelRun({ token, runId, setActionBusy, onCancelled: closeDetail, onRefresh: refreshDetailAndList });
+  }
+
   function onDeleteRun() {
     if (!token || !detailRun) return;
     const runId = s(detailRun.id);
     if (!runId) return;
     Alert.alert(
-      "Delete Run?",
-      "This permanently deletes the run and all its data. This cannot be undone.",
+      "Delete run?",
+      "Delete this run? It has no players.",
       [
-        { text: "Cancel", style: "cancel" },
+        { text: "Keep run", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
@@ -634,7 +650,8 @@ export default function AdminPickupOpsScreen() {
               const r = await postAdminDeleteRun(token, runId);
               setActionBusy(false);
               if (!r.ok) {
-                Alert.alert("Error", r.error);
+                Alert.alert(r.status === 409 ? "Run has players" : "Could not delete", r.error);
+                await refreshDetailAndList();
                 return;
               }
               closeDetail();
@@ -1224,17 +1241,33 @@ export default function AdminPickupOpsScreen() {
                   />
                 ) : null}
 
-                <Pressable
-                  disabled={actionBusy}
-                  onPress={onDeleteRun}
-                  style={({ pressed }) => [
-                    styles.deleteRunBtn,
-                    pressed && { opacity: 0.9 },
-                    actionBusy && { opacity: 0.55 },
-                  ]}
-                >
-                  <Text style={styles.deleteRunBtnText}>Delete Run</Text>
-                </Pressable>
+                {detailDeletable === true ? (
+                  <Pressable
+                    disabled={actionBusy}
+                    onPress={onDeleteRun}
+                    style={({ pressed }) => [
+                      styles.deleteRunBtn,
+                      pressed && { opacity: 0.9 },
+                      actionBusy && { opacity: 0.55 },
+                    ]}
+                  >
+                    <Text style={styles.deleteRunBtnText}>Delete run</Text>
+                  </Pressable>
+                ) : detailDeletable === false &&
+                  detailRun.is_completed !== true &&
+                  !["canceled", "completed"].includes(s(detailRun.status).trim()) ? (
+                  <Pressable
+                    disabled={actionBusy}
+                    onPress={onCancelRunFromFooter}
+                    style={({ pressed }) => [
+                      styles.deleteRunBtn,
+                      pressed && { opacity: 0.9 },
+                      actionBusy && { opacity: 0.55 },
+                    ]}
+                  >
+                    <Text style={styles.deleteRunBtnText}>Cancel run</Text>
+                  </Pressable>
+                ) : null}
               </ScrollView>
             ) : null}
           </View>

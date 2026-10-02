@@ -4,13 +4,12 @@ import RunLifecycleActions, { type RunLifecycleAction } from "@/components/picku
 import TeamAssignmentSheet from "@/components/pickup/TeamAssignmentSheet";
 import {
   postAdminAssignPickupTeams,
-  postAdminCancelRun,
   postAdminPickupSwitch,
   postAdminSetHubPickup,
-  type AdminCancelRunResponse,
   type PickupSwitchDetailResponse,
 } from "@/lib/adminApi";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
+import { confirmAdminCancelRun } from "@/lib/pickup/adminCancelRun";
 import { isPublicPickupRunType } from "@/lib/pickupRunType";
 import type { PickupTeam } from "@/lib/pickupTeamBalance";
 import type { Router } from "expo-router";
@@ -238,52 +237,9 @@ export default function AdminRunDetailLifecycle({
     await onRefresh();
   }
 
-  async function onCancelRun() {
+  function onCancelRun() {
     if (!token || !runId) return;
-    Alert.alert(
-      "Cancel run?",
-      "All players will be notified. Card payments are refunded to the card and players who joined with a credit get it back as a credit. This cannot be undone.",
-      [
-        { text: "Keep run", style: "cancel" },
-        {
-          text: "Cancel run",
-          style: "destructive",
-          onPress: () => {
-            void (async () => {
-              setActionBusy(true);
-              const r = await postAdminCancelRun(token, {
-                run_id: runId,
-                reason: "Canceled from mobile admin",
-              });
-              setActionBusy(false);
-              if (!r.ok) {
-                const detail = (r.detail ?? null) as AdminCancelRunResponse | null;
-                const failures = detail?.failures ?? [];
-                if (failures.length > 0) {
-                  const done: string[] = [];
-                  if (detail?.refunded) done.push(`${detail.refunded} card refund${detail.refunded === 1 ? "" : "s"} issued.`);
-                  if (detail?.credited) done.push(`${detail.credited} credit${detail.credited === 1 ? "" : "s"} issued.`);
-                  const lines = failures.map((f) => `• ${f.name ?? "A player"}: ${f.error}`);
-                  const summary = [detail?.error, ...done].filter(Boolean).join(" ");
-                  Alert.alert("Some players were not refunded", `${summary}\n\n${lines.join("\n")}`);
-                  await onRefresh();
-                } else {
-                  Alert.alert("Could not cancel", r.error);
-                }
-                return;
-              }
-              void hapticTap();
-              const parts = ["All players have been notified."];
-              if (r.data?.refunded) parts.push(`${r.data.refunded} card refund${r.data.refunded === 1 ? "" : "s"} issued.`);
-              if (r.data?.credited) parts.push(`${r.data.credited} credit${r.data.credited === 1 ? "" : "s"} issued.`);
-              Alert.alert("Run cancelled", parts.join(" "));
-              onCloseDetail();
-              await onRefresh();
-            })();
-          },
-        },
-      ],
-    );
+    confirmAdminCancelRun({ token, runId, setActionBusy, onCancelled: onCloseDetail, onRefresh });
   }
 
   function onLifecycleAction(action: RunLifecycleAction) {
