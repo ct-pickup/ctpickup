@@ -994,7 +994,7 @@ function make_styles() {
 
   /* region modal */
   modalRoot: { flex: 1, justifyContent: "flex-end", backgroundColor: themeColor().scrim },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject },
+  modalBackdrop: { ...StyleSheet.absoluteFill },
   modalSheet: {
     backgroundColor: themeColor().bg,
     borderTopLeftRadius: 20,

@@ -15,7 +15,7 @@ import {
 } from "@/lib/siteApi";
 import * as Sentry from "@sentry/react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect } from "expo-router/react-navigation";
 import { useNavigation, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
@@ -769,7 +769,7 @@ export default function FieldTournamentDetailScreen() {
         onRequestClose={() => setInviteOpen(false)}
       >
         <View style={styles.inviteModalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setInviteOpen(false)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setInviteOpen(false)} />
           <View style={styles.inviteModalSheet}>
           <Text style={styles.inviteModalTitle}>Invite player</Text>
           <Text style={styles.inviteModalHint}>Username or email (must match their CT Pickup account).</Text>

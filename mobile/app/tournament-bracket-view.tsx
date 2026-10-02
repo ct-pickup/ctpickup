@@ -744,7 +744,7 @@ function make_styles() {
   mvpResultText: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   mvpMutedSmall: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
   mvpModalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: themeColor().scrim },
-  mvpModalBackdropPress: { ...StyleSheet.absoluteFillObject },
+  mvpModalBackdropPress: { ...StyleSheet.absoluteFill },
   mvpModalSheet: {
     backgroundColor: themeColor().bg,
     borderTopLeftRadius: 16,

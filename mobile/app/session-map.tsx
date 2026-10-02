@@ -761,7 +761,7 @@ export default function SessionMapScreen() {
 function make_styles() {
   return StyleSheet.create({
   root: { flex: 1, backgroundColor: C().bg },
-  center: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  center: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
 
   topBar: { position: "absolute", top: 60, left: 0, right: 0 },
   backBtn: { marginLeft: 12, marginBottom: 8, backgroundColor: themeColor().card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, alignSelf: "flex-start" },
@@ -795,7 +795,7 @@ function make_styles() {
   chipText: { color: C().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   chipTextOn: { color: C().bg },
 
-  pinLabel: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  pinLabel: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
   pinNum: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", fontVariant: ["tabular-nums"] },
   livePinBadge: {
     position: "absolute",

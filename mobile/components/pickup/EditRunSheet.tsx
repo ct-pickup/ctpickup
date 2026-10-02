@@ -108,7 +108,7 @@ export default function EditRunSheet({
 function make_styles() {
   return StyleSheet.create({
   modalRoot: { flex: 1, justifyContent: "flex-end" },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: themeColor().scrim },
+  modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: themeColor().scrim },
   sheet: {
     maxHeight: "88%",
     backgroundColor: themeColor().bg,

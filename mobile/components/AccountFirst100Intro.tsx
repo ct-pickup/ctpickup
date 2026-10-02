@@ -189,7 +189,7 @@ export function AccountFirst100Intro(props?: { trackedPickups?: number; scorePct
 function make_styles() {
   return StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: themeColor().bg,

@@ -12,7 +12,9 @@ import {
 import { hapticGoal, hapticTap } from "@/lib/haptics";
 import { isPublicPickupRunType } from "@/lib/pickupRunType";
 import type { PickupTeam } from "@/lib/pickupTeamBalance";
-import type { Router } from "expo-router";
+import type { useRouter } from "expo-router";
+
+type Router = ReturnType<typeof useRouter>;
 import { useState } from "react";
 import { Alert } from "react-native";
 

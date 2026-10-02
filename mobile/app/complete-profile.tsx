@@ -981,11 +981,11 @@ function make_styles() {
     flex: 1,
   },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: themeColor().scrim,
   },
   modalCardWrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     paddingHorizontal: 28,
   },

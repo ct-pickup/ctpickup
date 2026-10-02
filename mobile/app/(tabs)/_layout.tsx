@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { Redirect, Tabs, useFocusEffect, useRouter, type Href } from "expo-router";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

@@ -712,7 +712,7 @@ function make_styles() {
   scoreText: { color: themeColor().pitchText, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
   logHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", marginTop: 4, fontWeight: "600" },
   modalOverlay: { flex: 1, justifyContent: "flex-end" },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: themeColor().scrim },
+  modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: themeColor().scrim },
   modalSheet: {
     backgroundColor: themeColor().bg,
     borderTopLeftRadius: 20,

@@ -4,10 +4,10 @@ import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { goToAdminMenu, isAdminMenuPath } from "@/lib/adminNavigation";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Redirect, Stack, usePathname, useRouter } from "expo-router";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View, type ColorValue } from "react-native";
 
 import { themeColor, useTheme } from "@/theme";
-function AdminHeaderBack({ tintColor }: { tintColor?: string }) {
+function AdminHeaderBack({ tintColor }: { tintColor?: ColorValue }) {
   useTheme();
 
   const router = useRouter();

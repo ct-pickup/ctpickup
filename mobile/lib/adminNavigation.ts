@@ -1,4 +1,6 @@
-import type { Href, Router } from "expo-router";
+import type { Href, useRouter } from "expo-router";
+
+type Router = ReturnType<typeof useRouter>;
 
 /** Main admin menu route — nested under the Admin tab (`app/(tabs)/admin/index.tsx`). */
 export const ADMIN_MENU_HREF = "/admin" as Href;

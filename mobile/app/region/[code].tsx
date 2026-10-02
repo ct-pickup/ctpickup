@@ -4,7 +4,7 @@ import {
   serviceRegionName,
   type ServiceRegionCode,
 } from "@/lib/serviceRegions";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation } from "expo-router/react-navigation";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect } from "react";

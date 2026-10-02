@@ -1689,11 +1689,11 @@ function make_s() {
   },
   zoomBtnText: { color: themeColor().text, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
 
-  pinCenter: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  pinCenter: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
   pinNum: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
 
   loadingCenter: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1766,7 +1766,7 @@ function make_s() {
     justifyContent: "flex-end",
   },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: themeColor().scrim,
   },
   modalCard: {

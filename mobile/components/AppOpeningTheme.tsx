@@ -146,7 +146,7 @@ function AppOpeningThemeInner({ onDone }: { onDone: () => void }) {
 function make_styles() {
   return StyleSheet.create({
   shell: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 100000,
     backgroundColor: themeColor().bg,
     justifyContent: "center",

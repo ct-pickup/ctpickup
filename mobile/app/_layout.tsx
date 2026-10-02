@@ -8,7 +8,7 @@ Sentry.init({
 });
 
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import { DarkTheme, DefaultTheme, ThemeProvider } from "expo-router/react-navigation";
 import { AppOpeningTheme, clearAppOpeningThemeFlag } from "@/components/AppOpeningTheme";
 import { AppLockOverlay } from "@/components/AppLockOverlay";
 import { PushRegistrar } from "@/components/PushRegistrar";
@@ -484,7 +484,7 @@ function UpdateRequiredGate() {
 function make_stylesUpdateGate() {
   return StyleSheet.create({
   root: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: themeColor().bg,
     alignItems: "center",
     justifyContent: "center",
