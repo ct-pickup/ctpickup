@@ -55,6 +55,13 @@ function fmtDate(date: Date): string {
   return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 }
 
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/** The picked calendar day as `YYYY-MM-DD`; the server reads it as an Eastern date. */
+function ymd(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
 export default function SessionCreateScreen() {
   const router = useRouter();
   const { session, supabase } = useAuth();
@@ -74,6 +81,7 @@ export default function SessionCreateScreen() {
   const [sessionTime, setSessionTime] = useState<Date>(tomorrow);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [timeTbd, setTimeTbd] = useState(false);
 
   // Step 1
   const [playerLimitText, setPlayerLimitText] = useState("10");
@@ -200,12 +208,18 @@ export default function SessionCreateScreen() {
     setPublishing(true);
     try {
       const dt = combinedDateTime();
-      if (dt <= new Date()) { Alert.alert("Invalid time", "Session must be in the future."); return; }
+      if (timeTbd ? ymd(sessionDate) < ymd(new Date()) : dt <= new Date()) {
+        Alert.alert("Invalid time", "Session must be in the future.");
+        return;
+      }
+      if (timeTbd) dt.setHours(12, 0, 0, 0);
 
       const body = {
         location_text: locationSelected?.display_name ?? locationQuery.trim(),
         latitude: locationSelected ? parseFloat(locationSelected.lat) : null,
         longitude: locationSelected ? parseFloat(locationSelected.lon) : null,
+        start_date: ymd(sessionDate),
+        start_time: timeTbd ? null : `${pad2(sessionTime.getHours())}:${pad2(sessionTime.getMinutes())}`,
         start_at: dt.toISOString(),
         capacity: playerLimit,
         min_tier: skillLevel === "all" ? null : skillLevel,
@@ -321,11 +335,19 @@ export default function SessionCreateScreen() {
             )}
 
             <Text style={[s.fieldLabel, { marginTop: 16 }]}>KICKOFF TIME</Text>
-            <Pressable onPress={() => { setShowTimePicker(true); setShowDatePicker(false); }} style={s.pickerBtn}>
+            <Pressable onPress={() => { setTimeTbd(false); setShowTimePicker(true); setShowDatePicker(false); }} style={s.pickerBtn}>
               <FontAwesome name="clock-o" size={15} color={themeColor().pitchText} />
-              <Text style={s.pickerBtnText}>{fmt12Hour(sessionTime)}</Text>
+              <Text style={s.pickerBtnText}>{timeTbd ? "Time TBD" : fmt12Hour(sessionTime)}</Text>
             </Pressable>
-            {showTimePicker && (
+            <Pressable
+              onPress={() => { setTimeTbd(!timeTbd); setShowTimePicker(false); }}
+              style={[s.chip, timeTbd && s.chipActive, { alignSelf: "flex-start", marginTop: 8 }]}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: timeTbd }}
+            >
+              <Text style={[s.chipText, timeTbd && s.chipTextActive]}>Time TBD, set it later</Text>
+            </Pressable>
+            {showTimePicker && !timeTbd && (
               <DateTimePicker
                 value={sessionTime}
                 mode="time"
@@ -499,7 +521,7 @@ export default function SessionCreateScreen() {
             </View>
             <View style={s.reviewRow}>
               <Text style={s.reviewLabel}>Kickoff</Text>
-              <Text style={s.reviewValue}>{fmt12Hour(sessionTime)}</Text>
+              <Text style={s.reviewValue}>{timeTbd ? "Time TBD" : `${fmt12Hour(sessionTime)} ET`}</Text>
             </View>
             <View style={s.reviewRow}>
               <Text style={s.reviewLabel}>Players</Text>

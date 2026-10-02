@@ -1,5 +1,5 @@
-import DateTimePicker from "@/components/DateTimePicker";
-import { fmtPickupDtEt } from "@/lib/pickupPublic";
+import DateTimePicker, { easternDateOfPickerValue } from "@/components/DateTimePicker";
+import { fmtPickupDateTimeEt } from "@/lib/pickup/runStartAtDisplay";
 import { hapticTap } from "@/lib/haptics";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useEffect, useState } from "react";
@@ -20,6 +20,7 @@ export type EditRunSheetProps = {
   visible: boolean;
   busy: boolean;
   initialStartAt: string;
+  initialTimeTbd: boolean;
   initialCapacity: number;
   initialFeeCents: number;
   statusLabel: string;
@@ -31,6 +32,7 @@ export default function EditRunSheet({
   visible,
   busy,
   initialStartAt,
+  initialTimeTbd,
   initialCapacity,
   initialFeeCents,
   statusLabel,
@@ -40,15 +42,17 @@ export default function EditRunSheet({
   useThemedStyles(publish_styles);
 
   const [startAt, setStartAt] = useState(initialStartAt);
+  const [timeTbd, setTimeTbd] = useState(initialTimeTbd);
   const [capacity, setCapacity] = useState(String(initialCapacity));
   const [feeDollars, setFeeDollars] = useState(((initialFeeCents || 0) / 100).toFixed(2));
 
   useEffect(() => {
     if (!visible) return;
     setStartAt(initialStartAt);
+    setTimeTbd(initialTimeTbd);
     setCapacity(String(initialCapacity));
     setFeeDollars(((initialFeeCents || 0) / 100).toFixed(2));
-  }, [visible, initialStartAt, initialCapacity, initialFeeCents]);
+  }, [visible, initialStartAt, initialTimeTbd, initialCapacity, initialFeeCents]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -62,7 +66,21 @@ export default function EditRunSheet({
             </Pressable>
           </View>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            <DateTimePicker label="Date & time (ET)" value={startAt} onChange={setStartAt} prominent />
+            <DateTimePicker
+              label={timeTbd ? "Date (ET)" : "Date & time (ET)"}
+              value={startAt}
+              onChange={setStartAt}
+              timeTbd={timeTbd}
+              prominent
+            />
+            <Pressable
+              onPress={() => setTimeTbd(!timeTbd)}
+              style={[styles.tbdToggle, timeTbd && styles.tbdToggleOn]}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: timeTbd }}
+            >
+              <Text style={[styles.tbdToggleText, timeTbd && styles.tbdToggleTextOn]}>Time TBD</Text>
+            </Pressable>
             <Text style={styles.label}>Capacity</Text>
             <TextInput
               style={styles.input}
@@ -80,7 +98,7 @@ export default function EditRunSheet({
               placeholderTextColor={themeColor().muted}
             />
             <Text style={styles.hint}>
-              Current kickoff: {initialStartAt ? fmtPickupDtEt(initialStartAt) : "—"} · Status: {statusLabel}
+              Current kickoff: {initialStartAt ? fmtPickupDateTimeEt(initialStartAt, initialTimeTbd) : "—"} · Status: {statusLabel}
             </Text>
             <Pressable
               disabled={busy}
@@ -88,7 +106,8 @@ export default function EditRunSheet({
                 void hapticTap();
                 const cap = Number(capacity);
                 const fee = Math.round(Number(feeDollars) * 100);
-                onSave({ start_at: startAt.trim(), capacity: cap, fee_cents: fee });
+                const start = timeTbd ? easternDateOfPickerValue(startAt) : startAt.trim();
+                onSave({ start_at: start, capacity: cap, fee_cents: fee });
               }}
               style={({ pressed }) => [
                 styles.primaryBtn,
@@ -134,6 +153,17 @@ function make_styles() {
     color: themeColor().text,
     fontSize: 16, fontFamily: "Inter_400Regular",
   },
+  tbdToggle: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: themeColor().line,
+  },
+  tbdToggleOn: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
+  tbdToggleText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  tbdToggleTextOn: { color: themeColor().pitchText },
   hint: { color: themeColor().muted, lineHeight: 20, marginTop: 12, marginBottom: 8, fontSize: 13, fontFamily: "Inter_400Regular" },
   primaryBtn: {
     marginTop: 16,

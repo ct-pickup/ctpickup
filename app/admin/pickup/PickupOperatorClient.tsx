@@ -28,6 +28,7 @@ import {
 } from "@/lib/admin/pickupRunLifecycle";
 import { labelPickupRunStatus } from "@/lib/admin/staffStatusLabels";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
+import { fmtPickupDateTimeEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { DateTime } from "luxon";
@@ -35,8 +36,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 const LIME = "var(--pitch)";
 
-function fmtEt(dt: string | null) {
+function fmtEt(dt: string | null, timeTbd = false) {
   if (!dt) return "No time set yet";
+  if (timeTbd) return fmtPickupDateTimeEt(dt, true);
   try {
     return new Date(dt).toLocaleString("en-US", {
       timeZone: "America/New_York",
@@ -52,16 +54,15 @@ function fmtEt(dt: string | null) {
   }
 }
 
-function fmtEtShort(dt: string | null | undefined) {
+function fmtEtShort(dt: string | null | undefined, timeTbd = false) {
   if (!dt) return "—";
   try {
     return new Date(dt).toLocaleString("en-US", {
       timeZone: "America/New_York",
       month: "short",
       day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
+      ...(timeTbd ? {} : { hour: "numeric", minute: "2-digit" }),
+    }) + (timeTbd ? " · Time TBD" : "");
   } catch {
     return "—";
   }
@@ -134,6 +135,8 @@ export default function PickupOperatorClient() {
   const [locationPreset, setLocationPreset] = useState<"" | "new_haven" | "new_rochelle" | "other">("");
   const [createServiceRegion, setCreateServiceRegion] = useState<"CT" | "NY" | "NJ" | "MD">("CT");
   const [createKickoffLocal, setCreateKickoffLocal] = useState("");
+  const [createTimeTbd, setCreateTimeTbd] = useState(false);
+  const [createKickoffDate, setCreateKickoffDate] = useState("");
   const [slotStart, setSlotStart] = useState("");
   const [slotLabel, setSlotLabel] = useState("");
   const [finalSlotId, setFinalSlotId] = useState("");
@@ -516,13 +519,26 @@ export default function PickupOperatorClient() {
               </select>
             </label>
             <label className="flex flex-col gap-1 text-small text-ink sm:col-span-2">
-              <span>Date &amp; time (Eastern)</span>
-              <input
-                type="datetime-local"
-                value={createKickoffLocal}
-                onChange={(e) => setCreateKickoffLocal(e.target.value)}
-                className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
-              />
+              <span>{createTimeTbd ? "Date (Eastern)" : "Date & time (Eastern)"}</span>
+              {createTimeTbd ? (
+                <input
+                  type="date"
+                  value={createKickoffDate}
+                  onChange={(e) => setCreateKickoffDate(e.target.value)}
+                  className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
+                />
+              ) : (
+                <input
+                  type="datetime-local"
+                  value={createKickoffLocal}
+                  onChange={(e) => setCreateKickoffLocal(e.target.value)}
+                  className="rounded-button border border-line bg-canvas px-3 py-2 text-small text-ink"
+                />
+              )}
+              <span className="flex items-center gap-2 text-caption text-muted">
+                <input type="checkbox" checked={createTimeTbd} onChange={(e) => setCreateTimeTbd(e.target.checked)} />
+                Time TBD (players see the date with “Time TBD”)
+              </span>
               <span className="text-caption text-muted">Stored in UTC; displayed in ET everywhere in admin.</span>
             </label>
             <label className="flex flex-col gap-1 text-small text-ink">
@@ -582,9 +598,11 @@ export default function PickupOperatorClient() {
           <button
             disabled={busy}
             onClick={() => {
-              const iso = parseEtDatetimeLocalToIso(createKickoffLocal);
+              const iso = createTimeTbd
+                ? (/^\d{4}-\d{2}-\d{2}$/.test(createKickoffDate) ? createKickoffDate : null)
+                : parseEtDatetimeLocalToIso(createKickoffLocal);
               if (!iso) {
-                setMsg("Pick a kickoff date and time (Eastern).");
+                setMsg(createTimeTbd ? "Pick a date (Eastern)." : "Pick a kickoff date and time (Eastern).");
                 return;
               }
               void act({
@@ -673,7 +691,7 @@ export default function PickupOperatorClient() {
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-small font-semibold text-ink">{String(r.title || "Pickup run")}</div>
-                        <div className="mt-1 text-caption text-muted">{fmtEt(r.start_at as string | null)}</div>
+                        <div className="mt-1 text-caption text-muted">{fmtEt(r.start_at as string | null, runTimeTbd(r))}</div>
                         <div className="mt-2 flex flex-wrap gap-2">
                           <span className="rounded-pill border border-line bg-overlay-subtle px-2 py-0.5 text-micro font-bold text-ink">
                             {isPublicPickupRunType(r.run_type) ? "Public" : "Select"}
@@ -782,7 +800,7 @@ export default function PickupOperatorClient() {
                                   action: "launch_outreach",
                                   run_id: id,
                                   run_link: origin ? `${origin.replace(/\/$/, "")}/pickup` : "/pickup",
-                                  date_or_tbd: r.start_at ? fmtEtShort(String(r.start_at)) : "TBD",
+                                  date_or_tbd: r.start_at ? fmtEtShort(String(r.start_at), runTimeTbd(r)) : "TBD",
                                 });
                               }}
                               className="rounded-pill border border-line bg-overlay px-3 py-1.5 text-caption font-semibold text-ink disabled:opacity-40"
@@ -876,7 +894,7 @@ export default function PickupOperatorClient() {
               <option value="">Choose a run…</option>
               {runs.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.title} · {labelPickupRunStatus(r.status)} · {fmtEt(r.start_at as string | null)}
+                  {r.title} · {labelPickupRunStatus(r.status)} · {fmtEt(r.start_at as string | null, runTimeTbd(r))}
                 </option>
               ))}
             </select>
@@ -887,7 +905,7 @@ export default function PickupOperatorClient() {
               <div className="flex flex-wrap items-center gap-2 text-small text-muted">
                 <span>{labelPickupRunStatus(String(selectedRun.status))}</span>
                 <span>·</span>
-                <span>{fmtEt(selectedRun.start_at as string | null)}</span>
+                <span>{fmtEt(selectedRun.start_at as string | null, runTimeTbd(selectedRun))}</span>
                 {selectedRun.is_current ? <span className="text-pitch-text">· on hub</span> : null}
               </div>
               <div className="text-caption text-muted">Run ID: {String(selectedRun.id)}</div>
@@ -1049,7 +1067,7 @@ export default function PickupOperatorClient() {
                     action: "launch_outreach",
                     run_id: selectedRunId,
                     run_link: origin ? `${origin.replace(/\/$/, "")}/pickup` : "/pickup",
-                    date_or_tbd: selectedRun.start_at ? fmtEtShort(String(selectedRun.start_at)) : "TBD",
+                    date_or_tbd: selectedRun.start_at ? fmtEtShort(String(selectedRun.start_at), runTimeTbd(selectedRun)) : "TBD",
                   });
                 }}
                 className="rounded-button bg-pitch px-4 py-2 text-caption font-semibold text-on-pitch disabled:opacity-50"

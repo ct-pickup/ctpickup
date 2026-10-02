@@ -30,68 +30,49 @@ export function easternDatetimeLocalToIsoUtc(raw: string): string | null {
   return iso ?? null;
 }
 
-function pad2(n: number): string {
-  return String(n).padStart(2, "0");
-}
-
 /**
- * Date-only planning `start_at`: midnight UTC on the given Y-M-D (no timezone math).
- * Matches `isPickupRunDateOnlyStartAt` / `fmtPickupDateFromDateOnlyStartAt` (UTC date portion).
+ * Time-TBD `start_at`: noon Eastern on the given calendar day (DST-aware), stored with `time_tbd = true`.
+ * Noon keeps the Eastern date stable for display, seasons and day grouping.
  */
-export function pickupDateOnlyStartAtFromEtCalendarParts(
-  year: number,
-  month: number,
-  day: number,
-): string {
-  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
-    throw new RangeError("Invalid date-only start_at calendar parts");
-  }
-  const y = Math.trunc(year);
-  const mo = Math.trunc(month);
-  const d = Math.trunc(day);
-  if (mo < 1 || mo > 12 || d < 1 || d > 31) {
-    throw new RangeError("Invalid date-only start_at calendar parts");
-  }
-  return `${y}-${pad2(mo)}-${pad2(d)}T00:00:00.000Z`;
+export function pickupTimeTbdStartAtFromEtCalendarParts(year: number, month: number, day: number): string {
+  const dt = DateTime.fromObject(
+    { year: Math.trunc(year), month: Math.trunc(month), day: Math.trunc(day), hour: 12 },
+    { zone: TZ },
+  );
+  const iso = dt.isValid && dt.day === Math.trunc(day) ? dt.toUTC().toISO() : null;
+  if (!iso) throw new RangeError("Invalid time-TBD start_at calendar parts");
+  return iso;
 }
 
-/** `poll_date` from admin UI (`YYYY-MM-DD`) → `start_at` date-only anchor. */
-export function pickupDateOnlyStartAtFromPollDateString(raw: string): string {
-  const s = raw.trim();
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-  if (!m) {
-    throw new RangeError("Invalid poll_date; expected YYYY-MM-DD");
-  }
-  return pickupDateOnlyStartAtFromEtCalendarParts(Number(m[1]), Number(m[2]), Number(m[3]));
+/** `YYYY-MM-DD` Eastern calendar day → time-TBD `start_at` (noon Eastern). */
+export function pickupTimeTbdStartAtFromDateString(raw: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw.trim());
+  if (!m) throw new RangeError("Invalid date; expected YYYY-MM-DD");
+  return pickupTimeTbdStartAtFromEtCalendarParts(Number(m[1]), Number(m[2]), Number(m[3]));
 }
 
-/** Derive date-only `start_at` from a kickoff instant (uses Eastern wall-clock date). */
-export function pickupDateOnlyStartAtFromEtInstant(isoUtc: string): string {
+/** Time-TBD `start_at` on the Eastern calendar day of a kickoff instant. */
+export function pickupTimeTbdStartAtFromEtInstant(isoUtc: string): string {
   const dt = DateTime.fromISO(isoUtc, { setZone: true }).setZone(TZ);
-  if (!dt.isValid) {
-    throw new RangeError("Invalid instant for date-only start_at");
-  }
-  return pickupDateOnlyStartAtFromEtCalendarParts(dt.year, dt.month, dt.day);
+  if (!dt.isValid) throw new RangeError("Invalid instant for time-TBD start_at");
+  return pickupTimeTbdStartAtFromEtCalendarParts(dt.year, dt.month, dt.day);
 }
 
+export type PickupStartInput = { start_at: string; time_tbd: boolean };
+
 /**
- * Parse admin pickup datetime input as Eastern wall time when ambiguous.
- * - `YYYY-MM-DD` → date-only anchor (midnight UTC on that Eastern calendar day)
+ * Parse a host/admin kickoff input. Eastern wall time when ambiguous.
+ * - `YYYY-MM-DD` (a day with no time) → noon Eastern on that day, `time_tbd: true`
  * - `YYYY-MM-DDTHH:mm` (no offset) → Eastern wall clock → UTC instant
- * - ISO with `Z` or offset → absolute instant (already UTC-correct)
+ * - ISO with `Z` or offset → absolute instant
  */
-export function parsePickupAdminDatetimeToUtcIso(raw: string): string | null {
+export function parsePickupStartInput(raw: string): PickupStartInput | null {
   const s = raw.trim();
   if (!s) return null;
 
-  const dateOnly = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (dateOnly) {
-    const year = Number(dateOnly[1]);
-    const month = Number(dateOnly[2]);
-    const day = Number(dateOnly[3]);
-    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
     try {
-      return pickupDateOnlyStartAtFromEtCalendarParts(year, month, day);
+      return { start_at: pickupTimeTbdStartAtFromDateString(s), time_tbd: true };
     } catch {
       return null;
     }
@@ -99,9 +80,32 @@ export function parsePickupAdminDatetimeToUtcIso(raw: string): string | null {
 
   if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) {
     const dt = DateTime.fromISO(s, { setZone: true });
-    if (!dt.isValid) return null;
-    return dt.toUTC().toISO();
+    const iso = dt.isValid ? dt.toUTC().toISO() : null;
+    return iso ? { start_at: iso, time_tbd: false } : null;
   }
 
-  return easternDatetimeLocalToIsoUtc(s);
+  const iso = easternDatetimeLocalToIsoUtc(s);
+  return iso ? { start_at: iso, time_tbd: false } : null;
+}
+
+/**
+ * Host session kickoff from the request body: `start_date` (`YYYY-MM-DD`, Eastern) with an optional
+ * `start_time` (`HH:mm`, Eastern), or a `start_at` value (see `parsePickupStartInput`). No time → time TBD.
+ */
+export function pickupStartFromHostBody(body: { start_date?: unknown; start_time?: unknown; start_at?: unknown }): PickupStartInput | null {
+  const date = body.start_date != null ? String(body.start_date).trim() : "";
+  if (date) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+    const time = body.start_time != null ? String(body.start_time).trim() : "";
+    if (!time) return parsePickupStartInput(date);
+    if (!/^\d{2}:\d{2}$/.test(time)) return null;
+    return parsePickupStartInput(`${date}T${time}`);
+  }
+  const raw = body.start_at != null ? String(body.start_at).trim() : "";
+  return raw ? parsePickupStartInput(raw) : null;
+}
+
+/** Admin datetime input → UTC ISO. A bare `YYYY-MM-DD` resolves to noon Eastern (time TBD). */
+export function parsePickupAdminDatetimeToUtcIso(raw: string): string | null {
+  return parsePickupStartInput(raw)?.start_at ?? null;
 }

@@ -14,6 +14,8 @@ type Props = {
   enforceFuture?: boolean;
   /** Larger trigger styling (e.g. create-run form). */
   prominent?: boolean;
+  /** Pick a day only: the label reads "Time TBD" and the time wheels are hidden. */
+  timeTbd?: boolean;
 };
 
 type PartsFromValueOptions = {
@@ -159,16 +161,6 @@ function parseEasternWallDatetimeLocal(raw: string): EtCal | null {
   return { year, month, day, hour24, minute };
 }
 
-function isUtcMidnightIso(s: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}T00:00:00(?:\.\d{3})?Z$/i.test(s.trim());
-}
-
-function utcCalendarDateFromIso(s: string): { year: number; month: number; day: number } | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})T00:00:00/i.exec(s.trim());
-  if (!m) return null;
-  return { year: Number(m[1]), month: Number(m[2]), day: Number(m[3]) };
-}
-
 function weekdayUtc(year: number, month: number, day: number): number {
   return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
 }
@@ -186,23 +178,11 @@ export function partsFromEasternInstant(value: string): EtParts {
     return defaultNextSundayEightPmEtParts();
   }
 
-  if (isUtcMidnightIso(trimmed)) {
-    const utcDate = utcCalendarDateFromIso(trimmed);
-    if (utcDate) {
-      const et = getEtCalendarParts(parsed);
-      // Date-only planning anchor: `2026-05-31T00:00:00Z` labels Sunday May 31, but ET shows Saturday 8 PM.
-      const etSaturday = weekdayUtc(et.year, et.month, et.day) === 6;
-      const utcSunday = weekdayUtc(utcDate.year, utcDate.month, utcDate.day) === 0;
-      const etEightPm = et.hour24 === 20 && et.minute === 0;
-      if (etEightPm && etSaturday && utcSunday) {
-        return { year: utcDate.year, month: utcDate.month, day: utcDate.day, hour12: 8, ampm: "PM", minute: 0 };
-      }
-      return etCalToEtParts(getEtCalendarParts(parsed));
-    }
-    return etCalToEtParts(getEtCalendarParts(parsed));
-  }
-
   return etCalToEtParts(getEtCalendarParts(parsed));
+}
+
+function withTimeTbd(label: string, timeTbd: boolean | undefined): string {
+  return timeTbd ? label.replace(/ · .*$/, " · Time TBD") : label;
 }
 
 /** Resolve any picker value to a UTC ISO instant (for comparisons and slot labels). */
@@ -333,6 +313,13 @@ export function formatDateTimePickerEtLabel(value: string): string {
   return `${weekday} ${month} ${dayNum} · ${timeEt} ET`;
 }
 
+/** Eastern calendar day (`YYYY-MM-DD`) of a picker value. */
+export function easternDateOfPickerValue(value: string): string {
+  if (!value.trim()) return "";
+  const p = partsFromEasternInstant(value);
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
+}
+
 export default function DateTimePicker({
   value,
   onChange,
@@ -341,6 +328,7 @@ export default function DateTimePicker({
   useNextSundayWhenEmpty = true,
   enforceFuture,
   prominent,
+  timeTbd,
 }: Props) {
   useThemedStyles(publish_styles);
 
@@ -368,8 +356,8 @@ export default function DateTimePicker({
 
   const previewEtLabel = useMemo(() => {
     const utcMs = selectionToUtcMs(year, month, day, hour12, ampm, minute);
-    return formatDateTimePickerEtLabel(new Date(utcMs).toISOString());
-  }, [year, month, day, hour12, ampm, minute]);
+    return withTimeTbd(formatDateTimePickerEtLabel(new Date(utcMs).toISOString()), timeTbd);
+  }, [year, month, day, hour12, ampm, minute, timeTbd]);
 
   useEffect(() => {
     const p = partsFromValue(value, partsOptions);
@@ -426,7 +414,7 @@ export default function DateTimePicker({
       : "";
 
   const display = effectiveValue.trim()
-    ? formatDateTimePickerEtLabel(effectiveValue)
+    ? withTimeTbd(formatDateTimePickerEtLabel(effectiveValue), timeTbd)
     : pollDateEt?.trim()
       ? "Tap to set time"
       : "Select poll date first";
@@ -460,7 +448,7 @@ export default function DateTimePicker({
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
         <View style={styles.overlay}>
           <View style={styles.sheet}>
-            <Text style={styles.title}>Select date & time (ET)</Text>
+            <Text style={styles.title}>{timeTbd ? "Select date (ET)" : "Select date & time (ET)"}</Text>
             <View style={styles.pickerRow}>
               <View style={styles.colWide}>
                 <Text style={styles.colLabel}>Month</Text>
@@ -498,9 +486,9 @@ export default function DateTimePicker({
               </View>
             </View>
 
-            <View style={styles.rowDivider} />
+            {timeTbd ? null : <View style={styles.rowDivider} />}
 
-            <View style={styles.pickerRow}>
+            {timeTbd ? null : <View style={styles.pickerRow}>
               <View style={styles.colMedium}>
                 <Text style={styles.colLabel}>Hour</Text>
                 <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -531,7 +519,7 @@ export default function DateTimePicker({
                   ))}
                 </ScrollView>
               </View>
-            </View>
+            </View>}
 
             <Text style={styles.preview}>{previewEtLabel}</Text>
 

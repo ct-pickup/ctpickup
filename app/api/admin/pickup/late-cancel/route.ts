@@ -4,6 +4,7 @@ import type Stripe from "stripe";
 import { recomputePickupStandingForUser } from "@/lib/pickup/standing/recomputePickupStanding";
 import { parseCancelledAt } from "@/lib/pickup/cancelledAt";
 import { pickupRefundCutoffMs } from "@/lib/pickup/runScheduling";
+import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 import { deletePendingWaitlistExpiringReminders, promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
 import {
   commitPlayerWithdrawal,
@@ -108,6 +109,7 @@ export async function POST(req: Request) {
     fee_cents: (runRes.data.fee_cents as number | null) ?? null,
     start_at: (runRes.data.start_at as string | null) ?? null,
     cancellation_deadline: (runRes.data.cancellation_deadline as string | null) ?? null,
+    time_tbd: (await fetchRunTimeTbdIds(admin, [run_id])).has(run_id),
   };
 
   const cancelledAt = parseCancelledAt(body?.cancelled_at, run, Date.now());

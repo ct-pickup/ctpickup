@@ -38,7 +38,8 @@ import {
   type ResultFormState,
 } from "@/lib/resultForm";
 import { invalidateMyRecord } from "@/lib/playerRecord";
-import { fmtPickupSlotChipEt, fmtPickupTimeEt } from "@/lib/pickup/runStartAtDisplay";
+import { fmtPickupSlotChipEt, fmtPickupTimeEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
+import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 import { setRunFieldPhoto } from "@/lib/photoUpload";
 import {
   averageStars,
@@ -63,6 +64,7 @@ type SessionDetail = {
   latitude: number | null;
   longitude: number | null;
   start_at: string;
+  time_tbd?: boolean;
   capacity: number;
   spots_taken: number;
   fee_cents: number;
@@ -146,21 +148,6 @@ function Toast({ message, id, bottom }: { message: string; id: number; bottom: n
       <Text style={s.toastText}>{message}</Text>
     </Animated.View>
   );
-}
-
-function fmt12Hour(iso: string): string {
-  const d = new Date(iso);
-  let h = d.getHours();
-  const m = d.getMinutes();
-  const ampm = h >= 12 ? "PM" : "AM";
-  h = h % 12 || 12;
-  return `${h}:${m.toString().padStart(2, "0")} ${ampm}`;
-}
-
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    weekday: "short", month: "short", day: "numeric", year: "numeric",
-  });
 }
 
 function playerName(a: Attendee): string {
@@ -317,9 +304,11 @@ export default function SessionDetailScreen() {
         .eq("id", id)
         .maybeSingle();
 
-      let resolved = runData as SessionDetail | null;
+      const tbdIds = runData ? await fetchRunTimeTbdIds(supabase, [id]) : new Set<string>();
+      let resolved = runData ? { ...(runData as SessionDetail), time_tbd: tbdIds.has(id) } : null;
       if (
         resolved?.status === "planning" &&
+        !resolved.time_tbd &&
         resolved.start_at &&
         new Date(resolved.start_at).getTime() < Date.now()
       ) {
@@ -332,7 +321,7 @@ export default function SessionDetailScreen() {
             "id,title,location_text,latitude,longitude,start_at,capacity,spots_taken,fee_cents,level,open_tier_rank,run_type,format,status,created_by,service_region,tier_session_id,tiered_pricing",
           )
           .maybeSingle();
-        if (updated) resolved = updated as SessionDetail;
+        if (updated) resolved = { ...(updated as SessionDetail), time_tbd: false };
         else resolved = { ...resolved, status: "active" };
       }
       if (resolved) setRun(resolved);
@@ -505,7 +494,7 @@ export default function SessionDetailScreen() {
         const joined =
           myRsvp?.status === "confirmed" || myRsvp?.status === "pending_payment";
         const host = resolved?.created_by === myUserId;
-        const startMs = resolved?.start_at ? new Date(resolved.start_at).getTime() : NaN;
+        const startMs = resolved?.start_at && !resolved.time_tbd ? new Date(resolved.start_at).getTime() : NaN;
         const thirtyMinPassed =
           Number.isFinite(startMs) && Date.now() >= startMs + 30 * 60 * 1000;
         const twoHoursPassed =
@@ -1176,7 +1165,7 @@ export default function SessionDetailScreen() {
       setInvitedIds((prev) => new Set([...prev, player.id]));
       const left = run ? Math.max(0, run.capacity - run.spots_taken) : 0;
       await Share.share({
-        message: `Join ${run?.title ?? "a CT Pickup session"} on ${fmtDate(run?.start_at ?? "")} at ${fmt12Hour(run?.start_at ?? "")} — ${left} spot${left === 1 ? "" : "s"} left. Download CT Pickup: https://apps.apple.com/app/id6766061001`,
+        message: `Join ${run?.title ?? "a CT Pickup session"} on ${fmtPickupSlotChipEt(run?.start_at, runTimeTbd(run))} — ${left} spot${left === 1 ? "" : "s"} left. Download CT Pickup: https://apps.apple.com/app/id6766061001`,
         url: `ctpickup://session/${id}`,
       });
     } catch {
@@ -1188,7 +1177,7 @@ export default function SessionDetailScreen() {
     try {
       const left = run ? Math.max(0, run.capacity - run.spots_taken) : 0;
       await Share.share({
-        message: `Join ${run?.title ?? "a CT Pickup session"} on ${fmtDate(run?.start_at ?? "")} at ${fmt12Hour(run?.start_at ?? "")} — ${left} spot${left === 1 ? "" : "s"} left. Download CT Pickup: https://apps.apple.com/app/id6766061001`,
+        message: `Join ${run?.title ?? "a CT Pickup session"} on ${fmtPickupSlotChipEt(run?.start_at, runTimeTbd(run))} — ${left} spot${left === 1 ? "" : "s"} left. Download CT Pickup: https://apps.apple.com/app/id6766061001`,
         url: `ctpickup://session/${id}`,
       });
     } catch {}
@@ -1220,7 +1209,10 @@ export default function SessionDetailScreen() {
 
       await load();
       if (j.status === "confirmed" && run) {
-        setToast({ id: Date.now(), text: `You're in. See you at ${fmtPickupTimeEt(run.start_at)}.` });
+        setToast({
+          id: Date.now(),
+          text: runTimeTbd(run) ? "You're in. Time TBD; we'll let you know." : `You're in. See you at ${fmtPickupTimeEt(run.start_at)}.`,
+        });
       } else if (j.status === "waitlist") {
         setToast({ id: Date.now(), text: "You're on the waitlist." });
       }
@@ -1259,6 +1251,7 @@ export default function SessionDetailScreen() {
   const isJoined = myStatus === "confirmed" || myStatus === "pending_payment";
   const formatLabel = run.format?.trim() || null;
   const sessionStarted = (() => {
+    if (runTimeTbd(run)) return false;
     const t = new Date(run.start_at).getTime();
     return Number.isFinite(t) && t < Date.now();
   })();
@@ -1382,7 +1375,7 @@ export default function SessionDetailScreen() {
               </View>
             ) : null}
 
-            <Text style={s.when}>{fmtPickupSlotChipEt(run.start_at)}</Text>
+            <Text style={s.when}>{fmtPickupSlotChipEt(run.start_at, runTimeTbd(run))}</Text>
             <Text style={s.fieldName}>{fieldName}</Text>
             {placeLine ? <Text style={s.place}>{placeLine}</Text> : null}
 

@@ -54,7 +54,7 @@ export function describePickupAutoStatus(
   if (!run) return null;
 
   const anchorMs = anchorStartAtMs(
-    { start_at: (run.start_at as string | null) ?? null },
+    { start_at: (run.start_at as string | null) ?? null, time_tbd: run.time_tbd === true },
     slots
   );
   const committed = countDistinctCommittedPlayers(availability);
@@ -227,7 +227,7 @@ export async function processAutoPickupRun(
   }[];
 
   const anchorMs = anchorStartAtMs(
-    { start_at: (run.start_at as string | null) ?? null },
+    { start_at: (run.start_at as string | null) ?? null, time_tbd: run.time_tbd === true },
     slots
   );
   if (anchorMs === null) return { messages };

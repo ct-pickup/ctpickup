@@ -40,14 +40,14 @@ export function buildPublicPickupTimeSlotsForNextDay(
 }
 
 /**
- * Placeholder `start_at` for public planning runs: next Eastern calendar day at midnight UTC
- * (date anchor only — poll slots hold real kickoff options until finalize).
+ * Placeholder `start_at` for public planning runs: noon Eastern on the next Eastern calendar day, saved with
+ * `time_tbd = true` (poll slots hold the real kickoff options until finalize).
  */
 export function publicPickupRunPlaceholderStartAt(
   now: DateTime = DateTime.now().setZone(TZ),
 ): string {
   const { year, month, day } = nextEasternCalendarDay(now);
-  const iso = DateTime.utc(year, month, day, 0, 0, 0, 0).toISO();
+  const iso = DateTime.fromObject({ year, month, day, hour: 12 }, { zone: TZ }).toUTC().toISO();
   if (!iso) {
     throw new RangeError("Invalid placeholder start_at for public pickup run");
   }

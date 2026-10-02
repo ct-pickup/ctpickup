@@ -17,7 +17,6 @@ import {
 import MapView, { Marker, type MapMarkerProps, Region } from "react-native-maps";
 import Svg, { Circle } from "react-native-svg";
 import * as Location from "expo-location";
-import { format, isToday, isTomorrow } from "date-fns";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 
@@ -25,6 +24,8 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { ChalkEmptyState } from "@/components/chalk";
 import PlayedWithRow, { usePlayedWith } from "@/components/pickup/PlayedWithRow";
 import type { PlayedWithSummary } from "@/lib/matchApi";
+import { fmtPickupWhenEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
+import { withRunTimeTbd } from "@/lib/pickup/runTimeTbd";
 import { headline, themeColor, useThemedStyles } from "@/theme";
 /* ---------------------------------------------------------------- tokens */
 
@@ -64,6 +65,7 @@ export type Session = {
   latitude: number | null;
   longitude: number | null;
   start_at: string;               // note: pickup_runs uses start_at, not starts_at
+  time_tbd?: boolean;
   run_type: string;               // '7v7', '6v6', etc.
   level: Level | null;
   capacity: number;
@@ -147,7 +149,7 @@ function useSessions(level: Level | "all") {
     const { data, error } = await q;
     if (error) setError("Could not load sessions. Pull to retry.");
     else {
-      setSessions(data as Session[]);
+      setSessions(await withRunTimeTbd(supabase, data as Session[]));
       setError(null);
     }
     setLoading(false);
@@ -355,13 +357,6 @@ function TrackingMarker({
 
 /* ------------------------------------------------------------ session card */
 
-function whenLabel(iso: string) {
-  const d = new Date(iso);
-  const t = format(d, "h:mm a");
-  if (isToday(d)) return `Today · ${t}`;
-  if (isTomorrow(d)) return `Tomorrow · ${t}`;
-  return `${format(d, "EEE MMM d")} · ${t}`;
-}
 
 function SessionCard({
   session,
@@ -378,7 +373,7 @@ function SessionCard({
   const full = left <= 0;
   const venue = session.location_private?.trim() || "Location TBD";
   const levelColor = session.level ? LEVEL_COLOR[session.level] : C().muted;
-  const live = isSessionLive(session.start_at);
+  const live = !runTimeTbd(session) && isSessionLive(session.start_at);
 
   return (
     <Pressable
@@ -404,7 +399,7 @@ function SessionCard({
       <Text style={styles.cardVenue} numberOfLines={1}>
         {venue}
       </Text>
-      <Text style={styles.cardWhen}>{whenLabel(session.start_at)}</Text>
+      <Text style={styles.cardWhen}>{fmtPickupWhenEt(session.start_at, runTimeTbd(session))}</Text>
       <PlayedWithRow summary={playedWith} style={styles.cardPlayedWith} />
 
       <View style={styles.cardBottomRow}>
@@ -615,7 +610,7 @@ export default function SessionMapScreen() {
         onPress={() => setSelectedId(null)}
       >
         {sessions.map((s, i) => {
-          const live = isSessionLive(s.start_at);
+          const live = !runTimeTbd(s) && isSessionLive(s.start_at);
           return (
             <TrackingMarker
               key={s.id}

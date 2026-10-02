@@ -16,6 +16,7 @@ import {
   jsonUnexpectedErrorResponse,
 } from "@/lib/server/publicApiRouteErrors";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,6 +53,7 @@ type RowOut = {
   title: string | null;
   status: string;
   start_at: string | null;
+  time_tbd: boolean;
   run_type: string | null;
   capacity: number;
   fee_cents: number;
@@ -175,6 +177,8 @@ export async function GET(req: Request) {
       console.error(`[api/${ROUTE}] pickup_run_rsvps:`, rsvpRes.error.message, rsvpRes.error);
     }
 
+    const timeTbdIds = await fetchRunTimeTbdIds(admin, ids);
+
     const confirmedByRun = new Map<string, number>();
     for (const row of rsvpRes.data || []) {
       const rid = String(row.run_id);
@@ -204,6 +208,7 @@ export async function GET(req: Request) {
           title: r.title,
           status: r.status,
           start_at: r.start_at,
+          time_tbd: timeTbdIds.has(String(r.id)),
           run_type: r.run_type,
           capacity: Number(r.capacity ?? 0),
           fee_cents: Number(r.fee_cents ?? 0),

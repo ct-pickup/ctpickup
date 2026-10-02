@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { splitLocation, type GameCardRun, type RunCrowd } from "@/components/games/GameCards";
 import type { AvatarPerson } from "@/components/PlayerAvatar";
 import { fetchMyRecord, recordPoints, type PlayerRecord } from "@/lib/playerRecord";
+import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 import { outcomeFor, privacyName, scoreLine, type Outcome, type TeamScores } from "@/lib/season";
 import { averageStars, fetchPlayerCards, type PlayerCard } from "@/lib/starRatings";
 
@@ -154,6 +155,7 @@ export async function fetchSeason(supabase: SupabaseClient, uid: string, accessT
     .sort((a, b) => String(a.start_at ?? "").localeCompare(String(b.start_at ?? "")))
     .slice(0, 8);
   const upcomingIds = upcomingRuns.map((r) => r.id);
+  const upcomingTbd = await fetchRunTimeTbdIds(supabase, upcomingIds);
 
   const past: PastGame[] = (record?.log ?? []).slice(0, PAST_LIMIT).map((g) => {
     const { field, town } = splitLocation(g.location_text, g.title);
@@ -220,6 +222,7 @@ export async function fetchSeason(supabase: SupabaseClient, uid: string, accessT
         id: r.id,
         title: r.title,
         start_at: r.start_at,
+        time_tbd: upcomingTbd.has(r.id),
         location_text: r.location_text,
         capacity: Math.max(0, Number(r.capacity ?? 0)),
         spots_taken: Math.max(0, Number(r.spots_taken ?? 0)),

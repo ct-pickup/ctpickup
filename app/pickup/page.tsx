@@ -13,6 +13,7 @@ import { PICKUP_REFUND_UI_NOTICE } from "@/lib/fees/refundPolicyCopy";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { fmtPickupDateTimeEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
 
 type PendingPickup =
   | { kind: "availability"; state: "available" | "declined"; slot_id: string | null }
@@ -28,13 +29,9 @@ function pill(status: string) {
   return "border-line bg-overlay-subtle text-muted";
 }
 
-function fmt(dt: string | null) {
+function fmt(dt: string | null, timeTbd = false) {
   if (!dt) return "TBD";
-  try {
-    return new Date(dt).toLocaleString();
-  } catch {
-    return "TBD";
-  }
+  return `${fmtPickupDateTimeEt(dt, timeTbd)}${timeTbd ? "" : " ET"}`;
 }
 
 export default function PickupPage() {
@@ -323,7 +320,7 @@ export default function PickupPage() {
 
               <div className="space-y-1 pt-2">
                 <div className="text-ink text-h3 font-serif font-semibold">{data.run.title}</div>
-                <div className="text-small text-muted">{fmt(data.run.start_at)}</div>
+                <div className="text-small text-muted">{fmt(data.run.start_at, runTimeTbd(data.run))}</div>
                 {token ? (
                   <div className="pt-2">
                     {reliabilityLoading ? (

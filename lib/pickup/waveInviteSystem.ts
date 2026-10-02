@@ -8,6 +8,7 @@ import {
 } from "@/lib/pickup/pickupPushNotifications";
 import { isSelectPickupRunType } from "@/lib/pickup/pickupRunType";
 import { anchorStartAtMs } from "@/lib/pickup/runScheduling";
+import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 import { updatePickupRunWaveSchedule } from "@/lib/pickup/pickupRunWavePostgrest";
 import { countAcceptedPickupRsvps } from "@/lib/pickup/waitlist";
 
@@ -512,7 +513,7 @@ export async function startSelectWaveOutreachOnHubPromote(
   const slotsRes = await admin.from("pickup_run_time_slots").select("start_at").eq("run_id", run_id);
   const slotRows = (slotsRes.data || []) as { start_at: string }[];
   const anchorMs = anchorStartAtMs(
-    { start_at: (run.start_at as string | null) ?? null },
+    { start_at: (run.start_at as string | null) ?? null, time_tbd: (await fetchRunTimeTbdIds(admin, [run_id])).has(run_id) },
     slotRows,
   );
   const hoursUntil =
@@ -620,7 +621,7 @@ export async function processDueWaveForRun(
   const slotsRes = await admin.from("pickup_run_time_slots").select("start_at").eq("run_id", run_id);
   const slotRows = (slotsRes.data || []) as { start_at: string }[];
   const anchorMs = anchorStartAtMs(
-    { start_at: (row.start_at as string | null) ?? null },
+    { start_at: (row.start_at as string | null) ?? null, time_tbd: (await fetchRunTimeTbdIds(admin, [run_id])).has(run_id) },
     slotRows,
   );
 

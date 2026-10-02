@@ -202,9 +202,13 @@ describe("seasons (Eastern time)", () => {
     expect(currentSeason(Date.parse("2026-12-01T05:30:00Z"))).toBe("Winter 2026\u201327");
   });
 
-  it("reads a date-only start_at (UTC midnight) as that calendar day", () => {
-    expect(et("2026-12-01T00:00:00+00:00")).toBe("Winter 2026\u201327");
-    expect(et("2026-09-01T00:00:00.000Z")).toBe("Fall 2026");
+  it("reads a midnight UTC start_at as the evening before in Eastern time", () => {
+    // 8pm EDT Aug 31 and 7pm EST Nov 30 are midnight UTC on the 1st.
+    expect(et("2026-09-01T00:00:00.000Z")).toBe("Summer 2026");
+    expect(et("2026-12-01T00:00:00+00:00")).toBe("Fall 2026");
+    // Time-TBD runs store noon Eastern on their day.
+    expect(et("2026-09-01T16:00:00Z")).toBe("Fall 2026");
+    expect(et("2026-12-01T17:00:00Z")).toBe("Winter 2026\u201327");
     expect(et(null)).toBeNull();
     expect(et("not a date")).toBeNull();
   });
@@ -213,8 +217,8 @@ describe("seasons (Eastern time)", () => {
     const sql = readFileSync(path.join(__dirname, "../../supabase/migrations/20261003000000_points_events.sql"), "utf8");
     expect(sql).toContain("'Winter ' || y || '\u2013' || lpad(((y + 1) % 100)::text, 2, '0')");
     expect(sql).toContain("'Winter ' || (y - 1) || '\u2013' || lpad((y % 100)::text, 2, '0')");
-    expect(sql).toContain("(p_start_at at time zone 'UTC')::time = time '00:00:00'");
-    expect(sql).toContain("p_start_at at time zone 'America/New_York'");
+    expect(sql).toContain("select p_start_at at time zone 'America/New_York' as ts");
+    expect(sql).not.toMatch(/at time zone 'UTC'/i);
   });
 });
 

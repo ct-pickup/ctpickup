@@ -1,5 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
-import { fmtPickupDt } from "@/lib/pickupPublic";
+import { fmtPickupDt, fmtPickupDtEt } from "@/lib/pickupPublic";
+import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { headline, themeColor, useThemedStyles } from "@/theme";
@@ -17,6 +18,7 @@ type PickupRunRow = {
   title: string | null;
   status: string;
   start_at: string | null;
+  time_tbd?: boolean;
   created_at: string;
 };
 
@@ -109,7 +111,8 @@ export default function PickupStatusScreen() {
 
     const g = globalRes.error ? null : ((globalRes.data as RunUpdateRow | null) ?? null);
     setGlobalUpdate(g);
-    setRun(runRes.error ? null : runRow);
+    const runTbd = runRow ? await fetchRunTimeTbdIds(supabase, [runRow.id]) : new Set<string>();
+    setRun(runRes.error || !runRow ? null : { ...runRow, time_tbd: runTbd.has(runRow.id) });
     setRunUpdate(latestRunUpdate);
     setFeed(feedRes.error ? [] : ((feedRes.data as RunUpdateRow[] | null) ?? []));
   }, [supabase]);
@@ -189,7 +192,7 @@ export default function PickupStatusScreen() {
                   <Text style={[styles.statusPillText, runPill?.text]}>{runPill?.label}</Text>
                 </View>
                 <Text style={styles.metaTime} numberOfLines={1}>
-                  {fmtPickupDt(run.start_at)}
+                  {fmtPickupDtEt(run.start_at, run.time_tbd === true)}
                 </Text>
               </View>
               <Text style={styles.runTitle}>{typeof run.title === "string" && run.title.trim() ? run.title : "Pickup run"}</Text>

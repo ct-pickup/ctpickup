@@ -817,7 +817,7 @@ export default function AdminPickupOpsScreen() {
                 </View>
               </View>
               <Text style={styles.cardEt}>
-                {fmtPickupRunScheduleEt(s(row.start_at), s(row.status), s(row.final_slot_id) || null)}
+                {fmtPickupRunScheduleEt(s(row.start_at), s(row.status), s(row.final_slot_id) || null, row.time_tbd === true)}
               </Text>
               <Text style={styles.cardVenue} numberOfLines={2}>
                 {venueLine(row)}
@@ -1166,6 +1166,7 @@ export default function AdminPickupOpsScreen() {
                     s(detailRun.start_at),
                     s(detailRun.status),
                     s(detailRun.final_slot_id) || null,
+                    detailRun.time_tbd === true,
                   )}
                 </Text>
                 <Text style={styles.detailVenue}>{venueLine(detailRun)}</Text>

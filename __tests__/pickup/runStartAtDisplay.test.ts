@@ -1,29 +1,76 @@
 import { describe, expect, it } from "vitest";
 import {
-  fmtPickupDateFromDateOnlyStartAt,
+  etDateKey,
+  fmtPickupDateTimeEt,
   fmtPickupRunDateDisplay,
-  isPickupRunDateOnlyStartAt,
+  fmtPickupSlotChipEt,
+  fmtPickupTimeEt,
+  fmtPickupWhenEt,
+  runTimeTbd,
 } from "@/lib/pickup/runStartAtDisplay";
+import { seasonForStartAt } from "@/lib/pickup/points";
 
-describe("isPickupRunDateOnlyStartAt", () => {
-  it("recognizes midnight UTC anchors with Z or +00:00", () => {
-    expect(isPickupRunDateOnlyStartAt("2026-06-03T00:00:00Z")).toBe(true);
-    expect(isPickupRunDateOnlyStartAt("2026-06-03T00:00:00.000Z")).toBe(true);
-    expect(isPickupRunDateOnlyStartAt("2026-06-03T00:00:00+00:00")).toBe(true);
-    expect(isPickupRunDateOnlyStartAt("2026-06-03")).toBe(true);
+const norm = (s: string) => s.replace(/\u202f/g, " ");
+
+describe("midnight UTC is a real evening kickoff in Eastern time", () => {
+  it("2026-07-15T00:00:00Z is 8:00 PM Tue Jul 14 (EDT)", () => {
+    const iso = "2026-07-15T00:00:00Z";
+    expect(norm(fmtPickupTimeEt(iso))).toBe("8:00 PM");
+    expect(norm(fmtPickupSlotChipEt(iso))).toBe("Tue, Jul 14 · 8:00 PM");
+    expect(fmtPickupRunDateDisplay(iso)).toBe("Tue, Jul 14, 2026");
+    expect(etDateKey(iso)).toBe("2026-07-14");
   });
 
-  it("does not treat Eastern kickoff instants as date-only", () => {
-    expect(isPickupRunDateOnlyStartAt("2026-05-26T00:00:00.000Z")).toBe(true);
-    expect(isPickupRunDateOnlyStartAt("2026-05-26T12:00:00.000Z")).toBe(false);
+  it("2026-01-15T00:00:00Z is 7:00 PM Wed Jan 14 (EST)", () => {
+    const iso = "2026-01-15T00:00:00+00:00";
+    expect(norm(fmtPickupTimeEt(iso))).toBe("7:00 PM");
+    expect(norm(fmtPickupSlotChipEt(iso))).toBe("Wed, Jan 14 · 7:00 PM");
+    expect(norm(fmtPickupDateTimeEt(iso))).toBe("Wed, Jan 14, 2026, 7:00 PM");
   });
 });
 
-describe("fmtPickupRunDateDisplay", () => {
-  it("shows the UTC calendar day for date-only anchors", () => {
-    expect(fmtPickupDateFromDateOnlyStartAt("2026-06-03T00:00:00Z")).toMatch(/Jun 3, 2026/);
-    expect(fmtPickupDateFromDateOnlyStartAt("2026-06-03T00:00:00+00:00")).toMatch(/Jun 3, 2026/);
-    expect(fmtPickupRunDateDisplay("2026-06-03T00:00:00+00:00")).toMatch(/Jun 3, 2026/);
-    expect(fmtPickupRunDateDisplay("2026-06-03T00:00:00+00:00")).not.toMatch(/Jun 2/);
+describe("time-TBD runs", () => {
+  it("show Time TBD on the right Eastern date (noon ET), across DST changes", () => {
+    expect(fmtPickupSlotChipEt("2026-07-15T16:00:00.000Z", true)).toBe("Wed, Jul 15 · Time TBD");
+    expect(fmtPickupSlotChipEt("2026-03-08T16:00:00.000Z", true)).toBe("Sun, Mar 8 · Time TBD");
+    expect(fmtPickupSlotChipEt("2026-11-01T17:00:00.000Z", true)).toBe("Sun, Nov 1 · Time TBD");
+    expect(fmtPickupDateTimeEt("2026-01-15T17:00:00.000Z", true)).toBe("Thu, Jan 15, 2026 · Time TBD");
+    expect(fmtPickupTimeEt("2026-01-15T17:00:00.000Z", true)).toBe("Time TBD");
+  });
+
+  it("reads time_tbd strictly; a missing column is not TBD", () => {
+    expect(runTimeTbd({ time_tbd: true })).toBe(true);
+    expect(runTimeTbd({ time_tbd: false })).toBe(false);
+    expect(runTimeTbd({})).toBe(false);
+    expect(runTimeTbd(null)).toBe(false);
+  });
+});
+
+describe("near midnight Eastern", () => {
+  it("11:30 PM ET stays on its Eastern day", () => {
+    const iso = "2026-07-15T03:30:00Z";
+    expect(norm(fmtPickupSlotChipEt(iso))).toBe("Tue, Jul 14 · 11:30 PM");
+    expect(etDateKey(iso)).toBe("2026-07-14");
+  });
+
+  it("12:15 AM ET is the next Eastern day", () => {
+    const iso = "2026-07-15T04:15:00Z";
+    expect(norm(fmtPickupSlotChipEt(iso))).toBe("Wed, Jul 15 · 12:15 AM");
+    expect(etDateKey(iso)).toBe("2026-07-15");
+  });
+});
+
+describe("fmtPickupWhenEt", () => {
+  const now = Date.parse("2026-07-14T14:00:00Z");
+  it("uses Eastern today and tomorrow", () => {
+    expect(norm(fmtPickupWhenEt("2026-07-15T00:00:00Z", false, now))).toBe("Today · 8:00 PM");
+    expect(fmtPickupWhenEt("2026-07-15T16:00:00Z", true, now)).toBe("Tomorrow · Time TBD");
+    expect(norm(fmtPickupWhenEt("2026-07-17T00:00:00Z", false, now))).toBe("Thu, Jul 16 · 8:00 PM");
+  });
+});
+
+describe("season by Eastern date", () => {
+  it("an Aug 31 8pm EDT game is Summer 2026", () => {
+    expect(seasonForStartAt("2026-09-01T00:00:00Z")).toBe("Summer 2026");
   });
 });

@@ -12,7 +12,8 @@ import {
 import MapView, { Marker, type Region } from "react-native-maps";
 import Svg, { Circle } from "react-native-svg";
 import { Stack, useRouter } from "expo-router";
-import { format, isToday, isTomorrow } from "date-fns";
+import { fmtPickupWhenEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
+import { withRunTimeTbd } from "@/lib/pickup/runTimeTbd";
 import * as Location from "expo-location";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useAuth } from "@/context/AuthContext";
@@ -653,6 +654,7 @@ type SessionPin = {
   spots_taken: number;
   capacity: number;
   start_at: string;
+  time_tbd?: boolean;
   location_private: string | null;
   fee_cents: number;
 };
@@ -821,7 +823,7 @@ function useSessionPins() {
         .not("longitude", "is", null)
         .order("start_at", { ascending: true })
         .limit(60);
-      if (data) setSessions(data as SessionPin[]);
+      if (data) setSessions(await withRunTimeTbd(supabase, data as SessionPin[]));
       setLoading(false);
     })();
   }, [supabase]);
@@ -1252,12 +1254,7 @@ function SessionDetailCard({
 
   const left = session.capacity - session.spots_taken;
   const full = left <= 0;
-  const d = new Date(session.start_at);
-  const when = isToday(d)
-    ? `Today · ${format(d, "h:mm a")}`
-    : isTomorrow(d)
-      ? `Tomorrow · ${format(d, "h:mm a")}`
-      : `${format(d, "EEE MMM d")} · ${format(d, "h:mm a")}`;
+  const when = fmtPickupWhenEt(session.start_at, runTimeTbd(session));
 
   return (
     <View style={s.popupCard}>

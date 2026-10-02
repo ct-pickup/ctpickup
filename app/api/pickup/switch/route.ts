@@ -22,8 +22,18 @@ import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
+import { fetchRunTimeTbdIds, writeWithOptionalTimeTbd } from "@/lib/pickup/runTimeTbd";
+import { parsePickupStartInput, type PickupStartInput } from "@/lib/datetime/easternWallTime";
 
 export const runtime = "nodejs";
+
+/** A day alone (`YYYY-MM-DD`) is time TBD; a wall time without an offset is Eastern. */
+function parseKickoffInput(raw: string): PickupStartInput | null {
+  const parsed = parsePickupStartInput(raw);
+  if (parsed) return parsed;
+  const ms = Date.parse(raw);
+  return Number.isFinite(ms) ? { start_at: new Date(ms).toISOString(), time_tbd: false } : null;
+}
 
 
 type ListCounts = {
@@ -144,9 +154,10 @@ export async function GET(req: Request) {
       }
     }
 
+    const tbdIds = await fetchRunTimeTbdIds(admin, runIds);
     const enrichedRuns = runs.map((r) => {
       const id = r.id as string;
-      return { ...r, list_counts: countsByRun.get(id) ?? emptyListCounts() };
+      return { ...r, time_tbd: tbdIds.has(id), list_counts: countsByRun.get(id) ?? emptyListCounts() };
     });
 
     const withResults = await enrichRunsWithResultFlags(admin, enrichedRuns as Array<Record<string, unknown>>);
@@ -425,24 +436,26 @@ export async function POST(req: Request) {
     const service_region = regionRaw && HUB_REGIONS.has(regionRaw) ? regionRaw : null;
 
     let start_at: string | null = null;
+    let time_tbd = false;
     const rawKickoff = body.start_at != null ? String(body.start_at).trim() : "";
     if (rawKickoff) {
-      const parsedMs = Date.parse(rawKickoff);
-      if (!Number.isFinite(parsedMs)) {
+      const kickoff = parseKickoffInput(rawKickoff);
+      if (!kickoff) {
         return NextResponse.json({ error: "Invalid start_at datetime" }, { status: 400 });
       }
-      start_at = new Date(parsedMs).toISOString();
+      ({ start_at, time_tbd } = kickoff);
     }
 
     const now = new Date().toISOString();
 
-    const ins = await admin
+    const ins = await writeWithOptionalTimeTbd((withTimeTbd) => admin
       .from("pickup_runs")
       .insert({
         title,
         run_type,
         status: "planning",
         start_at,
+        ...(withTimeTbd ? { time_tbd } : {}),
         capacity,
         fee_cents,
         currency,
@@ -461,7 +474,7 @@ export async function POST(req: Request) {
         updated_at: now,
       })
       .select("id")
-      .maybeSingle();
+      .maybeSingle());
 
     console.log({
       tag: "pickup-switch",
@@ -478,7 +491,7 @@ export async function POST(req: Request) {
     const newId = ins.data?.id as string | undefined;
     if (!newId) return NextResponse.json({ error: "Insert returned no id" }, { status: 500 });
 
-    if (start_at) {
+    if (start_at && !time_tbd) {
       const slotIns = await admin.from("pickup_run_time_slots").upsert({
         run_id: newId,
         start_at,
@@ -549,7 +562,7 @@ export async function POST(req: Request) {
 
     const slotsForGate = await admin.from("pickup_run_time_slots").select("start_at").eq("run_id", run_id);
     const slotRowsGate = (slotsForGate.data || []) as { start_at: string }[];
-    const anchorMsGate = anchorStartAtMs({ start_at: (run.start_at as string | null) ?? null }, slotRowsGate);
+    const anchorMsGate = anchorStartAtMs({ start_at: (run.start_at as string | null) ?? null, time_tbd: run.time_tbd === true }, slotRowsGate);
     if (anchorMsGate === null) {
       return NextResponse.json({ error: "Add at least one kickoff slot before launching outreach." }, { status: 400 });
     }
@@ -674,16 +687,17 @@ export async function POST(req: Request) {
 
     const cancellation_deadline = computeCancellationDeadline(slotStartAt);
 
-    const up = await admin
+    const up = await writeWithOptionalTimeTbd((withTimeTbd) => admin
       .from("pickup_runs")
       .update({
         final_slot_id: slot_id,
         start_at: slotStartAt,
+        ...(withTimeTbd ? { time_tbd: false } : {}),
         status: "active",
         cancellation_deadline,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", run_id);
+      .eq("id", run_id));
 
     if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
 
@@ -788,17 +802,20 @@ export async function POST(req: Request) {
     if (body.start_at != null) {
       const rawKickoff = String(body.start_at).trim();
       if (rawKickoff) {
-        const parsedMs = Date.parse(rawKickoff);
-        if (!Number.isFinite(parsedMs)) {
+        const kickoff = parseKickoffInput(rawKickoff);
+        if (!kickoff) {
           return NextResponse.json({ error: "Invalid start_at datetime" }, { status: 400 });
         }
-        patch.start_at = new Date(parsedMs).toISOString();
+        patch.start_at = kickoff.start_at;
+        patch.time_tbd = kickoff.time_tbd;
       }
     }
 
-
-
-    const up = await admin.from("pickup_runs").update(patch).eq("id", run_id);
+    const patchWithoutTimeTbd = { ...patch };
+    delete patchWithoutTimeTbd.time_tbd;
+    const up = await writeWithOptionalTimeTbd((withTimeTbd) =>
+      admin.from("pickup_runs").update(withTimeTbd ? patch : patchWithoutTimeTbd).eq("id", run_id),
+    );
     console.log({
       tag: "pickup-switch",
       message: "edit_run_update",

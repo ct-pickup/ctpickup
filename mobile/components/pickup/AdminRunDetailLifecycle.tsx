@@ -10,6 +10,7 @@ import {
 } from "@/lib/adminApi";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
 import { confirmAdminCancelRun } from "@/lib/pickup/adminCancelRun";
+import { runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
 import { isPublicPickupRunType } from "@/lib/pickupRunType";
 import type { PickupTeam } from "@/lib/pickupTeamBalance";
 import type { Router } from "expo-router";
@@ -317,6 +318,7 @@ export default function AdminRunDetailLifecycle({
         visible={editOpen}
         busy={actionBusy}
         initialStartAt={s(run.start_at)}
+        initialTimeTbd={runTimeTbd(run)}
         initialCapacity={Number(run.capacity ?? 18) || 18}
         initialFeeCents={Number(run.fee_cents ?? 0) || 0}
         statusLabel={status}

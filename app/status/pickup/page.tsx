@@ -1,5 +1,7 @@
 import PageTop from "@/components/PageTop";
 import { createClient } from "@supabase/supabase-js";
+import { fmtPickupSlotChipEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
+import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +10,7 @@ type PickupRun = {
   title: string | null;
   status: "planning" | "likely_on" | "active" | string;
   start_at: string | null;
+  time_tbd?: boolean;
   created_at: string;
   run_type?: string | null;
 };
@@ -106,6 +109,11 @@ async function loadData() {
 
     const rows = (runRes.data as PickupRun[] | null) ?? [];
     run = rows[0] ?? null;
+  }
+
+  if (run?.id) {
+    const tbd = await fetchRunTimeTbdIds(supabase, [run.id]);
+    run = { ...run, time_tbd: tbd.has(run.id) };
   }
 
   // 3) latest update for that run
@@ -211,7 +219,7 @@ export default async function PickupStatusPage() {
                 </div>
 
                 <div className="text-small text-muted">
-                  {run.start_at ? formatNY(run.start_at) : "TBD"}
+                  {run.start_at ? (runTimeTbd(run) ? fmtPickupSlotChipEt(run.start_at, true) : formatNY(run.start_at)) : "TBD"}
                 </div>
               </div>
 

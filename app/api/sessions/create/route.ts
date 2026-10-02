@@ -4,7 +4,10 @@ import {
   promotePlanningRunsPastStart,
   scheduleSessionRateRemindersForRun,
 } from "@/lib/pickup/sessionLifecycle";
+import { etDateKey, fmtPickupSlotChipEt } from "@/lib/pickup/runStartAtDisplay";
+import { writeWithOptionalTimeTbd } from "@/lib/pickup/runTimeTbd";
 import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
+import { pickupStartFromHostBody } from "@/lib/datetime/easternWallTime";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
@@ -46,11 +49,15 @@ export async function POST(req: Request) {
   const location_text = String(body.location_text ?? "").trim();
   if (!location_text) return NextResponse.json({ error: "location_text is required." }, { status: 400 });
 
-  const start_at_raw = String(body.start_at ?? "").trim();
-  if (!start_at_raw) return NextResponse.json({ error: "start_at is required." }, { status: 400 });
-  const start_at = new Date(start_at_raw);
-  if (isNaN(start_at.getTime())) return NextResponse.json({ error: "Invalid start_at." }, { status: 400 });
-  if (start_at < new Date()) return NextResponse.json({ error: "start_at must be in the future." }, { status: 400 });
+  if (!String(body.start_date ?? body.start_at ?? "").trim()) {
+    return NextResponse.json({ error: "start_date or start_at is required." }, { status: 400 });
+  }
+  const kickoff = pickupStartFromHostBody(body);
+  if (!kickoff) return NextResponse.json({ error: "Invalid start date or time." }, { status: 400 });
+  const { start_at, time_tbd } = kickoff;
+  if (time_tbd ? etDateKey(start_at)! < etDateKey(Date.now())! : Date.parse(start_at) < Date.now()) {
+    return NextResponse.json({ error: "start_at must be in the future." }, { status: 400 });
+  }
 
   const capacity = Number(body.capacity ?? 10);
   if (!Number.isInteger(capacity) || capacity < 4 || capacity > 30) {
@@ -77,14 +84,15 @@ export async function POST(req: Request) {
   const title = `${host_name}'s ${format} Session`;
   const now = new Date().toISOString();
 
-  const { data: run, error: insertErr } = await admin
+  const { data: run, error: insertErr } = await writeWithOptionalTimeTbd((withTimeTbd) => admin
     .from("pickup_runs")
     .insert({
       title,
       location_text,
       latitude,
       longitude,
-      start_at: start_at.toISOString(),
+      start_at,
+      ...(withTimeTbd ? { time_tbd } : {}),
       capacity,
       spots_taken: 0,
       level: tierConfig.level,
@@ -102,7 +110,7 @@ export async function POST(req: Request) {
       updated_at: now,
     })
     .select("id")
-    .maybeSingle();
+    .maybeSingle());
 
   if (insertErr || !run) {
     console.error("[sessions/create] insert error", insertErr);
@@ -131,14 +139,9 @@ export async function POST(req: Request) {
       ).filter((id) => id !== user.id);
 
       if (recipientIds.length > 0) {
-        const sessionDate = start_at.toLocaleDateString("en-US", {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-        });
         await sendPushToUsers(admin, recipientIds, {
           title: "New session posted 🏃",
-          body: `${host_name} posted a ${format} session on ${sessionDate} in ${service_region}`,
+          body: `${host_name} posted a ${format} session on ${fmtPickupSlotChipEt(start_at, time_tbd)} in ${service_region}`,
           data: {
             screen: `session/${run.id}`,
             run_id: run.id,

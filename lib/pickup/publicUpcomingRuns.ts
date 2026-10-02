@@ -6,6 +6,8 @@ export type PublicPickupRunRow = {
   title: string | null;
   status: string;
   start_at: string | null;
+  /** Day chosen, kickoff not yet (`start_at` is noon Eastern). Absent before the column migration. */
+  time_tbd?: boolean | null;
   run_type: string | null;
   capacity: number | null;
   fee_cents: number | null;

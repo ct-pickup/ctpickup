@@ -6,6 +6,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "reac
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { headline, themeColor, useThemedStyles } from "@/theme";
+import { fmtPickupRunDateDisplay } from "@/lib/pickup/runStartAtDisplay";
 type Team = "A" | "B" | "C";
 
 type AwardSlot = "player" | "goalie" | "attacker" | "midfielder" | "defender";
@@ -31,10 +32,7 @@ function s(v: unknown): string {
 
 function fmtLong(iso: string | null): string {
   const t = (iso ?? "").trim();
-  if (!t) return "—";
-  const d = new Date(t);
-  if (Number.isNaN(d.getTime())) return t;
-  return d.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  return t ? fmtPickupRunDateDisplay(t) : "—";
 }
 
 function venueLine(locationPrivate: string | null): string {

@@ -1,4 +1,4 @@
-import { isPickupRunDateOnlyStartAt } from "@/lib/pickup/runStartAtDisplay";
+import { runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
 
 const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:?\d{2})$/;
 /** Tolerates a client clock running slightly ahead when the admin leaves the field at "now". */
@@ -8,9 +8,9 @@ export type CancelledAtCheck = { ok: true; ms: number } | { ok: false; error: st
 
 /**
  * When a player asked for their spot to be cancelled. Missing means now. Otherwise it must be a full ISO date-time
- * with a timezone, not in the future, and not after kickoff (checked only when start_at is a real kickoff time).
+ * with a timezone, not in the future, and not after kickoff (checked only when the run has a kickoff time, not TBD).
  */
-export function parseCancelledAt(raw: unknown, run: { start_at: string | null }, nowMs: number): CancelledAtCheck {
+export function parseCancelledAt(raw: unknown, run: { start_at: string | null; time_tbd?: boolean | null }, nowMs: number): CancelledAtCheck {
   if (raw == null || raw === "") return { ok: true, ms: nowMs };
   const s = typeof raw === "string" ? raw.trim() : "";
   const ms = ISO_DATE_TIME.test(s) ? new Date(s).getTime() : NaN;
@@ -19,7 +19,7 @@ export function parseCancelledAt(raw: unknown, run: { start_at: string | null },
   }
   if (ms > nowMs + FUTURE_SKEW_MS) return { ok: false, error: "cancelled_at cannot be in the future." };
   const start = run.start_at ? String(run.start_at) : "";
-  if (start && !isPickupRunDateOnlyStartAt(start)) {
+  if (start && !runTimeTbd(run)) {
     const kickoff = new Date(start).getTime();
     if (Number.isFinite(kickoff) && ms > kickoff) return { ok: false, error: "cancelled_at cannot be after kickoff." };
   }
