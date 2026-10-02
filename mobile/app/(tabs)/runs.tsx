@@ -41,6 +41,7 @@ import {
 import Animated, { FadeIn } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ChalkEmptyState } from "@/components/chalk";
 import { themeColor, useThemedStyles } from "@/theme";
 type PickupCreditItem = {
   id: string;
@@ -1071,12 +1072,20 @@ export default function RunsScreen() {
             </Pressable>
           </View>
         ) : regionRuns.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>
-              {listFilterZip && listFilterMaxDriveMinutes != null
-                ? `No runs in ${serviceRegionName(region)} or within your max drive time right now. Increase max drive time in your Profile.`
-                : `No runs scheduled for ${serviceRegionName(region)} right now. Check back soon.`}
-            </Text>
+          <View style={styles.emptyChalk}>
+            {listFilterZip && listFilterMaxDriveMinutes != null ? (
+              <ChalkEmptyState
+                graphic="box"
+                title={`No runs in ${serviceRegionName(region)} or within your max drive time right now.`}
+                body="Increase max drive time in your Profile."
+              />
+            ) : (
+              <ChalkEmptyState
+                graphic="box"
+                title={`No runs scheduled for ${serviceRegionName(region)} right now.`}
+                body="Check back soon."
+              />
+            )}
           </View>
         ) : (
           <>
@@ -1388,6 +1397,12 @@ function make_styles() {
     borderWidth: 1,
     borderColor: themeColor().line,
     backgroundColor: themeColor().overlaySubtle,
+  },
+  emptyChalk: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: themeColor().line,
+    backgroundColor: themeColor().card,
   },
   emptyTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
   emptyBody: { color: themeColor().muted, marginTop: 8, lineHeight: 22 },

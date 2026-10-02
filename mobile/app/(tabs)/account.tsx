@@ -49,6 +49,7 @@ import { PreferencesSection } from "@/components/account/PreferencesSection";
 import { ProfileSection } from "@/components/account/ProfileSection";
 import { ReferralSection } from "@/components/account/ReferralSection";
 import { VerificationRequestModal } from "@/components/account/VerificationRequestModal";
+import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
 import { themeColor, useThemedStyles } from "@/theme";
 import {
   accountStyles as styles, publish_accountStyles,
@@ -2051,9 +2052,13 @@ export default function AccountScreen() {
               </Pressable>
             </View>
             {recentSessions.length === 0 ? (
-              <Text style={s.emptyBackgroundText}>
-                No sessions yet. Join a run to get started.
-              </Text>
+              <ChalkEmptyState
+                graphic="box"
+                size="sm"
+                title="No sessions yet."
+                body="Join a run to get started."
+                style={s.mySessionsEmpty}
+              />
             ) : (
               <View>
                 {recentSessions.map((row, i) => {
@@ -2103,6 +2108,8 @@ export default function AccountScreen() {
               </View>
             )}
           </View>
+
+          <ChalkDivider style={s.sectionDivider} />
 
           {/* 4. ACCOUNT */}
           <View style={s.blockCard}>
@@ -2589,6 +2596,8 @@ function make_s() {
     borderColor: themeColor().line,
     padding: 16,
   },
+  mySessionsEmpty: { paddingVertical: 16 },
+  sectionDivider: { marginTop: 24 },
   mySessionsHeader: {
     flexDirection: "row",
     alignItems: "center",

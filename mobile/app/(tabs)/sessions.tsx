@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
 import { themeColor, useThemedStyles } from "@/theme";
 type AvatarPreview = { id: string; initials: string };
 
@@ -598,24 +599,21 @@ export default function SessionsTabScreen() {
             ) : null}
 
             {/* UPCOMING */}
-            <Text style={[styles.sectionTitle, { marginTop: live.length > 0 || showJoinCard ? 24 : 0 }]}>
-              Upcoming
-            </Text>
+            {live.length > 0 || showJoinCard ? <ChalkDivider style={styles.sectionDivider} /> : null}
+            <Text style={styles.sectionTitle}>Upcoming</Text>
             {upcoming.length === 0 ? (
               <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>
-                  {live.length > 0
-                    ? "No other upcoming sessions."
-                    : "No upcoming sessions yet."}
-                </Text>
-                {!showJoinCard ? (
-                  <Pressable
-                    onPress={() => (router.push as (href: string) => void)("/session-map")}
-                    style={styles.findBtn}
-                  >
-                    <Text style={styles.findBtnText}>Find a run →</Text>
-                  </Pressable>
-                ) : null}
+                <ChalkEmptyState
+                  graphic="box"
+                  size="sm"
+                  title={live.length > 0 ? "No other upcoming sessions." : "No upcoming sessions yet."}
+                  actionLabel={!showJoinCard ? "Find a run →" : undefined}
+                  onAction={
+                    !showJoinCard
+                      ? () => (router.push as (href: string) => void)("/session-map")
+                      : undefined
+                  }
+                />
               </View>
             ) : (
               <View style={{ gap: 8 }}>
@@ -653,10 +651,11 @@ export default function SessionsTabScreen() {
             )}
 
             {/* PAST */}
-            <Text style={[styles.sectionTitle, { marginTop: 28 }]}>Past Sessions</Text>
+            <ChalkDivider style={styles.sectionDivider} />
+            <Text style={styles.sectionTitle}>Past Sessions</Text>
             {past.length === 0 ? (
               <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>No past sessions yet.</Text>
+                <ChalkEmptyState graphic="circle" size="sm" title="No past sessions yet." />
               </View>
             ) : (
               <View style={{ gap: 8 }}>
@@ -755,18 +754,8 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: themeColor().overlay,
-    padding: 16,
-    gap: 12,
   },
-  emptyText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
-  findBtn: {
-    alignSelf: "flex-start",
-    backgroundColor: themeColor().pitch,
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  findBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
+  sectionDivider: { marginTop: 20, marginBottom: 12 },
   joinCard: {
     flexDirection: "row",
     alignItems: "center",

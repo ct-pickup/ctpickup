@@ -283,7 +283,7 @@ export default function RunDetailScreen() {
           </View>
         </View>
         {showResults && winningTeam ? (
-          <Text style={styles.winningTeamHeadline}>🏆 Team {winningTeam} won</Text>
+          <Text style={styles.winningTeamHeadline}>Team {winningTeam} won</Text>
         ) : null}
         {outcome ? (
           <View style={[styles.pill, outcome === "Won" ? styles.pillWin : styles.pillLoss]}>

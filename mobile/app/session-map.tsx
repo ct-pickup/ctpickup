@@ -21,6 +21,7 @@ import { format, isToday, isTomorrow } from "date-fns";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 
+import { ChalkEmptyState } from "@/components/chalk";
 import { themeColor, useThemedStyles } from "@/theme";
 /* ---------------------------------------------------------------- tokens */
 
@@ -662,14 +663,14 @@ export default function SessionMapScreen() {
 
       {empty && (
         <View style={styles.emptyWrap}>
-          <Text style={styles.emptyTitle}>No sessions here yet</Text>
-          <Text style={styles.emptyBody}>
-            Host one and we'll fill it. Sessions in Fairfield County average 11 players within 48
-            hours of posting.
-          </Text>
-          <Pressable style={styles.emptyCta} onPress={() => router.push("/session-create")}>
-            <Text style={styles.emptyCtaText}>Host a session</Text>
-          </Pressable>
+          <ChalkEmptyState
+            graphic="circle"
+            size="sm"
+            title="No sessions here yet"
+            body="Host one and we'll fill it. Sessions in Fairfield County average 11 players within 48 hours of posting."
+            actionLabel="Host a session"
+            onAction={() => router.push("/session-create")}
+          />
         </View>
       )}
 
@@ -877,18 +878,7 @@ function make_styles() {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: C().hairline,
-    padding: 20,
   },
-  emptyTitle: { color: C().chalk, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "700" },
-  emptyBody: { color: C().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20, marginTop: 4 },
-  emptyCta: {
-    marginTop: 16,
-    backgroundColor: C().chalk,
-    paddingVertical: 12,
-    borderRadius: 999,
-    alignItems: "center",
-  },
-  emptyCtaText: { color: C().bg, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
 });
 }
 let styles = make_styles();

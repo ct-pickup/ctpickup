@@ -1393,7 +1393,7 @@ function YourAreaCard({
 
   return (
     <Pressable style={s.yourArea} onPress={() => onPress(nearest)}>
-      <Text style={s.yourAreaKicker}>📍 Your area</Text>
+      <Text style={s.yourAreaKicker}>Your area</Text>
       <Text style={s.yourAreaCity}>{nearest.shortName}</Text>
       <Text style={s.yourAreaStat}>
         {nearest.count} members · {nearest.upcomingSessions} upcoming sessions

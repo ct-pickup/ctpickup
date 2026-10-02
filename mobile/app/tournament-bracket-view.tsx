@@ -441,7 +441,7 @@ export default function TournamentBracketViewScreen() {
           [
             ["standings", "Standings"],
             ["bracket", "Bracket"],
-            ["scorers", "Top Scorers ⚽"],
+            ["scorers", "Top Scorers"],
           ] as const
         ).map(([id, label]) => (
           <Pressable

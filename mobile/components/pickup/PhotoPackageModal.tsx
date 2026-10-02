@@ -36,7 +36,7 @@ export function PhotoPackageModal({ visible, runName, feeCents, onConfirm }: Pro
 
           <View style={styles.row}>
             <View style={styles.rowTexts}>
-              <Text style={styles.rowTitle}>📸 Action Photos  +$5</Text>
+              <Text style={styles.rowTitle}>Action Photos  +$5</Text>
               <Text style={styles.rowSub}>
                 Get at least 5 action shots sent to your DM/email within 24hrs of the run
               </Text>

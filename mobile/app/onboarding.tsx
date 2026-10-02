@@ -19,10 +19,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ChalkBox, ChalkCenterCircle } from "@/components/chalk";
 import { themeColor, useThemedStyles } from "@/theme";
 type Slide =
   | { kind: "logo"; title: string; body: string }
-  | { kind: "emoji"; icon: string; title: string; body: string };
+  | { kind: "chalk"; graphic: "circle" | "box"; title: string; body: string };
 
 const SLIDES: Slide[] = [
   {
@@ -31,38 +32,38 @@ const SLIDES: Slide[] = [
     body: "Competitive pickup soccer across NY, CT, NJ, and MD. Find your run, join the community.",
   },
   {
-    kind: "emoji",
-    icon: "⚽",
+    kind: "chalk",
+    graphic: "circle",
     title: "Find Your Next Run",
     body: "Browse pickup runs in your state. Public runs are open to all approved players — just show up and play.",
   },
   {
-    kind: "emoji",
-    icon: "🎯",
+    kind: "chalk",
+    graphic: "box",
     title: "Earn Your Invite",
     body: "Select runs are invite-only. Show up consistently, play hard, and you'll get the call.",
   },
   {
-    kind: "emoji",
-    icon: "⚡",
+    kind: "chalk",
+    graphic: "circle",
     title: "Your Reputation Matters",
     body: "Every time you RSVP and show up, your reliability score improves. Cancel last minute and it drops. Consistent players get priority.",
   },
   {
-    kind: "emoji",
-    icon: "🏆",
+    kind: "chalk",
+    graphic: "box",
     title: "Move Up",
     body: "Show up consistently, perform, and your standing in the community grows over time.",
   },
   {
-    kind: "emoji",
-    icon: "🥇",
+    kind: "chalk",
+    graphic: "circle",
     title: "Compete",
     body: "Claim a team slot, build your roster, and compete. Group stage to knockout.",
   },
   {
-    kind: "emoji",
-    icon: "🎁",
+    kind: "chalk",
+    graphic: "box",
     title: "Invite Friends, Earn Credits",
     body: "Refer 10 friends and earn a free run credit. Top players each month win free runs and discounts. Stay consistent, stay rewarded.",
   },
@@ -127,7 +128,9 @@ export default function OnboardingScreen() {
             accessibilityLabel="CT Pickup"
           />
         ) : (
-          <Text style={styles.emoji}>{item.icon}</Text>
+          <View style={styles.chalkMark}>
+            {item.graphic === "circle" ? <ChalkCenterCircle size="md" /> : <ChalkBox size="md" />}
+          </View>
         )}
         <Text style={styles.title}>{item.title}</Text>
         <Text style={styles.body}>{item.body}</Text>
@@ -262,12 +265,7 @@ function make_styles() {
     height: 120,
     marginBottom: 28,
   },
-  emoji: {
-    fontSize: 56, fontFamily: "InstrumentSerif_400Regular",
-    lineHeight: 84,
-    marginBottom: 28,
-    textAlign: "center",
-  },
+  chalkMark: { height: 96, justifyContent: "center", marginBottom: 28 },
   title: {
     color: themeColor().text,
     fontSize: 32, fontFamily: "InstrumentSerif_400Regular",

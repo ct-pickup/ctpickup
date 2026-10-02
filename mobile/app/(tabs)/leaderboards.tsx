@@ -18,6 +18,7 @@ import {
   View,
 } from "react-native";
 
+import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
 import { themeColor, useThemedStyles } from "@/theme";
 function TIER_COLORS(): Record<string, string> {
   return {
@@ -595,13 +596,17 @@ export default function LeaderboardsScreen() {
         {tierLoading && tierPlayers.length === 0 ? (
           <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 32 }} />
         ) : filteredTierPlayers.length === 0 ? (
-          <View style={styles.emptyStatsWrap}>
-            <Text style={styles.emptyTitle}>No rated players yet</Text>
-            <Text style={styles.emptySubtitle}>Complete a session to earn a tier.</Text>
-          </View>
+          <ChalkEmptyState
+            graphic="circle"
+            title="No rated players yet"
+            body="Complete a session to earn a tier."
+            style={styles.emptyStatsWrap}
+          />
         ) : (
           <View style={{ gap: 8 }}>{filteredTierPlayers.map((p, i) => renderTierRow(p, i))}</View>
         )}
+
+        <ChalkDivider style={styles.sectionDivider} />
 
         {/* Climb the ranks */}
         <View style={styles.climbCard}>
@@ -644,10 +649,12 @@ export default function LeaderboardsScreen() {
               </Pressable>
             </View>
           ) : listEmpty ? (
-            <View style={styles.emptyStatsWrap}>
-              <Text style={styles.emptyTitle}>No stats yet</Text>
-              <Text style={styles.emptySubtitle}>Play some runs to appear here!</Text>
-            </View>
+            <ChalkEmptyState
+              graphic="circle"
+              title="No stats yet"
+              body="Play some runs to appear here!"
+              style={styles.emptyStatsWrap}
+            />
           ) : null
         }
         renderItem={({ item, index }) => {
@@ -947,8 +954,8 @@ function make_styles() {
   ptsLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700",},
 
   /* climb card */
+  sectionDivider: { marginTop: 24, marginBottom: 16 },
   climbCard: {
-    marginTop: 24,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -973,9 +980,7 @@ function make_styles() {
 
   /* empty / error */
   emptyStateBlock: { alignItems: "center", justifyContent: "center", gap: 16, paddingVertical: 24 },
-  emptyStatsWrap: { alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 48 },
-  emptyTitle: { color: themeColor().text, fontSize: 20, fontFamily: "InstrumentSerif_400Regular", fontWeight: "800" },
-  emptySubtitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22, paddingHorizontal: 24 },
+  emptyStatsWrap: { paddingVertical: 48 },
   errText: { color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
   retryBtn: {
     paddingVertical: 8,

@@ -6,10 +6,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, type Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Circle, Line, Rect } from "react-native-svg";
 
 import type { Session } from "../session-map";
 
+import { ChalkCenterCircle, ChalkDivider, ChalkEmptyState } from "@/components/chalk";
 import { themeColor, useThemedStyles } from "@/theme";
 /* ----------------------------------------------------------------- tiers */
 
@@ -366,24 +366,6 @@ function SectionHeader({
   );
 }
 
-/** Faded top-down pitch outline for the next-match card. */
-function PitchGraphic() {
-  useThemedStyles(publish_styles);
-
-  const W = 120;
-  const H = 74;
-  const stroke = themeColor().muted;
-  return (
-    <Svg width={W} height={H} style={styles.pitch}>
-      <Rect x={2} y={2} width={W - 4} height={H - 4} rx={4} stroke={stroke} strokeWidth={2} fill="none" />
-      <Line x1={W / 2} y1={2} x2={W / 2} y2={H - 2} stroke={stroke} strokeWidth={2} />
-      <Circle cx={W / 2} cy={H / 2} r={12} stroke={stroke} strokeWidth={2} fill="none" />
-      <Rect x={2} y={H / 2 - 15} width={16} height={30} stroke={stroke} strokeWidth={2} fill="none" />
-      <Rect x={W - 18} y={H / 2 - 15} width={16} height={30} stroke={stroke} strokeWidth={2} fill="none" />
-    </Svg>
-  );
-}
-
 function TierBadge({ tier, size = "sm" }: { tier: string | null; size?: "sm" | "md" }) {
   useThemedStyles(publish_styles);
 
@@ -462,12 +444,9 @@ function FriendAvatar({ friend, onPress }: { friend: FriendPlaying; onPress: () 
     .join("");
   const displayInitials = initials || "?";
   const dot = friendDotStatus(friend.start_at);
-  const shortName =
-    friend.first_name
-      ? `${friend.first_name}${friend.last_name ? ` ${friend.last_name.charAt(0)}.` : ""}`
-      : "Player";
+  const shortName = friend.first_name?.trim() || "Player";
   const statusLabel = dot === "playing" ? "Playing" : "On the way";
-  const statusColor = dot === "playing" ? themeColor().pitch : themeColor().text;
+  const statusColor = dot === "playing" ? themeColor().pitchText : themeColor().text;
 
   return (
     <Pressable onPress={onPress} style={styles.friendItem} hitSlop={4}>
@@ -501,10 +480,10 @@ function FriendsPlayingSection({
   useThemedStyles(publish_styles);
 
   return (
-    <View style={{ marginTop: 8 }}>
+    <View>
       <SectionHeader label="Friends Playing Tonight" actionLabel="See all" onAction={onSeeAll} />
       {friends.length === 0 ? (
-        <Text style={styles.friendsEmpty}>No friends playing tonight</Text>
+        <ChalkEmptyState graphic="circle" size="sm" title="No friends playing tonight" />
       ) : (
         <ScrollView
           horizontal
@@ -605,7 +584,7 @@ export default function HomeScreen() {
       </View>
 
       <Text style={styles.greeting} numberOfLines={1}>
-        {greeting()}, <Text style={styles.greetingName}>{name}</Text> 👋
+        {greeting()}, <Text style={styles.greetingName}>{name}</Text>
       </Text>
 
       {rateBanner ? (
@@ -624,7 +603,9 @@ export default function HomeScreen() {
       <SectionLabel>Your Next Match</SectionLabel>
       {nextMatch ? (
         <View style={[styles.matchCard, { borderLeftColor: isDiamondRun ? themeColor().line : themeColor().pitch }]}>
-          <PitchGraphic />
+          <View style={styles.matchMark} pointerEvents="none">
+            <ChalkCenterCircle size="sm" />
+          </View>
           <TierBadge tier={nextMatch.min_tier} />
           <Text style={styles.matchTitle} numberOfLines={1}>
             {nextMatch.title || "Pickup run"}
@@ -660,21 +641,21 @@ export default function HomeScreen() {
           </Pressable>
         </View>
       ) : (
-        <View style={[styles.matchCard, styles.matchEmpty, { borderLeftColor: themeColor().pitch }]}>
-          <Text style={styles.matchEmptyTitle}>NO UPCOMING SESSIONS</Text>
-          <Text style={styles.matchEmptySub}>You have no confirmed matches coming up.</Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => push("/community-map")}
-            style={({ pressed }) => [styles.findRunPill, pressed && { opacity: 0.85 }]}
-          >
-            <Text style={styles.findRunPillText}>Find a Run →</Text>
-          </Pressable>
+        <View style={[styles.matchCard, styles.matchEmpty]}>
+          <ChalkEmptyState
+            graphic="box"
+            title="NO UPCOMING SESSIONS"
+            body="You have no confirmed matches coming up."
+            actionLabel="Find a Run →"
+            onAction={() => push("/community-map")}
+          />
         </View>
       )}
 
+      <ChalkDivider style={styles.sectionDivider} />
+
       {/* 3. LIVE MAP */}
-      <View style={{ marginTop: 12 }} pointerEvents="box-none">
+      <View pointerEvents="box-none">
         <SectionHeader label="Live Map" actionLabel="View full map" onAction={() => push("/community-map")} />
         <Pressable
           accessibilityRole="button"
@@ -706,7 +687,7 @@ export default function HomeScreen() {
               <Text style={styles.legendText}>Open</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: themeColor().card }]} />
+              <View style={[styles.legendDot, { backgroundColor: themeColor().muted }]} />
               <Text style={styles.legendText}>Gold+</Text>
             </View>
             <View style={styles.legendItem}>
@@ -716,6 +697,8 @@ export default function HomeScreen() {
           </View>
         </Pressable>
       </View>
+
+      <ChalkDivider style={styles.sectionDivider} />
 
       {/* 4. FRIENDS PLAYING TONIGHT */}
       <FriendsPlayingSection
@@ -767,6 +750,8 @@ function make_styles() {
   },
   rateBannerText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold", flex: 1 },
 
+  sectionDivider: { marginTop: 16, marginBottom: 4 },
+
   /* section labels */
   sectionLabel: {
     marginTop: 12,
@@ -806,7 +791,7 @@ function make_styles() {
     padding: 8,
     overflow: "hidden",
   },
-  pitch: { position: "absolute", top: 6, right: 6 },
+  matchMark: { position: "absolute", top: 8, right: 8 },
   matchTitle: { marginTop: 4, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text,},
   matchMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   matchMeta: { fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, flexShrink: 1 },
@@ -828,20 +813,7 @@ function make_styles() {
     alignItems: "center",
   },
   primaryBtnText: { color: themeColor().onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800",},
-  matchEmpty: { alignItems: "flex-start" },
-  matchEmptyTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text,},
-  matchEmptySub: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
-  findRunPill: {
-    marginTop: 12,
-    alignSelf: "flex-start",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: themeColor().pitch,
-    backgroundColor: "transparent",
-  },
-  findRunPillText: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  matchEmpty: { borderLeftWidth: 1 },
 
   /* map */
   mapWrap: {
@@ -898,15 +870,8 @@ function make_styles() {
   markerLabelText: { fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().text },
 
   /* friends playing tonight */
-  friendsEmpty: {
-    fontSize: 13, fontFamily: "Inter_400Regular",
-    color: themeColor().muted,
-    fontStyle: "italic",
-    marginTop: 4,
-    marginBottom: 8,
-  },
   friendsRow: { paddingBottom: 4, gap: 16 },
-  friendItem: { alignItems: "center", width: 68 },
+  friendItem: { alignItems: "center", width: 72 },
   friendAvatarWrap: {
     width: 60,
     height: 60,
@@ -937,7 +902,7 @@ function make_styles() {
     fontWeight: "600",
     color: themeColor().text,
     textAlign: "center",
-    width: 68,
+    width: 72,
   },
   friendStatus: { marginTop: 4, fontSize: 13, fontFamily: "Inter_500Medium", fontWeight: "500", textAlign: "center" },
 
