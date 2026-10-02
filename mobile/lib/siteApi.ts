@@ -8,7 +8,7 @@ export async function postPickupRsvp(
   accessToken: string,
   runId: string,
   action: "join" | "decline",
-  opts?: { friend_user_id?: string; checkout_return?: "mobile" | "app"; photo_package?: boolean },
+  opts?: { friend_user_id?: string; checkout_return?: "mobile" | "app"; photo_package?: boolean; preview?: boolean },
 ): Promise<{ ok: boolean; status: number; json: unknown }> {
   const origin = siteOrigin();
   if (!origin) {
@@ -18,6 +18,7 @@ export async function postPickupRsvp(
   if (opts?.friend_user_id) body.friend_user_id = opts.friend_user_id;
   if (opts?.checkout_return) body.checkout_return = opts.checkout_return;
   if (opts?.photo_package) body.photo_package = true;
+  if (opts?.preview) body.preview = true;
   const r = await fetch(`${origin}/api/pickup/rsvp`, {
     method: "POST",
     headers: {

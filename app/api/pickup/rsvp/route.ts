@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
+import type Stripe from "stripe";
 import { ensurePickupRunInviteLink } from "@/lib/pickup/ensureRunInviteLink";
 import { lookupPickupPlayerByUsernameOrEmail } from "@/lib/pickup/lookupPlayerByIdentifier";
 import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
@@ -20,16 +21,15 @@ import {
 } from "@/lib/pickup/waitlist";
 import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
 import { pickupTierAtTimeFromRank } from "@/lib/pickup/pickupTierAtTime";
-import { pickupRefundCutoffMs } from "@/lib/pickup/runScheduling";
 import { tryApplyReferralCreditToPickupJoin } from "@/lib/referral/pickupReferralCredit";
 import {
-  findPickupPayerUserId,
-  getPickupChargeSnapshot,
-  matchChargeToCurrentJoin,
-  refundPickupCharge,
-  remainingRefundableCents,
-} from "@/lib/payments/pickupRefunds";
-import { decidePickupRefund, refundWindowOpen } from "@/lib/payments/refundPolicy";
+  commitPlayerWithdrawal,
+  planPlayerWithdrawal,
+  previewPlayerWithdrawal,
+  withdrawalResponseFields,
+  type WithdrawalResult,
+  type WithdrawalRsvp,
+} from "@/lib/payments/playerWithdrawal";
 import {
   isMobileCheckoutReturn,
   pickupCheckoutCancelUrl,
@@ -88,6 +88,8 @@ type Body = {
   friend_identifier?: string;
   checkout_return?: "mobile" | "app";
   photo_package?: boolean;
+  /** Decline only: describe what declining would return without changing anything. */
+  preview?: boolean;
 };
 
 export async function POST(req: Request) {
@@ -200,121 +202,66 @@ export async function POST(req: Request) {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (existing.data?.status === "pending_payment") {
-      return NextResponse.json({ error: "Payment is pending. Contact admin." }, { status: 409 });
-    }
-
-    const newStatus =
-      existing.data?.status && existing.data.status !== "declined" ? "canceled" : "declined";
-
     const prev = existing.data?.status || null;
-    const row = existing.data as
-      | (typeof existing.data & {
-          payment_intent_id?: string | null;
-          refund_id?: string | null;
-          paid_at?: string | null;
-          checkout_session_id?: string | null;
-        })
-      | null;
-    const pi =
-      row?.payment_intent_id != null && String(row.payment_intent_id).trim().length > 0
-        ? String(row.payment_intent_id).trim()
-        : null;
-    const sentryCtx = { tags: { route: "pickup/rsvp:decline" }, extra: { run_id: run.id, user_id: user.id, payment_intent_id: pi } };
-    const warnings: string[] = [];
+    const newStatus = prev && prev !== "declined" ? "canceled" : "declined";
+    const holdsSpot = prev === "confirmed" || prev === "pending_payment";
 
-    // Only an RSVP that is confirmed right now is refunded, and its status changes only after Stripe confirms the
-    // refund, so a failed decline is retried from the same confirmed row. A repeated decline on an RSVP that is
-    // already canceled/declined never moves money (it was settled by the pre-REFUND_FIX_CUTOFF code, or by leave or
-    // host cancel, which may have issued credit instead), so unlike host cancel there is no replay path for the
-    // cutoff to guard.
-    let refund: { status: "refunded" | "already_refunded"; amount_cents: number } | null = null;
-    const nowMs = Date.now();
-    const refundCutoffAt = pickupRefundCutoffMs(run);
-    if (prev === "confirmed" && pi && refundWindowOpen({ kickoffAt: run.start_at ?? null, refundCutoffAt, now: nowMs })) {
-      try {
-        const stripe = getStripePickup();
-        const snap = await getPickupChargeSnapshot(stripe, pi);
-        if (snap.amountReceivedCents > 0) {
-          const checkoutSessionId = row?.checkout_session_id ? String(row.checkout_session_id) : null;
-          const payerId = await findPickupPayerUserId(admin, { playerId: user.id, paymentIntentId: pi, checkoutSessionId });
-          const match = await matchChargeToCurrentJoin(admin, {
-            runId: String(run.id),
-            userId: user.id,
-            creditUserId: payerId,
-            paidAtIso: row?.paid_at ?? null,
-            snap,
-            fromCurrentCheckout: false,
-          });
-          if (match === "unmatched" && remainingRefundableCents(snap) > 0) {
-            throw new Error(`Card payment ${pi} could not be matched to this spot; review manually.`);
-          }
-          const decision = decidePickupRefund({
-            initiator: "player",
-            trigger: "rsvp_decline",
-            kickoffAt: run.start_at ?? null,
-            refundCutoffAt,
-            now: nowMs,
-            paymentPending: false,
-            hasCardCharge: match === "current",
-            cardNetCents: match === "current" ? remainingRefundableCents(snap) : 0,
-            creditCoveredCents: 0,
-            playerId: user.id,
-            cardPayerId: payerId,
-          });
-          if (decision.kind === "settle" && decision.refundToCard) {
-            const out = await refundPickupCharge(stripe, admin, {
-              runId: String(run.id),
-              userId: user.id,
-              snap,
-              checkoutSessionId,
-              existingRefundId: row?.refund_id ? String(row.refund_id) : null,
-              trigger: "player_decline",
-            });
-            if (out.kind !== "nothing_charged") {
-              refund = { status: out.kind, amount_cents: out.amountCents };
-              if (out.recordError) {
-                Sentry.captureException(new Error(`Decline refund recorded with errors: ${out.recordError}`), sentryCtx);
-                warnings.push(out.recordError);
-              }
-            }
-          }
-        }
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        console.error("stripe_pickup_player_cancel_refund_error:", msg);
-        Sentry.captureException(e, sentryCtx);
-        return NextResponse.json(
-          { error: `Refund could not be processed (${msg}). You are still in the run and were not refunded. Try again or contact support.` },
-          { status: 502 },
-        );
+    let stripe: Stripe | null = null;
+    const ctx = {
+      admin,
+      getStripe: () => {
+        if (!stripe) stripe = getStripePickup();
+        return stripe;
+      },
+      run: {
+        id: String(run.id),
+        title: (run.title as string | null) ?? null,
+        fee_cents: (run.fee_cents as number | null) ?? null,
+        start_at: (run.start_at as string | null) ?? null,
+        cancellation_deadline: (run.cancellation_deadline as string | null) ?? null,
+      },
+      userId: user.id,
+      sentryCtx: { tags: { route: "pickup/rsvp:decline" }, extra: { run_id: run.id, user_id: user.id } as Record<string, unknown> },
+    };
+    const spotRsvp = existing.data as WithdrawalRsvp | null;
+
+    if (body.preview === true) {
+      if (!holdsSpot || !spotRsvp) {
+        return NextResponse.json({
+          ok: true,
+          preview: { credit_cents: 0, payer_credit_cents: 0, payment_cancelled: false, paid_but_late: false, message: "No payment to return." },
+        });
       }
+      const preview = await previewPlayerWithdrawal(ctx, spotRsvp);
+      if (!preview.ok) return NextResponse.json({ error: preview.error }, { status: preview.status });
+      return NextResponse.json({ ok: true, preview: preview.preview });
     }
 
-    const { error: rsvpErr } = await admin.from("pickup_run_rsvps").upsert(
-      {
-        run_id: run.id,
-        user_id: user.id,
-        tier_at_time: tierAtTimeForPickupRsvp(publicRun, prof.data?.tier_rank),
-        status: newStatus,
-        waitlist_position: null,
-        waitlist_offered_at: null,
-        waitlist_expires_at: null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "run_id,user_id" },
-    );
-    if (rsvpErr) {
-      Sentry.captureException(rsvpErr, sentryCtx);
-      return NextResponse.json(
+    let withdrawal: WithdrawalResult | null = null;
+    if (holdsSpot && spotRsvp) {
+      const planned = await planPlayerWithdrawal(ctx, spotRsvp, { preview: false });
+      if (!planned.ok) return NextResponse.json({ error: planned.error }, { status: planned.status });
+      const committed = await commitPlayerWithdrawal(ctx, planned.plan, { newStatus });
+      if (!committed.ok) return NextResponse.json({ error: committed.error }, { status: committed.status });
+      withdrawal = committed.result;
+    } else {
+      const { error: rsvpErr } = await admin.from("pickup_run_rsvps").upsert(
         {
-          error: refund
-            ? `Your refund of $${(refund.amount_cents / 100).toFixed(2)} was issued, but your RSVP could not be updated (${rsvpErr.message}). Try again; you will not be refunded twice.`
-            : `Could not update your RSVP: ${rsvpErr.message}`,
-          refund,
+          run_id: run.id,
+          user_id: user.id,
+          tier_at_time: tierAtTimeForPickupRsvp(publicRun, prof.data?.tier_rank),
+          status: newStatus,
+          waitlist_position: null,
+          waitlist_offered_at: null,
+          waitlist_expires_at: null,
+          updated_at: new Date().toISOString(),
         },
-        { status: 500 },
+        { onConflict: "run_id,user_id" },
       );
+      if (rsvpErr) {
+        Sentry.captureException(rsvpErr, ctx.sentryCtx);
+        return NextResponse.json({ error: `Could not update your RSVP: ${rsvpErr.message}` }, { status: 500 });
+      }
     }
 
     if (prev === "pending_confirm") {
@@ -323,14 +270,24 @@ export async function POST(req: Request) {
 
     await removeUserFromRunBanterRoom(admin, String(run.id), user.id);
 
-    if (prev === "confirmed" || prev === "pending_confirm") {
-      await promoteNextWaitlistPlayer(admin, String(run.id), {
+    const warnings = [...(withdrawal?.warnings ?? [])];
+    if (holdsSpot || prev === "pending_confirm") {
+      const promoted = await promoteNextWaitlistPlayer(admin, String(run.id), {
         requestedBy: user.id,
-        reason: prev === "confirmed" ? "player_cancel" : "player_decline_offer",
+        reason: prev === "pending_confirm" ? "player_decline_offer" : "player_cancel",
       });
+      if (!promoted.ok) {
+        Sentry.captureException(new Error(`Waitlist promotion after decline failed: ${promoted.error}`), ctx.sentryCtx);
+        warnings.push(`Waitlist promotion failed: ${promoted.error}`);
+      }
     }
 
-    return NextResponse.json({ ok: true, status: newStatus, refund, ...(warnings.length ? { warnings } : {}) });
+    return NextResponse.json({
+      ok: true,
+      status: newStatus,
+      ...(withdrawal ? withdrawalResponseFields(withdrawal) : {}),
+      ...(warnings.length ? { warnings } : {}),
+    });
   }
 
   // JOIN

@@ -30,7 +30,7 @@ export type RefundDecision =
   | { kind: "cancel_checkout"; reason: "payment_pending" }
   | {
       kind: "settle";
-      reason: "host_or_admin_removal" | "rsvp_decline" | "player_leave_early";
+      reason: "host_or_admin_removal" | "player_leave_early";
       refundToCard: boolean;
       refundCardCents: number;
       credits: RefundCredit[];
@@ -57,14 +57,14 @@ function cents(n: number): number {
  *
  * - Unfinished checkout (pending payment): the checkout is cancelled so it cannot charge; nothing is refunded or credited.
  * - Paid nothing: nothing.
- * - Host or admin cancels the run (initiator "host" | "admin", trigger "run_cancel"): the card-paid portion is refunded
- *   to the card that paid it, at any time; the credit-covered portion comes back as a credit to the player.
- * - RSVP decline (trigger "rsvp_decline"): treated as a host/admin-style removal, so the card-paid portion is refunded to
- *   the card, but only more than 24 hours before kickoff, and the credit-covered portion is not returned. This mirrors
- *   the route as it is today; the route only ever declines the caller's own RSVP, so in practice a player triggers it.
- * - Player leaves (initiator "player", trigger "leave"): more than 24 hours before kickoff, what was paid becomes credit,
- *   never a card refund. The card portion goes to whoever paid it (a friend who paid gets a credit marked as being for
- *   this player's spot), the credit-covered portion to the player. Within 24 hours nothing comes back.
+ * - Card refunds happen only when a host or admin acts. Host or admin cancels the run (initiator "host" | "admin",
+ *   trigger "run_cancel"): the card-paid portion is refunded to the card that paid it, at any time; the credit-covered
+ *   portion comes back as a credit to the player.
+ * - Player leaves (trigger "leave") or declines their own RSVP (trigger "rsvp_decline"); both are player-initiated and
+ *   follow the same rule: more than 24 hours before kickoff, what was paid becomes credit, never a card refund. The card
+ *   portion goes to whoever paid it (a friend who paid gets a credit marked as being for this player's spot), the
+ *   credit-covered portion to the player. Within 24 hours nothing comes back. Declining an invite or a waitlist spot
+ *   involves no money.
  *
  * "More than 24 hours" is strict: exactly 24 hours before kickoff is already inside the window.
  */
@@ -85,12 +85,6 @@ export function decidePickupRefund(input: RefundPolicyInput): RefundDecision {
       refundCardCents: input.hasCardCharge ? card : 0,
       credits: covered > 0 ? [{ userId: input.playerId, cents: covered, creditedForUserId: null }] : [],
     };
-  }
-
-  if (input.trigger === "rsvp_decline") {
-    if (!early) return { kind: "none", reason: "within_24h" };
-    if (!input.hasCardCharge) return { kind: "none", reason: "paid_nothing" };
-    return { kind: "settle", reason: "rsvp_decline", refundToCard: true, refundCardCents: card, credits: [] };
   }
 
   if (input.initiator !== "player") throw new Error("Only the player can leave a run; hosts and admins cancel or remove.");

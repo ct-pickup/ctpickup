@@ -92,10 +92,21 @@ describe("decidePickupRefund: host and admin cancel", () => {
   });
 });
 
-describe("decidePickupRefund: RSVP decline", () => {
-  it("refunds the card net more than 24h out and returns no credit", () => {
+describe("decidePickupRefund: RSVP decline follows the player policy", () => {
+  it("credits what was paid more than 24h out, never a card refund", () => {
     const d = decidePickupRefund(input({ trigger: "rsvp_decline", creditCoveredCents: 266 }));
-    expect(d).toEqual({ kind: "settle", reason: "rsvp_decline", refundToCard: true, refundCardCents: 1032, credits: [] });
+    expect(d).toEqual({
+      kind: "settle",
+      reason: "player_leave_early",
+      refundToCard: false,
+      refundCardCents: 0,
+      credits: [{ userId: PLAYER, cents: 266 + 1032, creditedForUserId: null }],
+    });
+  });
+
+  it("friend-paid card portion is credited to the payer for this player's spot", () => {
+    const d = decidePickupRefund(input({ trigger: "rsvp_decline", cardPayerId: FRIEND }));
+    expect(d).toMatchObject({ refundToCard: false, credits: [{ userId: FRIEND, cents: 1032, creditedForUserId: PLAYER }] });
   });
 
   it("nothing at exactly 24h before kickoff", () => {
@@ -108,14 +119,23 @@ describe("decidePickupRefund: RSVP decline", () => {
   it("uses the explicit cutoff (cancellation_deadline for date-only runs)", () => {
     expect(decidePickupRefund(input({ trigger: "rsvp_decline", kickoffAt: null, refundCutoffAt: NOW + HOUR }))).toMatchObject({
       kind: "settle",
+      refundToCard: false,
     });
   });
 
-  it("no card charge: nothing", () => {
+  it("paid nothing: nothing; pending: cancel the checkout", () => {
     expect(decidePickupRefund(input({ trigger: "rsvp_decline", hasCardCharge: false, cardNetCents: 0 }))).toEqual({
       kind: "none",
       reason: "paid_nothing",
     });
+    expect(decidePickupRefund(input({ trigger: "rsvp_decline", paymentPending: true }))).toEqual({
+      kind: "cancel_checkout",
+      reason: "payment_pending",
+    });
+  });
+
+  it("only the player can decline", () => {
+    expect(() => decidePickupRefund(input({ trigger: "rsvp_decline", initiator: "admin" }))).toThrow(/Only the player/);
   });
 });
 

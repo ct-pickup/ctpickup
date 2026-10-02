@@ -188,13 +188,22 @@ export default function PickupPage() {
     setBusy(true);
     setMsg(null);
     try {
-      const r = await fetch("/api/pickup/rsvp", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ action, run_id: data.run.id }),
-      });
+      const post = async (extra: Record<string, unknown> = {}) => {
+        const res = await fetch("/api/pickup/rsvp", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ action, run_id: data.run.id, ...extra }),
+        });
+        return { r: res, j: await res.json().catch(() => ({})) };
+      };
 
-      const j = await r.json().catch(() => ({}));
+      let { r, j } =
+        action === "decline" && data.final?.my_status === "confirmed" ? await post({ preview: true }) : await post();
+      if (r.ok && j?.preview) {
+        const message = typeof j.preview.message === "string" ? j.preview.message : "";
+        if (!window.confirm(`Cancel your spot? ${message}`.trim())) return;
+        ({ r, j } = await post());
+      }
       if (!r.ok) {
         if (r.status === 403 && j?.error === "waiver_required") {
           pendingPickup.current = { kind: "rsvp", action };
@@ -214,15 +223,7 @@ export default function PickupPage() {
         return;
       }
       await refresh(token);
-      const refund = j?.refund as { status?: string; amount_cents?: number } | null | undefined;
-      if (refund?.amount_cents) {
-        const amount = `$${(refund.amount_cents / 100).toFixed(2)}`;
-        setMsg(
-          refund.status === "already_refunded"
-            ? `This payment was already refunded (${amount}).`
-            : `${amount} has been refunded to the card that paid.`,
-        );
-      }
+      if (action === "decline" && typeof j?.message === "string") setMsg(j.message);
     } finally {
       setBusy(false);
     }
