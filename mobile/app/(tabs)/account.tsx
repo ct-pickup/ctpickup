@@ -14,25 +14,29 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import PlayerAvatar from "@/components/PlayerAvatar";
-import { PhotoHeader, PhotoUploadField } from "@/components/photo";
-import ProfileShareCard, { type ProfileShareData } from "@/components/profile/ProfileShareCard";
+import { PhotoUploadField } from "@/components/photo";
+import BadgeShelf from "@/components/profile/BadgeShelf";
+import FormPills from "@/components/profile/FormPills";
+import PlayerCard, { type PlayerCardData } from "@/components/profile/PlayerCard";
+import PositionPitch from "@/components/profile/PositionPitch";
 import { StarLevelsSheet } from "@/components/StarLevels";
-import { StarRating } from "@/components/StarRating";
 import { useAuth } from "@/context/AuthContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { useAvatarPhoto } from "@/hooks/useAvatarPhoto";
 import { useHubVenueResolve } from "@/hooks/useHubVenueResolve";
+import type { PlayerOutcome } from "@/lib/pickup/resultOutcome";
+import { primaryPitchSpot } from "@/lib/pitchPosition";
 import { fetchActionPhotoUrl } from "@/lib/photoUpload";
+import { fetchMyBadges, unearnedBadges, type ProfileBadge } from "@/lib/playerBadges";
 import { positionAbbreviation, positionTownLine, townFromZip } from "@/lib/playerIdentity";
 import { fetchMyRecord, winPercent } from "@/lib/playerRecord";
 import { canShareStory, shareStoryImage } from "@/lib/shareStory";
-import { fetchPlayerCard, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
-import { profileName, radius, themeColor, useThemedStyles } from "@/theme";
+import { fetchPlayerCard, type PlayerCard as StarCard } from "@/lib/starRatings";
+import { radius, themeColor, useThemedStyles } from "@/theme";
+import { isVerifiedLevel } from "@shared/badges";
 
 const SHARE_READY_TIMEOUT_MS = 4000;
-const STATS_CACHE_KEY = "cached_profile_stats.v2";
-const AVATAR_SIZE = 96;
+const STATS_CACHE_KEY = "cached_profile_stats.v3";
 
 type ProfileRow = {
   first_name: string | null;
@@ -49,11 +53,12 @@ type ProfileRow = {
 const PROFILE_SELECT =
   "first_name,last_name,username,primary_position,playing_position,zip_code,nearest_venue,max_drive_minutes,verification_level";
 
-type ProfileStats = { games: number; winPct: number | null; potd: number };
+type ProfileStats = { games: number; winPct: number | null; potd: number; form: PlayerOutcome[] };
 
-// Last loaded card and stats, so re-mounts render instantly.
-let _cachedCard: PlayerCard | null | undefined;
+// Last loaded card, stats and badges, so re-mounts render instantly.
+let _cachedCard: StarCard | null | undefined;
 let _cachedStats: ProfileStats | null = null;
+let _cachedBadges: ProfileBadge[] | null = null;
 
 export default function ProfileScreen() {
   useThemedStyles(publish_s);
@@ -66,8 +71,9 @@ export default function ProfileScreen() {
   const uid = session?.user?.id ?? null;
 
   const [profile, setProfile] = useState<ProfileRow | null>(null);
-  const [card, setCard] = useState<PlayerCard | null | undefined>(_cachedCard);
+  const [card, setCard] = useState<StarCard | null | undefined>(_cachedCard);
   const [stats, setStats] = useState<ProfileStats | null>(_cachedStats);
+  const [badges, setBadges] = useState<ProfileBadge[]>(_cachedBadges ?? unearnedBadges());
   const [actionPhotoUrl, setActionPhotoUrl] = useState<string | null>(null);
   const { avatarUrl, setAvatarUrl, avatarUploading, pickAndUploadAvatar } = useAvatarPhoto();
   const [editing, setEditing] = useState(false);
@@ -97,17 +103,27 @@ export default function ProfileScreen() {
   const loadStats = useCallback(async () => {
     if (!isReady || !supabase || !uid) return;
     try {
-      const [nextCard, record] = await Promise.all([
+      const [nextCard, record, nextBadges] = await Promise.all([
         fetchPlayerCard(supabase, uid),
         accessToken ? fetchMyRecord(accessToken) : Promise.resolve(null),
+        accessToken ? fetchMyBadges(accessToken) : Promise.resolve(null),
       ]);
       _cachedCard = nextCard;
       setCard(nextCard);
       if (record) {
-        const next = { games: record.games, winPct: winPercent(record), potd: record.potd_count };
+        const next: ProfileStats = {
+          games: record.games,
+          winPct: winPercent(record),
+          potd: record.potd_count,
+          form: Array.isArray(record.form) ? record.form : [],
+        };
         _cachedStats = next;
         setStats(next);
         AsyncStorage.setItem(STATS_CACHE_KEY, JSON.stringify(next)).catch(() => {});
+      }
+      if (nextBadges) {
+        _cachedBadges = nextBadges;
+        setBadges(nextBadges);
       }
     } catch (e) {
       console.error("[profile] loadStats exception", e);
@@ -115,14 +131,21 @@ export default function ProfileScreen() {
   }, [isReady, supabase, uid, accessToken]);
 
   useEffect(() => {
-    AsyncStorage.multiRemove(["cached_tier_info", "cached_rating_info", "cached_record_stats"]).catch(() => {});
+    AsyncStorage.multiRemove(["cached_tier_info", "cached_rating_info", "cached_record_stats", "cached_profile_stats.v2"]).catch(
+      () => {},
+    );
     if (_cachedStats) return;
     AsyncStorage.getItem(STATS_CACHE_KEY)
       .then((raw) => {
         if (!raw) return;
         const parsed = JSON.parse(raw) as Partial<ProfileStats>;
         if (typeof parsed.games === "number" && typeof parsed.potd === "number") {
-          setStats({ games: parsed.games, winPct: parsed.winPct ?? null, potd: parsed.potd });
+          setStats({
+            games: parsed.games,
+            winPct: parsed.winPct ?? null,
+            potd: parsed.potd,
+            form: Array.isArray(parsed.form) ? parsed.form : [],
+          });
         }
       })
       .catch(() => {});
@@ -199,137 +222,89 @@ export default function ProfileScreen() {
   const fullName =
     [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim() ||
     (profile?.username ? `@${profile.username}` : "Player");
-  const positionTown = positionTownLine(
-    positionAbbreviation(profile?.primary_position, profile?.playing_position),
-    townFromZip(profile?.zip_code),
-  );
-  const topPct = topPercentLabel(card);
-  const verified = !!profile?.verification_level && profile.verification_level !== "self";
-  const winPct = stats?.winPct ?? null;
 
-  const shareData: ProfileShareData = {
+  const cardData: PlayerCardData = {
     name: fullName,
+    firstName: profile?.first_name ?? null,
+    lastName: profile?.last_name ?? null,
+    avatarUrl,
+    positionTown: positionTownLine(
+      positionAbbreviation(profile?.primary_position, profile?.playing_position),
+      townFromZip(profile?.zip_code),
+    ),
     star: card?.star ?? null,
-    starProvisional: card?.provisional === true,
-    positionTown,
+    provisional: card?.provisional === true,
+    verified: isVerifiedLevel(profile?.verification_level),
     games: stats?.games ?? 0,
-    winPct,
+    winPct: stats?.winPct ?? null,
     potd: stats?.potd ?? 0,
     photo: actionPhotoUrl,
   };
+  const spot = primaryPitchSpot(profile?.primary_position, profile?.playing_position);
+  const form = stats && stats.games >= 1 ? stats.form : [];
 
   return (
     <View style={s.screen}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
+        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 120 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={themeColor().pitchText} />
         }
       >
-        {/* 1. Hero */}
-        <View>
-          {actionPhotoUrl ? (
-            <PhotoHeader uri={actionPhotoUrl} aspect="wide" accessibilityLabel="Action photo" />
-          ) : (
-            <View style={s.bannerFallback} />
-          )}
-          <View style={[s.heroBar, { top: insets.top + 8 }]}>
-            <Pressable
-              onPress={() => setEditing((v) => !v)}
-              hitSlop={10}
-              style={({ pressed }) => [s.heroBtn, pressed && s.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel={editing ? "Done editing" : "Edit photos"}
-            >
-              <Text style={s.heroBtnText}>{editing ? "Done" : "Edit"}</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => (router.push as (href: string) => void)("/settings")}
-              hitSlop={10}
-              style={({ pressed }) => [s.heroBtn, pressed && s.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel="Settings"
-            >
-              <FontAwesome name="cog" size={18} color={themeColor().onPhoto} />
-            </Pressable>
-          </View>
+        <View style={s.topBar}>
           <Pressable
-            onPress={editing ? pickAndUploadAvatar : undefined}
-            disabled={!editing || avatarUploading}
-            style={s.avatarWrap}
-            accessibilityRole={editing ? "button" : undefined}
-            accessibilityLabel={editing ? "Change profile photo" : undefined}
+            onPress={() => setEditing((v) => !v)}
+            hitSlop={10}
+            style={({ pressed }) => [s.topBtn, pressed && s.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={editing ? "Done editing" : "Edit photos"}
           >
-            <PlayerAvatar
-              person={{ first_name: profile?.first_name ?? null, last_name: profile?.last_name ?? null, avatar_url: avatarUrl }}
-              size={AVATAR_SIZE}
-              ringColor={themeColor().bg}
-            />
-            {avatarUploading ? (
-              <View style={s.avatarBusy}>
-                <ActivityIndicator color={themeColor().onPhoto} />
-              </View>
-            ) : null}
-            {editing ? (
-              <View style={s.cameraBadge}>
-                <FontAwesome name="camera" size={12} color={themeColor().onPitch} />
-              </View>
-            ) : null}
+            <Text style={s.topBtnText}>{editing ? "Done" : "Edit"}</Text>
           </Pressable>
-          {editing ? (
-            <View style={s.editPanel}>
-              <PhotoUploadField
-                bucket="action-photos"
-                name="action"
-                label="Banner photo"
-                hint="A shot of you playing. Tap your avatar to change your profile photo."
-                aspect="wide"
-                preview={false}
-                value={actionPhotoUrl}
-                onChange={saveActionPhoto}
-              />
-            </View>
-          ) : null}
+          <Pressable
+            onPress={() => (router.push as (href: string) => void)("/settings")}
+            hitSlop={10}
+            style={({ pressed }) => [s.topBtn, pressed && s.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+          >
+            <FontAwesome name="cog" size={18} color={themeColor().text} />
+          </Pressable>
         </View>
 
-        <View style={s.body}>
-          {/* 2. Identity */}
-          <View>
-            <Text style={s.name} numberOfLines={2}>
-              {fullName}
-            </Text>
-            {positionTown ? <Text style={s.positionTown}>{positionTown}</Text> : null}
-            {card ? (
-              <Pressable
-                onPress={() => setLevelsOpen(true)}
-                accessibilityRole="button"
-                accessibilityHint="Shows what each star level means"
-                style={({ pressed }) => [s.ratingLine, pressed && s.pressed]}
-              >
-                <StarRating value={card.star} provisional={card.provisional} size="md" />
-                {topPct ? <Text style={s.ratingMeta}>{topPct}</Text> : null}
-                {verified ? (
-                  <View style={s.verifiedChip}>
-                    <FontAwesome name="check" size={10} color={themeColor().onPitchPanel} />
-                    <Text style={s.verifiedText}>Verified</Text>
-                  </View>
-                ) : null}
-                <FontAwesome name="question-circle-o" size={15} color={themeColor().muted} />
-              </Pressable>
-            ) : null}
+        <View style={s.cardWrap}>
+          <PlayerCard
+            data={cardData}
+            onPressAvatar={editing ? pickAndUploadAvatar : undefined}
+            onPressRating={() => setLevelsOpen(true)}
+            avatarBusy={avatarUploading}
+            avatarBadge={
+              editing ? (
+                <View style={s.cameraBadge}>
+                  <FontAwesome name="camera" size={12} color={themeColor().onPitch} />
+                </View>
+              ) : null
+            }
+          />
+        </View>
+
+        {editing ? (
+          <View style={s.editPanel}>
+            <PhotoUploadField
+              bucket="action-photos"
+              name="action"
+              label="Card photo"
+              hint="A shot of you playing, shown behind your card. Tap your avatar to change your profile photo."
+              aspect="wide"
+              preview={false}
+              value={actionPhotoUrl}
+              onChange={saveActionPhoto}
+            />
           </View>
+        ) : null}
 
-          <StarLevelsSheet visible={levelsOpen} onClose={() => setLevelsOpen(false)} />
-
-          {/* 3. Stats */}
-          <View style={s.statsRow}>
-            <Stat value={String(stats?.games ?? 0)} label="Games" />
-            <Stat value={winPct == null ? "—" : `${winPct}%`} label="Win %" />
-            <Stat value={String(stats?.potd ?? 0)} label="POTD" />
-          </View>
-
-          {/* 4. Share */}
-          {canShare ? (
+        {canShare ? (
+          <View style={s.shareWrap}>
             <Pressable
               onPress={() => void onShare()}
               disabled={sharing || !cardReady}
@@ -337,32 +312,36 @@ export default function ProfileScreen() {
               accessibilityRole="button"
               accessibilityLabel="Share my player card"
             >
-              {sharing ? (
-                <ActivityIndicator color={themeColor().accent} />
-              ) : (
-                <Text style={s.shareBtnText}>Share my card</Text>
-              )}
+              {sharing ? <ActivityIndicator color={themeColor().accent} /> : <Text style={s.shareBtnText}>Share my card</Text>}
             </Pressable>
-          ) : null}
+          </View>
+        ) : null}
+
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>Position</Text>
+          <PositionPitch spot={spot} />
+        </View>
+
+        {form.length > 0 ? (
+          <View style={s.section}>
+            <Text style={s.sectionLabel}>Form</Text>
+            <FormPills form={form} />
+          </View>
+        ) : null}
+
+        <View style={s.sectionBleed}>
+          <Text style={[s.sectionLabel, s.sectionLabelInset]}>Badges</Text>
+          <BadgeShelf badges={badges} />
         </View>
       </ScrollView>
 
+      <StarLevelsSheet visible={levelsOpen} onClose={() => setLevelsOpen(false)} />
+
       {canShare ? (
         <View style={s.offscreen} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <ProfileShareCard ref={cardRef} data={shareData} onReady={onCardReady} />
+          <PlayerCard ref={cardRef} variant="share" data={cardData} onReady={onCardReady} />
         </View>
       ) : null}
-    </View>
-  );
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <View style={s.stat}>
-      <Text style={s.statValue} numberOfLines={1} adjustsFontSizeToFit>
-        {value}
-      </Text>
-      <Text style={s.statLabel}>{label}</Text>
     </View>
   );
 }
@@ -371,38 +350,25 @@ function make_s() {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: themeColor().bg },
     center: { flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center" },
-    bannerFallback: { aspectRatio: 16 / 9, backgroundColor: themeColor().pitchPanel },
-    heroBar: {
-      position: "absolute",
-      left: 16,
-      right: 16,
+    topBar: {
+      paddingHorizontal: 16,
+      marginBottom: 12,
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
     },
-    heroBtn: {
+    topBtn: {
       minWidth: 36,
       height: 36,
       paddingHorizontal: 12,
       borderRadius: radius.pill,
-      backgroundColor: themeColor().photoScrim,
+      backgroundColor: themeColor().overlay,
       alignItems: "center",
       justifyContent: "center",
     },
-    heroBtnText: { color: themeColor().onPhoto, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    topBtnText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     pressed: { opacity: 0.7 },
-    avatarWrap: { marginTop: -AVATAR_SIZE / 2, marginLeft: 20, width: AVATAR_SIZE, height: AVATAR_SIZE },
-    avatarBusy: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      borderRadius: AVATAR_SIZE / 2,
-      backgroundColor: themeColor().scrim,
-      alignItems: "center",
-      justifyContent: "center",
-    },
+    cardWrap: { paddingHorizontal: 16 },
     cameraBadge: {
       position: "absolute",
       right: 2,
@@ -412,30 +378,12 @@ function make_s() {
       borderRadius: 14,
       backgroundColor: themeColor().pitch,
       borderWidth: 2,
-      borderColor: themeColor().bg,
+      borderColor: themeColor().onPitch,
       alignItems: "center",
       justifyContent: "center",
     },
-    editPanel: { paddingHorizontal: 20, paddingTop: 12 },
-    body: { paddingHorizontal: 20, paddingTop: 12, gap: 24 },
-    name: { ...profileName, color: themeColor().text },
-    positionTown: { marginTop: 4, color: themeColor().muted, fontSize: 15, fontFamily: "Inter_500Medium", fontWeight: "500" },
-    ratingLine: { marginTop: 12, flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
-    ratingMeta: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-    verifiedChip: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: radius.pill,
-      backgroundColor: themeColor().pitchPanel,
-    },
-    verifiedText: { color: themeColor().onPitchPanel, fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-    statsRow: { flexDirection: "row" },
-    stat: { flex: 1 },
-    statValue: { ...profileName, color: themeColor().text },
-    statLabel: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    editPanel: { paddingHorizontal: 20, paddingTop: 16 },
+    shareWrap: { paddingHorizontal: 16, paddingTop: 12 },
     shareBtn: {
       paddingVertical: 14,
       borderRadius: radius.button,
@@ -444,6 +392,16 @@ function make_s() {
       alignItems: "center",
     },
     shareBtnText: { color: themeColor().accent, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    section: { marginTop: 24, paddingHorizontal: 20 },
+    sectionBleed: { marginTop: 24 },
+    sectionLabel: {
+      marginBottom: 12,
+      color: themeColor().text,
+      fontSize: 15,
+      fontFamily: "Inter_600SemiBold",
+      fontWeight: "600",
+    },
+    sectionLabelInset: { paddingHorizontal: 20 },
     offscreen: { position: "absolute", top: 0, left: -10000 },
   });
 }

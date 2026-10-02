@@ -5,6 +5,7 @@ import { useResolvedColorScheme } from "@/context/AppearanceContext";
 import {
   darkTheme,
   lightTheme,
+  palette,
   radius,
   themeForScheme,
   typeScale,
@@ -55,6 +56,25 @@ export const shareCardColor = {
   scrim: "#111111",
   starOff: "rgba(255,255,255,0.28)",
 } as const;
+
+/**
+ * Profile player card palette. The card is ink in both schemes (and in the shared image),
+ * so it uses dark-scheme colors whatever the app scheme.
+ */
+export const playerCardColor = {
+  bg: palette.ink,
+  name: palette.chalk,
+  muted: darkTheme.color.muted,
+  accent: palette.pitchBright,
+  rule: shareCardColor.faint,
+  chipBg: darkTheme.color.pitchPanel,
+  chipText: darkTheme.color.onPitchPanel,
+  chipLine: shareCardColor.faint,
+  photoScrim: darkTheme.color.photoScrim,
+} as const;
+
+/** Opacity of the tiling noise texture (assets/grain.png) on photos and the player card. */
+export const GRAIN_OPACITY = 0.07;
 
 let current: Theme = lightTheme;
 
