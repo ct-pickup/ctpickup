@@ -1,14 +1,14 @@
 import { Image as CachedImage } from "expo-image";
 import React from "react";
-import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import { ChalkCenterCircle } from "@/components/chalk";
 import type { ChalkSize } from "@/components/chalk/stroke";
 import { themeColor, useTheme } from "@/theme";
 
-const GRAIN = require("../../assets/grain.png");
-const GRAIN_OPACITY = 0.07;
+import GrainOverlay from "./GrainOverlay";
+
 const FADE_HEIGHT = 32;
 
 export type PhotoAspect = "wide" | "tall";
@@ -56,11 +56,7 @@ export default function PhotoHeader({
             transition={200}
             cachePolicy="memory-disk"
           />
-          <Image
-            source={GRAIN}
-            resizeMode="repeat"
-            style={[StyleSheet.absoluteFill, { opacity: GRAIN_OPACITY }]}
-          />
+          <GrainOverlay />
         </>
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.center]}>

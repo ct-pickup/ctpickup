@@ -26,6 +26,8 @@ export const palette = {
 export const radius = {
   card: 12,
   button: 10,
+  /** Profile player card. */
+  playerCard: 16,
   pill: 999,
 } as const;
 
