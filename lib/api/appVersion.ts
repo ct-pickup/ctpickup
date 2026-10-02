@@ -10,6 +10,8 @@ import {
  * Compatibility with the App Store build v1.3.5, which predates star ratings and never sends x-app-version.
  * Every legacy branch lives in this module so it can be deleted in one go.
  * TODO: Remove after v1.3.5 usage drops to near zero once the new build ships; target 2026-12-01.
+ * At the same time, drop the legacy player_cards columns (tier, verification, sessions, reliability) by recreating
+ * the view from 20261002190000_player_cards_stars.sql, and delete scripts/check-player-cards.mjs.
  */
 
 export const APP_VERSION_HEADER = "x-app-version";
