@@ -314,6 +314,8 @@ export function postAdminLateCancel(
     cancelled_at?: string;
     within_24h?: boolean;
     standing_recorded?: boolean;
+    refunded_to_card?: boolean;
+    refund_cents?: number;
     credit_issued?: boolean;
     amount_cents?: number;
     payer_credited?: boolean;

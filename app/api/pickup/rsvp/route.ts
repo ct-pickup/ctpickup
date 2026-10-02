@@ -229,7 +229,7 @@ export async function POST(req: Request) {
       if (!holdsSpot || !spotRsvp) {
         return NextResponse.json({
           ok: true,
-          preview: { credit_cents: 0, payer_credit_cents: 0, payment_cancelled: false, paid_but_late: false, message: "No payment to return." },
+          preview: { refund_cents: 0, credit_cents: 0, payer_credit_cents: 0, payment_cancelled: false, paid_but_late: false, message: "No payment to return." },
         });
       }
       const preview = await previewPlayerWithdrawal(ctx, spotRsvp);

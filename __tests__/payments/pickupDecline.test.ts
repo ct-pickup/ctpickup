@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FakeStripe, FakeSupabase } from "./fakes";
+import { FakeStripe, FakeSupabase, pinClock } from "./fakes";
 
 const h = vi.hoisted(() => ({
   db: null as unknown as import("./fakes").FakeSupabase,
@@ -128,6 +128,8 @@ function rsvp() {
 function cancellationCredits(userId: string) {
   return h.db.rows("pickup_credits").filter((c) => c.user_id === userId && c.reason === "cancellation");
 }
+
+pinClock();
 
 beforeEach(() => {
   h.db = new FakeSupabase();
@@ -324,7 +326,10 @@ describe("decline preview", () => {
     const body = await (await decline({ preview: true })).json();
     expect(body).toEqual({
       ok: true,
-      preview: { credit_cents: FEE + 500, payer_credit_cents: 0, payment_cancelled: false, paid_but_late: false, message: "You'll get a $10.32 credit." },
+      preview: {
+        refund_cents: 0, credit_cents: FEE + 500, payer_credit_cents: 0, payment_cancelled: false, paid_but_late: false,
+        message: "You'll get a $10.32 credit.",
+      },
     });
     expect(rsvp().status).toBe("confirmed");
     expect(h.db.rows("pickup_credits")).toHaveLength(0);

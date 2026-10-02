@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { POLICY_CHANGE_AT } from "@/lib/payments/pickupRefunds";
 import { decidePickupRefund, refundWindowOpen, type RefundPolicyInput } from "@/lib/payments/refundPolicy";
 
 const HOUR = 60 * 60 * 1000;
@@ -196,5 +197,49 @@ describe("decidePickupRefund: player leave", () => {
   it("rejects a host or admin using the leave rule", () => {
     expect(() => decidePickupRefund(input({ initiator: "host" }))).toThrow(/Only the player/);
     expect(() => decidePickupRefund(input({ initiator: "admin" }))).toThrow(/Only the player/);
+  });
+});
+
+describe("player leave: card paid before POLICY_CHANGE_AT (old terms)", () => {
+  const BEFORE = Date.parse(POLICY_CHANGE_AT) - 1;
+  const AT = Date.parse(POLICY_CHANGE_AT);
+
+  it("more than 24h out: refund to the card for what Stripe charged, credit portion back as credit", () => {
+    const d = decidePickupRefund(input({ cardPaidAtMs: BEFORE, creditCoveredCents: 300 }));
+    expect(d).toEqual({
+      kind: "settle",
+      reason: "player_leave_early_old_terms",
+      refundToCard: true,
+      refundCardCents: 1032,
+      credits: [{ userId: PLAYER, cents: 300, creditedForUserId: null }],
+    });
+  });
+
+  it("friend-paid: the refund goes back to the charge (the friend's card), no credit for the friend", () => {
+    const d = decidePickupRefund(input({ cardPaidAtMs: BEFORE, cardPayerId: FRIEND }));
+    expect(d).toMatchObject({ kind: "settle", refundToCard: true, refundCardCents: 1032, credits: [] });
+  });
+
+  it("paid exactly at POLICY_CHANGE_AT or later: credit (new terms)", () => {
+    const d = decidePickupRefund(input({ cardPaidAtMs: AT }));
+    expect(d).toMatchObject({ kind: "settle", reason: "player_leave_early", refundToCard: false, refundCardCents: 0 });
+  });
+
+  it("inside 24h: nothing under the old terms either", () => {
+    const d = decidePickupRefund(input({ cardPaidAtMs: BEFORE, kickoffAt: NOW + 24 * HOUR, creditCoveredCents: 300 }));
+    expect(d).toEqual({ kind: "none", reason: "within_24h" });
+  });
+
+  it("already fully refunded: still routed to the card refund helper, which reports it", () => {
+    const d = decidePickupRefund(input({ cardPaidAtMs: BEFORE, cardNetCents: 0 }));
+    expect(d).toMatchObject({ kind: "settle", refundToCard: true, refundCardCents: 0, credits: [] });
+  });
+
+  it("unknown paid time or credit-only spot: new terms", () => {
+    expect(decidePickupRefund(input({ cardPaidAtMs: null }))).toMatchObject({ refundToCard: false });
+    expect(decidePickupRefund(input({ cardPaidAtMs: BEFORE, hasCardCharge: false, cardNetCents: 0, creditCoveredCents: 300 }))).toMatchObject({
+      refundToCard: false,
+      credits: [{ userId: PLAYER, cents: 300, creditedForUserId: null }],
+    });
   });
 });

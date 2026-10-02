@@ -344,7 +344,7 @@ export function usePickupJoin() {
         return;
       }
       const fallback = pickupPlayerRefundEligibleClient(run ?? {})
-        ? "Canceling more than 24 hours before kickoff turns what you paid into a platform credit. Within 24 hours: no refund or credit."
+        ? "Canceling more than 24 hours before kickoff gives back what you paid, as a refund or credit depending on when you paid. Within 24 hours: no refund or credit."
         : "No refund or credit applies within 24 hours of kickoff.";
       const message = typeof previewJson.preview?.message === "string" ? previewJson.preview.message : fallback;
 

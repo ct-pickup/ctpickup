@@ -1,5 +1,18 @@
+import { afterEach, beforeEach, vi } from "vitest";
+
 type Row = Record<string, unknown>;
 type Filter = (r: Row) => boolean;
+
+/** Pins Date (only) so payments seeded relative to now are on or after POLICY_CHANGE_AT. */
+export function pinClock(iso = "2026-11-02T16:00:00Z") {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(iso));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+}
 
 type UniqueIndex = { table: string; key: (r: Row) => unknown[]; where?: (r: Row) => boolean };
 

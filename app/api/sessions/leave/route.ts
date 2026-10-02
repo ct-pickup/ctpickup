@@ -20,7 +20,8 @@ function bearer(req: Request) {
  * Player leaves a session. Leaving more than 24 hours before kickoff turns what was actually paid for the spot
  * into platform credit: the card charge net of refunds goes to whoever paid it (a friend who paid for the player
  * gets it, and both are notified), what a pickup credit covered goes to the player whose credit it was; card refunds are not
- * issued here. Within 24 hours nothing comes back. A player with an unfinished checkout can leave: the checkout
+ * issued here, except for card payments received before POLICY_CHANGE_AT, which are refunded to the card that paid
+ * (lib/payments/refundPolicy). Within 24 hours nothing comes back. A player with an unfinished checkout can leave: the checkout
  * is stopped so it can no longer charge them, unless it already went through, in which case they are treated as paid.
  * With preview: true nothing changes and the response describes what leaving would return.
  */
@@ -62,7 +63,7 @@ export async function POST(req: Request) {
 
   const { data: rsvp } = await admin
     .from("pickup_run_rsvps")
-    .select("status, paid_at, payment_intent_id, checkout_session_id")
+    .select("status, paid_at, payment_intent_id, checkout_session_id, refund_id")
     .eq("run_id", run_id)
     .eq("user_id", userId)
     .maybeSingle();

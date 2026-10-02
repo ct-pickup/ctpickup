@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FakeStripe, FakeSupabase } from "./fakes";
+import { FakeStripe, FakeSupabase, pinClock } from "./fakes";
 import { parseCancelledAt } from "@/lib/pickup/cancelledAt";
 
 const h = vi.hoisted(() => ({
@@ -104,6 +104,8 @@ function cancellationCredits(userId: string) {
 function lateIncidents() {
   return h.db.rows("pickup_reliability_incidents").filter((r) => r.user_id === PLAYER && r.kind === "late_cancel");
 }
+
+pinClock();
 
 beforeEach(() => {
   h.db = new FakeSupabase();

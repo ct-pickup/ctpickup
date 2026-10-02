@@ -667,11 +667,25 @@ export default function SessionDetailScreen() {
     if (rsvpBusy || !session?.access_token) return;
     const isPaid = (run?.fee_cents ?? 0) > 0;
     const pendingPayment = myStatus === "pending_payment";
-    const alertBody = pendingPayment
+    let alertBody = pendingPayment
       ? "Your unfinished payment will be cancelled and you won't be charged. If it already went through, you'll be treated as a paid player."
       : isPaid
-        ? "Leaving more than 24 hours before kickoff turns what you paid into a platform credit. Within 24 hours: no refund or credit."
+        ? "Leaving more than 24 hours before kickoff gives back what you paid, as a refund or credit depending on when you paid. Within 24 hours: no refund or credit."
         : "Are you sure you want to leave this session?";
+    const previewOrigin = siteOrigin();
+    if (previewOrigin && isPaid) {
+      const pr = await fetch(`${previewOrigin}/api/sessions/leave`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ run_id: id, preview: true }),
+      }).catch(() => null);
+      const pj = pr ? ((await pr.json().catch(() => null)) as { preview?: { message?: unknown }; error?: string } | null) : null;
+      if (pr && !pr.ok) {
+        Alert.alert("Could not leave", pj?.error ?? "Something went wrong. Try again.");
+        return;
+      }
+      if (typeof pj?.preview?.message === "string") alertBody = pj.preview.message;
+    }
     Alert.alert("Leave session?", alertBody, [
       { text: "Stay", style: "cancel" },
       {
@@ -685,25 +699,10 @@ export default function SessionDetailScreen() {
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${session!.access_token}` },
               body: JSON.stringify({ run_id: id }),
             });
-            const j = await r.json().catch(() => null) as {
-              ok?: boolean; error?: string; credit_issued?: boolean; amount_cents?: number;
-              already_credited?: boolean; payment_cancelled?: boolean; paid_but_late?: boolean;
-              payer_credit_cents?: number; payer_credited?: boolean; payer_name?: string | null;
-            } | null;
+            const j = await r.json().catch(() => null) as { ok?: boolean; error?: string; message?: string } | null;
             if (!r.ok || !j?.ok) { Alert.alert("Could not leave", j?.error ?? "Something went wrong. Try again."); return; }
             await load();
-            const lines: string[] = [];
-            if (j.payment_cancelled) lines.push("Your unfinished payment was cancelled. You were not charged.");
-            if (j.payer_credit_cents) {
-              const who = j.payer_name || "The friend who paid";
-              lines.push(j.payer_credited
-                ? `${who} paid for your spot, so the $${(j.payer_credit_cents / 100).toFixed(2)} credit went to them.`
-                : `${who} paid for your spot, so the credit for it goes to them.`);
-            }
-            if (j.credit_issued && j.amount_cents) lines.push(`A platform credit of $${(j.amount_cents / 100).toFixed(2)} has been added to your account.`);
-            if (j.already_credited) lines.push("A credit for this session was already added to your account earlier.");
-            if (j.paid_but_late) lines.push("No refund or credit applies within 24 hours of kickoff.");
-            if (lines.length > 0) Alert.alert("Left session", lines.join(" "));
+            if (typeof j.message === "string" && j.message) Alert.alert("Left session", j.message);
           } finally {
             setRsvpBusy(false);
           }

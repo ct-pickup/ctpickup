@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FakeStripe, FakeSupabase } from "./fakes";
+import { FakeStripe, FakeSupabase, pinClock } from "./fakes";
 
 const h = vi.hoisted(() => ({
   db: null as unknown as import("./fakes").FakeSupabase,
@@ -126,6 +126,8 @@ function cancellationCredits(userId: string) {
 function pushFor(userId: string) {
   return h.pushes.filter((p) => p.userIds.includes(userId));
 }
+
+pinClock();
 
 beforeEach(() => {
   h.db = new FakeSupabase();

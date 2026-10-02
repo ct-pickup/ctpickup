@@ -39,6 +39,15 @@ function adminOutcomeMessage(opts: {
   const { plan } = w;
   if (plan.checkoutReleased) return `${head} Their unfinished payment was cancelled, so nothing was charged.${late}`;
   const parts: string[] = [head];
+  if (plan.cardRefund && w.refundedCents > 0) {
+    const amount = dollars(w.refundedCents);
+    const owner = plan.cardRefund.friendPaid ? `${w.payerName ?? "The friend who paid"}'s` : `${playerName}'s`;
+    parts.push(
+      w.alreadyRefunded
+        ? `The $${amount} card payment was already refunded to ${owner} card.`
+        : `Paid before the policy change, so $${amount} was refunded to ${owner} card.`,
+    );
+  }
   if (plan.payerCredit) {
     const payer = w.payerName ?? "The friend who paid";
     if (w.payerCreditIssuedCents > 0) parts.push(`${payer} paid for the spot and got a $${dollars(w.payerCreditIssuedCents)} credit.`);
@@ -57,7 +66,8 @@ function adminOutcomeMessage(opts: {
 /**
  * Records a player's own cancellation that they asked an admin to make. It is settled exactly like the player leaving
  * (lib/payments/playerWithdrawal): cancelled more than 24 hours before kickoff, what was actually paid becomes credit
- * (to the friend who paid, if one did); within 24 hours nothing comes back; an unfinished checkout is stopped.
+ * (to the friend who paid, if one did), or a card refund if it was paid before POLICY_CHANGE_AT; within 24 hours
+ * nothing comes back; an unfinished checkout is stopped.
  * cancelled_at (default now) is when the player asked, and decides the 24-hour window. Only a cancellation inside the
  * window is recorded as a late cancel for standing (idempotent per user + run + kind via unique index). A freed spot
  * goes to the waitlist. Retries are safe: the spot moves only from its current status and credits are one per run.
@@ -107,7 +117,7 @@ export async function POST(req: Request) {
 
   const current = await admin
     .from("pickup_run_rsvps")
-    .select("status, paid_at, payment_intent_id, checkout_session_id")
+    .select("status, paid_at, payment_intent_id, checkout_session_id, refund_id")
     .eq("run_id", run_id)
     .eq("user_id", user_id)
     .maybeSingle();

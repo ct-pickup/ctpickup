@@ -4,15 +4,17 @@ import type Stripe from "stripe";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { pickupRefundCutoffMs } from "@/lib/pickup/runScheduling";
 import {
-  findPickupPayerUserId,
+  findPickupPayer,
   findPickupPaymentIntentId,
   getPickupChargeSnapshot,
   issuePickupCancellationCredit,
   markPickupCheckoutExpired,
   matchChargeToCurrentJoin,
   pickupCreditCoverageForJoin,
+  refundPickupCharge,
   remainingRefundableCents,
   settlePendingPickupCheckout,
+  type PickupChargeSnapshot,
 } from "@/lib/payments/pickupRefunds";
 import { decidePickupRefund, refundWindowOpen, type RefundCredit } from "@/lib/payments/refundPolicy";
 
@@ -29,6 +31,7 @@ export type WithdrawalRsvp = {
   paid_at: string | null;
   payment_intent_id: string | null;
   checkout_session_id: string | null;
+  refund_id?: string | null;
 };
 
 export type WithdrawalPlan = {
@@ -39,13 +42,18 @@ export type WithdrawalPlan = {
   paymentIntentId: string | null;
   paidAt: string | null;
   checkoutSessionId: string | null;
+  existingRefundId: string | null;
   payerId: string;
   selfCredit: RefundCredit | null;
   payerCredit: RefundCredit | null;
+  /** Card paid before POLICY_CHANGE_AT and left early: refund the card (cents 0 means it was already refunded). */
+  cardRefund: { snap: PickupChargeSnapshot; cents: number; friendPaid: boolean } | null;
 };
 
 export type WithdrawalResult = {
   plan: WithdrawalPlan;
+  refundedCents: number;
+  alreadyRefunded: boolean;
   creditIssuedCents: number;
   alreadyCredited: boolean;
   payerCreditIssuedCents: number;
@@ -133,12 +141,20 @@ export async function planPlayerWithdrawal(
   let cardCents = 0;
   let coverageCents = 0;
   let payerId = userId;
+  let charge: PickupChargeSnapshot | null = null;
+  let cardPaidAtMs: number | null = null;
   if (earlyEnough && !checkoutReleased) {
     try {
       if (paymentIntentId) {
         const snap = await getPickupChargeSnapshot(getStripe(), paymentIntentId);
         if (snap.amountReceivedCents > 0) {
-          payerId = await findPickupPayerUserId(admin, { playerId: userId, paymentIntentId, checkoutSessionId });
+          const payer = await findPickupPayer(admin, { playerId: userId, paymentIntentId, checkoutSessionId });
+          payerId = payer.payerId;
+          const receivedMs = payer.paymentReceivedAt ? new Date(payer.paymentReceivedAt).getTime() : NaN;
+          const createdMs = payer.createdAt ? new Date(payer.createdAt).getTime() : NaN;
+          if (Number.isFinite(receivedMs)) cardPaidAtMs = receivedMs;
+          else if (snap.chargeCreatedMs != null) cardPaidAtMs = snap.chargeCreatedMs;
+          else if (Number.isFinite(createdMs)) cardPaidAtMs = createdMs;
           const match = await matchChargeToCurrentJoin(admin, {
             runId: run.id,
             userId,
@@ -150,7 +166,10 @@ export async function planPlayerWithdrawal(
           if (match === "unmatched" && remainingRefundableCents(snap) > 0) {
             throw new Error(`Card payment ${paymentIntentId} could not be matched to this spot.`);
           }
-          if (match === "current") cardCents = remainingRefundableCents(snap);
+          if (match === "current") {
+            charge = snap;
+            cardCents = remainingRefundableCents(snap);
+          }
         }
       }
       const coverage = await pickupCreditCoverageForJoin(admin, {
@@ -158,7 +177,7 @@ export async function planPlayerWithdrawal(
         userId,
         paidAtIso: paidAt,
         feeCents: Number(run.fee_cents ?? 0),
-        hasCardPayment: cardCents > 0,
+        hasCardPayment: charge != null,
       });
       coverageCents = coverage.cents;
     } catch (e) {
@@ -178,13 +197,18 @@ export async function planPlayerWithdrawal(
     refundCutoffAt: pickupRefundCutoffMs(run),
     now: cancelledAt,
     paymentPending: checkoutReleased,
-    hasCardCharge: cardCents > 0,
+    hasCardCharge: charge != null,
     cardNetCents: cardCents,
     creditCoveredCents: coverageCents,
     playerId: userId,
     cardPayerId: payerId,
+    cardPaidAtMs,
   });
   const credits = decision.kind === "settle" ? decision.credits : [];
+  const cardRefund =
+    decision.kind === "settle" && decision.refundToCard && charge
+      ? { snap: charge, cents: decision.refundCardCents, friendPaid: payerId !== userId }
+      : null;
 
   return {
     ok: true,
@@ -196,9 +220,11 @@ export async function planPlayerWithdrawal(
       paymentIntentId,
       paidAt,
       checkoutSessionId,
+      existingRefundId: rsvp.refund_id || null,
       payerId,
       selfCredit: credits.find((c) => c.userId === userId && c.creditedForUserId == null) ?? null,
       payerCredit: credits.find((c) => c.creditedForUserId === userId) ?? null,
+      cardRefund,
     },
   };
 }
@@ -213,6 +239,13 @@ export function withdrawalPreviewMessage(plan: WithdrawalPlan, payerName: string
     return "Your unfinished payment will be cancelled and you won't be charged. If it already went through, you'll be treated as a paid player.";
   }
   const parts: string[] = [];
+  if (plan.cardRefund) {
+    const amount = dollars(plan.cardRefund.cents);
+    if (plan.cardRefund.cents <= 0) parts.push("Your card payment for this spot was already refunded.");
+    else if (plan.cardRefund.friendPaid) {
+      parts.push(`${payerName ?? "The friend who paid"} paid for your spot, so they'll be refunded $${amount} to their card.`);
+    } else parts.push(`You'll be refunded $${amount} to your card.`);
+  }
   if (plan.payerCredit) {
     parts.push(`${payerName ?? "The friend who paid"} paid for your spot, so the $${dollars(plan.payerCredit.cents)} credit will go to them.`);
   }
@@ -229,14 +262,16 @@ export async function previewPlayerWithdrawal(
   const planned = await planPlayerWithdrawal(ctx, rsvp, { preview: true });
   if (!planned.ok) return planned;
   const { plan } = planned;
-  const names = plan.payerCredit ? await displayNames(ctx.admin, [plan.payerId]) : new Map<string, string>();
+  const showPayer = plan.payerCredit != null || !!plan.cardRefund?.friendPaid;
+  const names = showPayer ? await displayNames(ctx.admin, [plan.payerId]) : new Map<string, string>();
   const payerName = names.get(plan.payerId) ?? null;
   return {
     ok: true,
     preview: {
+      refund_cents: plan.cardRefund?.cents ?? 0,
       credit_cents: plan.selfCredit?.cents ?? 0,
       payer_credit_cents: plan.payerCredit?.cents ?? 0,
-      ...(plan.payerCredit ? { payer_name: payerName } : {}),
+      ...(showPayer ? { payer_name: payerName } : {}),
       payment_cancelled: plan.checkoutReleased && plan.prevStatus === "pending_payment",
       paid_but_late: wasPaid(plan) && !plan.earlyEnough,
       message: withdrawalPreviewMessage(plan, payerName),
@@ -256,9 +291,39 @@ export async function commitPlayerWithdrawal(
 ): Promise<{ ok: true; result: WithdrawalResult } | WithdrawalFailure> {
   const { admin, run, userId, sentryCtx } = ctx;
   const runTitle = run.title ?? "the session";
-  const { selfCredit, payerCredit, payerId, prevStatus } = plan;
-  const friendPaid = payerCredit != null;
+  const { selfCredit, payerCredit, payerId, prevStatus, cardRefund } = plan;
+  const friendPaid = payerCredit != null || !!cardRefund?.friendPaid;
   const nowIso = new Date().toISOString();
+
+  let refundedCents = 0;
+  let alreadyRefunded = false;
+  if (cardRefund) {
+    const paymentIntentId = cardRefund.snap.paymentIntentId;
+    try {
+      const outcome = await refundPickupCharge(ctx.getStripe(), admin, {
+        runId: run.id,
+        userId,
+        snap: cardRefund.snap,
+        checkoutSessionId: plan.checkoutSessionId,
+        existingRefundId: plan.existingRefundId,
+        trigger: "player_leave",
+      });
+      if (outcome.kind !== "nothing_charged") {
+        refundedCents = outcome.amountCents;
+        alreadyRefunded = outcome.kind === "already_refunded";
+        if (outcome.recordError) {
+          Sentry.captureException(new Error(`Refund issued but not recorded: ${outcome.recordError}`), {
+            ...sentryCtx,
+            extra: { ...sentryCtx.extra, payment_intent_id: paymentIntentId, refund_id: outcome.refundId },
+          });
+        }
+      }
+    } catch (e) {
+      Sentry.captureException(e, { ...sentryCtx, extra: { ...sentryCtx.extra, payment_intent_id: paymentIntentId } });
+      return { ok: false, status: 502, error: "Could not refund your card. You are still in the session. Try again." };
+    }
+  }
+  const refundNote = refundedCents > 0 ? " Your card refund already went through." : "";
 
   const { data: cancelledRows, error: cancelErr } = await admin
     .from("pickup_run_rsvps")
@@ -275,11 +340,11 @@ export async function commitPlayerWithdrawal(
     .eq("status", prevStatus)
     .select("user_id");
   if (cancelErr) {
-    Sentry.captureException(cancelErr, sentryCtx);
-    return { ok: false, status: 500, error: `Could not leave the session: ${cancelErr.message}` };
+    Sentry.captureException(cancelErr, { ...sentryCtx, extra: { ...sentryCtx.extra, refunded_cents: refundedCents } });
+    return { ok: false, status: 500, error: `Could not leave the session: ${cancelErr.message}${refundNote ? `.${refundNote}` : ""}` };
   }
   if (!cancelledRows || cancelledRows.length === 0) {
-    return { ok: false, status: 409, error: "Your spot changed while leaving. Refresh and try again." };
+    return { ok: false, status: 409, error: `Your spot changed while leaving. Refresh and try again.${refundNote}` };
   }
 
   let creditIssuedCents = 0;
@@ -344,6 +409,19 @@ export async function commitPlayerWithdrawal(
   const parts: string[] = [];
   if (plan.checkoutReleased) {
     parts.push(`You left ${runTitle}. Your unfinished payment was cancelled and you were not charged.`);
+  } else if (cardRefund) {
+    const amount = dollars(refundedCents);
+    if (alreadyRefunded) {
+      parts.push(`You left ${runTitle}. The $${amount} card payment for your spot was already refunded.`);
+    } else if (refundedCents <= 0) {
+      parts.push(`You have left ${runTitle}.`);
+    } else if (cardRefund.friendPaid) {
+      parts.push(`You left ${runTitle}. ${payerName} paid for your spot, so $${amount} was refunded to their card.`);
+    } else {
+      parts.push(`You left ${runTitle}. $${amount} was refunded to your card. It can take 5 to 10 business days to appear.`);
+    }
+    if (creditIssuedCents > 0) parts.push(`A credit of $${dollars(creditIssuedCents)} has been added to your account.`);
+    else if (alreadyCredited) parts.push("A credit for the rest was already added to your account earlier.");
   } else if (friendPaid) {
     parts.push(
       payerCreditIssuedCents > 0
@@ -372,8 +450,18 @@ export async function commitPlayerWithdrawal(
     console.error("[pickup withdrawal] push failed", errMsg(e));
   }
 
-  if (friendPaid) {
-    const payerCreditCents = payerCredit?.cents ?? 0;
+  if (cardRefund?.friendPaid && refundedCents > 0 && !alreadyRefunded) {
+    try {
+      await sendPushToUsers(admin, [payerId], {
+        title: "Refund issued",
+        body: `${playerName} left ${runTitle}. $${dollars(refundedCents)} for the spot you paid for has been refunded to your card. It can take 5 to 10 business days to appear.`,
+        data: { kind: "session_left_payer_refund", run_id: run.id },
+      });
+    } catch (e) {
+      console.error("[pickup withdrawal] payer push failed", errMsg(e));
+    }
+  } else if (payerCredit) {
+    const payerCreditCents = payerCredit.cents;
     try {
       await sendPushToUsers(admin, [payerId], payerCreditIssuedCents > 0
         ? {
@@ -401,6 +489,8 @@ export async function commitPlayerWithdrawal(
     ok: true,
     result: {
       plan,
+      refundedCents,
+      alreadyRefunded,
       creditIssuedCents,
       alreadyCredited,
       payerCreditIssuedCents,
@@ -417,6 +507,10 @@ export async function commitPlayerWithdrawal(
 export function withdrawalResponseFields(r: WithdrawalResult): Record<string, unknown> {
   const friendPaid = r.plan.payerCredit != null;
   return {
+    refunded_to_card: r.refundedCents > 0 && !r.alreadyRefunded,
+    refund_cents: r.refundedCents,
+    already_refunded: r.alreadyRefunded,
+    ...(r.plan.cardRefund?.friendPaid ? { refunded_to_payer: true, payer_name: r.payerName } : {}),
     credit_issued: r.creditIssuedCents > 0,
     amount_cents: r.creditIssuedCents,
     already_credited: r.alreadyCredited,

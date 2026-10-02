@@ -1,3 +1,5 @@
+import { paidBeforePolicyChange } from "@/lib/payments/pickupRefunds";
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type RefundInitiator = "host" | "admin" | "player";
@@ -21,6 +23,8 @@ export type RefundPolicyInput = {
   playerId: string;
   /** Who paid the card charge: a friend (platform_payments.user_id with metadata.paid_for_user_id = player) or the player. */
   cardPayerId: string;
+  /** When the card payment was received (see planPlayerWithdrawal); decides old vs new terms for a player leave. */
+  cardPaidAtMs?: number | null;
 };
 
 export type RefundCredit = { userId: string; cents: number; creditedForUserId: string | null };
@@ -30,7 +34,7 @@ export type RefundDecision =
   | { kind: "cancel_checkout"; reason: "payment_pending" }
   | {
       kind: "settle";
-      reason: "host_or_admin_removal" | "player_leave_early";
+      reason: "host_or_admin_removal" | "player_leave_early" | "player_leave_early_old_terms";
       refundToCard: boolean;
       refundCardCents: number;
       credits: RefundCredit[];
@@ -57,7 +61,7 @@ function cents(n: number): number {
  *
  * - Unfinished checkout (pending payment): the checkout is cancelled so it cannot charge; nothing is refunded or credited.
  * - Paid nothing: nothing.
- * - Card refunds happen only when a host or admin acts.
+ * - Card refunds happen only when a host or admin acts, or when a player leaves early on a grandfathered payment (below).
  * - Host cancel (sessions/cancel, initiator "host") and admin cancel (sessions/cancel by an admin, admin/pickup/cancel,
  *   and the pickup/switch cancel_run action, initiator "admin"), trigger "run_cancel": the card-paid portion is refunded
  *   to the card that paid it (a friend's card when a friend paid), at any time, for what Stripe actually charged; the
@@ -65,9 +69,19 @@ function cents(n: number): number {
  *   REFUND_FIX_CUTOFF are never settled again.
  * - Player leaves (sessions/leave, trigger "leave") or declines their own RSVP (pickup/rsvp decline, trigger
  *   "rsvp_decline"); both are player-initiated and follow the same rule: more than 24 hours before kickoff, what was
- *   paid becomes credit, never a card refund. The card portion goes to whoever paid it (a friend who paid gets a credit
- *   marked as being for this player's spot), the credit-covered portion to the player. Within 24 hours nothing comes
- *   back. Declining an invite or a waitlist spot involves no money.
+ *   paid becomes credit, never a card refund (unless grandfathered, below). The card portion goes to whoever paid it
+ *   (a friend who paid gets a credit marked as being for this player's spot), the credit-covered portion to the
+ *   player. Within 24 hours nothing comes back. Declining an invite or a waitlist spot involves no money.
+ * - Grandfathered card payments (player leave, decline and admin late cancel): terms section 6 says refunds follow
+ *   the cancellation policy displayed at the time of payment. A card payment received before POLICY_CHANGE_AT (the
+ *   production deploy of the new terms) was made under the old rules and waiver, which promised a refund for
+ *   cancelling more than 24 hours before kickoff. Leaving more than 24 hours out on such a payment refunds the card
+ *   for what Stripe actually charged (the friend's card when a friend paid, since that is the original payment
+ *   method); the credit-covered portion still comes back as credit to the player. Payments received on or after
+ *   POLICY_CHANGE_AT get credit as above. Inside 24 hours the old terms also gave nothing ("not refunded"; no-shows
+ *   forfeit the fee), so that is the same either way. "Paid at" is platform_payments.stripe_payment_received_at,
+ *   else the Stripe charge time, else platform_payments.created_at. Once every run paid for before POLICY_CHANGE_AT
+ *   has kicked off, this branch is dead and can be removed along with POLICY_CHANGE_AT.
  * - Admin late cancel (admin/pickup/late-cancel): the player's own cancellation, recorded by an admin when the player
  *   asked them to cancel; it is not a removal. It is settled exactly like the player leaving (initiator "player",
  *   trigger "leave"), with the 24-hour window measured from cancelled_at (when the player asked; defaults to now, never
@@ -99,6 +113,15 @@ export function decidePickupRefund(input: RefundPolicyInput): RefundDecision {
 
   if (input.initiator !== "player") throw new Error("Only the player can leave a run; hosts and admins cancel or remove.");
   if (!early) return { kind: "none", reason: "within_24h" };
+  if (input.hasCardCharge && paidBeforePolicyChange(input.cardPaidAtMs)) {
+    return {
+      kind: "settle",
+      reason: "player_leave_early_old_terms",
+      refundToCard: true,
+      refundCardCents: card,
+      credits: covered > 0 ? [{ userId: input.playerId, cents: covered, creditedForUserId: null }] : [],
+    };
+  }
   if (card === 0 && covered === 0) return { kind: "none", reason: "paid_nothing" };
 
   const credits: RefundCredit[] = [];

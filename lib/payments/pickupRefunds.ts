@@ -10,6 +10,17 @@ const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
  */
 export const REFUND_FIX_CUTOFF = "2026-10-02T14:20:00Z";
 
+/**
+ * Production deploy of the new cancellation terms (commit 6b6a982; Vercel "Production – ctpickup" deployment
+ * completed per the GitHub deployment status). Card payments received before this were made under the old terms,
+ * which promised a card refund for cancelling more than 24 hours before kickoff.
+ */
+export const POLICY_CHANGE_AT = "2026-10-02T18:25:39Z";
+
+export function paidBeforePolicyChange(paidAtMs: number | null | undefined): boolean {
+  return paidAtMs != null && Number.isFinite(paidAtMs) && paidAtMs < new Date(POLICY_CHANGE_AT).getTime();
+}
+
 export function isOnOrAfterRefundFixCutoff(iso: string | null | undefined): boolean {
   if (!iso) return false;
   const t = new Date(iso).getTime();
@@ -107,30 +118,43 @@ export async function findPickupPaymentIntentId(
   return null;
 }
 
+export type PickupPayer = {
+  payerId: string;
+  /** platform_payments.stripe_payment_received_at of the payer's row (set by the Stripe webhook). */
+  paymentReceivedAt: string | null;
+  /** platform_payments.created_at of the payer's row (when checkout started). */
+  createdAt: string | null;
+};
+
 /**
  * Who paid the card charge for a player's spot: the friend whose platform_payments row names this player in
- * metadata.paid_for_user_id, otherwise the player.
+ * metadata.paid_for_user_id, otherwise the player. Also returns when that row says the payment was received.
  */
-export async function findPickupPayerUserId(
+export async function findPickupPayer(
   admin: SupabaseClient,
   opts: { playerId: string; paymentIntentId: string; checkoutSessionId: string | null },
-): Promise<string> {
+): Promise<PickupPayer> {
   const orFilter = [
     `stripe_payment_intent_id.eq.${opts.paymentIntentId}`,
     ...(opts.checkoutSessionId ? [`stripe_checkout_session_id.eq.${opts.checkoutSessionId}`] : []),
   ].join(",");
   const { data, error } = await admin
     .from("platform_payments")
-    .select("user_id,metadata")
+    .select("user_id,metadata,stripe_payment_received_at,created_at")
     .eq("product_type", "pickup")
     .or(orFilter);
   if (error) throw new Error(`platform_payments payer lookup: ${error.message}`);
+  const times = (p: { stripe_payment_received_at?: unknown; created_at?: unknown } | undefined) => ({
+    paymentReceivedAt: p?.stripe_payment_received_at ? String(p.stripe_payment_received_at) : null,
+    createdAt: p?.created_at ? String(p.created_at) : null,
+  });
   for (const p of data || []) {
     const meta = (p.metadata && typeof p.metadata === "object" ? p.metadata : {}) as Record<string, unknown>;
     const payer = String(p.user_id ?? "");
-    if (meta.paid_for_user_id === opts.playerId && payer && payer !== opts.playerId) return payer;
+    if (meta.paid_for_user_id === opts.playerId && payer && payer !== opts.playerId) return { payerId: payer, ...times(p) };
   }
-  return opts.playerId;
+  const own = (data || []).find((p) => String(p.user_id ?? "") === opts.playerId) ?? (data || [])[0];
+  return { payerId: opts.playerId, ...times(own) };
 }
 
 export type ChargeMatch = "current" | "already_compensated" | "unmatched";
