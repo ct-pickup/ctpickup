@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PlayerAvatar from "@/components/PlayerAvatar";
 import { PhotoHeader, PhotoUploadField } from "@/components/photo";
 import ProfileShareCard, { type ProfileShareData } from "@/components/profile/ProfileShareCard";
+import { StarLevelsSheet } from "@/components/StarLevels";
 import { StarRating } from "@/components/StarRating";
 import { useAuth } from "@/context/AuthContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
@@ -71,6 +72,7 @@ export default function ProfileScreen() {
   const { avatarUrl, setAvatarUrl, avatarUploading, pickAndUploadAvatar } = useAvatarPhoto();
   const [editing, setEditing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [levelsOpen, setLevelsOpen] = useState(false);
 
   useHubVenueResolve(profile, (venue) => setProfile((p) => (p ? { ...p, nearest_venue: venue } : p)));
 
@@ -298,7 +300,12 @@ export default function ProfileScreen() {
             </Text>
             {positionTown ? <Text style={s.positionTown}>{positionTown}</Text> : null}
             {card ? (
-              <View style={s.ratingLine}>
+              <Pressable
+                onPress={() => setLevelsOpen(true)}
+                accessibilityRole="button"
+                accessibilityHint="Shows what each star level means"
+                style={({ pressed }) => [s.ratingLine, pressed && s.pressed]}
+              >
                 <StarRating value={card.star} provisional={card.provisional} size="md" />
                 {topPct ? <Text style={s.ratingMeta}>{topPct}</Text> : null}
                 {verified ? (
@@ -307,9 +314,12 @@ export default function ProfileScreen() {
                     <Text style={s.verifiedText}>Verified</Text>
                   </View>
                 ) : null}
-              </View>
+                <FontAwesome name="question-circle-o" size={15} color={themeColor().muted} />
+              </Pressable>
             ) : null}
           </View>
+
+          <StarLevelsSheet visible={levelsOpen} onClose={() => setLevelsOpen(false)} />
 
           {/* 3. Stats */}
           <View style={s.statsRow}>

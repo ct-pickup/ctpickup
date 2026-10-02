@@ -1,3 +1,4 @@
+import { StarLevelSelect } from "@/components/StarLevels";
 import { useProfileCompletionGate } from "@/context/ProfileCompletionContext";
 import { useAuth } from "@/context/AuthContext";
 import { useWaiver } from "@/context/WaiverContext";
@@ -51,6 +52,7 @@ type FieldKey =
   | "last_name"
   | "gender"
   | "playing_position"
+  | "stated_level"
   | "instagram"
   | "phone"
   | "zip_code"
@@ -176,6 +178,7 @@ export default function CompleteProfileScreen() {
   const [lastName, setLastName] = useState("");
   const [gender, setGender] = useState<GenderValue | null>(null);
   const [playingPosition, setPlayingPosition] = useState<PositionValue | null>(null);
+  const [statedLevel, setStatedLevel] = useState<number | null>(null);
   const [instagram, setInstagram] = useState("");
   const [phone, setPhone] = useState("");
   const [zipCode, setZipCode] = useState("");
@@ -261,25 +264,27 @@ export default function CompleteProfileScreen() {
       !firstName.trim() ||
       !lastName.trim() ||
       !playingPosition ||
+      statedLevel == null ||
       !zipOk ||
       !username.trim()
     )
       return false;
     return true;
-  }, [firstName, lastName, playingPosition, zipOk, username]);
+  }, [firstName, lastName, playingPosition, statedLevel, zipOk, username]);
 
   const liveErrors = useMemo((): Partial<Record<FieldKey, string>> => {
     const e: Partial<Record<FieldKey, string>> = {};
     if (!firstName.trim()) e.first_name = "Required";
     if (!lastName.trim()) e.last_name = "Required";
     if (!playingPosition) e.playing_position = "Required";
+    if (statedLevel == null) e.stated_level = "Required";
     if (!zipDigits) e.zip_code = "Required";
     else if (!zipOk) e.zip_code = "Enter a 5-digit zip";
     if (!username.trim()) e.username = "Required";
     else if (!normalizeProfileUsername(username))
       e.username = "3–30 characters, lowercase letters and numbers only";
     return e;
-  }, [firstName, lastName, playingPosition, zipDigits, zipOk, username]);
+  }, [firstName, lastName, playingPosition, statedLevel, zipDigits, zipOk, username]);
 
   const postSaveVenueSections = useMemo(
     () => (postSaveVenues && postSaveVenues.length > 0 ? nearestVenueSections(postSaveVenues) : []),
@@ -291,6 +296,7 @@ export default function CompleteProfileScreen() {
       "first_name",
       "last_name",
       "playing_position",
+      "stated_level",
       "instagram",
       "zip_code",
       "username",
@@ -414,6 +420,20 @@ export default function CompleteProfileScreen() {
         return;
       }
 
+      // Starting rating. The server decides whether to seed; a failure here never blocks signup.
+      if (origin && session?.access_token && statedLevel != null) {
+        try {
+          const r = await fetch(`${origin}/api/account/star-level`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ level: statedLevel }),
+          });
+          if (!r.ok) console.warn("[complete-profile] star level not saved", r.status);
+        } catch (e) {
+          console.warn("[complete-profile] star level request failed", e);
+        }
+      }
+
       setPostSaveVenues(nearestVenues);
     } catch (e) {
       const userMsg = "Something went wrong while saving your profile. Please try again.";
@@ -434,6 +454,7 @@ export default function CompleteProfileScreen() {
     lastName,
     gender,
     playingPosition,
+    statedLevel,
     instagram,
     phone,
     zipDigits,
@@ -614,6 +635,18 @@ export default function CompleteProfileScreen() {
               <Text style={styles.selectChevron}>▾</Text>
             </Pressable>
             {liveErrors.playing_position ? <Text style={styles.errText}>{liveErrors.playing_position}</Text> : null}
+          </View>
+
+          <View style={styles.fieldBlock}>
+            <Text style={styles.label}>What&apos;s the highest level you&apos;ve played?</Text>
+            <Text style={styles.fieldHint}>This sets your starting stars. You can get verified later.</Text>
+            <StarLevelSelect
+              value={statedLevel}
+              onChange={setStatedLevel}
+              invalid={!!liveErrors.stated_level}
+              style={styles.levelSelect}
+            />
+            {liveErrors.stated_level ? <Text style={styles.errText}>{liveErrors.stated_level}</Text> : null}
           </View>
 
           <View style={styles.fieldBlock}>
@@ -826,6 +859,7 @@ function make_styles() {
     fontSize: 16, fontFamily: "Inter_400Regular",
     color: themeColor().muted,
   },
+  levelSelect: { marginTop: 8 },
   selectTrigger: {
     flexDirection: "row",
     alignItems: "center",

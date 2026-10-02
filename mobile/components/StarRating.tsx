@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-na
 import Svg, { ClipPath, Defs, Path, Rect } from "react-native-svg";
 
 import { shareCardColor, themeColor, useThemedStyles } from "@/theme";
+import { starLevelName } from "@shared/starLevels";
 
 export type StarRatingSize = "sm" | "md" | "lg";
 
@@ -11,6 +12,8 @@ type Props = {
   provisional?: boolean;
   size?: StarRatingSize;
   showValue?: boolean;
+  /** Level name after the number ("4.0 College"). Defaults on for md and lg. */
+  showLevel?: boolean;
   /** Fixed light-on-dark colors for photos and the share card. */
   tone?: "theme" | "onPhoto";
   /** Exact star size in points; overrides `size` for rendered images. */
@@ -85,6 +88,7 @@ export function StarRating({
   provisional = false,
   size = "md",
   showValue = true,
+  showLevel,
   tone = "theme",
   px: pxOverride,
   style,
@@ -101,7 +105,8 @@ export function StarRating({
   const customText = pxOverride
     ? { fontSize: Math.round(pxOverride * 0.78), marginLeft: Math.round(pxOverride * 0.35) }
     : null;
-  const label = `${clamped.toFixed(1)} stars${provisional ? ", new player" : ""}`;
+  const levelName = (showLevel ?? (pxOverride == null && size !== "sm")) ? starLevelName(clamped) : null;
+  const label = `${clamped.toFixed(1)} stars${levelName ? `, ${levelName}` : ""}${provisional ? ", new player" : ""}`;
 
   return (
     <View style={[styles.row, style]} accessible accessibilityRole="text" accessibilityLabel={label}>
@@ -114,6 +119,9 @@ export function StarRating({
           <Text style={[styles.value, styles[`value_${size}`], customText, onPhoto && styles.valueOnPhoto]}>
             {clamped.toFixed(1)}
           </Text>
+        ) : null}
+        {levelName ? (
+          <Text style={[styles.level, styles[`value_${size}`], customText, onPhoto && styles.valueOnPhoto]}>{levelName}</Text>
         ) : null}
       </View>
       {provisional ? (
@@ -130,6 +138,7 @@ function make_styles() {
     row: { flexDirection: "row", alignItems: "center" },
     provisional: { opacity: 0.5 },
     value: { color: themeColor().text, fontFamily: "Inter_700Bold", fontWeight: "700", marginLeft: 4 },
+    level: { color: themeColor().text, fontFamily: "Inter_600SemiBold", fontWeight: "600", marginLeft: 6 },
     valueOnPhoto: { color: shareCardColor.text },
     newOnPhoto: { color: shareCardColor.muted, borderColor: shareCardColor.faint },
     value_sm: { fontSize: 12 },

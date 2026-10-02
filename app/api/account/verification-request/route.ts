@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { fetchAdminUserIds } from "@/lib/push/adminUserIds";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
+import { isStarLevel } from "@/shared/starLevels";
 
 export async function POST(req: Request) {
   const admin = getSupabaseAdmin();
@@ -19,6 +20,12 @@ export async function POST(req: Request) {
 
   const claim = String(body.claim ?? "").trim();
   const evidence_url = String(body.evidence_url ?? "").trim();
+
+  const rawLevel = typeof body.claimed_level === "string" ? Number(body.claimed_level) : body.claimed_level;
+  if (rawLevel != null && !isStarLevel(rawLevel)) {
+    return NextResponse.json({ error: "Pick a level." }, { status: 400 });
+  }
+  const claimed_level = rawLevel == null ? null : rawLevel;
 
   if (!claim) return NextResponse.json({ error: "claim is required." }, { status: 400 });
   if (!evidence_url) return NextResponse.json({ error: "evidence_url is required." }, { status: 400 });
@@ -40,15 +47,19 @@ export async function POST(req: Request) {
     .eq("id", user.id)
     .maybeSingle();
 
-  const { error: insertErr } = await admin
+  const row = {
+    user_id: user.id,
+    claim,
+    evidence_url,
+    status: "pending",
+    created_at: new Date().toISOString(),
+  };
+  let { error: insertErr } = await admin
     .from("verification_requests")
-    .insert({
-      user_id: user.id,
-      claim,
-      evidence_url,
-      status: "pending",
-      created_at: new Date().toISOString(),
-    });
+    .insert(claimed_level == null ? row : { ...row, claimed_level });
+  if (insertErr && claimed_level != null && /claimed_level/.test(insertErr.message ?? "")) {
+    ({ error: insertErr } = await admin.from("verification_requests").insert(row));
+  }
 
   if (insertErr) {
     return NextResponse.json({ error: insertErr.message }, { status: 500 });

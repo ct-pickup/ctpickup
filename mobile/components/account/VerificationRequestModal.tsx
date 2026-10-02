@@ -1,3 +1,4 @@
+import { StarLevelSelect } from "@/components/StarLevels";
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import { useState } from "react";
@@ -25,12 +26,14 @@ type Props = {
 
 export function VerificationRequestModal({ visible, onClose, onSubmitted }: Props) {
   const { session } = useAuth();
+  const [claimedLevel, setClaimedLevel] = useState<number | null>(null);
   const [claim, setClaim] = useState("");
   const [evidenceUrl, setEvidenceUrl] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function submit() {
     if (busy) return;
+    if (claimedLevel == null) { Alert.alert("Missing info", "Please pick the level you played at."); return; }
     if (!claim.trim()) { Alert.alert("Missing info", "Please describe your playing background."); return; }
     if (!evidenceUrl.trim()) { Alert.alert("Missing info", "Please provide a roster URL or link to evidence."); return; }
 
@@ -43,7 +46,7 @@ export function VerificationRequestModal({ visible, onClose, onSubmitted }: Prop
       const r = await fetch(`${origin}/api/account/verification-request`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ claim: claim.trim(), evidence_url: evidenceUrl.trim() }),
+        body: JSON.stringify({ claim: claim.trim(), evidence_url: evidenceUrl.trim(), claimed_level: claimedLevel }),
       });
       const j = await r.json().catch(() => null) as { ok?: boolean; error?: string } | null;
       if (!r.ok || !j?.ok) {
@@ -52,6 +55,7 @@ export function VerificationRequestModal({ visible, onClose, onSubmitted }: Prop
       }
       Alert.alert("Submitted!", "We'll review your verification request within 24 hours.");
       setClaim("");
+      setClaimedLevel(null);
       setEvidenceUrl("");
       onSubmitted();
       onClose();
@@ -83,7 +87,10 @@ export function VerificationRequestModal({ visible, onClose, onSubmitted }: Prop
             </View>
           </View>
 
-          <Text style={s.label}>YOUR CLAIM</Text>
+          <Text style={s.label}>Highest level you&apos;ve played</Text>
+          <StarLevelSelect value={claimedLevel} onChange={setClaimedLevel} />
+
+          <Text style={[s.label, { marginTop: 20 }]}>Your claim</Text>
           <TextInput
             style={s.input}
             value={claim}
@@ -96,7 +103,7 @@ export function VerificationRequestModal({ visible, onClose, onSubmitted }: Prop
           />
           <Text style={s.hint}>Describe your highest level of play, teams, and years.</Text>
 
-          <Text style={[s.label, { marginTop: 20 }]}>ROSTER / EVIDENCE URL</Text>
+          <Text style={[s.label, { marginTop: 20 }]}>Roster or evidence link</Text>
           <TextInput
             style={s.input}
             value={evidenceUrl}
