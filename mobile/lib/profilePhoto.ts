@@ -20,12 +20,12 @@ export async function pickAvatar(source: AvatarSource): Promise<PickedPhoto | nu
   if (source === "camera") {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      throw new PhotoUserError("CT Pickup needs camera access to take your photo. You can allow it in Settings.");
+      throw new PhotoUserError("Competitive Together needs camera access to take your photo. You can allow it in Settings.");
     }
   } else {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      throw new PhotoUserError("CT Pickup needs photo access to choose your photo. You can allow it in Settings.");
+      throw new PhotoUserError("Competitive Together needs photo access to choose your photo. You can allow it in Settings.");
     }
   }
   const result =
