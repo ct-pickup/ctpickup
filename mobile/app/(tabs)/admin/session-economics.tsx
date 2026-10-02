@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { fetchAdminPlayerRatings } from "@/lib/adminApi";
 import { siteOrigin } from "@/lib/env";
 import { Stack, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
@@ -80,19 +81,9 @@ export default function SessionEconomicsScreen() {
 
       const profileMap = Object.fromEntries((profiles ?? []).map((p: any) => [p.id, p]));
 
-      // Get Diamond attendees for completed runs
-      const { data: diamondAttendees } = await supabase
-        .from("session_attendance")
-        .select("user_id,tier_sessions!inner(id)")
-        .eq("status", "attended");
-
-      // Get Diamond player ratings
-      const { data: diamondRatings } = await supabase
-        .from("player_ratings")
-        .select("user_id")
-        .eq("tier", "diamond");
-
-      const diamondIds = new Set((diamondRatings ?? []).map((r: any) => r.user_id));
+      const token = session?.access_token;
+      const diamondRes = token ? await fetchAdminPlayerRatings(token, { tier: "diamond" }) : null;
+      const diamondIds = new Set(diamondRes?.ok ? diamondRes.data.ratings.map((r) => r.user_id) : []);
 
       const merged: Run[] = runData.map((r: any) => {
         const runPayments = (payments ?? []).filter((p: any) => p.product_entity_id === r.id);
@@ -113,7 +104,7 @@ export default function SessionEconomicsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, session?.access_token]);
 
   const loadDiamondPayouts = useCallback(async () => {
     const origin = siteOrigin();

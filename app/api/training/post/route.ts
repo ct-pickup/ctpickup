@@ -135,18 +135,10 @@ export async function POST(req: Request) {
       .eq("id", user.id)
       .maybeSingle();
 
-    const { data: rating } = await admin
-      .from("player_ratings")
-      .select("tier")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
     const trainerName =
       [trainer?.first_name, trainer?.last_name].filter(Boolean).join(" ") ||
       trainer?.username ||
       "Someone";
-    const tier = (rating?.tier ? String(rating.tier) : "bronze").toLowerCase();
-    const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
     const region = regionForTrainer(trainer?.nearest_venue, trainer?.zip_code);
 
     if (region) {
@@ -166,7 +158,7 @@ export async function POST(req: Request) {
           spots <= 0 ? "solo session" : `${spots} spot${spots === 1 ? "" : "s"} open`;
         await sendPushToUsers(admin, recipientIds, {
           title: "Training nearby ⚽",
-          body: `${trainerName} (${tierLabel}) is training at ${fieldName} — ${spotsLabel}`,
+          body: `${trainerName} is training at ${fieldName} — ${spotsLabel}`,
           data: {
             screen: `training/${data.id}`,
             post_id: data.id,

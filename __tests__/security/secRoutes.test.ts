@@ -212,14 +212,15 @@ describe("sessions/invite authorization", () => {
 });
 
 describe("ratings internals are not exposed", () => {
-  it("leaderboards tiers omit score and reliability", async () => {
+  it("leaderboards tiers send points, not tier, score or reliability", async () => {
     h.db.rows("player_ratings").push({ user_id: HOST, tier: "gold", score: 77, sessions: 4, reliability: 93, verification: "document" });
     const res = await leaderboardsGET(new Request("http://test.local/api/leaderboards"));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.tiers).toHaveLength(1);
-    expect(body.tiers[0]).toMatchObject({ user_id: HOST, tier: "gold", sessions: 4 });
+    expect(body.tiers[0]).toMatchObject({ user_id: HOST, sessions: 4, points: 160 });
     for (const row of body.tiers) {
+      expect(row).not.toHaveProperty("tier");
       expect(row).not.toHaveProperty("score");
       expect(row).not.toHaveProperty("reliability");
     }
@@ -228,7 +229,7 @@ describe("ratings internals are not exposed", () => {
     expect(text).not.toContain("\"score\"");
   });
 
-  it("profile/public omits reliability and verification and ignores the wave label", async () => {
+  it("profile/public omits tier, reliability and verification", async () => {
     seedProfile(TARGET, { tier: "wave-1" });
     h.db.rows("player_ratings").push({ user_id: TARGET, tier: "silver", score: 55, sessions: 3, reliability: 88, verification: "vouched" });
     const req = new Request(`http://test.local/api/profile/public/${TARGET}`, { headers: { authorization: `Bearer ${HOST}` } });
@@ -238,14 +239,15 @@ describe("ratings internals are not exposed", () => {
     expect(body).not.toHaveProperty("reliability");
     expect(body).not.toHaveProperty("verification");
     expect(body).not.toHaveProperty("score");
-    expect(body).toMatchObject({ id: TARGET, tier: "silver", verification_level: "document", rating_sessions: 3 });
+    expect(body).not.toHaveProperty("tier");
+    expect(body).toMatchObject({ id: TARGET, verification_level: "document", rating_sessions: 3 });
   });
 
   it("profile/public does not fall back to the profiles wave label as a tier", async () => {
     seedProfile(TARGET, { tier: "wave-1" });
     const req = new Request(`http://test.local/api/profile/public/${TARGET}`, { headers: { authorization: `Bearer ${HOST}` } });
     const body = await (await publicProfileGET(req, { params: Promise.resolve({ userId: TARGET }) })).json();
-    expect(body.tier).toBeNull();
+    expect(body).not.toHaveProperty("tier");
   });
 });
 

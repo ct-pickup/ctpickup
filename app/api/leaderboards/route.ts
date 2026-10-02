@@ -4,6 +4,7 @@ import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
 import { jsonConfigErrorResponse, logPublicApiRouteError } from "@/lib/server/publicApiRouteErrors";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
+import { ratingPoints } from "@/lib/ratings/points";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -282,8 +283,9 @@ async function fetchTournamentGoalNameCounts(admin: SupabaseClient): Promise<Map
 
 type TierLeaderboardRow = {
   user_id: string;
-  tier: string;
   sessions: number;
+  /** Server-computed from player_ratings.tier; tier itself is never sent. */
+  points: number;
   first_name: string | null;
   last_name: string | null;
   username: string | null;
@@ -307,8 +309,8 @@ const EMPTY_PAYLOAD = {
 };
 
 /**
- * Tier tab: all player_ratings (admin bypasses RLS own_rating), merged with profiles.
- * Client-side selects on player_ratings only return the current user's row.
+ * Rankings tab: all player_ratings (admin bypasses RLS own_rating), merged with profiles.
+ * Sends sessions and points only. Clients read stars and percentile from player_cards.
  */
 async function fetchTierLeaderboard(
   admin: SupabaseClient,
@@ -375,8 +377,8 @@ async function fetchTierLeaderboard(
     if (!passesRegionFilter(nearest, region)) continue;
     out.push({
       user_id: r.user_id,
-      tier: (r.tier ?? "bronze").toLowerCase(),
       sessions: r.sessions ?? 0,
+      points: ratingPoints(r.tier, r.sessions),
       first_name: p?.first_name ?? null,
       last_name: p?.last_name ?? null,
       username: p?.username ?? null,
@@ -385,7 +387,7 @@ async function fetchTierLeaderboard(
     });
   }
 
-  // Keep score-desc order from the ratings query; region filter may drop some rows.
+  // Region filter may drop rows; clients sort by stars, then points.
   console.log(`[api/${ROUTE}] category=tiers result`, { rowCount: out.length });
   return out;
 }

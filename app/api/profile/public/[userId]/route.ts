@@ -101,7 +101,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ userId: string 
 
   const { data: rating } = await admin
     .from("player_ratings")
-    .select("tier, sessions")
+    .select("sessions")
     .eq("user_id", targetId)
     .maybeSingle();
 
@@ -121,7 +121,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ userId: string 
     username: p.username?.trim() || null,
     avatar_url: p.avatar_url?.trim() || null,
     instagram: p.instagram?.trim() || null,
-    tier: rating?.tier ?? null,
     tier_rank: p.tier_rank === null || p.tier_rank === undefined ? null : Number(p.tier_rank),
     playing_position: p.playing_position?.trim() || null,
     plays_goalie: typeof p.plays_goalie === "boolean" ? p.plays_goalie : null,

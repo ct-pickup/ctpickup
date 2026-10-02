@@ -28,7 +28,15 @@ import PlayedWithRow, { usePlayedWith } from "@/components/pickup/PlayedWithRow"
 import SpotsBadge from "@/components/pickup/SpotsBadge";
 import { fmtPickupSlotChipEt, fmtPickupTimeEt } from "@/lib/pickup/runStartAtDisplay";
 import { setRunFieldPhoto } from "@/lib/photoUpload";
-import { averageStars, fetchPlayerStars, fetchRunMinStars, formatStars, levelLabel } from "@/lib/starRatings";
+import {
+  averageStars,
+  fetchPlayerStars,
+  fetchRunMinStars,
+  formatStars,
+  hostScore as toHostScore,
+  levelLabel,
+  SKILL_STAR_RANGE,
+} from "@/lib/starRatings";
 import { milesFromZip } from "@/lib/venueDistance";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import type { DevFixtures } from "../../dev-fixtures";
@@ -89,6 +97,14 @@ const GOING_SHOWN = 7;
 const OPEN_RUN_STATUSES = new Set(["planning", "likely_on", "active"]);
 const JOIN_BAR_HEIGHT = 52;
 const TOAST_MS = 3000;
+
+const RATING_OPTIONS = [
+  { value: "bronze", desc: "Learning the game" },
+  { value: "silver", desc: "Solid recreational" },
+  { value: "gold", desc: "Competitive club level" },
+  { value: "platinum", desc: "College / semi-pro" },
+  { value: "diamond", desc: "Elite / pro level" },
+].map((o) => ({ ...o, label: `${SKILL_STAR_RANGE[o.value].high}★` }));
 
 function formatFee(cents: number): string {
   if (cents <= 0) return "Free";
@@ -525,7 +541,7 @@ export default function SessionDetailScreen() {
           return;
         }
         if ((j.total_ratings ?? 0) >= 1 && typeof j.avg_overall === "number") {
-          setHostScore(Math.round((j.avg_overall / 5) * 100));
+          setHostScore(toHostScore(j.avg_overall));
         }
       } catch (e) {
         if (!cancelled) console.warn("[session] host rating read failed:", e instanceof Error ? e.message : String(e));
@@ -563,7 +579,7 @@ export default function SessionDetailScreen() {
     if (endBusy) return;
     Alert.alert(
       "End session",
-      "This closes the session and updates player ratings. You can adjust scores next.",
+      "This closes the session and updates player ratings. You can adjust ratings next.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -979,7 +995,7 @@ export default function SessionDetailScreen() {
 
     const scoredCount = Object.values(scores).filter(Boolean).length;
     if (scoredCount === 0) {
-      Alert.alert("Score players", "Pick a tier for at least one player before submitting.");
+      Alert.alert("Rate players", "Pick a rating for at least one player before submitting.");
       return;
     }
 
@@ -1040,7 +1056,7 @@ export default function SessionDetailScreen() {
       console.log("[submitScores] host-scores response", { status: r.status, body: j });
 
       if (!r.ok || !j?.ok) {
-        Alert.alert("Error", j?.error ?? "Could not save scores.");
+        Alert.alert("Error", j?.error ?? "Could not save ratings.");
         return;
       }
 
@@ -1052,7 +1068,7 @@ export default function SessionDetailScreen() {
         Alert.alert("Done!", "Player ratings have been updated.");
       } else {
         Alert.alert(
-          "Scores saved",
+          "Ratings saved",
           j.settle_error
             ? `Ratings saved, but settle failed: ${j.settle_error}`
             : "Ratings will be processed shortly.",
@@ -1201,7 +1217,7 @@ export default function SessionDetailScreen() {
       : "Rate session"
     : "Vote Player of the Day";
   const canHostScore = isHost && (isCompleted || sessionStarted);
-  const hostScoreLabel = isCompleted ? "Score players" : "Rate session";
+  const hostScoreLabel = isCompleted ? "Rate players" : "Rate session";
 
   const locationParts = (run.location_text ?? "").split(",").map((p) => p.trim()).filter(Boolean);
   const fieldName = locationParts[0] || run.title || "Pickup game";
@@ -1430,7 +1446,7 @@ export default function SessionDetailScreen() {
                   <PlayerAvatar person={host} size={44} />
                   <View style={{ flex: 1 }}>
                     <Text style={s.infoTitle} numberOfLines={1}>Hosted by {hostName}</Text>
-                    {hostScore != null ? <Text style={s.infoSub}>Host score {hostScore}</Text> : null}
+                    {hostScore != null ? <Text style={s.infoSub}>Host score {hostScore}/100</Text> : null}
                   </View>
                   <Pressable
                     onPress={() => (router.push as (href: string) => void)(`/player/${host.id}`)}
@@ -1707,20 +1723,13 @@ export default function SessionDetailScreen() {
               <FontAwesome name="times" size={18} color={themeColor().muted} />
             </Pressable>
           </View>
-          <Text style={s.voteSubtitle}>Assign each player the tier that best reflects how they played today.</Text>
+          <Text style={s.voteSubtitle}>Give each player the rating that best reflects how they played today.</Text>
 
           <View style={s.tierLegend}>
-            {[
-              { tier: "bronze", label: "Bronze", desc: "Learning the game", color: themeColor().muted },
-              { tier: "silver", label: "Silver", desc: "Solid recreational", color: themeColor().muted },
-              { tier: "gold", label: "Gold", desc: "Competitive club level", color: themeColor().muted },
-              { tier: "platinum", label: "Platinum", desc: "College / semi-pro", color: themeColor().text },
-              { tier: "diamond", label: "Diamond", desc: "Elite / pro level", color: themeColor().muted },
-            ].map((t) => (
-              <View key={t.tier} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <View style={{ width: 10, height: 10, borderRadius: 10, backgroundColor: t.color }} />
-                <Text style={{ color: t.color, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold", width: 60 }}>{t.label}</Text>
-                <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" }}>{t.desc}</Text>
+            {RATING_OPTIONS.map((o) => (
+              <View key={o.value} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <Text style={{ color: themeColor().text, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold", width: 36 }}>{o.label}</Text>
+                <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" }}>{o.desc}</Text>
               </View>
             ))}
           </View>
@@ -1728,34 +1737,28 @@ export default function SessionDetailScreen() {
           <View style={{ padding: 16, gap: 16 }}>
             {attendees.filter((a) => a.user_id !== myUserId).map((a) => {
               const name = playerName(a);
-              const selectedTier = scores[a.user_id] ?? "";
-              const TIERS = [
-                { value: "bronze", label: "B", color: themeColor().muted },
-                { value: "silver", label: "S", color: themeColor().muted },
-                { value: "gold", label: "G", color: themeColor().muted },
-                { value: "platinum", label: "P", color: themeColor().text },
-                { value: "diamond", label: "D", color: themeColor().muted },
-              ];
+              const selected = scores[a.user_id] ?? "";
               return (
                 <View key={a.user_id} style={s.scoreRow}>
                   <View style={s.avatar}><Text style={s.avatarText}>{playerInitials(a)}</Text></View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.playerName}>{name}</Text>
                     <View style={{ flexDirection: "row", gap: 4, marginTop: 8 }}>
-                      {TIERS.map((t) => (
+                      {RATING_OPTIONS.map((o) => (
                         <Pressable
-                          key={t.value}
-                          onPress={() => setScores((prev) => ({ ...prev, [a.user_id]: t.value }))}
+                          key={o.value}
+                          onPress={() => setScores((prev) => ({ ...prev, [a.user_id]: o.value }))}
+                          accessibilityLabel={`${o.label} ${o.desc}`}
                           style={{
                             width: 40, height: 40, borderRadius: 999,
                             borderWidth: 2,
-                            borderColor: selectedTier === t.value ? t.color : themeColor().muted,
-                            backgroundColor: selectedTier === t.value ? `${t.color}22` : "transparent",
+                            borderColor: selected === o.value ? themeColor().text : themeColor().muted,
+                            backgroundColor: selected === o.value ? themeColor().overlaySubtle : "transparent",
                             alignItems: "center", justifyContent: "center",
                           }}
                         >
-                          <Text style={{ color: selectedTier === t.value ? t.color : themeColor().muted, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" }}>
-                            {t.label}
+                          <Text style={{ color: selected === o.value ? themeColor().text : themeColor().muted, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" }}>
+                            {o.label}
                           </Text>
                         </Pressable>
                       ))}

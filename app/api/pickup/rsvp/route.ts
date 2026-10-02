@@ -465,12 +465,15 @@ export async function POST(req: Request) {
     const playerTierRank = playerRating?.tier ? (TIER_RANK[playerRating.tier] ?? 0) : 0;
 
     if (playerTierRank < minTierRank) {
-      const TIER_NAMES: Record<number, string> = {
-        1: "Bronze", 2: "Silver", 3: "Gold", 4: "Platinum", 5: "Diamond",
-      };
-      const required = TIER_NAMES[minTierRank] ?? "higher";
+      const MIN_STAR: Record<number, number> = { 1: 0.5, 2: 1.5, 3: 2.5, 4: 3.5, 5: 4.5 };
+      const minStar = MIN_STAR[minTierRank];
       return NextResponse.json(
-        { error: `This session requires ${required} tier or above. Your current tier is too low.` },
+        {
+          error:
+            minStar != null
+              ? `This session is for players rated ${minStar.toFixed(1)}★ and up.`
+              : "This session is for higher-rated players.",
+        },
         { status: 403 },
       );
     }

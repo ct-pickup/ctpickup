@@ -20,17 +20,24 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 import { PhotoUploadField } from "@/components/photo";
 import { setRunFieldPhoto } from "@/lib/photoUpload";
+import { SKILL_STAR_RANGE } from "@/lib/starRatings";
 import { headline, themeColor } from "@/theme";
 const CAPACITY_MIN = 4;
 const CAPACITY_MAX = 30;
 const FORMATS = ["5v5", "6v6", "7v7", "Open"];
+const SKILL_KEYS = ["bronze", "silver", "gold", "platinum", "diamond"] as const;
+const starRange = (key: string) => `${SKILL_STAR_RANGE[key].low}–${SKILL_STAR_RANGE[key].high}★`;
 const SKILL_LEVELS = [
   { value: "all", label: "All levels" },
-  { value: "bronze", label: "Bronze+" },
-  { value: "silver", label: "Silver+" },
-  { value: "gold", label: "Gold+" },
-  { value: "platinum", label: "Platinum+" },
-  { value: "diamond", label: "Diamond only" },
+  { value: "bronze", label: `${SKILL_STAR_RANGE.bronze.low}★+ (rated players)` },
+  ...SKILL_KEYS.slice(1).map((value) => ({ value, label: `${SKILL_STAR_RANGE[value].low}★+` })),
+];
+const RATING_PRICES: Array<{ key: string; text: string; value: string; earns?: boolean }> = [
+  { key: "bronze", text: "players pay", value: "$12" },
+  { key: "silver", text: "players pay", value: "$9" },
+  { key: "gold", text: "players pay", value: "$6" },
+  { key: "platinum", text: "players", value: "Free" },
+  { key: "diamond", text: "players earn", value: "$8", earns: true },
 ];
 
 type NominatimResult = { place_id: number; display_name: string; lat: string; lon: string };
@@ -372,20 +379,11 @@ export default function SessionCreateScreen() {
                 <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 4 }}>
                   Players within 30 miles
                 </Text>
-                {[
-                  { tier: "diamond", label: "Diamond", color: themeColor().muted },
-                  { tier: "platinum", label: "Platinum", color: themeColor().text },
-                  { tier: "gold", label: "Gold", color: themeColor().muted },
-                  { tier: "silver", label: "Silver", color: themeColor().muted },
-                  { tier: "bronze", label: "Bronze", color: themeColor().muted },
-                ].map((t) => (
-                  <View key={t.tier} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <View style={{ width: 8, height: 8, borderRadius: 10, backgroundColor: t.color }} />
-                      <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" }}>{t.label}</Text>
-                    </View>
-                    <Text style={{ color: t.color, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" }}>
-                      {playerCounts[t.tier] ?? 0}
+                {[...SKILL_KEYS].reverse().map((key) => (
+                  <View key={key} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" }}>{starRange(key)}</Text>
+                    <Text style={{ color: themeColor().text, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" }}>
+                      {playerCounts[key] ?? 0}
                     </Text>
                   </View>
                 ))}
@@ -396,7 +394,7 @@ export default function SessionCreateScreen() {
             )}
             {locationSelected && !playerCounts && !countLoading && (
               <Pressable onPress={() => void fetchPlayerCounts(skillLevel)} style={{ marginTop: 8, alignItems: "center" }}>
-                <Text style={{ color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular" }}>Tap a tier to see player counts →</Text>
+                <Text style={{ color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular" }}>Tap a level to see player counts →</Text>
               </Pressable>
             )}
           </View>
@@ -414,7 +412,7 @@ export default function SessionCreateScreen() {
                 <Text style={[s.toggleBtnText, isPaid && !tieredPricing && s.toggleBtnTextActive]}>Flat fee</Text>
               </Pressable>
               <Pressable onPress={() => { setIsPaid(false); setTieredPricing(true); }} style={[s.toggleBtn, tieredPricing && s.toggleBtnActive]}>
-                <Text style={[s.toggleBtnText, tieredPricing && s.toggleBtnTextActive]}>Tiered</Text>
+                <Text style={[s.toggleBtnText, tieredPricing && s.toggleBtnTextActive]}>By rating</Text>
               </Pressable>
             </View>
 
@@ -448,19 +446,20 @@ export default function SessionCreateScreen() {
 
             {tieredPricing && (
               <>
-                <Text style={[s.fieldLabel, { marginTop: 20 }]}>PRICING BY TIER</Text>
+                <Text style={[s.fieldLabel, { marginTop: 20 }]}>PRICING BY RATING</Text>
                 <View style={s.payoutCard}>
-                  <View style={s.payoutRow}><Text style={s.payoutLabel}>Bronze players pay</Text><Text style={s.payoutValue}>$12</Text></View>
-                  <View style={s.payoutRow}><Text style={s.payoutLabel}>Silver players pay</Text><Text style={s.payoutValue}>$9</Text></View>
-                  <View style={s.payoutRow}><Text style={s.payoutLabel}>Gold players pay</Text><Text style={s.payoutValue}>$6</Text></View>
-                  <View style={s.payoutRow}><Text style={s.payoutLabel}>Platinum</Text><Text style={s.payoutValue}>Free</Text></View>
-                  <View style={s.payoutRow}><Text style={[s.payoutLabel, { color: themeColor().pitchText }]}>Diamond players earn</Text><Text style={[s.payoutValue, { color: themeColor().pitchText }]}>$8</Text></View>
+                  {RATING_PRICES.map((p) => (
+                    <View key={p.key} style={s.payoutRow}>
+                      <Text style={[s.payoutLabel, p.earns && { color: themeColor().pitchText }]}>{`${starRange(p.key)} ${p.text}`}</Text>
+                      <Text style={[s.payoutValue, p.earns && { color: themeColor().pitchText }]}>{p.value}</Text>
+                    </View>
+                  ))}
                   <View style={[s.payoutRow, { borderTopWidth: 1, borderTopColor: themeColor().line, paddingTop: 8, marginTop: 4 }]}>
                     <Text style={[s.payoutLabel, { color: themeColor().text, fontWeight: "700" }]}>CT Pickup rake</Text>
                     <Text style={[s.payoutValue, { color: themeColor().pitchText }]}>20% of collected</Text>
                   </View>
                 </View>
-                <Text style={s.hint}>Prices are set automatically based on each player's tier. Diamond players get paid to show up.</Text>
+                <Text style={s.hint}>{"Prices are set automatically from each player's rating. Top-rated players get paid to show up."}</Text>
               </>
             )}
 

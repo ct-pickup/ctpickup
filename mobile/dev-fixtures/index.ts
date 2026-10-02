@@ -179,6 +179,7 @@ function home() {
   const pw = playedWithByRun();
   return {
     firstName: "Jordan",
+    myCard: { star: 3.5, provisional: false, percentile: 18 },
     homeZip: "06107",
     maxDriveMinutes: 50,
     upNext,

@@ -19,29 +19,13 @@ import {
 } from "react-native";
 
 import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
+import { StarRating } from "@/components/StarRating";
+import { fetchPlayerCards, formatTopPercent, type PlayerCard } from "@/lib/starRatings";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
-function TIER_COLORS(): Record<string, string> {
-  return {
-  diamond: themeColor().muted,
-  platinum: themeColor().muted,
-  gold: themeColor().muted,
-  silver: themeColor().muted,
-  bronze: themeColor().muted,
-};
-}
-
-function tierColor(tier: string | null | undefined): string {
-  return tier ? (TIER_COLORS()[tier.toLowerCase()] ?? themeColor().pitch) : themeColor().pitch;
-}
-
-function tierLabel(tier: string | null | undefined): string {
-  if (!tier) return "Unranked";
-  return tier.charAt(0).toUpperCase() + tier.slice(1).toLowerCase();
-}
 
 type RegionFilter = "ALL" | "CT" | "NY" | "NJ" | "MD";
 type TabId =
-  | "tier"
+  | "stars"
   | "wins"
   | "sessions"
   | "win_rate"
@@ -76,24 +60,22 @@ type LeaderboardsPayload = {
   attacker: unknown[];
 };
 
-type TierPlayer = {
+type RankedPlayer = {
   user_id: string;
-  tier: string;
   sessions: number;
   points: number;
   name: string;
   username: string | null;
   avatar_url: string | null;
   nearest_venue: string | null;
+  card: PlayerCard | null;
 };
 
-type MyTier = { tier: string; score: number; sessions: number; percentile: number | null } | null;
-
 // Module-level cache — survives tab switches and back-navigation re-mounts.
-let _cachedMyTier: MyTier = null;
+let _cachedMyCard: PlayerCard | null = null;
 
 const PRIMARY_TABS: Array<{ id: TabId; label: string; icon?: React.ComponentProps<typeof FontAwesome>["name"] }> = [
-  { id: "tier", label: "Tier", icon: "trophy" },
+  { id: "stars", label: "Stars", icon: "star" },
   { id: "wins", label: "Wins" },
   { id: "sessions", label: "Sessions" },
   { id: "win_rate", label: "Win %" },
@@ -178,25 +160,6 @@ function initials(name: string): string {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
-/* ----------------------------------------------------------- tier gems */
-
-function TierGem({ size }: { tier: string; size: number; gid?: string }) {
-  useThemedStyles(publish_styles);
-
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 999,
-        backgroundColor: themeColor().overlay,
-        borderWidth: 1,
-        borderColor: themeColor().line,
-      }}
-    />
-  );
-}
-
 /* --------------------------------------------------------------- screen */
 
 export default function LeaderboardsScreen() {
@@ -207,11 +170,10 @@ export default function LeaderboardsScreen() {
   const { session, supabase } = useAuth();
   const myUserId = session?.user?.id ?? null;
 
-  const [tab, setTab] = useState<TabId>("tier");
+  const [tab, setTab] = useState<TabId>("stars");
   const [region, setRegion] = useState<RegionFilter>("ALL");
   const [filterOpen, setFilterOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [howOpen, setHowOpen] = useState(false);
 
   // API-backed tabs (wins/sessions/etc.)
   const [payload, setPayload] = useState<LeaderboardsPayload | null>(null);
@@ -219,10 +181,10 @@ export default function LeaderboardsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // Tier tab (player_ratings)
-  const [tierPlayers, setTierPlayers] = useState<TierPlayer[]>([]);
-  const [myTier, setMyTier] = useState<MyTier>(_cachedMyTier);
-  const [tierLoading, setTierLoading] = useState(false);
+  // Stars tab: points from /api/leaderboards, stars and percentile from player_cards.
+  const [rankedPlayers, setRankedPlayers] = useState<RankedPlayer[]>([]);
+  const [myCard, setMyCard] = useState<PlayerCard | null>(_cachedMyCard);
+  const [starsLoading, setStarsLoading] = useState(false);
 
   const rowsForTab = useMemo(() => {
     if (!payload) return [];
@@ -250,12 +212,10 @@ export default function LeaderboardsScreen() {
     return out;
   }, [payload, tab]);
 
-  // ── Tier data via /api/leaderboards (admin). Client RLS on player_ratings
-  // only allows auth.uid() = user_id, so a direct supabase select returns ~1 row.
-  const loadTier = useCallback(async () => {
+  const loadStars = useCallback(async () => {
     const origin = siteOrigin();
     if (!origin) return;
-    setTierLoading(true);
+    setStarsLoading(true);
     try {
       const u = new URL(`${origin}/api/leaderboards`);
       if (region !== "ALL") u.searchParams.set("region", region);
@@ -265,92 +225,50 @@ export default function LeaderboardsScreen() {
         cache: "no-store",
       });
       const json = (await r.json().catch(() => null)) as unknown;
-      const tiersRaw =
-        isRecord(json) && Array.isArray(json.tiers) ? (json.tiers as unknown[]) : [];
+      const rowsRaw = isRecord(json) && Array.isArray(json.tiers) ? (json.tiers as unknown[]) : [];
 
-      // Debug: API returns full player_ratings list (bypasses RLS).
-      console.log("player_ratings count:", tiersRaw.length);
-      console.log("profiles count:", tiersRaw.length);
-
-      const TIER_PTS: Record<string, number> = {
-        diamond: 8,
-        platinum: 6,
-        gold: 4,
-        silver: 2,
-        bronze: 0,
-      };
-
-      const merged: Omit<TierPlayer, "points">[] = [];
-      for (const item of tiersRaw) {
+      const rows: Omit<RankedPlayer, "card">[] = [];
+      for (const item of rowsRaw) {
         if (!isRecord(item)) continue;
         const userId = typeof item.user_id === "string" ? item.user_id : null;
         if (!userId) continue;
         const first = typeof item.first_name === "string" ? item.first_name : null;
         const last = typeof item.last_name === "string" ? item.last_name : null;
         const username = typeof item.username === "string" ? item.username : null;
-        const name = [first, last].filter(Boolean).join(" ").trim() || username || "Player";
-        const tier = (typeof item.tier === "string" ? item.tier : "bronze").toLowerCase();
-        merged.push({
+        rows.push({
           user_id: userId,
-          tier,
           sessions: typeof item.sessions === "number" && Number.isFinite(item.sessions) ? item.sessions : 0,
-          name,
+          points: typeof item.points === "number" && Number.isFinite(item.points) ? item.points : 0,
+          name: [first, last].filter(Boolean).join(" ").trim() || username || "Player",
           username,
           avatar_url: typeof item.avatar_url === "string" ? item.avatar_url.trim() || null : null,
           nearest_venue: typeof item.nearest_venue === "string" ? item.nearest_venue : null,
         });
       }
 
-      // Points = sessions × tierPtsPerSession × 10; ties keep the server's order.
-      const sorted = merged
-        .map((r) => ({
-          ...r,
-          points: (r.sessions ?? 0) * (TIER_PTS[r.tier] ?? 0) * 10,
-        }))
-        .sort((a, b) => b.points - a.points);
+      const cards = supabase
+        ? await fetchPlayerCards(supabase, [...rows.map((p) => p.user_id), ...(myUserId ? [myUserId] : [])])
+        : new Map<string, PlayerCard>();
 
-      setTierPlayers(sorted);
+      const sorted = rows
+        .map((p) => ({ ...p, card: cards.get(p.user_id) ?? null }))
+        .sort((a, b) => (b.card?.star ?? -1) - (a.card?.star ?? -1) || b.points - a.points);
+      setRankedPlayers(sorted);
 
-      // My tier + percentile (own row is readable under RLS).
-      if (myUserId && supabase) {
-        const { data: mine } = await supabase
-          .from("player_ratings")
-          .select("tier,score,sessions")
-          .eq("user_id", myUserId)
-          .maybeSingle();
-        if (mine) {
-          const myRow = mine as { tier: string | null; score: number | null; sessions: number | null };
-          const myScore = myRow.score ?? 0;
-          const myTier = (myRow.tier ?? "bronze").toLowerCase();
-          const myPoints = (myRow.sessions ?? 0) * (TIER_PTS[myTier] ?? 0) * 10;
-          const total = sorted.length;
-          const better = sorted.filter((p) => p.points > myPoints).length;
-          const percentile =
-            total > 0 ? Math.min(100, Math.max(1, Math.round((better / total) * 100))) : null;
-          const resolved: MyTier = {
-            tier: myTier,
-            score: myScore,
-            sessions: myRow.sessions ?? 0,
-            percentile,
-          };
-          _cachedMyTier = resolved;
-          setMyTier(resolved);
-        } else {
-          _cachedMyTier = null;
-          setMyTier(null);
-        }
-      }
+      const mine = myUserId ? (cards.get(myUserId) ?? null) : null;
+      _cachedMyCard = mine;
+      setMyCard(mine);
     } catch (e) {
-      console.error("[leaderboards] loadTier failed:", e);
-      setTierPlayers([]);
+      console.error("[leaderboards] loadStars failed:", e);
+      setRankedPlayers([]);
     } finally {
-      setTierLoading(false);
+      setStarsLoading(false);
     }
   }, [myUserId, region, supabase]);
 
   useEffect(() => {
-    if (tab === "tier") void loadTier();
-  }, [tab, loadTier]);
+    if (tab === "stars") void loadStars();
+  }, [tab, loadStars]);
 
   const load = useCallback(
     async (isRefresh: boolean) => {
@@ -423,9 +341,6 @@ export default function LeaderboardsScreen() {
 
   const regionLabel = region === "ALL" ? "All Regions" : region;
 
-  // Region filtering is applied server-side in /api/leaderboards?region=.
-  const filteredTierPlayers = tierPlayers;
-
   const moreActive = MORE_TABS.some((m) => m.id === tab);
   const moreLabel = moreActive ? (MORE_TABS.find((m) => m.id === tab)?.label ?? "More") : "More";
 
@@ -482,46 +397,31 @@ export default function LeaderboardsScreen() {
   }
 
   function renderHero() {
-    if (myTier === null && tierLoading) {
+    if (myCard === null && starsLoading) {
       return <View style={[styles.hero, styles.heroSkeleton]} />;
     }
-
-    const t = myTier?.tier ?? "bronze";
-    const color = tierColor(t);
-
-    const subtitle = !myTier
-      ? "Play a session to earn your tier"
-      : myTier.percentile != null
-        ? `Top ${myTier.percentile}% of players`
-        : `${myTier.sessions} sessions played`;
+    const topPct = formatTopPercent(myCard?.percentile);
 
     return (
-      <View style={[styles.hero, { borderColor: `${color}55` }]}>
-
+      <View style={styles.hero}>
         <View style={styles.heroLeft}>
-          <Text style={styles.heroLabel}>YOUR TIER</Text>
-          <Text style={styles.heroTier}>{tierLabel(myTier?.tier)}</Text>
-          <Text style={styles.heroSub}>{subtitle}</Text>
-          <Pressable
-            onPress={() => myUserId && router.push(`/player/${myUserId}`)}
-            style={({ pressed }) => [styles.heroBtn, pressed && { opacity: 0.85 }]}
-          >
-            <Text style={styles.heroBtnText}>View my progress →</Text>
-          </Pressable>
-        </View>
-        <View style={styles.heroGem}>
-          <TierGem tier={t} size={96} gid="heroGem" />
+          <Text style={styles.heroLabel}>Your rating</Text>
+          {myCard ? (
+            <StarRating value={myCard.star} provisional={myCard.provisional} size="lg" style={styles.heroStars} />
+          ) : (
+            <Text style={styles.heroSub}>Your rating shows here after your first rated games.</Text>
+          )}
+          {topPct ? <Text style={styles.heroTop}>{topPct}</Text> : null}
+          <Text style={styles.heroSub}>Play more verified games to move up.</Text>
         </View>
       </View>
     );
   }
 
-  function renderTierRow(item: TierPlayer, index: number) {
+  function renderRankedRow(item: RankedPlayer, index: number) {
     const rank = index + 1;
     const mine = myUserId != null && item.user_id === myUserId;
-    const color = tierColor(item.tier);
     const top3 = rank <= 3;
-    const pts = item.points ?? 0;
     return (
       <Pressable
         key={item.user_id}
@@ -532,33 +432,30 @@ export default function LeaderboardsScreen() {
           <Text style={[styles.rankText, top3 && styles.rankTextTop3, mine && styles.onPanelText]}>{rank}</Text>
         </View>
 
-        <View style={[styles.avatarRing, { borderColor: color }]}>
+        <View style={[styles.avatarRing, { borderColor: themeColor().line }]}>
           {item.avatar_url ? (
             <Image source={{ uri: item.avatar_url }} style={styles.avatarImg} />
           ) : (
             <View style={[styles.avatarImg, styles.avatarFallback]}>
-              <Text style={[styles.avatarFallbackText, { color }]}>{initials(item.name)}</Text>
+              <Text style={[styles.avatarFallbackText, { color: themeColor().text }]}>{initials(item.name)}</Text>
             </View>
           )}
         </View>
 
         <View style={styles.playerInfo}>
-          <View style={styles.playerNameRow}>
-            <Text style={[styles.playerName, mine && styles.onPanelText]} numberOfLines={1}>
-              {item.name}
-            </Text>
-            <TierGem tier={item.tier} size={15} gid={`gem-${item.user_id}`} />
-          </View>
-          <Text style={[styles.playerTier, { color }, mine && styles.onPanelText]} numberOfLines={1}>
-            {tierLabel(item.tier)}
+          <Text style={[styles.playerName, mine && styles.onPanelText]} numberOfLines={1}>
+            {item.name}
           </Text>
+          {item.card ? (
+            <StarRating value={item.card.star} provisional={item.card.provisional} size="sm" style={styles.playerStars} />
+          ) : null}
           <Text style={[styles.playerStats, mine && styles.onPanelText]} numberOfLines={1}>
-            {item.sessions} sessions
+            {item.sessions} session{item.sessions === 1 ? "" : "s"}
           </Text>
         </View>
 
         <View style={styles.ptsBlock}>
-          <Text style={styles.ptsValue}>{pts.toLocaleString()}</Text>
+          <Text style={styles.ptsValue}>{item.points.toLocaleString()}</Text>
           <Text style={[styles.ptsLabel, mine && styles.onPanelText]}>PTS</Text>
         </View>
         <FontAwesome name="chevron-right" size={13} color={themeColor().muted} style={{ marginLeft: 4 }} />
@@ -566,12 +463,12 @@ export default function LeaderboardsScreen() {
     );
   }
 
-  function renderTierTab() {
+  function renderStarsTab() {
     return (
       <ScrollView
         style={styles.listFlex}
         contentContainerStyle={styles.tierContent}
-        refreshControl={<RefreshControl refreshing={tierLoading} onRefresh={() => void loadTier()} tintColor={themeColor().pitchText} />}
+        refreshControl={<RefreshControl refreshing={starsLoading} onRefresh={() => void loadStars()} tintColor={themeColor().pitchText} />}
       >
         {renderHero()}
 
@@ -586,36 +483,29 @@ export default function LeaderboardsScreen() {
           </Pressable>
         </View>
 
-        {tierLoading && tierPlayers.length === 0 ? (
+        {starsLoading && rankedPlayers.length === 0 ? (
           <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 32 }} />
-        ) : filteredTierPlayers.length === 0 ? (
+        ) : rankedPlayers.length === 0 ? (
           <ChalkEmptyState
             graphic="circle"
             title="No rated players yet"
-            body="Complete a session to earn a tier."
+            body="Complete a session to earn your rating."
             style={styles.emptyStatsWrap}
           />
         ) : (
-          <View style={{ gap: 8 }}>{filteredTierPlayers.map((p, i) => renderTierRow(p, i))}</View>
+          <View style={{ gap: 8 }}>{rankedPlayers.map((p, i) => renderRankedRow(p, i))}</View>
         )}
 
         <ChalkDivider style={styles.sectionDivider} />
 
-        {/* Climb the ranks */}
         <View style={styles.climbCard}>
           <View style={styles.climbIcon}>
             <FontAwesome name="line-chart" size={18} color={themeColor().pitchText} />
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={styles.climbTitle}>Climb the ranks</Text>
-            <Text style={styles.climbSub}>Play more sessions to earn points and increase your tier.</Text>
+            <Text style={styles.climbSub}>Play more verified games to move up.</Text>
           </View>
-          <Pressable
-            onPress={() => { void hapticTap(); setHowOpen(true); }}
-            style={({ pressed }) => [styles.climbBtn, pressed && { opacity: 0.85 }]}
-          >
-            <Text style={styles.climbBtnText}>How it works →</Text>
-          </Pressable>
         </View>
       </ScrollView>
     );
@@ -692,7 +582,7 @@ export default function LeaderboardsScreen() {
   return (
     <View style={styles.root}>
       {renderTabBar()}
-      <View style={styles.listWrap}>{tab === "tier" ? renderTierTab() : renderApiTab()}</View>
+      <View style={styles.listWrap}>{tab === "stars" ? renderStarsTab() : renderApiTab()}</View>
 
       {/* Region filter */}
       <Modal visible={filterOpen} transparent animationType="slide" onRequestClose={() => setFilterOpen(false)}>
@@ -721,74 +611,6 @@ export default function LeaderboardsScreen() {
             </View>
             <Pressable onPress={() => setFilterOpen(false)} style={({ pressed }) => [styles.modalCloseBtn, pressed && { opacity: 0.88 }]}>
               <Text style={styles.modalCloseBtnText}>Close</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-      {/* How Rankings Work */}
-      <Modal visible={howOpen} transparent animationType="slide" onRequestClose={() => setHowOpen(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setHowOpen(false)} accessibilityLabel="Dismiss" />
-          <View style={[styles.modalSheet, styles.howSheet]}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>How Rankings Work</Text>
-
-            {/* Points */}
-            <Text style={styles.howSectionHeader}>EARNING POINTS</Text>
-            <Text style={styles.howBody}>
-              Points = sessions × tier points × 10. Higher tiers earn more points per rated session.
-            </Text>
-            <View style={styles.howCard}>
-              {([
-                { tier: "diamond", label: "Diamond", pts: 80, color: themeColor().muted, dot: "◆" },
-                { tier: "platinum", label: "Platinum", pts: 60, color: themeColor().text, dot: "●" },
-                { tier: "gold", label: "Gold", pts: 40, color: themeColor().muted, dot: "●" },
-                { tier: "silver", label: "Silver", pts: 20, color: themeColor().muted, dot: "●" },
-                { tier: "bronze", label: "Bronze", pts: 0, color: themeColor().muted, dot: "●" },
-              ] as const).map(({ tier, label, pts, color, dot }) => (
-                <View key={tier} style={styles.howRow}>
-                  <Text style={[styles.howDot, { color }]}>{dot}</Text>
-                  <Text style={styles.howRowLabel}>{label}</Text>
-                  <Text style={styles.howRowValue}>{pts} pts / session</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Tiers */}
-            <Text style={[styles.howSectionHeader, { marginTop: 16 }]}>TIER SYSTEM</Text>
-            <Text style={styles.howBody}>
-              Your tier is determined by your rating score, earned through peer votes and organizer ratings after each session.
-            </Text>
-            <View style={styles.howCard}>
-              {([
-                { label: "Bronze", desc: "Score 0–39 · Self-declared players", color: themeColor().muted, dot: "●" },
-                { label: "Silver", desc: "Score 40–59 · Consistent rec level", color: themeColor().muted, dot: "●" },
-                { label: "Gold", desc: "Score 60–77 · Club / competitive level", color: themeColor().muted, dot: "●" },
-                { label: "Platinum", desc: "Score 78–89 · College / semi-pro · Verification required", color: themeColor().text, dot: "●" },
-                { label: "Diamond", desc: "Score 90+ · Elite level · Verification required · You earn $8/session", color: themeColor().muted, dot: "◆" },
-              ] as const).map(({ label, desc, color, dot }) => (
-                <View key={label} style={[styles.howRow, { alignItems: "flex-start" }]}>
-                  <Text style={[styles.howDot, { color, marginTop: 4 }]}>{dot}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.howRowLabel, { color }]}>{label}</Text>
-                    <Text style={styles.howRowDesc}>{desc}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-
-            {/* Verification */}
-            <Text style={[styles.howSectionHeader, { marginTop: 16 }]}>VERIFICATION</Text>
-            <Text style={styles.howBody}>
-              Self-declared players are capped at Gold. Submit for verification in your Profile to unlock Platinum and Diamond.
-            </Text>
-
-            <Pressable
-              onPress={() => setHowOpen(false)}
-              style={({ pressed }) => [styles.howCloseBtn, pressed && { opacity: 0.88 }]}
-            >
-              <Text style={styles.howCloseBtnText}>Got it</Text>
             </Pressable>
           </View>
         </View>
@@ -860,6 +682,7 @@ function make_styles() {
   hero: {
     borderRadius: radius.card,
     borderWidth: 1,
+    borderColor: themeColor().line,
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
@@ -872,19 +695,9 @@ function make_styles() {
   },
   heroLeft: { flex: 1, minWidth: 0 },
   heroLabel: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
-  heroTier: { color: themeColor().text, fontSize: 32, ...headline, marginTop: 4 },
-  heroSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
-  heroBtn: {
-    alignSelf: "flex-start",
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: themeColor().accent,
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  heroBtnText: { color: themeColor().accent, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
-  heroGem: { width: 100, alignItems: "center", justifyContent: "center" },
+  heroStars: { marginTop: 8 },
+  heroTop: { color: themeColor().text, fontSize: 24, ...headline, marginTop: 8 },
+  heroSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 8 },
 
   /* section header */
   sectionHeaderRow: {
@@ -938,9 +751,8 @@ function make_styles() {
   avatarFallback: { backgroundColor: themeColor().overlaySubtle, alignItems: "center", justifyContent: "center" },
   avatarFallbackText: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
   playerInfo: { flex: 1, minWidth: 0 },
-  playerNameRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   playerName: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", flexShrink: 1 },
-  playerTier: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 4 },
+  playerStars: { marginTop: 4 },
   playerStats: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   ptsBlock: { alignItems: "flex-end", minWidth: 52 },
   ptsValue: { color: themeColor().text, fontSize: 24, ...headline, },
@@ -968,8 +780,6 @@ function make_styles() {
   },
   climbTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
   climbSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4, lineHeight: 16 },
-  climbBtn: { borderWidth: 1, borderColor: themeColor().accent, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12 },
-  climbBtnText: { color: themeColor().accent, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
 
   /* empty / error */
   emptyStateBlock: { alignItems: "center", justifyContent: "center", gap: 16, paddingVertical: 24 },
@@ -1024,45 +834,6 @@ function make_styles() {
     alignItems: "center",
   },
   modalCloseBtnText: { color: themeColor().text, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
-
-  /* how it works sheet */
-  howSheet: { maxHeight: "88%" },
-  howSectionHeader: {
-    color: themeColor().muted,
-    fontSize: 13, fontFamily: "Inter_700Bold",
-    fontWeight: "500",
-    marginBottom: 8,
-  },
-  howBody: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20, marginBottom: 12 },
-  howCard: {
-    backgroundColor: themeColor().card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: themeColor().overlay,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    gap: 0,
-  },
-  howRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: themeColor().line,
-  },
-  howDot: { fontSize: 13, fontFamily: "Inter_400Regular", width: 16, textAlign: "center" },
-  howRowLabel: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700", flex: 1 },
-  howRowValue: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-  howRowDesc: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 17, marginTop: 1 },
-  howCloseBtn: {
-    marginTop: 20,
-    backgroundColor: themeColor().pitch,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  howCloseBtnText: { color: themeColor().onPitch, fontWeight: "900", fontSize: 16, fontFamily: "Inter_700Bold" },
 
   /* more dropdown */
   moreBackdrop: { flex: 1, backgroundColor: themeColor().scrim, paddingTop: 96, paddingHorizontal: 16 },

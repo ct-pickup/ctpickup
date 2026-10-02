@@ -8,7 +8,9 @@ import { Stack, useLocalSearchParams, useNavigation, useRouter, type Href } from
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { PhotoHeader } from "@/components/photo";
+import { StarRating } from "@/components/StarRating";
 import { fetchActionPhotoUrl } from "@/lib/photoUpload";
+import { fetchPlayerCard, formatTopPercent, hostScore, type PlayerCard } from "@/lib/starRatings";
 import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
@@ -33,29 +35,9 @@ type HostRatingAgg = {
   sessions_hosted: number;
 };
 
-function ratingDots(avg: number | null): string {
-  const n = Math.max(0, Math.min(5, Math.floor(avg ?? 0)));
-  return `${"●".repeat(n)}${"○".repeat(5 - n)}`;
-}
-
-function fmtAvg(avg: number | null): string {
-  if (avg == null || !Number.isFinite(avg)) return "—";
-  return avg.toFixed(1);
-}
-
-function TIER_COLORS(): Record<string, string> {
-  return {
-  bronze: themeColor().muted,
-  silver: themeColor().muted,
-  gold: themeColor().muted,
-  platinum: themeColor().muted,
-  diamond: themeColor().muted,
-};
-}
-
-function tierColor(tier: string | null | undefined): string {
-  if (!tier) return themeColor().overlayStrong; // neutral grey until tier is known
-  return TIER_COLORS()[tier] ?? themeColor().pitch;
+function fmtHostScore(avg: number | null): string {
+  const n = hostScore(avg);
+  return n == null ? "—" : String(n);
 }
 
 const PROFILE_REPORT_REASONS = [
@@ -155,6 +137,19 @@ export default function PlayerProfileScreen() {
   const [isFollowingThem, setIsFollowingThem] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [hostRating, setHostRating] = useState<HostRatingAgg | null>(null);
+  const [card, setCard] = useState<PlayerCard | null>(null);
+
+  useEffect(() => {
+    setCard(null);
+    if (!supabase || !userId) return;
+    let cancelled = false;
+    void fetchPlayerCard(supabase, userId).then((c) => {
+      if (!cancelled) setCard(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, userId]);
 
   useEffect(() => {
     if (!userId || !token) {
@@ -162,7 +157,7 @@ export default function PlayerProfileScreen() {
       setErr(!token ? "Sign in to view profiles." : "Missing player.");
       return;
     }
-    // Reset synchronously so stale tier data never flashes during a re-fetch
+    // Reset synchronously so stale profile data never flashes during a re-fetch
     setProfile(null);
     setLoading(true);
     setErr(null);
@@ -305,7 +300,6 @@ export default function PlayerProfileScreen() {
               userId,
               zipRaw,
               regionFromZip: zipRaw ? displayRegionNameFromZip(zipRaw) : null,
-              profileErr: profileErr?.message ?? null,
             });
           }
           const w = Math.max(0, Math.trunc(Number(row.pickup_wins_count ?? 0)));
@@ -640,9 +634,7 @@ export default function PlayerProfileScreen() {
     })();
   }
 
-  const verified = !!profile.verification_level && profile.verification_level !== "self";
-  const isDiamond = (profile.tier ?? "").toLowerCase() === "diamond";
-  const tColor = tierColor(profile.tier);
+  const topPercent = card ? formatTopPercent(card.percentile) : null;
 
   return (
     <>
@@ -673,40 +665,12 @@ export default function PlayerProfileScreen() {
         <PhotoHeader uri={actionPhotoUrl} aspect="wide" style={styles.banner} accessibilityLabel="Action photo" />
       ) : null}
       <View style={styles.hero}>
-        {/* Avatar — fixed 96×96 container for all tiers */}
         <View style={[styles.avatarContainer, actionPhotoUrl ? styles.avatarOverBanner : null]}>
-          {isDiamond && (
-            /* Diamond border ring: 80×80 square rotated 45°, inscribes the 80px circle */
-            <View style={[styles.diamondRing, { borderColor: tColor }]} />
-          )}
           {profile.avatar_url ? (
-            <Image
-              source={{ uri: profile.avatar_url }}
-              style={[
-                styles.avatarCircle,
-                isDiamond
-                  ? styles.avatarCircleDiamond
-                  : { borderWidth: 3, borderColor: tColor },
-              ]}
-            />
+            <Image source={{ uri: profile.avatar_url }} style={styles.avatarCircle} />
           ) : (
-            <View
-              style={[
-                styles.avatarCircle,
-                isDiamond
-                  ? [styles.avatarCircleDiamond, { backgroundColor: `${tColor}22` }]
-                  : { borderWidth: 3, borderColor: tColor, backgroundColor: `${tColor}22` },
-                { alignItems: "center", justifyContent: "center" },
-              ]}
-            >
-              <Text style={[styles.avatarInitialsText, { color: tColor }]}>
-                {initials(profile.display_name)}
-              </Text>
-            </View>
-          )}
-          {verified && (
-            <View style={styles.checkBadge}>
-              <Text style={styles.checkBadgeText}>✓</Text>
+            <View style={[styles.avatarCircle, styles.avatarPlaceholder]}>
+              <Text style={styles.avatarInitialsText}>{initials(profile.display_name)}</Text>
             </View>
           )}
         </View>
@@ -766,20 +730,22 @@ export default function PlayerProfileScreen() {
 
 
       {/* Soccer Background */}
-      {(profile.primary_position || profile.experience_level || profile.club_name || profile.age || profile.tier) && (
+      {(profile.primary_position || profile.experience_level || profile.club_name || profile.age || card) && (
         <View style={{ marginHorizontal: 16, marginBottom: 16, backgroundColor: themeColor().overlaySubtle, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, overflow: "hidden" }}>
-          {profile.tier && (
-            <View style={{ backgroundColor: `${tierColor(profile.tier)}18`, paddingHorizontal: 16, paddingVertical: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: themeColor().line }}>
-              <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", }}>CT Pickup Tier</Text>
+          {card && (
+            <View style={{ paddingHorizontal: 16, paddingVertical: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: themeColor().line }}>
+              <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", }}>Rating</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <View style={{ width: 8, height: 8, borderRadius: 10, backgroundColor: tierColor(profile.tier) }} />
-                <Text style={{ color: tierColor(profile.tier), fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" }}>
-                  {profile.tier.charAt(0).toUpperCase() + profile.tier.slice(1)}
-                </Text>
-
+                <StarRating value={card.star} provisional={card.provisional} size="md" />
+                {topPercent ? (
+                  <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" }}>
+                    · {topPercent}
+                  </Text>
+                ) : null}
               </View>
             </View>
           )}
+          {(profile.primary_position || profile.experience_level || profile.club_name || profile.age) ? (
           <View style={{ padding: 12, gap: 8 }}>
             {profile.primary_position && (
               <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
@@ -809,13 +775,8 @@ export default function PlayerProfileScreen() {
                 <Text style={styles.value}>{profile.club_name}</Text>
               </View>
             )}
-            {profile.rating_sessions > 0 && (
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={styles.label}>Sessions</Text>
-                <Text style={styles.value}>{profile.rating_sessions} rated</Text>
-              </View>
-            )}
           </View>
+          ) : null}
         </View>
       )}
 
@@ -839,13 +800,15 @@ export default function PlayerProfileScreen() {
               marginBottom: 12,
             }}
           >
-            Host Rating
+            Host score
           </Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
+          <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
             <Text style={{ color: themeColor().text, fontSize: 40, ...headline }}>
-              {fmtAvg(hostRating.avg_overall)}
+              {fmtHostScore(hostRating.avg_overall)}
             </Text>
-            <FontAwesome name="star" size={22} color={themeColor().pitchText} />
+            <Text style={{ color: themeColor().muted, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" }}>
+              /100
+            </Text>
           </View>
           <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 12 }}>
             {hostRating.sessions_hosted} session{hostRating.sessions_hosted === 1 ? "" : "s"} hosted
@@ -867,14 +830,12 @@ export default function PlayerProfileScreen() {
                 paddingVertical: 4,
               }}
             >
-              <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", width: 110 }}>
+              <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 }}>
                 {row.label}
               </Text>
-              <Text style={{ color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 }}>
-                {ratingDots(row.avg)}
-              </Text>
-              <Text style={{ color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", width: 36, textAlign: "right" }}>
-                {fmtAvg(row.avg)}
+              <Text style={{ color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", textAlign: "right" }}>
+                {fmtHostScore(row.avg)}
+                <Text style={{ color: themeColor().muted, fontFamily: "Inter_400Regular", fontWeight: "400" }}>/100</Text>
               </Text>
             </View>
           ))}
@@ -1091,12 +1052,6 @@ export default function PlayerProfileScreen() {
 }
 
 const AVATAR_SIZE = 96;
-// Non-diamond circle: 90px, 3px gap on each side of 96px container
-const CIRCLE_SIZE = 90;
-const CIRCLE_OFFSET = (AVATAR_SIZE - CIRCLE_SIZE) / 2; // 3
-// Diamond circle: 80px, inscribed in the 80×80 diamond ring
-const DIAMOND_CIRCLE_SIZE = 80;
-const DIAMOND_OFFSET = (AVATAR_SIZE - DIAMOND_CIRCLE_SIZE) / 2; // 8
 
 function make_styles() {
   return StyleSheet.create({
@@ -1114,68 +1069,24 @@ function make_styles() {
   banner: { marginTop: -20, marginHorizontal: -20 },
   avatarOverBanner: { marginTop: -AVATAR_SIZE / 2 },
 
-  /* Avatar — same container size for all tiers */
   avatarContainer: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     marginBottom: 12,
   },
-  /* Default circle (non-diamond): positioned inside container */
   avatarCircle: {
-    position: "absolute",
-    top: CIRCLE_OFFSET,
-    left: CIRCLE_OFFSET,
-    width: CIRCLE_SIZE,
-    height: CIRCLE_SIZE,
-    borderRadius: CIRCLE_SIZE / 2,
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    borderWidth: 1,
+    borderColor: themeColor().line,
   },
-  /* Diamond circle override */
-  avatarCircleDiamond: {
-    top: DIAMOND_OFFSET,
-    left: DIAMOND_OFFSET,
-    width: DIAMOND_CIRCLE_SIZE,
-    height: DIAMOND_CIRCLE_SIZE,
-    borderRadius: DIAMOND_CIRCLE_SIZE / 2,
-  },
-  /* Diamond border ring: 80×80 square rotated 45° (diagonal ≈ 113px, slightly bleeds past container — intentional) */
-  diamondRing: {
-    position: "absolute",
-    top: DIAMOND_OFFSET,
-    left: DIAMOND_OFFSET,
-    width: DIAMOND_CIRCLE_SIZE,
-    height: DIAMOND_CIRCLE_SIZE,
-    borderWidth: 3,
-    transform: [{ rotate: "45deg" }],
-  },
-  /* Verified checkmark badge — bottom-right for all tiers */
-  checkBadge: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 26,
-    height: 26,
-    borderRadius: 12,
-    backgroundColor: themeColor().card,
-    borderWidth: 2,
-    borderColor: themeColor().bg,
+  avatarPlaceholder: {
+    backgroundColor: themeColor().overlaySubtle,
     alignItems: "center",
     justifyContent: "center",
   },
-  checkBadgeText: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "900" },
-  avatarInitialsText: { fontSize: 24, ...headline },
-
-  /* Legacy — kept to avoid removing referenced styles elsewhere */
-  avatarImg: { width: 96, height: 96, borderRadius: 999, marginBottom: 12 },
-  avatarPh: {
-    width: 96,
-    height: 96,
-    borderRadius: 999,
-    backgroundColor: themeColor().pitchPanel,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
-  avatarPhText: { fontSize: 32, ...headline, color: themeColor().onPitchPanel },
+  avatarInitialsText: { fontSize: 24, ...headline, color: themeColor().text },
   heroLabel: {
     marginTop: 4,
     fontSize: 13, fontFamily: "Inter_700Bold",

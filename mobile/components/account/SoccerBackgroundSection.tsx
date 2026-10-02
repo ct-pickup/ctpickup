@@ -137,7 +137,7 @@ export function SoccerBackgroundSection({
             </Text>
           </View>
           <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 }}>
-            Self-declared players are capped at Gold tier. Get verified to unlock Platinum and Diamond.
+            Your playing background is self-declared. Submit proof or get vouched to confirm your level.
           </Text>
           <Pressable
             onPress={onSubmitVerification}

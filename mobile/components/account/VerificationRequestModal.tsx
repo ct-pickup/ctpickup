@@ -72,16 +72,15 @@ export function VerificationRequestModal({ visible, onClose, onSubmitted }: Prop
           </View>
 
           <View style={s.tierCard}>
-            <Text style={s.tierTitle}>What verification unlocks</Text>
+            <Text style={s.tierTitle}>Ways to get verified</Text>
             <View style={s.tierRow}>
               <Text style={s.tierBadge}>Document</Text>
-              <Text style={s.tierDesc}>Unlocks Platinum + Diamond tiers</Text>
+              <Text style={s.tierDesc}>Upload proof of your playing level</Text>
             </View>
             <View style={s.tierRow}>
               <Text style={s.tierBadge}>Vouched</Text>
-              <Text style={s.tierDesc}>Two Diamond players confirm you — no docs needed</Text>
+              <Text style={s.tierDesc}>Two top-rated players confirm your level — no docs needed</Text>
             </View>
-            <Text style={s.tierHint}>Self-declared players are capped at Gold tier.</Text>
           </View>
 
           <Text style={s.label}>YOUR CLAIM</Text>
@@ -125,7 +124,7 @@ export function VerificationRequestModal({ visible, onClose, onSubmitted }: Prop
           </Pressable>
 
           <Text style={s.footer}>
-            We review requests manually within 24 hours. You'll be notified when your status updates.
+            We review requests manually within 24 hours. You&apos;ll be notified when your status updates.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -143,9 +142,7 @@ function make_s() {
   tierTitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 12 },
   tierRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 },
   tierBadge: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold", borderWidth: 1, borderColor: themeColor().pitch, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
-  tierDesc: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
-  tierHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
-  label: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text, marginBottom: 8, },
+  tierDesc: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },  label: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text, marginBottom: 8, },
   input: { backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1.5, borderColor: themeColor().line, color: themeColor().text, paddingHorizontal: 12, paddingVertical: 12, fontSize: 16, fontFamily: "Inter_400Regular", minHeight: 80, textAlignVertical: "top" },
   hint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 8, lineHeight: 19 },
   btn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", marginTop: 28 },

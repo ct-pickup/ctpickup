@@ -28,7 +28,8 @@ import { fetchBestGames, type BestGame, type PlayedWithSummary } from "@/lib/mat
 import { effectiveMaxDriveMinutes } from "@/lib/pickup/profileMaxDriveFilter";
 import { currentHourEt, fmtPickupSlotChipEt } from "@/lib/pickup/runStartAtDisplay";
 import { isServiceRegionCode, serviceRegionName } from "@/lib/serviceRegions";
-import { averageStars, fetchPlayerStars, formatStars } from "@/lib/starRatings";
+import { averageStars, fetchPlayerCards, formatStars, type PlayerCard } from "@/lib/starRatings";
+import { StarRating } from "@/components/StarRating";
 import { driveRadiusMiles, milesFromZip, zipCentroid, zipState } from "@/lib/venueDistance";
 import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
@@ -212,6 +213,7 @@ function useHomeData() {
   const [loadCount, setLoadCount] = useState(0);
   const [rateBanner, setRateBanner] = useState<RateBanner | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [myCard, setMyCard] = useState<PlayerCard | null>(null);
 
   const load = useCallback(async () => {
     if (!supabase || !myUserId) return;
@@ -352,10 +354,11 @@ function useHomeData() {
     const crowdRows = (crowdRsvpRes.data ?? []) as Array<{ run_id: string; user_id: string }>;
     const crowdUserIds = Array.from(new Set(crowdRows.map((r) => r.user_id).filter(Boolean)));
 
-    const [crowdProfiles, crowdStars] = await Promise.all([
+    const [crowdProfiles, cards] = await Promise.all([
       loadProfiles(supabase, crowdUserIds),
-      fetchPlayerStars(supabase, crowdUserIds),
+      fetchPlayerCards(supabase, [...crowdUserIds, myUserId]),
     ]);
+    setMyCard(cards.get(myUserId) ?? null);
     if (crowdProfiles.error) errors.push(`attendee profiles: ${crowdProfiles.error}`);
 
     const nextCrowds = new Map<string, RunCrowd>();
@@ -365,7 +368,7 @@ function useHomeData() {
         people: ids.map(
           (uid) => crowdProfiles.byId.get(uid) ?? { user_id: uid, first_name: null, last_name: null, avatar_url: null },
         ),
-        avgStar: averageStars(ids.map((uid) => crowdStars.get(uid))),
+        avgStar: averageStars(ids.map((uid) => cards.get(uid)?.star)),
       });
     }
     setCrowds(nextCrowds);
@@ -423,6 +426,7 @@ function useHomeData() {
     loadCount,
     rateBanner,
     loadError,
+    myCard,
     reload: load,
   };
 }
@@ -682,6 +686,7 @@ export default function HomeScreen() {
   const mapRuns: HomeRun[] = fixture ? [fixture.upNext, ...fixture.nearby] : live.mapRuns;
   const bestGames: BestGame[] = fixture ? fixture.bestGames : live.bestGames;
   const rateBanner = fixture ? null : live.rateBanner;
+  const myCard: PlayerCard | null = fixture ? fixture.myCard : live.myCard;
   const crowds = useMemo(() => {
     if (!fixture) return live.crowds;
     return new Map<string, RunCrowd>(
@@ -747,14 +752,26 @@ export default function HomeScreen() {
         <Text style={styles.wordmark} onLongPress={__DEV__ ? toggleDevPreview : undefined}>
           CT Pickup
         </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Notifications"
-          onPress={() => push("/(tabs)/messages")}
-          hitSlop={10}
-        >
-          <FontAwesome name="bell-o" size={20} color={themeColor().text} />
-        </Pressable>
+        <View style={styles.headerRight}>
+          {myCard ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Your rating"
+              onPress={() => push("/(tabs)/leaderboards")}
+              hitSlop={8}
+            >
+              <StarRating value={myCard.star} provisional={myCard.provisional} size="sm" />
+            </Pressable>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
+            onPress={() => push("/(tabs)/messages")}
+            hitSlop={10}
+          >
+            <FontAwesome name="bell-o" size={20} color={themeColor().text} />
+          </Pressable>
+        </View>
       </View>
 
       <Text style={styles.greeting} numberOfLines={1}>
@@ -888,6 +905,7 @@ function make_styles() {
 
     /* header */
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    headerRight: { flexDirection: "row", alignItems: "center", gap: 16 },
     wordmark: { fontSize: 20, fontFamily: headline.fontFamily, color: themeColor().text },
     greeting: { marginTop: 16, fontSize: 28, ...headline, color: themeColor().text },
     greetingName: { color: themeColor().pitchText },

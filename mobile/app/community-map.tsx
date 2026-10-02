@@ -17,20 +17,12 @@ import * as Location from "expo-location";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
+import { fetchPlayerCards, type PlayerCard } from "@/lib/starRatings";
+import { StarRating } from "@/components/StarRating";
 
 import { PhotoHeader, useFieldPhotos } from "@/components/photo";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 // ─── design tokens ──────────────────────────────────────────────────────────
-
-function TIER_COLORS(): Record<string, string> {
-  return {
-  diamond: themeColor().muted,
-  platinum: themeColor().muted,
-  gold: themeColor().muted,
-  silver: themeColor().muted,
-  bronze: themeColor().muted,
-};
-}
 
 /** Northeast service area: CT, NY, NJ, and MD. */
 const SERVICE_REGION: Region = {
@@ -638,29 +630,20 @@ type CountyCell = {
   lat: number;
   lon: number;
   count: number;
-  /** All diamond-tier members in the county (best-effort from client ratings). */
-  diamondCount: number;
-  /** Verified (document/vouched) Diamond players — from API overview. */
-  verifiedDiamondCount: number;
+  topRatedCount: number;
   upcomingSessions: number;
 };
 
-type ElitePlayer = {
+type TopRatedPlayer = {
   id: string;
   first_name: string | null;
   last_name: string | null;
   avatar_url: string | null;
   playing_position: string | null;
-  tier: "diamond" | "platinum";
 };
 
-type TierCounts = {
-  diamond: number;
-  platinum: number;
-  gold: number;
-  silver: number;
-  bronze: number;
-};
+type StarBucket = "5" | "4" | "3" | "2" | "1";
+type StarCounts = Record<StarBucket, number>;
 
 type SessionPin = {
   id: string;
@@ -699,10 +682,9 @@ function useCommunityData() {
     const origin = siteOrigin();
 
     // Fetch ALL approved profiles — no geographic filter. Group every row by area.
-    const [{ data: profiles, error: profilesError }, { data: ratings }, { data: sessionRuns }, overviewRes] =
+    const [{ data: profiles, error: profilesError }, { data: sessionRuns }, overviewRes] =
       await Promise.all([
         supabase.from("profiles").select("id, zip_code, nearest_venue").eq("approved", true),
-        supabase.from("player_ratings").select("user_id, tier"),
         supabase
           .from("pickup_runs")
           .select("latitude,longitude,start_at")
@@ -730,27 +712,22 @@ function useCommunityData() {
       console.log(`[community-map] approved profiles fetched: ${profiles.length}`);
     }
 
-    const verifiedDiamondByCounty: Record<string, number> = {};
+    const topRatedByCounty: Record<string, number> = {};
     if (
       overviewRes &&
       typeof overviewRes === "object" &&
       overviewRes.ok &&
-      overviewRes.verifiedDiamondByCounty &&
-      typeof overviewRes.verifiedDiamondByCounty === "object"
+      overviewRes.topRatedByCounty &&
+      typeof overviewRes.topRatedByCounty === "object"
     ) {
       for (const [id, n] of Object.entries(
-        overviewRes.verifiedDiamondByCounty as Record<string, unknown>,
+        overviewRes.topRatedByCounty as Record<string, unknown>,
       )) {
-        if (typeof n === "number" && n > 0) verifiedDiamondByCounty[id] = n;
+        if (typeof n === "number" && n > 0) topRatedByCounty[id] = n;
       }
     }
 
-    const tierByUser = new Map<string, string>();
-    for (const r of ratings ?? []) {
-      if (r.user_id && r.tier) tierByUser.set(r.user_id, (r.tier as string).toLowerCase());
-    }
-
-    type Agg = { count: number; diamondCount: number; upcomingSessions: number };
+    type Agg = { count: number; upcomingSessions: number };
     const countyMap = new Map<string, Agg>();
     let groupedCount = 0;
 
@@ -762,12 +739,11 @@ function useCommunityData() {
       if (!county) continue;
 
       if (!countyMap.has(county.id)) {
-        countyMap.set(county.id, { count: 0, diamondCount: 0, upcomingSessions: 0 });
+        countyMap.set(county.id, { count: 0, upcomingSessions: 0 });
       }
       const agg = countyMap.get(county.id)!;
       agg.count++;
       groupedCount++;
-      if ((tierByUser.get(p.id as string) ?? "") === "diamond") agg.diamondCount++;
     }
 
     if (__DEV__) {
@@ -806,8 +782,7 @@ function useCommunityData() {
         lat: def.lat,
         lon: def.lon,
         count: agg.count,
-        diamondCount: agg.diamondCount,
-        verifiedDiamondCount: verifiedDiamondByCounty[id] ?? 0,
+        topRatedCount: topRatedByCounty[id] ?? 0,
         upcomingSessions: agg.upcomingSessions,
       });
     }
@@ -905,9 +880,9 @@ function CountyCircleMarker({
 }) {
   useThemedStyles(publish_s);
 
-  const hasDiamonds = cell.verifiedDiamondCount > 0;
+  const hasTopRated = cell.topRatedCount > 0;
   const base = circleSize(cell.count);
-  const sz = hasDiamonds ? Math.max(base, base + 12) : base;
+  const sz = hasTopRated ? Math.max(base, base + 12) : base;
   const bg = circleBg(cell.count);
   const nameCol = circleNameColor(cell.count);
   const countCol = circleCountColor(cell.count);
@@ -963,7 +938,7 @@ function CountyCircleMarker({
         >
           {cell.count}
         </Text>
-        {hasDiamonds ? (
+        {hasTopRated ? (
           <Text
             style={{
               color: themeColor().muted,
@@ -974,7 +949,7 @@ function CountyCircleMarker({
             }}
             allowFontScaling={false}
           >
-            ◆{cell.verifiedDiamondCount}
+            ★{cell.topRatedCount}
           </Text>
         ) : null}
       </View>
@@ -1072,18 +1047,20 @@ function CountyPopupModal({
 }) {
   useThemedStyles(publish_s);
 
-  const { session } = useAuth();
+  const { supabase, session } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [tierCounts, setTierCounts] = useState<TierCounts | null>(null);
-  const [elite, setElite] = useState<ElitePlayer[]>([]);
+  const [starCounts, setStarCounts] = useState<StarCounts | null>(null);
+  const [topRated, setTopRated] = useState<TopRatedPlayer[]>([]);
+  const [cards, setCards] = useState<Map<string, PlayerCard>>(new Map());
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     if (!visible) return;
     setLoading(true);
     setExpanded(false);
-    setTierCounts(null);
-    setElite([]);
+    setStarCounts(null);
+    setTopRated([]);
+    setCards(new Map());
 
     const token = session?.access_token;
     const origin = siteOrigin();
@@ -1103,13 +1080,22 @@ function CountyPopupModal({
         );
         const json = (await r.json().catch(() => null)) as {
           ok?: boolean;
-          tierCounts?: TierCounts;
-          elitePlayers?: ElitePlayer[];
+          starCounts?: StarCounts;
+          topRatedPlayers?: TopRatedPlayer[];
         } | null;
         if (cancelled) return;
         if (json?.ok) {
-          if (json.tierCounts) setTierCounts(json.tierCounts);
-          if (Array.isArray(json.elitePlayers)) setElite(json.elitePlayers);
+          if (json.starCounts) setStarCounts(json.starCounts);
+          if (Array.isArray(json.topRatedPlayers)) {
+            setTopRated(json.topRatedPlayers);
+            if (supabase && json.topRatedPlayers.length > 0) {
+              const next = await fetchPlayerCards(
+                supabase,
+                json.topRatedPlayers.map((p) => p.id),
+              );
+              if (!cancelled) setCards(next);
+            }
+          }
         }
       } catch {
         /* ignore */
@@ -1121,18 +1107,12 @@ function CountyPopupModal({
     return () => {
       cancelled = true;
     };
-  }, [visible, cell.id, session?.access_token]);
+  }, [visible, cell.id, supabase, session?.access_token]);
 
-  const shown = expanded ? elite : elite.slice(0, 5);
-  const moreCount = elite.length > 5 ? elite.length - 5 : 0;
+  const shown = expanded ? topRated : topRated.slice(0, 5);
+  const moreCount = topRated.length > 5 ? topRated.length - 5 : 0;
 
-  const tierParts: Array<{ key: keyof TierCounts; label: string; glyph: string }> = [
-    { key: "diamond", label: "Diamond", glyph: "◆" },
-    { key: "platinum", label: "Platinum", glyph: "●" },
-    { key: "gold", label: "Gold", glyph: "●" },
-    { key: "silver", label: "Silver", glyph: "●" },
-    { key: "bronze", label: "Bronze", glyph: "●" },
-  ];
+  const starBuckets: StarBucket[] = ["5", "4", "3", "2", "1"];
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -1149,13 +1129,13 @@ function CountyPopupModal({
               <FontAwesome name="users" size={14} color={themeColor().muted} /> {cell.count} total members
             </Text>
 
-            {tierCounts ? (
-              <Text style={s.tierBreakdownRow}>
-                {tierParts
-                  .filter((t) => (tierCounts[t.key] ?? 0) > 0)
-                  .map((t) => (
-                    <Text key={t.key} style={{ color: TIER_COLORS()[t.key], fontWeight: "700" }}>
-                      {t.glyph} {tierCounts[t.key]} {t.label}
+            {starCounts ? (
+              <Text style={s.starBreakdownRow}>
+                {starBuckets
+                  .filter((b) => (starCounts[b] ?? 0) > 0)
+                  .map((b) => (
+                    <Text key={b} style={s.starBreakdownPart}>
+                      {b}★ {starCounts[b]}
                     </Text>
                   ))
                   .reduce<React.ReactNode[]>((acc, node, i) => {
@@ -1168,52 +1148,54 @@ function CountyPopupModal({
 
             <View style={s.popupDivider} />
 
-            <Text style={s.eliteLabel}>ELITE PLAYERS</Text>
+            <Text style={s.topRatedLabel}>TOP-RATED PLAYERS</Text>
 
             {loading ? (
               <ActivityIndicator color={themeColor().pitchText} style={{ marginVertical: 16 }} />
-            ) : elite.length === 0 ? (
-              <Text style={s.eliteEmpty}>No verified Diamond or Platinum players in this county yet.</Text>
+            ) : topRated.length === 0 ? (
+              <Text style={s.topRatedEmpty}>No top-rated players in this county yet.</Text>
             ) : (
-              <View style={s.eliteList}>
+              <View style={s.topRatedList}>
                 {shown.map((p) => {
-                  const color = TIER_COLORS()[p.tier];
                   const pos = (p.playing_position ?? "").trim();
+                  const card = cards.get(p.id);
                   return (
                     <Pressable
                       key={p.id}
-                      style={s.eliteRow}
+                      style={s.topRatedRow}
                       onPress={() => onOpenPlayer(p.id)}
                       accessibilityRole="button"
                     >
-                      <View style={[s.eliteAvatarRing, { borderColor: color }]}>
+                      <View style={s.topRatedAvatarRing}>
                         {p.avatar_url ? (
-                          <Image source={{ uri: p.avatar_url }} style={s.eliteAvatarImg} />
+                          <Image source={{ uri: p.avatar_url }} style={s.topRatedAvatarImg} />
                         ) : (
-                          <View style={[s.eliteAvatarFallback, { backgroundColor: `${color}22` }]}>
-                            <Text style={[s.eliteInitials, { color }]}>
+                          <View style={s.topRatedAvatarFallback}>
+                            <Text style={s.topRatedInitials}>
                               {initialsFromName(p.first_name, p.last_name)}
                             </Text>
                           </View>
                         )}
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={s.eliteName} numberOfLines={1}>
+                        <Text style={s.topRatedName} numberOfLines={1}>
                           {displayShortName(p.first_name, p.last_name)}
                         </Text>
-                        <View style={s.eliteMetaRow}>
-                          <Text style={[s.eliteTierBadge, { color }]}>
-                            {p.tier === "diamond" ? "◆ Diamond" : "● Platinum"}
-                          </Text>
-                          {pos ? <Text style={s.elitePos}>{pos}</Text> : null}
-                        </View>
+                        {card || pos ? (
+                          <View style={s.topRatedMetaRow}>
+                            {card ? (
+                              <StarRating value={card.star} provisional={card.provisional} size="sm" />
+                            ) : null}
+                            {pos ? <Text style={s.topRatedPos}>{pos}</Text> : null}
+                          </View>
+                        ) : null}
                       </View>
                     </Pressable>
                   );
                 })}
                 {!expanded && moreCount > 0 ? (
                   <Pressable onPress={() => setExpanded(true)} hitSlop={8}>
-                    <Text style={s.eliteMore}>+ {moreCount} more</Text>
+                    <Text style={s.topRatedMore}>+ {moreCount} more</Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -1783,13 +1765,14 @@ function make_s() {
     padding: 16,
     paddingBottom: 20,
   },
-  tierBreakdownRow: {
+  starBreakdownRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     marginTop: 8,
     fontSize: 13, fontFamily: "Inter_400Regular",
   },
-  tierBreakdownPart: {
+  starBreakdownPart: {
+    color: themeColor().text,
     fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
   },
@@ -1798,42 +1781,43 @@ function make_s() {
     backgroundColor: themeColor().overlay,
     marginVertical: 12,
   },
-  eliteLabel: {
+  topRatedLabel: {
     color: themeColor().pitchText,
     fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "800",
     marginBottom: 8,
   },
-  eliteEmpty: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 8 },
-  eliteList: { gap: 8 },
-  eliteRow: {
+  topRatedEmpty: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 8 },
+  topRatedList: { gap: 8 },
+  topRatedRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
-  eliteAvatarRing: {
+  topRatedAvatarRing: {
     width: 40,
     height: 40,
     borderRadius: 999,
     borderWidth: 2,
+    borderColor: themeColor().line,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },
-  eliteAvatarImg: { width: 36, height: 36, borderRadius: 12 },
-  eliteAvatarFallback: {
+  topRatedAvatarImg: { width: 36, height: 36, borderRadius: 12 },
+  topRatedAvatarFallback: {
     width: 36,
     height: 36,
     borderRadius: 12,
+    backgroundColor: themeColor().overlay,
     alignItems: "center",
     justifyContent: "center",
   },
-  eliteInitials: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
-  eliteName: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
-  eliteMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
-  eliteTierBadge: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
-  elitePos: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_500Medium", fontWeight: "500" },
-  eliteMore: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 4 },
+  topRatedInitials: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  topRatedName: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  topRatedMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
+  topRatedPos: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_500Medium", fontWeight: "500" },
+  topRatedMore: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 4 },
   sessionsLine: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_500Medium", marginTop: 16, fontWeight: "500" },
   popupCloseBtn: {
     marginTop: 16,

@@ -976,3 +976,21 @@ export function fetchAdminPlayersProximity(
   });
 }
 
+export type AdminPlayerRating = {
+  user_id: string;
+  tier: string | null;
+  score: number | null;
+  verification: string | null;
+  star_rating: number | null;
+  star_provisional: boolean | null;
+};
+
+/** Admin-only tier and score. Never read these through player_cards. */
+export function fetchAdminPlayerRatings(accessToken: string, opts: { userIds?: string[]; tier?: string }) {
+  const q = new URLSearchParams();
+  if (opts.userIds?.length) q.set("user_ids", opts.userIds.join(","));
+  if (opts.tier) q.set("tier", opts.tier);
+  return adminFetch<{ ok: true; ratings: AdminPlayerRating[] }>(`/api/admin/player-ratings?${q.toString()}`, accessToken, {
+    method: "GET",
+  });
+}

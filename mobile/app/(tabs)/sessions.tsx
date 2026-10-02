@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
 import { PhotoHeader, useFieldPhotos } from "@/components/photo";
 import PlayedWithRow, { usePlayedWith } from "@/components/pickup/PlayedWithRow";
+import { fetchMyRatingPoints } from "@/lib/siteApi";
 import { headline, themeColor, useThemedStyles } from "@/theme";
 type AvatarPreview = { id: string; initials: string };
 
@@ -50,14 +51,6 @@ type PastRow = {
   location: string | null;
   result: "Won" | "Lost" | "Completed" | null;
   awards: string[];
-};
-
-const TIER_PTS: Record<string, number> = {
-  diamond: 8,
-  platinum: 6,
-  gold: 4,
-  silver: 2,
-  bronze: 0,
 };
 
 const LIVE_STATUSES = new Set(["active", "in_progress", "planning"]);
@@ -189,7 +182,8 @@ export default function SessionsTabScreen() {
   const [sessionsPlayed, setSessionsPlayed] = useState(0);
   const [wins, setWins] = useState(0);
   const [losses, setLosses] = useState(0);
-  const [points, setPoints] = useState(0);
+  const [points, setPoints] = useState<number | null>(null);
+  const accessToken = session?.access_token ?? null;
 
   const load = useCallback(async () => {
     if (!isReady || !supabase || !uid) {
@@ -202,10 +196,10 @@ export default function SessionsTabScreen() {
     }
 
     try {
-      const [ratingRes, profileRes] = await Promise.all([
+      const [ratingRes, profileRes, pointsRes] = await Promise.all([
         supabase
           .from("player_ratings")
-          .select("tier,sessions,score")
+          .select("sessions")
           .eq("user_id", uid)
           .maybeSingle(),
         supabase
@@ -213,13 +207,10 @@ export default function SessionsTabScreen() {
           .select("pickup_wins_count,pickup_losses_count")
           .eq("id", uid)
           .maybeSingle(),
+        accessToken ? fetchMyRatingPoints(accessToken) : Promise.resolve(null),
       ]);
 
-      const rating = ratingRes.data as {
-        tier?: string | null;
-        sessions?: number | null;
-        score?: number | null;
-      } | null;
+      const rating = ratingRes.data as { sessions?: number | null } | null;
       const profile = profileRes.data as {
         pickup_wins_count?: number | null;
         pickup_losses_count?: number | null;
@@ -228,12 +219,10 @@ export default function SessionsTabScreen() {
       const sessionsCount = Math.max(0, Math.trunc(Number(rating?.sessions ?? 0)));
       const winsCount = Math.max(0, Math.trunc(Number(profile?.pickup_wins_count ?? 0)));
       const lossesCount = Math.max(0, Math.trunc(Number(profile?.pickup_losses_count ?? 0)));
-      const tier = (rating?.tier ?? "bronze").toLowerCase();
-      const tierPts = TIER_PTS[tier] ?? 0;
       setSessionsPlayed(sessionsCount);
       setWins(winsCount);
       setLosses(lossesCount);
-      setPoints(sessionsCount * tierPts * 10);
+      setPoints(pointsRes ? pointsRes.points : null);
 
       const now = Date.now();
       const twoHoursAgoIso = new Date(now - 2 * 60 * 60 * 1000).toISOString();
@@ -466,7 +455,7 @@ export default function SessionsTabScreen() {
     } finally {
       setLoading(false);
     }
-  }, [isReady, supabase, uid]);
+  }, [isReady, supabase, uid, accessToken]);
 
   useFocusEffect(
     useCallback(() => {
@@ -512,7 +501,7 @@ export default function SessionsTabScreen() {
           </View>
           <View style={styles.statCell}>
             <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
-              {points.toLocaleString()}
+              {points == null ? "—" : points.toLocaleString()}
             </Text>
             <Text style={styles.statLabel}>Points</Text>
           </View>
