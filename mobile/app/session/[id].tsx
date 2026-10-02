@@ -645,9 +645,12 @@ export default function SessionDetailScreen() {
   async function leaveSession() {
     if (rsvpBusy || !session?.access_token) return;
     const isPaid = (run?.fee_cents ?? 0) > 0;
-    const alertBody = isPaid
-      ? "Leaving more than 24 hours before kickoff earns a platform credit. Within 24 hours: no refund."
-      : "Are you sure you want to leave this session?";
+    const pendingPayment = myStatus === "pending_payment";
+    const alertBody = pendingPayment
+      ? "Your unfinished payment will be cancelled and you won't be charged. If it already went through, you'll be treated as a paid player."
+      : isPaid
+        ? "Leaving more than 24 hours before kickoff turns what you paid into a platform credit. Within 24 hours: no refund or credit."
+        : "Are you sure you want to leave this session?";
     Alert.alert("Leave session?", alertBody, [
       { text: "Stay", style: "cancel" },
       {
@@ -663,16 +666,16 @@ export default function SessionDetailScreen() {
             });
             const j = await r.json().catch(() => null) as {
               ok?: boolean; error?: string; credit_issued?: boolean; amount_cents?: number;
-              credit_restored?: boolean; already_credited?: boolean;
+              already_credited?: boolean; payment_cancelled?: boolean; paid_but_late?: boolean;
             } | null;
             if (!r.ok || !j?.ok) { Alert.alert("Could not leave", j?.error ?? "Something went wrong. Try again."); return; }
             await load();
             const lines: string[] = [];
+            if (j.payment_cancelled) lines.push("Your unfinished payment was cancelled. You were not charged.");
             if (j.credit_issued && j.amount_cents) lines.push(`A platform credit of $${(j.amount_cents / 100).toFixed(2)} has been added to your account.`);
-            if (j.credit_restored) lines.push("The credit you used to join has been restored.");
-            if (j.already_credited) lines.push("A credit for this session was already issued to your account earlier.");
+            if (j.already_credited) lines.push("A credit for this session was already added to your account earlier.");
+            if (j.paid_but_late) lines.push("No refund or credit applies within 24 hours of kickoff.");
             if (lines.length > 0) Alert.alert("Left session", lines.join(" "));
-            else if (isPaid) Alert.alert("Left session", "No refund applies within 24 hours of kickoff.");
           } finally {
             setRsvpBusy(false);
           }
@@ -685,7 +688,7 @@ export default function SessionDetailScreen() {
     if (endBusy || !session?.access_token) return;
     Alert.alert(
       "Cancel session?",
-      "All players will be notified. Card payments are refunded in full and credits used to join are restored. This cannot be undone.",
+      "All players will be notified. Card payments are refunded to the card and players who joined with a credit get it back as a credit. This cannot be undone.",
       [
         { text: "Keep it", style: "cancel" },
         {
@@ -700,18 +703,27 @@ export default function SessionDetailScreen() {
                 body: JSON.stringify({ run_id: id }),
               });
               const j = await r.json().catch(() => null) as {
-                ok?: boolean; error?: string; refunded?: number; credits_restored?: number;
-                failures?: { user_id: string | null; error: string }[];
+                ok?: boolean; error?: string; refunded?: number; credited?: number;
+                failures?: { user_id: string; name: string | null; error: string }[];
               } | null;
               if (!r.ok || !j?.ok) {
-                const failed = j?.failures?.length ?? 0;
-                Alert.alert(failed > 0 ? "Refunds not finished" : "Error", j?.error ?? "Could not cancel.");
+                const failures = j?.failures ?? [];
+                if (failures.length > 0) {
+                  const done: string[] = [];
+                  if (j?.refunded) done.push(`${j.refunded} card refund${j.refunded === 1 ? "" : "s"} issued.`);
+                  if (j?.credited) done.push(`${j.credited} credit${j.credited === 1 ? "" : "s"} issued.`);
+                  const lines = failures.map((f) => `• ${f.name ?? "A player"}: ${f.error}`);
+                  const summary = [j?.error, ...done].filter(Boolean).join(" ");
+                  Alert.alert("Some players were not refunded", `${summary}\n\n${lines.join("\n")}`);
+                } else {
+                  Alert.alert("Error", j?.error ?? "Could not cancel.");
+                }
                 await load();
                 return;
               }
               const parts = ["All players have been notified."];
               if (j.refunded) parts.push(`${j.refunded} card refund${j.refunded === 1 ? "" : "s"} issued.`);
-              if (j.credits_restored) parts.push(`${j.credits_restored} credit${j.credits_restored === 1 ? "" : "s"} restored.`);
+              if (j.credited) parts.push(`${j.credited} credit${j.credited === 1 ? "" : "s"} issued.`);
               Alert.alert("Session cancelled", parts.join(" "));
               await load();
             } finally {

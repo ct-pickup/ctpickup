@@ -15,7 +15,10 @@ import {
 import { recomputePickupStandingForUser } from "@/lib/pickup/standing/recomputePickupStanding";
 import { notifyFollowersWhenFollowedPlayerConfirmsRun } from "@/lib/pickup/notifyFollowersOnPickupConfirm";
 import { sendPickupRsvpConfirmedPush } from "@/lib/pickup/pickupPushNotifications";
-import { shouldSkipPickupFulfillmentForConfirmedStatus } from "@/lib/pickup/stripeWebhookPickup";
+import {
+  shouldSkipPickupFulfillmentForCanceledRsvp,
+  shouldSkipPickupFulfillmentForConfirmedStatus,
+} from "@/lib/pickup/stripeWebhookPickup";
 import {
   countAcceptedPickupRsvps,
   deletePendingWaitlistExpiringReminders,
@@ -103,10 +106,11 @@ async function fulfillPickup(
   if (sessionId) {
     const existing = await admin
       .from("pickup_run_rsvps")
-      .select("run_id,user_id,status")
+      .select("run_id,user_id,status,checkout_session_id,payment_intent_id")
       .eq("checkout_session_id", sessionId)
       .maybeSingle();
     if (shouldSkipPickupFulfillmentForConfirmedStatus(existing.data?.status)) return;
+    if (shouldSkipPickupFulfillmentForCanceledRsvp(existing.data, { sessionId, paymentIntentId })) return;
     if (existing.data?.run_id && existing.data?.user_id) {
       resolvedRunId = String(existing.data.run_id);
       resolvedUserId = String(existing.data.user_id);
@@ -117,11 +121,12 @@ async function fulfillPickup(
 
   const prevRes = await admin
     .from("pickup_run_rsvps")
-    .select("status")
+    .select("status,checkout_session_id,payment_intent_id")
     .eq("run_id", resolvedRunId)
     .eq("user_id", resolvedUserId)
     .maybeSingle();
   if (String(prevRes.data?.status || "").trim() === "confirmed") return;
+  if (shouldSkipPickupFulfillmentForCanceledRsvp(prevRes.data, { sessionId, paymentIntentId })) return;
 
   const runRes = await admin
     .from("pickup_runs")
