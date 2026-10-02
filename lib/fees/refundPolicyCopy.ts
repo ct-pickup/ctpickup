@@ -10,11 +10,12 @@ export const PICKUP_REFUND_AVAILABILITY_SENTENCE =
   "Refunds are available if you cancel more than 24 hours before the run's scheduled start time.";
 
 /** Pickup page / how-it-works — full plain-English pickup refund summary */
-export const PICKUP_REFUND_UI_NOTICE = `${PICKUP_REFUND_AVAILABILITY_SENTENCE} If you cancel within 24 hours of the start time or no-show, your fee is not refunded. Full refund if the run is canceled by the organizer. Verified duplicate or erroneous charges will be corrected.`;
+export const PICKUP_REFUND_UI_NOTICE =
+  "If you cancel more than 24 hours before the start time, what you paid becomes a credit. If you cancel within 24 hours of the start time or no-show, your fee is not refunded. Full refund to your card if the host or CT Pickup cancels the run. Verified duplicate or erroneous charges will be corrected.";
 
 /** Stripe line item (pickup field fee) */
 export const PICKUP_FIELD_FEE_STRIPE_DESCRIPTION =
-  "Cancel 24+ hours before for a full credit. No refunds within 24h or for no-shows. If we cancel, you get a full credit.";
+  "Cancel 24+ hours before for a full credit. No refunds within 24h or for no-shows. If the run is cancelled, you get a full refund.";
 
 /** Stripe line item (online esports entry) */
 export const ESPORTS_ENTRY_FEE_STRIPE_DESCRIPTION =

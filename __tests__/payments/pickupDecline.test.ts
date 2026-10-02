@@ -246,6 +246,29 @@ describe("decline of a confirmed, paid spot follows leave", () => {
     expect(h.pushes.find((p) => p.userIds.includes(FRIEND))).toMatchObject({ title: "Credit on its way" });
   });
 
+  it("credit-paid: what the credit covered comes back as credit to the player", async () => {
+    seedRun();
+    const paidAt = iso(-3 * HOUR);
+    h.db.rows("pickup_run_rsvps").push({ run_id: RUN, user_id: PLAYER, status: "confirmed", paid_at: paidAt, payment_intent_id: null, checkout_session_id: null });
+    h.db.rows("pickup_credits").push({
+      id: "pod", user_id: PLAYER, amount_cents: 300, discount_pct: null, reason: "monthly_pod",
+      awarded_at: iso(-30 * 24 * HOUR), expires_at: iso(30 * 24 * HOUR), used_at: paidAt, run_id: RUN, cancelled_run_id: null,
+    });
+    const body = await (await decline()).json();
+    expect(body).toMatchObject({ ok: true, credit_issued: true, amount_cents: 300 });
+    expect(h.stripe.calls.refundsCreate).toBe(0);
+  });
+
+  it("free confirmed spot: canceled with nothing back", async () => {
+    seedRun();
+    h.db.rows("pickup_runs")[0].fee_cents = 0;
+    h.db.rows("pickup_run_rsvps").push({ run_id: RUN, user_id: PLAYER, status: "confirmed", paid_at: null, payment_intent_id: null, checkout_session_id: null });
+    const body = await (await decline()).json();
+    expect(body).toMatchObject({ ok: true, status: "canceled", credit_issued: false, paid_but_late: false, message: "You have left Tuesday Run." });
+    expect(h.db.rows("pickup_credits")).toHaveLength(0);
+    expect(h.promotions).toEqual([RUN]);
+  });
+
   it("a double decline issues no second credit", async () => {
     seedPaid();
     await decline();

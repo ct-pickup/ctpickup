@@ -15,7 +15,7 @@ function confirmCancellationPolicy(): Promise<boolean> {
   return new Promise((resolve) => {
     Alert.alert(
       "Cancellation Policy",
-      "If this run is cancelled, you will receive a credit for the exact amount you paid, valid for 3 months — no fees deducted.",
+      "If the host or CT Pickup cancels this run, what you paid by card is refunded to your card and any credit you used comes back as a credit. If you cancel more than 24 hours before kickoff, what you paid becomes a credit.",
       [
         {
           text: "OK",

@@ -12,15 +12,15 @@ import {
   isSelectPickupRunType,
   normalizePickupRunTypeForDb,
 } from "@/lib/pickup/pickupRunType";
-import { cancelAllPickupRsvpsAndIssueCancellationCredits } from "@/lib/pickup/cancellationCreditsOnRunCancel";
+import { cancelPickupRunAndSettle } from "@/lib/payments/runCancelSettlement";
 import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
 import { pickupFinalizeSlotPushRecipientIds, sendPickupFinalizedPush } from "@/lib/pickup/pickupPushNotifications";
 import { promotePickupRunToHub } from "@/lib/pickup/hubPromote";
 import { pickupWaveCronRunColumns, processDueWaveForRun, type PickupRunWaveRow } from "@/lib/pickup/waveInviteSystem";
-import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { ensureRunBanterRoomAndMembers } from "@/lib/chat/runBanterRoom";
-import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type Stripe from "stripe";
 import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 
 export const runtime = "nodejs";
@@ -857,40 +857,27 @@ export async function POST(req: Request) {
     const reason = body.reason ? String(body.reason) : null;
     if (!run_id) return NextResponse.json({ error: "Missing run_id" }, { status: 400 });
 
-    const up = await admin.from("pickup_runs").update({
-      status: "canceled",
-      is_current: false,
-      canceled_at: new Date().toISOString(),
-      canceled_reason: reason,
-      updated_at: new Date().toISOString(),
-    }).eq("id", run_id);
+    const runRes = await admin
+      .from("pickup_runs")
+      .select("id, title, fee_cents, start_at, status, canceled_at")
+      .eq("id", run_id)
+      .maybeSingle();
+    if (runRes.error) return NextResponse.json({ error: runRes.error.message }, { status: 500 });
+    if (!runRes.data) return NextResponse.json({ error: "Run not found" }, { status: 404 });
 
-    if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
-
-    const { credited, creditFailed, paidUserIds, freeUserIds, venueLabel } =
-      await cancelAllPickupRsvpsAndIssueCancellationCredits(admin, run_id);
-
-    const venue = venueLabel === "your" ? "your" : venueLabel;
-
-    if (paidUserIds.length) {
-      await sendPushToUsers(admin, paidUserIds, {
-        title: "Run Cancelled",
-        body: `Your ${venue} run was cancelled. A credit for the exact amount you paid has been added to your account — valid for 3 months.`,
-        data: { kind: "pickup_canceled", run_id },
-      });
-    }
-
-    if (freeUserIds.length) {
-      await sendPushToUsers(admin, freeUserIds, {
-        title: "Run Cancelled",
-        body: `Your ${venue} run was cancelled.`,
-        data: { kind: "pickup_canceled", run_id },
-      });
-    }
+    let stripe: Stripe | null = null;
+    const out = await cancelPickupRunAndSettle(
+      admin,
+      () => {
+        if (!stripe) stripe = getStripePickup();
+        return stripe;
+      },
+      { run: runRes.data, initiator: "admin", reason, runPatch: { is_current: false }, routeTag: "pickup/switch:cancel_run" },
+    );
 
     revalidatePath("/pickup");
     revalidatePath("/status/pickup");
-    return NextResponse.json({ ok: true, credited, creditFailed });
+    return NextResponse.json(out.body, { status: out.status });
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });

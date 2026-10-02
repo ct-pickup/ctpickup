@@ -7,6 +7,7 @@ import {
   postAdminCancelRun,
   postAdminPickupSwitch,
   postAdminSetHubPickup,
+  type AdminCancelRunResponse,
   type PickupSwitchDetailResponse,
 } from "@/lib/adminApi";
 import { hapticGoal, hapticTap } from "@/lib/haptics";
@@ -241,7 +242,7 @@ export default function AdminRunDetailLifecycle({
     if (!token || !runId) return;
     Alert.alert(
       "Cancel run?",
-      "Paid players receive a full run credit (valid 3 months). No Stripe refunds are issued.",
+      "All players will be notified. Card payments are refunded to the card and players who joined with a credit get it back as a credit. This cannot be undone.",
       [
         { text: "Keep run", style: "cancel" },
         {
@@ -256,10 +257,26 @@ export default function AdminRunDetailLifecycle({
               });
               setActionBusy(false);
               if (!r.ok) {
-                Alert.alert("Could not cancel", r.error);
+                const detail = (r.detail ?? null) as AdminCancelRunResponse | null;
+                const failures = detail?.failures ?? [];
+                if (failures.length > 0) {
+                  const done: string[] = [];
+                  if (detail?.refunded) done.push(`${detail.refunded} card refund${detail.refunded === 1 ? "" : "s"} issued.`);
+                  if (detail?.credited) done.push(`${detail.credited} credit${detail.credited === 1 ? "" : "s"} issued.`);
+                  const lines = failures.map((f) => `• ${f.name ?? "A player"}: ${f.error}`);
+                  const summary = [detail?.error, ...done].filter(Boolean).join(" ");
+                  Alert.alert("Some players were not refunded", `${summary}\n\n${lines.join("\n")}`);
+                  await onRefresh();
+                } else {
+                  Alert.alert("Could not cancel", r.error);
+                }
                 return;
               }
               void hapticTap();
+              const parts = ["All players have been notified."];
+              if (r.data?.refunded) parts.push(`${r.data.refunded} card refund${r.data.refunded === 1 ? "" : "s"} issued.`);
+              if (r.data?.credited) parts.push(`${r.data.credited} credit${r.data.credited === 1 ? "" : "s"} issued.`);
+              Alert.alert("Run cancelled", parts.join(" "));
               onCloseDetail();
               await onRefresh();
             })();

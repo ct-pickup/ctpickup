@@ -57,14 +57,19 @@ function cents(n: number): number {
  *
  * - Unfinished checkout (pending payment): the checkout is cancelled so it cannot charge; nothing is refunded or credited.
  * - Paid nothing: nothing.
- * - Card refunds happen only when a host or admin acts. Host or admin cancels the run (initiator "host" | "admin",
- *   trigger "run_cancel"): the card-paid portion is refunded to the card that paid it, at any time; the credit-covered
- *   portion comes back as a credit to the player.
- * - Player leaves (trigger "leave") or declines their own RSVP (trigger "rsvp_decline"); both are player-initiated and
- *   follow the same rule: more than 24 hours before kickoff, what was paid becomes credit, never a card refund. The card
- *   portion goes to whoever paid it (a friend who paid gets a credit marked as being for this player's spot), the
- *   credit-covered portion to the player. Within 24 hours nothing comes back. Declining an invite or a waitlist spot
- *   involves no money.
+ * - Card refunds happen only when a host or admin acts.
+ * - Host cancel (sessions/cancel, initiator "host") and admin cancel (sessions/cancel by an admin, admin/pickup/cancel,
+ *   and the pickup/switch cancel_run action, initiator "admin"), trigger "run_cancel": the card-paid portion is refunded
+ *   to the card that paid it (a friend's card when a friend paid), at any time, for what Stripe actually charged; the
+ *   credit-covered portion comes back as a credit to the player whose credit it was. Runs cancelled before
+ *   REFUND_FIX_CUTOFF are never settled again.
+ * - Player leaves (sessions/leave, trigger "leave") or declines their own RSVP (pickup/rsvp decline, trigger
+ *   "rsvp_decline"); both are player-initiated and follow the same rule: more than 24 hours before kickoff, what was
+ *   paid becomes credit, never a card refund. The card portion goes to whoever paid it (a friend who paid gets a credit
+ *   marked as being for this player's spot), the credit-covered portion to the player. Within 24 hours nothing comes
+ *   back. Declining an invite or a waitlist spot involves no money.
+ * - Run switch: there is no flow that moves a player from one run to another (pickup/switch is the admin run
+ *   switchboard). A switch must not be settled through this function; it should carry the payment to the new run.
  *
  * "More than 24 hours" is strict: exactly 24 hours before kickoff is already inside the window.
  */
