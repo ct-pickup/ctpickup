@@ -39,6 +39,15 @@ export function pickupPlayerRefundEligibleNow(
   return cutoffMs != null && nowMs < cutoffMs;
 }
 
+/** Kickoff in ms, or null when start_at is missing, invalid, or the noon placeholder of a TBD run. */
+export function realKickoffMs(run: { start_at?: string | null; time_tbd?: boolean | null }): number | null {
+  if (runTimeTbd(run)) return null;
+  const raw = run.start_at != null ? String(run.start_at).trim() : "";
+  if (!raw) return null;
+  const t = new Date(raw).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
 /** Earliest kickoff time for checkpoint math: run.start_at unless its time is TBD, and the earliest slot. */
 export function anchorStartAtMs(
   run: { start_at: string | null; time_tbd?: boolean | null },

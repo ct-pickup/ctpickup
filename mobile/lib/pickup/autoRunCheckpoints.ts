@@ -15,6 +15,7 @@ import {
   SELECT_PICKUP_MAX_INVITE_TIER_RANK,
 } from "@/lib/pickup/pickupRunType";
 import { anchorStartAtMs, computeCancellationDeadline } from "@/lib/pickup/runScheduling";
+import { writeWithOptionalTimeTbd } from "@/lib/pickup/runTimeTbd";
 import { expireWaitlistOffersAndPromote } from "@/lib/pickup/waitlist";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 
@@ -470,16 +471,19 @@ export async function processAutoPickupRun(
       const st = slotRow.data?.start_at;
       if (st) {
         const cancellation_deadline = computeCancellationDeadline(st);
-        const up = await admin
-          .from("pickup_runs")
-          .update({
-            final_slot_id: best.slot_id,
-            start_at: st,
-            status: "active",
-            cancellation_deadline,
-            updated_at: isoNow,
-          })
-          .eq("id", runId);
+        const up = await writeWithOptionalTimeTbd((withTimeTbd) =>
+          admin
+            .from("pickup_runs")
+            .update({
+              final_slot_id: best.slot_id,
+              start_at: st,
+              ...(withTimeTbd ? { time_tbd: false } : {}),
+              status: "active",
+              cancellation_deadline,
+              updated_at: isoNow,
+            })
+            .eq("id", runId),
+        );
         messages.push(
           up.error
             ? `1h checkpoint: finalize failed: ${up.error.message}`

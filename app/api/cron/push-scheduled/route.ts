@@ -28,7 +28,7 @@ export async function GET(req: Request) {
   const admin = createClient(url, key);
   const nowIso = new Date().toISOString();
 
-  // Keep planning runs that have kicked off on the map as "active".
+  // Keep planning runs that have kicked off on the map as "active" (runs with time TBD have not).
   try {
     const { promotePlanningRunsPastStart, ensureUpcomingSessionRateReminders } = await import(
       "@/lib/pickup/sessionLifecycle"
@@ -42,7 +42,7 @@ export async function GET(req: Request) {
 
   const { data: rows, error } = await admin
     .from("pickup_push_scheduled")
-    .select("id,user_id,title,body,kind,data")
+    .select("id,user_id,run_id,title,body,kind,data")
     .lte("send_at", nowIso)
     .is("sent_at", null)
     .order("send_at", { ascending: true })
@@ -52,9 +52,19 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  let dropped = new Set<string>();
+  try {
+    const { dropDueRateRemindersForTbdRuns } = await import("@/lib/pickup/sessionLifecycle");
+    dropped = await dropDueRateRemindersForTbdRuns(admin, rows || []);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[cron/push-scheduled] time TBD check:", msg);
+  }
+
   let sent = 0;
   for (const row of rows || []) {
     const id = String((row as { id?: unknown }).id || "");
+    if (dropped.has(id)) continue;
     const userId = String((row as { user_id?: unknown }).user_id || "");
     const title = String((row as { title?: unknown }).title || "");
     const body = String((row as { body?: unknown }).body || "");
