@@ -26,6 +26,7 @@ import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 type RegionFilter = "ALL" | "CT" | "NY" | "NJ" | "MD";
 type TabId =
   | "stars"
+  | "points"
   | "wins"
   | "sessions"
   | "win_rate"
@@ -58,7 +59,13 @@ type LeaderboardsPayload = {
   defender: unknown[];
   midfielder: unknown[];
   attacker: unknown[];
+  /** Current-season and all-time points from the points ledger; season is e.g. "Fall 2026". */
+  points: unknown[];
+  points_all_time: unknown[];
+  season: string | null;
 };
+
+type PointsScope = "season" | "all";
 
 type RankedPlayer = {
   user_id: string;
@@ -76,13 +83,14 @@ let _cachedMyCard: PlayerCard | null = null;
 
 const PRIMARY_TABS: Array<{ id: TabId; label: string; icon?: React.ComponentProps<typeof FontAwesome>["name"] }> = [
   { id: "stars", label: "Stars", icon: "star" },
+  { id: "points", label: "Points" },
   { id: "wins", label: "Wins" },
-  { id: "sessions", label: "Sessions" },
-  { id: "win_rate", label: "Win %" },
+  { id: "sessions", label: "Games" },
   { id: "potd", label: "POTD" },
 ];
 
 const MORE_TABS: Array<{ id: TabId; label: string }> = [
+  { id: "win_rate", label: "Win %" },
   { id: "goalie", label: "Goalie" },
   { id: "defender", label: "Defender" },
   { id: "midfielder", label: "Midfielder" },
@@ -115,6 +123,9 @@ function parsePayload(json: unknown): LeaderboardsPayload | null {
     defender: asRowArray(json.defender),
     midfielder: asRowArray(json.midfielder),
     attacker: asRowArray(json.attacker),
+    points: asRowArray(json.points),
+    points_all_time: asRowArray(json.points_all_time),
+    season: typeof json.season === "string" && json.season ? json.season : null,
   };
 }
 
@@ -150,7 +161,15 @@ function formatStat(tab: TabId, row: ApiRow): string {
     const rounded = Math.abs(pct - Math.round(pct)) < 1e-6 ? String(Math.round(pct)) : pct.toFixed(1);
     return `${rounded}%`;
   }
+  if (tab === "points") return Math.round(row.value).toLocaleString();
   return String(Math.round(row.value));
+}
+
+function statLabel(tab: TabId): string {
+  if (tab === "win_rate") return "WIN%";
+  if (tab === "points") return "PTS";
+  if (tab === "sessions") return "GAMES";
+  return tab.toUpperCase();
 }
 
 function initials(name: string): string {
@@ -174,6 +193,7 @@ export default function LeaderboardsScreen() {
   const [region, setRegion] = useState<RegionFilter>("ALL");
   const [filterOpen, setFilterOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [pointsScope, setPointsScope] = useState<PointsScope>("season");
 
   // API-backed tabs (wins/sessions/etc.)
   const [payload, setPayload] = useState<LeaderboardsPayload | null>(null);
@@ -189,7 +209,11 @@ export default function LeaderboardsScreen() {
   const rowsForTab = useMemo(() => {
     if (!payload) return [];
     const raw =
-      tab === "wins"
+      tab === "points"
+        ? pointsScope === "season"
+          ? payload.points
+          : payload.points_all_time
+        : tab === "wins"
         ? payload.wins
         : tab === "sessions"
           ? payload.sessions
@@ -210,7 +234,7 @@ export default function LeaderboardsScreen() {
       if (r) out.push(r);
     }
     return out;
-  }, [payload, tab]);
+  }, [payload, tab, pointsScope]);
 
   const loadStars = useCallback(async () => {
     const origin = siteOrigin();
@@ -511,11 +535,43 @@ export default function LeaderboardsScreen() {
     );
   }
 
+  function renderPointsHeader() {
+    const seasonLabel = payload?.season ?? "This season";
+    const scopes: Array<{ id: PointsScope; label: string }> = [
+      { id: "season", label: seasonLabel },
+      { id: "all", label: "All time" },
+    ];
+    return (
+      <View style={styles.scopeRow}>
+        {scopes.map((sc) => {
+          const on = pointsScope === sc.id;
+          return (
+            <Pressable
+              key={sc.id}
+              onPress={() => {
+                void hapticTap();
+                setPointsScope(sc.id);
+              }}
+              style={[styles.scopePill, on ? styles.tabPillOn : styles.tabPillOff]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+            >
+              <Text style={[styles.tabPillText, on && styles.tabPillTextOn]} numberOfLines={1}>
+                {sc.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+  }
+
   function renderApiTab() {
     const listEmpty = !loading && !err && payload != null && rowsForTab.length === 0;
     return (
       <FlatList
         style={styles.listFlex}
+        ListHeaderComponent={tab === "points" && !err ? renderPointsHeader() : null}
         data={err ? [] : rowsForTab}
         keyExtractor={(item) => item.id}
         contentContainerStyle={err || rowsForTab.length === 0 ? styles.listContentGrow : styles.listContent}
@@ -534,7 +590,7 @@ export default function LeaderboardsScreen() {
           ) : listEmpty ? (
             <ChalkEmptyState
               graphic="circle"
-              title="No stats yet"
+              title={tab === "points" && pointsScope === "season" ? "No points yet this season" : "No stats yet"}
               body="Play some runs to appear here!"
               style={styles.emptyStatsWrap}
             />
@@ -570,7 +626,7 @@ export default function LeaderboardsScreen() {
               </View>
               <View style={styles.ptsBlock}>
                 <Text style={styles.ptsValue}>{formatStat(tab, item)}</Text>
-                <Text style={styles.ptsLabel}>{tab === "win_rate" ? "WIN%" : tab.toUpperCase()}</Text>
+                <Text style={styles.ptsLabel}>{statLabel(tab)}</Text>
               </View>
             </Pressable>
           );
@@ -620,7 +676,7 @@ export default function LeaderboardsScreen() {
       <Modal visible={moreOpen} transparent animationType="fade" onRequestClose={() => setMoreOpen(false)}>
         <Pressable style={styles.moreBackdrop} onPress={() => setMoreOpen(false)}>
           <View style={styles.moreSheet}>
-            <Text style={styles.moreTitle}>Award leaders</Text>
+            <Text style={styles.moreTitle}>More rankings</Text>
             {MORE_TABS.map((m) => {
               const on = tab === m.id;
               return (
@@ -671,6 +727,8 @@ function make_styles() {
   tabPillOn: { backgroundColor: themeColor().pitch, borderWidth: 0 },
   tabPillText: { color: themeColor().text, fontWeight: "600", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   tabPillTextOn: { color: themeColor().onPitch, fontWeight: "800" },
+  scopeRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
+  scopePill: { flexShrink: 1, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999 },
 
   listWrap: { flex: 1, minHeight: 0 },
   listFlex: { flex: 1 },

@@ -82,7 +82,7 @@ export function SeasonHeaderCard({
         <View style={styles.statDivider} />
         <Stat value={String(potdCount)} label="Player of the Day" />
         <View style={styles.statDivider} />
-        <Stat value={points == null ? "\u2014" : points.toLocaleString()} label="Points" />
+        <Stat value={points == null ? "\u2014" : points.toLocaleString()} label="Season pts" />
       </View>
 
       {form.length > 0 ? (

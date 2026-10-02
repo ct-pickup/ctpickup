@@ -749,30 +749,3 @@ export async function togglePlayerFollow(
   const fc = typeof o.followers_count === "number" ? o.followers_count : Number(o.followers_count ?? 0);
   return { ok: true, following: o.following, followers_count: Number.isFinite(fc) ? fc : 0 };
 }
-
-/** Caller's leaderboard points, computed server side. `null` when the route is unavailable. */
-export async function fetchMyRatingPoints(
-  accessToken: string,
-): Promise<{ rated: boolean; sessions: number; points: number } | null> {
-  const origin = siteOrigin();
-  if (!origin) return null;
-  try {
-    const r = await fetch(`${origin}/api/player/points`, {
-      headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
-      cache: "no-store",
-    });
-    const j = (await r.json().catch(() => null)) as
-      | { ok?: boolean; rated?: boolean; sessions?: unknown; points?: unknown }
-      | null;
-    if (!r.ok || !j?.ok) return null;
-    const sessions = Number(j.sessions ?? 0);
-    const points = Number(j.points ?? 0);
-    return {
-      rated: j.rated === true,
-      sessions: Number.isFinite(sessions) ? sessions : 0,
-      points: Number.isFinite(points) ? points : 0,
-    };
-  } catch {
-    return null;
-  }
-}

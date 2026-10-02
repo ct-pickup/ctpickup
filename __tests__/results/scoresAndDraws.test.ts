@@ -237,7 +237,7 @@ describe("POST /api/sessions/result", () => {
   it("never settles ratings when posting or editing a result", async () => {
     await post(HOST, { score_a: 5, score_b: 3 });
     await post(HOST, { outcome: "draw", score_only: true });
-    expect(h.db.rpcCalls).toEqual([]);
+    expect(h.db.rpcCalls.filter((c) => c.name !== "points_replace_run")).toEqual([]);
   });
 
   it("rejects scores and draws gracefully before the migration runs", async () => {

@@ -4,6 +4,7 @@ import { applyPickupResultWinLossDeltas } from "@/lib/pickup/applyPickupResultWi
 import { resolvePotdFromVotes } from "@/lib/pickup/resolvePotdFromVotes";
 import { parseResultSubmission } from "@/lib/pickup/resultOutcome";
 import { isNotNullViolation, loadExistingResult, logResultEdit } from "@/lib/results/resultStore";
+import { syncRunPoints } from "@/lib/points/ledger";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { supabaseService } from "@/lib/supabase/service";
 
@@ -300,6 +301,9 @@ export async function POST(req: Request) {
     console.error("[pickup/result] stat update failed:", msg);
     return NextResponse.json({ error: `Stat update failed: ${msg}` }, { status: 500 });
   }
+
+  // Ledger rows for this run only, from the new result and teams.
+  await syncRunPoints(supabase, run_id);
 
   // 3) Push notifications: confirmed players + award winners.
   const rsvps = await supabase

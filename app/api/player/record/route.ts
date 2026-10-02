@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { bearerToken } from "@/lib/admin/requireAdmin";
-import { EMPTY_SUMMARY, loadPlayerRecord, loadRecordSummaries } from "@/lib/records/playerRecord";
+import { emptySummary, loadPlayerRecord, loadRecordSummaries, type PlayerRecordSummary } from "@/lib/records/playerRecord";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -12,7 +12,7 @@ const MAX_IDS = 200;
 /**
  * GET: pickup record from posted results.
  *   (no params) or ?userId=<self>  the caller's full record: summary, form strip and match log.
- *   ?userId=<other>                 summary only (games, W/D/L, win %, POTD), as the leaderboards show.
+ *   ?userId=<other>                 summary only (games, W/D/L, win %, POTD, season and all-time points), as the leaderboards show.
  *   ?userIds=a,b,c                  summaries for up to 200 players.
  * Other players must be approved; the viewer must be approved or an admin. Never score, tier or reliability.
  */
@@ -62,10 +62,10 @@ export async function GET(req: Request) {
     const summaries = await loadRecordSummaries(admin, [...visible]);
     if (!many.length) {
       if (!visible.has(single!)) return NextResponse.json({ error: "Not found" }, { status: 404 });
-      return NextResponse.json({ ok: true, user_id: single, summary: summaries.get(single!) ?? EMPTY_SUMMARY });
+      return NextResponse.json({ ok: true, user_id: single, summary: summaries.get(single!) ?? emptySummary() });
     }
-    const out: Record<string, typeof EMPTY_SUMMARY> = {};
-    for (const id of visible) out[id] = summaries.get(id) ?? EMPTY_SUMMARY;
+    const out: Record<string, PlayerRecordSummary> = {};
+    for (const id of visible) out[id] = summaries.get(id) ?? emptySummary();
     return NextResponse.json({ ok: true, summaries: out });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

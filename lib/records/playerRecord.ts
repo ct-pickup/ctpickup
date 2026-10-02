@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { outcomeForTeam, scoreLineForTeam, type PlayerOutcome } from "@/lib/pickup/resultOutcome";
+import { currentSeason, pointsForGame, seasonForStartAt } from "@/lib/pickup/points";
+import { loadPointsTotals, type PointsTotals } from "@/lib/points/ledger";
 import { isMissingColumnError } from "@/lib/results/resultStore";
 
 /**
@@ -9,6 +11,9 @@ import { isMissingColumnError } from "@/lib/results/resultStore";
  *
  * A game counts toward the record when a result is posted and the player was on a team.
  * Draws count as games played; win % is wins / games.
+ *
+ * Points come from the points_events ledger (see lib/points/ledger.ts). Until that table exists they are
+ * computed here from the same games with the same rules (lib/pickup/points.ts), so the numbers match.
  */
 
 export type RecordGame = {
@@ -31,6 +36,10 @@ export type PlayerRecordSummary = {
   /** wins / games (0–1), null before the first game. */
   win_pct: number | null;
   potd_count: number;
+  /** Current season label in Eastern time, e.g. "Fall 2026" or "Winter 2026–27". */
+  season: string;
+  season_points: number;
+  all_time_points: number;
 };
 
 export type PlayerRecord = PlayerRecordSummary & {
@@ -73,7 +82,19 @@ function isPastRun(run: RecordRun | undefined, now: number): boolean {
   return Number.isFinite(t) && t < now - LIVE_WINDOW_MS;
 }
 
-export function summarizeLog(log: RecordGame[]): PlayerRecordSummary {
+/** Pure: points from the log with the ledger's rules. Games without a known kickoff count toward all time only. */
+export function pointsFromLog(log: RecordGame[], season: string): PointsTotals {
+  let seasonPoints = 0;
+  let allTime = 0;
+  for (const g of log) {
+    const p = pointsForGame(g.outcome, g.potd);
+    allTime += p;
+    if (seasonForStartAt(g.start_at) === season) seasonPoints += p;
+  }
+  return { season_points: seasonPoints, all_time_points: allTime };
+}
+
+export function summarizeLog(log: RecordGame[], season: string = currentSeason()): PlayerRecordSummary {
   let wins = 0;
   let draws = 0;
   let losses = 0;
@@ -85,7 +106,22 @@ export function summarizeLog(log: RecordGame[]): PlayerRecordSummary {
     if (g.potd) potd += 1;
   }
   const games = wins + draws + losses;
-  return { games, wins, draws, losses, win_pct: games > 0 ? wins / games : null, potd_count: potd };
+  return {
+    games,
+    wins,
+    draws,
+    losses,
+    win_pct: games > 0 ? wins / games : null,
+    potd_count: potd,
+    season,
+    ...pointsFromLog(log, season),
+  };
+}
+
+/** Ledger totals replace the computed points; a player with no ledger rows has 0. */
+export function withLedgerPoints<T extends PlayerRecordSummary>(summary: T, totals: Map<string, PointsTotals>, userId: string): T {
+  const t = totals.get(userId);
+  return { ...summary, season_points: t?.season_points ?? 0, all_time_points: t?.all_time_points ?? 0 };
 }
 
 export function formFromLog(log: RecordGame[], n = FORM_LENGTH): PlayerOutcome[] {
@@ -99,6 +135,7 @@ export function formFromLog(log: RecordGame[], n = FORM_LENGTH): PlayerOutcome[]
 
 /** Pure: the record, form strip and match log for one player from already-loaded rows. */
 export function buildPlayerRecord(userId: string, inputs: RecordInputs, now = Date.now()): PlayerRecord {
+  const season = currentSeason(now);
   const ids = new Set<string>([...inputs.teams.keys(), ...inputs.confirmedRunIds]);
   for (const r of inputs.results.values()) if (r.player_of_day === userId) ids.add(r.run_id);
 
@@ -121,7 +158,7 @@ export function buildPlayerRecord(userId: string, inputs: RecordInputs, now = Da
     });
   }
   log.sort((a, b) => String(b.start_at ?? "").localeCompare(String(a.start_at ?? "")));
-  return { ...summarizeLog(log), form: formFromLog(log), log };
+  return { ...summarizeLog(log, season), form: formFromLog(log), log };
 }
 
 /** Pure: summaries for many players from all assignments and results (same rules as buildPlayerRecord). */
@@ -129,6 +166,8 @@ export function buildRecordSummaries(
   assignments: Array<{ run_id: string; user_id: string; team: string }>,
   results: RecordResult[],
   userIds?: Iterable<string>,
+  runs: Map<string, RecordRun> = new Map(),
+  season: string = currentSeason(),
 ): Map<string, PlayerRecordSummary> {
   const resultByRun = new Map(results.map((r) => [r.run_id, r]));
   const teamsByUser = new Map<string, Map<string, string>>();
@@ -152,13 +191,26 @@ export function buildRecordSummaries(
     const teams = teamsByUser.get(uid) ?? new Map<string, string>();
     const own = new Map<string, RecordResult>(potdRunsByUser.get(uid) ?? []);
     for (const runId of teams.keys()) own.set(runId, resultByRun.get(runId)!);
-    const record = buildPlayerRecord(uid, { teams, results: own, runs: new Map(), confirmedRunIds: [] });
-    out.set(uid, summarizeLog(record.log));
+    const record = buildPlayerRecord(uid, { teams, results: own, runs, confirmedRunIds: [] });
+    out.set(uid, summarizeLog(record.log, season));
   }
   return out;
 }
 
-export const EMPTY_SUMMARY: PlayerRecordSummary = { games: 0, wins: 0, draws: 0, losses: 0, win_pct: null, potd_count: 0 };
+export const EMPTY_SUMMARY: Omit<PlayerRecordSummary, "season"> = {
+  games: 0,
+  wins: 0,
+  draws: 0,
+  losses: 0,
+  win_pct: null,
+  potd_count: 0,
+  season_points: 0,
+  all_time_points: 0,
+};
+
+export function emptySummary(season: string = currentSeason()): PlayerRecordSummary {
+  return { ...EMPTY_SUMMARY, season };
+}
 
 // ------------------------------------------------------------
 // Loaders (service role). Separate queries merged in JS; no joins.
@@ -232,6 +284,26 @@ export async function loadPlayerRecord(admin: Admin, userId: string, now = Date.
   const confirmedRunIds = rsvps.map((r) => r.run_id).filter((v): v is string => Boolean(v));
   const runIds = Array.from(new Set([...teams.keys(), ...confirmedRunIds, ...potdRuns.map((r) => r.run_id)]));
 
+  const runs = await runsById(admin, runIds);
+  const results = new Map((await resultsForRuns(admin, runIds)).map((r) => [r.run_id, r]));
+  const record = buildPlayerRecord(userId, { teams, results, runs, confirmedRunIds }, now);
+  const totals = await ledgerTotals(admin, record.season, [userId]);
+  return totals ? withLedgerPoints(record, totals, userId) : record;
+}
+
+/** Ledger totals, or null to keep the computed points (ledger not migrated, or a read failed). */
+async function ledgerTotals(admin: Admin, season: string, userIds?: string[]): Promise<Map<string, PointsTotals> | null> {
+  try {
+    const totals = await loadPointsTotals(admin, season, userIds);
+    if (!totals) console.warn("[records] points_events missing; points computed from results");
+    return totals;
+  } catch (e) {
+    console.error("[records] points_events read failed; points computed from results:", e instanceof Error ? e.message : String(e));
+    return null;
+  }
+}
+
+async function runsById(admin: Admin, runIds: string[]): Promise<Map<string, RecordRun>> {
   const runs = new Map<string, RecordRun>();
   for (let i = 0; i < runIds.length; i += CHUNK) {
     const { data, error } = await admin
@@ -241,8 +313,28 @@ export async function loadPlayerRecord(admin: Admin, userId: string, now = Date.
     if (error) throw new Error(error.message);
     for (const r of (data ?? []) as RecordRun[]) runs.set(r.id, r);
   }
-  const results = new Map((await resultsForRuns(admin, runIds)).map((r) => [r.run_id, r]));
-  return buildPlayerRecord(userId, { teams, results, runs, confirmedRunIds }, now);
+  return runs;
+}
+
+/**
+ * Season and all-time points: ledger totals when the table exists; otherwise computed from the same results,
+ * which needs each run's kickoff for the season.
+ */
+async function attachPoints(
+  admin: Admin,
+  build: (runs: Map<string, RecordRun>, season: string) => Map<string, PlayerRecordSummary>,
+  runIds: string[],
+  userIds?: string[],
+): Promise<Map<string, PlayerRecordSummary>> {
+  const season = currentSeason();
+  const totals = await ledgerTotals(admin, season, userIds);
+  if (!totals) return build(await runsById(admin, runIds), season);
+  const out = build(new Map(), season);
+  for (const [uid, s] of out) out.set(uid, withLedgerPoints(s, totals, uid));
+  if (!userIds) {
+    for (const uid of totals.keys()) if (!out.has(uid)) out.set(uid, withLedgerPoints(emptySummary(season), totals, uid));
+  }
+  return out;
 }
 
 /**
@@ -257,7 +349,11 @@ export async function loadRecordSummaries(admin: Admin, userIds?: string[]): Pro
     const assignments = await paginate<{ run_id: string; user_id: string; team: string }>((from, to) =>
       admin.from("pickup_run_team_assignments").select("run_id,user_id,team").order("run_id").order("user_id").range(from, to),
     );
-    return buildRecordSummaries(assignments, results);
+    return attachPoints(
+      admin,
+      (runs, season) => buildRecordSummaries(assignments, results, undefined, runs, season),
+      results.map((r) => r.run_id),
+    );
   }
 
   const ids = Array.from(new Set(userIds.filter(Boolean)));
@@ -286,9 +382,10 @@ export async function loadRecordSummaries(admin: Admin, userIds?: string[]): Pro
     );
   }
   const runIds = Array.from(new Set([...assignments.map((a) => a.run_id), ...potdRunIds]));
-  return buildRecordSummaries(assignments, await resultsForRuns(admin, runIds), ids);
+  const results = await resultsForRuns(admin, runIds);
+  return attachPoints(admin, (runs, season) => buildRecordSummaries(assignments, results, ids, runs, season), runIds, ids);
 }
 
 export function summaryFor(map: Map<string, PlayerRecordSummary>, userId: string): PlayerRecordSummary {
-  return map.get(userId) ?? EMPTY_SUMMARY;
+  return map.get(userId) ?? emptySummary();
 }

@@ -8,6 +8,7 @@ import {
   resolveSessionResultAwards,
   type SessionAwardCountField,
 } from "@/lib/pickup/sessionResultAwards";
+import { syncRunPoints } from "@/lib/points/ledger";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
@@ -362,6 +363,9 @@ export async function POST(req: Request) {
   await applyAwardDelta(admin, "defender_potd_count", oldDefender, defender_of_day, now);
   await applyAwardDelta(admin, "midfielder_potd_count", oldMidfielder, midfielder_of_day, now);
   await applyAwardDelta(admin, "attacker_potd_count", oldAttacker, attacker_of_day, now);
+
+  // Ledger rows for this run only: replaced as a whole, so edits and retries never double count.
+  await syncRunPoints(admin, run_id);
 
   console.log("[sessions/result] awards applied", {
     player_of_day,

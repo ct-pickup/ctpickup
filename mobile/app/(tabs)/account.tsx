@@ -14,8 +14,8 @@ import {
 } from "@/lib/profileIdentityFields";
 import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
 import { getInstallationContext, resolveExpoPushTokenForApp, shouldRegisterPushToken } from "@/lib/pushToken";
-import { fetchMyRecord, winPercent } from "@/lib/playerRecord";
-import { fetchMyRatingPoints, fetchPickupStanding, postMobilePushPreference, postMobilePushToken } from "@/lib/siteApi";
+import { fetchMyRecord, recordPoints, winPercent } from "@/lib/playerRecord";
+import { fetchPickupStanding, postMobilePushPreference, postMobilePushToken } from "@/lib/siteApi";
 import { fetchPlayerCard, formatStars, hostScore, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
 import * as ImagePicker from "expo-image-picker";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -107,7 +107,12 @@ type ProfileRow = {
 };
 
 // Module-level cache — keeps the last loaded rating so re-mounts show it instantly.
-type RatingCache = { card: PlayerCard | null; points: number | null } | null;
+type RatingCache = {
+  card: PlayerCard | null;
+  /** Current-season points; allTimePoints shows underneath. Both from the points ledger via /api/player/record. */
+  points: number | null;
+  allTimePoints?: number | null;
+} | null;
 let _cachedRating: RatingCache = null;
 
 const PROFILE_SELECT_WITH_PUSH =
@@ -683,23 +688,23 @@ export default function AccountScreen() {
   }, [loadProfile, loadHostInvitePref]);
 
   // Profile-view stats.
-  // - Stars and percentile come from player_cards; points are computed server side.
+  // - Stars and percentile come from player_cards; season and all-time points from /api/player/record.
   // - Avatar comes from a profiles query (avatar_url not in the main profile select).
   // - Games, wins, win % and MOTM come from /api/player/record (computed from posted results).
   const loadStats = useCallback(async () => {
     const uid = session?.user?.id;
     if (!isReady || !supabase || !uid) return;
     try {
-      const [card, pointsRes, extrasRes, record] = await Promise.all([
+      const [card, extrasRes, record] = await Promise.all([
         fetchPlayerCard(supabase, uid),
-        accessToken ? fetchMyRatingPoints(accessToken) : Promise.resolve(null),
         supabase.from("profiles").select("avatar_url").eq("id", uid).maybeSingle(),
         accessToken ? fetchMyRecord(accessToken) : Promise.resolve(null),
       ]);
 
       const resolved: RatingCache = {
         card,
-        points: pointsRes?.points ?? null,
+        points: recordPoints(record, "season_points"),
+        allTimePoints: recordPoints(record, "all_time_points"),
       };
       _cachedRating = resolved;
       setRating(resolved);
@@ -1684,6 +1689,7 @@ export default function AccountScreen() {
   const winPct = recordStats?.winPct ?? null;
   const potdCount = recordStats?.motm ?? 0;
   const points = rating?.points ?? null;
+  const allTimePoints = rating?.allTimePoints ?? null;
 
   const primaryPos = (profile?.primary_position ?? "").trim() || null;
   const secondaryPos = Array.isArray(profile?.secondary_positions)
@@ -1974,7 +1980,12 @@ export default function AccountScreen() {
                 <Text style={s.statValue} numberOfLines={1} adjustsFontSizeToFit>
                   {points == null ? "—" : points.toLocaleString()}
                 </Text>
-                <Text style={s.statLabel}>Points</Text>
+                <Text style={s.statLabel}>Season pts</Text>
+                {allTimePoints != null ? (
+                  <Text style={s.statSub} numberOfLines={1} adjustsFontSizeToFit>
+                    {allTimePoints.toLocaleString()} all time
+                  </Text>
+                ) : null}
               </View>
             </View>
 
@@ -2511,6 +2522,7 @@ function make_s() {
   statCell: { flex: 1, alignItems: "center", gap: 4 },
   statValue: { color: themeColor().text, fontSize: 20, ...headline, },
   statLabel: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  statSub: { color: themeColor().muted, fontSize: 11, fontFamily: "Inter_400Regular" },
 
   /* rating card */
   ratingCard: {

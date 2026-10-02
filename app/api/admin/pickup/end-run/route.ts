@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { autoSettleTierSession } from "@/lib/pickup/autoSettleSession";
 import { resolvePotdFromVotes } from "@/lib/pickup/resolvePotdFromVotes";
+import { syncRunPoints } from "@/lib/points/ledger";
 import { supabaseService } from "@/lib/supabase/service";
 
 export const runtime = "nodejs";
@@ -132,6 +133,9 @@ export async function POST(req: Request) {
           .eq("run_id", run_id);
       }
     }
+
+    // player_of_day may have changed: recompute this run's ledger rows.
+    if (existingResult) await syncRunPoints(supabase, run_id);
 
     return NextResponse.json({
       ok: true,
