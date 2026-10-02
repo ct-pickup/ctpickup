@@ -300,26 +300,67 @@ export default function AdminMembersScreen() {
   }
 
   async function deleteProfile(userId: string, name: string) {
-    Alert.alert("Delete " + name + "?", "This permanently deletes their account.", [
+    const token = session?.access_token;
+    if (!token) return;
+    const call = async (extra: Record<string, unknown>) => {
+      const res = await fetch(`${siteOrigin()}/api/admin/members`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId, ...extra }),
+      });
+      const j = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        failures?: { name?: string | null; error?: string }[];
+        preview?: { upcoming_games?: number; hosted_upcoming_runs?: number; confirmation_required?: boolean };
+      };
+      return { ok: res.ok, j };
+    };
+
+    setBusy("delete:" + userId);
+    let pre: Awaited<ReturnType<typeof call>>;
+    try {
+      pre = await call({ preview: true });
+    } catch (e) {
+      setBusy(null);
+      void hapticError();
+      Alert.alert("Error", e instanceof Error ? e.message : "Request failed");
+      return;
+    }
+    setBusy(null);
+    if (!pre.ok || !pre.j.preview) {
+      void hapticError();
+      Alert.alert("Error", pre.j.error || "Failed");
+      return;
+    }
+    const games = pre.j.preview.upcoming_games ?? 0;
+    const hosted = pre.j.preview.hosted_upcoming_runs ?? 0;
+    const warnings: string[] = [];
+    if (games > 0) warnings.push(`They have ${games} upcoming game${games === 1 ? "" : "s"}. Deleting gives up those spots and any credits.`);
+    if (hosted > 0) warnings.push(`They host ${hosted} upcoming run${hosted === 1 ? "" : "s"}, which will be cancelled with every player refunded first.`);
+
+    Alert.alert("Delete " + name + "?", ["This permanently deletes their account.", ...warnings].join(" "), [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete", style: "destructive", onPress: async () => {
           setBusy("delete:" + userId);
-          const token = session?.access_token;
-          if (!token) return;
-          const res = await fetch(`${siteOrigin()}/api/admin/members`, {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: userId }),
-          });
-          const j = await res.json();
-          if (!res.ok) {
+          try {
+            const { ok, j } = await call({ confirm_upcoming: pre.j.preview?.confirmation_required === true });
+            if (!ok) {
+              void hapticError();
+              const failed = (j.failures ?? [])
+                .map((f) => (f.name ? `${f.name}: ${f.error ?? "not settled"}` : f.error ?? ""))
+                .filter(Boolean);
+              const base = j.error || "Failed";
+              Alert.alert("Error", failed.length ? `${base}\n\n${failed.join("\n")}` : base);
+            } else {
+              setMembers((p) => p.filter((m) => m.id !== userId));
+            }
+          } catch (e) {
             void hapticError();
-            Alert.alert("Error", j.error || "Failed");
-          } else {
-            setMembers((p) => p.filter((m) => m.id !== userId));
+            Alert.alert("Error", e instanceof Error ? e.message : "Request failed");
+          } finally {
+            setBusy(null);
           }
-          setBusy(null);
         }
       }
     ]);

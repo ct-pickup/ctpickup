@@ -261,6 +261,8 @@ export default function AccountScreen() {
   const [deleteAccountBusy, setDeleteAccountBusy] = useState(false);
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
   const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
+  /** Server preview warning (upcoming games, hosted runs); set means the delete request carries confirm_upcoming. */
+  const [deleteUpcomingWarning, setDeleteUpcomingWarning] = useState<string | null>(null);
 
   const [pushEnabled, setPushEnabled] = useState(true);
   const [pushBusy, setPushBusy] = useState(false);
@@ -479,6 +481,7 @@ export default function AccountScreen() {
   const closeDeleteConfirmModal = useCallback(() => {
     setDeleteConfirmModalOpen(false);
     setDeleteConfirmInput("");
+    setDeleteUpcomingWarning(null);
   }, []);
 
   const performDeleteAccount = useCallback(async () => {
@@ -494,16 +497,22 @@ export default function AccountScreen() {
         method: "DELETE",
         headers: {
           Accept: "application/json",
+          "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
+        body: JSON.stringify({ confirm_upcoming: deleteUpcomingWarning != null }),
         cache: "no-store",
       });
       if (!r.ok) {
-        const j = (await r.json().catch(() => null)) as { error?: string } | null;
-        Alert.alert(
-          "Couldn’t delete account",
-          typeof j?.error === "string" ? j.error : "Something went wrong. Try again later.",
-        );
+        const j = (await r.json().catch(() => null)) as {
+          error?: string;
+          failures?: { name?: string | null; error?: string }[];
+        } | null;
+        const failed = (j?.failures ?? [])
+          .map((f) => (f.name ? `${f.name}: ${f.error ?? "not settled"}` : f.error ?? ""))
+          .filter(Boolean);
+        const base = typeof j?.error === "string" ? j.error : "Something went wrong. Try again later.";
+        Alert.alert("Couldn’t delete account", failed.length ? `${base}\n\n${failed.join("\n")}` : base);
         return;
       }
       closeDeleteConfirmModal();
@@ -514,12 +523,50 @@ export default function AccountScreen() {
     } finally {
       setDeleteAccountBusy(false);
     }
-  }, [accessToken, closeDeleteConfirmModal, deleteConfirmInput, router, signOut]);
+  }, [accessToken, closeDeleteConfirmModal, deleteConfirmInput, deleteUpcomingWarning, router, signOut]);
 
-  const startDeleteAccountFlow = useCallback(() => {
+  const startDeleteAccountFlow = useCallback(async () => {
     const origin = siteOrigin();
     if (!origin || !accessToken) {
       Alert.alert("Can’t delete account", "Missing server URL or session. Try again after signing in.");
+      return;
+    }
+    let warning: string | null = null;
+    setDeleteAccountBusy(true);
+    try {
+      const r = await fetch(`${origin}/api/account/delete`, {
+        headers: { Accept: "application/json", Authorization: `Bearer ${accessToken}` },
+        cache: "no-store",
+      });
+      const j = (await r.json().catch(() => null)) as {
+        error?: string;
+        preview?: { confirmation_required?: boolean; message?: string | null };
+      } | null;
+      if (!r.ok || !j?.preview) {
+        Alert.alert("Couldn’t delete account", typeof j?.error === "string" ? j.error : "Something went wrong. Try again later.");
+        return;
+      }
+      if (j.preview.confirmation_required) warning = j.preview.message || "You have upcoming games.";
+    } catch {
+      Alert.alert("Couldn’t delete account", "Check your connection and try again.");
+      return;
+    } finally {
+      setDeleteAccountBusy(false);
+    }
+    if (warning) {
+      const upcoming = warning;
+      Alert.alert("Before you delete your account", upcoming, [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Give up and continue",
+          style: "destructive",
+          onPress: () => {
+            setDeleteConfirmInput("");
+            setDeleteUpcomingWarning(upcoming);
+            setDeleteConfirmModalOpen(true);
+          },
+        },
+      ]);
       return;
     }
     Alert.alert(
@@ -1760,6 +1807,7 @@ export default function AccountScreen() {
         <View style={styles.reviewModalBackdrop}>
           <View style={styles.reviewModalCard}>
             <Text style={styles.reviewModalTitle}>Confirm account deletion</Text>
+            {deleteUpcomingWarning ? <Text style={styles.reviewModalSub}>{deleteUpcomingWarning}</Text> : null}
             <Text style={styles.reviewModalSub}>
               Type <Text style={{ fontWeight: "800", color: themeColor().text }}>{DELETE_CONFIRM_WORD}</Text> below to permanently
               delete your account.
@@ -2410,7 +2458,7 @@ export default function AccountScreen() {
         <Pressable
           style={[styles.deleteAccountBtn, deleteAccountBusy && styles.disabled]}
           disabled={deleteAccountBusy || !accessToken}
-          onPress={startDeleteAccountFlow}
+          onPress={() => void startDeleteAccountFlow()}
         >
           {deleteAccountBusy ? (
             <View style={styles.deleteAccountBtnBusy}>

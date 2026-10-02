@@ -87,6 +87,11 @@ function cents(n: number): number {
  *   trigger "leave"), with the 24-hour window measured from cancelled_at (when the player asked; defaults to now, never
  *   in the future or after kickoff) instead of now. Only a cancellation inside 24 hours counts as a late cancel for
  *   standing. There is no admin removal-for-conduct path today; if one is added it gives no refund or credit.
+ * - Account deletion (account/delete, admin/members delete): each upcoming run the user hosts is cancelled first as a
+ *   host cancel (initiator "host", trigger "run_cancel"), then each upcoming spot they hold is given up exactly like the
+ *   player leaving (initiator "player", trigger "leave"). Credits that would go to the deleted user are forfeited; a
+ *   friend who paid still gets their credit, and any card refund goes to the card that paid. If any refund or leave
+ *   fails the deletion stops before anything is anonymized or deleted.
  * - Run switch: there is no flow that moves a player from one run to another (pickup/switch is the admin run
  *   switchboard). A switch must not be settled through this function; it should carry the payment to the new run.
  *

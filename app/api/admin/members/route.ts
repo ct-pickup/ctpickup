@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import {
   ACCOUNT_DELETE_SUPPORT_ERROR,
+  AccountDeletionError,
   deleteUserAccount,
+  previewAccountDeletion,
 } from "@/lib/account/deleteUserAccount";
 import { invalidateUserSessions } from "@/lib/auth/invalidateUserSessions";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
@@ -88,7 +90,7 @@ export async function DELETE(req: Request) {
   if (!prof.data?.is_admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
-  const { user_id } = body;
+  const { user_id, preview, confirm_upcoming } = body as { user_id?: string; preview?: unknown; confirm_upcoming?: unknown };
   if (!user_id) return NextResponse.json({ error: "Missing user_id" }, { status: 400 });
 
   const target = await admin.auth.admin.getUserById(user_id);
@@ -97,9 +99,15 @@ export async function DELETE(req: Request) {
   }
 
   try {
-    await deleteUserAccount(admin, user_id, target.data.user.email);
+    if (preview === true) {
+      return NextResponse.json({ ok: true, preview: await previewAccountDeletion(admin, user_id) });
+    }
+    await deleteUserAccount(admin, user_id, target.data.user.email, { confirmUpcoming: confirm_upcoming === true });
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {
+    if (e instanceof AccountDeletionError) {
+      return NextResponse.json({ ok: false, code: e.code, error: e.message, ...e.extra }, { status: e.status });
+    }
     console.error("[admin/members delete]", e);
     return NextResponse.json({ error: ACCOUNT_DELETE_SUPPORT_ERROR }, { status: 500 });
   }

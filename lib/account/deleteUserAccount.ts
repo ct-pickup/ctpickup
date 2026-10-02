@@ -1,7 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
+import {
+  AccountDeletionError,
+  cancelHostedRunsForDeletion,
+  leaveSpotsForDeletion,
+  loadUpcomingCommitments,
+  previewFromCommitments,
+} from "@/lib/account/accountDeletionPlan";
+import { anonymizePickupRsvps, anonymizePlatformPayments } from "@/lib/account/anonymizeUserRecords";
 import { invalidateUserSessions } from "@/lib/auth/invalidateUserSessions";
 import { getStripePickup, getStripeTournament } from "@/lib/server/runtimeClients";
+
+export { AccountDeletionError, previewAccountDeletion } from "@/lib/account/accountDeletionPlan";
 
 export const ACCOUNT_DELETE_SUPPORT_ERROR =
   "Could not delete account. Please contact support at pickupct@gmail.com";
@@ -136,7 +146,8 @@ export async function cancelStripeActivityForUser(
 }
 
 /**
- * Removes or anonymizes user-linked rows that block profile/auth deletion.
+ * Removes or anonymizes user-linked rows that block profile/auth deletion. Payments and RSVPs are anonymized
+ * separately, before this runs.
  */
 export async function cleanupUserData(svc: SupabaseClient, userId: string): Promise<void> {
   throwIfDbError(
@@ -174,11 +185,6 @@ export async function cleanupUserData(svc: SupabaseClient, userId: string): Prom
   throwIfDbError(
     "esports_tournament_registrations delete",
     (await svc.from("esports_tournament_registrations").delete().eq("user_id", userId)).error,
-  );
-
-  throwIfDbError(
-    "pickup_run_rsvps delete",
-    (await svc.from("pickup_run_rsvps").delete().eq("user_id", userId)).error,
   );
 
   throwIfDbError(
@@ -220,27 +226,63 @@ export async function cleanupUserData(svc: SupabaseClient, userId: string): Prom
     "chat_room_members delete",
     (await svc.from("chat_room_members").delete().eq("user_id", userId)).error,
   );
-
-  throwIfDbError(
-    "platform_payments delete",
-    (await svc.from("platform_payments").delete().eq("user_id", userId)).error,
-  );
 }
 
+/** Fails until the migration that lets payment and RSVP rows outlive their user has run. */
+async function assertAnonymizationSchemaReady(svc: SupabaseClient): Promise<void> {
+  const { data, error } = await svc.rpc("account_deletion_anonymize_ready");
+  if (error || data !== true) {
+    throw new AccountDeletionError(
+      "schema_not_ready",
+      503,
+      "Account deletion is temporarily unavailable while we update how payment history is kept. Nothing was changed. Try again later or contact support.",
+    );
+  }
+}
+
+export type DeleteUserAccountResult = { warnings: string[]; paymentsAnonymized: number; rsvpsKept: number };
+
 /**
- * Full account deletion: Stripe cleanup, DB cleanup, profile removal, auth user removal.
+ * Full account deletion, in this order, stopping at the first failure:
+ * 1. With upcoming games or hosted runs, refuse unless confirmUpcoming is set.
+ * 2. Cancel each upcoming run the user hosts through the host-cancel flow (players refunded and notified).
+ * 3. Give up each upcoming spot as a player leave under the shared refund policy; the user's own credits are forfeited.
+ * 4. Sign out, stop open checkouts, anonymize payments and RSVPs, delete the rest of the user's rows and the profile.
+ * 5. Delete the auth user.
+ * A failure in steps 2 or 3 leaves payments, RSVPs and the account untouched; rerunning resumes where it stopped.
  */
 export async function deleteUserAccount(
   svc: SupabaseClient,
   userId: string,
   email?: string | null,
-): Promise<void> {
+  opts: { confirmUpcoming?: boolean } = {},
+): Promise<DeleteUserAccountResult> {
+  const commitments = await loadUpcomingCommitments(svc, userId);
+  const preview = previewFromCommitments(commitments);
+  if (preview.confirmation_required && opts.confirmUpcoming !== true) {
+    throw new AccountDeletionError("confirmation_required", 409, preview.message ?? "Confirm to delete your account.", { preview });
+  }
+
+  await assertAnonymizationSchemaReady(svc);
+
+  let stripe: Stripe | null = null;
+  const getStripe = () => (stripe ??= getStripePickup());
+
+  await cancelHostedRunsForDeletion(svc, getStripe, commitments.hostedRuns);
+  const warnings = await leaveSpotsForDeletion(svc, getStripe, userId, commitments.playerSpots);
+  for (const w of warnings) console.error("[deleteUserAccount] warning:", w);
+
   const signOut = await invalidateUserSessions(svc, userId);
   if (!signOut.ok) {
     console.error("[deleteUserAccount] invalidateUserSessions failed:", signOut.error);
   }
 
   await cancelStripeActivityForUser(svc, userId, email);
+
+  const nowMs = Date.now();
+  const paymentsAnonymized = await anonymizePlatformPayments(svc, userId, new Date(nowMs).toISOString());
+  const { kept: rsvpsKept } = await anonymizePickupRsvps(svc, userId, nowMs);
+
   await cleanupUserData(svc, userId);
 
   throwIfDbError(
@@ -250,4 +292,6 @@ export async function deleteUserAccount(
 
   const { error: authErr } = await svc.auth.admin.deleteUser(userId);
   if (authErr) throw new Error(`auth.admin.deleteUser: ${authErr.message}`);
+
+  return { warnings, paymentsAnonymized, rsvpsKept };
 }
