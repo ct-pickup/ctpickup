@@ -453,3 +453,92 @@ describe("leave: paid, pending and free", () => {
     expect(h.sentry.length).toBe(1);
   });
 });
+
+describe("leave: spot paid for by a friend", () => {
+  function seedFriendPaid(playerId: string, payerId: string, pi: string, amountReceived: number) {
+    seedCardPayer(playerId, "Pat", pi, amountReceived);
+    h.db.rows("profiles").push({ id: payerId, first_name: "Fran", last_name: "Friend", username: "fran" });
+    const pp = h.db.rows("platform_payments").find((p) => p.id === `pp_${pi}`)!;
+    pp.user_id = payerId;
+    pp.metadata = { run_id: RUN, flow: "pickup_rsvp", paid_for_user_id: playerId };
+  }
+
+  it("credits the payer, not the player, and notifies both", async () => {
+    seedRun();
+    seedFriendPaid("player-1", "friend-1", "pi_friend", FEE + 500);
+
+    const res = await leavePOST(req("player-1", { run_id: RUN }));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({
+      ok: true, credit_issued: false, amount_cents: 0, payer_credited: true, payer_credit_cents: FEE + 500,
+      payer_credit_needs_review: false, payer_name: "Fran Friend",
+    });
+    expect(cancellationCredits("player-1")).toHaveLength(0);
+    expect(cancellationCredits("friend-1")[0]).toMatchObject({ amount_cents: FEE + 500, cancelled_run_id: RUN });
+    expect(pushFor("player-1")[0].body).toBe("You left Tuesday Run. Fran Friend paid for your spot, so the $10.32 credit went to them.");
+    expect(pushFor("friend-1")[0]).toMatchObject({
+      title: "Credit added",
+      body: "Pat Player left Tuesday Run. A credit of $10.32 for the spot you paid for has been added to your account.",
+    });
+    expect(h.stripe.calls.refundsCreate).toBe(0);
+  });
+
+  it("the player's own credit-covered portion still goes back to the player", async () => {
+    seedRun();
+    seedFriendPaid("player-1", "friend-1", "pi_friend", 266);
+    h.db.rows("pickup_credits").push({
+      id: "credit_half", user_id: "player-1", amount_cents: null, discount_pct: 50, reason: "referral",
+      awarded_at: iso(-40 * 24 * HOUR), expires_at: iso(40 * 24 * HOUR), used_at: rsvpOf("player-1").paid_at,
+      run_id: RUN, cancelled_run_id: null,
+    });
+
+    const body = await (await leavePOST(req("player-1", { run_id: RUN }))).json();
+    expect(body).toMatchObject({ credit_issued: true, amount_cents: 266, payer_credited: true, payer_credit_cents: 266 });
+    expect(cancellationCredits("player-1")[0].amount_cents).toBe(266);
+    expect(cancellationCredits("friend-1")[0].amount_cents).toBe(266);
+    expect(pushFor("player-1")[0].body).toContain("A credit of $2.66 has been added to your account.");
+  });
+
+  it("payer who already holds a credit for this run: player still leaves, owed credit is flagged, nobody is told it was added", async () => {
+    seedRun();
+    seedFriendPaid("player-1", "friend-1", "pi_friend", FEE);
+    h.db.rows("pickup_credits").push({
+      id: "payer_own", user_id: "friend-1", amount_cents: FEE, reason: "cancellation", cancelled_run_id: RUN,
+      awarded_at: iso(-60_000), expires_at: iso(90 * 24 * HOUR), used_at: null, run_id: null,
+    });
+
+    const res = await leavePOST(req("player-1", { run_id: RUN }));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({ ok: true, payer_credited: false, payer_credit_cents: FEE, payer_credit_needs_review: true });
+    expect(body.warnings[0]).toMatch(/must be credited manually/);
+    expect(h.sentry).toHaveLength(1);
+    expect(rsvpOf("player-1").status).toBe("canceled");
+    expect(cancellationCredits("friend-1")).toHaveLength(1);
+    expect(pushFor("friend-1")[0]).toMatchObject({ title: "Credit on its way" });
+    expect(pushFor("friend-1")[0].body).toContain("our team will add it");
+    expect(pushFor("player-1")[0].body).toContain("the credit for it goes to them");
+  });
+
+  it("a second leave call cannot credit the payer twice", async () => {
+    seedRun();
+    seedFriendPaid("player-1", "friend-1", "pi_friend", FEE);
+
+    await leavePOST(req("player-1", { run_id: RUN }));
+    const again = await leavePOST(req("player-1", { run_id: RUN }));
+    expect(again.status).toBe(404);
+    expect(cancellationCredits("friend-1")).toHaveLength(1);
+    expect(pushFor("friend-1")).toHaveLength(1);
+  });
+
+  it("friend-paid spot left within 24h: no credit for anyone", async () => {
+    seedRun({ start_at: iso(5 * HOUR) });
+    seedFriendPaid("player-1", "friend-1", "pi_friend", FEE);
+
+    const body = await (await leavePOST(req("player-1", { run_id: RUN }))).json();
+    expect(body).toMatchObject({ ok: true, credit_issued: false, payer_credited: false, paid_but_late: true });
+    expect(h.db.rows("pickup_credits")).toHaveLength(0);
+    expect(pushFor("friend-1")).toHaveLength(0);
+  });
+});

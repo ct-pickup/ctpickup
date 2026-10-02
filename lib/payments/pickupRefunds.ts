@@ -107,6 +107,32 @@ export async function findPickupPaymentIntentId(
   return null;
 }
 
+/**
+ * Who paid the card charge for a player's spot: the friend whose platform_payments row names this player in
+ * metadata.paid_for_user_id, otherwise the player.
+ */
+export async function findPickupPayerUserId(
+  admin: SupabaseClient,
+  opts: { playerId: string; paymentIntentId: string; checkoutSessionId: string | null },
+): Promise<string> {
+  const orFilter = [
+    `stripe_payment_intent_id.eq.${opts.paymentIntentId}`,
+    ...(opts.checkoutSessionId ? [`stripe_checkout_session_id.eq.${opts.checkoutSessionId}`] : []),
+  ].join(",");
+  const { data, error } = await admin
+    .from("platform_payments")
+    .select("user_id,metadata")
+    .eq("product_type", "pickup")
+    .or(orFilter);
+  if (error) throw new Error(`platform_payments payer lookup: ${error.message}`);
+  for (const p of data || []) {
+    const meta = (p.metadata && typeof p.metadata === "object" ? p.metadata : {}) as Record<string, unknown>;
+    const payer = String(p.user_id ?? "");
+    if (meta.paid_for_user_id === opts.playerId && payer && payer !== opts.playerId) return payer;
+  }
+  return opts.playerId;
+}
+
 export type ChargeMatch = "current" | "already_compensated" | "unmatched";
 
 /**
@@ -114,10 +140,18 @@ export type ChargeMatch = "current" | "already_compensated" | "unmatched";
  * "already_compensated": a cancellation credit for this run was issued between the charge and the current
  * confirmation (an old leave/cancel converted that payment to credit before the player re-joined).
  * "unmatched": the charge did not confirm this RSVP; money must not move without manual review.
+ * creditUserId is whoever an earlier leave credited for this charge (the friend who paid, else the player).
  */
 export async function matchChargeToCurrentJoin(
   admin: SupabaseClient,
-  opts: { runId: string; userId: string; paidAtIso: string | null; snap: PickupChargeSnapshot; fromCurrentCheckout: boolean },
+  opts: {
+    runId: string;
+    userId: string;
+    creditUserId?: string;
+    paidAtIso: string | null;
+    snap: PickupChargeSnapshot;
+    fromCurrentCheckout: boolean;
+  },
 ): Promise<ChargeMatch> {
   if (opts.fromCurrentCheckout) return "current";
   const chargeMs = opts.snap.chargeCreatedMs;
@@ -127,7 +161,7 @@ export async function matchChargeToCurrentJoin(
   const { data, error } = await admin
     .from("pickup_credits")
     .select("id,awarded_at")
-    .eq("user_id", opts.userId)
+    .eq("user_id", opts.creditUserId ?? opts.userId)
     .eq("cancelled_run_id", opts.runId)
     .eq("reason", "cancellation");
   if (error) throw new Error(`pickup_credits lookup: ${error.message}`);

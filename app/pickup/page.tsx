@@ -214,6 +214,15 @@ export default function PickupPage() {
         return;
       }
       await refresh(token);
+      const refund = j?.refund as { status?: string; amount_cents?: number } | null | undefined;
+      if (refund?.amount_cents) {
+        const amount = `$${(refund.amount_cents / 100).toFixed(2)}`;
+        setMsg(
+          refund.status === "already_refunded"
+            ? `This payment was already refunded (${amount}).`
+            : `${amount} has been refunded to the card that paid.`,
+        );
+      }
     } finally {
       setBusy(false);
     }

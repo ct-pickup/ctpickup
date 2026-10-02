@@ -42,7 +42,8 @@ function parseOr(expr: string): Filter {
 
 class Query implements PromiseLike<{ data: unknown; error: { message: string; code?: string } | null }> {
   private filters: Filter[] = [];
-  private op: "select" | "update" | "insert" = "select";
+  private op: "select" | "update" | "insert" | "upsert" = "select";
+  private conflictCols: string[] = [];
   private patch: Row | null = null;
   private inserted: Row | null = null;
   private orderBy: { col: string; asc: boolean } | null = null;
@@ -63,6 +64,12 @@ class Query implements PromiseLike<{ data: unknown; error: { message: string; co
   insert(row: Row) {
     this.op = "insert";
     this.inserted = row;
+    return this;
+  }
+  upsert(row: Row, opts?: { onConflict?: string }) {
+    this.op = "upsert";
+    this.inserted = row;
+    this.conflictCols = (opts?.onConflict ?? "id").split(",").map((c) => c.trim());
     return this;
   }
   eq(col: string, val: unknown) {
@@ -117,6 +124,15 @@ class Query implements PromiseLike<{ data: unknown; error: { message: string; co
       }
       rows.push(row);
       return { data: row, error: null };
+    }
+    if (this.op === "upsert") {
+      const fail = this.db.failUpdates.find((f) => f.table === this.table);
+      if (fail) return { data: null, error: { message: fail.message } };
+      const row = this.inserted!;
+      const hit = rows.find((r) => this.conflictCols.every((c) => r[c] === row[c]));
+      if (hit) Object.assign(hit, row);
+      else rows.push({ ...row });
+      return { data: null, error: null };
     }
     const matched = rows.filter((r) => this.filters.every((f) => f(r)));
     if (this.op === "update") {

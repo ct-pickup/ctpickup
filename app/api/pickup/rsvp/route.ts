@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 import { ensurePickupRunInviteLink } from "@/lib/pickup/ensureRunInviteLink";
 import { lookupPickupPlayerByUsernameOrEmail } from "@/lib/pickup/lookupPlayerByIdentifier";
@@ -21,6 +22,13 @@ import { isPublicPickupRunType } from "@/lib/pickup/pickupRunType";
 import { pickupTierAtTimeFromRank } from "@/lib/pickup/pickupTierAtTime";
 import { pickupPlayerRefundEligibleNow } from "@/lib/pickup/runScheduling";
 import { tryApplyReferralCreditToPickupJoin } from "@/lib/referral/pickupReferralCredit";
+import {
+  findPickupPayerUserId,
+  getPickupChargeSnapshot,
+  matchChargeToCurrentJoin,
+  refundPickupCharge,
+  remainingRefundableCents,
+} from "@/lib/payments/pickupRefunds";
 import {
   isMobileCheckoutReturn,
   pickupCheckoutCancelUrl,
@@ -203,58 +211,93 @@ export async function POST(req: Request) {
       | (typeof existing.data & {
           payment_intent_id?: string | null;
           refund_id?: string | null;
+          paid_at?: string | null;
+          checkout_session_id?: string | null;
         })
       | null;
     const pi =
       row?.payment_intent_id != null && String(row.payment_intent_id).trim().length > 0
         ? String(row.payment_intent_id).trim()
         : null;
-    const refundEligible =
-      prev === "confirmed" && pi && !row?.refund_id && pickupPlayerRefundEligibleNow(run);
+    const sentryCtx = { tags: { route: "pickup/rsvp:decline" }, extra: { run_id: run.id, user_id: user.id, payment_intent_id: pi } };
+    const warnings: string[] = [];
 
-    if (refundEligible) {
-      let stripe;
+    // Only an RSVP that is confirmed right now is refunded, and its status changes only after Stripe confirms the
+    // refund, so a failed decline is retried from the same confirmed row. A repeated decline on an RSVP that is
+    // already canceled/declined never moves money (it was settled by the pre-REFUND_FIX_CUTOFF code, or by leave or
+    // host cancel, which may have issued credit instead), so unlike host cancel there is no replay path for the
+    // cutoff to guard.
+    let refund: { status: "refunded" | "already_refunded"; amount_cents: number } | null = null;
+    if (prev === "confirmed" && pi && pickupPlayerRefundEligibleNow(run)) {
       try {
-        stripe = getStripePickup();
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        console.error("stripe_pickup_cancel_refund_config_error:", msg);
-        return NextResponse.json({ error: "Stripe is not configured." }, { status: 500 });
-      }
-      try {
-        const refund = await stripe.refunds.create({ payment_intent: pi });
-        await admin.from("pickup_run_rsvps").upsert(
-          {
-            run_id: run.id,
-            user_id: user.id,
-            tier_at_time: tierAtTimeForPickupRsvp(publicRun, prof.data?.tier_rank),
-            status: newStatus,
-            refund_id: refund.id,
-            waitlist_position: null,
-            waitlist_offered_at: null,
-            waitlist_expires_at: null,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "run_id,user_id" },
-        );
+        const stripe = getStripePickup();
+        const snap = await getPickupChargeSnapshot(stripe, pi);
+        if (snap.amountReceivedCents > 0) {
+          const checkoutSessionId = row?.checkout_session_id ? String(row.checkout_session_id) : null;
+          const payerId = await findPickupPayerUserId(admin, { playerId: user.id, paymentIntentId: pi, checkoutSessionId });
+          const match = await matchChargeToCurrentJoin(admin, {
+            runId: String(run.id),
+            userId: user.id,
+            creditUserId: payerId,
+            paidAtIso: row?.paid_at ?? null,
+            snap,
+            fromCurrentCheckout: false,
+          });
+          if (match === "unmatched" && remainingRefundableCents(snap) > 0) {
+            throw new Error(`Card payment ${pi} could not be matched to this spot; review manually.`);
+          }
+          if (match === "current") {
+            const out = await refundPickupCharge(stripe, admin, {
+              runId: String(run.id),
+              userId: user.id,
+              snap,
+              checkoutSessionId,
+              existingRefundId: row?.refund_id ? String(row.refund_id) : null,
+              trigger: "player_decline",
+            });
+            if (out.kind !== "nothing_charged") {
+              refund = { status: out.kind, amount_cents: out.amountCents };
+              if (out.recordError) {
+                Sentry.captureException(new Error(`Decline refund recorded with errors: ${out.recordError}`), sentryCtx);
+                warnings.push(out.recordError);
+              }
+            }
+          }
+        }
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error("stripe_pickup_player_cancel_refund_error:", msg);
-        return NextResponse.json({ error: "Refund could not be processed. Try again or contact support." }, { status: 502 });
+        Sentry.captureException(e, sentryCtx);
+        return NextResponse.json(
+          { error: `Refund could not be processed (${msg}). You are still in the run and were not refunded. Try again or contact support.` },
+          { status: 502 },
+        );
       }
-    } else {
-      await admin.from("pickup_run_rsvps").upsert(
+    }
+
+    const { error: rsvpErr } = await admin.from("pickup_run_rsvps").upsert(
+      {
+        run_id: run.id,
+        user_id: user.id,
+        tier_at_time: tierAtTimeForPickupRsvp(publicRun, prof.data?.tier_rank),
+        status: newStatus,
+        waitlist_position: null,
+        waitlist_offered_at: null,
+        waitlist_expires_at: null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "run_id,user_id" },
+    );
+    if (rsvpErr) {
+      Sentry.captureException(rsvpErr, sentryCtx);
+      return NextResponse.json(
         {
-          run_id: run.id,
-          user_id: user.id,
-          tier_at_time: tierAtTimeForPickupRsvp(publicRun, prof.data?.tier_rank),
-          status: newStatus,
-          waitlist_position: null,
-          waitlist_offered_at: null,
-          waitlist_expires_at: null,
-          updated_at: new Date().toISOString(),
+          error: refund
+            ? `Your refund of $${(refund.amount_cents / 100).toFixed(2)} was issued, but your RSVP could not be updated (${rsvpErr.message}). Try again; you will not be refunded twice.`
+            : `Could not update your RSVP: ${rsvpErr.message}`,
+          refund,
         },
-        { onConflict: "run_id,user_id" },
+        { status: 500 },
       );
     }
 
@@ -271,7 +314,7 @@ export async function POST(req: Request) {
       });
     }
 
-    return NextResponse.json({ ok: true, status: newStatus });
+    return NextResponse.json({ ok: true, status: newStatus, refund, ...(warnings.length ? { warnings } : {}) });
   }
 
   // JOIN

@@ -1,10 +1,12 @@
 import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 import { getStripePickup, getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { promoteNextWaitlistPlayer } from "@/lib/pickup/waitlist";
 import {
+  findPickupPayerUserId,
   findPickupPaymentIntentId,
   getPickupChargeSnapshot,
   issuePickupCancellationCredit,
@@ -25,8 +27,9 @@ function errMsg(e: unknown): string {
 }
 
 /**
- * Player leaves a session. Leaving more than 24 hours before kickoff turns what the player actually paid
- * (card charge net of refunds, plus what a pickup credit covered) into a platform credit; card refunds are not
+ * Player leaves a session. Leaving more than 24 hours before kickoff turns what was actually paid for the spot
+ * into platform credit: the card charge net of refunds goes to whoever paid it (a friend who paid for the player
+ * gets it, and both are notified), what a pickup credit covered goes to the player whose credit it was; card refunds are not
  * issued here. Within 24 hours nothing comes back. A player with an unfinished checkout can leave: the checkout
  * is stopped so it can no longer charge them, unless it already went through, in which case they are treated as paid.
  */
@@ -127,14 +130,23 @@ export async function POST(req: Request) {
     );
   }
 
-  let creditCents = 0;
+  let cardCents = 0;
+  let coverageCents = 0;
+  let payerId = userId;
   if (earlyEnough && !checkoutReleased) {
     try {
-      let cardCents = 0;
       if (paymentIntentId) {
         const snap = await getPickupChargeSnapshot(getStripe(), paymentIntentId);
         if (snap.amountReceivedCents > 0) {
-          const match = await matchChargeToCurrentJoin(admin, { runId: run_id, userId, paidAtIso: paidAt, snap, fromCurrentCheckout });
+          payerId = await findPickupPayerUserId(admin, { playerId: userId, paymentIntentId, checkoutSessionId });
+          const match = await matchChargeToCurrentJoin(admin, {
+            runId: run_id,
+            userId,
+            creditUserId: payerId,
+            paidAtIso: paidAt,
+            snap,
+            fromCurrentCheckout,
+          });
           if (match === "unmatched" && remainingRefundableCents(snap) > 0) {
             throw new Error(`Card payment ${paymentIntentId} could not be matched to this spot.`);
           }
@@ -148,7 +160,7 @@ export async function POST(req: Request) {
         feeCents: Number(run.fee_cents ?? 0),
         hasCardPayment: cardCents > 0,
       });
-      creditCents = cardCents + coverage.cents;
+      coverageCents = coverage.cents;
     } catch (e) {
       Sentry.captureException(e, { ...sentryCtx, extra: { ...sentryCtx.extra, payment_intent_id: paymentIntentId } });
       return NextResponse.json(
@@ -158,7 +170,13 @@ export async function POST(req: Request) {
     }
   }
 
-  const { error: cancelErr } = await admin
+  // The card portion goes back to whoever paid it; the credit-covered portion to the player whose credit was used
+  // (pickupCreditCoverageForJoin only looks at the player's own credits).
+  const friendPaid = cardCents > 0 && payerId !== userId;
+  const selfCreditCents = coverageCents + (friendPaid ? 0 : cardCents);
+  const payerCreditCents = friendPaid ? cardCents : 0;
+
+  const { data: cancelledRows, error: cancelErr } = await admin
     .from("pickup_run_rsvps")
     .update({
       status: "canceled",
@@ -167,41 +185,59 @@ export async function POST(req: Request) {
     })
     .eq("run_id", run_id)
     .eq("user_id", userId)
-    .eq("status", prevStatus);
+    .eq("status", prevStatus)
+    .select("user_id");
   if (cancelErr) {
     Sentry.captureException(cancelErr, sentryCtx);
     return NextResponse.json({ error: `Could not leave the session: ${cancelErr.message}` }, { status: 500 });
   }
+  if (!cancelledRows || cancelledRows.length === 0) {
+    return NextResponse.json({ error: "Your spot changed while leaving. Refresh and try again." }, { status: 409 });
+  }
 
   let creditIssuedCents = 0;
   let alreadyCredited = false;
-  if (creditCents > 0) {
-    try {
-      const credit = await issuePickupCancellationCredit(admin, { userId, runId: run_id, amountCents: creditCents });
+  let payerCreditIssuedCents = 0;
+  let payerCreditNeedsReview = false;
+  try {
+    if (selfCreditCents > 0) {
+      const credit = await issuePickupCancellationCredit(admin, { userId, runId: run_id, amountCents: selfCreditCents });
       if (credit.kind === "issued") creditIssuedCents = credit.amountCents;
       else alreadyCredited = true;
-    } catch (e) {
-      Sentry.captureException(e, { ...sentryCtx, extra: { ...sentryCtx.extra, credit_cents: creditCents } });
-      const { error: revertErr } = await admin
-        .from("pickup_run_rsvps")
-        .update({ status: prevStatus, updated_at: new Date().toISOString() })
-        .eq("run_id", run_id)
-        .eq("user_id", userId);
-      if (revertErr) {
-        Sentry.captureException(revertErr, sentryCtx);
-        return NextResponse.json(
-          { error: "You left the session but your credit could not be issued. Contact support." },
-          { status: 500 },
-        );
-      }
+    }
+    if (payerCreditCents > 0) {
+      const credit = await issuePickupCancellationCredit(admin, { userId: payerId, runId: run_id, amountCents: payerCreditCents });
+      if (credit.kind === "issued") payerCreditIssuedCents = credit.amountCents;
+      else payerCreditNeedsReview = true;
+    }
+  } catch (e) {
+    Sentry.captureException(e, { ...sentryCtx, extra: { ...sentryCtx.extra, self_credit_cents: selfCreditCents, payer_id: payerId, payer_credit_cents: payerCreditCents } });
+    const { error: revertErr } = await admin
+      .from("pickup_run_rsvps")
+      .update({ status: prevStatus, updated_at: new Date().toISOString() })
+      .eq("run_id", run_id)
+      .eq("user_id", userId);
+    if (revertErr) {
+      Sentry.captureException(revertErr, sentryCtx);
       return NextResponse.json(
-        { error: "Could not issue your credit. You are still in the session. Try again." },
+        { error: "You left the session but your credit could not be issued. Contact support." },
         { status: 500 },
       );
     }
+    return NextResponse.json(
+      { error: "Could not issue your credit. You are still in the session. Try again." },
+      { status: 500 },
+    );
   }
 
   const warnings: string[] = [];
+  if (payerCreditNeedsReview) {
+    // The unique index allows one cancellation credit per (user, run), so a payer who already holds one for this
+    // run (their own spot or another friend's) cannot get a second row; support credits it by hand.
+    const msg = `Payer ${payerId} already has a cancellation credit for run ${run_id}; ${payerCreditCents} cents for player ${userId}'s spot must be credited manually.`;
+    Sentry.captureException(new Error(msg), { ...sentryCtx, extra: { ...sentryCtx.extra, payer_id: payerId, payer_credit_cents: payerCreditCents } });
+    warnings.push(msg);
+  }
   if (checkoutReleased && checkoutSessionId) {
     try {
       await markPickupCheckoutExpired(admin, checkoutSessionId);
@@ -217,29 +253,58 @@ export async function POST(req: Request) {
     warnings.push(`Waitlist promotion failed: ${promoted.error}`);
   }
 
-  const creditDollars = (creditIssuedCents / 100).toFixed(2);
+  const names = friendPaid ? await displayNames(admin, [userId, payerId]) : new Map<string, string>();
+  const payerName = names.get(payerId) ?? "The friend who paid";
+  const playerName = names.get(userId) ?? "The player you paid for";
+  const dollars = (cents: number) => (cents / 100).toFixed(2);
+
   const paid = !checkoutReleased && (!!paymentIntentId || !!paidAt);
-  let pushBody: string;
+  const parts: string[] = [];
   if (checkoutReleased) {
-    pushBody = `You left ${run.title}. Your unfinished payment was cancelled and you were not charged.`;
+    parts.push(`You left ${run.title}. Your unfinished payment was cancelled and you were not charged.`);
+  } else if (friendPaid) {
+    parts.push(
+      payerCreditIssuedCents > 0
+        ? `You left ${run.title}. ${payerName} paid for your spot, so the $${dollars(payerCreditIssuedCents)} credit went to them.`
+        : `You left ${run.title}. ${payerName} paid for your spot, so the credit for it goes to them.`,
+    );
+    if (creditIssuedCents > 0) parts.push(`A credit of $${dollars(creditIssuedCents)} has been added to your account.`);
   } else if (creditIssuedCents > 0) {
-    pushBody = `You left ${run.title}. A credit of $${creditDollars} has been added to your account.`;
+    parts.push(`You left ${run.title}. A credit of $${dollars(creditIssuedCents)} has been added to your account.`);
   } else if (alreadyCredited) {
-    pushBody = `You left ${run.title}. A credit for this session was already added to your account earlier.`;
+    parts.push(`You left ${run.title}. A credit for this session was already added to your account earlier.`);
   } else if (paid && !earlyEnough) {
-    pushBody = `You left ${run.title}. No refund or credit applies within 24 hours of kickoff.`;
+    parts.push(`You left ${run.title}. No refund or credit applies within 24 hours of kickoff.`);
   } else {
-    pushBody = `You have left ${run.title}.`;
+    parts.push(`You have left ${run.title}.`);
   }
 
   try {
     await sendPushToUsers(admin, [userId], {
       title: "You left the session",
-      body: pushBody,
+      body: parts.join(" "),
       data: { kind: "session_left", run_id },
     });
   } catch (e) {
     console.error("[sessions/leave] push failed", errMsg(e));
+  }
+
+  if (friendPaid) {
+    try {
+      await sendPushToUsers(admin, [payerId], payerCreditIssuedCents > 0
+        ? {
+            title: "Credit added",
+            body: `${playerName} left ${run.title}. A credit of $${dollars(payerCreditIssuedCents)} for the spot you paid for has been added to your account.`,
+            data: { kind: "session_left_payer_credit", run_id },
+          }
+        : {
+            title: "Credit on its way",
+            body: `${playerName} left ${run.title}. We owe you a $${dollars(payerCreditCents)} credit for the spot you paid for; our team will add it to your account.`,
+            data: { kind: "session_left_payer_credit", run_id },
+          });
+    } catch (e) {
+      console.error("[sessions/leave] payer push failed", errMsg(e));
+    }
   }
 
   return NextResponse.json({
@@ -247,8 +312,27 @@ export async function POST(req: Request) {
     credit_issued: creditIssuedCents > 0,
     amount_cents: creditIssuedCents,
     already_credited: alreadyCredited,
+    payer_credited: payerCreditIssuedCents > 0,
+    payer_credit_cents: friendPaid ? payerCreditCents : 0,
+    payer_credit_needs_review: payerCreditNeedsReview,
+    ...(friendPaid ? { payer_name: names.get(payerId) ?? null } : {}),
     payment_cancelled: checkoutReleased && prevStatus === "pending_payment",
     paid_but_late: paid && !earlyEnough,
     ...(warnings.length ? { warnings } : {}),
   });
+}
+
+async function displayNames(admin: SupabaseClient, userIds: string[]): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  const { data, error } = await admin.from("profiles").select("id,first_name,last_name,username").in("id", userIds);
+  if (error) {
+    console.error("[sessions/leave] profile lookup failed", error.message);
+    return names;
+  }
+  for (const p of data || []) {
+    const full = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
+    const label = full || (p.username ? `@${p.username}` : "");
+    if (label) names.set(String(p.id), label);
+  }
+  return names;
 }

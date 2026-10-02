@@ -667,11 +667,18 @@ export default function SessionDetailScreen() {
             const j = await r.json().catch(() => null) as {
               ok?: boolean; error?: string; credit_issued?: boolean; amount_cents?: number;
               already_credited?: boolean; payment_cancelled?: boolean; paid_but_late?: boolean;
+              payer_credit_cents?: number; payer_credited?: boolean; payer_name?: string | null;
             } | null;
             if (!r.ok || !j?.ok) { Alert.alert("Could not leave", j?.error ?? "Something went wrong. Try again."); return; }
             await load();
             const lines: string[] = [];
             if (j.payment_cancelled) lines.push("Your unfinished payment was cancelled. You were not charged.");
+            if (j.payer_credit_cents) {
+              const who = j.payer_name || "The friend who paid";
+              lines.push(j.payer_credited
+                ? `${who} paid for your spot, so the $${(j.payer_credit_cents / 100).toFixed(2)} credit went to them.`
+                : `${who} paid for your spot, so the credit for it goes to them.`);
+            }
             if (j.credit_issued && j.amount_cents) lines.push(`A platform credit of $${(j.amount_cents / 100).toFixed(2)} has been added to your account.`);
             if (j.already_credited) lines.push("A credit for this session was already added to your account earlier.");
             if (j.paid_but_late) lines.push("No refund or credit applies within 24 hours of kickoff.");
