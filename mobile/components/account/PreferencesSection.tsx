@@ -14,6 +14,11 @@ type Props = {
   marketingPushMsg: string | null;
   onToggleMarketingPush: (next: boolean) => void;
   marketingPushDisabled: boolean;
+  hostInvitesEnabled: boolean;
+  hostInvitesBusy: boolean;
+  hostInvitesMsg: string | null;
+  onToggleHostInvites: (next: boolean) => void;
+  hostInvitesDisabled: boolean;
   maxDriveMinutes: number;
   maxDriveBusy: boolean;
   maxDriveMsg: string | null;
@@ -37,6 +42,11 @@ export function PreferencesSection({
   marketingPushMsg,
   onToggleMarketingPush,
   marketingPushDisabled,
+  hostInvitesEnabled,
+  hostInvitesBusy,
+  hostInvitesMsg,
+  onToggleHostInvites,
+  hostInvitesDisabled,
   maxDriveMinutes,
   maxDriveBusy,
   maxDriveMsg,
@@ -86,6 +96,21 @@ export function PreferencesSection({
         {!pushEnabled ? (
           <Text style={styles.bioHint}>Turn on push notifications above to enable marketing updates.</Text>
         ) : null}
+
+        <View style={[styles.rowBetween, styles.marketingPushRow]}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text style={styles.fieldLabelStrong}>Let hosts invite me</Text>
+            <Text style={styles.bioHint}>Hosts near you can invite you to games that need players</Text>
+          </View>
+          <Switch
+            value={hostInvitesEnabled}
+            onValueChange={onToggleHostInvites}
+            disabled={hostInvitesBusy || hostInvitesDisabled}
+            trackColor={{ false: themeColor().overlayStrong, true: themeColor().pitch }}
+            thumbColor={themeColor().text}
+          />
+        </View>
+        {hostInvitesMsg ? <Text style={styles.msg}>{hostInvitesMsg}</Text> : null}
 
         <View style={styles.maxDriveBlock}>
           <View style={styles.maxDriveHeader}>

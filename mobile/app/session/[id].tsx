@@ -23,6 +23,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import PlayerAvatar from "@/components/PlayerAvatar";
 import { PhotoHeader, PhotoUploadField, useFieldPhotos } from "@/components/photo";
+import FillYourGameCard from "@/components/pickup/FillYourGameCard";
+import PlayedWithRow, { usePlayedWith } from "@/components/pickup/PlayedWithRow";
 import SpotsBadge from "@/components/pickup/SpotsBadge";
 import { fmtPickupSlotChipEt, fmtPickupTimeEt } from "@/lib/pickup/runStartAtDisplay";
 import { setRunFieldPhoto } from "@/lib/photoUpload";
@@ -84,6 +86,7 @@ type PlayerResult = {
 };
 
 const GOING_SHOWN = 7;
+const OPEN_RUN_STATUSES = new Set(["planning", "likely_on", "active"]);
 const JOIN_BAR_HEIGHT = 52;
 const TOAST_MS = 3000;
 
@@ -173,6 +176,8 @@ export default function SessionDetailScreen() {
 
   const [run, setRun] = useState<SessionDetail | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
+  const livePlayedWith = usePlayedWith(id ? [id] : [], { skip: Boolean(fixture), reloadKey: attendees.length });
+  const playedWith = fixture ? fixture.playedWith : id ? livePlayedWith.byRun[id] : undefined;
   const [loading, setLoading] = useState(true);
   const [rsvpBusy, setRsvpBusy] = useState(false);
   const [myStatus, setMyStatus] = useState<string | null>(null);
@@ -1212,6 +1217,9 @@ export default function SessionDetailScreen() {
     : null;
 
   const showJoinBar = !isHost && !isCompleted;
+  const showFill = fixture
+    ? fixture.fill != null
+    : isHost && !sessionStarted && spotsLeft > 0 && OPEN_RUN_STATUSES.has(run.status);
   const join: { label: string; variant: "filled" | "outline"; onPress?: () => void } =
     myStatus === "confirmed"
       ? { label: "You're in · Leave", variant: "outline", onPress: () => void leaveSession() }
@@ -1378,6 +1386,7 @@ export default function SessionDetailScreen() {
               <Text style={s.sectionHeading}>Going ({attendees.length})</Text>
               {avgStar != null ? <Text style={s.sectionMeta}>Avg level {formatStars(avgStar)}</Text> : null}
             </View>
+            <PlayedWithRow summary={playedWith} style={s.playedWith} />
             {attendees.length === 0 ? (
               <Text style={s.emptyLine}>Nobody has joined yet.</Text>
             ) : (
@@ -1438,6 +1447,8 @@ export default function SessionDetailScreen() {
                 <Text style={[s.infoTitle, { flex: 1 }]}>{formatFee(run.fee_cents)}</Text>
               </View>
             </View>
+
+            {showFill && id ? <FillYourGameCard runId={id} preview={fixture?.fill ?? null} /> : null}
 
             {isHost && !isCompleted && (
               <>
@@ -2019,6 +2030,7 @@ function make_s() {
   progressText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold" },
   sectionHeaderRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginTop: 16, marginBottom: 12 },
   sectionHeading: { color: themeColor().text, fontSize: 20, ...headline },
+  playedWith: { marginBottom: 12 },
   sectionMeta: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold" },
   hostToolsHeading: { marginTop: 24, marginBottom: 12 },
   emptyLine: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", paddingVertical: 8 },

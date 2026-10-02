@@ -314,6 +314,9 @@ export default function AccountScreen() {
   const [marketingPushEnabled, setMarketingPushEnabled] = useState(false);
   const [marketingPushBusy, setMarketingPushBusy] = useState(false);
   const [marketingPushMsg, setMarketingPushMsg] = useState<string | null>(null);
+  const [hostInvitesEnabled, setHostInvitesEnabled] = useState(true);
+  const [hostInvitesBusy, setHostInvitesBusy] = useState(false);
+  const [hostInvitesMsg, setHostInvitesMsg] = useState<string | null>(null);
   const [maxDriveMinutes, setMaxDriveMinutes] = useState(DEFAULT_MAX_DRIVE_MINUTES);
   const [maxDriveBusy, setMaxDriveBusy] = useState(false);
   const [maxDriveMsg, setMaxDriveMsg] = useState<string | null>(null);
@@ -650,16 +653,34 @@ export default function AccountScreen() {
     }
   }, [isReady, supabase, session?.user?.id]);
 
+  // Separate from loadProfile so a pending allow_host_invites migration cannot break the main profile load.
+  const loadHostInvitePref = useCallback(async () => {
+    const uid = session?.user?.id;
+    if (!isReady || !supabase || !uid) return;
+    const { data, error } = await supabase.from("profiles").select("allow_host_invites").eq("id", uid).maybeSingle();
+    if (error) {
+      if (!supabaseLooksLikeMissingColumn(error, "allow_host_invites")) {
+        console.error("[account] allow_host_invites load error", JSON.stringify(error));
+        setHostInvitesMsg(formatProfileSaveError(error));
+      }
+      setHostInvitesEnabled(true);
+      return;
+    }
+    setHostInvitesEnabled((data as { allow_host_invites?: boolean | null } | null)?.allow_host_invites !== false);
+  }, [isReady, supabase, session?.user?.id]);
+
   useFocusEffect(
     useCallback(() => {
       void loadProfile();
-    }, [loadProfile]),
+      void loadHostInvitePref();
+    }, [loadProfile, loadHostInvitePref]),
   );
 
   // Re-fetch when auth/session becomes available after focus (useFocusEffect does not re-run when loadProfile's deps update).
   useEffect(() => {
     void loadProfile();
-  }, [loadProfile]);
+    void loadHostInvitePref();
+  }, [loadProfile, loadHostInvitePref]);
 
   // Profile-view stats.
   // - Sessions come from player_ratings.sessions (rated sessions count).
@@ -1637,6 +1658,44 @@ export default function AccountScreen() {
     }
   }
 
+  async function onToggleHostInvites(next: boolean) {
+    if (hostInvitesBusy) return;
+    setHostInvitesMsg(null);
+    const uid = session?.user?.id;
+    if (!supabase || !uid) {
+      setHostInvitesMsg("Sign in again to change this.");
+      return;
+    }
+    const prev = hostInvitesEnabled;
+    setHostInvitesEnabled(next);
+    setHostInvitesBusy(true);
+    try {
+      const res = await supabase
+        .from("profiles")
+        .update({ allow_host_invites: next, updated_at: new Date().toISOString() })
+        .eq("id", uid)
+        .select("id");
+      if (res.error) {
+        setHostInvitesEnabled(prev);
+        setHostInvitesMsg(
+          supabaseLooksLikeMissingColumn(res.error, "allow_host_invites")
+            ? "Host invite setting is not available yet. Apply the latest database migration."
+            : formatProfileSaveError(res.error),
+        );
+        return;
+      }
+      if (!res.data?.length) {
+        setHostInvitesEnabled(prev);
+        setHostInvitesMsg("Save did not update any profile row.");
+      }
+    } catch (e) {
+      setHostInvitesEnabled(prev);
+      setHostInvitesMsg(formatProfileSaveError(e));
+    } finally {
+      setHostInvitesBusy(false);
+    }
+  }
+
   async function onToggleBiometrics(next: boolean) {
     setLockMsg(null);
     if (!next) {
@@ -2233,6 +2292,11 @@ export default function AccountScreen() {
           marketingPushMsg={marketingPushMsg}
           onToggleMarketingPush={(v) => void onToggleMarketingPush(v)}
           marketingPushDisabled={!accessToken}
+          hostInvitesEnabled={hostInvitesEnabled}
+          hostInvitesBusy={hostInvitesBusy}
+          hostInvitesMsg={hostInvitesMsg}
+          onToggleHostInvites={(v) => void onToggleHostInvites(v)}
+          hostInvitesDisabled={!accessToken}
           maxDriveMinutes={maxDriveMinutes}
           maxDriveBusy={maxDriveBusy}
           maxDriveMsg={maxDriveMsg}

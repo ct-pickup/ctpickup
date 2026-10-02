@@ -155,19 +155,61 @@ function buildRuns(): { upNext: FixtureRun; nearby: FixtureRun[] } {
   return { upNext, nearby };
 }
 
+function playedWith(people: FixturePerson[]) {
+  return { count: people.length, people: people.slice(0, 3).map((p) => ({ first_name: p.first_name, avatar_url: p.avatar_url })) };
+}
+
+/** Played-with summaries per fixture run (viewer "Jordan" has played with these people). */
+function playedWithByRun(): Record<string, ReturnType<typeof playedWith>> {
+  return {
+    [`${FIXTURE_ID_PREFIX}colt-park`]: playedWith([PEOPLE.marcus, PEOPLE.diego, PEOPLE.priya, PEOPLE.sam]),
+    [`${FIXTURE_ID_PREFIX}fernridge-park`]: playedWith([PEOPLE.kofi, PEOPLE.liam]),
+    [`${FIXTURE_ID_PREFIX}addison-park`]: playedWith([PEOPLE.elena]),
+  };
+}
+
+const REASONS: Record<string, string[]> = {
+  [`${FIXTURE_ID_PREFIX}fernridge-park`]: ["At your level", "2 you've played with"],
+  [`${FIXTURE_ID_PREFIX}addison-park`]: ["Needs a CB", "Your usual morning"],
+  [`${FIXTURE_ID_PREFIX}edgewood-park`]: ["At your level", "38 min away"],
+};
+
 function home() {
   const { upNext, nearby } = buildRuns();
-  const tonight = at(0, 19, 0);
+  const pw = playedWithByRun();
   return {
     firstName: "Jordan",
     homeZip: "06107",
     maxDriveMinutes: 50,
     upNext,
     nearby,
-    teammates: [PEOPLE.marcus, PEOPLE.diego, PEOPLE.priya, PEOPLE.kofi, PEOPLE.liam].map((p) => ({
-      ...p,
-      start_at: tonight,
-    })),
+    playedWith: pw,
+    bestGames: nearby
+      .filter((r) => REASONS[r.id])
+      .map((r) => ({ ...r, reasons: REASONS[r.id]!, played_with: pw[r.id] ?? { count: 0, people: [] } })),
+  };
+}
+
+function fillCandidates() {
+  const c = (first_name: string, last_initial: string, stars: number | null, position: string, town: string, invited = false) => ({
+    invite_token: `${FIXTURE_ID_PREFIX}invite-${first_name.toLowerCase()}`,
+    first_name,
+    last_initial,
+    stars,
+    position,
+    town,
+    invited,
+  });
+  return {
+    candidates: [
+      c("Jude", "P", 3.5, "CB", "West Hartford"),
+      c("Dylan", "M", 3, "CM", "Hartford", true),
+      c("Rosa", "T", null, "ST", "Wethersfield"),
+      c("Omar", "K", 4, "GK", "Newington"),
+    ],
+    invites_available: true,
+    invites_sent: 1,
+    invite_limit: 20,
   };
 }
 
@@ -219,6 +261,9 @@ function session(id: string) {
     stars: new Map(run.going.filter((p) => p.star != null).map((p) => [p.user_id, p.star as number])),
     minStar: run.min_star,
     photo: run.photo,
+    playedWith: playedWithByRun()[run.id] ?? null,
+    /** Previews the host-only card on one run; the fixture viewer is not really the host. */
+    fill: run.id === `${FIXTURE_ID_PREFIX}fernridge-park` ? fillCandidates() : null,
   };
 }
 

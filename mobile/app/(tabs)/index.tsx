@@ -18,11 +18,13 @@ import {
 import MapView, { Marker, type Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import PlayerAvatar, { AvatarStack, type AvatarPerson } from "@/components/PlayerAvatar";
+import { AvatarStack, type AvatarPerson } from "@/components/PlayerAvatar";
 import { PhotoHeader, useFieldPhotos } from "@/components/photo";
+import PlayedWithRow, { usePlayedWith } from "@/components/pickup/PlayedWithRow";
 import SpotsBadge, { ALMOST_FULL_AT } from "@/components/pickup/SpotsBadge";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { toggleDevPreview, useDevPreview } from "@/lib/devPreview";
+import { fetchBestGames, type BestGame, type PlayedWithSummary } from "@/lib/matchApi";
 import { effectiveMaxDriveMinutes } from "@/lib/pickup/profileMaxDriveFilter";
 import { currentHourEt, fmtPickupSlotChipEt } from "@/lib/pickup/runStartAtDisplay";
 import { isServiceRegionCode, serviceRegionName } from "@/lib/serviceRegions";
@@ -72,7 +74,7 @@ const RUN_COLUMNS =
 const OPEN_STATUSES = new Set(["planning", "likely_on", "active"]);
 const NEAR_LIMIT = 10;
 const REGION_FALLBACK_LIMIT = 3;
-const TEAMMATES_SHOWN = 5;
+const BEST_GAMES_LIMIT = 3;
 const MAP_HEIGHT = 160;
 const MAP_MAX_WIDTH_MILES = 60;
 const MILES_PER_LAT_DEGREE = 69;
@@ -93,8 +95,6 @@ type HomeRun = {
 };
 
 type RunCrowd = { people: AvatarPerson[]; avgStar: number | null };
-
-type Teammate = AvatarPerson & { star: number | null; start_at: string };
 
 type RateBanner = { run_id: string; title: string | null };
 
@@ -197,6 +197,7 @@ function useHomeData() {
   const { session, supabase } = useAuth();
   const { region: selectedRegion } = useSelectedRegion();
   const myUserId = session?.user?.id ?? null;
+  const accessToken = session?.access_token ?? null;
 
   const [firstName, setFirstName] = useState<string | null>(null);
   const [homeZip, setHomeZip] = useState<string | null>(null);
@@ -207,7 +208,8 @@ function useHomeData() {
   const [regionName, setRegionName] = useState<string | null>(null);
   const [mapRuns, setMapRuns] = useState<HomeRun[]>([]);
   const [crowds, setCrowds] = useState<Map<string, RunCrowd>>(new Map());
-  const [teammates, setTeammates] = useState<Teammate[]>([]);
+  const [bestGames, setBestGames] = useState<BestGame[]>([]);
+  const [loadCount, setLoadCount] = useState(0);
   const [rateBanner, setRateBanner] = useState<RateBanner | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -222,7 +224,7 @@ function useHomeData() {
     const twoHoursAgo = new Date(now - 2 * 60 * 60 * 1000).toISOString();
     const threeHoursAgo = new Date(now - 3 * 60 * 60 * 1000).toISOString();
 
-    const [profileRes, myRsvpRes, mapRes, followsRes] = await Promise.all([
+    const [profileRes, myRsvpRes, mapRes, bestRes] = await Promise.all([
       supabase.from("profiles").select("first_name,zip_code,max_drive_minutes,nearest_venue").eq("id", myUserId).maybeSingle(),
       supabase.from("pickup_run_rsvps").select("run_id").eq("user_id", myUserId).eq("status", "confirmed").limit(200),
       // Map runs stay visible for 2h after kickoff, including recently completed ones.
@@ -235,12 +237,18 @@ function useHomeData() {
         .not("longitude", "is", null)
         .order("start_at", { ascending: true })
         .limit(40),
-      supabase.from("player_follows").select("following_id").eq("follower_id", myUserId),
+      accessToken
+        ? fetchBestGames(accessToken, BEST_GAMES_LIMIT)
+        : Promise.resolve({ ok: false as const, status: 401, error: "Not signed in" }),
     ]);
     note("profile", profileRes.error);
     note("rsvps", myRsvpRes.error);
     note("runs", mapRes.error);
-    note("follows", followsRes.error);
+    if (bestRes.ok) setBestGames(bestRes.data);
+    else {
+      errors.push(`best games: ${bestRes.error}`);
+      setBestGames([]);
+    }
 
     const profile = profileRes.data as {
       first_name?: string | null;
@@ -384,60 +392,6 @@ function useHomeData() {
     }
     setRateBanner(banner);
 
-    // Teammates out tonight: people I follow with a confirmed RSVP for a game today.
-    const followingIds = ((followsRes.data ?? []) as Array<{ following_id: string | null }>)
-      .map((f) => f.following_id)
-      .filter((v): v is string => Boolean(v));
-    let tonight: Teammate[] = [];
-    if (followingIds.length > 0) {
-      const { data: friendRsvps, error: friendRsvpErr } = await supabase
-        .from("pickup_run_rsvps")
-        .select("user_id,run_id")
-        .in("user_id", followingIds)
-        .eq("status", "confirmed");
-      note("teammate rsvps", friendRsvpErr);
-      const rows = (friendRsvps ?? []) as Array<{ user_id: string; run_id: string }>;
-      const friendRunIds = Array.from(new Set(rows.map((r) => r.run_id).filter(Boolean)));
-      if (friendRunIds.length > 0) {
-        const todayEnd = new Date();
-        todayEnd.setHours(23, 59, 59, 999);
-        const { data: todayRuns, error: todayErr } = await supabase
-          .from("pickup_runs")
-          .select("id,start_at")
-          .in("id", friendRunIds)
-          .gte("start_at", twoHoursAgo)
-          .lte("start_at", todayEnd.toISOString());
-        note("teammate games", todayErr);
-        const startByRun = new Map(
-          ((todayRuns ?? []) as Array<{ id: string; start_at: string }>).map((r) => [r.id, r.start_at]),
-        );
-        const startByUser = new Map<string, string>();
-        for (const r of rows) {
-          const s = startByRun.get(r.run_id);
-          if (!s) continue;
-          const prev = startByUser.get(r.user_id);
-          if (!prev || s < prev) startByUser.set(r.user_id, s);
-        }
-        const friendIds = Array.from(startByUser.keys());
-        const [friendProfiles, friendStars] = await Promise.all([
-          loadProfiles(supabase, friendIds),
-          fetchPlayerStars(supabase, friendIds),
-        ]);
-        if (friendProfiles.error) errors.push(`teammate profiles: ${friendProfiles.error}`);
-        tonight = friendIds.map((uid) => {
-          const p = friendProfiles.byId.get(uid);
-          return {
-            user_id: uid,
-            first_name: p?.first_name ?? null,
-            last_name: p?.last_name ?? null,
-            avatar_url: p?.avatar_url ?? null,
-            star: friendStars.get(uid) ?? null,
-            start_at: startByUser.get(uid)!,
-          };
-        });
-      }
-    }
-    setTeammates(tonight);
 
     if (errors.length > 0) {
       console.warn("[home] load errors:", errors.join(" | "));
@@ -445,7 +399,8 @@ function useHomeData() {
     } else {
       setLoadError(null);
     }
-  }, [supabase, myUserId, selectedRegion]);
+    setLoadCount((n) => n + 1);
+  }, [supabase, myUserId, accessToken, selectedRegion]);
 
   useFocusEffect(
     useCallback(() => {
@@ -464,7 +419,8 @@ function useHomeData() {
     regionName,
     mapRuns,
     crowds,
-    teammates,
+    bestGames,
+    loadCount,
     rateBanner,
     loadError,
     reload: load,
@@ -538,11 +494,13 @@ function UpNextCard({
   run,
   photo,
   crowd,
+  playedWith,
   onPress,
 }: {
   run: HomeRun;
   photo: string | undefined;
   crowd: RunCrowd;
+  playedWith: PlayedWithSummary | undefined;
   onPress: () => void;
 }) {
   useThemedStyles(publish_styles);
@@ -584,6 +542,7 @@ function UpNextCard({
             {crowdLine(crowd.avgStar, going)}
           </Text>
         </View>
+        <PlayedWithRow summary={playedWith} style={styles.playedWith} />
       </View>
     </Pressable>
   );
@@ -593,11 +552,13 @@ function GameCard({
   run,
   photo,
   crowd,
+  playedWith,
   onPress,
 }: {
   run: HomeRun;
   photo: string | undefined;
   crowd: RunCrowd;
+  playedWith: PlayedWithSummary | undefined;
   onPress: () => void;
 }) {
   useThemedStyles(publish_styles);
@@ -637,57 +598,62 @@ function GameCard({
             {crowdLine(crowd.avgStar, going)}
           </Text>
         </View>
+        <PlayedWithRow summary={playedWith} style={styles.playedWith} />
       </View>
     </Pressable>
   );
 }
 
-function TeammatesSection({
-  teammates,
-  onPlayer,
-  onMore,
+function BestGameCard({
+  game,
+  photo,
+  onPress,
 }: {
-  teammates: Teammate[];
-  onPlayer: (id: string) => void;
-  onMore: () => void;
+  game: BestGame;
+  photo: string | undefined;
+  onPress: () => void;
 }) {
   useThemedStyles(publish_styles);
 
-  const shown = teammates.slice(0, TEAMMATES_SHOWN);
-  const extra = teammates.length - shown.length;
+  const left = Math.max(game.capacity - game.spots_taken, 0);
+  const { field } = splitLocation(game.location_text, game.title);
   return (
-    <View>
-      <SectionHeader label="Teammates out tonight" />
-      <View style={styles.teammateRow}>
-        {shown.map((t) => (
-          <Pressable
-            key={t.user_id}
-            onPress={() => onPlayer(t.user_id)}
-            style={styles.teammate}
-            accessibilityRole="button"
-            accessibilityLabel={`Open ${t.first_name?.trim() || "player"}'s profile`}
-          >
-            <PlayerAvatar person={t} size={48} />
-            <Text style={styles.teammateName} numberOfLines={1}>
-              {t.first_name?.trim() || "Player"}
-            </Text>
-            {t.star != null ? <Text style={styles.teammateStar}>{formatStars(t.star)}</Text> : null}
-          </Pressable>
-        ))}
-        {extra > 0 ? (
-          <Pressable
-            onPress={onMore}
-            style={styles.teammate}
-            accessibilityRole="button"
-            accessibilityLabel={`${extra} more teammates`}
-          >
-            <View style={styles.moreBubble}>
-              <Text style={styles.moreBubbleText}>+{extra}</Text>
-            </View>
-          </Pressable>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, styles.gameCard, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={`${field}, ${fmtPickupSlotChipEt(game.start_at)}`}
+    >
+      {photo ? (
+        <View>
+          <PhotoHeader uri={photo} accessibilityLabel={`${field} field photo`} />
+          <SpotsBadge spotsLeft={left} style={styles.photoBadge} />
+        </View>
+      ) : null}
+      <View style={styles.gameBody}>
+        <View style={styles.cardTopRow}>
+          <Text style={styles.when} numberOfLines={1}>
+            {fmtPickupSlotChipEt(game.start_at)}
+          </Text>
+          {photo ? null : <SpotsBadge spotsLeft={left} />}
+        </View>
+        <Text style={styles.gameTitle} numberOfLines={1}>
+          {field}
+        </Text>
+        {game.reasons.length > 0 ? (
+          <View style={styles.reasonRow}>
+            {game.reasons.map((r) => (
+              <View key={r} style={styles.reasonChip}>
+                <Text style={styles.reasonText} numberOfLines={1}>
+                  {r}
+                </Text>
+              </View>
+            ))}
+          </View>
         ) : null}
+        <PlayedWithRow summary={game.played_with} style={styles.playedWith} />
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -714,9 +680,8 @@ export default function HomeScreen() {
   const nearRuns: HomeRun[] = fixture ? fixture.nearby : live.nearRuns;
   const regionRuns: HomeRun[] = fixture ? [] : live.regionRuns;
   const mapRuns: HomeRun[] = fixture ? [fixture.upNext, ...fixture.nearby] : live.mapRuns;
-  const teammates: Teammate[] = fixture ? fixture.teammates : live.teammates;
+  const bestGames: BestGame[] = fixture ? fixture.bestGames : live.bestGames;
   const rateBanner = fixture ? null : live.rateBanner;
-  const loadError = fixture ? null : live.loadError;
   const crowds = useMemo(() => {
     if (!fixture) return live.crowds;
     return new Map<string, RunCrowd>(
@@ -728,12 +693,16 @@ export default function HomeScreen() {
   }, [fixture, live.crowds]);
 
   const name = firstName || firstNameFromEmail(session?.user?.email ?? undefined);
-  const livePhotos = useFieldPhotos(
-    fixture ? [] : [...(nextMatch ? [nextMatch.id] : []), ...nearRuns.map((r) => r.id), ...regionRuns.map((r) => r.id)],
-  );
+  const cardRunIds = [...(nextMatch ? [nextMatch.id] : []), ...nearRuns.map((r) => r.id), ...regionRuns.map((r) => r.id)];
+  const livePhotos = useFieldPhotos(fixture ? [] : [...cardRunIds, ...bestGames.map((g) => g.id)]);
   const fieldPhotos: Record<string, string> = fixture
     ? Object.fromEntries([fixture.upNext, ...fixture.nearby].map((r) => [r.id, r.photo]))
     : livePhotos;
+  const livePlayedWith = usePlayedWith(cardRunIds, { skip: Boolean(fixture), reloadKey: live.loadCount });
+  const playedWith: Record<string, PlayedWithSummary> = fixture ? fixture.playedWith : livePlayedWith.byRun;
+  const loadError = fixture
+    ? null
+    : (live.loadError ?? (livePlayedWith.error ? "Some of Home did not load. Pull down to try again." : null));
   const openRun = (id: string) => push(`/session/${encodeURIComponent(id)}`);
   const openMap = () => push("/community-map");
 
@@ -816,6 +785,7 @@ export default function HomeScreen() {
           run={nextMatch}
           photo={fieldPhotos[nextMatch.id]}
           crowd={crowds.get(nextMatch.id) ?? EMPTY_CROWD}
+          playedWith={playedWith[nextMatch.id]}
           onPress={() => openRun(nextMatch.id)}
         />
       ) : (
@@ -848,6 +818,7 @@ export default function HomeScreen() {
                 run={item}
                 photo={fieldPhotos[item.id]}
                 crowd={crowds.get(item.id) ?? EMPTY_CROWD}
+                playedWith={playedWith[item.id]}
                 onPress={() => openRun(item.id)}
               />
             )}
@@ -887,12 +858,21 @@ export default function HomeScreen() {
         </View>
       </Pressable>
 
-      {teammates.length > 0 ? (
-        <TeammatesSection
-          teammates={teammates}
-          onPlayer={(id) => push(`/player/${id}`)}
-          onMore={() => push("/following")}
-        />
+      {bestGames.length > 0 ? (
+        <>
+          <SectionHeader label="Best games for you" />
+          <FlatList
+            horizontal
+            data={bestGames}
+            keyExtractor={(g) => g.id}
+            showsHorizontalScrollIndicator={false}
+            style={styles.strip}
+            contentContainerStyle={styles.stripContent}
+            renderItem={({ item }) => (
+              <BestGameCard game={item} photo={fieldPhotos[item.id]} onPress={() => openRun(item.id)} />
+            )}
+          />
+        </>
       ) : null}
     </ScrollView>
   );
@@ -1028,20 +1008,17 @@ function make_styles() {
     },
     markerLabelText: { fontSize: 11, fontFamily: "Inter_700Bold", color: themeColor().text },
 
-    /* teammates */
-    teammateRow: { flexDirection: "row", gap: 12 },
-    teammate: { width: 56, alignItems: "center", gap: 4 },
-    teammateName: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: themeColor().text, textAlign: "center", width: 56 },
-    teammateStar: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: themeColor().muted },
-    moreBubble: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: themeColor().line,
-      alignItems: "center",
-      justifyContent: "center",
+    /* best games */
+    reasonRow: { marginTop: 4, flexDirection: "row", flexWrap: "wrap", gap: 4 },
+    reasonChip: {
+      maxWidth: "100%",
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: radius.pill,
+      backgroundColor: themeColor().pitchPanel,
     },
-    moreBubbleText: { fontSize: 14, fontFamily: "Inter_700Bold", color: themeColor().text },
+    reasonText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: themeColor().onPitchPanel },
+    playedWith: { marginTop: 8 },
   });
 }
 let styles = make_styles();

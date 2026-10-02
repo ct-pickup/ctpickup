@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
 import { PhotoHeader, useFieldPhotos } from "@/components/photo";
+import PlayedWithRow, { usePlayedWith } from "@/components/pickup/PlayedWithRow";
 import { headline, themeColor, useThemedStyles } from "@/theme";
 type AvatarPreview = { id: string; initials: string };
 
@@ -183,6 +184,7 @@ export default function SessionsTabScreen() {
   const [upcoming, setUpcoming] = useState<UpcomingRow[]>([]);
   const [past, setPast] = useState<PastRow[]>([]);
   const fieldPhotos = useFieldPhotos([...live, ...upcoming].map((r) => r.run_id));
+  const playedWith = usePlayedWith([...live, ...upcoming].map((r) => r.run_id)).byRun;
   const [nearbyOpenCount, setNearbyOpenCount] = useState(0);
   const [sessionsPlayed, setSessionsPlayed] = useState(0);
   const [wins, setWins] = useState(0);
@@ -571,6 +573,7 @@ export default function SessionsTabScreen() {
                             {spotsLeft} spot{spotsLeft === 1 ? "" : "s"} left
                           </Text>
                         </View>
+                        <PlayedWithRow summary={playedWith[row.run_id]} style={styles.playedWith} />
                       </Pressable>
                     );
                   })}
@@ -652,6 +655,7 @@ export default function SessionsTabScreen() {
                         </Text>
                         <Text style={styles.cardChipLime}>{fmtFee(row.fee_cents)}</Text>
                       </View>
+                      <PlayedWithRow summary={playedWith[row.run_id]} style={styles.playedWith} />
                     </Pressable>
                   );
                 })}
@@ -729,6 +733,7 @@ export default function SessionsTabScreen() {
 function make_styles() {
   return StyleSheet.create({
   root: { flex: 1, backgroundColor: themeColor().bg },
+  playedWith: { marginTop: 10 },
   header: {
     color: themeColor().text,
     fontSize: 32, ...headline,
