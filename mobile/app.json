@@ -8,11 +8,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "ctpickup",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash-icon-light.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#F4F1EA"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ctpickup.mobile",
