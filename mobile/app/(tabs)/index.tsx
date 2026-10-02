@@ -1,9 +1,10 @@
 import { useAuth } from "@/context/AuthContext";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Animated,
+  Dimensions,
   FlatList,
   Platform,
   Pressable,
@@ -11,6 +12,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useColorScheme,
   View,
 } from "react-native";
 import MapView, { Marker, type Region } from "react-native-maps";
@@ -18,12 +20,20 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import PlayerAvatar, { AvatarStack, type AvatarPerson } from "@/components/PlayerAvatar";
 import { PhotoHeader, useFieldPhotos } from "@/components/photo";
-import SpotsBadge from "@/components/pickup/SpotsBadge";
+import SpotsBadge, { ALMOST_FULL_AT } from "@/components/pickup/SpotsBadge";
+import { useSelectedRegion } from "@/context/SelectedRegionContext";
+import { toggleDevPreview, useDevPreview } from "@/lib/devPreview";
 import { effectiveMaxDriveMinutes } from "@/lib/pickup/profileMaxDriveFilter";
 import { currentHourEt, fmtPickupSlotChipEt } from "@/lib/pickup/runStartAtDisplay";
-import { averageStars, fetchPlayerStars, fetchRunMinStars, formatStars } from "@/lib/starRatings";
-import { driveRadiusMiles, milesFromZip, regionForZipDrive } from "@/lib/venueDistance";
-import { headline, radius, themeColor, useTheme, useThemedStyles } from "@/theme";
+import { isServiceRegionCode, serviceRegionName } from "@/lib/serviceRegions";
+import { averageStars, fetchPlayerStars, formatStars } from "@/lib/starRatings";
+import { driveRadiusMiles, milesFromZip, zipCentroid, zipState } from "@/lib/venueDistance";
+import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
+import { headline, radius, themeColor, useThemedStyles } from "@/theme";
+import type { DevFixtures } from "../../dev-fixtures";
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- must stay a __DEV__ require so release bundles drop dev-fixtures
+const devFixtures: DevFixtures | null = __DEV__ ? require("../../dev-fixtures").default : null;
 
 /* --------------------------------------------------------------- helpers */
 
@@ -61,7 +71,11 @@ const RUN_COLUMNS =
 
 const OPEN_STATUSES = new Set(["planning", "likely_on", "active"]);
 const NEAR_LIMIT = 10;
+const REGION_FALLBACK_LIMIT = 3;
 const TEAMMATES_SHOWN = 5;
+const MAP_HEIGHT = 160;
+const MAP_MAX_WIDTH_MILES = 60;
+const MILES_PER_LAT_DEGREE = 69;
 
 type HomeRun = {
   id: string;
@@ -130,10 +144,27 @@ function LivePulseDot({ size = 8 }: { size?: number }) {
   );
 }
 
-function pinColor(left: number, minStar: number | undefined): string {
-  if (left >= 1 && left <= 2) return themeColor().coral;
-  if (minStar != null && minStar >= 3) return themeColor().muted;
-  return themeColor().accent;
+function pinColor(left: number): string {
+  return left <= ALMOST_FULL_AT ? themeColor().coral : themeColor().accent;
+}
+
+/**
+ * MapKit grows a region to fill the view, so both deltas follow the card's aspect
+ * ratio; a square span on this wide card would show roughly twice the intended width.
+ */
+function cardRegion(
+  center: { latitude: number; longitude: number },
+  radiusMiles: number,
+  width: number,
+): Region {
+  const widthMiles = Math.min(radiusMiles * 2, MAP_MAX_WIDTH_MILES);
+  const cosLat = Math.max(0.2, Math.cos((center.latitude * Math.PI) / 180));
+  return {
+    latitude: center.latitude,
+    longitude: center.longitude,
+    latitudeDelta: (widthMiles * (MAP_HEIGHT / Math.max(width, 1))) / MILES_PER_LAT_DEGREE,
+    longitudeDelta: widthMiles / (MILES_PER_LAT_DEGREE * cosLat),
+  };
 }
 
 /* --------------------------------------------------------------- data */
@@ -164,6 +195,7 @@ async function loadProfiles(
 
 function useHomeData() {
   const { session, supabase } = useAuth();
+  const { region: selectedRegion } = useSelectedRegion();
   const myUserId = session?.user?.id ?? null;
 
   const [firstName, setFirstName] = useState<string | null>(null);
@@ -171,8 +203,9 @@ function useHomeData() {
   const [maxDriveMinutes, setMaxDriveMinutes] = useState<number | null>(null);
   const [nextMatch, setNextMatch] = useState<HomeRun | null>(null);
   const [nearRuns, setNearRuns] = useState<HomeRun[]>([]);
+  const [regionRuns, setRegionRuns] = useState<HomeRun[]>([]);
+  const [regionName, setRegionName] = useState<string | null>(null);
   const [mapRuns, setMapRuns] = useState<HomeRun[]>([]);
-  const [minStars, setMinStars] = useState<Map<string, number>>(new Map());
   const [crowds, setCrowds] = useState<Map<string, RunCrowd>>(new Map());
   const [teammates, setTeammates] = useState<Teammate[]>([]);
   const [rateBanner, setRateBanner] = useState<RateBanner | null>(null);
@@ -190,7 +223,7 @@ function useHomeData() {
     const threeHoursAgo = new Date(now - 3 * 60 * 60 * 1000).toISOString();
 
     const [profileRes, myRsvpRes, mapRes, followsRes] = await Promise.all([
-      supabase.from("profiles").select("first_name,zip_code,max_drive_minutes").eq("id", myUserId).maybeSingle(),
+      supabase.from("profiles").select("first_name,zip_code,max_drive_minutes,nearest_venue").eq("id", myUserId).maybeSingle(),
       supabase.from("pickup_run_rsvps").select("run_id").eq("user_id", myUserId).eq("status", "confirmed").limit(200),
       // Map runs stay visible for 2h after kickoff, including recently completed ones.
       supabase
@@ -213,6 +246,7 @@ function useHomeData() {
       first_name?: string | null;
       zip_code?: string | null;
       max_drive_minutes?: number | null;
+      nearest_venue?: string | null;
     } | null;
     const zip = profile?.zip_code?.trim() || null;
     setFirstName(profile?.first_name?.trim() || null);
@@ -256,28 +290,49 @@ function useHomeData() {
     setNextMatch(next);
 
     const runs = (mapRes.data ?? []) as HomeRun[];
-    setMapRuns(runs);
-
     const radiusMiles = driveRadiusMiles(effectiveMaxDriveMinutes(profile?.max_drive_minutes ?? null));
+    const inRange = (r: HomeRun) => {
+      const mi = milesFromZip(zip, r.latitude, r.longitude);
+      return mi == null || mi <= radiusMiles;
+    };
+    const isOpen = (r: HomeRun) => OPEN_STATUSES.has(r.status ?? "") && r.capacity - r.spots_taken > 0;
+    setMapRuns(runs.filter((r) => isOpen(r) && inRange(r)));
+
     const mine = new Set(myRunIds);
     const near = runs
-      .filter(
-        (r) =>
-          Date.parse(r.start_at) >= now &&
-          OPEN_STATUSES.has(r.status ?? "") &&
-          r.run_type !== "select" &&
-          !mine.has(r.id) &&
-          r.capacity - r.spots_taken > 0,
-      )
-      .filter((r) => {
-        const mi = milesFromZip(zip, r.latitude, r.longitude);
-        return mi == null || mi <= radiusMiles;
-      })
+      .filter((r) => Date.parse(r.start_at) >= now && isOpen(r) && r.run_type !== "select" && !mine.has(r.id))
+      .filter(inRange)
       .slice(0, NEAR_LIMIT);
     setNearRuns(near);
 
+    // Nothing in drive range: next open games anywhere in the player's service region.
+    let fallback: HomeRun[] = [];
+    let fallbackRegion: string | null = null;
+    if (near.length === 0) {
+      const zipRegion = zipState(zip);
+      fallbackRegion =
+        serviceRegionForVenueName(profile?.nearest_venue) ??
+        (zipRegion && isServiceRegionCode(zipRegion) ? zipRegion : null) ??
+        selectedRegion;
+      const { data: regionData, error: regionErr } = await supabase
+        .from("pickup_runs")
+        .select(RUN_COLUMNS)
+        .eq("service_region", fallbackRegion)
+        .in("status", Array.from(OPEN_STATUSES))
+        .neq("run_type", "select")
+        .gte("start_at", nowIso)
+        .order("start_at", { ascending: true })
+        .limit(REGION_FALLBACK_LIMIT * 4);
+      note("region games", regionErr);
+      fallback = ((regionData ?? []) as HomeRun[])
+        .filter((r) => isOpen(r) && !mine.has(r.id))
+        .slice(0, REGION_FALLBACK_LIMIT);
+    }
+    setRegionRuns(fallback);
+    setRegionName(fallbackRegion ? serviceRegionName(fallbackRegion) : null);
+
     // Crowds: RSVPs, profiles and stars are separate queries merged here.
-    const crowdRunIds = [...(next ? [next.id] : []), ...near.map((r) => r.id)];
+    const crowdRunIds = [...(next ? [next.id] : []), ...near.map((r) => r.id), ...fallback.map((r) => r.id)];
     const crowdRsvpRes = crowdRunIds.length
       ? await supabase
           .from("pickup_run_rsvps")
@@ -289,13 +344,11 @@ function useHomeData() {
     const crowdRows = (crowdRsvpRes.data ?? []) as Array<{ run_id: string; user_id: string }>;
     const crowdUserIds = Array.from(new Set(crowdRows.map((r) => r.user_id).filter(Boolean)));
 
-    const [minStarMap, crowdProfiles, crowdStars] = await Promise.all([
-      fetchRunMinStars(supabase, [...runs.map((r) => r.id), ...crowdRunIds]),
+    const [crowdProfiles, crowdStars] = await Promise.all([
       loadProfiles(supabase, crowdUserIds),
       fetchPlayerStars(supabase, crowdUserIds),
     ]);
     if (crowdProfiles.error) errors.push(`attendee profiles: ${crowdProfiles.error}`);
-    setMinStars(minStarMap);
 
     const nextCrowds = new Map<string, RunCrowd>();
     for (const runId of crowdRunIds) {
@@ -392,7 +445,7 @@ function useHomeData() {
     } else {
       setLoadError(null);
     }
-  }, [supabase, myUserId]);
+  }, [supabase, myUserId, selectedRegion]);
 
   useFocusEffect(
     useCallback(() => {
@@ -407,8 +460,9 @@ function useHomeData() {
     maxDriveMinutes,
     nextMatch,
     nearRuns,
+    regionRuns,
+    regionName,
     mapRuns,
-    minStars,
     crowds,
     teammates,
     rateBanner,
@@ -442,7 +496,7 @@ function SectionHeader({
   );
 }
 
-function MapDot({ run, minStar }: { run: HomeRun; minStar: number | undefined }) {
+function MapDot({ run }: { run: HomeRun }) {
   useThemedStyles(publish_styles);
 
   const [track, setTrack] = useState(true);
@@ -451,7 +505,7 @@ function MapDot({ run, minStar }: { run: HomeRun; minStar: number | undefined })
     return () => clearTimeout(t);
   }, []);
   const left = run.capacity - run.spots_taken;
-  const color = pinColor(left, minStar);
+  const color = pinColor(left);
   const area = (run.location_text ?? "").split(",")[0]?.trim() || "";
   const live = isSessionLive(run.start_at);
   return (
@@ -604,39 +658,35 @@ function TeammatesSection({
   return (
     <View>
       <SectionHeader label="Teammates out tonight" />
-      {teammates.length === 0 ? (
-        <Text style={styles.emptyLine}>None of your teammates are out tonight.</Text>
-      ) : (
-        <View style={styles.teammateRow}>
-          {shown.map((t) => (
-            <Pressable
-              key={t.user_id}
-              onPress={() => onPlayer(t.user_id)}
-              style={styles.teammate}
-              accessibilityRole="button"
-              accessibilityLabel={`Open ${t.first_name?.trim() || "player"}'s profile`}
-            >
-              <PlayerAvatar person={t} size={48} />
-              <Text style={styles.teammateName} numberOfLines={1}>
-                {t.first_name?.trim() || "Player"}
-              </Text>
-              {t.star != null ? <Text style={styles.teammateStar}>{formatStars(t.star)}</Text> : null}
-            </Pressable>
-          ))}
-          {extra > 0 ? (
-            <Pressable
-              onPress={onMore}
-              style={styles.teammate}
-              accessibilityRole="button"
-              accessibilityLabel={`${extra} more teammates`}
-            >
-              <View style={styles.moreBubble}>
-                <Text style={styles.moreBubbleText}>+{extra}</Text>
-              </View>
-            </Pressable>
-          ) : null}
-        </View>
-      )}
+      <View style={styles.teammateRow}>
+        {shown.map((t) => (
+          <Pressable
+            key={t.user_id}
+            onPress={() => onPlayer(t.user_id)}
+            style={styles.teammate}
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${t.first_name?.trim() || "player"}'s profile`}
+          >
+            <PlayerAvatar person={t} size={48} />
+            <Text style={styles.teammateName} numberOfLines={1}>
+              {t.first_name?.trim() || "Player"}
+            </Text>
+            {t.star != null ? <Text style={styles.teammateStar}>{formatStars(t.star)}</Text> : null}
+          </Pressable>
+        ))}
+        {extra > 0 ? (
+          <Pressable
+            onPress={onMore}
+            style={styles.teammate}
+            accessibilityRole="button"
+            accessibilityLabel={`${extra} more teammates`}
+          >
+            <View style={styles.moreBubble}>
+              <Text style={styles.moreBubbleText}>+{extra}</Text>
+            </View>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -649,28 +699,45 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const push = router.push as (href: string) => void;
-  const {
-    firstName,
-    homeZip,
-    maxDriveMinutes,
-    nextMatch,
-    nearRuns,
-    mapRuns,
-    minStars,
-    crowds,
-    teammates,
-    rateBanner,
-    loadError,
-    reload,
-  } = useHomeData();
-  const theme = useTheme();
+  const live = useHomeData();
+  const preview = useDevPreview();
+  const fixture = useMemo(() => (preview && devFixtures ? devFixtures.home() : null), [preview]);
+  const scheme = useColorScheme();
   const { session } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const [mapWidth, setMapWidth] = useState(() => Dimensions.get("window").width - 40);
+
+  const firstName = fixture ? fixture.firstName : live.firstName;
+  const homeZip = fixture ? fixture.homeZip : live.homeZip;
+  const maxDriveMinutes = fixture ? fixture.maxDriveMinutes : live.maxDriveMinutes;
+  const nextMatch: HomeRun | null = fixture ? fixture.upNext : live.nextMatch;
+  const nearRuns: HomeRun[] = fixture ? fixture.nearby : live.nearRuns;
+  const regionRuns: HomeRun[] = fixture ? [] : live.regionRuns;
+  const mapRuns: HomeRun[] = fixture ? [fixture.upNext, ...fixture.nearby] : live.mapRuns;
+  const teammates: Teammate[] = fixture ? fixture.teammates : live.teammates;
+  const rateBanner = fixture ? null : live.rateBanner;
+  const loadError = fixture ? null : live.loadError;
+  const crowds = useMemo(() => {
+    if (!fixture) return live.crowds;
+    return new Map<string, RunCrowd>(
+      [fixture.upNext, ...fixture.nearby].map((r) => [
+        r.id,
+        { people: r.going, avgStar: averageStars(r.going.map((p) => p.star)) },
+      ]),
+    );
+  }, [fixture, live.crowds]);
 
   const name = firstName || firstNameFromEmail(session?.user?.email ?? undefined);
-  const fieldPhotos = useFieldPhotos([...(nextMatch ? [nextMatch.id] : []), ...nearRuns.map((r) => r.id)]);
+  const livePhotos = useFieldPhotos(
+    fixture ? [] : [...(nextMatch ? [nextMatch.id] : []), ...nearRuns.map((r) => r.id), ...regionRuns.map((r) => r.id)],
+  );
+  const fieldPhotos: Record<string, string> = fixture
+    ? Object.fromEntries([fixture.upNext, ...fixture.nearby].map((r) => [r.id, r.photo]))
+    : livePhotos;
   const openRun = (id: string) => push(`/session/${encodeURIComponent(id)}`);
+  const openMap = () => push("/community-map");
 
+  const reload = live.reload;
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -680,16 +747,24 @@ export default function HomeScreen() {
     }
   }, [reload]);
 
-  const mapRegion: Region =
-    regionForZipDrive(homeZip, effectiveMaxDriveMinutes(maxDriveMinutes)) ??
-    (mapRuns[0]?.latitude != null && mapRuns[0]?.longitude != null
+  const zipCenter = zipCentroid(homeZip);
+  const mapRegion: Region = zipCenter
+    ? cardRegion(zipCenter, driveRadiusMiles(effectiveMaxDriveMinutes(maxDriveMinutes)), mapWidth)
+    : mapRuns[0]?.latitude != null && mapRuns[0]?.longitude != null
       ? {
           latitude: mapRuns[0].latitude,
           longitude: mapRuns[0].longitude,
           latitudeDelta: 0.6,
           longitudeDelta: 0.6,
         }
-      : FAIRFIELD);
+      : FAIRFIELD;
+
+  const gamesSection =
+    nearRuns.length > 0
+      ? { title: "Games near you", runs: nearRuns }
+      : regionRuns.length > 0
+        ? { title: live.regionName ? `Next games in ${live.regionName}` : "Next games", runs: regionRuns }
+        : null;
 
   return (
     <ScrollView
@@ -700,7 +775,9 @@ export default function HomeScreen() {
       }
     >
       <View style={styles.header}>
-        <Text style={styles.wordmark}>CT Pickup</Text>
+        <Text style={styles.wordmark} onLongPress={__DEV__ ? toggleDevPreview : undefined}>
+          CT Pickup
+        </Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Notifications"
@@ -714,6 +791,10 @@ export default function HomeScreen() {
       <Text style={styles.greeting} numberOfLines={1}>
         {greeting()}, <Text style={styles.greetingName}>{name}</Text>
       </Text>
+
+      {__DEV__ && fixture ? (
+        <Text style={styles.devLine}>Showing preview data. Long-press the wordmark to exit.</Text>
+      ) : null}
 
       {loadError ? <Text style={styles.errorLine}>{loadError}</Text> : null}
 
@@ -739,10 +820,12 @@ export default function HomeScreen() {
         />
       ) : (
         <View style={[styles.card, styles.emptyCard]}>
-          <Text style={styles.emptyTitle}>Nothing on your calendar.</Text>
+          <Text style={styles.emptyTitle} numberOfLines={1}>
+            Nothing on your calendar.
+          </Text>
           <Pressable
             accessibilityRole="button"
-            onPress={() => push("/community-map")}
+            onPress={openMap}
             style={({ pressed }) => [styles.accentBtn, pressed && styles.pressed]}
           >
             <Text style={styles.accentBtnText}>Get a game</Text>
@@ -750,74 +833,67 @@ export default function HomeScreen() {
         </View>
       )}
 
-      <SectionHeader label="Games near you" actionLabel="See all" onAction={() => push("/session-map")} />
-      {nearRuns.length === 0 ? (
-        <Text style={styles.emptyLine}>No open games near you right now.</Text>
-      ) : (
-        <FlatList
-          horizontal
-          data={nearRuns}
-          keyExtractor={(r) => r.id}
-          showsHorizontalScrollIndicator={false}
-          style={styles.strip}
-          contentContainerStyle={styles.stripContent}
-          renderItem={({ item }) => (
-            <GameCard
-              run={item}
-              photo={fieldPhotos[item.id]}
-              crowd={crowds.get(item.id) ?? EMPTY_CROWD}
-              onPress={() => openRun(item.id)}
-            />
-          )}
-        />
-      )}
+      {gamesSection ? (
+        <>
+          <SectionHeader label={gamesSection.title} actionLabel="See all" onAction={() => push("/session-map")} />
+          <FlatList
+            horizontal
+            data={gamesSection.runs}
+            keyExtractor={(r) => r.id}
+            showsHorizontalScrollIndicator={false}
+            style={styles.strip}
+            contentContainerStyle={styles.stripContent}
+            renderItem={({ item }) => (
+              <GameCard
+                run={item}
+                photo={fieldPhotos[item.id]}
+                crowd={crowds.get(item.id) ?? EMPTY_CROWD}
+                onPress={() => openRun(item.id)}
+              />
+            )}
+          />
+        </>
+      ) : null}
 
-      <SectionHeader label="Nearby games" actionLabel="View map" onAction={() => push("/community-map")} />
+      <SectionHeader label="Nearby games" actionLabel="View map" onAction={openMap} />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Open map"
-        onPress={() => push("/community-map")}
+        onPress={openMap}
+        onLayout={(e) => setMapWidth(e.nativeEvent.layout.width)}
         style={styles.mapWrap}
       >
-        <MapView
-          style={StyleSheet.absoluteFill}
-          pointerEvents="none"
-          region={mapRegion}
-          mapType={Platform.OS === "ios" ? "mutedStandard" : "standard"}
-          userInterfaceStyle={theme.mode}
-          loadingBackgroundColor={themeColor().card}
-          scrollEnabled={false}
-          zoomEnabled={false}
-          pitchEnabled={false}
-          rotateEnabled={false}
-          showsPointsOfInterest={false}
-          showsMyLocationButton={false}
-        >
-          {mapRuns.map((run) => (
-            <MapDot key={run.id} run={run} minStar={minStars.get(run.id)} />
-          ))}
-        </MapView>
-        <View style={styles.mapLegend} pointerEvents="none">
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: themeColor().accent }]} />
-            <Text style={styles.legendText}>Open</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: themeColor().muted }]} />
-            <Text style={styles.legendText}>3.0+</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: themeColor().coral }]} />
-            <Text style={styles.legendText}>Almost full</Text>
-          </View>
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <MapView
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+            region={mapRegion}
+            mapType={Platform.OS === "ios" ? "mutedStandard" : "standard"}
+            userInterfaceStyle={scheme === "dark" ? "dark" : "light"}
+            loadingBackgroundColor={themeColor().card}
+            showsBuildings={false}
+            pitchEnabled={false}
+            rotateEnabled={false}
+            scrollEnabled={false}
+            zoomEnabled={false}
+            toolbarEnabled={false}
+            showsPointsOfInterest={false}
+            showsMyLocationButton={false}
+          >
+            {mapRuns.map((run) => (
+              <MapDot key={run.id} run={run} />
+            ))}
+          </MapView>
         </View>
       </Pressable>
 
-      <TeammatesSection
-        teammates={teammates}
-        onPlayer={(id) => push(`/player/${id}`)}
-        onMore={() => push("/following")}
-      />
+      {teammates.length > 0 ? (
+        <TeammatesSection
+          teammates={teammates}
+          onPlayer={(id) => push(`/player/${id}`)}
+          onMore={() => push("/following")}
+        />
+      ) : null}
     </ScrollView>
   );
 }
@@ -832,9 +908,10 @@ function make_styles() {
 
     /* header */
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    wordmark: { fontSize: 20, ...headline, color: themeColor().text },
-    greeting: { marginTop: 16, fontSize: 32, ...headline, color: themeColor().text },
+    wordmark: { fontSize: 20, fontFamily: headline.fontFamily, color: themeColor().text },
+    greeting: { marginTop: 16, fontSize: 28, ...headline, color: themeColor().text },
     greetingName: { color: themeColor().pitchText },
+    devLine: { marginTop: 8, fontSize: 13, fontFamily: "Inter_500Medium", color: themeColor().muted },
     errorLine: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().coralText },
     rateBanner: {
       marginTop: 16,
@@ -856,9 +933,8 @@ function make_styles() {
       marginTop: 24,
       marginBottom: 12,
     },
-    sectionTitle: { fontSize: 20, ...headline, color: themeColor().text },
-    sectionAction: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: themeColor().accent },
-    emptyLine: { fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted, paddingVertical: 8 },
+    sectionTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold", color: themeColor().text },
+    sectionAction: { fontSize: 14, fontFamily: "Inter_500Medium", color: themeColor().accent },
 
     /* cards */
     card: {
@@ -877,15 +953,23 @@ function make_styles() {
     crowdRow: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 8 },
     crowdText: { flexShrink: 1, fontSize: 13, fontFamily: "Inter_500Medium", color: themeColor().muted },
 
-    emptyCard: { padding: 16, minHeight: 120, justifyContent: "center", alignItems: "flex-start", gap: 12 },
-    emptyTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: themeColor().text },
+    emptyCard: {
+      minHeight: 72,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    emptyTitle: { flexShrink: 1, fontSize: 15, fontFamily: "Inter_600SemiBold", color: themeColor().text },
     accentBtn: {
       backgroundColor: themeColor().accent,
       borderRadius: radius.button,
-      paddingVertical: 12,
-      paddingHorizontal: 20,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
     },
-    accentBtnText: { color: themeColor().onAccent, fontSize: 16, fontFamily: "Inter_700Bold" },
+    accentBtnText: { color: themeColor().onAccent, fontSize: 14, fontFamily: "Inter_600SemiBold" },
 
     /* games strip */
     strip: { marginHorizontal: -20 },
@@ -906,27 +990,13 @@ function make_styles() {
 
     /* map */
     mapWrap: {
-      height: 160,
+      height: MAP_HEIGHT,
       borderRadius: radius.card,
       overflow: "hidden",
       borderWidth: 1,
       borderColor: themeColor().line,
       backgroundColor: themeColor().card,
     },
-    mapLegend: {
-      position: "absolute",
-      bottom: 8,
-      left: 8,
-      flexDirection: "row",
-      gap: 12,
-      backgroundColor: themeColor().card,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: radius.pill,
-    },
-    legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
-    legendDot: { width: 8, height: 8, borderRadius: 4 },
-    legendText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: themeColor().text },
     markerWrap: { alignItems: "center" },
     markerDot: {
       width: 16,

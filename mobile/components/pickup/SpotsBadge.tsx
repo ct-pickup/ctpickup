@@ -3,7 +3,8 @@ import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-na
 
 import { radius, themeColor, useThemedStyles } from "@/theme";
 
-const URGENT_AT = 3;
+/** Spots-left count at or below which a game reads as almost full. */
+export const ALMOST_FULL_AT = 3;
 
 export function spotsLeftLabel(spotsLeft: number): string {
   if (spotsLeft <= 0) return "Full";
@@ -13,7 +14,7 @@ export function spotsLeftLabel(spotsLeft: number): string {
 /** Spots-left pill. Coral when 3 or fewer remain, neutral otherwise. */
 export default function SpotsBadge({ spotsLeft, style }: { spotsLeft: number; style?: StyleProp<ViewStyle> }) {
   useThemedStyles(publish_styles);
-  const urgent = spotsLeft <= URGENT_AT;
+  const urgent = spotsLeft <= ALMOST_FULL_AT;
   return (
     <View style={[styles.badge, urgent && styles.urgent, style]}>
       {urgent ? <View style={styles.dot} /> : null}

@@ -59,6 +59,13 @@ export function zipCentroid(zipCode: string | null | undefined): { latitude: num
   return { latitude: loc.latitude, longitude: loc.longitude };
 }
 
+/** USPS state code for a 5-digit ZIP, or null when unknown. */
+export function zipState(zipCode: string | null | undefined): string | null {
+  const digits = String(zipCode ?? "").replace(/\D/g, "").slice(0, 5);
+  if (digits.length !== 5) return null;
+  return normalizeZipState(zipcodes.lookup(digits)?.state);
+}
+
 /** Straight-line miles reachable in `maxDriveMinutes` by road. */
 export function driveRadiusMiles(maxDriveMinutes: number): number {
   return ((maxDriveMinutes / 60) * DRIVE_MPH) / ROAD_FACTOR;

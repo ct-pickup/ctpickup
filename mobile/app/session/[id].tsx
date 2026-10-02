@@ -2,7 +2,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { siteOrigin } from "@/lib/env";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState, type ComponentProps } from "react";
+import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -29,6 +29,11 @@ import { setRunFieldPhoto } from "@/lib/photoUpload";
 import { averageStars, fetchPlayerStars, fetchRunMinStars, formatStars, levelLabel } from "@/lib/starRatings";
 import { milesFromZip } from "@/lib/venueDistance";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
+import type { DevFixtures } from "../../dev-fixtures";
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- must stay a __DEV__ require so release bundles drop dev-fixtures
+const devFixtures: DevFixtures | null = __DEV__ ? require("../../dev-fixtures").default : null;
+
 type SessionDetail = {
   id: string;
   title: string;
@@ -155,9 +160,16 @@ export default function SessionDetailScreen() {
   const insets = useSafeAreaInsets();
   const { session, supabase } = useAuth();
   const { isAdmin } = useProfileAdmin();
-  const fieldPhotos = useFieldPhotos(id ? [id] : []);
+  const fixture = useMemo(() => (devFixtures && id ? devFixtures.session(id) : null), [id]);
+  const fieldPhotos = useFieldPhotos(id && !fixture ? [id] : []);
   const [savedPhoto, setSavedPhoto] = useState<string | null | undefined>(undefined);
-  const heroPhoto = savedPhoto !== undefined ? savedPhoto ?? undefined : id ? fieldPhotos[id] : undefined;
+  const heroPhoto = fixture
+    ? fixture.photo
+    : savedPhoto !== undefined
+      ? savedPhoto ?? undefined
+      : id
+        ? fieldPhotos[id]
+        : undefined;
 
   const [run, setRun] = useState<SessionDetail | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
@@ -220,7 +232,7 @@ export default function SessionDetailScreen() {
   const myUserId = session?.user?.id;
   const isHost = run?.created_by === myUserId;
   const isCompleted = run?.status === "completed";
-  const canEditPhoto = Boolean(myUserId) && (isHost || isAdmin);
+  const canEditPhoto = Boolean(myUserId) && (isHost || isAdmin) && !fixture;
 
   const saveFieldPhoto = useCallback(
     async (url: string | null) => {
@@ -232,6 +244,16 @@ export default function SessionDetailScreen() {
   );
 
   const load = useCallback(async () => {
+    if (fixture) {
+      setRun(fixture.run);
+      setAttendees(fixture.attendees);
+      setHost(fixture.host);
+      setStars(fixture.stars);
+      setMinStar(fixture.minStar);
+      setMyStatus(null);
+      setLoading(false);
+      return;
+    }
     if (!supabase || !id) return;
     setLoading(true);
     try {
@@ -472,12 +494,16 @@ export default function SessionDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [supabase, id, myUserId, session?.access_token]);
+  }, [fixture, supabase, id, myUserId, session?.access_token]);
 
   useEffect(() => { void load(); }, [load]);
 
   const hostId = run?.created_by ?? null;
   useEffect(() => {
+    if (fixture) {
+      setHostScore(fixture.hostScore);
+      return;
+    }
     setHostScore(null);
     const origin = siteOrigin();
     if (!hostId || !origin) return;
@@ -503,7 +529,7 @@ export default function SessionDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [hostId, session?.access_token]);
+  }, [fixture, hostId, session?.access_token]);
 
   useEffect(() => {
     if (!supabase || !myUserId) {
@@ -1074,6 +1100,10 @@ export default function SessionDetailScreen() {
   }
 
   async function rsvp() {
+    if (__DEV__ && fixture) {
+      setToast({ id: Date.now(), text: "Preview game. Joining is off." });
+      return;
+    }
     if (rsvpBusy || !session?.access_token) return;
     const origin = siteOrigin();
     if (!origin) return;

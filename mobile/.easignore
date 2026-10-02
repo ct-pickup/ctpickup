@@ -10,3 +10,6 @@ node_modules
 .env
 .env.*
 !.env.example
+
+# Dev-only preview fixtures (stripped from release bundles by __DEV__)
+dev-fixtures
