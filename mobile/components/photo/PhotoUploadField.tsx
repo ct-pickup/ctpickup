@@ -9,7 +9,8 @@ import PhotoHeader, { type PhotoAspect } from "./PhotoHeader";
 
 /**
  * Optional photo picker: resize to 1600px JPEG 0.8, upload with progress, and
- * report the public URL. Errors are shown inline and in an alert.
+ * report the public URL. Errors are shown inline and in an alert. With
+ * `preview={false}` only the buttons render, for screens that already show the photo.
  */
 export default function PhotoUploadField({
   bucket,
@@ -17,6 +18,8 @@ export default function PhotoUploadField({
   label,
   hint,
   aspect = "wide",
+  preview = true,
+  addLabel = "Choose photo",
   value,
   onChange,
   onBusyChange,
@@ -26,6 +29,8 @@ export default function PhotoUploadField({
   label: string;
   hint?: string;
   aspect?: PhotoAspect;
+  preview?: boolean;
+  addLabel?: string;
   value: string | null;
   onChange: (url: string | null) => void | Promise<void>;
   onBusyChange?: (busy: boolean) => void;
@@ -82,18 +87,22 @@ export default function PhotoUploadField({
 
   return (
     <View style={styles.root}>
-      <Text style={styles.label}>{label}</Text>
-      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+      {preview ? (
+        <>
+          <Text style={styles.label}>{label}</Text>
+          {hint ? <Text style={styles.hint}>{hint}</Text> : null}
 
-      <Pressable
-        onPress={() => void choose()}
-        disabled={busy}
-        accessibilityRole="button"
-        accessibilityLabel={value ? `Change ${label.toLowerCase()}` : label}
-        style={styles.frame}
-      >
-        <PhotoHeader uri={value} aspect={aspect} chalkSize="sm" accessibilityLabel={label} />
-      </Pressable>
+          <Pressable
+            onPress={() => void choose()}
+            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel={value ? `Change ${label.toLowerCase()}` : label}
+            style={styles.frame}
+          >
+            <PhotoHeader uri={value} aspect={aspect} chalkSize="sm" accessibilityLabel={label} />
+          </Pressable>
+        </>
+      ) : null}
 
       {busy ? (
         <View style={styles.progressRow} accessibilityLiveRegion="polite">
@@ -122,7 +131,7 @@ export default function PhotoUploadField({
           accessibilityRole="button"
           style={({ pressed }) => [styles.btn, (pressed || busy) && { opacity: 0.6 }]}
         >
-          <Text style={styles.btnText}>{value ? "Change photo" : "Choose photo"}</Text>
+          <Text style={styles.btnText}>{value ? "Change photo" : addLabel}</Text>
         </Pressable>
         {value ? (
           <Pressable

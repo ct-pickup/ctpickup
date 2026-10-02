@@ -18,7 +18,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { radius, themeColor, useThemedStyles } from "@/theme";
 import {
   clearStoredPin,
   isValidPinFormat,
@@ -339,7 +339,7 @@ function make_styles() {
     width: "100%",
     maxWidth: 360,
     padding: 20,
-    borderRadius: 999,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: themeColor().line,
     backgroundColor: themeColor().bg,

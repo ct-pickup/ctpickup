@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { siteOrigin } from "@/lib/env";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -17,7 +18,8 @@ import {
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
-import { PhotoHeader, useFieldPhotos } from "@/components/photo";
+import { PhotoHeader, PhotoUploadField, useFieldPhotos } from "@/components/photo";
+import { setRunFieldPhoto } from "@/lib/photoUpload";
 import { themeColor } from "@/theme";
 type SessionDetail = {
   id: string;
@@ -103,8 +105,10 @@ export default function SessionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { session, supabase } = useAuth();
+  const { isAdmin } = useProfileAdmin();
   const fieldPhotos = useFieldPhotos(id ? [id] : []);
-  const heroPhoto = id ? fieldPhotos[id] : undefined;
+  const [savedPhoto, setSavedPhoto] = useState<string | null | undefined>(undefined);
+  const heroPhoto = savedPhoto !== undefined ? savedPhoto ?? undefined : id ? fieldPhotos[id] : undefined;
 
   const [run, setRun] = useState<SessionDetail | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
@@ -159,6 +163,16 @@ export default function SessionDetailScreen() {
   const myUserId = session?.user?.id;
   const isHost = run?.created_by === myUserId;
   const isCompleted = run?.status === "completed";
+  const canEditPhoto = Boolean(myUserId) && (isHost || isAdmin);
+
+  const saveFieldPhoto = useCallback(
+    async (url: string | null) => {
+      if (!supabase || !id) throw new Error("Please sign in again to change the photo.");
+      await setRunFieldPhoto(supabase, id, url);
+      setSavedPhoto(url);
+    },
+    [supabase, id],
+  );
 
   const load = useCallback(async () => {
     if (!supabase || !id) return;
@@ -1007,6 +1021,21 @@ export default function SessionDetailScreen() {
           ) : null}
         </PhotoHeader>
 
+        {canEditPhoto ? (
+          <View style={s.photoControls}>
+            <PhotoUploadField
+              bucket="field-photos"
+              name="field"
+              label="Field photo"
+              aspect="wide"
+              preview={false}
+              addLabel="Add field photo"
+              value={heroPhoto ?? null}
+              onChange={saveFieldPhoto}
+            />
+          </View>
+        ) : null}
+
         {canVote ? (
           <Pressable
             onPress={openVoteModal}
@@ -1645,6 +1674,7 @@ function make_s() {
   errorText: { color: themeColor().muted, fontSize: 16, fontFamily: "Inter_400Regular" },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 16, marginBottom: 20 },
   hero: { marginHorizontal: -20, marginTop: -4, marginBottom: 16 },
+  photoControls: { marginTop: -4, marginBottom: 16 },
   heroTitle: { color: themeColor().onPhoto, fontSize: 24, fontFamily: "InstrumentSerif_400Regular" },
   heroSub: { color: themeColor().onPhoto, fontSize: 14, fontFamily: "Inter_500Medium", fontWeight: "500", marginTop: 4 },
   headerTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", flex: 1, textAlign: "center", marginHorizontal: 12 },

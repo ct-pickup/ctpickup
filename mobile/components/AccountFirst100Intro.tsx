@@ -2,7 +2,7 @@ import { appAsyncStorage } from "@/lib/appAsyncStorage";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { themeColor, useThemedStyles } from "@/theme";
+import { radius, themeColor, useThemedStyles } from "@/theme";
 /** AsyncStorage key — remove this value to show the intro again (or use `clearAccountFirstIntroFlag`). */
 export const ACCOUNT_FIRST_INTRO_STORAGE_KEY = "ctpickup_account_100_intro_v1";
 
@@ -199,7 +199,7 @@ function make_styles() {
     alignItems: "center",
     paddingVertical: 32,
     paddingHorizontal: 44,
-    borderRadius: 999,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: themeColor().pitch,
     backgroundColor: themeColor().pitchPanel,

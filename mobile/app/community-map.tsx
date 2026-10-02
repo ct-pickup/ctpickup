@@ -19,7 +19,7 @@ import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 
 import { PhotoHeader, useFieldPhotos } from "@/components/photo";
-import { themeColor, useThemedStyles } from "@/theme";
+import { radius, themeColor, useThemedStyles } from "@/theme";
 // ─── design tokens ──────────────────────────────────────────────────────────
 
 function TIER_COLORS(): Record<string, string> {
@@ -1279,7 +1279,7 @@ function SessionDetailCard({
 
   return (
     <View style={s.popupCard}>
-      <PhotoHeader uri={fieldPhotos[session.id]} style={s.popupPhoto} />
+      {fieldPhotos[session.id] ? <PhotoHeader uri={fieldPhotos[session.id]} style={s.popupPhoto} /> : null}
       <View style={s.popupHeader}>
         <View style={{ flex: 1, marginRight: 8 }}>
           <Text style={s.popupCity} numberOfLines={1}>
@@ -1852,7 +1852,7 @@ function make_s() {
     left: 14,
     right: 14,
     backgroundColor: themeColor().bg,
-    borderRadius: 999,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: themeColor().overlay,
     padding: 20,

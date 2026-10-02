@@ -605,7 +605,9 @@ export default function HomeScreen() {
       <SectionLabel>Your Next Match</SectionLabel>
       {nextMatch ? (
         <View style={[styles.matchCard, { borderLeftColor: isDiamondRun ? themeColor().line : themeColor().pitch }]}>
-          <PhotoHeader uri={fieldPhotos[nextMatch.id]} style={styles.matchPhoto} />
+          {fieldPhotos[nextMatch.id] ? (
+            <PhotoHeader uri={fieldPhotos[nextMatch.id]} style={styles.matchPhoto} />
+          ) : null}
           <TierBadge tier={nextMatch.min_tier} />
           <Text style={styles.matchTitle} numberOfLines={1}>
             {nextMatch.title || "Pickup run"}

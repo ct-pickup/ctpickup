@@ -541,7 +541,9 @@ export default function SessionsTabScreen() {
                         accessibilityRole="button"
                         accessibilityLabel={`Live session ${row.title || "Session"}`}
                       >
-                        <PhotoHeader uri={fieldPhotos[row.run_id]} style={styles.cardPhoto} />
+                        {fieldPhotos[row.run_id] ? (
+                          <PhotoHeader uri={fieldPhotos[row.run_id]} style={styles.cardPhoto} />
+                        ) : null}
                         <View style={styles.liveTop}>
                           <LivePulseDot />
                           <Text style={styles.liveTime}>{fmtStarted(row.start_at)}</Text>
@@ -632,7 +634,9 @@ export default function SessionsTabScreen() {
                       }
                       style={styles.card}
                     >
-                      <PhotoHeader uri={fieldPhotos[row.run_id]} style={styles.cardPhoto} />
+                      {fieldPhotos[row.run_id] ? (
+                        <PhotoHeader uri={fieldPhotos[row.run_id]} style={styles.cardPhoto} />
+                      ) : null}
                       <Text style={styles.cardMeta}>{fmtDateTime(row.start_at)}</Text>
                       <Text style={styles.cardTitle} numberOfLines={2}>
                         {row.title || "Session"}

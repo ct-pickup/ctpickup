@@ -4,6 +4,7 @@ import { useColorScheme } from "react-native";
 import {
   darkTheme,
   lightTheme,
+  radius,
   themeForScheme,
   type Theme,
   type ThemeColors,
@@ -46,5 +47,5 @@ export function useThemedStyles(refresh: () => void): void {
   }, [theme, refresh]);
 }
 
-export { darkTheme, lightTheme };
+export { darkTheme, lightTheme, radius };
 export type { Theme, ThemeColors };

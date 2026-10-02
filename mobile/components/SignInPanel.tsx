@@ -15,7 +15,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { themeColor, useThemedStyles } from "@/theme";
+import { radius, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
   Alert,
@@ -921,7 +921,7 @@ function make_styles() {
     marginTop: 20,
     padding: 20,
     paddingLeft: 24,
-    borderRadius: 999,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: themeColor().line,
     borderLeftWidth: 4,
@@ -931,7 +931,7 @@ function make_styles() {
   cardPremium: {
     padding: 24,
     paddingLeft: 28,
-    borderRadius: 999,
+    borderRadius: radius.card,
     borderColor: themeColor().line,
     backgroundColor: themeColor().card,
   },

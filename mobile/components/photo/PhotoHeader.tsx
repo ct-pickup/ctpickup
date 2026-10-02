@@ -18,7 +18,9 @@ const RATIOS: Record<PhotoAspect, number> = { wide: 16 / 9, tall: 4 / 3 };
 /**
  * Full-bleed photo with the shared treatment: grain overlay, and a bottom scrim
  * only when `children` (text) sit on the photo. Without a photo it renders a
- * pitchPanel block with a centered chalk circle. Children must use onPhoto.
+ * pitchPanel block with a centered chalk circle; lists should skip the header
+ * instead, so that fallback only shows on the session detail hero. Children
+ * must use onPhoto.
  */
 export default function PhotoHeader({
   uri,

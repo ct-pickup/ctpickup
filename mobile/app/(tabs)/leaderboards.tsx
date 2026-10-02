@@ -19,7 +19,7 @@ import {
 } from "react-native";
 
 import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
-import { themeColor, useThemedStyles } from "@/theme";
+import { radius, themeColor, useThemedStyles } from "@/theme";
 function TIER_COLORS(): Record<string, string> {
   return {
   diamond: themeColor().muted,
@@ -865,7 +865,7 @@ function make_styles() {
 
   /* hero */
   hero: {
-    borderRadius: 999,
+    borderRadius: radius.card,
     borderWidth: 1,
     padding: 16,
     flexDirection: "row",
