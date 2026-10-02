@@ -55,8 +55,13 @@ export async function fetchPlayerStars(
   return new Map(Array.from(cards, ([id, card]) => [id, card.star]));
 }
 
-export function formatTopPercent(percentile: number | null | undefined): string | null {
-  return percentile != null && Number.isFinite(percentile) ? `Top ${Math.max(1, Math.round(percentile))}%` : null;
+/** "Top X%" only for non-provisional players in the top half; otherwise null so callers show stars alone. */
+export function topPercentLabel(card: Pick<PlayerCard, "provisional" | "percentile"> | null | undefined): string | null {
+  if (!card || card.provisional) return null;
+  const pct = card.percentile;
+  if (pct == null || !Number.isFinite(pct)) return null;
+  const x = Math.max(1, Math.round(pct));
+  return x <= 50 ? `Top ${x}%` : null;
 }
 
 /** Host ratings are stored 1..5; players see them out of 100. */

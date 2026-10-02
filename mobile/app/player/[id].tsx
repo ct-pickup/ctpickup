@@ -10,7 +10,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { PhotoHeader } from "@/components/photo";
 import { StarRating } from "@/components/StarRating";
 import { fetchActionPhotoUrl } from "@/lib/photoUpload";
-import { fetchPlayerCard, formatTopPercent, hostScore, type PlayerCard } from "@/lib/starRatings";
+import { fetchPlayerCard, hostScore, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
 import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
@@ -634,7 +634,8 @@ export default function PlayerProfileScreen() {
     })();
   }
 
-  const topPercent = card ? formatTopPercent(card.percentile) : null;
+  const topPercent = topPercentLabel(card);
+  const verified = !!profile.verification_level && profile.verification_level !== "self";
 
   return (
     <>
@@ -676,6 +677,12 @@ export default function PlayerProfileScreen() {
         </View>
         <Text style={styles.heroLabel}>Full name</Text>
         <Text style={styles.displayName}>{profile.display_name}</Text>
+        {verified ? (
+          <View style={styles.verifiedBadge} accessibilityLabel="Verified">
+            <FontAwesome name="check" size={12} color={themeColor().pitchText} />
+            <Text style={styles.verifiedText}>Verified</Text>
+          </View>
+        ) : null}
         {followStatsLoading && followersCount == null && followingCount == null ? (
           <Text style={styles.followCountsMuted}>…</Text>
         ) : followersCount != null && followingCount != null ? (
@@ -1095,6 +1102,8 @@ function make_styles() {
     marginBottom: 4,
   },
   displayName: { fontSize: 24, ...headline, color: themeColor().text, textAlign: "center" },
+  verifiedBadge: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
+  verifiedText: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().pitchText },
   followCountsMuted: {
     marginTop: 8,
     fontSize: 13, fontFamily: "Inter_400Regular",

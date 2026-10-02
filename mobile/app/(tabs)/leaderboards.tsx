@@ -20,7 +20,7 @@ import {
 
 import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
 import { StarRating } from "@/components/StarRating";
-import { fetchPlayerCards, formatTopPercent, type PlayerCard } from "@/lib/starRatings";
+import { fetchPlayerCards, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
 type RegionFilter = "ALL" | "CT" | "NY" | "NJ" | "MD";
@@ -400,7 +400,7 @@ export default function LeaderboardsScreen() {
     if (myCard === null && starsLoading) {
       return <View style={[styles.hero, styles.heroSkeleton]} />;
     }
-    const topPct = formatTopPercent(myCard?.percentile);
+    const topPct = topPercentLabel(myCard);
 
     return (
       <View style={styles.hero}>

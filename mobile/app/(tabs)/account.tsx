@@ -15,7 +15,7 @@ import {
 import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
 import { getInstallationContext, resolveExpoPushTokenForApp, shouldRegisterPushToken } from "@/lib/pushToken";
 import { fetchMyRatingPoints, fetchPickupStanding, postMobilePushPreference, postMobilePushToken } from "@/lib/siteApi";
-import { fetchPlayerCard, formatStars, formatTopPercent, hostScore, type PlayerCard } from "@/lib/starRatings";
+import { fetchPlayerCard, formatStars, hostScore, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
 import * as ImagePicker from "expo-image-picker";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Notifications from "expo-notifications";
@@ -1673,7 +1673,7 @@ export default function AccountScreen() {
     (profile?.username ? `@${profile.username}` : "Player");
   const uname = (profile?.username ?? "").trim();
   const ratingCard = rating?.card ?? null;
-  const ratingTopPct = formatTopPercent(ratingCard?.percentile);
+  const ratingTopPct = topPercentLabel(ratingCard);
   const gamesPlayed = (winsCount ?? 0) + (lossesCount ?? 0);
   const winPct = gamesPlayed > 0 ? Math.round(((winsCount ?? 0) / gamesPlayed) * 100) : null;
   // Sessions: rated sessions (already loaded in loadStats).

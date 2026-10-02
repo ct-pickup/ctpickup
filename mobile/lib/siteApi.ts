@@ -624,6 +624,7 @@ export type PublicPlayerProfile = {
   plays_goalie: boolean | null;
   /** Hub region display name (e.g. Connecticut), derived server-side from ZIP / nearest venue. */
   region: string | null;
+  verification_level: string | null;
   primary_position: string | null;
   secondary_positions: string[];
   experience_level: string | null;
