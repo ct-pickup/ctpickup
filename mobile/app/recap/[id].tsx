@@ -49,7 +49,7 @@ export default function MatchRecapScreen() {
     }
     let cancelled = false;
     setLoading(true);
-    void fetchMatchRecap(supabase, uid, runId)
+    void fetchMatchRecap(supabase, uid, runId, session?.access_token ?? null)
       .then((r) => {
         if (cancelled) return;
         setLiveRecap(r);
@@ -65,7 +65,7 @@ export default function MatchRecapScreen() {
     return () => {
       cancelled = true;
     };
-  }, [fixture, isReady, supabase, uid, runId]);
+  }, [fixture, isReady, supabase, uid, runId, session?.access_token]);
 
   const recap: MatchRecap | null = fixture ? fixture.recap : liveRecap;
   const photo: string | null = fixture ? fixture.photo : (livePhotos[runId] ?? null);

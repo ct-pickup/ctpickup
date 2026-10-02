@@ -6,6 +6,7 @@ import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 import { ratingPoints } from "@/lib/ratings/points";
 import { isLegacyMobileClient, LEGACY_TIER_RATING_COLUMNS, legacyTierRowFields } from "@/lib/api/appVersion";
+import { loadRecordSummaries, summaryFor, type PlayerRecordSummary } from "@/lib/records/playerRecord";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -256,6 +257,21 @@ async function fetchSessionsLeaderboard(admin: SupabaseClient, region: string | 
   return { rows: out, error: null };
 }
 
+/** Sessions category for the new app: games played from posted results, 5 or more. */
+function sessionsFromRecords(
+  profiles: ProfileRow[],
+  records: Map<string, PlayerRecordSummary>,
+  region: string | null,
+): LeaderboardPlayerRow[] {
+  return profiles
+    .filter((p) => passesRegionFilter(p.nearest_venue, region))
+    .map((p) => ({ p, games: summaryFor(records, p.id).games }))
+    .filter(({ games }) => games >= 5)
+    .sort((a, b) => b.games - a.games)
+    .slice(0, 25)
+    .map(({ p, games }) => toLeaderboardRow(p, games));
+}
+
 async function fetchTournamentGoalNameCounts(admin: SupabaseClient): Promise<Map<string, number>> {
   const goalNameCount = new Map<string, number>();
   try {
@@ -290,6 +306,8 @@ type TierLeaderboardRow = {
   tier?: string;
   score?: number;
   reliability?: number;
+  /** Games played from posted results (new app only). */
+  games?: number;
   first_name: string | null;
   last_name: string | null;
   username: string | null;
@@ -423,6 +441,19 @@ export async function GET(req: Request) {
   let goals: LeaderboardPlayerRow[] = [];
   let tiers: TierLeaderboardRow[] = [];
 
+  // Records come from posted results for the new app; v1.3.5 keeps the stored counters below.
+  const legacyClient = isLegacyMobileClient(req);
+  let records: Map<string, PlayerRecordSummary> | null = null;
+  if (!legacyClient) {
+    try {
+      records = await loadRecordSummaries(admin);
+    } catch (err) {
+      console.log(`[api/${ROUTE}] records failed`, err);
+      logPublicApiRouteError(ROUTE, "records", err);
+      records = new Map();
+    }
+  }
+
   try {
     let profiles: ProfileRow[] = [];
     let hasWinLossColumns = false;
@@ -442,7 +473,24 @@ export async function GET(req: Request) {
     }
 
     try {
-      if (hasWinLossColumns) {
+      if (records) {
+        const recs = records;
+        const withRecords = profiles
+          .filter((p) => passesRegionFilter(p.nearest_venue, region))
+          .map((p) => ({ p, r: summaryFor(recs, p.id) }))
+          .filter(({ r }) => r.games >= 10);
+        wins = withRecords
+          .filter(({ r }) => r.wins > 0)
+          .sort((a, b) => b.r.wins - a.r.wins)
+          .slice(0, 25)
+          .map(({ p, r }) => toLeaderboardRow(p, r.wins, { games_played: r.games }));
+        win_rate = withRecords
+          .sort((a, b) => (b.r.win_pct ?? 0) - (a.r.win_pct ?? 0) || b.r.games - a.r.games)
+          .slice(0, 25)
+          .map(({ p, r }) =>
+            toLeaderboardRow(p, Math.round((r.win_pct ?? 0) * 1000) / 10, { win_rate: r.win_pct ?? 0, games_played: r.games }),
+          );
+      } else if (hasWinLossColumns) {
         wins = profiles
           .map((p) => {
             const w = Math.max(0, Math.trunc(Number(p.pickup_wins_count ?? 0)));
@@ -496,7 +544,9 @@ export async function GET(req: Request) {
     }
 
     try {
-      const { rows, error } = await fetchSessionsLeaderboard(admin, region);
+      const { rows, error } = records
+        ? { rows: sessionsFromRecords(profiles, records, region), error: null }
+        : await fetchSessionsLeaderboard(admin, region);
       sessions = rows;
       console.log(`[api/${ROUTE}] category=sessions`, { rows: sessions.length, supabaseError: error?.message ?? null });
       console.log("[leaderboards] category sessions result", sessions.length);
@@ -582,6 +632,10 @@ export async function GET(req: Request) {
     try {
       // TODO: Remove after v1.3.5 usage drops to near zero once the new build ships; target 2026-12-01.
       tiers = await fetchTierLeaderboard(admin, region, isLegacyMobileClient(req));
+      if (records) {
+        const recs = records;
+        tiers = tiers.map((t) => ({ ...t, games: summaryFor(recs, t.user_id).games }));
+      }
       console.log("[leaderboards] category tiers result", tiers.length);
     } catch (err) {
       console.log(`[api/${ROUTE}] category=tiers error`, err);

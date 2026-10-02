@@ -1,6 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { postPlayerProfileReportViaApi } from "@/lib/chatApi";
 import { displayRegionNameFromZip } from "@/lib/zipRegion";
+import { fetchMyRecord, fetchRecordSummary, winPercent } from "@/lib/playerRecord";
 import { fetchPlayerFollowStats, fetchPublicPlayerProfile, togglePlayerFollow, type PublicPlayerProfile } from "@/lib/siteApi";
 import { siteOrigin } from "@/lib/env";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -122,6 +123,7 @@ export default function PlayerProfileScreen() {
   const [games, setGames] = useState<number | null>(null);
   const [wins, setWins] = useState<number | null>(null);
   const [losses, setLosses] = useState<number | null>(null);
+  const [draws, setDraws] = useState<number | null>(null);
   const [winRatePct, setWinRatePct] = useState<number | null>(null);
   const [sessionsPlayed, setSessionsPlayed] = useState<number | null>(null);
   const [tournamentsPlayed, setTournamentsPlayed] = useState<number | null>(null);
@@ -264,31 +266,30 @@ export default function PlayerProfileScreen() {
       setSessionsPlayed(null);
       setTournamentsPlayed(null);
       try {
-        const [{ data: profileData, error: profileErr }, { data: assignments, error: assignmentsError }] =
+        const [{ data: profileData, error: profileErr }, { data: assignments, error: assignmentsError }, record] =
           await Promise.all([
             supabase
               .from("profiles")
-              .select("zip_code, pickup_wins_count, pickup_losses_count, current_streak, longest_streak")
+              .select("zip_code, current_streak, longest_streak")
               .eq("id", userId)
               .maybeSingle(),
             supabase.from("pickup_run_team_assignments").select("team,run_id").eq("user_id", userId).limit(2000),
+            !token
+              ? Promise.resolve(null)
+              : viewerId === userId
+                ? fetchMyRecord(token)
+                : fetchRecordSummary(token, userId),
           ]);
 
         if (cancelled) return;
 
         if (profileErr || !profileData) {
           setZipCode(null);
-          setGames(null);
-          setWins(null);
-          setLosses(null);
-          setWinRatePct(null);
           setCurrentStreak(null);
           setLongestStreak(null);
         } else {
           const row = profileData as {
             zip_code?: unknown;
-            pickup_wins_count?: unknown;
-            pickup_losses_count?: unknown;
             current_streak?: unknown;
             longest_streak?: unknown;
           };
@@ -302,16 +303,16 @@ export default function PlayerProfileScreen() {
               regionFromZip: zipRaw ? displayRegionNameFromZip(zipRaw) : null,
             });
           }
-          const w = Math.max(0, Math.trunc(Number(row.pickup_wins_count ?? 0)));
-          const l = Math.max(0, Math.trunc(Number(row.pickup_losses_count ?? 0)));
-          setWins(w);
-          setLosses(l);
-          const played = w + l;
-          setGames(played);
-          setWinRatePct(played > 0 ? Math.round((w / played) * 100) : null);
           setCurrentStreak(Math.max(0, Math.trunc(Number(row.current_streak ?? 0))));
           setLongestStreak(Math.max(0, Math.trunc(Number(row.longest_streak ?? 0))));
         }
+
+        // Record from posted results (draws count as games); same helper as the leaderboards.
+        setGames(record ? record.games : null);
+        setWins(record ? record.wins : null);
+        setLosses(record ? record.losses : null);
+        setDraws(record ? record.draws : null);
+        setWinRatePct(winPercent(record));
 
         const RSVP_PAGE = 1000;
         const rsvpRunIds: string[] = [];
@@ -450,7 +451,7 @@ export default function PlayerProfileScreen() {
 
             for (const row of rows) {
               const res = resultsByRunId.get(row.run_id) ?? null;
-              if (!res?.winning_team) continue;
+              if (!res) continue;
               if (res.player_of_day === userId) potd += 1;
               if (res.goalie_of_the_day === userId) gotd += 1;
               if (res.defender_of_day === userId) def += 1;
@@ -468,7 +469,7 @@ export default function PlayerProfileScreen() {
     return () => {
       cancelled = true;
     };
-  }, [isReady, supabase, userId]);
+  }, [isReady, supabase, userId, token, viewerId]);
 
   useEffect(() => {
     if (!isReady || !supabase || !userId || !viewerId || viewerId === userId) {
@@ -524,6 +525,7 @@ export default function PlayerProfileScreen() {
         const profileTeamByRun = new Map<string, Team>();
         const viewerTeamByRun = new Map<string, Team>();
         const winningByRun = new Map<string, Team>();
+        const resultRuns = new Set<string>();
 
         for (let i = 0; i < uniqueCompletedShared.length; i += CHUNK_RUNS) {
           const chunk = uniqueCompletedShared.slice(i, i + CHUNK_RUNS);
@@ -552,6 +554,7 @@ export default function PlayerProfileScreen() {
             for (const row of resRows as { run_id?: unknown; winning_team?: unknown }[]) {
               const rid = typeof row.run_id === "string" ? row.run_id : null;
               const wt = row.winning_team === "A" || row.winning_team === "B" || row.winning_team === "C" ? row.winning_team : null;
+              if (rid) resultRuns.add(rid);
               if (rid && wt) winningByRun.set(rid, wt);
             }
           }
@@ -572,9 +575,9 @@ export default function PlayerProfileScreen() {
             playedTogether += 1;
             continue;
           }
-          const wt = winningByRun.get(runId);
-          if (!wt) continue;
+          if (!resultRuns.has(runId)) continue;
           facedOff += 1;
+          const wt = winningByRun.get(runId);
           if (wt === vTeam) viewerWins += 1;
           else if (wt === pTeam) profileWins += 1;
         }
@@ -910,10 +913,8 @@ export default function PlayerProfileScreen() {
             <Text style={styles.valueLine}>
               <Text style={styles.valueK}>Tournaments</Text> {tournamentsPlayed == null ? "—" : tournamentsPlayed}
             </Text>
-            {/* Sessions from attended_count (authoritative pickup count) */}
             <Text style={styles.valueLine}>
-              <Text style={styles.valueK}>Sessions</Text>{" "}
-              {profile.attended_count != null ? profile.attended_count : "—"}
+              <Text style={styles.valueK}>Games</Text> {games == null ? "—" : games}
             </Text>
             {/* W/L record */}
             {games == null ? (
@@ -933,6 +934,11 @@ export default function PlayerProfileScreen() {
                 <Text style={styles.valueLine}>
                   <Text style={styles.valueK}>Wins</Text> {wins ?? 0}
                 </Text>
+                {draws ? (
+                  <Text style={styles.valueLine}>
+                    <Text style={styles.valueK}>Draws</Text> {draws}
+                  </Text>
+                ) : null}
                 <Text style={styles.valueLine}>
                   <Text style={styles.valueK}>Losses</Text> {losses ?? 0}
                 </Text>

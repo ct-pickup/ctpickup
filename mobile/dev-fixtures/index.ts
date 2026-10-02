@@ -5,6 +5,8 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Metro image assets */
 import { Image } from "react-native";
 
+import { formStrip } from "@/lib/season";
+
 export const FIXTURE_ID_PREFIX = "fixture-";
 
 export type FixturePerson = {
@@ -337,8 +339,9 @@ function season(variant: SeasonFixtureVariant) {
     wins: past.filter((g) => g.outcome === "W").length,
     losses: past.filter((g) => g.outcome === "L").length,
     draws: past.filter((g) => g.outcome === "D").length,
-    games: past.length,
+    games: past.filter((g) => g.outcome != null).length,
     potdCount: past.filter((g) => g.potd).length,
+    form: formStrip(past),
     points: hasPast ? 1240 : 0,
     card: hasPast ? { star: 3.5, provisional: false, percentile: 18 } : null,
     upcoming,

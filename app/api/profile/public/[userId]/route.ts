@@ -1,4 +1,5 @@
 import { isLegacyMobileClient, LEGACY_PROFILE_RATING_COLUMNS, legacyProfileFields } from "@/lib/api/appVersion";
+import { loadRecordSummaries, summaryFor, type PlayerRecordSummary } from "@/lib/records/playerRecord";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { displayRegionNameFromZip } from "@/lib/zipRegion";
 import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
@@ -108,6 +109,15 @@ export async function GET(req: Request, ctx: { params: Promise<{ userId: string 
     .eq("user_id", targetId)
     .maybeSingle<{ sessions: number | null; tier?: string | null; verification?: string | null }>();
 
+  let record: PlayerRecordSummary | null = null;
+  if (!legacy) {
+    try {
+      record = summaryFor(await loadRecordSummaries(admin, [targetId]), targetId);
+    } catch (e) {
+      console.error(`[api/${ROUTE}] record:`, e instanceof Error ? e.message : String(e));
+    }
+  }
+
   function ageFromDob(dob: string | null): number | null {
     if (!dob) return null;
     const birth = new Date(dob);
@@ -138,5 +148,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ userId: string 
     rating_sessions: rating?.sessions ?? 0,
     attended_count: typeof p.attended_count === "number" ? p.attended_count : null,
     ...(legacy ? legacyProfileFields(rating) : {}),
+    ...(record ? { record } : {}),
   });
 }

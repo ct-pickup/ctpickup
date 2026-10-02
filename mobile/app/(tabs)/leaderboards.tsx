@@ -62,7 +62,7 @@ type LeaderboardsPayload = {
 
 type RankedPlayer = {
   user_id: string;
-  sessions: number;
+  games: number;
   points: number;
   name: string;
   username: string | null;
@@ -237,7 +237,7 @@ export default function LeaderboardsScreen() {
         const username = typeof item.username === "string" ? item.username : null;
         rows.push({
           user_id: userId,
-          sessions: typeof item.sessions === "number" && Number.isFinite(item.sessions) ? item.sessions : 0,
+          games: typeof item.games === "number" && Number.isFinite(item.games) ? item.games : 0,
           points: typeof item.points === "number" && Number.isFinite(item.points) ? item.points : 0,
           name: [first, last].filter(Boolean).join(" ").trim() || username || "Player",
           username,
@@ -450,7 +450,7 @@ export default function LeaderboardsScreen() {
             <StarRating value={item.card.star} provisional={item.card.provisional} size="sm" style={styles.playerStars} />
           ) : null}
           <Text style={[styles.playerStats, mine && styles.onPanelText]} numberOfLines={1}>
-            {item.sessions} session{item.sessions === 1 ? "" : "s"}
+            {item.games} game{item.games === 1 ? "" : "s"}
           </Text>
         </View>
 

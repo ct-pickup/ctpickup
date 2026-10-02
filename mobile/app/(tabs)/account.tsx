@@ -14,6 +14,7 @@ import {
 } from "@/lib/profileIdentityFields";
 import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
 import { getInstallationContext, resolveExpoPushTokenForApp, shouldRegisterPushToken } from "@/lib/pushToken";
+import { fetchMyRecord, winPercent } from "@/lib/playerRecord";
 import { fetchMyRatingPoints, fetchPickupStanding, postMobilePushPreference, postMobilePushToken } from "@/lib/siteApi";
 import { fetchPlayerCard, formatStars, hostScore, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
 import * as ImagePicker from "expo-image-picker";
@@ -106,7 +107,7 @@ type ProfileRow = {
 };
 
 // Module-level cache — keeps the last loaded rating so re-mounts show it instantly.
-type RatingCache = { card: PlayerCard | null; sessions: number; points: number | null } | null;
+type RatingCache = { card: PlayerCard | null; points: number | null } | null;
 let _cachedRating: RatingCache = null;
 
 const PROFILE_SELECT_WITH_PUSH =
@@ -292,17 +293,15 @@ export default function AccountScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [rating, setRating] = useState<RatingCache>(_cachedRating);
-  const [winsCount, setWinsCount] = useState<number | null>(null);
-  const [lossesCount, setLossesCount] = useState<number | null>(null);
+  const [recordStats, setRecordStats] = useState<{ games: number; wins: number; winPct: number | null; motm: number } | null>(null);
   // MOTM count from pickup_run_results (player_of_day matches).
-  const [motmCount, setMotmCount] = useState<number | null>(null);
   const [recentSessions, setRecentSessions] = useState<
     Array<{
       run_id: string;
       start_at: string | null;
       title: string | null;
       location: string | null;
-      result: "Won" | "Lost" | "Completed" | null;
+      result: "Won" | "Lost" | "Draw" | "Completed" | null;
     }>
   >([]);
   const [hostRating, setHostRating] = useState<{
@@ -685,57 +684,38 @@ export default function AccountScreen() {
 
   // Profile-view stats.
   // - Stars and percentile come from player_cards; points are computed server side.
-  // - Avatar + wins/losses come from a profiles query (avatar_url not in the main profile select).
-  // - MOTM count comes from pickup_run_results where player_of_day = uid.
+  // - Avatar comes from a profiles query (avatar_url not in the main profile select).
+  // - Games, wins, win % and MOTM come from /api/player/record (computed from posted results).
   const loadStats = useCallback(async () => {
     const uid = session?.user?.id;
     if (!isReady || !supabase || !uid) return;
     try {
-      const [card, pointsRes, ownRes, extrasRes, motmRes] = await Promise.all([
+      const [card, pointsRes, extrasRes, record] = await Promise.all([
         fetchPlayerCard(supabase, uid),
         accessToken ? fetchMyRatingPoints(accessToken) : Promise.resolve(null),
-        supabase.from("player_ratings").select("sessions").eq("user_id", uid).maybeSingle(),
-        supabase.from("profiles").select("avatar_url,pickup_wins_count,pickup_losses_count").eq("id", uid).maybeSingle(),
-        supabase.from("pickup_run_results").select("player_of_day", { count: "exact", head: true }).eq("player_of_day", uid),
+        supabase.from("profiles").select("avatar_url").eq("id", uid).maybeSingle(),
+        accessToken ? fetchMyRecord(accessToken) : Promise.resolve(null),
       ]);
 
-      const ownSessions = Number((ownRes.data as { sessions: number | null } | null)?.sessions ?? 0);
       const resolved: RatingCache = {
         card,
-        sessions: pointsRes?.sessions ?? (Number.isFinite(ownSessions) ? ownSessions : 0),
         points: pointsRes?.points ?? null,
       };
       _cachedRating = resolved;
       setRating(resolved);
       AsyncStorage.setItem("cached_rating_info", JSON.stringify(resolved)).catch(() => {});
 
-      // Avatar + wins/losses (not in the main profile select).
-      let wins = 0;
-      let losses = 0;
       if (!extrasRes.error && extrasRes.data) {
-        const row = extrasRes.data as {
-          avatar_url: string | null;
-          pickup_wins_count: unknown;
-          pickup_losses_count: unknown;
-        };
-        setAvatarUrl(row.avatar_url?.trim() || null);
-        wins = Math.max(0, Math.trunc(Number(row.pickup_wins_count ?? 0)));
-        losses = Math.max(0, Math.trunc(Number(row.pickup_losses_count ?? 0)));
-        setWinsCount(wins);
-        setLossesCount(losses);
-      } else if (extrasRes.error) {
-        // Fallback: at least get the avatar.
-        const { data: av } = await supabase.from("profiles").select("avatar_url").eq("id", uid).maybeSingle();
-        setAvatarUrl((av as { avatar_url: string | null } | null)?.avatar_url?.trim() || null);
+        setAvatarUrl((extrasRes.data as { avatar_url: string | null }).avatar_url?.trim() || null);
       }
       setActionPhotoUrl(await fetchActionPhotoUrl(supabase, uid));
 
-      // MOTM count.
-      const motm = motmRes.count ?? 0;
-      setMotmCount(motm);
-
-      // Persist stats so next mount shows correct values instantly.
-      AsyncStorage.setItem("cached_stats", JSON.stringify({ wins, losses, motm })).catch(() => {});
+      // Record (games, wins, win %, POTD) from posted results via the shared record helper.
+      if (record) {
+        const stats = { games: record.games, wins: record.wins, winPct: winPercent(record), motm: record.potd_count };
+        setRecordStats(stats);
+        AsyncStorage.setItem("cached_record_stats", JSON.stringify(stats)).catch(() => {});
+      }
     } catch (e) {
       console.error("[account loadStats] exception", e);
     }
@@ -794,36 +774,17 @@ export default function AccountScreen() {
       }
 
       // Query 2: run details for those ids (+ team/result for win/loss badge).
-      const [
-        { data: runsData, error: runsError },
-        { data: assigns },
-        { data: results },
-      ] = await Promise.all([
+      const [{ data: runsData, error: runsError }, record] = await Promise.all([
         supabase
           .from("pickup_runs")
           .select("id,title,start_at,location_text,status")
           .in("id", runIds),
-        supabase
-          .from("pickup_run_team_assignments")
-          .select("run_id,team")
-          .eq("user_id", uid)
-          .in("run_id", runIds),
-        supabase
-          .from("pickup_run_results")
-          .select("run_id,winning_team")
-          .in("run_id", runIds),
+        accessToken ? fetchMyRecord(accessToken) : Promise.resolve(null),
       ]);
 
       console.log("my sessions runs:", runsData?.length, runsError);
 
-      const teamByRun = new Map<string, string>();
-      for (const a of (assigns ?? []) as Array<{ run_id: string; team: string }>) {
-        if (a?.run_id && a.team) teamByRun.set(a.run_id, a.team);
-      }
-      const winningByRun = new Map<string, string>();
-      for (const r of (results ?? []) as Array<{ run_id: string; winning_team: string | null }>) {
-        if (r?.run_id && r.winning_team) winningByRun.set(r.run_id, r.winning_team);
-      }
+      const outcomeByRun = new Map((record?.log ?? []).map((g) => [g.run_id, g.outcome] as const));
 
       const runById = new Map(
         ((runsData ?? []) as Array<{
@@ -840,12 +801,11 @@ export default function AccountScreen() {
         .map((id) => {
           const run = runById.get(id);
           if (!run) return null;
-          const team = teamByRun.get(id) ?? null;
-          const winning = winningByRun.get(id) ?? null;
-          let result: "Won" | "Lost" | "Completed" | null = null;
-          if (winning && team) {
-            result = team === winning ? "Won" : "Lost";
-          } else if (winning || run.status === "completed") {
+          const outcome = outcomeByRun.get(id) ?? null;
+          let result: "Won" | "Lost" | "Draw" | "Completed" | null = null;
+          if (outcome) {
+            result = outcome === "W" ? "Won" : outcome === "L" ? "Lost" : "Draw";
+          } else if (outcomeByRun.has(id) || run.status === "completed") {
             result = "Completed";
           }
           return {
@@ -865,7 +825,7 @@ export default function AccountScreen() {
       console.error("[account loadRecentSessions]", e);
       setRecentSessions([]);
     }
-  }, [isReady, supabase, session?.user?.id]);
+  }, [isReady, supabase, session?.user?.id, accessToken]);
 
   useFocusEffect(
     useCallback(() => {
@@ -952,21 +912,19 @@ export default function AccountScreen() {
       if (!raw) return;
       try {
         const parsed = JSON.parse(raw) as RatingCache;
-        if (parsed && typeof parsed.sessions === "number") {
+        if (parsed && typeof parsed === "object" && "points" in parsed) {
           _cachedRating = parsed;
           setRating(parsed);
         }
       } catch {}
     }).catch(() => {});
 
-    AsyncStorage.getItem("cached_stats").then((raw) => {
+    AsyncStorage.getItem("cached_record_stats").then((raw) => {
       if (!raw) return;
       try {
-        const parsed = JSON.parse(raw) as { wins?: number; losses?: number; motm?: number };
-        if (parsed && typeof parsed === "object") {
-          if (typeof parsed.wins === "number") setWinsCount(parsed.wins);
-          if (typeof parsed.losses === "number") setLossesCount(parsed.losses);
-          if (typeof parsed.motm === "number") setMotmCount(parsed.motm);
+        const parsed = JSON.parse(raw) as { games?: number; wins?: number; winPct?: number | null; motm?: number };
+        if (parsed && typeof parsed.games === "number" && typeof parsed.wins === "number" && typeof parsed.motm === "number") {
+          setRecordStats({ games: parsed.games, wins: parsed.wins, winPct: parsed.winPct ?? null, motm: parsed.motm });
         }
       } catch {}
     }).catch(() => {});
@@ -1721,12 +1679,10 @@ export default function AccountScreen() {
   const uname = (profile?.username ?? "").trim();
   const ratingCard = rating?.card ?? null;
   const ratingTopPct = topPercentLabel(ratingCard);
-  const gamesPlayed = (winsCount ?? 0) + (lossesCount ?? 0);
-  const winPct = gamesPlayed > 0 ? Math.round(((winsCount ?? 0) / gamesPlayed) * 100) : null;
-  // Sessions: rated sessions (already loaded in loadStats).
-  const sessionsCount = rating?.sessions ?? 0;
-  // MOTM: count from pickup_run_results (loaded in loadStats).
-  const potdCount = motmCount ?? 0;
+  // Games, win % (draws count as games), wins and MOTM all come from the record helper.
+  const sessionsCount = recordStats?.games ?? 0;
+  const winPct = recordStats?.winPct ?? null;
+  const potdCount = recordStats?.motm ?? 0;
   const points = rating?.points ?? null;
 
   const primaryPos = (profile?.primary_position ?? "").trim() || null;
@@ -1996,7 +1952,7 @@ export default function AccountScreen() {
               <View style={s.statCell}>
                 <FontAwesome name="futbol-o" size={20} color={themeColor().pitchText} />
                 <Text style={s.statValue}>{sessionsCount}</Text>
-                <Text style={s.statLabel}>Sessions</Text>
+                <Text style={s.statLabel}>Games</Text>
               </View>
               <View style={s.statCell}>
                 <FontAwesome name="percent" size={18} color={themeColor().pitchText} />
@@ -2005,7 +1961,7 @@ export default function AccountScreen() {
               </View>
               <View style={s.statCell}>
                 <FontAwesome name="trophy" size={20} color={themeColor().pitchText} />
-                <Text style={s.statValue}>{winsCount ?? 0}</Text>
+                <Text style={s.statValue}>{recordStats?.wins ?? 0}</Text>
                 <Text style={s.statLabel}>Wins</Text>
               </View>
               <View style={s.statCell}>

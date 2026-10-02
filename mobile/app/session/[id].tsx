@@ -37,6 +37,7 @@ import {
   type PostedResult,
   type ResultFormState,
 } from "@/lib/resultForm";
+import { invalidateMyRecord } from "@/lib/playerRecord";
 import { fmtPickupSlotChipEt, fmtPickupTimeEt } from "@/lib/pickup/runStartAtDisplay";
 import { setRunFieldPhoto } from "@/lib/photoUpload";
 import {
@@ -858,6 +859,7 @@ export default function SessionDetailScreen() {
         return;
       }
       setResultOpen(false);
+      invalidateMyRecord();
       Alert.alert(editing ? "Result updated" : "Result recorded!", editing ? "The score has been changed." : "Results and awards have been updated.");
       if (supabase && id) setPostedResult(await fetchPostedResult(supabase, id));
       await load();

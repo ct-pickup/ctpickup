@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { splitLocation, type GameCardRun, type RunCrowd } from "@/components/games/GameCards";
 import type { AvatarPerson } from "@/components/PlayerAvatar";
+import { fetchMyRecord, type PlayerRecord } from "@/lib/playerRecord";
 import { fetchMyRatingPoints } from "@/lib/siteApi";
 import { outcomeFor, privacyName, scoreLine, type Outcome, type TeamScores } from "@/lib/season";
 import { averageStars, fetchPlayerCards, type PlayerCard } from "@/lib/starRatings";
@@ -23,11 +24,15 @@ export type SeasonData = {
   draws: number;
   games: number;
   potdCount: number;
+  /** Last five decided games, oldest first. */
+  form: Outcome[];
   points: number | null;
   card: PlayerCard | null;
   upcoming: GameCardRun[];
   crowds: Map<string, RunCrowd>;
   past: PastGame[];
+  /** True when /api/player/record did not answer; the header and log are then empty. */
+  recordFailed?: boolean;
 };
 
 export type RecapTeam = { team: string; mine: boolean; won: boolean; players: string[] };
@@ -125,20 +130,14 @@ async function myConfirmedRunIds(supabase: SupabaseClient, uid: string): Promise
 
 export async function fetchSeason(supabase: SupabaseClient, uid: string, accessToken: string | null): Promise<SeasonData> {
   const now = Date.now();
-  const [profileRes, potdRes, pointsRes, runIds] = await Promise.all([
-    supabase.from("profiles").select("pickup_wins_count,pickup_losses_count,playing_position").eq("id", uid).maybeSingle(),
-    supabase.from("pickup_run_results").select("run_id", { count: "exact", head: true }).eq("player_of_day", uid),
+  const [profileRes, pointsRes, record, runIds] = await Promise.all([
+    supabase.from("profiles").select("playing_position").eq("id", uid).maybeSingle(),
     accessToken ? fetchMyRatingPoints(accessToken) : Promise.resolve(null),
+    accessToken ? fetchMyRecord(accessToken) : Promise.resolve<PlayerRecord | null>(null),
     myConfirmedRunIds(supabase, uid),
   ]);
   if (profileRes.error) console.warn("[season] profile:", profileRes.error.message);
-  if (potdRes.error) console.warn("[season] potd count:", potdRes.error.message);
-  const profile = profileRes.data as {
-    pickup_wins_count?: number | null;
-    pickup_losses_count?: number | null;
-    playing_position?: string | null;
-  } | null;
-  const position = profile?.playing_position?.trim() || null;
+  const position = (profileRes.data as { playing_position?: string | null } | null)?.playing_position?.trim() || null;
 
   const runs: RunRow[] = [];
   for (let i = 0; i < runIds.length; i += 200) {
@@ -155,54 +154,30 @@ export async function fetchSeason(supabase: SupabaseClient, uid: string, accessT
     })
     .sort((a, b) => String(a.start_at ?? "").localeCompare(String(b.start_at ?? "")))
     .slice(0, 8);
-  const allPast = runs
-    .filter((r) => isPast(r, now))
-    .sort((a, b) => String(b.start_at ?? "").localeCompare(String(a.start_at ?? "")));
-  const pastRuns = allPast.slice(0, PAST_LIMIT);
-  const pastIds = pastRuns.map((r) => r.id);
   const upcomingIds = upcomingRuns.map((r) => r.id);
 
-  const [assignRes, resultRes, scores, crowdRsvpRes] = await Promise.all([
-    pastIds.length
-      ? supabase.from("pickup_run_team_assignments").select("run_id,team").eq("user_id", uid).in("run_id", pastIds)
-      : Promise.resolve({ data: [], error: null }),
-    pastIds.length
-      ? supabase.from("pickup_run_results").select(RESULT_COLUMNS).in("run_id", pastIds)
-      : Promise.resolve({ data: [], error: null }),
-    fetchRunScores(supabase, pastIds),
-    upcomingIds.length
-      ? supabase
-          .from("pickup_run_rsvps")
-          .select("run_id,user_id")
-          .in("run_id", upcomingIds)
-          .in("status", ["confirmed", "pending_payment"])
-      : Promise.resolve({ data: [], error: null }),
-  ]);
-  if (assignRes.error) console.warn("[season] teams:", assignRes.error.message);
-  if (resultRes.error) console.warn("[season] results:", resultRes.error.message);
-  if (crowdRsvpRes.error) console.warn("[season] attendees:", crowdRsvpRes.error.message);
-
-  const teamByRun = new Map<string, string>();
-  for (const a of (assignRes.data ?? []) as Array<{ run_id: string; team: string }>) teamByRun.set(a.run_id, a.team);
-  const resultByRun = new Map<string, ResultRow>();
-  for (const r of (resultRes.data ?? []) as ResultRow[]) resultByRun.set(r.run_id, r);
-
-  const past: PastGame[] = pastRuns.map((r) => {
-    const res = resultByRun.get(r.id) ?? null;
-    const team = teamByRun.get(r.id) ?? null;
-    const runScores = scores.get(r.id) ?? null;
-    const { field, town } = splitLocation(r.location_text, r.title);
+  const past: PastGame[] = (record?.log ?? []).slice(0, PAST_LIMIT).map((g) => {
+    const { field, town } = splitLocation(g.location_text, g.title);
     return {
-      run_id: r.id,
-      start_at: r.start_at,
+      run_id: g.run_id,
+      start_at: g.start_at,
       field,
       town,
       position,
-      potd: res?.player_of_day === uid,
-      outcome: outcomeFor(team, res ? { winning_team: res.winning_team, scores: runScores } : null),
-      score: scoreLine(team, runScores),
+      potd: g.potd,
+      outcome: g.outcome,
+      score: g.score,
     };
   });
+
+  const crowdRsvpRes = upcomingIds.length
+    ? await supabase
+        .from("pickup_run_rsvps")
+        .select("run_id,user_id")
+        .in("run_id", upcomingIds)
+        .in("status", ["confirmed", "pending_payment"])
+    : { data: [], error: null };
+  if (crowdRsvpRes.error) console.warn("[season] attendees:", crowdRsvpRes.error.message);
 
   const crowdRows = (crowdRsvpRes.data ?? []) as Array<{ run_id: string; user_id: string }>;
   const crowdIds = Array.from(new Set(crowdRows.map((r) => r.user_id).filter(Boolean)));
@@ -231,11 +206,13 @@ export async function fetchSeason(supabase: SupabaseClient, uid: string, accessT
   }
 
   return {
-    wins: Math.max(0, Math.trunc(Number(profile?.pickup_wins_count ?? 0))),
-    losses: Math.max(0, Math.trunc(Number(profile?.pickup_losses_count ?? 0))),
-    draws: past.filter((g) => g.outcome === "D").length,
-    games: allPast.length,
-    potdCount: potdRes.count ?? past.filter((g) => g.potd).length,
+    wins: record?.wins ?? 0,
+    losses: record?.losses ?? 0,
+    draws: record?.draws ?? 0,
+    games: record?.games ?? 0,
+    potdCount: record?.potd_count ?? 0,
+    form: record?.form ?? [],
+    recordFailed: Boolean(accessToken) && !record,
     points: pointsRes ? pointsRes.points : null,
     card: cards.get(uid) ?? null,
     upcoming: upcomingRuns
@@ -254,6 +231,22 @@ export async function fetchSeason(supabase: SupabaseClient, uid: string, accessT
   };
 }
 
+/** The recap's result line is the match log row from the record helper; local rows only if it is unavailable. */
+function recapOutcome(
+  record: PlayerRecord | null,
+  runId: string,
+  myTeam: string | null,
+  res: ResultRow | null,
+  runScores: TeamScores | null,
+): { outcome: Outcome | null; score: string | null } {
+  const row = record?.log.find((g) => g.run_id === runId);
+  if (row) return { outcome: row.outcome, score: row.score };
+  return {
+    outcome: outcomeFor(myTeam, res ? { winning_team: res.winning_team, scores: runScores } : null),
+    score: scoreLine(myTeam, runScores),
+  };
+}
+
 const AWARD_LABELS: Array<[keyof ResultRow, string]> = [
   ["goalie_of_the_day", "Goalie of the Day"],
   ["defender_of_day", "Defender of the Day"],
@@ -261,14 +254,20 @@ const AWARD_LABELS: Array<[keyof ResultRow, string]> = [
   ["attacker_of_day", "Attacker of the Day"],
 ];
 
-export async function fetchMatchRecap(supabase: SupabaseClient, uid: string, runId: string): Promise<MatchRecap | null> {
-  const [runRes, resultRes, assignRes, meRes, scores, cards] = await Promise.all([
+export async function fetchMatchRecap(
+  supabase: SupabaseClient,
+  uid: string,
+  runId: string,
+  accessToken: string | null = null,
+): Promise<MatchRecap | null> {
+  const [runRes, resultRes, assignRes, meRes, scores, cards, record] = await Promise.all([
     supabase.from("pickup_runs").select(RUN_COLUMNS).eq("id", runId).maybeSingle(),
     supabase.from("pickup_run_results").select(RESULT_COLUMNS).eq("run_id", runId).maybeSingle(),
     supabase.from("pickup_run_team_assignments").select("user_id,team").eq("run_id", runId),
     supabase.from("profiles").select("playing_position").eq("id", uid).maybeSingle(),
     fetchRunScores(supabase, [runId]),
     fetchPlayerCards(supabase, [uid]),
+    accessToken ? fetchMyRecord(accessToken) : Promise.resolve<PlayerRecord | null>(null),
   ]);
   if (runRes.error) console.warn("[recap] run:", runRes.error.message);
   if (resultRes.error) console.warn("[recap] result:", resultRes.error.message);
@@ -309,8 +308,7 @@ export async function fetchMatchRecap(supabase: SupabaseClient, uid: string, run
     field,
     town,
     format: run.format,
-    outcome: outcomeFor(myTeam, res ? { winning_team: res.winning_team, scores: runScores } : null),
-    score: scoreLine(myTeam, runScores),
+    ...recapOutcome(record, runId, myTeam, res, runScores),
     myTeam,
     teams,
     potd: potdId ? { name: potdId === uid ? "You" : (nameById.get(potdId) ?? "Player"), isMe: potdId === uid } : null,

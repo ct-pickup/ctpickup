@@ -16,6 +16,7 @@ import {
   resultFormFromStored,
   type ResultFormState,
 } from "@/lib/resultForm";
+import { invalidateMyRecord } from "@/lib/playerRecord";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
@@ -534,6 +535,7 @@ export default function AdminRunResultScreen() {
       return;
     }
 
+    invalidateMyRecord();
     void hapticWhistle();
     Alert.alert("Posted", "Results posted and notifications sent.", [
       { text: "Done", onPress: () => router.back() },

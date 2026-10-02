@@ -10,7 +10,7 @@ import { usePlayedWith } from "@/components/pickup/PlayedWithRow";
 import { MatchLogRow, SeasonHeaderCard } from "@/components/season/SeasonPieces";
 import { toggleDevPreview, useDevPreview } from "@/lib/devPreview";
 import { fetchBestGames, type BestGame, type PlayedWithSummary } from "@/lib/matchApi";
-import { formStrip, groupByMonthEt } from "@/lib/season";
+import { groupByMonthEt } from "@/lib/season";
 import { fetchSeason, type PastGame, type SeasonData } from "@/lib/seasonData";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import type { DevFixtures, SeasonFixtureVariant } from "../../dev-fixtures";
@@ -28,6 +28,7 @@ const EMPTY_SEASON: SeasonData = {
   draws: 0,
   games: 0,
   potdCount: 0,
+  form: [],
   points: null,
   card: null,
   upcoming: [],
@@ -113,7 +114,7 @@ export default function GamesTabScreen() {
   );
   const playedWith: Record<string, PlayedWithSummary> = fixture ? fixture.playedWith : livePlayedWith.byRun;
 
-  const form = useMemo(() => formStrip(season.past, 5), [season.past]);
+  const form = season.form;
   const months = useMemo(() => groupByMonthEt<PastGame>(season.past), [season.past]);
 
   const reload = live.reload;
@@ -148,7 +149,9 @@ export default function GamesTabScreen() {
             </Text>
           </Pressable>
         ) : null}
-        {!fixture && live.error ? <Text style={styles.errorLine}>Your games did not load. Pull down to try again.</Text> : null}
+        {!fixture && (live.error || live.data.recordFailed) ? (
+          <Text style={styles.errorLine}>Your games did not load. Pull down to try again.</Text>
+        ) : null}
 
         {loading ? (
           <View style={styles.loadingWrap}>
