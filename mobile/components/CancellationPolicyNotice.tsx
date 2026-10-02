@@ -157,7 +157,7 @@ export function CancellationPolicyNotice() {
 function make_styles() {
   return StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: themeColor().scrim,
     alignItems: "center",
     justifyContent: "center",
