@@ -8,8 +8,8 @@ import {
 } from "@/components/layout";
 
 export const metadata: Metadata = {
-  title: "Esports legal documents | CT Pickup",
-  description: "Official Tournament Rules, Participant Terms, and Privacy & Publicity for CT Pickup esports.",
+  title: "Esports legal documents | Competitive Together",
+  description: "Official Tournament Rules, Participant Terms, and Privacy & Publicity for Competitive Together esports.",
 };
 
 export default function EsportsLegalIndexPage() {

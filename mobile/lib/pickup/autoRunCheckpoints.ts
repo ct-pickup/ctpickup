@@ -318,7 +318,7 @@ export async function processAutoPickupRun(
         } else {
           patch.open_tier_rank = nextOpen;
           run.open_tier_rank = nextOpen;
-          const txt = `CT Pickup: you’re invited to submit availability for an upcoming run. Details: ${process.env.NEXT_PUBLIC_SITE_URL || ""}/pickup`;
+          const txt = `Competitive Together: you’re invited to submit availability for an upcoming run. Details: ${process.env.NEXT_PUBLIC_SITE_URL || ""}/pickup`;
           await sendPickupInviteSms(inv.newlyInvited, txt);
           messages.push(
             `24h checkpoint: expanded open_tier_rank to ${nextOpen}; ${inv.newlyInvited.length} new invites (SMS to numbers on file).`,
@@ -418,7 +418,7 @@ export async function processAutoPickupRun(
             .eq("id", runId);
           if (!up.error) {
             run.open_tier_rank = nextOpen;
-            const txt = `CT Pickup: you’re invited to submit availability for an upcoming run. Details: ${process.env.NEXT_PUBLIC_SITE_URL || ""}/pickup`;
+            const txt = `Competitive Together: you’re invited to submit availability for an upcoming run. Details: ${process.env.NEXT_PUBLIC_SITE_URL || ""}/pickup`;
             await sendPickupInviteSms(inv.newlyInvited, txt);
             messages.push(
               `12h checkpoint: expanded open_tier_rank to ${nextOpen}; ${inv.newlyInvited.length} new invites.`,

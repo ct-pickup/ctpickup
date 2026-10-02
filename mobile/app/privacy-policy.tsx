@@ -1,6 +1,7 @@
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { LEGAL_POLICY_LAST_UPDATED } from "@/lib/cancellationPolicyCopy";
 import { headline, themeColor, useThemedStyles } from "@/theme";
 const SUPPORT_EMAIL = "pickupct@gmail.com";
 
@@ -19,7 +20,7 @@ const POLICY_POINTS: PolicyPoint[] = [
   {
     title: "Data we collect",
     body:
-      "We collect information you provide when you use CT Pickup: your name, email, Instagram handle, playing position, ZIP code, nearest venue preference, and reliability score (based on attendance). We also collect account activity such as event registrations and chat messages you send within the app.",
+      "We collect information you provide when you use Competitive Together (operated by CT Pickup LLC): your name, email, Instagram handle, playing position, ZIP code, nearest venue preference, and reliability score (based on attendance). We also collect account activity such as event registrations and chat messages you send within the app.",
   },
   {
     title: "How we use your information",
@@ -29,7 +30,7 @@ const POLICY_POINTS: PolicyPoint[] = [
   {
     title: "Third-party processors",
     body:
-      "We use trusted service providers to run CT Pickup. Each processes data only as needed to provide their service:",
+      "We use trusted service providers to run Competitive Together. Each processes data only as needed to provide their service:",
     links: [
       {
         label: "Stripe — payment processing",
@@ -80,12 +81,12 @@ const POLICY_POINTS: PolicyPoint[] = [
   {
     title: "Account deletion",
     body:
-      "You can delete your account at any time. Go to Profile → scroll to bottom → Delete Account. This permanently removes all your data from CT Pickup.",
+      "You can delete your account at any time. Go to Profile → scroll to bottom → Delete Account. This permanently removes all your data from Competitive Together.",
   },
   {
     title: "Children",
     body:
-      "CT Pickup is for users 13 and older. We do not knowingly collect data from children under 13. If you believe a child has provided information, contact us at pickupct@gmail.com.",
+      "Competitive Together is for users 13 and older. We do not knowingly collect data from children under 13. If you believe a child has provided information, contact us at pickupct@gmail.com.",
   },
   {
     title: "Content moderation",
@@ -129,7 +130,8 @@ export default function PrivacyPolicyScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.docTitle}>Privacy Policy</Text>
-        <Text style={styles.docSubtitle}>How CT Pickup collects, uses, and protects your information.</Text>
+        <Text style={styles.docSubtitle}>How Competitive Together collects, uses, and protects your information.</Text>
+        <Text style={styles.lastUpdated}>{LEGAL_POLICY_LAST_UPDATED}</Text>
 
         <View style={styles.list}>
           {POLICY_POINTS.map((p) => (
@@ -166,6 +168,11 @@ function make_styles() {
     color: themeColor().muted,
     fontSize: 14, fontFamily: "Inter_400Regular",
     lineHeight: 20,
+    marginBottom: 4,
+  },
+  lastUpdated: {
+    color: themeColor().muted,
+    fontSize: 13, fontFamily: "Inter_400Regular",
     marginBottom: 24,
   },
   list: { gap: 12 },

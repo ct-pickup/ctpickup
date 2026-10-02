@@ -9,16 +9,16 @@ export const dynamic = "force-dynamic";
 const canonical = `${SITE_ORIGIN}/after-login`;
 
 export const metadata: Metadata = {
-  title: "CT Pickup member hub | ctpickup.net",
+  title: "Competitive Together member hub | ctpickup.net",
   description:
-    "Sign in to CT Pickup at ctpickup.net — your hub for Connecticut pickup soccer: games, tournaments, training, and community.",
+    "Sign in to Competitive Together at ctpickup.net — your hub for pickup soccer: games, tournaments, training, and community.",
   alternates: { canonical },
   openGraph: {
-    title: "CT Pickup member hub | ctpickup.net",
+    title: "Competitive Together member hub | ctpickup.net",
     description:
-      "Sign in to CT Pickup — your hub for Connecticut pickup soccer and community.",
+      "Sign in to Competitive Together — your hub for pickup soccer and community.",
     url: canonical,
-    siteName: "CT Pickup",
+    siteName: "Competitive Together",
     type: "website",
   },
   robots: { index: true, follow: true },

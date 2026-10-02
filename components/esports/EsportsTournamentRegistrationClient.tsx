@@ -665,7 +665,7 @@ export function EsportsTournamentRegistrationClient({ tournament }: Props) {
         </h2>
         <p className="text-small leading-relaxed text-muted">
           By registering, you agree that we may send tournament-related text messages to the mobile number
-          on your CT Pickup account. These messages can include group-stage assignments, opponent
+          on your Competitive Together account. These messages can include group-stage assignments, opponent
           information, match times, schedule updates, check-in reminders, reporting instructions, and other
           key logistics—sometimes in addition to or instead of the website. They are for running the
           tournament, not marketing. Message and data rates may apply. Details:{"  "}

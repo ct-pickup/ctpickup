@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     if ("ids" in adminResult && adminResult.ids.length > 0) {
       await sendPushToUsers(admin, adminResult.ids, {
         title: "New Member 🎉",
-        body: `${name} just joined CT Pickup.`,
+        body: `${name} just joined Competitive Together.`,
         data: { screen: "admin/members" },
       });
     }

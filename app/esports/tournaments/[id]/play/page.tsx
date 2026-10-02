@@ -20,7 +20,7 @@ type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  return { title: `Play | Tournament ${id} | Esports | CT Pickup` };
+  return { title: `Play | Tournament ${id} | Esports | Competitive Together` };
 }
 
 export default async function EsportsTournamentPlayPage({ params }: Props) {

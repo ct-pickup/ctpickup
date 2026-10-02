@@ -74,7 +74,7 @@ export async function GET(req: Request) {
     if (list.length) {
       await sendPushToUsers(admin, list, {
         title: "Tournament starts soon",
-        body: `Your CT Pickup tournament starts in about 24 hours. ${String((t as { title?: string }).title || "").trim()}`,
+        body: `Your Competitive Together tournament starts in about 24 hours. ${String((t as { title?: string }).title || "").trim()}`,
         data: { kind: "tournament_starts_soon", tournament_id: tid },
       });
     }

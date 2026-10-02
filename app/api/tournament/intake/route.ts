@@ -66,7 +66,7 @@ function levelVerdict(level?: string): { ok: boolean; unclear: boolean; reason?:
     return {
       ok: false,
       unclear: false,
-      reason: `CT Pickup tournaments are intended for college/former college, high-level club (ECNL, MLS Next), and varsity players. If you do not meet eligibility, email ${SUPPORT_EMAIL_ADDRESS} and get a referral from a player. Most likely you will be able to play. No promises.`,
+      reason: `Competitive Together tournaments are intended for college/former college, high-level club (ECNL, MLS Next), and varsity players. If you do not meet eligibility, email ${SUPPORT_EMAIL_ADDRESS} and get a referral from a player. Most likely you will be able to play. No promises.`,
     };
   }
 
@@ -163,7 +163,7 @@ export async function POST(req: Request) {
     const openai = getOpenAI();
 
     const developer = [
-      "You are CT Pickup's Tournament Intake assistant.",
+      "You are Competitive Together's Tournament Intake assistant.",
       "Ask ONE question at a time and fill collected_fields based on the user's answer.",
       "Required: full_name, age, instagram, level, phone, availability.",
       "Optional: messaging_app (iMessage/WhatsApp/Other) — capture it if the user includes it.",

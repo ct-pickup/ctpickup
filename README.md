@@ -83,7 +83,7 @@ Server-side SMS lives under `lib/twilio/` with webhooks at `POST /api/twilio/inb
 
 ### Supabase Auth email (OTP / deliverability)
 
-Sign-in uses an **8-digit email code**. Configure **SMTP** (e.g. Resend), **from name/address** (`CT Pickup` / `login@ctpickup.net`), and **email templates** in the Supabase Dashboard. See [`docs/supabase-auth-email.md`](./docs/supabase-auth-email.md) for template examples and spam/deliverability notes.
+Sign-in uses an **8-digit email code**. Configure **SMTP** (e.g. Resend), **from name/address** (`Competitive Together` / `login@ctpickup.net`), and **email templates** in the Supabase Dashboard. See [`docs/supabase-auth-email.md`](./docs/supabase-auth-email.md) for template examples and spam/deliverability notes.
 
 ### Supabase migrations
 

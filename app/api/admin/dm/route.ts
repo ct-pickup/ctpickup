@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 
 function displayNameFromProfile(p: { first_name?: string | null; last_name?: string | null } | null): string {
   const n = `${String(p?.first_name || "").trim()} ${String(p?.last_name || "").trim()}`.trim();
-  return n || "CT Pickup";
+  return n || "Competitive Together";
 }
 
 export async function GET(req: Request) {
@@ -136,7 +136,7 @@ export async function POST(req: Request) {
   };
 
   const pushTitle = truncatePushBody(row.sender_display_name || adminTitle, 80);
-  const pushBody = "You have a new message from CT Pickup";
+  const pushBody = "You have a new message from Competitive Together";
   await sendPushToUsers(admin, [target_user_id], {
     title: pushTitle,
     body: pushBody,

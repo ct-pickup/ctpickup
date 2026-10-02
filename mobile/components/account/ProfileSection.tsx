@@ -294,7 +294,7 @@ export function ProfileSection({
         ) : String(profileZipCode ?? "").replace(/\D/g, "").slice(0, 5).length === 5 && hubVenueResolveDone ? (
           <Text style={styles.zipNearestHint}>{ACCOUNT_NO_HUB_NEAR_ZIP_MSG}</Text>
         ) : (
-          <Text style={styles.regionMuted}>No CT Pickup hub on file for this profile.</Text>
+          <Text style={styles.regionMuted}>No Competitive Together hub on file for this profile.</Text>
         )}
 
         <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Username</Text>

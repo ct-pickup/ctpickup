@@ -125,7 +125,7 @@ export async function POST(req: Request) {
               currency: "usd",
               unit_amount: ESPORTS_ENTRY_FEE_CENTS,
               product_data: {
-                name: `CT Pickup Esports entry — ${title}`,
+                name: `Competitive Together Esports entry — ${title}`,
                 description: ESPORTS_ENTRY_FEE_STRIPE_DESCRIPTION,
               },
             },

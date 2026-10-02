@@ -1,4 +1,4 @@
-/** Canonical CT Pickup venue list for Distance Matrix destinations (display + routing). */
+/** Canonical Competitive Together venue list for Distance Matrix destinations (display + routing). */
 export type CtPickupVenue = {
   venue: string;
   address: string;

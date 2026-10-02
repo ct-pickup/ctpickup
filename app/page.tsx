@@ -7,16 +7,16 @@ import DashboardWelcomeExperience from "@/components/dashboard/DashboardWelcomeE
 const canonical = `${SITE_ORIGIN}/`;
 
 export const metadata: Metadata = {
-  title: "CT Pickup | Connecticut competitive pickup soccer — ctpickup.net",
+  title: "Competitive Together | Pickup soccer and tournaments — ctpickup.net",
   description:
-    "CT Pickup at ctpickup.net — competitive pickup soccer in Connecticut. Join games, see what’s upcoming, and connect with the community.",
+    "Competitive Together at ctpickup.net — competitive pickup soccer. Join games, see what’s upcoming, and connect with the community.",
   alternates: { canonical },
   openGraph: {
-    title: "CT Pickup | Connecticut competitive pickup soccer",
+    title: "Competitive Together | Pickup soccer and tournaments",
     description:
-      "Find competitive pickup soccer in Connecticut. Join games and see what’s upcoming at ctpickup.net.",
+      "Find competitive pickup soccer near you. Join games and see what’s upcoming at ctpickup.net.",
     url: canonical,
-    siteName: "CT Pickup",
+    siteName: "Competitive Together",
     type: "website",
   },
   robots: { index: true, follow: true },

@@ -1,5 +1,5 @@
 /**
- * CT Pickup theme. Single source of truth for color, type, and radius.
+ * Competitive Together theme. Single source of truth for color, type, and radius.
  * Light is the default. Dark values apply when the user picks Dark, or Match system on a dark phone.
  * Hex and rgba belong in this file only.
  */

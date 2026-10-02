@@ -3,7 +3,7 @@ import { siteOrigin } from "@/lib/env";
 
 export { pickupPublicPayloadMatchesRunId, pickupPublicPayloadRunId } from "@/lib/pickup/pickupPublicPayload";
 
-/** Authenticated pickup RSVP (same contract as the CT Pickup API server — no in-app browser except optional Stripe checkout URL). */
+/** Authenticated pickup RSVP (same contract as the Competitive Together API server — no in-app browser except optional Stripe checkout URL). */
 export async function postPickupRsvp(
   accessToken: string,
   runId: string,

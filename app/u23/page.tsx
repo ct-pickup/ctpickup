@@ -25,7 +25,7 @@ export default function U23Page() {
     },
     {
       title: "Exposure",
-      body: "Increased visibility through the CT Pickup network, including runs, staff, coaches, and affiliated teams.",
+      body: "Increased visibility through the Competitive Together network, including runs, staff, coaches, and affiliated teams.",
     },
   ];
 
@@ -38,7 +38,7 @@ export default function U23Page() {
 
       <section className="mt-4 grid gap-5 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
         <Panel className="p-6 md:p-8 lg:p-9">
-          <SectionEyebrow>CT Pickup</SectionEyebrow>
+          <SectionEyebrow>Competitive Together</SectionEyebrow>
 
           <div className="mt-5 space-y-5">
             <h1 className="max-w-3xl text-h1 font-serif font-semibold text-ink md:text-display">
@@ -46,7 +46,7 @@ export default function U23Page() {
             </h1>
 
             <p className="max-w-2xl text-body leading-7 text-muted md:text-h3 font-serif">
-              A competitive U23 team formed through the CT Pickup network, built for
+              A competitive U23 team formed through the Competitive Together network, built for
               high-level matches, structured training, and clear standards.
             </p>
 
@@ -99,7 +99,7 @@ export default function U23Page() {
             <p className="text-small font-medium text-ink md:text-body">
               U23 Select Team, 2025
             </p>
-            <p className="text-caption text-muted md:text-small">Built through CT Pickup.</p>
+            <p className="text-caption text-muted md:text-small">Built through Competitive Together.</p>
           </div>
         </Panel>
       </section>

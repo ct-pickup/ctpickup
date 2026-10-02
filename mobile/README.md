@@ -1,4 +1,4 @@
-# CT Pickup — iOS / native (Expo)
+# Competitive Together — iOS / native (Expo)
 
 Companion app for **pickup**. It shares your Supabase email OTP login with the website and registers **Apple push** tokens via the Next.js API (Expo → APNs). There is **no Twilio/SMS** in this client.
 

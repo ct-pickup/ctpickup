@@ -95,7 +95,7 @@ export default function UpdatePage() {
         />
         <h1 className="text-h2 font-serif font-semibold">Update received</h1>
         <p className="mt-3 text-muted">
-          We’ve logged your change request. A CT Pickup member will review it soon.
+          We’ve logged your change request. A Competitive Together member will review it soon.
         </p>
 
         <div className="mt-6 rounded-card border p-4 space-y-2">

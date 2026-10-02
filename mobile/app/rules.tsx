@@ -26,13 +26,13 @@ const RULES: Rule[] = [
     number: 2,
     title: "Community Over Competition",
     body:
-      "We compete hard, but we never lose sight of why we're here. CT Pickup is built on connection, growth, and shared love for the game. The community comes first; the result comes second.",
+      "We compete hard, but we never lose sight of why we're here. Competitive Together is built on connection, growth, and shared love for the game. The community comes first; the result comes second.",
   },
   {
     number: 3,
     title: "High Intensity Is Required",
     body:
-      "Every player is expected to bring full effort and commitment. CT Pickup is not a casual kickaround. If you're not ready to compete at a high level, this isn't the right environment for you.",
+      "Every player is expected to bring full effort and commitment. Competitive Together is not a casual kickaround. If you're not ready to compete at a high level, this isn't the right environment for you.",
   },
   {
     number: 4,
@@ -62,7 +62,7 @@ const RULES: Rule[] = [
     number: 8,
     title: "No Offsides",
     body:
-      "Offsides are not enforced at CT Pickup. The game flows without stoppage so we can keep the pace high and play continuous, competitive football.",
+      "Offsides are not enforced at Competitive Together. The game flows without stoppage so we can keep the pace high and play continuous, competitive football.",
   },
   {
     number: 9,
@@ -93,13 +93,13 @@ const RULES: Rule[] = [
     number: 13,
     title: "Follow Staff Decisions",
     body:
-      "CT Pickup staff have the final say on all matters during a session — team balance, conduct, eligibility, and discipline. Disagreements should be handled respectfully, and staff decisions are final.",
+      "Competitive Together staff have the final say on all matters during a session — team balance, conduct, eligibility, and discipline. Disagreements should be handled respectfully, and staff decisions are final.",
   },
   {
     number: 14,
     title: "Protect the Standard",
     body:
-      "CT Pickup exists to maintain a high standard of play, attitude, and respect. Anyone who threatens that standard — through poor sportsmanship, dangerous play, or disregard for the rules — will be removed.",
+      "Competitive Together exists to maintain a high standard of play, attitude, and respect. Anyone who threatens that standard — through poor sportsmanship, dangerous play, or disregard for the rules — will be removed.",
   },
   {
     number: 15,
@@ -111,13 +111,13 @@ const RULES: Rule[] = [
     number: 16,
     title: "Eligibility, Age, and Participation",
     body:
-      "All participants must be at least 13 years old. Players under 18 must have parental or guardian consent. Each participant must complete the CT Pickup waiver before stepping onto the pitch.",
+      "All participants must be at least 13 years old. Players under 18 must have parental or guardian consent. Each participant must complete the Competitive Together waiver before stepping onto the pitch.",
   },
   {
     number: 17,
     title: "Eligibility and Accountability",
     body:
-      "By participating, you confirm that you've read and agree to all CT Pickup rules and the Liability Waiver & Participation Agreement. Repeated violations of any rule may result in suspension or permanent removal from the platform.",
+      "By participating, you confirm that you've read and agree to all Competitive Together rules and the Liability Waiver & Participation Agreement. Repeated violations of any rule may result in suspension or permanent removal from the platform.",
   },
 ];
 
@@ -133,7 +133,7 @@ export default function RulesScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPad }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.docTitle}>CT Pickup Rules</Text>
+        <Text style={styles.docTitle}>Competitive Together Rules</Text>
         <Text style={styles.docSubtitle}>
           The standard we play by. Read them. Live them. Protect them.
         </Text>

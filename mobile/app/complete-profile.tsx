@@ -323,7 +323,7 @@ export default function CompleteProfileScreen() {
     setSubmitError(null);
     setAgeError(null);
     if (!ageConfirmed) {
-      const m = "You must be 13 or older to use CT Pickup";
+      const m = "You must be 13 or older to use Competitive Together";
       setAgeError(m);
       return;
     }

@@ -30,7 +30,7 @@ const SLIDES: Slide[] = [
   {
     kind: "logo",
     title: `Welcome to ${PRODUCT_NAME}`,
-    body: "Competitive pickup soccer across NY, CT, NJ, and MD. Find your run, join the community.",
+    body: "Competitive pickup soccer near you. Find your run, join the community.",
   },
   {
     kind: "chalk",

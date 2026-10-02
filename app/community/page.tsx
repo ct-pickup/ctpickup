@@ -17,7 +17,7 @@ export default function CommunityPage() {
       <div className="grid items-start gap-8 pb-16 pt-4 lg:grid-cols-[minmax(0,620px)_minmax(300px,1fr)] lg:gap-10">
         <Panel className="p-6 md:p-8 lg:p-10">
           <div className="max-w-[620px]">
-            <SectionEyebrow>CT Pickup</SectionEyebrow>
+            <SectionEyebrow>Competitive Together</SectionEyebrow>
 
             <h1 className="mt-4 text-h1 font-serif font-semibold text-ink md:text-display">
               Community
@@ -25,10 +25,10 @@ export default function CommunityPage() {
 
             <div className="mt-8 space-y-8 border-l border-line pl-5 text-body leading-relaxed text-ink md:pl-8 md:text-h3 font-serif">
               <p>
-                CT Pickup is an organized pickup soccer community built for players
+                Competitive Together is an organized pickup soccer community built for players
                 who want quality games without the commitment of a traditional league.
-                We created CT Pickup to make playing soccer easier, more consistent,
-                and more accessible for players across Connecticut who are looking
+                We created Competitive Together to make playing soccer easier, more consistent,
+                and more accessible for players who are looking
                 for real competition, flexible scheduling, and a better overall
                 experience.
               </p>
@@ -36,13 +36,13 @@ export default function CommunityPage() {
               <p>
                 We know how hard it can be to find a good run. Too often, pickup
                 games are unorganized, unreliable, or missing the level of structure
-                players want. CT Pickup changes that by offering a dependable space
+                players want. Competitive Together changes that by offering a dependable space
                 where players can show up, compete, and enjoy the game in an
                 environment that is built around community, energy, and quality play.
               </p>
 
               <p>
-                At CT Pickup, soccer is more than a game. It is community,
+                At Competitive Together, soccer is more than a game. It is community,
                 consistency, and culture. We are building a home for players who want
                 to play more, compete harder, and be part of something bigger every
                 time they step on the field.
@@ -56,7 +56,7 @@ export default function CommunityPage() {
             <div className="relative aspect-[3/2] w-full overflow-hidden">
               <img
                 src={SIDE_IMAGE}
-                alt="CT Pickup"
+                alt="Competitive Together"
                 className="absolute bottom-0 left-0 h-[136%] w-full object-cover object-bottom grayscale opacity-50"
               />
             </div>

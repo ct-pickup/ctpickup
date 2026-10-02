@@ -42,7 +42,7 @@ async function call<T>(accessToken: string, path: string, body?: unknown): Promi
     return { ok: false, status: r.status, error, unavailable };
   } catch (e) {
     Sentry.captureException(e, { tags: { area: "instagram_verification" }, extra: { path } });
-    return { ok: false, status: 0, error: "Couldn't reach CT Pickup. Check your connection and try again.", unavailable: false };
+    return { ok: false, status: 0, error: "Couldn't reach Competitive Together. Check your connection and try again.", unavailable: false };
   }
 }
 

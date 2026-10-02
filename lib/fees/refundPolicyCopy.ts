@@ -4,7 +4,7 @@
  */
 
 export const FEES_CROSS_REFERENCE_SUMMARY =
-  "Tournament and pickup fees are generally non-refundable except as stated in the applicable refund policy: for in-person tournaments, refunds must be requested more than 48 hours before the tournament begins; for pickups, leaving more than 24 hours before kickoff gives you a credit for what you paid, and you receive a full refund if the host or CT Pickup cancels the game.";
+  "Tournament and pickup fees are generally non-refundable except as stated in the applicable refund policy: for in-person tournaments, refunds must be requested more than 48 hours before the tournament begins; for pickups, leaving more than 24 hours before kickoff gives you a credit for what you paid, and you receive a full refund if the host or Competitive Together cancels the game.";
 
 export const PICKUP_REFUND_AVAILABILITY_SENTENCE =
   "If you leave a game more than 24 hours before kickoff, you get a credit for what you paid, usable on any future game.";
@@ -14,7 +14,7 @@ export const PICKUP_CANCELLATION_POLICY_HEADING = "Cancellations and refunds";
 export const PICKUP_CANCELLATION_POLICY_POINTS = [
   "If you leave a game more than 24 hours before kickoff, you get a credit for what you paid, usable on any future game. Credits aren't cash and can't be refunded.",
   "If you leave within 24 hours of kickoff, there's no refund or credit.",
-  "If the host or CT Pickup cancels a game, or removes you from it for reasons that aren't your fault, you get a full refund to your original payment method.",
+  "If the host or Competitive Together cancels a game, or removes you from it for reasons that aren't your fault, you get a full refund to your original payment method.",
   "If you ask us or the host to cancel your spot for you, the same rules apply as if you left yourself.",
   "If you're removed for breaking the rules (for example unsafe play or harassment), there's no refund or credit.",
   "If someone else paid for your spot, any credit goes to them.",
@@ -24,7 +24,7 @@ export const LEGAL_POLICY_LAST_UPDATED = "Last updated: October 2, 2026";
 
 /** Pickup page / how-it-works — full plain-English pickup refund summary */
 export const PICKUP_REFUND_UI_NOTICE =
-  "If you cancel more than 24 hours before the start time, what you paid becomes a credit. If you cancel within 24 hours of the start time or no-show, your fee is not refunded. Full refund to your card if the host or CT Pickup cancels the run. Verified duplicate or erroneous charges will be corrected.";
+  "If you cancel more than 24 hours before the start time, what you paid becomes a credit. If you cancel within 24 hours of the start time or no-show, your fee is not refunded. Full refund to your card if the host or Competitive Together cancels the run. Verified duplicate or erroneous charges will be corrected.";
 
 /** Stripe line item (pickup field fee) */
 export const PICKUP_FIELD_FEE_STRIPE_DESCRIPTION =

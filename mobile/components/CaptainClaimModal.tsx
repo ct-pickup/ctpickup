@@ -343,8 +343,8 @@ function RulesStep({
 
         <Text style={styles.sectionHeading}>Photo, video and online use</Text>
         <Text style={styles.body}>
-          By participating in this tournament (and related CT Pickup activities), you confirm you have accepted the
-          current Liability Waiver and Participation Agreement, including consent for CT Pickup to photograph, record
+          By participating in this tournament (and related Competitive Together activities), you confirm you have accepted the
+          current Liability Waiver and Participation Agreement, including consent for Competitive Together to photograph, record
           audio and video, livestream, and publish your name, image, likeness, and voice online and in other media as
           described there. That consent is required and is not negotiable if you play.
         </Text>

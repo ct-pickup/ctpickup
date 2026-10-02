@@ -139,7 +139,7 @@ export default function WaiverScreen() {
         <View style={styles.section}>
           <Text style={styles.h2}>2. Release of Liability</Text>
           <Text style={styles.p}>
-            To the fullest extent permitted by law, you release and hold harmless CT Pickup, its operators,
+            To the fullest extent permitted by law, you release and hold harmless Competitive Together (operated by CT Pickup LLC), its operators,
             organizers, and affiliates from any and all claims, liabilities, damages, or expenses arising out of or
             related to your participation in any platform-related activities.
           </Text>
@@ -152,7 +152,7 @@ export default function WaiverScreen() {
         <View style={styles.section}>
           <Text style={styles.h2}>3. Platform Role Clarification</Text>
           <Text style={styles.p}>
-            CT Pickup provides tools for coordination, connection, and guidance. It does not organize, supervise, or
+            Competitive Together provides tools for coordination, connection, and guidance. It does not organize, supervise, or
             control all activities that may occur between users.
           </Text>
           <Text style={styles.p}>
@@ -210,7 +210,7 @@ export default function WaiverScreen() {
         <View style={styles.section}>
           <Text style={styles.h2}>9. Additional Limitations</Text>
           <Text style={styles.p}>
-            To the fullest extent permitted by law, CT Pickup and its operators shall not be liable for
+            To the fullest extent permitted by law, Competitive Together and its operators shall not be liable for
           </Text>
           <Text style={styles.li}>• Loss of data or results</Text>
           <Text style={styles.li}>• Disputes between users</Text>
@@ -236,15 +236,15 @@ export default function WaiverScreen() {
         <View style={styles.section}>
           <Text style={styles.h2}>12. Photo, Video, Audio & Public Use</Text>
           <Text style={styles.p}>
-            Participation in pickup games, tournaments, training, events, or any other activities connected to CT Pickup
+            Participation in pickup games, tournaments, training, events, or any other activities connected to Competitive Together
             is voluntary. If you participate, you give{" "}
-            <Text style={styles.strong}>full, irrevocable consent</Text> for CT Pickup, its operators, organizers,
+            <Text style={styles.strong}>full, irrevocable consent</Text> for Competitive Together, its operators, organizers,
             volunteers, and anyone they authorize to photograph, film, livestream, and make audio or video recordings of
             you, and to capture your name, image, likeness, voice, and performance (your &quot;Appearance&quot;) in
             connection with those activities.
           </Text>
           <Text style={styles.p}>
-            You grant CT Pickup a worldwide, royalty-free, perpetual license to use, reproduce, edit, distribute,
+            You grant Competitive Together a worldwide, royalty-free, perpetual license to use, reproduce, edit, distribute,
             publicly display, and publish your Appearance, in whole or in part, in any media now known or later
             developed including websites, social media, advertising, and promotional materials without further notice,
             approval, or compensation to you, except where prohibited by law.
@@ -252,7 +252,7 @@ export default function WaiverScreen() {
           <Text style={styles.p}>
             You waive any right to inspect or approve finished materials where permitted by law, and you release CT
             Pickup and its operators from claims arising out of such use. This section is a non-negotiable condition of
-            participation if you do not agree, you must not take part in CT Pickup activities.
+            participation if you do not agree, you must not take part in Competitive Together activities.
           </Text>
         </View>
 
@@ -281,7 +281,7 @@ export default function WaiverScreen() {
             </Text>{" "}
             and the{" "}
             <Text style={styles.link} onPress={() => openUrl("/rules")}>
-              CT Pickup Rules
+              Competitive Together Rules
             </Text>
             . Prizes are subject to verification and eligibility requirements.
           </Text>
@@ -297,7 +297,7 @@ export default function WaiverScreen() {
           <Text style={styles.h2}>15. No Affiliation</Text>
           <Text style={styles.p}>
             This platform is not affiliated with or endorsed by any video game publisher, league, or brand. User-run
-            activities may reference third-party names only for identification; those parties do not sponsor CT Pickup.
+            activities may reference third-party names only for identification; those parties do not sponsor Competitive Together.
           </Text>
         </View>
       </ScrollView>

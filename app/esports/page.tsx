@@ -11,9 +11,9 @@ import {
 import { EsportsSetupNudgeBar } from "@/components/profile/EsportsSetupNudgeBar";
 
 export const metadata: Metadata = {
-  title: "Esports | CT Pickup",
+  title: "Esports | Competitive Together",
   description:
-    "EA SPORTS FC online tournaments: eligibility, $10 entry, legal consent, and brackets separate from outdoor CT Pickup events.",
+    "EA SPORTS FC online tournaments: eligibility, $10 entry, legal consent, and brackets separate from outdoor Competitive Together events.",
 };
 
 export default function EsportsPage() {
@@ -24,7 +24,7 @@ export default function EsportsPage() {
 
       <header className="mt-4 grid gap-8 lg:grid-cols-[1fr_0.95fr] lg:items-center lg:gap-12">
         <div className="space-y-5">
-          <SectionEyebrow>CT Pickup</SectionEyebrow>
+          <SectionEyebrow>Competitive Together</SectionEyebrow>
 
           <h1 className="text-h1 font-serif font-semibold text-ink md:text-display">
             Esports
@@ -76,7 +76,7 @@ export default function EsportsPage() {
               <EsportsMark className="mx-auto h-28 w-28 text-ink md:h-36 md:w-36" />
             </div>
             <p className="text-center text-caption font-semibold text-muted">
-              Competitive · Digital · CT Pickup
+              Esports · Digital · Competitive Together
             </p>
           </div>
         </div>

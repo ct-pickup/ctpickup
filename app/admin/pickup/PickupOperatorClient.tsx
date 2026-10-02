@@ -126,7 +126,7 @@ export default function PickupOperatorClient() {
   } | null>(null);
   const [workflowTabOverride, setWorkflowTabOverride] = useState<PickupWorkflowTab | null>(null);
 
-  const [title, setTitle] = useState("CT Pickup Run");
+  const [title, setTitle] = useState("Competitive Together Run");
   const [runType, setRunType] = useState<"select" | "public">("select");
   const [capacity, setCapacity] = useState(18);
   const [feeCents, setFeeCents] = useState(0);
@@ -607,7 +607,7 @@ export default function PickupOperatorClient() {
               }
               void act({
                 action: "create_run",
-                title: title.trim() || "CT Pickup Run",
+                title: title.trim() || "Competitive Together Run",
                 run_type: runType,
                 capacity,
                 fee_cents: feeCents,

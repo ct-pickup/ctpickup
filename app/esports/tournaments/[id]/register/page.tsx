@@ -17,10 +17,10 @@ type Props = { params: Promise<{ id: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const { data } = await fetchPublicEsportsTournamentById(id);
-  if (!data) return { title: "Register | Esports | CT Pickup" };
+  if (!data) return { title: "Register | Esports | Competitive Together" };
   return {
-    title: `Register — ${data.title} | Esports | CT Pickup`,
-    description: "Legal consent and entry fee for CT Pickup esports tournaments.",
+    title: `Register — ${data.title} | Esports | Competitive Together`,
+    description: "Legal consent and entry fee for Competitive Together esports tournaments.",
   };
 }
 

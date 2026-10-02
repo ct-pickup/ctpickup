@@ -10,8 +10,8 @@ import { EsportsPrivacyPublicityDocument } from "@/lib/legal/esportsPrivacyPubli
 import { esportsDocVersionLabel } from "@/lib/legal/esportsDocVersions";
 
 export const metadata: Metadata = {
-  title: "Privacy & Publicity (Esports) | CT Pickup",
-  description: "Privacy and publicity consent for CT Pickup esports tournaments.",
+  title: "Privacy & Publicity (Esports) | Competitive Together",
+  description: "Privacy and publicity consent for Competitive Together esports tournaments.",
 };
 
 export default function EsportsPrivacyPublicityPage() {
