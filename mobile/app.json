@@ -71,8 +71,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "CT Pickup uses your photos so you can add a profile photo other players will recognize.",
-          "cameraPermission": "CT Pickup uses your camera so you can take a profile photo other players will recognize."
+          "photosPermission": "Competitive Together uses your photos so you can add a profile photo other players will recognize.",
+          "cameraPermission": "Competitive Together uses your camera so you can take a profile photo other players will recognize."
         }
       ],
       [
