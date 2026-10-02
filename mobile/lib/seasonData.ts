@@ -2,8 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { splitLocation, type GameCardRun, type RunCrowd } from "@/components/games/GameCards";
 import type { AvatarPerson } from "@/components/PlayerAvatar";
-import { fetchMyRecord, type PlayerRecord } from "@/lib/playerRecord";
-import { fetchMyRatingPoints } from "@/lib/siteApi";
+import { fetchMyRecord, recordPoints, type PlayerRecord } from "@/lib/playerRecord";
 import { outcomeFor, privacyName, scoreLine, type Outcome, type TeamScores } from "@/lib/season";
 import { averageStars, fetchPlayerCards, type PlayerCard } from "@/lib/starRatings";
 
@@ -26,6 +25,7 @@ export type SeasonData = {
   potdCount: number;
   /** Last five decided games, oldest first. */
   form: Outcome[];
+  /** Current-season points from the points ledger. */
   points: number | null;
   card: PlayerCard | null;
   upcoming: GameCardRun[];
@@ -130,9 +130,8 @@ async function myConfirmedRunIds(supabase: SupabaseClient, uid: string): Promise
 
 export async function fetchSeason(supabase: SupabaseClient, uid: string, accessToken: string | null): Promise<SeasonData> {
   const now = Date.now();
-  const [profileRes, pointsRes, record, runIds] = await Promise.all([
+  const [profileRes, record, runIds] = await Promise.all([
     supabase.from("profiles").select("playing_position").eq("id", uid).maybeSingle(),
-    accessToken ? fetchMyRatingPoints(accessToken) : Promise.resolve(null),
     accessToken ? fetchMyRecord(accessToken) : Promise.resolve<PlayerRecord | null>(null),
     myConfirmedRunIds(supabase, uid),
   ]);
@@ -213,7 +212,7 @@ export async function fetchSeason(supabase: SupabaseClient, uid: string, accessT
     potdCount: record?.potd_count ?? 0,
     form: record?.form ?? [],
     recordFailed: Boolean(accessToken) && !record,
-    points: pointsRes ? pointsRes.points : null,
+    points: recordPoints(record, "season_points"),
     card: cards.get(uid) ?? null,
     upcoming: upcomingRuns
       .filter((r): r is RunRow & { start_at: string } => Boolean(r.start_at))

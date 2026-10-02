@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { syncRunPoints } from "@/lib/points/ledger";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -41,5 +42,7 @@ export async function POST(req: Request) {
     .upsert(rows, { onConflict: "run_id,user_id" });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Teams changed after a result was posted: that run's points follow the new teams.
+  await syncRunPoints(admin, run_id);
   return NextResponse.json({ ok: true });
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
+import { syncRunPoints } from "@/lib/points/ledger";
 import { supabaseService } from "@/lib/supabase/service";
 
 export const runtime = "nodejs";
@@ -86,5 +87,7 @@ export async function POST(req: Request) {
     }
   }
 
+  // Teams changed after a result was posted: that run's points follow the new teams.
+  await syncRunPoints(supabase, run_id);
   return NextResponse.json({ ok: true });
 }

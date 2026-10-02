@@ -20,11 +20,31 @@ export type PlayerRecordSummary = {
   losses: number;
   win_pct: number | null;
   potd_count: number;
+  /** Current season, e.g. "Fall 2026" or "Winter 2026–27". Points come from the points ledger. */
+  season: string;
+  season_points: number;
+  all_time_points: number;
 };
 
 export type PlayerRecord = PlayerRecordSummary & { form: PlayerOutcome[]; log: RecordGame[] };
 
-export const EMPTY_RECORD_SUMMARY: PlayerRecordSummary = { games: 0, wins: 0, draws: 0, losses: 0, win_pct: null, potd_count: 0 };
+export const EMPTY_RECORD_SUMMARY: PlayerRecordSummary = {
+  games: 0,
+  wins: 0,
+  draws: 0,
+  losses: 0,
+  win_pct: null,
+  potd_count: 0,
+  season: "",
+  season_points: 0,
+  all_time_points: 0,
+};
+
+/** Points as a number, or null when the server did not send them. */
+export function recordPoints(summary: PlayerRecordSummary | null | undefined, key: "season_points" | "all_time_points"): number | null {
+  const v = summary?.[key];
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
 
 const OWN_TTL_MS = 30 * 1000;
 let own: { token: string; at: number; promise: Promise<PlayerRecord | null> } | null = null;

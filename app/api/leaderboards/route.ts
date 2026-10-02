@@ -4,7 +4,7 @@ import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
 import { jsonConfigErrorResponse, logPublicApiRouteError } from "@/lib/server/publicApiRouteErrors";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
-import { ratingPoints } from "@/lib/ratings/points";
+import { currentSeason } from "@/lib/pickup/points";
 import { isLegacyMobileClient, LEGACY_TIER_RATING_COLUMNS, legacyTierRowFields } from "@/lib/api/appVersion";
 import { loadRecordSummaries, summaryFor, type PlayerRecordSummary } from "@/lib/records/playerRecord";
 
@@ -257,6 +257,22 @@ async function fetchSessionsLeaderboard(admin: SupabaseClient, region: string | 
   return { rows: out, error: null };
 }
 
+/** Points categories for the new app, from the record helper (points_events ledger). */
+function pointsFromRecords(
+  profiles: ProfileRow[],
+  records: Map<string, PlayerRecordSummary>,
+  region: string | null,
+  key: "season_points" | "all_time_points",
+): LeaderboardPlayerRow[] {
+  return profiles
+    .filter((p) => passesRegionFilter(p.nearest_venue, region))
+    .map((p) => ({ p, r: summaryFor(records, p.id) }))
+    .filter(({ r }) => r[key] > 0)
+    .sort((a, b) => b.r[key] - a.r[key] || b.r.games - a.r.games)
+    .slice(0, 25)
+    .map(({ p, r }) => toLeaderboardRow(p, r[key], { games_played: r.games }));
+}
+
 /** Sessions category for the new app: games played from posted results, 5 or more. */
 function sessionsFromRecords(
   profiles: ProfileRow[],
@@ -301,7 +317,7 @@ async function fetchTournamentGoalNameCounts(admin: SupabaseClient): Promise<Map
 type TierLeaderboardRow = {
   user_id: string;
   sessions: number;
-  /** Server-computed from player_ratings.tier; tier itself is never sent. */
+  /** Current-season points from the points_events ledger (new app only). */
   points?: number;
   tier?: string;
   score?: number;
@@ -330,9 +346,16 @@ const EMPTY_PAYLOAD = {
   tiers: [] as TierLeaderboardRow[],
 };
 
+/** New-app-only categories; v1.3.5 never receives these keys. */
+const EMPTY_POINTS_PAYLOAD = {
+  points: [] as LeaderboardPlayerRow[],
+  points_all_time: [] as LeaderboardPlayerRow[],
+};
+
 /**
  * Rankings tab: all player_ratings (admin bypasses RLS own_rating), merged with profiles.
- * Sends sessions and points only. Clients read stars and percentile from player_cards.
+ * The new app gets sessions here and season points from the record helper in GET. Clients read stars and
+ * percentile from player_cards.
  */
 async function fetchTierLeaderboard(
   admin: SupabaseClient,
@@ -341,7 +364,7 @@ async function fetchTierLeaderboard(
 ): Promise<TierLeaderboardRow[]> {
   const { data: ratings, error } = await admin
     .from("player_ratings")
-    .select(legacy ? LEGACY_TIER_RATING_COLUMNS : "user_id,tier,sessions")
+    .select(legacy ? LEGACY_TIER_RATING_COLUMNS : "user_id,sessions")
     .order("score", { ascending: false })
     .limit(253);
 
@@ -403,7 +426,7 @@ async function fetchTierLeaderboard(
     out.push({
       user_id: r.user_id,
       sessions: r.sessions ?? 0,
-      ...(legacy ? legacyTierRowFields(r) : { points: ratingPoints(r.tier, r.sessions) }),
+      ...(legacy ? legacyTierRowFields(r) : {}),
       first_name: p?.first_name ?? null,
       last_name: p?.last_name ?? null,
       username: p?.username ?? null,
@@ -412,7 +435,7 @@ async function fetchTierLeaderboard(
     });
   }
 
-  // Region filter may drop rows; clients sort by stars, then points.
+  // Region filter may drop rows; clients sort by stars, then season points.
   console.log(`[api/${ROUTE}] category=tiers result`, { rowCount: out.length });
   return out;
 }
@@ -440,6 +463,8 @@ export async function GET(req: Request) {
   let attacker: LeaderboardPlayerRow[] = [];
   let goals: LeaderboardPlayerRow[] = [];
   let tiers: TierLeaderboardRow[] = [];
+  let points: LeaderboardPlayerRow[] = [];
+  let points_all_time: LeaderboardPlayerRow[] = [];
 
   // Records come from posted results for the new app; v1.3.5 keeps the stored counters below.
   const legacyClient = isLegacyMobileClient(req);
@@ -556,6 +581,17 @@ export async function GET(req: Request) {
       sessions = [];
     }
 
+    if (records) {
+      try {
+        points = pointsFromRecords(profiles, records, region, "season_points");
+        points_all_time = pointsFromRecords(profiles, records, region, "all_time_points");
+      } catch (err) {
+        logPublicApiRouteError(ROUTE, "category_points", err);
+        points = [];
+        points_all_time = [];
+      }
+    }
+
     try {
       const { counts, error } = await countPickupRunResultsUuidColumn(admin, "player_of_day", "potd");
       console.log(`[api/${ROUTE}] category=potd scan`, { error: error?.message ?? null, distinctIds: counts.size });
@@ -634,7 +670,10 @@ export async function GET(req: Request) {
       tiers = await fetchTierLeaderboard(admin, region, isLegacyMobileClient(req));
       if (records) {
         const recs = records;
-        tiers = tiers.map((t) => ({ ...t, games: summaryFor(recs, t.user_id).games }));
+        tiers = tiers.map((t) => {
+          const r = summaryFor(recs, t.user_id);
+          return { ...t, points: r.season_points, games: r.games };
+        });
       }
       console.log("[leaderboards] category tiers result", tiers.length);
     } catch (err) {
@@ -656,12 +695,14 @@ export async function GET(req: Request) {
       attacker,
       goals,
       tiers,
+      ...(legacyClient ? {} : { season: currentSeason(), points, points_all_time }),
     });
   } catch (err) {
     console.log(`[api/${ROUTE}] GET top-level failure — returning empty categories`, err);
     logPublicApiRouteError(ROUTE, "GET", err);
     return NextResponse.json({
       ...EMPTY_PAYLOAD,
+      ...(legacyClient ? {} : { season: currentSeason(), ...EMPTY_POINTS_PAYLOAD }),
       region: region ?? "ALL",
     });
   }

@@ -130,6 +130,7 @@ vi.mock("@/lib/admin/requireAdmin", async () => {
 
 import { POST as tierPOST } from "@/app/api/admin/tier/route";
 import { POST as verificationPOST } from "@/app/api/admin/verification/route";
+import { currentSeason } from "@/lib/pickup/points";
 import { GET as leaderboardsGET } from "@/app/api/leaderboards/route";
 import { GET as publicProfileGET } from "@/app/api/profile/public/[userId]/route";
 import { POST as invitePOST } from "@/app/api/sessions/invite/route";
@@ -214,11 +215,16 @@ describe("sessions/invite authorization", () => {
 describe("ratings internals are not exposed", () => {
   it("leaderboards tiers send points, not tier, score or reliability", async () => {
     h.db.rows("player_ratings").push({ user_id: HOST, tier: "gold", score: 77, sessions: 4, reliability: 93, verification: "document" });
+    h.db.rows("points_events").push(
+      { user_id: HOST, run_id: "r1", reason: "played", points: 10, season: currentSeason() },
+      { user_id: HOST, run_id: "r1", reason: "win", points: 5, season: currentSeason() },
+      { user_id: HOST, run_id: "r0", reason: "played", points: 10, season: "Fall 2020" },
+    );
     const res = await leaderboardsGET(new Request("http://test.local/api/leaderboards"));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.tiers).toHaveLength(1);
-    expect(body.tiers[0]).toMatchObject({ user_id: HOST, sessions: 4, points: 160 });
+    expect(body.tiers[0]).toMatchObject({ user_id: HOST, sessions: 4, points: 15 });
     for (const row of body.tiers) {
       expect(row).not.toHaveProperty("tier");
       expect(row).not.toHaveProperty("score");

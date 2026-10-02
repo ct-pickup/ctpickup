@@ -5,6 +5,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Metro image assets */
 import { Image } from "react-native";
 
+import { currentSeason, pointsForGame, seasonForStartAt } from "@/lib/pickup/points";
 import { formStrip } from "@/lib/season";
 
 export const FIXTURE_ID_PREFIX = "fixture-";
@@ -342,7 +343,10 @@ function season(variant: SeasonFixtureVariant) {
     games: past.filter((g) => g.outcome != null).length,
     potdCount: past.filter((g) => g.potd).length,
     form: formStrip(past),
-    points: hasPast ? 1240 : 0,
+    // Season points with the ledger's rules (played 10, win 5, draw 2, POTD 10).
+    points: past
+      .filter((g) => seasonForStartAt(g.start_at) === currentSeason())
+      .reduce((sum, g) => sum + pointsForGame(g.outcome, g.potd), 0),
     card: hasPast ? { star: 3.5, provisional: false, percentile: 18 } : null,
     upcoming,
     crowds: new Map(

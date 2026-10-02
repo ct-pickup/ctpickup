@@ -230,7 +230,10 @@ describe("/api/player/record", () => {
 
   it("gives other players a summary only, never the log", async () => {
     const body = await (await get(`/api/player/record?userId=${RIVAL}`, ME)).json();
-    expect(body.summary).toEqual({ games: 2, wins: 0, draws: 1, losses: 1, win_pct: 0, potd_count: 0 });
+    expect(body.summary).toMatchObject({ games: 2, wins: 0, draws: 1, losses: 1, win_pct: 0, potd_count: 0 });
+    expect(Object.keys(body.summary).sort()).toEqual(
+      ["games", "wins", "draws", "losses", "win_pct", "potd_count", "season", "season_points", "all_time_points"].sort(),
+    );
     expect(body).not.toHaveProperty("record");
     const text = JSON.stringify(body);
     for (const banned of ["score\"", "tier", "reliability", "log"]) expect(text).not.toContain(banned);

@@ -131,6 +131,7 @@ vi.mock("@/lib/account/deleteUserAccount", async () => {
 
 import { AccountDeletionError } from "@/lib/account/accountDeletionPlan";
 import { isLegacyMobileClient } from "@/lib/api/appVersion";
+import { currentSeason } from "@/lib/pickup/points";
 import { DELETE as accountDELETE } from "@/app/api/account/delete/route";
 import { DELETE as membersDELETE } from "@/app/api/admin/members/route";
 import { GET as countyGET } from "@/app/api/community-map/county/route";
@@ -213,6 +214,11 @@ describe("leaderboards tiers", () => {
       { user_id: HOST, tier: "Gold", score: 77, sessions: 4, reliability: 93, verification: "document" },
       { user_id: "invitee", tier: null, score: null, sessions: null, reliability: null, verification: "self" },
     );
+    h.db.rows("points_events").push(
+      { user_id: HOST, run_id: "r1", reason: "played", points: 10, season: currentSeason() },
+      { user_id: HOST, run_id: "r1", reason: "win", points: 5, season: currentSeason() },
+      { user_id: HOST, run_id: "r0", reason: "played", points: 10, season: "Fall 2020" },
+    );
   });
 
   it("gives v1.3.5 the pre-b9c83a1 row: tier, score, sessions, reliability and no points", async () => {
@@ -232,6 +238,7 @@ describe("leaderboards tiers", () => {
     });
     expect(body.tiers[1]).toMatchObject({ user_id: "invitee", tier: "bronze", score: 50, sessions: 0, reliability: 0 });
     for (const row of body.tiers) expect(row).not.toHaveProperty("points");
+    for (const key of ["points", "points_all_time", "season"]) expect(body).not.toHaveProperty(key);
   });
 
   it.each([
@@ -239,7 +246,7 @@ describe("leaderboards tiers", () => {
     ["a web browser", BROWSER],
   ])("gives %s points and sessions only", async (_label, headers) => {
     const body = await (await leaderboardsGET(req("/api/leaderboards", headers))).json();
-    expect(body.tiers[0]).toMatchObject({ user_id: HOST, sessions: 4, points: 160 });
+    expect(body.tiers[0]).toMatchObject({ user_id: HOST, sessions: 4, points: 15 });
     const text = JSON.stringify(body);
     expect(text).not.toContain("reliability");
     expect(text).not.toContain("\"score\"");
