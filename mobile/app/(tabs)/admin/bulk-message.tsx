@@ -190,7 +190,7 @@ export default function AdminBulkMessageScreen() {
     }
     const sent = (res.data as { sent_to?: unknown }).sent_to;
     const n = typeof sent === "number" ? sent : count;
-    setSuccessText(`Message sent to ${n} players ✓`);
+    setSuccessText(`Message sent to ${n} players`);
     setMessage("");
   }
 
@@ -229,7 +229,7 @@ export default function AdminBulkMessageScreen() {
           {(
             [
               { key: "all" as const, label: "All Players" },
-              { key: "region" as const, label: "By Region" },
+              { key: "region" as const, label: "By Area" },
               { key: "tier" as const, label: "By Tier" },
               { key: "run" as const, label: "Confirmed for a Run" },
             ] as const
@@ -252,7 +252,7 @@ export default function AdminBulkMessageScreen() {
 
         {audience === "region" ? (
           <View style={styles.subBlock}>
-            <Text style={styles.subLabel}>Region</Text>
+            <Text style={styles.subLabel}>Area</Text>
             <View style={styles.chipRow}>
               {REGIONS.map((r) => (
                 <Pressable

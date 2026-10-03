@@ -416,8 +416,8 @@ export default function AdminPickupOpsScreen() {
       }
       if (!createRegionFromAddress && !createRegionOverride) {
         Alert.alert(
-          "Pick a region",
-          "Could not detect NY, CT, NJ, or MD from the address. Select a service region.",
+          "Pick an area",
+          "Could not detect NY, CT, NJ, or MD from the address. Select an area.",
         );
         return;
       }
@@ -538,7 +538,7 @@ export default function AdminPickupOpsScreen() {
       if (!token || !runId) return;
       Alert.alert(
         "Launch wave invites?",
-        "Tier 1 players in this region will receive push notifications for this run.",
+        "Tier 1 players in this area will receive push notifications for this run.",
         [
           { text: "Cancel", style: "cancel" },
           {
@@ -936,7 +936,7 @@ export default function AdminPickupOpsScreen() {
                   />
                   {showCreateRegionPicker ? (
                     <>
-                      <Text style={styles.label}>Service region</Text>
+                      <Text style={styles.label}>Area</Text>
                       <View style={styles.chipRow}>
                         {SERVICE_REGIONS.map(({ code }) => {
                           const active = createRegionOverride === code;
