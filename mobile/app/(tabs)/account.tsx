@@ -19,6 +19,7 @@ import BadgeShelf from "@/components/profile/BadgeShelf";
 import FormPills from "@/components/profile/FormPills";
 import PlayerCard, { type PlayerCardData } from "@/components/profile/PlayerCard";
 import ProfileCard from "@/components/profile/ProfileCard";
+import { SeasonCard } from "@/components/season/SeasonCard";
 import ShareCardSheet from "@/components/ctplus/ShareCardSheet";
 import { CTPLUS_ENABLED } from "@/lib/ctplus/config";
 import PositionPitch from "@/components/profile/PositionPitch";
@@ -39,6 +40,7 @@ import { fetchPlayerCard, type PlayerCard as StarCard } from "@/lib/starRatings"
 import { radius, themeColor, useThemedStyles } from "@/theme";
 import { isVerifiedLevel } from "@shared/badges";
 import { INSTAGRAM_VERIFICATION_HANDLE } from "@/lib/brand";
+import { SEASON_PRIZE_ENABLED } from "@/lib/seasonPrize";
 
 const SHARE_READY_TIMEOUT_MS = 4000;
 const STATS_CACHE_KEY = "cached_profile_stats.v3";
@@ -309,6 +311,12 @@ export default function ProfileScreen() {
           />
         </View>
 
+        {SEASON_PRIZE_ENABLED ? (
+          <View style={s.seasonWrap}>
+            <SeasonCard />
+          </View>
+        ) : null}
+
         {editing ? (
           <View style={s.editPanel}>
             <PhotoUploadField
@@ -411,6 +419,7 @@ function make_s() {
     topBtnText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     pressed: { opacity: 0.7 },
     cardWrap: { paddingHorizontal: 16 },
+    seasonWrap: { paddingHorizontal: 16, marginTop: 10 },
     cameraBadge: {
       position: "absolute",
       right: 2,

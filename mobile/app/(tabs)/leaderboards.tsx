@@ -25,6 +25,8 @@ import type { DiscoverPlayer } from "@shared/discover";
 import CtPlusPaywall from "@/components/ctplus/CtPlusPaywall";
 import { StarLevelsLink } from "@/components/StarLevels";
 import { CTPLUS_ENABLED } from "@/lib/ctplus/config";
+import { SeasonCard } from "@/components/season/SeasonCard";
+import { standingFromRows } from "@/lib/seasonCard";
 import { fetchSeasonEntered, SEASON_PRIZE_ENABLED } from "@/lib/seasonPrize";
 import { StarRating } from "@/components/StarRating";
 import { fetchPlayerCards, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
@@ -669,26 +671,33 @@ export default function LeaderboardsScreen() {
       { id: "all", label: "All time" },
     ];
     return (
-      <View style={styles.scopeRow}>
-        {scopes.map((sc) => {
-          const on = pointsScope === sc.id;
-          return (
-            <Pressable
-              key={sc.id}
-              onPress={() => {
-                void hapticTap();
-                setPointsScope(sc.id);
-              }}
-              style={[styles.scopePill, on ? styles.tabPillOn : styles.tabPillOff]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on }}
-            >
-              <Text style={[styles.tabPillText, on && styles.tabPillTextOn]} numberOfLines={1}>
-                {sc.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+      <View>
+        {SEASON_PRIZE_ENABLED && payload ? (
+          <View style={styles.seasonCardWrap}>
+            <SeasonCard standing={standingFromRows(payload.points, myUserId, payload.totals.points)} />
+          </View>
+        ) : null}
+        <View style={styles.scopeRow}>
+          {scopes.map((sc) => {
+            const on = pointsScope === sc.id;
+            return (
+              <Pressable
+                key={sc.id}
+                onPress={() => {
+                  void hapticTap();
+                  setPointsScope(sc.id);
+                }}
+                style={[styles.scopePill, on ? styles.tabPillOn : styles.tabPillOff]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+              >
+                <Text style={[styles.tabPillText, on && styles.tabPillTextOn]} numberOfLines={1}>
+                  {sc.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
     );
   }
@@ -979,6 +988,7 @@ function make_styles() {
   nameFlex: { flexShrink: 1 },
   youTag: { paddingHorizontal: 8, paddingVertical: 1, borderRadius: 999, backgroundColor: themeColor().pitch },
   youTagText: { color: themeColor().onPitch, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  seasonCardWrap: { paddingBottom: 10 },
   seasonTag: { paddingHorizontal: 8, paddingVertical: 1, borderRadius: 999, borderWidth: 1, borderColor: themeColor().pitch },
   seasonTagText: { color: themeColor().pitchText, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700" },
   capFooter: { alignItems: "center", gap: 6, paddingVertical: 16 },
