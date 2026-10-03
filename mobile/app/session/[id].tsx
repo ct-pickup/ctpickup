@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { useProfilePhoto } from "@/context/ProfilePhotoContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { siteOrigin } from "@/lib/env";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
@@ -177,6 +178,7 @@ export default function SessionDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { session, supabase } = useAuth();
+  const { ensurePhotoForGame, handlePhotoRequired } = useProfilePhoto();
   const { isAdmin } = useProfileAdmin();
   const fixture = useMemo(() => (devFixtures && id ? devFixtures.session(id) : null), [id]);
   const fieldPhotos = useFieldPhotos(id && !fixture ? [id] : []);
@@ -1165,7 +1167,7 @@ export default function SessionDetailScreen() {
       setInvitedIds((prev) => new Set([...prev, player.id]));
       const left = run ? Math.max(0, run.capacity - run.spots_taken) : 0;
       await Share.share({
-        message: `Join ${run?.title ?? "a CT Pickup session"} on ${fmtPickupSlotChipEt(run?.start_at, runTimeTbd(run))} — ${left} spot${left === 1 ? "" : "s"} left. Download CT Pickup: https://apps.apple.com/app/id6766061001`,
+        message: `Join ${run?.title ?? "a Competitive Together session"} on ${fmtPickupSlotChipEt(run?.start_at, runTimeTbd(run))} — ${left} spot${left === 1 ? "" : "s"} left. Download Competitive Together: https://apps.apple.com/app/id6766061001`,
         url: `ctpickup://session/${id}`,
       });
     } catch {
@@ -1177,7 +1179,7 @@ export default function SessionDetailScreen() {
     try {
       const left = run ? Math.max(0, run.capacity - run.spots_taken) : 0;
       await Share.share({
-        message: `Join ${run?.title ?? "a CT Pickup session"} on ${fmtPickupSlotChipEt(run?.start_at, runTimeTbd(run))} — ${left} spot${left === 1 ? "" : "s"} left. Download CT Pickup: https://apps.apple.com/app/id6766061001`,
+        message: `Join ${run?.title ?? "a Competitive Together session"} on ${fmtPickupSlotChipEt(run?.start_at, runTimeTbd(run))} — ${left} spot${left === 1 ? "" : "s"} left. Download Competitive Together: https://apps.apple.com/app/id6766061001`,
         url: `ctpickup://session/${id}`,
       });
     } catch {}
@@ -1191,6 +1193,7 @@ export default function SessionDetailScreen() {
     if (rsvpBusy || !session?.access_token) return;
     const origin = siteOrigin();
     if (!origin) return;
+    if (!ensurePhotoForGame()) return;
     setRsvpBusy(true);
     try {
       const r = await fetch(`${origin}/api/pickup/rsvp`, {
@@ -1199,6 +1202,7 @@ export default function SessionDetailScreen() {
         body: JSON.stringify({ run_id: id, action: "join", checkout_return: "mobile" }),
       });
       const j = await r.json().catch(() => null) as { ok?: boolean; error?: string; checkout_url?: string; status?: string } | null;
+      if (handlePhotoRequired(r.status, j)) return;
       if (!r.ok || !j?.ok) { Alert.alert("Error", j?.error ?? "Could not RSVP."); return; }
 
       // If checkout URL returned, open Stripe payment

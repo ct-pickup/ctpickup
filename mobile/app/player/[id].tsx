@@ -1,5 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { postPlayerProfileReportViaApi } from "@/lib/chatApi";
+import { postPhotoReport } from "@/lib/profilePhoto";
+import { PHOTO_REPORT_REASONS, type PhotoReportReason } from "@shared/profilePhoto";
 import { displayRegionNameFromZip } from "@/lib/zipRegion";
 import { fetchMyRecord, fetchRecordSummary, winPercent } from "@/lib/playerRecord";
 import { fetchPlayerFollowStats, fetchPublicPlayerProfile, togglePlayerFollow, type PublicPlayerProfile } from "@/lib/siteApi";
@@ -623,7 +625,8 @@ export default function PlayerProfileScreen() {
     );
   }
 
-  const ig = profile.instagram?.replace(/^@/, "").trim();
+  const verifiedIg = profile.instagram_handle?.trim() || null;
+  const ig = verifiedIg ?? profile.instagram?.replace(/^@/, "").trim();
   const regionFromApi = profile.region?.trim() || null;
   const regionFromZip = zipCode ? displayRegionNameFromZip(zipCode) : null;
   const region = regionFromApi ?? regionFromZip;
@@ -634,6 +637,14 @@ export default function PlayerProfileScreen() {
       const r = await postPlayerProfileReportViaApi(token, userId, reason);
       if (r.ok) Alert.alert("", "Report submitted. We'll review it shortly.");
       else Alert.alert("Couldn't send report", r.error);
+    })();
+  }
+
+  function submitPhotoReport(reason: PhotoReportReason | null) {
+    if (!token) return;
+    void (async () => {
+      const r = await postPhotoReport(token, userId, reason);
+      Alert.alert(r.ok || r.already ? "Report sent" : "Couldn't send report", r.message);
     })();
   }
 
@@ -860,6 +871,9 @@ export default function PlayerProfileScreen() {
           >
             <FontAwesome name="instagram" size={18} color={themeColor().pitchText} />
             <Text style={styles.linkText}>@{ig}</Text>
+            {verifiedIg ? (
+              <FontAwesome name="check-circle" size={14} color={themeColor().pitchText} accessibilityLabel="Verified Instagram" />
+            ) : null}
           </Pressable>
         ) : (
           <Text style={styles.valueMuted}>—</Text>
@@ -1047,6 +1061,23 @@ export default function PlayerProfileScreen() {
           accessibilityLabel="Report this player"
         >
           <Text style={styles.reportLink}>⚑ Report this player</Text>
+        </Pressable>
+      ) : null}
+      {!isOwnProfile && token && profile.avatar_url ? (
+        <Pressable
+          onPress={() => {
+            Alert.alert("Report photo", "What's wrong with this photo? Choosing a reason is optional.", [
+              ...PHOTO_REPORT_REASONS.map((r) => ({ text: r.label, onPress: () => submitPhotoReport(r.value) })),
+              { text: "Report without a reason", onPress: () => submitPhotoReport(null) },
+              { text: "Cancel", style: "cancel" as const },
+            ]);
+          }}
+          hitSlop={10}
+          style={({ pressed }) => ({ marginTop: 12, opacity: pressed ? 0.7 : 1, alignSelf: "center" })}
+          accessibilityRole="button"
+          accessibilityLabel="Report this player's photo"
+        >
+          <Text style={styles.reportLink}>Report photo</Text>
         </Pressable>
       ) : null}
     </ScrollView>

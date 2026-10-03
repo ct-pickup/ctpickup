@@ -1,4 +1,4 @@
-# CT Pickup — App Store Review Notes
+# Competitive Together — App Store Review Notes
 
 ## Demo Account
 
@@ -8,7 +8,7 @@
 | Password | CtPickup_AppReview2026! |
 
 **How to sign in:**
-1. Launch CT Pickup
+1. Launch Competitive Together
 2. Enter pickupct@gmail.com
 3. Tap "Already have an account?"
 4. Enter the password above
@@ -20,7 +20,7 @@ This account is fully pre-approved with tier 1A status and nearest venue set to 
 
 ## Manual Approval Gate
 
-CT Pickup is an invite-based soccer community. New user accounts require staff approval before accessing select runs, messaging, and certain features. This is intentional — it ensures community quality and safety.
+Competitive Together is an invite-based soccer community. New user accounts require staff approval before accessing select runs, messaging, and certain features. This is intentional — it ensures community quality and safety.
 
 The demo account (pickupct@gmail.com) is pre-approved and has full access to all player-facing features immediately upon login.
 
@@ -39,7 +39,7 @@ Note: Review Mode only bypasses client-side UI gates. For full end-to-end flows 
 ## Full Walkthrough
 
 ### Step 1 — Sign In
-1. Launch CT Pickup
+1. Launch Competitive Together
 2. Enter pickupct@gmail.com → tap "Already have an account?" → enter password
 3. If prompted, complete the liability waiver (one-time, scroll and accept)
 4. If prompted, complete profile (name, ZIP code, playing position — Instagram is optional)
@@ -111,7 +111,7 @@ Push requires a TestFlight or App Store build (not Expo Go).
 
 ## Payments — Detailed Explanation for App Review
 
-CT Pickup charges fees for two types of real-world physical services:
+Competitive Together charges fees for two types of real-world physical services:
 
 1. **Pickup run fees ($6–$10):** Players pay to reserve a spot at an organized outdoor soccer session at a physical venue (e.g. New Haven SoccerRoof, Sofive Brooklyn). The session takes place in person, outside the app. Payment is collected via Stripe before the event. This is squarely covered by App Store guideline 3.1.3(e) — "goods and services that will be consumed outside the app."
 
@@ -125,7 +125,7 @@ CT Pickup charges fees for two types of real-world physical services:
 
 ## User-Generated Content & Safety
 
-CT Pickup includes chat rooms for run participants and team members. We have implemented all required UGC safeguards:
+Competitive Together includes chat rooms for run participants and team members. We have implemented all required UGC safeguards:
 
 - **Content filter:** Server-side profanity filter on all chat messages before storage
 - **Report mechanism:** Every message and profile has a Report button; reports go to admin queue
@@ -137,7 +137,7 @@ CT Pickup includes chat rooms for run participants and team members. We have imp
 
 ## Age Rating
 
-CT Pickup is rated 13+. During signup, users must check a box confirming "I confirm I am 13 years of age or older" before completing profile creation. The app does not target children and is not in the Kids Category.
+Competitive Together is rated 13+. During signup, users must check a box confirming "I confirm I am 13 years of age or older" before completing profile creation. The app does not target children and is not in the Kids Category.
 
 ---
 

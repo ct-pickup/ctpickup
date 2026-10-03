@@ -34,7 +34,7 @@ export default function GuidancePage() {
 
       <div className="space-y-10 pb-20 pt-4">
         <header className="space-y-4">
-          <SectionEyebrow>CT Pickup</SectionEyebrow>
+          <SectionEyebrow>Competitive Together</SectionEyebrow>
           <h1 className="text-h1 font-serif font-semibold text-ink md:text-display md:leading-tight">
             Player Development
           </h1>

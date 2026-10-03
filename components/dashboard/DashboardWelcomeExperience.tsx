@@ -47,7 +47,7 @@ function HeroSlideshow() {
           >
             <img
               src={src}
-              alt={`CT Pickup photo ${i + 1}`}
+              alt={`Competitive Together photo ${i + 1}`}
               className="h-full w-full object-cover"
               style={
                 HERO_OBJECT_POSITION[src]

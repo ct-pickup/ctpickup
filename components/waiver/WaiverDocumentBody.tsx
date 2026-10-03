@@ -22,7 +22,7 @@ export function WaiverDocumentBody() {
           other participants, and unforeseen hazards.
         </p>
         <p>
-          You voluntarily assume all risks associated with participation in CT Pickup
+          You voluntarily assume all risks associated with participation in Competitive Together
           sessions, whether known or unknown, including but not limited to: physical
           injury, illness, property damage, and adverse weather conditions. You accept
           full responsibility for your involvement.
@@ -34,8 +34,8 @@ export function WaiverDocumentBody() {
           2. Release of Liability
         </h2>
         <p>
-          To the fullest extent permitted by law, you release and hold harmless CT Pickup,
-          its operators, organizers, and affiliates from any and all claims, liabilities,
+          To the fullest extent permitted by law, you release and hold harmless Competitive Together
+          (operated by CT Pickup LLC), its operators, organizers, and affiliates from any and all claims, liabilities,
           damages, or expenses arising out of or related to your participation in any
           platform-related activities.
         </p>
@@ -51,7 +51,7 @@ export function WaiverDocumentBody() {
           3. Platform Role Clarification
         </h2>
         <p>
-          CT Pickup provides tools for coordination, connection, and guidance. It does
+          Competitive Together provides tools for coordination, connection, and guidance. It does
           not organize, supervise, or control all activities that may occur between users.
         </p>
         <p>
@@ -124,7 +124,7 @@ export function WaiverDocumentBody() {
         <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">
           9. Additional Limitations
         </h2>
-        <p>To the fullest extent permitted by law, CT Pickup and its operators shall not be liable for:</p>
+        <p>To the fullest extent permitted by law, Competitive Together and its operators shall not be liable for:</p>
         <ul className="list-disc space-y-2 pl-5 text-muted">
           <li>Loss of data or results</li>
           <li>Disputes between users</li>
@@ -142,7 +142,7 @@ export function WaiverDocumentBody() {
         </p>
         <p>
           You agree to conduct yourself in a respectful and sportsmanlike manner at all
-          times. CT Pickup reserves the right to remove any player from the platform for
+          times. Competitive Together reserves the right to remove any player from the platform for
           conduct deemed unsafe, disruptive, or unsportsmanlike, without refund.
         </p>
       </section>
@@ -161,15 +161,15 @@ export function WaiverDocumentBody() {
         </h2>
         <p>
           Participation in pickup games, tournaments, training, events, or any other
-          activities connected to CT Pickup is voluntary. If you participate, you give
+          activities connected to Competitive Together is voluntary. If you participate, you give
           <span className="font-semibold text-ink"> full, irrevocable consent</span>{"  "}
-          for CT Pickup, its operators, organizers, volunteers, and anyone they authorize
+          for Competitive Together, its operators, organizers, volunteers, and anyone they authorize
           to photograph, film, livestream, and make audio or video recordings of you, and
           to capture your name, image, likeness, voice, and performance (your
           &quot;Appearance&quot;) in connection with those activities.
         </p>
         <p>
-          You grant CT Pickup a worldwide, royalty-free, perpetual license to use,
+          You grant Competitive Together a worldwide, royalty-free, perpetual license to use,
           reproduce, edit, distribute, publicly display, and publish your Appearance, in
           whole or in part, in any media now known or later developed—including websites,
           social media, advertising, and promotional materials—without further notice,
@@ -177,9 +177,9 @@ export function WaiverDocumentBody() {
         </p>
         <p>
           You waive any right to inspect or approve finished materials where permitted by
-          law, and you release CT Pickup and its operators from claims arising out of such
+          law, and you release Competitive Together and its operators from claims arising out of such
           use. This section is a non-negotiable condition of participation; if you do not
-          agree, you must not take part in CT Pickup activities.
+          agree, you must not take part in Competitive Together activities.
         </p>
       </section>
 
@@ -220,7 +220,7 @@ export function WaiverDocumentBody() {
           </Link>{"  "}
           and the{"  "}
           <Link href="/rules" className="text-pitch-text underline-offset-4 hover:underline">
-            CT Pickup Rules
+            Competitive Together Rules
           </Link>
           . Prizes are subject to verification and eligibility requirements.
         </p>
@@ -238,9 +238,9 @@ export function WaiverDocumentBody() {
         </h2>
         <p>
           You understand that participating in soccer sessions involves risk of physical
-          injury. You release CT Pickup, its organizers, hosts, and affiliated parties
+          injury. You release Competitive Together, its organizers, hosts, and affiliated parties
           from any and all claims arising from injury, illness, or death occurring during
-          or related to any CT Pickup session or event, to the fullest extent permitted
+          or related to any Competitive Together session or event, to the fullest extent permitted
           by applicable law.
         </p>
       </section>
@@ -250,8 +250,8 @@ export function WaiverDocumentBody() {
           17. Field &amp; Venue Ejection
         </h2>
         <p>
-          You understand that CT Pickup sessions take place at third-party venues. If a
-          venue operator asks participants to leave for any reason, CT Pickup is not
+          You understand that Competitive Together sessions take place at third-party venues. If a
+          venue operator asks participants to leave for any reason, Competitive Together is not
           liable for any resulting disruption, loss of session time, or inability to
           complete the session. No refunds are guaranteed in the event of a
           venue-initiated ejection.
@@ -264,7 +264,7 @@ export function WaiverDocumentBody() {
         </h2>
         <p>
           You understand that sessions may be organized by individual approved hosts who
-          are independent participants and not employees or agents of CT Pickup. CT Pickup
+          are independent participants and not employees or agents of Competitive Together. Competitive Together
           is not liable for the actions, omissions, or decisions of individual hosts
           before, during, or after any session.
         </p>

@@ -159,6 +159,7 @@ export default function AdminTierManagementScreen() {
             </View>
 
             <Text style={[s.sectionLabel, { marginTop: 12 }]}>SET VERIFICATION</Text>
+            {currentVerif === "instagram" ? <Text style={s.meta}>Currently verified via Instagram</Text> : null}
             <View style={s.chipRow}>
               {VERIF_LEVELS.map((v) => (
                 <Pressable key={v} onPress={() => void setVerification(player, v)} disabled={!!busy}

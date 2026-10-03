@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { displayRegionNameFromZip } from "@/lib/zipRegion";
 import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
 import { serviceRegionName } from "@/lib/serviceRegions";
+import { publicInstagramHandle } from "@/lib/verification/instagram";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -109,6 +110,15 @@ export async function GET(req: Request, ctx: { params: Promise<{ userId: string 
     .eq("user_id", targetId)
     .maybeSingle<{ sessions: number | null; tier?: string | null; verification?: string | null }>();
 
+  const igRes = await admin
+    .from("profiles")
+    .select("show_instagram,instagram_handle")
+    .eq("id", targetId)
+    .maybeSingle<{ show_instagram: boolean | null; instagram_handle: string | null }>();
+  const instagramHandle = igRes.error
+    ? null
+    : publicInstagramHandle({ ...igRes.data, verification_level: p.verification_level });
+
   let record: PlayerRecordSummary | null = null;
   if (!legacy) {
     try {
@@ -138,5 +148,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ userId: string 
     attended_count: typeof p.attended_count === "number" ? p.attended_count : null,
     ...(legacy ? legacyProfileFields(rating) : {}),
     ...(record ? { record } : {}),
+    ...(instagramHandle ? { instagram_handle: instagramHandle } : {}),
   });
 }

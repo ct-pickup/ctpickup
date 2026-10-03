@@ -292,7 +292,7 @@ export async function POST(req: Request) {
 
     const pushBody = truncatePushBody(message);
     const push = await sendMarketingPushToUsers(admin, unique, {
-      title: "CT Pickup",
+      title: "Competitive Together",
       body: pushBody,
       data: {
         kind: "announcement",

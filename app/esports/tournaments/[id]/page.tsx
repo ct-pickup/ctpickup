@@ -45,9 +45,9 @@ function DeadlineRow({ label, iso }: { label: string; iso: string | null | undef
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const { data } = await fetchPublicEsportsTournamentById(id);
-  if (!data) return { title: "Tournament | Esports | CT Pickup" };
+  if (!data) return { title: "Tournament | Esports | Competitive Together" };
   return {
-    title: `${data.title} | Esports | CT Pickup`,
+    title: `${data.title} | Esports | Competitive Together`,
     description: data.description || `${data.game} — ${data.prize}`,
   };
 }
@@ -76,7 +76,7 @@ export default async function EsportsTournamentDetailPage({ params }: Props) {
           <h2 className="text-h3 font-serif font-semibold text-ink">Overview</h2>
           <p className="mt-3 text-small leading-relaxed text-muted">
             Online EA SPORTS FC competition with scheduled rounds, proof-of-result requirements,
-            and admin oversight. Field CT Pickup tournaments are separate.
+            and admin oversight. Field Competitive Together tournaments are separate.
           </p>
           {t.description ? (
             <p className="mt-4 text-small leading-relaxed text-muted">{t.description}</p>

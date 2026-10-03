@@ -71,8 +71,8 @@ export function legacyProfileFields(rating: { tier?: string | null; verification
 export function legacyAccountDeletionMessage(message: string | null, opts: { admin?: boolean } = {}): string {
   const reason = message ?? "This account has upcoming games.";
   const next = opts.admin
-    ? "Nothing was deleted. Update CT Pickup to the latest version, or use the website admin, to review and confirm."
-    : "Nothing was deleted. Leave those games first, or update CT Pickup to the latest version to review and confirm.";
+    ? "Nothing was deleted. Update Competitive Together to the latest version, or use the website admin, to review and confirm."
+    : "Nothing was deleted. Leave those games first, or update Competitive Together to the latest version to review and confirm.";
   return `${reason} ${next}`;
 }
 

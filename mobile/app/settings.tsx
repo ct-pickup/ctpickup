@@ -75,6 +75,8 @@ import { hostScore } from "@/lib/starRatings";
 import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
 import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
 import { headline, themeColor, useThemedStyles } from "@/theme";
+import { INSTAGRAM_HANDLE } from "@/lib/brand";
+import { openBrandInstagram } from "@/lib/openBrandInstagram";
 
 const SUPPORT_EMAIL = "pickupct@gmail.com";
 const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}`;
@@ -1057,7 +1059,7 @@ export default function SettingsScreen() {
       return;
     }
     const r = await LocalAuthentication.authenticateAsync({
-      promptMessage: "Turn on Face ID for CT Pickup",
+      promptMessage: "Turn on Face ID for Competitive Together",
       cancelLabel: "Cancel",
     });
     if (r.success) await setBiometricsEnabled(true);
@@ -1304,6 +1306,18 @@ export default function SettingsScreen() {
             ) : null}
           </SettingsSection>
 
+          <SettingsSection title="Verification">
+            <View style={s.group}>
+              <Row
+                icon="instagram"
+                label="Instagram"
+                value={profile?.verification_level === "instagram" ? "Verified" : isSelfDeclared ? "Not verified" : undefined}
+                onPress={() => push("/instagram-verification")}
+                last
+              />
+            </View>
+          </SettingsSection>
+
           <SettingsSection title="Preferences">
             <PreferencesSection
               pushEnabled={pushEnabled}
@@ -1420,6 +1434,7 @@ export default function SettingsScreen() {
             <View style={s.group}>
               <Row icon="question-circle" label="Help" onPress={() => push("/help")} />
               <Row icon="envelope-o" label="Contact support" onPress={() => void Linking.openURL(SUPPORT_MAILTO)} />
+              <Row icon="instagram" label="Instagram" value={`@${INSTAGRAM_HANDLE}`} onPress={() => void openBrandInstagram()} />
               <Row
                 icon="info-circle"
                 label="About this app"

@@ -387,7 +387,7 @@ export default function FieldTournamentDetailScreen() {
     if (!idRaw) return;
     const emailish = /@/.test(idRaw);
     if (!inviteFound && !emailish) {
-      Alert.alert("", "Search to confirm the player, or enter the email on their CT Pickup account.");
+      Alert.alert("", "Search to confirm the player, or enter the email on their Competitive Together account.");
       return;
     }
     setInviteSendBusy(true);
@@ -772,7 +772,7 @@ export default function FieldTournamentDetailScreen() {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setInviteOpen(false)} />
           <View style={styles.inviteModalSheet}>
           <Text style={styles.inviteModalTitle}>Invite player</Text>
-          <Text style={styles.inviteModalHint}>Username or email (must match their CT Pickup account).</Text>
+          <Text style={styles.inviteModalHint}>Username or email (must match their Competitive Together account).</Text>
           <TextInput
             value={inviteQuery}
             onChangeText={(v) => {

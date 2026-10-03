@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SupportEmailLink } from "@/components/SupportEmailLink";
+import { INSTAGRAM_HANDLE, INSTAGRAM_URL, PRODUCT_NAME } from "@/lib/brand";
 
 export function SiteFooter() {
   return (
@@ -30,9 +31,17 @@ export function SiteFooter() {
         >
           Liability Waiver
         </Link>
+        <a
+          href={INSTAGRAM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-[44px] items-center px-2 py-1 transition hover:text-ink sm:min-h-0 sm:px-0 sm:py-0"
+        >
+          Instagram @{INSTAGRAM_HANDLE}
+        </a>
       </nav>
       <p className="mt-4 text-caption text-muted">
-        © {new Date().getFullYear()} CT Pickup
+        © {new Date().getFullYear()} {PRODUCT_NAME}
       </p>
     </footer>
   );

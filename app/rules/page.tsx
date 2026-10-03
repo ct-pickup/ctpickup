@@ -23,16 +23,16 @@ export default function RulesPage() {
       <div className="grid items-start gap-8 pb-16 pt-4 lg:grid-cols-[minmax(0,620px)_280px] lg:gap-10">
         <Panel className="p-6 md:p-8 lg:p-10">
           <div className="max-w-[620px]">
-            <SectionEyebrow>CT Pickup</SectionEyebrow>
+            <SectionEyebrow>Competitive Together</SectionEyebrow>
 
             <h1 className="mt-4 text-h1 font-serif font-semibold text-ink md:text-display">
-              CT Pickup Rules
+              Competitive Together Rules
             </h1>
             <p className="mt-2 text-small text-muted">{LEGAL_POLICY_LAST_UPDATED}</p>
 
             <div className="mt-8 max-w-[540px] space-y-8 border-l border-line pl-5 text-body leading-relaxed text-ink md:pl-8 md:text-h3 font-serif">
               <p>
-                CT Pickup is built on intensity, respect, and quality play. Every player who joins is expected to understand the standard and protect the environment. These rules are not optional. They exist to keep the level high, the games competitive, and the experience right for everyone on the field.
+                Competitive Together is built on intensity, respect, and quality play. Every player who joins is expected to understand the standard and protect the environment. These rules are not optional. They exist to keep the level high, the games competitive, and the experience right for everyone on the field.
               </p>
 
               <p className="text-small text-muted md:text-body">
@@ -51,14 +51,14 @@ export default function RulesPage() {
                 <div>
                   <p className="font-semibold text-ink">1. Respect Comes First</p>
                   <p className="mt-2">
-                    Respect for the game, the field, staff, and every player is the foundation of CT Pickup. Competitive energy is encouraged, but disrespect is not. Fights, threats, hostile behavior, and actions that damage the atmosphere are not tolerated. Anyone deemed disrespectful, disruptive, or harmful to the environment may be suspended indefinitely or dropped a tier.
+                    Respect for the game, the field, staff, and every player is the foundation of Competitive Together. Competitive energy is encouraged, but disrespect is not. Fights, threats, hostile behavior, and actions that damage the atmosphere are not tolerated. Anyone deemed disrespectful, disruptive, or harmful to the environment may be suspended indefinitely or dropped a tier.
                   </p>
                 </div>
 
                 <div>
                   <p className="font-semibold text-ink">2. Community Over Competition</p>
                   <p className="mt-2">
-                    We compete hard, but the community comes first. CT Pickup is about building the right environment for everyone involved. Every player is responsible for keeping good vibes on the field and contributing to a competitive but respectful atmosphere.
+                    We compete hard, but the community comes first. Competitive Together is about building the right environment for everyone involved. Every player is responsible for keeping good vibes on the field and contributing to a competitive but respectful atmosphere.
                   </p>
                 </div>
 
@@ -152,21 +152,21 @@ export default function RulesPage() {
                 <div>
                   <p className="font-semibold text-ink">13. Follow Staff Decisions</p>
                   <p className="mt-2">
-                    CT Pickup staff reserve the right to organize teams, adjust formats, manage rotations, and make decisions that protect the quality of the session. These decisions are made in the best interest of the full group and must be respected.
+                    Competitive Together staff reserve the right to organize teams, adjust formats, manage rotations, and make decisions that protect the quality of the session. These decisions are made in the best interest of the full group and must be respected.
                   </p>
                 </div>
 
                 <div>
                   <p className="font-semibold text-ink">14. Protect the Standard</p>
                   <p className="mt-2">
-                    CT Pickup is more than just open play. It is a curated soccer experience built around competition, dependability, and community. Players who consistently disrupt that standard may be removed from a session or restricted from future participation.
+                    Competitive Together is more than just open play. It is a curated soccer experience built around competition, dependability, and community. Players who consistently disrupt that standard may be removed from a session or restricted from future participation.
                   </p>
                 </div>
 
                 <div>
                   <p className="font-semibold text-ink">15. Come to Compete, Come to Contribute</p>
                   <p className="mt-2">
-                    Every player helps shape the atmosphere. Bring energy, effort, and the right attitude. CT Pickup is at its best when players show up ready to compete, connect, and elevate the level for everyone.
+                    Every player helps shape the atmosphere. Bring energy, effort, and the right attitude. Competitive Together is at its best when players show up ready to compete, connect, and elevate the level for everyone.
                   </p>
                 </div>
 
@@ -180,7 +180,7 @@ export default function RulesPage() {
                 <div>
                   <p className="font-semibold text-ink">17. Eligibility and Accountability</p>
                   <p className="mt-2">
-                    By joining CT Pickup, you are agreeing to the rules and standards of the platform. Failure to meet eligibility requirements, failure to follow the rules, or complaining about rules after agreeing to them may result in a 30-day suspension or permanent removal.
+                    By joining Competitive Together, you are agreeing to the rules and standards of the platform. Failure to meet eligibility requirements, failure to follow the rules, or complaining about rules after agreeing to them may result in a 30-day suspension or permanent removal.
                   </p>
                 </div>
               </div>
@@ -188,7 +188,7 @@ export default function RulesPage() {
               <div>
                 <p className="font-semibold text-ink">Our Standard</p>
                 <p className="mt-2">
-                  CT Pickup is designed for players who value quality soccer, strong competition, and a professional environment. These rules are not here to limit the game. They are here to protect what makes it great. When everyone respects the standard, every session becomes better, sharper, and more worth showing up for.
+                  Competitive Together is designed for players who value quality soccer, strong competition, and a professional environment. These rules are not here to limit the game. They are here to protect what makes it great. When everyone respects the standard, every session becomes better, sharper, and more worth showing up for.
                 </p>
               </div>
 

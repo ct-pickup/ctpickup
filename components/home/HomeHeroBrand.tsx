@@ -1,5 +1,7 @@
+import { Wordmark } from "@/components/brand/Wordmark";
+import { PRODUCT_NAME } from "@/lib/brand";
 /**
- * Canonical homepage hero mark: logo, PICKUP wordmark, tagline.
+ * Canonical homepage hero mark: logo, wordmark, tagline.
  * Reused by the homepage, session intro, and route transition overlay — keep in sync.
  */
 type HomeHeroBrandProps = {
@@ -11,7 +13,7 @@ type HomeHeroBrandProps = {
 };
 
 export function HomeHeroBrand({
-  logoAlt = "CT Pickup",
+  logoAlt = PRODUCT_NAME,
   titleAs = "h1",
   stackClassName,
 }: HomeHeroBrandProps) {
@@ -26,8 +28,8 @@ export function HomeHeroBrand({
         draggable={false}
       />
 
-      <TitleTag className="mt-4 text-h2 font-serif font-bold text-ink sm:mt-6 sm:text-h1 md:text-display">
-        PICKUP
+      <TitleTag className="mt-4 text-center text-h3 text-ink sm:mt-6 sm:text-h1 md:text-display">
+        <Wordmark />
       </TitleTag>
 
       <p className="mt-3 max-w-[20rem] text-caption leading-relaxed text-muted sm:mt-5 sm:max-w-none sm:text-caption md:text-small">

@@ -16,7 +16,7 @@ export default function TrainingPage() {
 
       <header className="grid gap-8 lg:grid-cols-[1fr_1fr] lg:items-center lg:gap-10">
         <div className="space-y-4">
-          <SectionEyebrow>CT Pickup</SectionEyebrow>
+          <SectionEyebrow>Competitive Together</SectionEyebrow>
 
           <h1 className="text-h1 font-serif font-bold text-ink md:text-display">
             TRAINING

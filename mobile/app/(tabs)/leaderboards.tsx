@@ -19,6 +19,7 @@ import {
 } from "react-native";
 
 import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
+import { StarLevelsLink } from "@/components/StarLevels";
 import { StarRating } from "@/components/StarRating";
 import { fetchPlayerCards, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
@@ -437,6 +438,7 @@ export default function LeaderboardsScreen() {
           )}
           {topPct ? <Text style={styles.heroTop}>{topPct}</Text> : null}
           <Text style={styles.heroSub}>Play more verified games to move up.</Text>
+          <StarLevelsLink style={styles.heroLink} />
         </View>
       </View>
     );
@@ -852,6 +854,8 @@ function make_styles() {
     backgroundColor: themeColor().pitchPanel,
   },
   retryBtnText: { color: themeColor().onPitchPanel, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
+
+  heroLink: { marginTop: 12 },
 
   /* region modal */
   modalRoot: { flex: 1, justifyContent: "flex-end", backgroundColor: themeColor().scrim },

@@ -19,6 +19,14 @@ class FakeDb {
   from(table: string) {
     return new FakeQuery(this, table);
   }
+
+  /** Unset functions behave as not yet migrated. */
+  rpcResults: Record<string, Result> = {};
+  rpcCalls: Array<{ fn: string; args: Row }> = [];
+  async rpc(fn: string, args: Row): Promise<Result> {
+    this.rpcCalls.push({ fn, args });
+    return this.rpcResults[fn] ?? { data: null, error: { code: "PGRST202", message: "Could not find the function" } as { message: string } };
+  }
 }
 
 class FakeQuery implements PromiseLike<Result> {
@@ -295,5 +303,30 @@ describe("admin write errors", () => {
     const res = await verificationPOST(post("/api/admin/verification", "staff", { request_id: "vr-1", decision: "approved" }));
     expect(res.status).toBe(500);
     expect(h.captured).toHaveLength(1);
+  });
+
+  it("verification approval with a level goes through approve_verification_with_level", async () => {
+    h.db.rows("verification_requests").push({ id: "vr-1", user_id: TARGET, status: "pending" });
+    h.db.rpcResults.approve_verification_with_level = { data: { seeded: true }, error: null };
+    const res = await verificationPOST(post("/api/admin/verification", "staff", { request_id: "vr-1", decision: "approved", level: 4 }));
+    expect(res.status).toBe(200);
+    expect(h.db.rpcCalls).toEqual([
+      { fn: "approve_verification_with_level", args: { p_request_id: "vr-1", p_level: 4, p_admin_id: "staff" } },
+    ]);
+    expect(h.db.writes).toEqual([]);
+  });
+
+  it("verification rejects levels that are not half stars", async () => {
+    h.db.rows("verification_requests").push({ id: "vr-1", user_id: TARGET, status: "pending" });
+    const res = await verificationPOST(post("/api/admin/verification", "staff", { request_id: "vr-1", decision: "approved", level: 3.7 }));
+    expect(res.status).toBe(400);
+    expect(h.db.rpcCalls).toEqual([]);
+  });
+
+  it("verification will not re-approve a reviewed request", async () => {
+    h.db.rows("verification_requests").push({ id: "vr-1", user_id: TARGET, status: "approved" });
+    const res = await verificationPOST(post("/api/admin/verification", "staff", { request_id: "vr-1", decision: "approved", level: 4 }));
+    expect(res.status).toBe(409);
+    expect(h.db.writes).toEqual([]);
   });
 });

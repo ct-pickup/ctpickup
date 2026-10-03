@@ -10,8 +10,8 @@ import { EsportsParticipantTermsDocument } from "@/lib/legal/esportsParticipantT
 import { esportsDocVersionLabel } from "@/lib/legal/esportsDocVersions";
 
 export const metadata: Metadata = {
-  title: "Terms and Conditions (Esports) | CT Pickup",
-  description: "Terms and conditions for the CT Pickup platform and esports registration.",
+  title: "Terms and Conditions (Esports) | Competitive Together",
+  description: "Terms and conditions for the Competitive Together platform and esports registration.",
 };
 
 export default function EsportsParticipantTermsPage() {

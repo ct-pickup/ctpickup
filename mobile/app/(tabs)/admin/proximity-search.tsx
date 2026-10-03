@@ -107,7 +107,7 @@ export default function ProximitySearchScreen() {
           label="Venue"
           value={venue}
           onChange={setVenue}
-          hint="Select a venue or type a known CT Pickup venue name in the field below."
+          hint="Select a venue or type a known Competitive Together venue name in the field below."
         />
         <View style={styles.venueInputWrap}>
           <Text style={styles.label}>Venue name</Text>

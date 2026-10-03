@@ -64,7 +64,7 @@ export async function POST(req: Request) {
       .from("tier_sessions")
       .insert({
         organizer_id: run.created_by ?? guard.userId,
-        venue: run.location_text ?? run.title ?? "CT Pickup Session",
+        venue: run.location_text ?? run.title ?? "Competitive Together Session",
         starts_at: run.start_at ?? now,
         capacity: 20,
         min_tier,

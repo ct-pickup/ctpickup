@@ -12,6 +12,7 @@ import Link from "next/link";
 import { PICKUP_REFUND_UI_NOTICE } from "@/lib/fees/refundPolicyCopy";
 import { APP_HOME_URL } from "@/lib/siteNav";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
+import { PHOTO_REQUIRED_CODE, PHOTO_REQUIRED_MESSAGE } from "@/shared/profilePhoto";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fmtPickupDateTimeEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
 
@@ -41,6 +42,7 @@ export default function PickupPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [photoNeeded, setPhotoNeeded] = useState(false);
   const [waiverModalOpen, setWaiverModalOpen] = useState(false);
   const pendingPickup = useRef<PendingPickup | null>(null);
 
@@ -184,6 +186,7 @@ export default function PickupPage() {
 
     setBusy(true);
     setMsg(null);
+    setPhotoNeeded(false);
     try {
       const post = async (extra: Record<string, unknown> = {}) => {
         const res = await fetch("/api/pickup/rsvp", {
@@ -210,6 +213,11 @@ export default function PickupPage() {
         }
         if (r.status === 403 && j?.error === "standing_not_eligible") {
           setMsg(typeof j?.detail === "string" ? j.detail : "Pickup participation is not available for your account.");
+          return;
+        }
+        if (r.status === 403 && j?.code === PHOTO_REQUIRED_CODE) {
+          setPhotoNeeded(true);
+          setMsg(typeof j?.error === "string" ? j.error : PHOTO_REQUIRED_MESSAGE);
           return;
         }
         setMsg(j?.error || "Something went wrong.");
@@ -294,7 +302,7 @@ export default function PickupPage() {
             <EmptyStateMessage>No active pickup games</EmptyStateMessage>
           ) : !data?.me?.approved ? (
             <div className="text-ink">
-              Your account is pending approval. If you’re already known to CT Pickup, we’ll approve your account and tier.
+              Your account is pending approval. If you’re already known to Competitive Together, we’ll approve your account and tier.
             </div>
           ) : (
             <>
@@ -539,6 +547,11 @@ export default function PickupPage() {
               ) : null}
 
               {msg ? <div className="text-small text-coral-text pt-2">{msg}</div> : null}
+              {photoNeeded ? (
+                <Link href="/profile" className="inline-flex pt-1 text-small font-medium text-pitch-text underline-offset-4 hover:underline">
+                  Add a profile photo
+                </Link>
+              ) : null}
             </>
           )}
         </section>

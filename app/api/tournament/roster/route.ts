@@ -308,7 +308,7 @@ export async function POST(req: Request) {
         if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
         await sendPushToUsers(admin, [player.user_id], {
           title: "Tournament team invite",
-          body: `You've been invited to join ${String(cap.team_name || "a team")} for the CT Pickup Tournament.`,
+          body: `You've been invited to join ${String(cap.team_name || "a team")} for the Competitive Together Tournament.`,
           data: { kind: "tournament_roster_invite", roster_id: upd.id, tournament_id, captain_id },
         });
         await syncCaptainPlayersPaid(admin, captain_id);
@@ -332,7 +332,7 @@ export async function POST(req: Request) {
 
     await sendPushToUsers(admin, [player.user_id], {
       title: "Tournament team invite",
-      body: `You've been invited to join ${String(cap.team_name || "a team")} for the CT Pickup Tournament.`,
+      body: `You've been invited to join ${String(cap.team_name || "a team")} for the Competitive Together Tournament.`,
       data: { kind: "tournament_roster_invite", roster_id: row.id, tournament_id, captain_id },
     });
 

@@ -224,7 +224,7 @@ export default function AdminRunDetailLifecycle({
       capacity,
       fee_cents,
       currency: "usd",
-      title: s(run.title).trim() || "CT Pickup Run",
+      title: s(run.title).trim() || "Competitive Together Run",
       run_type: isPublicPickupRunType(run.run_type) ? "public" : "select",
       location_private: run.location_private != null ? s(run.location_private) : null,
     };

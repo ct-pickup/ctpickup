@@ -121,7 +121,7 @@ export default function RunClient({ event, counts: initialCounts }: { event: Eve
         fallbackHref="/status/pickup"
         className="mb-4 shrink-0 cursor-pointer border-0 bg-transparent p-0 text-small text-muted underline underline-offset-4 hover:text-muted"
       />
-      <h1 className="text-h2 font-serif font-semibold">CT Pickup Run</h1>
+      <h1 className="text-h2 font-serif font-semibold">Competitive Together Run</h1>
 
       <div className="mt-2 text-small text-muted">
         {event.location_name ? <div>{event.location_name}</div> : null}

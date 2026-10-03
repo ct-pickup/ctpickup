@@ -37,7 +37,7 @@ const upcomingCards = [
     title: "Updates",
     body: "Runs may include updates with scheduling notes, changes, reminders, or other important information.",
     bullets: [
-      "Players may also see broader CT Pickup updates when relevant.",
+      "Players may also see broader Competitive Together updates when relevant.",
       "If more than one run is live, each run can carry its own updates separately.",
     ],
   },

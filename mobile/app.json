@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "CT Pickup",
+    "name": "CT",
     "description": "Soccer pickup & tournaments",
     "slug": "ctpickup-mobile",
     "version": "1.4.0",
@@ -13,7 +13,8 @@
       "bundleIdentifier": "com.ctpickup.mobile",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Show pickup sessions near you."
+        "NSLocationWhenInUseUsageDescription": "Show pickup sessions near you.",
+        "CFBundleDisplayName": "CT"
       },
       "buildNumber": "47"
     },
@@ -61,7 +62,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash-icon-light.png",
+          "image": "./assets/brand/ct-splash-light.png",
           "resizeMode": "contain",
           "backgroundColor": "#F4F1EA"
         }
@@ -70,7 +71,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow CT Pickup to use Face ID to unlock the app."
+          "faceIDPermission": "Allow Competitive Together to use Face ID to unlock the app."
         }
       ],
       [
@@ -79,7 +80,14 @@
           "locationWhenInUsePermission": "Show pickup sessions near you."
         }
       ],
-      "@sentry/react-native"
+      "@sentry/react-native",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Competitive Together uses your photos so you can add a profile photo other players will recognize.",
+          "cameraPermission": "Competitive Together uses your camera so you can take a profile photo other players will recognize."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

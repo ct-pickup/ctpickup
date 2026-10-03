@@ -25,7 +25,7 @@ export function AfterLoginPublicClient({ loginHref }: { loginHref: string }) {
       <div className="mt-8 text-center md:mt-10">
         <HomeHeroBrand titleAs="div" />
         <h1 className="mt-6 text-h2 font-serif font-semibold md:text-h1">
-          Your CT Pickup home
+          Your Competitive Together home
         </h1>
         <p className="mx-auto mt-4 max-w-lg text-pretty text-small leading-relaxed text-muted md:text-body">
           After you sign in, pickup games, tournaments, training, and community open from one hub

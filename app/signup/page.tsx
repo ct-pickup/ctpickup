@@ -45,6 +45,7 @@ import {
   profileIdentityColumns,
   normalizePlayingPosition,
 } from "@/lib/profileIdentityFields";
+import { Wordmark } from "@/components/brand/Wordmark";
 
 type Stage = "email" | "code" | "profile";
 
@@ -129,7 +130,7 @@ function InfoIcon() {
 
       <div className="pointer-events-none absolute left-7 top-1/2 z-20 hidden w-[280px] -translate-y-1/2 rounded-card border border-line bg-canvas px-3 py-2 text-caption leading-relaxed text-muted group-hover:block group-focus-within:block">
         We’ll only store your personal information once. If you run into issues,
-        someone from CT Pickup may be able to help.
+        someone from Competitive Together may be able to help.
       </div>
     </div>
   );
@@ -584,9 +585,7 @@ function SignupForm({
 
       <div className="mx-auto max-w-7xl px-6 py-10">
         <div className="mb-8 flex items-center justify-between">
-          <div className="text-body md:text-h3 font-serif font-semibold text-ink">
-            CT Pickup
-          </div>
+          <Wordmark as="div" className="text-body text-ink md:text-h3" />
 
           <HistoryBack
             fallbackHref="/"
@@ -595,7 +594,7 @@ function SignupForm({
         </div>
 
         <div className="flex items-center justify-center gap-10">
-          <SidePhoto src={LEFT_IMAGE} alt="CT Pickup left" />
+          <SidePhoto src={LEFT_IMAGE} alt="Competitive Together left" />
 
           <div className="w-full max-w-[420px]">
             <div className="rounded-[30px] border border-line bg-card p-5 md:p-6">
@@ -881,7 +880,7 @@ function SignupForm({
             </div>
           </div>
 
-          <SidePhoto src={RIGHT_IMAGE} alt="CT Pickup right" />
+          <SidePhoto src={RIGHT_IMAGE} alt="Competitive Together right" />
         </div>
       </div>
     </main>

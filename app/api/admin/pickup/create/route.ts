@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const title = String(body.title || "CT Pickup Run");
+    const title = String(body.title || "Competitive Together Run");
     const status = String(body.status || "active"); // draft|active
     const time_option_a = String(body.time_option_a || "");
     const time_option_b = String(body.time_option_b || "");

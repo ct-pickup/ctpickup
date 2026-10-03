@@ -3,12 +3,14 @@ import { useCallback, useState } from "react";
 import { Alert } from "react-native";
 
 import { useAuth } from "@/context/AuthContext";
+import { useProfilePhoto } from "@/context/ProfilePhotoContext";
 import { reportPhotoUploadError } from "@/lib/reportPhotoUploadError";
 import { PhotoUploadError } from "@shared/photoUploadError";
 
 /** Profile photo state plus the Take / Choose / Remove picker that uploads to the avatars bucket. */
 export function useAvatarPhoto() {
   const { supabase, session } = useAuth();
+  const { setAvatarUrl: setSharedAvatarUrl } = useProfilePhoto();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
@@ -36,6 +38,7 @@ export function useAvatarPhoto() {
           return;
         }
         setAvatarUrl(publicUrl);
+        setSharedAvatarUrl(publicUrl);
       } catch (e) {
         setAvatarUrl(prevAvatarUrl);
         Alert.alert("Photo not uploaded", reportPhotoUploadError(e, { stage: "upload", bucket: "avatars", path }));
@@ -43,7 +46,7 @@ export function useAvatarPhoto() {
         setAvatarUploading(false);
       }
     },
-    [supabase],
+    [supabase, setSharedAvatarUrl],
   );
 
   const pickAndUploadAvatar = useCallback(() => {
@@ -94,6 +97,7 @@ export function useAvatarPhoto() {
         style: "destructive",
         onPress: async () => {
           setAvatarUrl(null);
+          setSharedAvatarUrl(null);
           try {
             await supabase.from("profiles").update({ avatar_url: null }).eq("id", userId);
           } catch {
@@ -103,7 +107,7 @@ export function useAvatarPhoto() {
       },
       { text: "Cancel", style: "cancel" },
     ]);
-  }, [supabase, session?.user?.id, avatarUrl, uploadAvatarUri]);
+  }, [supabase, session?.user?.id, avatarUrl, uploadAvatarUri, setSharedAvatarUrl]);
 
   return { avatarUrl, setAvatarUrl, avatarUploading, pickAndUploadAvatar };
 }

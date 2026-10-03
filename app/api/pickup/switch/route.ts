@@ -424,7 +424,7 @@ export async function POST(req: Request) {
   if (action === "create_run") {
 
 
-    const title = String(body.title || "CT Pickup Run").trim() || "CT Pickup Run";
+    const title = String(body.title || "Competitive Together Run").trim() || "Competitive Together Run";
     const run_type = normalizePickupRunTypeForDb(body.run_type);
     const capacity = Number(body.capacity || 18);
     const fee_cents = Number(body.fee_cents || 0);

@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 
 const TWIML = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Message>Got your message — CT Pickup will respond soon.</Message>
+  <Message>Got your message — Competitive Together will respond soon.</Message>
 </Response>`;
 
 /**
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  return new Response("CT Pickup Twilio inbound route is live", {
+  return new Response("Competitive Together Twilio inbound route is live", {
     status: 200,
     headers: { "Content-Type": "text/plain" },
   });

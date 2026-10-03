@@ -111,7 +111,7 @@ export async function POST(req: Request) {
             currency: "usd",
             unit_amount: feeCents,
             product_data: {
-              name: `CT Pickup Tournament Entry — ${rosterHeadcount} players × $50`,
+              name: `Competitive Together Tournament Entry — ${rosterHeadcount} players × $50`,
               description: IN_PERSON_TOURNAMENT_CAPTAIN_STRIPE_DESCRIPTION,
             },
           },

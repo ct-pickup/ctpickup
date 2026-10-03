@@ -1,4 +1,8 @@
+import { StarLevelSelect } from "@/components/StarLevels";
 import { useProfileCompletionGate } from "@/context/ProfileCompletionContext";
+import { useProfilePhoto } from "@/context/ProfilePhotoContext";
+import ProfilePhotoPicker from "@/components/photo/ProfilePhotoPicker";
+import { PHOTO_STEP_BODY, PHOTO_STEP_TITLE } from "@shared/profilePhoto";
 import { useAuth } from "@/context/AuthContext";
 import { useWaiver } from "@/context/WaiverContext";
 import { siteOrigin } from "@/lib/env";
@@ -51,6 +55,7 @@ type FieldKey =
   | "last_name"
   | "gender"
   | "playing_position"
+  | "stated_level"
   | "instagram"
   | "phone"
   | "zip_code"
@@ -176,6 +181,7 @@ export default function CompleteProfileScreen() {
   const [lastName, setLastName] = useState("");
   const [gender, setGender] = useState<GenderValue | null>(null);
   const [playingPosition, setPlayingPosition] = useState<PositionValue | null>(null);
+  const [statedLevel, setStatedLevel] = useState<number | null>(null);
   const [instagram, setInstagram] = useState("");
   const [phone, setPhone] = useState("");
   const [zipCode, setZipCode] = useState("");
@@ -190,6 +196,14 @@ export default function CompleteProfileScreen() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [postSaveVenues, setPostSaveVenues] = useState<VenueDistanceRow[] | null>(null);
+  const [photoStepDone, setPhotoStepDone] = useState(false);
+  const {
+    required: photoRequired,
+    avatarUrl,
+    hasPhoto,
+    setAvatarUrl,
+    dismissNudge,
+  } = useProfilePhoto();
   const [zipVenuePreviewChecking, setZipVenuePreviewChecking] = useState(false);
   const [zipVenuePreviewEmpty, setZipVenuePreviewEmpty] = useState<boolean | null>(null);
 
@@ -261,25 +275,27 @@ export default function CompleteProfileScreen() {
       !firstName.trim() ||
       !lastName.trim() ||
       !playingPosition ||
+      statedLevel == null ||
       !zipOk ||
       !username.trim()
     )
       return false;
     return true;
-  }, [firstName, lastName, playingPosition, zipOk, username]);
+  }, [firstName, lastName, playingPosition, statedLevel, zipOk, username]);
 
   const liveErrors = useMemo((): Partial<Record<FieldKey, string>> => {
     const e: Partial<Record<FieldKey, string>> = {};
     if (!firstName.trim()) e.first_name = "Required";
     if (!lastName.trim()) e.last_name = "Required";
     if (!playingPosition) e.playing_position = "Required";
+    if (statedLevel == null) e.stated_level = "Required";
     if (!zipDigits) e.zip_code = "Required";
     else if (!zipOk) e.zip_code = "Enter a 5-digit zip";
     if (!username.trim()) e.username = "Required";
     else if (!normalizeProfileUsername(username))
       e.username = "3–30 characters, lowercase letters and numbers only";
     return e;
-  }, [firstName, lastName, playingPosition, zipDigits, zipOk, username]);
+  }, [firstName, lastName, playingPosition, statedLevel, zipDigits, zipOk, username]);
 
   const postSaveVenueSections = useMemo(
     () => (postSaveVenues && postSaveVenues.length > 0 ? nearestVenueSections(postSaveVenues) : []),
@@ -291,6 +307,7 @@ export default function CompleteProfileScreen() {
       "first_name",
       "last_name",
       "playing_position",
+      "stated_level",
       "instagram",
       "zip_code",
       "username",
@@ -306,7 +323,7 @@ export default function CompleteProfileScreen() {
     setSubmitError(null);
     setAgeError(null);
     if (!ageConfirmed) {
-      const m = "You must be 13 or older to use CT Pickup";
+      const m = "You must be 13 or older to use Competitive Together";
       setAgeError(m);
       return;
     }
@@ -414,6 +431,20 @@ export default function CompleteProfileScreen() {
         return;
       }
 
+      // Starting rating. The server decides whether to seed; a failure here never blocks signup.
+      if (origin && session?.access_token && statedLevel != null) {
+        try {
+          const r = await fetch(`${origin}/api/account/star-level`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ level: statedLevel }),
+          });
+          if (!r.ok) console.warn("[complete-profile] star level not saved", r.status);
+        } catch (e) {
+          console.warn("[complete-profile] star level request failed", e);
+        }
+      }
+
       setPostSaveVenues(nearestVenues);
     } catch (e) {
       const userMsg = "Something went wrong while saving your profile. Please try again.";
@@ -434,6 +465,7 @@ export default function CompleteProfileScreen() {
     lastName,
     gender,
     playingPosition,
+    statedLevel,
     instagram,
     phone,
     zipDigits,
@@ -508,7 +540,36 @@ export default function CompleteProfileScreen() {
             },
           ]}
         >
-          {postSaveVenues ? (
+          {postSaveVenues && !photoStepDone && hasPhoto !== true ? (
+            <>
+              <Text style={styles.title}>{PHOTO_STEP_TITLE}</Text>
+              <Text style={styles.subtitle}>{PHOTO_STEP_BODY}</Text>
+              <View style={styles.photoStep}>
+                <ProfilePhotoPicker
+                  value={avatarUrl}
+                  onSaved={(url) => {
+                    setAvatarUrl(url);
+                    setPhotoStepDone(true);
+                  }}
+                />
+              </View>
+              {photoRequired ? (
+                <Text style={styles.photoStepHint}>You need a photo to continue.</Text>
+              ) : (
+                <Pressable
+                  style={styles.photoSkip}
+                  onPress={() => {
+                    dismissNudge();
+                    setPhotoStepDone(true);
+                  }}
+                  accessibilityRole="button"
+                  hitSlop={8}
+                >
+                  <Text style={styles.photoSkipText}>Not now</Text>
+                </Pressable>
+              )}
+            </>
+          ) : postSaveVenues ? (
             <>
               <Text style={styles.title}>Profile saved</Text>
               <Text style={styles.subtitle}>You&apos;re ready to find pickup and events.</Text>
@@ -614,6 +675,18 @@ export default function CompleteProfileScreen() {
               <Text style={styles.selectChevron}>▾</Text>
             </Pressable>
             {liveErrors.playing_position ? <Text style={styles.errText}>{liveErrors.playing_position}</Text> : null}
+          </View>
+
+          <View style={styles.fieldBlock}>
+            <Text style={styles.label}>What&apos;s the highest level you&apos;ve played?</Text>
+            <Text style={styles.fieldHint}>This sets your starting stars. You can get verified later.</Text>
+            <StarLevelSelect
+              value={statedLevel}
+              onChange={setStatedLevel}
+              invalid={!!liveErrors.stated_level}
+              style={styles.levelSelect}
+            />
+            {liveErrors.stated_level ? <Text style={styles.errText}>{liveErrors.stated_level}</Text> : null}
           </View>
 
           <View style={styles.fieldBlock}>
@@ -785,6 +858,15 @@ function make_styles() {
   fieldBlock: {
     marginTop: 16,
   },
+  photoStep: { marginTop: 28 },
+  photoStepHint: {
+    marginTop: 16,
+    fontSize: 14, fontFamily: "Inter_400Regular",
+    color: themeColor().muted,
+    textAlign: "center",
+  },
+  photoSkip: { marginTop: 16, alignSelf: "center", paddingVertical: 8 },
+  photoSkipText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: themeColor().muted },
   label: {
     fontSize: 13, fontFamily: "Inter_700Bold",
     fontWeight: "700",
@@ -826,6 +908,7 @@ function make_styles() {
     fontSize: 16, fontFamily: "Inter_400Regular",
     color: themeColor().muted,
   },
+  levelSelect: { marginTop: 8 },
   selectTrigger: {
     flexDirection: "row",
     alignItems: "center",

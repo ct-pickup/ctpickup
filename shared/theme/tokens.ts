@@ -1,5 +1,5 @@
 /**
- * CT Pickup theme. Single source of truth for color, type, and radius.
+ * Competitive Together theme. Single source of truth for color, type, and radius.
  * Light is the default. Dark values apply when the user picks Dark, or Match system on a dark phone.
  * Hex and rgba belong in this file only.
  */
@@ -26,6 +26,8 @@ export const palette = {
 export const radius = {
   card: 12,
   button: 10,
+  /** Profile player card. */
+  playerCard: 16,
   pill: 999,
 } as const;
 

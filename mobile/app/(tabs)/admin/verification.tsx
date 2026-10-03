@@ -1,3 +1,5 @@
+import { InstagramVerificationQueue } from "@/components/admin/InstagramVerificationQueue";
+import { StarLevelSelect } from "@/components/StarLevels";
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import { useFocusEffect } from "expo-router";
@@ -13,6 +15,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { starLevelLabel } from "@shared/starLevels";
 
 type VerificationRequest = {
   id: string;
@@ -21,49 +24,54 @@ type VerificationRequest = {
   evidence_url: string;
   status: string;
   created_at: string;
+  claimed_level: number | null;
+  stated_level: number | null;
   profiles: {
     first_name: string | null;
     last_name: string | null;
     username: string | null;
-    verification_level: string | null;
   } | null;
+};
+
+type ApiItem = Omit<VerificationRequest, "profiles"> & {
+  first_name: string | null;
+  last_name: string | null;
+  username: string | null;
 };
 
 export default function AdminVerificationScreen() {
   useThemedStyles(publish_s);
 
-  const { supabase, session } = useAuth();
+  const { session } = useAuth();
   const [requests, setRequests] = useState<VerificationRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [levels, setLevels] = useState<Record<string, number>>({});
 
   const load = useCallback(async () => {
-    if (!supabase) return;
+    const origin = siteOrigin();
+    const token = session?.access_token;
+    if (!origin || !token) return;
     setLoading(true);
     try {
-      const { data } = await supabase
-        .from("verification_requests")
-        .select("id,user_id,claim,evidence_url,status,created_at")
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      if (data && data.length > 0) {
-        const userIds = [...new Set(data.map((r: any) => r.user_id))];
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("id,first_name,last_name,username,verification_level")
-          .in("id", userIds);
-
-        const profileMap = Object.fromEntries((profileData ?? []).map((p: any) => [p.id, p]));
-        const merged = data.map((r: any) => ({ ...r, profiles: profileMap[r.user_id] ?? null }));
-        setRequests(merged as VerificationRequest[]);
-      } else {
-        setRequests([]);
-      }
+      const fetchStatus = async (status: string): Promise<ApiItem[]> => {
+        const r = await fetch(`${origin}/api/admin/verification?status=${status}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const j = (await r.json().catch(() => null)) as { items?: ApiItem[] } | null;
+        return r.ok ? (j?.items ?? []) : [];
+      };
+      const lists = await Promise.all(["pending", "approved", "rejected"].map(fetchStatus));
+      setRequests(
+        lists.flat().map((i) => ({
+          ...i,
+          profiles: { first_name: i.first_name, last_name: i.last_name, username: i.username },
+        })),
+      );
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, [session?.access_token]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
@@ -77,7 +85,11 @@ export default function AdminVerificationScreen() {
       const r = await fetch(`${origin}/api/admin/verification`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ request_id: req.id, decision }),
+        body: JSON.stringify({
+          request_id: req.id,
+          decision,
+          level: decision === "approved" ? levelFor(req) : undefined,
+        }),
       });
       const j = await r.json().catch(() => null) as { ok?: boolean; error?: string } | null;
       if (!r.ok || !j?.ok) { Alert.alert("Error", j?.error ?? "Failed."); return; }
@@ -86,6 +98,10 @@ export default function AdminVerificationScreen() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  function levelFor(req: VerificationRequest): number | null {
+    return levels[req.id] ?? req.claimed_level ?? req.stated_level ?? null;
   }
 
   const pending = requests.filter((r) => r.status === "pending");
@@ -98,6 +114,10 @@ export default function AdminVerificationScreen() {
   return (
     <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 60 }}>
       <Text style={s.pageTitle}>Verification Requests</Text>
+
+      <InstagramVerificationQueue />
+
+      <Text style={s.sectionTitle}>Documents</Text>
 
       {pending.length === 0 && (
         <View style={s.emptyCard}>
@@ -130,6 +150,15 @@ export default function AdminVerificationScreen() {
               <Text style={s.urlText} numberOfLines={1}>🔗 {req.evidence_url}</Text>
             </Pressable>
 
+            <Text style={s.claimLabel}>Verified level</Text>
+            <StarLevelSelect
+              value={levelFor(req)}
+              onChange={(star) => setLevels((prev) => ({ ...prev, [req.id]: star }))}
+              title="Verified level"
+              placeholder="Pick the verified level"
+              style={s.levelSelect}
+            />
+
             <View style={s.actions}>
               <Pressable
                 onPress={() => Alert.alert("Reject?", `Reject ${name}'s verification request?`, [
@@ -142,7 +171,9 @@ export default function AdminVerificationScreen() {
                 <Text style={s.rejectBtnText}>Reject</Text>
               </Pressable>
               <Pressable
-                onPress={() => Alert.alert("Approve?", `Grant ${name} Document Verified status?`, [
+                onPress={() => levelFor(req) == null
+                  ? Alert.alert("Pick a level", "Choose the verified level before approving.")
+                  : Alert.alert("Approve?", `Verify ${name} at ${starLevelLabel(levelFor(req))}?`, [
                   { text: "Cancel", style: "cancel" },
                   { text: "Approve", onPress: () => void review(req, "approved") },
                 ])}
@@ -208,6 +239,7 @@ function make_s() {
   claimText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20, marginBottom: 12 },
   urlRow: { backgroundColor: themeColor().pitchPanel, borderRadius: 10, borderWidth: 1, borderColor: themeColor().pitch, padding: 8, marginBottom: 12 },
   urlText: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular" },
+  levelSelect: { marginBottom: 12 },
   actions: { flexDirection: "row", gap: 8 },
   rejectBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: themeColor().coral, alignItems: "center" },
   rejectBtnText: { color: themeColor().coralText, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },

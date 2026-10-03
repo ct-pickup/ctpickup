@@ -21,6 +21,7 @@ import { AdminModeProvider } from "@/context/AdminModeContext";
 import { AppearanceProvider, useAppearance } from "@/context/AppearanceContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { ProfileCompletionProvider } from "@/context/ProfileCompletionContext";
+import { ProfilePhotoProvider } from "@/context/ProfilePhotoContext";
 import { ProfileAdminProvider } from "@/context/ProfileAdminContext";
 import { ReviewModeProvider } from "@/context/ReviewModeContext";
 import { WaiverProvider } from "@/context/WaiverContext";
@@ -50,6 +51,7 @@ import { siteOrigin } from "@/lib/env";
 import { isUpdateRequired } from "@/lib/semver";
 
 import { headline, themeColor, useThemedStyles } from "@/theme";
+import { PRODUCT_NAME } from "@/lib/brand";
 export { ErrorBoundary } from "expo-router";
 
 export const unstable_settings = {
@@ -164,6 +166,7 @@ function RootLayoutNav() {
                 <SelectedRegionProvider>
                   <AppLockProvider>
                     <AccountIntroReplayProvider>
+                    <ProfilePhotoProvider>
                       <View style={{ flex: 1 }}>
                         {minVersionBlocked ? <UpdateRequiredGate /> : null}
                         <ReviewModeBanner />
@@ -196,7 +199,7 @@ function RootLayoutNav() {
                             name="login"
                             options={{
                               headerShown: false,
-                              title: "CT Pickup",
+                              title: PRODUCT_NAME,
                             }}
                           />
                           <Stack.Screen
@@ -239,6 +242,17 @@ function RootLayoutNav() {
                               headerShown: true,
                               title: "Settings",
                               headerBackTitle: "Profile",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="instagram-verification"
+                            options={{
+                              headerShown: true,
+                              title: "Verification",
+                              headerBackTitle: "Settings",
                               headerStyle: { backgroundColor: themeColor().bg },
                               headerTintColor: themeColor().text,
                               headerShadowVisible: false,
@@ -464,6 +478,7 @@ function RootLayoutNav() {
                         <AppOpeningTheme key={openingThemeKey} />
                         <AppLockOverlay />
                       </View>
+                    </ProfilePhotoProvider>
                     </AccountIntroReplayProvider>
                   </AppLockProvider>
                 </SelectedRegionProvider>
@@ -487,7 +502,7 @@ function UpdateRequiredGate() {
       <View style={stylesUpdateGate.card}>
         <Text style={stylesUpdateGate.title}>Update Required</Text>
         <Text style={stylesUpdateGate.body}>
-          A new version of CT Pickup is available. Please update to continue.
+          A new version of {PRODUCT_NAME} is available. Please update to continue.
         </Text>
         <Pressable
           onPress={() => {
