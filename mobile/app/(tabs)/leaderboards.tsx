@@ -73,7 +73,7 @@ type LeaderboardsPayload = {
   season: string | null;
   /** Rows returned per category before the player's own and played-with rows. */
   top_n: number;
-  /** Size of each full category, for "Showing top 10 of 58". */
+  /** Size of each full category, for "Showing top 25 of 58". */
   totals: Record<string, number>;
 };
 
@@ -140,7 +140,7 @@ function parsePayload(json: unknown): LeaderboardsPayload | null {
     points: asRowArray(json.points),
     points_all_time: asRowArray(json.points_all_time),
     season: typeof json.season === "string" && json.season ? json.season : null,
-    top_n: typeof json.top_n === "number" && json.top_n > 0 ? json.top_n : 10,
+    top_n: typeof json.top_n === "number" && json.top_n > 0 ? json.top_n : 25,
     totals: isRecord(json.totals)
       ? Object.fromEntries(Object.entries(json.totals).filter((e): e is [string, number] => typeof e[1] === "number"))
       : {},
@@ -496,9 +496,9 @@ export default function LeaderboardsScreen() {
     );
   }
 
-  const topN = payload?.top_n ?? 10;
+  const topN = payload?.top_n ?? 25;
 
-  /** "Showing top 10 of 58" and, when CT+ is on, the full-leaderboard prompt. */
+  /** "Showing top 25 of 58" and, when CT+ is on, the full-leaderboard prompt. */
   function renderCapFooter(total: number | undefined) {
     const shown = total != null && total > topN ? `Showing top ${topN} of ${total}` : null;
     if (!shown && !CTPLUS_ENABLED) return null;

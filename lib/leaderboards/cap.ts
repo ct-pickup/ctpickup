@@ -1,5 +1,5 @@
 /** Rows per leaderboard category returned to a client, before the requester's own and played-with rows. */
-export const LEADERBOARD_TOP_N = 10;
+export const LEADERBOARD_TOP_N = 25;
 
 /**
  * Caps one ranked category. `full` is the whole category in rank order (best first); rank is the 1-based position in it.
