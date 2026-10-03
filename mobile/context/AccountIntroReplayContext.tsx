@@ -23,7 +23,8 @@ export function AccountIntroReplayProvider({ children }: { children: React.React
   return (
     <AccountIntroReplayContext.Provider value={value}>
       {children}
-      <AccountFirst100Intro key={key} trackedPickups={payload?.trackedPickups} scorePct={payload?.scorePct ?? null} />
+      {/* Only on replay (dev, from Settings or the score pill). Never on first launch, where the opening theme is the one intro. */}
+      {key > 0 ? <AccountFirst100Intro key={key} trackedPickups={payload?.trackedPickups} scorePct={payload?.scorePct ?? null} /> : null}
     </AccountIntroReplayContext.Provider>
   );
 }
