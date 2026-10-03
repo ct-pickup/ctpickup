@@ -1,9 +1,9 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Animated, Modal, PanResponder, Pressable, Share, StyleSheet, Text, View } from "react-native";
 
 import { useAuth } from "@/context/AuthContext";
-import { PRODUCT_NAME } from "@/lib/brand";
+import { APP_STORE_URL, PRODUCT_NAME } from "@/lib/brand";
 import { siteOrigin } from "@/lib/env";
 import { hapticTap } from "@/lib/haptics";
 import { radius, themeColor, useThemedStyles } from "@/theme";
@@ -53,33 +53,62 @@ export function CreateMenuSheet({ visible, onClose, onHostGame, resultRunId, onP
     [close, dragY],
   );
 
+  const [toast, setToast] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = useCallback((text: string) => {
+    setToast(text);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3500);
+  }, []);
+
+  /**
+   * Opens the iOS share sheet with a short message and a link (the site, or the App Store page when no site
+   * URL is set), plus the player's referral code when they have one. The share sheet is presented while this
+   * sheet is still up and the sheet closes afterwards: calling close() first starts the modal's dismiss
+   * animation, and iOS will not present a share sheet from a view controller that is being dismissed.
+   */
   const inviteFriends = useCallback(async () => {
+    if (inviting) return;
     void hapticTap();
-    const origin = siteOrigin();
-    const token = session?.access_token;
-    let code: string | null = null;
+    setInviting(true);
+    try {
+      const origin = siteOrigin();
+      const token = session?.access_token;
+      let code: string | null = null;
 
-    if (origin && token) {
-      try {
-        const res = await fetch(`${origin}/api/referral/code`, {
-          headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-          cache: "no-store",
-        });
-        const json = (await res.json().catch(() => null)) as { referral_code?: string } | null;
-        if (res.ok && typeof json?.referral_code === "string") code = json.referral_code;
-      } catch {
-        code = null;
+      if (origin && token) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 3000);
+        try {
+          const res = await fetch(`${origin}/api/referral/code`, {
+            headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+            cache: "no-store",
+            signal: controller.signal,
+          });
+          const json = (await res.json().catch(() => null)) as { referral_code?: string } | null;
+          if (res.ok && typeof json?.referral_code === "string") code = json.referral_code;
+        } catch {
+          code = null; // No code is fine: the invite still goes out.
+        } finally {
+          clearTimeout(timer);
+        }
       }
+
+      const link = origin ?? APP_STORE_URL;
+      const message =
+        `Join me on ${PRODUCT_NAME} — competitive pickup soccer. ${link}` +
+        (code ? `\nUse my referral code ${code} when you sign up.` : "");
+
+      await Share.share({ message });
+      close();
+    } catch (e) {
+      console.warn("[invite] share failed:", e instanceof Error ? e.message : e);
+      showToast("Couldn’t open the share sheet. Please try again.");
+    } finally {
+      setInviting(false);
     }
-
-    const tail = origin ? ` ${origin}` : "";
-    const message = code
-      ? `Come play ${PRODUCT_NAME} with me. Enter my referral code ${code} when you sign up.${tail}`
-      : `Come play ${PRODUCT_NAME} with me.${tail}`;
-
-    close();
-    await Share.share({ message }).catch(() => undefined);
-  }, [close, session]);
+  }, [close, inviting, session, showToast]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
@@ -111,7 +140,12 @@ export function CreateMenuSheet({ visible, onClose, onHostGame, resultRunId, onP
             />
           ) : null}
 
-          <MenuRow icon="share-alt" label="Invite friends" onPress={() => void inviteFriends()} />
+          <MenuRow icon="share-alt" label={inviting ? "Opening…" : "Invite friends"} onPress={() => void inviteFriends()} />
+          {toast ? (
+            <View style={styles.toast} accessibilityLiveRegion="polite">
+              <Text style={styles.toastText}>{toast}</Text>
+            </View>
+          ) : null}
         </Animated.View>
       </View>
     </Modal>
@@ -174,6 +208,8 @@ function make_styles() {
     },
     rowPrimary: { backgroundColor: themeColor().accent },
     rowIcon: { width: 22, textAlign: "center" },
+    toast: { borderRadius: radius.button, borderWidth: 1, borderColor: themeColor().coral, backgroundColor: themeColor().overlaySubtle, paddingVertical: 10, paddingHorizontal: 14 },
+    toastText: { color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     rowLabel: { fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   });
 }
