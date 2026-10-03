@@ -49,8 +49,9 @@ import {
   formatStars,
   hostScore as toHostScore,
   levelLabel,
-  SKILL_STAR_RANGE,
 } from "@/lib/starRatings";
+import { HalfStarInput } from "@/components/HalfStarInput";
+import { STAR_LEVELS, starLevelLabel } from "@shared/starLevels";
 import { milesFromZip } from "@/lib/venueDistance";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import type { DevFixtures } from "../../dev-fixtures";
@@ -112,14 +113,6 @@ const GOING_SHOWN = 7;
 const OPEN_RUN_STATUSES = new Set(["planning", "likely_on", "active"]);
 const JOIN_BAR_HEIGHT = 52;
 const TOAST_MS = 3000;
-
-const RATING_OPTIONS = [
-  { value: "bronze", desc: "Learning the game" },
-  { value: "silver", desc: "Solid recreational" },
-  { value: "gold", desc: "Competitive club level" },
-  { value: "platinum", desc: "College / semi-pro" },
-  { value: "diamond", desc: "Elite / pro level" },
-].map((o) => ({ ...o, label: `${SKILL_STAR_RANGE[o.value].high}★` }));
 
 function formatFee(cents: number): string {
   if (cents <= 0) return "Free";
@@ -232,7 +225,7 @@ export default function SessionDetailScreen() {
 
   // Organizer score modal
   const [scoreOpen, setScoreOpen] = useState(false);
-  const [scores, setScores] = useState<Record<string, string>>({});
+  const [scores, setScores] = useState<Record<string, number>>({});
   const [scoreBusy, setScoreBusy] = useState(false);
 
   // Host rating modal (attendee → host after kickoff)
@@ -1322,6 +1315,15 @@ export default function SessionDetailScreen() {
     setTimeout(action, Platform.OS === "ios" ? 350 : 0);
   }
 
+  // Half-star peer ratings: same window as the top-3 ballot, opened from a second row.
+  const canRatePlayers = isJoined && !isHost && (isCompleted || sessionStarted);
+
+  async function openPeerRatings() {
+    const tid = await ensureTierSessionId();
+    if (!tid) return;
+    (router.push as (href: string) => void)(`/peer-ratings/${tid}`);
+  }
+
   function openVoteModal() {
     setVoteStep(hasVoted && !hasPotdVoted ? 2 : 1);
     setVoteOpen(true);
@@ -1412,6 +1414,18 @@ export default function SessionDetailScreen() {
               >
                 <FontAwesome name="star" size={14} color={themeColor().onAccent} />
                 <Text style={s.rateBannerText}>{voteBtnLabel}</Text>
+              </Pressable>
+            ) : null}
+
+            {canRatePlayers ? (
+              <Pressable
+                onPress={() => void openPeerRatings()}
+                style={s.hostRateBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Rate players with half stars"
+              >
+                <FontAwesome name="star-half-o" size={14} color={themeColor().accent} />
+                <Text style={s.hostRateBtnText}>Rate players</Text>
               </Pressable>
             ) : null}
 
@@ -1785,10 +1799,14 @@ export default function SessionDetailScreen() {
           <Text style={s.voteSubtitle}>Give each player the rating that best reflects how they played today.</Text>
 
           <View style={s.tierLegend}>
-            {RATING_OPTIONS.map((o) => (
-              <View key={o.value} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <Text style={{ color: themeColor().text, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold", width: 36 }}>{o.label}</Text>
-                <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" }}>{o.desc}</Text>
+            {[...STAR_LEVELS].filter((l) => l.star >= 1).reverse().map((l) => (
+              <View key={l.star} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <Text style={{ color: themeColor().text, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold", width: 92 }}>
+                  {l.star.toFixed(1)} · {l.name}
+                </Text>
+                {l.description ? (
+                  <Text style={{ flex: 1, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" }}>{l.description}</Text>
+                ) : null}
               </View>
             ))}
           </View>
@@ -1796,32 +1814,20 @@ export default function SessionDetailScreen() {
           <View style={{ padding: 16, gap: 16 }}>
             {attendees.filter((a) => a.user_id !== myUserId).map((a) => {
               const name = playerName(a);
-              const selected = scores[a.user_id] ?? "";
+              const rated = scores[a.user_id] ?? null;
               return (
                 <View key={a.user_id} style={s.scoreRow}>
                   <View style={s.avatar}><Text style={s.avatarText}>{playerInitials(a)}</Text></View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.playerName}>{name}</Text>
-                    <View style={{ flexDirection: "row", gap: 4, marginTop: 8 }}>
-                      {RATING_OPTIONS.map((o) => (
-                        <Pressable
-                          key={o.value}
-                          onPress={() => setScores((prev) => ({ ...prev, [a.user_id]: o.value }))}
-                          accessibilityLabel={`${o.label} ${o.desc}`}
-                          style={{
-                            width: 40, height: 40, borderRadius: 999,
-                            borderWidth: 2,
-                            borderColor: selected === o.value ? themeColor().text : themeColor().muted,
-                            backgroundColor: selected === o.value ? themeColor().overlaySubtle : "transparent",
-                            alignItems: "center", justifyContent: "center",
-                          }}
-                        >
-                          <Text style={{ color: selected === o.value ? themeColor().text : themeColor().muted, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" }}>
-                            {o.label}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
+                    <HalfStarInput
+                      value={rated}
+                      onChange={(v) => setScores((prev) => ({ ...prev, [a.user_id]: v }))}
+                      px={30}
+                      label={`Rate ${name}`}
+                      style={{ marginTop: 8 }}
+                    />
+                    {rated != null ? <Text style={s.hostRatedLevel}>{starLevelLabel(rated)}</Text> : null}
                   </View>
                 </View>
               );
@@ -2209,6 +2215,7 @@ function make_s() {
   },
   potdResultTitle: { color: themeColor().onPitchPanel, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold", marginBottom: 4 },
   potdResultBody: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", lineHeight: 21, fontWeight: "600" },
+  hostRatedLevel: { color: themeColor().muted, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 4 },
   tierLegend: { margin: 16, padding: 12, backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line },
   scoreRow: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: themeColor().card, borderRadius: 12, padding: 12 },
   scoreInput: { width: 56, backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, textAlign: "center", fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", paddingVertical: 8 },

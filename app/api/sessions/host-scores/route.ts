@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { autoSettleTierSession } from "@/lib/pickup/autoSettleSession";
+import { organizerScoreFor } from "@/lib/pickup/organizerScore";
 import { ensureTierSessionForRun } from "@/lib/pickup/ensureTierSessionForRun";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
@@ -9,14 +10,6 @@ function bearer(req: Request) {
   const auth = req.headers.get("authorization") || "";
   return auth.startsWith("Bearer ") ? auth.slice(7) : null;
 }
-
-const TIER_TO_SCORE: Record<string, number> = {
-  bronze: 2,
-  silver: 4,
-  gold: 6,
-  platinum: 8,
-  diamond: 10,
-};
 
 /**
  * Host submits organizer tier scores and settles the linked tier_session.
@@ -35,7 +28,7 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as {
     run_id?: string;
     tier_session_id?: string | null;
-    scores?: Record<string, string>;
+    scores?: Record<string, string | number>;
   };
 
   const run_id = String(body.run_id ?? "").trim();
@@ -43,11 +36,11 @@ export async function POST(req: Request) {
 
   const scoresIn = body.scores && typeof body.scores === "object" ? body.scores : {};
   const entries = Object.entries(scoresIn)
-    .map(([user_id, tier]) => ({
+    .map(([user_id, rating]) => ({
       user_id: String(user_id).trim(),
-      tier: String(tier ?? "").trim().toLowerCase(),
+      score: organizerScoreFor(rating),
     }))
-    .filter((e) => e.user_id && TIER_TO_SCORE[e.tier] != null);
+    .filter((e): e is { user_id: string; score: number } => Boolean(e.user_id) && e.score != null);
 
   const { data: run } = await admin
     .from("pickup_runs")
@@ -96,8 +89,7 @@ export async function POST(req: Request) {
     rows?: number;
   }> = [];
 
-  for (const { user_id, tier } of entries) {
-    const score = TIER_TO_SCORE[tier]!;
+  for (const { user_id, score } of entries) {
     const { data, error } = await admin
       .from("session_attendance")
       .update({ organizer_score: score })
