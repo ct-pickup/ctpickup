@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
+import { checkPersistentRateLimit, rateLimitResponse } from "@/lib/server/persistentRateLimit";
 import { jsonConfigErrorResponse, logPublicApiRouteError } from "@/lib/server/publicApiRouteErrors";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 import { currentSeason } from "@/lib/pickup/points";
 import { isLegacyMobileClient, LEGACY_TIER_RATING_COLUMNS, legacyTierRowFields } from "@/lib/api/appVersion";
-import { DiscoverError, checkSearchRate } from "@/lib/discover/discoverService";
 import { capRanked, LEADERBOARD_TOP_N } from "@/lib/leaderboards/cap";
 import { loadPlayHistory } from "@/lib/match/compatibilityData";
 import { loadRecordSummaries, summaryFor, type PlayerRecordSummary } from "@/lib/records/playerRecord";
@@ -16,6 +16,8 @@ export const dynamic = "force-dynamic";
 
 const ROUTE = "leaderboards";
 const PAGE = 1000;
+/** Per signed-in user. */
+const LEADERBOARD_REQUESTS_PER_HOUR = 120;
 
 type LeaderboardPlayerRow = {
   id: string;
@@ -546,12 +548,14 @@ export async function GET(req: Request) {
     }
   }
   if (viewerId) {
-    try {
-      // Same hourly allowance as Discover search (discover_search_usage).
-      await checkSearchRate(admin, viewerId);
-    } catch (err) {
-      if (err instanceof DiscoverError) return NextResponse.json({ error: err.message }, { status: err.status });
-    }
+    // Its own counter (bucket "leaderboards:<user id>"), separate from Discover's search quota. Fails open if the store is down.
+    const limited = await checkPersistentRateLimit({
+      route: ROUTE,
+      ip: viewerId,
+      limit: LEADERBOARD_REQUESTS_PER_HOUR,
+      windowSeconds: 3600,
+    });
+    if (!limited.ok) return rateLimitResponse(limited.retryAfterSeconds);
   }
   let playedWith = new Set<string>();
   if (viewerId) {
