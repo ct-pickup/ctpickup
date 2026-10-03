@@ -652,14 +652,18 @@ export default function HomeScreen() {
               <StarRating value={myCard.star} provisional={myCard.provisional} size="sm" />
             </Pressable>
           ) : null}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Notifications"
+          <HeaderIcon
+            icon="envelope-o"
+            label="Messages"
+            unread={UNREAD_MESSAGES}
             onPress={() => push("/(tabs)/messages")}
-            hitSlop={10}
-          >
-            <FontAwesome name="bell-o" size={20} color={themeColor().text} />
-          </Pressable>
+          />
+          <HeaderIcon
+            icon="bell-o"
+            label="Notifications"
+            unread={UNREAD_NOTIFICATIONS}
+            onPress={() => push("/(tabs)/messages")}
+          />
         </View>
       </View>
 
@@ -776,6 +780,40 @@ export default function HomeScreen() {
 
 /* --------------------------------------------------------------- styles */
 
+/**
+ * Unread counts for the header icons. Typed as number, not the literal 0, so the
+ * badge branch stays live once a real source replaces these.
+ */
+const UNREAD_MESSAGES: number = 0;
+const UNREAD_NOTIFICATIONS: number = 0;
+
+/**
+ * Header icon with an unread badge. `unread` of 0 paints no badge.
+ *
+ * There is no read-state tracking in the schema yet (chat_rooms has no per-user
+ * last-read, and there is no notifications feed), so callers pass 0 until that lands.
+ */
+function HeaderIcon(props: {
+  icon: React.ComponentProps<typeof FontAwesome>["name"];
+  label: string;
+  unread: number;
+  onPress: () => void;
+}) {
+  const count = props.unread > 99 ? "99+" : String(props.unread);
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={props.label} onPress={props.onPress} hitSlop={10}>
+      <FontAwesome name={props.icon} size={20} color={themeColor().text} />
+      {props.unread > 0 ? (
+        <View style={styles.headerBadge}>
+          <Text style={styles.headerBadgeText} allowFontScaling={false}>
+            {count}
+          </Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
 function make_styles() {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: themeColor().bg },
@@ -785,6 +823,19 @@ function make_styles() {
     /* header */
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     headerRight: { flexDirection: "row", alignItems: "center", gap: 16 },
+    headerBadge: {
+      position: "absolute",
+      top: -5,
+      right: -8,
+      minWidth: 16,
+      height: 16,
+      paddingHorizontal: 4,
+      borderRadius: 999,
+      backgroundColor: themeColor().accent,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    headerBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().onAccent },
     wordmark: { flexShrink: 1, color: themeColor().text },
     greeting: { marginTop: 16, fontSize: 28, ...headline, color: themeColor().text },
     greetingName: { color: themeColor().pitchText },

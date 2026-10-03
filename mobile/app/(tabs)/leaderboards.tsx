@@ -98,7 +98,7 @@ const MORE_TABS: Array<{ id: TabId; label: string }> = [
   { id: "attacker", label: "Attacker" },
 ];
 
-const REGIONS: RegionFilter[] = ["ALL", "CT", "NY", "NJ", "MD"];
+type PlayersMode = "leaderboard" | "discover";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return v != null && typeof v === "object";
@@ -191,8 +191,9 @@ export default function LeaderboardsScreen() {
   const myUserId = session?.user?.id ?? null;
 
   const [tab, setTab] = useState<TabId>("stars");
-  const [region, setRegion] = useState<RegionFilter>("ALL");
-  const [filterOpen, setFilterOpen] = useState(false);
+  // Region filtering is hidden until the location work lands; queries stay unscoped.
+  const [region] = useState<RegionFilter>("ALL");
+  const [mode, setMode] = useState<PlayersMode>("leaderboard");
   const [moreOpen, setMoreOpen] = useState(false);
   const [pointsScope, setPointsScope] = useState<PointsScope>("season");
 
@@ -348,23 +349,10 @@ export default function LeaderboardsScreen() {
   }, [load]);
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <Pressable
-          onPress={() => setFilterOpen(true)}
-          hitSlop={12}
-          style={({ pressed }) => [styles.headerFilterBtn, pressed && { opacity: 0.75 }]}
-          accessibilityLabel="Filter by region"
-        >
-          <Ionicons name="options-outline" size={22} color={themeColor().text} />
-        </Pressable>
-      ),
-    });
+    navigation.setOptions({ headerRight: undefined });
   }, [navigation]);
 
   const onRefresh = useCallback(() => void load(true), [load]);
-
-  const regionLabel = region === "ALL" ? "All Regions" : region;
 
   const moreActive = MORE_TABS.some((m) => m.id === tab);
   const moreLabel = moreActive ? (MORE_TABS.find((m) => m.id === tab)?.label ?? "More") : "More";
@@ -503,10 +491,6 @@ export default function LeaderboardsScreen() {
             <Ionicons name="people" size={16} color={themeColor().pitchText} />
             <Text style={styles.sectionTitle}>Top Players</Text>
           </View>
-          <Pressable onPress={() => setFilterOpen(true)} hitSlop={8} style={styles.regionDropdown}>
-            <Text style={styles.regionDropdownText}>{regionLabel}</Text>
-            <FontAwesome name="caret-down" size={13} color={themeColor().muted} />
-          </Pressable>
         </View>
 
         {starsLoading && rankedPlayers.length === 0 ? (
@@ -639,40 +623,39 @@ export default function LeaderboardsScreen() {
 
   return (
     <View style={styles.root}>
-      {renderTabBar()}
-      <View style={styles.listWrap}>{tab === "stars" ? renderStarsTab() : renderApiTab()}</View>
-
-      {/* Region filter */}
-      <Modal visible={filterOpen} transparent animationType="slide" onRequestClose={() => setFilterOpen(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setFilterOpen(false)} accessibilityLabel="Dismiss filter" />
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Filter by Region</Text>
-            <View style={styles.modalChips}>
-              {REGIONS.map((reg) => {
-                const on = region === reg;
-                return (
-                  <Pressable
-                    key={reg}
-                    onPress={() => {
-                      void hapticTap();
-                      setRegion(reg);
-                      setFilterOpen(false);
-                    }}
-                    style={({ pressed }) => [styles.modalChip, on && styles.modalChipOn, pressed && { opacity: 0.9 }]}
-                  >
-                    <Text style={[styles.modalChipText, on && styles.modalChipTextOn]}>{reg === "ALL" ? "All" : reg}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Pressable onPress={() => setFilterOpen(false)} style={({ pressed }) => [styles.modalCloseBtn, pressed && { opacity: 0.88 }]}>
-              <Text style={styles.modalCloseBtnText}>Close</Text>
+      <View style={styles.segment} accessibilityRole="tablist">
+        {(["leaderboard", "discover"] as PlayersMode[]).map((m) => {
+          const on = mode === m;
+          return (
+            <Pressable
+              key={m}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              onPress={() => {
+                void hapticTap();
+                setMode(m);
+              }}
+              style={[styles.segmentItem, on && styles.segmentItemOn]}
+            >
+              <Text style={[styles.segmentText, on && styles.segmentTextOn]}>
+                {m === "leaderboard" ? "Leaderboard" : "Discover"}
+              </Text>
             </Pressable>
-          </View>
+          );
+        })}
+      </View>
+
+      {mode === "discover" ? (
+        <View style={styles.comingSoon}>
+          <Text style={styles.comingSoonTitle}>Coming soon</Text>
+          <Text style={styles.comingSoonBody}>Find players to game with. We are still building this.</Text>
         </View>
-      </Modal>
+      ) : (
+        <>
+          {renderTabBar()}
+          <View style={styles.listWrap}>{tab === "stars" ? renderStarsTab() : renderApiTab()}</View>
+        </>
+      )}
 
       {/* More tabs dropdown */}
       <Modal visible={moreOpen} transparent animationType="fade" onRequestClose={() => setMoreOpen(false)}>
@@ -769,6 +752,20 @@ function make_styles() {
   },
   sectionHeaderLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
   sectionTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800",},
+  segment: {
+    flexDirection: "row",
+    margin: 12,
+    padding: 3,
+    borderRadius: radius.pill,
+    backgroundColor: themeColor().overlaySubtle,
+  },
+  segmentItem: { flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: radius.pill },
+  segmentItemOn: { backgroundColor: themeColor().bg },
+  segmentText: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().muted },
+  segmentTextOn: { color: themeColor().text },
+  comingSoon: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 8 },
+  comingSoonTitle: { fontFamily: headline.fontFamily, fontSize: 20, color: themeColor().text },
+  comingSoonBody: { fontSize: 14, color: themeColor().muted, textAlign: "center" },
   regionDropdown: {
     flexDirection: "row",
     alignItems: "center",
