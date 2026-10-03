@@ -10,6 +10,7 @@ import {
   unlockBiometricSignInCredentials,
 } from "@/lib/biometricSignIn";
 import { hasSupabaseEnv, siteOrigin } from "@/lib/env";
+import { markFreshSignup } from "@/lib/seasonPrize";
 import { checkEmailExistsResult } from "@/lib/siteApi";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
@@ -455,6 +456,8 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
       }
       setNewHereOtpFlow(false);
       signupStartedAsNewEmailRef.current = false;
+      // A brand-new account: the season prize intro always shows next (when that flag is on).
+      await markFreshSignup();
       await finishAuth();
     } catch (e) {
       setBusy(false);

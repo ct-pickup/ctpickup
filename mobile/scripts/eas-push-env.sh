@@ -7,7 +7,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-if ! npx eas whoami &>/dev/null; then
+if ! npx eas-cli whoami &>/dev/null; then
   echo "Not logged in to Expo. Run: cd mobile && npm run eas:login"
   exit 1
 fi
@@ -28,7 +28,7 @@ push_var() {
   local value="$2"
   local visibility="$3"
   # Prevent EAS CLI from consuming our loop stdin.
-  npx eas env:create \
+  npx eas-cli env:create \
     --name "$name" \
     --value "$value" \
     --environment production \

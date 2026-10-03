@@ -4,10 +4,10 @@ import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { goToAdminMenu, isAdminMenuPath } from "@/lib/adminNavigation";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Redirect, Stack, usePathname, useRouter } from "expo-router";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View, type ColorValue } from "react-native";
 
 import { themeColor, useTheme } from "@/theme";
-function AdminHeaderBack({ tintColor }: { tintColor?: string }) {
+function AdminHeaderBack({ tintColor }: { tintColor?: ColorValue }) {
   useTheme();
 
   const router = useRouter();
@@ -83,6 +83,9 @@ export default function AdminLayout() {
       <Stack.Screen name="tournament-join" options={{ title: "Find a team", headerBackTitle: "Back" }} />
       <Stack.Screen name="tournament-bracket-view" options={{ title: "Live bracket", headerBackTitle: "Back" }} />
       <Stack.Screen name="members" options={{ title: "Members", headerBackTitle: "Back" }} />
+      <Stack.Screen name="verification" options={{ title: "Verification", headerBackTitle: "Back" }} />
+      <Stack.Screen name="tier-management" options={{ title: "Player levels", headerBackTitle: "Back" }} />
+      <Stack.Screen name="session-economics" options={{ title: "Payouts", headerBackTitle: "Back" }} />
       <Stack.Screen name="photo-reports" options={{ title: "Photo reports", headerBackTitle: "Back" }} />
     </Stack>
   );

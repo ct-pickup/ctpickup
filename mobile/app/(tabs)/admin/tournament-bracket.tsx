@@ -397,7 +397,7 @@ export default function TournamentBracketScreen() {
 
         <View style={styles.btnRow}>
           <Pressable onPress={onGenerate} disabled={!!busy} style={[styles.btn, busy === "generate" && styles.disabled]}>
-            <Text style={styles.btnText}>{busy === "generate" ? "Generating..." : "⚡ Generate Groups"}</Text>
+            <Text style={styles.btnText}>{busy === "generate" ? "Generating..." : "Generate Groups"}</Text>
           </Pressable>
           {groupComplete && knockoutMatches.length === 0 ? (
             <Pressable
@@ -405,7 +405,7 @@ export default function TournamentBracketScreen() {
               disabled={!!busy}
               style={[styles.btn, styles.btnSecondary, busy === "knockout" && styles.disabled]}
             >
-              <Text style={styles.btnText}>{busy === "knockout" ? "..." : "🏆 Generate Knockout"}</Text>
+              <Text style={styles.btnText}>{busy === "knockout" ? "..." : "Generate Knockout"}</Text>
             </Pressable>
           ) : null}
         </View>
@@ -712,7 +712,7 @@ function make_styles() {
   scoreText: { color: themeColor().pitchText, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
   logHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", marginTop: 4, fontWeight: "600" },
   modalOverlay: { flex: 1, justifyContent: "flex-end" },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: themeColor().scrim },
+  modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: themeColor().scrim },
   modalSheet: {
     backgroundColor: themeColor().bg,
     borderTopLeftRadius: 20,

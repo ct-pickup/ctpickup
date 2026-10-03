@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-na
 
 import { AvatarStack } from "@/components/PlayerAvatar";
 import { useAuth } from "@/context/AuthContext";
-import { fetchPlayedWith, playedWithLine, type PlayedWithSummary } from "@/lib/matchApi";
+import { fetchPlayedWith, playedWithLine, playedWithShort, type PlayedWithSummary } from "@/lib/matchApi";
 import { themeColor, useThemedStyles } from "@/theme";
 
 const EMPTY: Record<string, PlayedWithSummary> = {};
@@ -46,14 +46,17 @@ export function usePlayedWith(runIds: string[], opts?: { skip?: boolean; reloadK
 export default function PlayedWithRow({
   summary,
   size = 24,
+  short = false,
   style,
 }: {
   summary: PlayedWithSummary | null | undefined;
   size?: number;
+  /** One-line card copy ("Played with Kofi +2"), shrunk to fit instead of truncated. */
+  short?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   useThemedStyles(publish_styles);
-  const line = summary ? playedWithLine(summary) : null;
+  const line = summary ? (short ? playedWithShort(summary) : playedWithLine(summary)) : null;
   if (!summary || !line) return null;
   const people = summary.people.map((p, i) => ({
     user_id: `played-with-${i}`,
@@ -63,8 +66,8 @@ export default function PlayedWithRow({
   }));
   return (
     <View style={[styles.row, style]} accessibilityLabel={line}>
-      <AvatarStack people={people} total={summary.count} max={3} size={size} />
-      <Text style={styles.text} numberOfLines={1}>
+      <AvatarStack people={people} total={summary.count} max={short ? 2 : 3} size={size} />
+      <Text style={styles.text} numberOfLines={1} {...(short ? { adjustsFontSizeToFit: true, minimumFontScale: 0.75 } : null)}>
         {line}
       </Text>
     </View>

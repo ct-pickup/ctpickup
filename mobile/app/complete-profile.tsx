@@ -11,6 +11,8 @@ import {
   PROFILE_USERNAME_MAX_LEN,
   USERNAME_TAKEN_USER_MESSAGE,
 } from "@/lib/profileIdentityFields";
+import { INSTAGRAM_VERIFICATION_HANDLE } from "@/lib/brand";
+import { applyReferralCode } from "@/lib/referralApi";
 import { allocateUniqueProfileUsername } from "@/lib/profileUsernameAllocate";
 import { COMPLETE_PROFILE_ZIP_NO_VENUE_MSG } from "@/lib/playerLocationHints";
 import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
@@ -197,6 +199,11 @@ export default function CompleteProfileScreen() {
   const [busy, setBusy] = useState(false);
   const [postSaveVenues, setPostSaveVenues] = useState<VenueDistanceRow[] | null>(null);
   const [photoStepDone, setPhotoStepDone] = useState(false);
+  const [showReferral, setShowReferral] = useState(false);
+  const [igStepSkipped, setIgStepSkipped] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
+  /** Set when a typed code could not be applied; shown after the save and never blocks it. */
+  const [referralNote, setReferralNote] = useState<string | null>(null);
   const {
     required: photoRequired,
     avatarUrl,
@@ -445,6 +452,12 @@ export default function CompleteProfileScreen() {
         }
       }
 
+      // Optional referral code: same call as Settings. A bad code only leaves a note; saving is already done.
+      if (referralCode.trim()) {
+        const res = await applyReferralCode(session?.access_token ?? null, referralCode);
+        setReferralNote(res.ok ? null : `${res.error} You can try again later in Settings.`);
+      }
+
       setPostSaveVenues(nearestVenues);
     } catch (e) {
       const userMsg = "Something went wrong while saving your profile. Please try again.";
@@ -476,6 +489,7 @@ export default function CompleteProfileScreen() {
     session?.user?.id,
     session?.access_token,
     supabase,
+    referralCode,
   ]);
 
   const onContinueToApp = useCallback(() => {
@@ -544,6 +558,7 @@ export default function CompleteProfileScreen() {
             <>
               <Text style={styles.title}>{PHOTO_STEP_TITLE}</Text>
               <Text style={styles.subtitle}>{PHOTO_STEP_BODY}</Text>
+              {referralNote ? <Text style={styles.referralNote}>{referralNote}</Text> : null}
               <View style={styles.photoStep}>
                 <ProfilePhotoPicker
                   value={avatarUrl}
@@ -573,6 +588,7 @@ export default function CompleteProfileScreen() {
             <>
               <Text style={styles.title}>Profile saved</Text>
               <Text style={styles.subtitle}>You&apos;re ready to find pickup and events.</Text>
+              {referralNote ? <Text style={styles.referralNote}>{referralNote}</Text> : null}
 
               <View style={styles.nearestCard}>
                 <Text style={styles.nearestCardTitle}>Your nearest locations:</Text>
@@ -605,6 +621,30 @@ export default function CompleteProfileScreen() {
                   ))
                 )}
               </View>
+
+              {!igStepSkipped ? (
+                <View style={styles.igStep}>
+                  <Text style={styles.igTitle}>Get verified with Instagram (optional)</Text>
+                  <Text style={styles.igBody}>Instagram: @{INSTAGRAM_VERIFICATION_HANDLE}</Text>
+                  <View style={styles.igActions}>
+                    <Pressable
+                      style={styles.igSkip}
+                      onPress={() => setIgStepSkipped(true)}
+                      accessibilityRole="button"
+                      hitSlop={8}
+                    >
+                      <Text style={styles.photoSkipText}>Skip</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.igGo}
+                      onPress={() => router.push("/instagram-verification" as Href)}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.igGoText}>Get verified</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
 
               <Pressable style={styles.primaryBtn} onPress={() => void onContinueToApp()}>
                 <Text style={styles.primaryBtnText}>Continue</Text>
@@ -641,6 +681,27 @@ export default function CompleteProfileScreen() {
               autoCorrect
             />
             {liveErrors.last_name ? <Text style={styles.errText}>{liveErrors.last_name}</Text> : null}
+          </View>
+
+          <View style={styles.fieldBlock}>
+            {showReferral ? (
+              <>
+                <Text style={styles.label}>Have a referral code? (optional)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter code"
+                  placeholderTextColor={themeColor().muted}
+                  value={referralCode}
+                  onChangeText={setReferralCode}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                />
+              </>
+            ) : (
+              <Pressable onPress={() => setShowReferral(true)} hitSlop={8} accessibilityRole="button">
+                <Text style={styles.referralLink}>Have a code?</Text>
+              </Pressable>
+            )}
           </View>
 
           <View style={styles.fieldBlock}>
@@ -866,6 +927,15 @@ function make_styles() {
     textAlign: "center",
   },
   photoSkip: { marginTop: 16, alignSelf: "center", paddingVertical: 8 },
+  referralLink: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: themeColor().accent },
+  referralNote: { marginTop: 12, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().coralText, textAlign: "center" },
+  igStep: { marginTop: 20, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, backgroundColor: themeColor().card, gap: 6 },
+  igTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: themeColor().text },
+  igBody: { fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
+  igActions: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 16, marginTop: 6 },
+  igSkip: { paddingVertical: 8 },
+  igGo: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, backgroundColor: themeColor().pitch },
+  igGoText: { fontSize: 14, fontFamily: "Inter_700Bold", color: themeColor().onPitch },
   photoSkipText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: themeColor().muted },
   label: {
     fontSize: 13, fontFamily: "Inter_700Bold",
@@ -1063,11 +1133,11 @@ function make_styles() {
     flex: 1,
   },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: themeColor().scrim,
   },
   modalCardWrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     paddingHorizontal: 28,
   },

@@ -379,6 +379,15 @@ export function useTeamChatMessages(roomId: string | null) {
         setMessages((prev) => prev.map((m) => (m.id === row.id ? row : m)));
       },
     );
+    ch.on(
+      "postgres_changes",
+      { event: "DELETE", schema: "public", table: "chat_messages" },
+      (payload) => {
+        const id = (payload.old as { id?: string } | null)?.id;
+        if (!id) return;
+        setMessages((prev) => (prev.some((m) => m.id === id) ? prev.filter((m) => m.id !== id) : prev));
+      },
+    );
     ch.subscribe();
 
     return () => {
@@ -433,6 +442,24 @@ export function useTeamChatMessages(roomId: string | null) {
     [roomId, uid, accessToken],
   );
 
+  /**
+   * Deletes a message row. Allowed by RLS for admins, and for the sender once
+   * 20261007000000_chat_delete_own_message.sql is applied. Resolves false when no row was deleted.
+   */
+  const remove = useCallback(
+    async (messageId: string): Promise<boolean> => {
+      if (!supabase) return false;
+      const { data, error: delErr } = await supabase.from("chat_messages").delete().eq("id", messageId).select("id");
+      if (delErr || !data || data.length === 0) {
+        if (delErr) console.warn("[useTeamChatMessages] delete failed", delErr.message);
+        return false;
+      }
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      return true;
+    },
+    [supabase],
+  );
+
   return {
     messages,
     reactionsByMessageId,
@@ -441,6 +468,7 @@ export function useTeamChatMessages(roomId: string | null) {
     error,
     reload: load,
     send,
+    remove,
     currentUserId: uid,
   };
 }

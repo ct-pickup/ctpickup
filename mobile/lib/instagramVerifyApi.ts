@@ -62,11 +62,12 @@ export function fetchInstagramQueue(accessToken: string) {
   return call<{ items: InstagramVerificationQueueItem[] }>(accessToken, "/api/admin/instagram-verification");
 }
 
-export function approveInstagramRequest(accessToken: string, requestId: string, code: string) {
+export function approveInstagramRequest(accessToken: string, requestId: string, code: string, level: number) {
   return call<{ ok: true }>(accessToken, "/api/admin/instagram-verification", {
     request_id: requestId,
     decision: "approve",
     code,
+    level,
   });
 }
 

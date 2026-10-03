@@ -6,13 +6,13 @@ import { themeColor, useThemedStyles } from "@/theme";
 const WORD: Record<PlayerOutcome, string> = { W: "Win", D: "Draw", L: "Loss" };
 
 /** Last results as W/D/L pills, oldest first (the record helper's `form`). */
-export default function FormPills({ form }: { form: PlayerOutcome[] }) {
+export default function FormPills({ form, dots = false }: { form: PlayerOutcome[]; dots?: boolean }) {
   useThemedStyles(publish_styles);
   return (
-    <View style={styles.row} accessible accessibilityLabel={`Last ${form.length}: ${form.map((o) => WORD[o]).join(", ")}`}>
+    <View style={[styles.row, dots && styles.rowDots]} accessible accessibilityLabel={`Last ${form.length}: ${form.map((o) => WORD[o]).join(", ")}`}>
       {form.map((o, i) => (
-        <View key={i} style={[styles.pill, styles[`pill_${o}`]]}>
-          <Text style={[styles.text, styles[`text_${o}`]]}>{o}</Text>
+        <View key={i} style={[styles.pill, dots && styles.dot, styles[`pill_${o}`]]}>
+          <Text style={[styles.text, dots && styles.textDot, styles[`text_${o}`]]}>{o}</Text>
         </View>
       ))}
     </View>
@@ -22,6 +22,9 @@ export default function FormPills({ form }: { form: PlayerOutcome[] }) {
 function make_styles() {
   return StyleSheet.create({
     row: { flexDirection: "row", gap: 8 },
+    rowDots: { flexWrap: "wrap", gap: 6 },
+    dot: { minWidth: 0, width: 24, height: 24, paddingHorizontal: 0 },
+    textDot: { fontSize: 11 },
     pill: { minWidth: 40, height: 32, paddingHorizontal: 12, borderRadius: 999, alignItems: "center", justifyContent: "center" },
     pill_W: { backgroundColor: themeColor().accent },
     pill_D: { backgroundColor: themeColor().overlayStrong },

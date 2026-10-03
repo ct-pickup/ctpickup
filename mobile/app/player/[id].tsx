@@ -4,6 +4,7 @@ import { postPhotoReport } from "@/lib/profilePhoto";
 import { PHOTO_REPORT_REASONS, type PhotoReportReason } from "@shared/profilePhoto";
 import { displayRegionNameFromZip } from "@/lib/zipRegion";
 import { fetchMyRecord, fetchRecordSummary, winPercent } from "@/lib/playerRecord";
+import MessagePlayerButton from "@/components/chat/MessagePlayerButton";
 import { fetchPlayerFollowStats, fetchPublicPlayerProfile, togglePlayerFollow, type PublicPlayerProfile } from "@/lib/siteApi";
 import { siteOrigin } from "@/lib/env";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -758,6 +759,11 @@ export default function PlayerProfileScreen() {
               {isFollowingThem ? "Unfollow" : "Follow"}
             </Text>
           </Pressable>
+        ) : null}
+        {!isOwnProfile && token ? (
+          <View style={{ marginTop: 10, alignItems: "center" }}>
+            <MessagePlayerButton target={{ userId, name: profile.display_name || "Player" }} />
+          </View>
         ) : null}
       </View>
 

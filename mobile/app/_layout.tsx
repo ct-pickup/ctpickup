@@ -9,7 +9,7 @@ Sentry.init({
 });
 
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import { DarkTheme, DefaultTheme, ThemeProvider } from "expo-router/react-navigation";
 import { AppOpeningTheme, clearAppOpeningThemeFlag } from "@/components/AppOpeningTheme";
 import { AppLockOverlay } from "@/components/AppLockOverlay";
 import { CancellationPolicyNotice } from "@/components/CancellationPolicyNotice";
@@ -20,6 +20,7 @@ import { AccountIntroReplayProvider } from "@/context/AccountIntroReplayContext"
 import { AdminModeProvider } from "@/context/AdminModeContext";
 import { AppearanceProvider, useAppearance } from "@/context/AppearanceContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { CtPlusProvider } from "@/context/CtPlusContext";
 import { ProfileCompletionProvider } from "@/context/ProfileCompletionContext";
 import { ProfilePhotoProvider } from "@/context/ProfilePhotoContext";
 import { ProfileAdminProvider } from "@/context/ProfileAdminContext";
@@ -166,6 +167,7 @@ function RootLayoutNav() {
                 <SelectedRegionProvider>
                   <AppLockProvider>
                     <AccountIntroReplayProvider>
+                    <CtPlusProvider>
                     <ProfilePhotoProvider>
                       <View style={{ flex: 1 }}>
                         {minVersionBlocked ? <UpdateRequiredGate /> : null}
@@ -214,6 +216,15 @@ function RootLayoutNav() {
                             options={{
                               headerShown: false,
                               title: "Complete profile",
+                              gestureEnabled: false,
+                              headerBackVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="season-prize"
+                            options={{
+                              headerShown: false,
+                              title: "Win the season",
                               gestureEnabled: false,
                               headerBackVisible: false,
                             }}
@@ -472,6 +483,13 @@ function RootLayoutNav() {
                               gestureEnabled: false,
                             }}
                           />
+                          <Stack.Screen
+                            name="peer-ratings/[id]"
+                            options={{
+                              headerShown: false,
+                              presentation: "modal",
+                            }}
+                          />
                           </Stack>
                         </ThemeProvider>
                         {minVersionBlocked ? null : <CancellationPolicyNotice />}
@@ -479,6 +497,7 @@ function RootLayoutNav() {
                         <AppLockOverlay />
                       </View>
                     </ProfilePhotoProvider>
+                    </CtPlusProvider>
                     </AccountIntroReplayProvider>
                   </AppLockProvider>
                 </SelectedRegionProvider>
@@ -520,7 +539,7 @@ function UpdateRequiredGate() {
 function make_stylesUpdateGate() {
   return StyleSheet.create({
   root: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: themeColor().bg,
     alignItems: "center",
     justifyContent: "center",

@@ -1,4 +1,4 @@
-import { Audio } from "expo-av";
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from "expo-audio";
 import * as Haptics from "expo-haptics";
 
 const KICK_SOUND = require("../assets/sounds/kick.mp3");
@@ -16,27 +16,36 @@ async function runHaptic(name: string, fn: () => Promise<void>) {
   }
 }
 
-/** Loads, plays, then unloads. Swallows all errors. */
+let audioModeSet: Promise<void> | null = null;
+
+/** Sound effects respect the silent switch and mix with other audio. */
+function ensureAudioMode(): Promise<void> {
+  audioModeSet ??= setAudioModeAsync({ playsInSilentMode: false, interruptionMode: "mixWithOthers" }).catch(
+    () => {},
+  );
+  return audioModeSet;
+}
+
+/** Loads, plays, then releases. Swallows all errors. */
 async function playSound(asset: number) {
-  let sound: Audio.Sound | null = null;
+  let player: AudioPlayer | null = null;
   try {
-    const created = await Audio.Sound.createAsync(asset, { shouldPlay: false });
-    sound = created.sound;
-    sound.setOnPlaybackStatusUpdate((status) => {
-      if (status.isLoaded && status.didJustFinish) {
-        void sound?.unloadAsync();
-        sound?.setOnPlaybackStatusUpdate(null);
+    await ensureAudioMode();
+    const p = createAudioPlayer(asset);
+    player = p;
+    const sub = p.addListener("playbackStatusUpdate", (status) => {
+      if (status.didJustFinish) {
+        sub.remove();
+        p.remove();
       }
     });
-    await sound.playAsync();
+    p.play();
   } catch {
     // fail silently
-    if (sound) {
-      try {
-        await sound.unloadAsync();
-      } catch {
-        /* ignore */
-      }
+    try {
+      player?.remove();
+    } catch {
+      /* ignore */
     }
   }
 }

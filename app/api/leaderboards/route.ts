@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
+import { checkPersistentRateLimit, rateLimitResponse } from "@/lib/server/persistentRateLimit";
 import { jsonConfigErrorResponse, logPublicApiRouteError } from "@/lib/server/publicApiRouteErrors";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 import { currentSeason } from "@/lib/pickup/points";
 import { isLegacyMobileClient, LEGACY_TIER_RATING_COLUMNS, legacyTierRowFields } from "@/lib/api/appVersion";
+import { capRanked, LEADERBOARD_TOP_N } from "@/lib/leaderboards/cap";
+import { loadPlayHistory } from "@/lib/match/compatibilityData";
 import { loadRecordSummaries, summaryFor, type PlayerRecordSummary } from "@/lib/records/playerRecord";
 
 export const runtime = "nodejs";
@@ -13,6 +16,8 @@ export const dynamic = "force-dynamic";
 
 const ROUTE = "leaderboards";
 const PAGE = 1000;
+/** Per signed-in user. */
+const LEADERBOARD_REQUESTS_PER_HOUR = 120;
 
 type LeaderboardPlayerRow = {
   id: string;
@@ -26,6 +31,8 @@ type LeaderboardPlayerRow = {
   /** Win rate category only: raw fraction 0–1 */
   win_rate?: number;
   games_played?: number;
+  /** True position in the full category (set by the cap). */
+  rank?: number;
 };
 
 function parseRegion(param: string | null): string | null {
@@ -196,7 +203,6 @@ async function rowsFromUuidCounts(
     const candidateIds: string[] = [];
     for (const [id] of sorted) {
       candidateIds.push(id);
-      if (candidateIds.length >= 400) break;
     }
     console.log(`[api/${ROUTE}] category=${categoryLabel} assemble`, {
       sortedLen: sorted.length,
@@ -209,7 +215,6 @@ async function rowsFromUuidCounts(
       if (!p) continue;
       if (!passesRegionFilter(p.nearest_venue, region)) continue;
       out.push(toLeaderboardRow(p, n));
-      if (out.length >= 25) break;
     }
     console.log(`[api/${ROUTE}] category=${categoryLabel} result`, { rowCount: out.length });
     return out;
@@ -227,7 +232,7 @@ async function fetchSessionsLeaderboard(admin: SupabaseClient, region: string | 
   rows: LeaderboardPlayerRow[];
   error: PostgrestError | null;
 }> {
-  const limit = region ? 500 : 25;
+  const limit = 1000;
   const { data, error } = await admin
     .from("profiles")
     .select("id,first_name,last_name,username,instagram,nearest_venue,attended_count")
@@ -251,7 +256,6 @@ async function fetchSessionsLeaderboard(admin: SupabaseClient, region: string | 
     if (!passesRegionFilter(p.nearest_venue, region)) continue;
     const n = Math.max(0, Math.trunc(Number(p.attended_count ?? 0)));
     out.push(toLeaderboardRow(p, n));
-    if (out.length >= 25) break;
   }
   console.log(`[api/${ROUTE}] category=sessions result`, { rawRows: rows.length, rowCount: out.length });
   return { rows: out, error: null };
@@ -269,7 +273,6 @@ function pointsFromRecords(
     .map((p) => ({ p, r: summaryFor(records, p.id) }))
     .filter(({ r }) => r[key] > 0)
     .sort((a, b) => b.r[key] - a.r[key] || b.r.games - a.r.games)
-    .slice(0, 25)
     .map(({ p, r }) => toLeaderboardRow(p, r[key], { games_played: r.games }));
 }
 
@@ -284,7 +287,6 @@ function sessionsFromRecords(
     .map((p) => ({ p, games: summaryFor(records, p.id).games }))
     .filter(({ games }) => games >= 5)
     .sort((a, b) => b.games - a.games)
-    .slice(0, 25)
     .map(({ p, games }) => toLeaderboardRow(p, games));
 }
 
@@ -329,6 +331,11 @@ type TierLeaderboardRow = {
   username: string | null;
   avatar_url: string | null;
   nearest_venue: string | null;
+  /** New app: half-star rating from player_ratings (null when unrated or the column is missing). */
+  star?: number | null;
+  provisional?: boolean;
+  /** True position in the full Stars ranking (set by the cap). */
+  rank?: number;
 };
 
 const EMPTY_PAYLOAD = {
@@ -440,6 +447,81 @@ async function fetchTierLeaderboard(
   return out;
 }
 
+/**
+ * Stars ranking for the new app: every rated approved player, best first, ordered the way the app has always
+ * sorted it (half-star rating, then current-season points; unrated players last). Only the cap decides who is
+ * returned; this returns the whole ordered list so a player's true rank is known.
+ */
+async function fetchStarRanking(
+  admin: SupabaseClient,
+  profiles: ProfileRow[],
+  records: Map<string, PlayerRecordSummary>,
+  region: string | null,
+): Promise<TierLeaderboardRow[]> {
+  const byId = new Map(profiles.map((p) => [p.id, p] as const));
+  type RatingRow = { user_id: string; sessions: number | null; star_rating?: number | string | null; star_provisional?: boolean | null };
+  const ratings: RatingRow[] = [];
+  for (const columns of ["user_id,sessions,star_rating,star_provisional", "user_id,sessions"]) {
+    ratings.length = 0;
+    let from = 0;
+    let failed = false;
+    for (;;) {
+      const { data, error } = await admin.from("player_ratings").select(columns).range(from, from + PAGE - 1);
+      if (error) {
+        logSupabaseCategory(`player_ratings.stars(${columns})`, error);
+        failed = true;
+        break;
+      }
+      const rows = (data ?? []) as unknown as RatingRow[];
+      ratings.push(...rows);
+      if (rows.length < PAGE) break;
+      from += PAGE;
+    }
+    if (!failed) break;
+  }
+
+  const out: TierLeaderboardRow[] = [];
+  for (const r of ratings) {
+    const p = byId.get(r.user_id);
+    if (!p || !passesRegionFilter(p.nearest_venue, region)) continue;
+    const star = r.star_rating == null ? null : Number(r.star_rating);
+    const rec = summaryFor(records, r.user_id);
+    out.push({
+      user_id: r.user_id,
+      sessions: r.sessions ?? 0,
+      points: rec.season_points,
+      games: rec.games,
+      first_name: p.first_name,
+      last_name: p.last_name,
+      username: p.username,
+      avatar_url: null,
+      nearest_venue: p.nearest_venue,
+      star: star != null && Number.isFinite(star) ? star : null,
+      provisional: r.star_provisional === true,
+    });
+  }
+  out.sort((a, b) => (b.star ?? -1) - (a.star ?? -1) || (b.points ?? 0) - (a.points ?? 0));
+  return out;
+}
+
+/** Fills avatar_url for the few rows that are actually returned. */
+async function fillAvatars(admin: SupabaseClient, rows: TierLeaderboardRow[]): Promise<void> {
+  const ids = Array.from(new Set(rows.map((r) => r.user_id)));
+  if (ids.length === 0) return;
+  const { data, error } = await admin.from("profiles").select("id,avatar_url").in("id", ids);
+  if (error) {
+    logSupabaseCategory("profiles.avatars", error);
+    return;
+  }
+  const byId = new Map(((data ?? []) as Array<{ id: string; avatar_url: string | null }>).map((p) => [p.id, p.avatar_url?.trim() || null] as const));
+  for (const r of rows) r.avatar_url = byId.get(r.user_id) ?? null;
+}
+
+function bearer(req: Request): string | null {
+  const auth = req.headers.get("authorization") || "";
+  return auth.startsWith("Bearer ") ? auth.slice(7).trim() || null : null;
+}
+
 export async function GET(req: Request) {
   console.log("[leaderboards] GET hit");
 
@@ -452,6 +534,38 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const region = parseRegion(url.searchParams.get("region"));
+
+  // Optional sign-in: with a valid token the response also carries the requester's own rank and the players they
+  // have played with. Without one (the v1.3.5 app, web) only the top rows are returned.
+  let viewerId: string | null = null;
+  const token = bearer(req);
+  if (token) {
+    try {
+      const { data: u } = await admin.auth.getUser(token);
+      viewerId = u.user?.id ?? null;
+    } catch {
+      viewerId = null;
+    }
+  }
+  if (viewerId) {
+    // Its own counter (bucket "leaderboards:<user id>"), separate from Discover's search quota. Fails open if the store is down.
+    const limited = await checkPersistentRateLimit({
+      route: ROUTE,
+      ip: viewerId,
+      limit: LEADERBOARD_REQUESTS_PER_HOUR,
+      windowSeconds: 3600,
+    });
+    if (!limited.ok) return rateLimitResponse(limited.retryAfterSeconds);
+  }
+  let playedWith = new Set<string>();
+  if (viewerId) {
+    try {
+      const history = await loadPlayHistory(admin, [viewerId]);
+      if (!history.error) playedWith = history.byUser.get(viewerId)?.playedWith ?? new Set<string>();
+    } catch (err) {
+      logPublicApiRouteError(ROUTE, "played_with", err);
+    }
+  }
 
   let wins: LeaderboardPlayerRow[] = [];
   let sessions: LeaderboardPlayerRow[] = [];
@@ -507,11 +621,9 @@ export async function GET(req: Request) {
         wins = withRecords
           .filter(({ r }) => r.wins > 0)
           .sort((a, b) => b.r.wins - a.r.wins)
-          .slice(0, 25)
           .map(({ p, r }) => toLeaderboardRow(p, r.wins, { games_played: r.games }));
         win_rate = withRecords
           .sort((a, b) => (b.r.win_pct ?? 0) - (a.r.win_pct ?? 0) || b.r.games - a.r.games)
-          .slice(0, 25)
           .map(({ p, r }) =>
             toLeaderboardRow(p, Math.round((r.win_pct ?? 0) * 1000) / 10, { win_rate: r.win_pct ?? 0, games_played: r.games }),
           );
@@ -525,7 +637,6 @@ export async function GET(req: Request) {
           .filter(({ w, games }) => w > 0 && games >= 10)
           .filter(({ p }) => passesRegionFilter(p.nearest_venue, region))
           .sort((a, b) => b.w - a.w)
-          .slice(0, 25)
           .map(({ p, w }) => toLeaderboardRow(p, w));
 
         win_rate = profiles
@@ -542,7 +653,6 @@ export async function GET(req: Request) {
             if (b.winRate !== a.winRate) return b.winRate - a.winRate;
             return b.games - a.games;
           })
-          .slice(0, 25)
           .map(({ p, winRate, games }) => {
             const pct = Math.round(winRate * 1000) / 10;
             return {
@@ -655,7 +765,6 @@ export async function GET(req: Request) {
         .filter((x): x is { p: ProfileRow; goals: number } => x != null && x.goals > 0)
         .filter(({ p }) => passesRegionFilter(p.nearest_venue, region))
         .sort((a, b) => b.goals - a.goals)
-        .slice(0, 25)
         .map(({ p, goals: g }) => toLeaderboardRow(p, g));
       console.log(`[api/${ROUTE}] category=goals`, { rowCount: goals.length });
       console.log("[leaderboards] category goals result", goals.length);
@@ -667,13 +776,10 @@ export async function GET(req: Request) {
 
     try {
       // TODO: Remove after v1.3.5 usage drops to near zero once the new build ships; target 2026-12-01.
-      tiers = await fetchTierLeaderboard(admin, region, isLegacyMobileClient(req));
       if (records) {
-        const recs = records;
-        tiers = tiers.map((t) => {
-          const r = summaryFor(recs, t.user_id);
-          return { ...t, points: r.season_points, games: r.games };
-        });
+        tiers = await fetchStarRanking(admin, profiles, records, region);
+      } else {
+        tiers = await fetchTierLeaderboard(admin, region, isLegacyMobileClient(req));
       }
       console.log("[leaderboards] category tiers result", tiers.length);
     } catch (err) {
@@ -682,20 +788,63 @@ export async function GET(req: Request) {
       tiers = [];
     }
 
+    // Cap every category: top rows, plus the requester's own row and players they have played with,
+    // each with its true rank. Nobody else is returned.
+    const cap = <T extends { id: string }>(list: T[]) => capRanked(list, (r) => r.id, viewerId, playedWith);
+    const cWins = cap(wins);
+    const cSessions = cap(sessions);
+    const cWinRate = cap(win_rate);
+    const cPotd = cap(potd);
+    const cGoalie = cap(goalie);
+    const cDefender = cap(defender);
+    const cMidfielder = cap(midfielder);
+    const cAttacker = cap(attacker);
+    const cGoals = cap(goals);
+    const cPoints = cap(points);
+    const cPointsAll = cap(points_all_time);
+    const cTiers = capRanked(tiers, (r) => r.user_id, viewerId, playedWith);
+    if (records) await fillAvatars(admin, cTiers.rows);
+
     return NextResponse.json({
       ok: true as const,
       region: region ?? "ALL",
-      wins,
-      sessions,
-      win_rate,
-      potd,
-      goalie,
-      defender,
-      midfielder,
-      attacker,
-      goals,
-      tiers,
-      ...(legacyClient ? {} : { season: currentSeason(), points, points_all_time }),
+      wins: cWins.rows,
+      sessions: cSessions.rows,
+      win_rate: cWinRate.rows,
+      potd: cPotd.rows,
+      goalie: cGoalie.rows,
+      defender: cDefender.rows,
+      midfielder: cMidfielder.rows,
+      attacker: cAttacker.rows,
+      goals: cGoals.rows,
+      // v1.3.5 row shape stays exactly as before (no rank, no totals).
+      tiers: legacyClient
+        ? cTiers.rows.map((r) => {
+            const legacyRow: TierLeaderboardRow = { ...r };
+            delete legacyRow.rank;
+            return legacyRow;
+          })
+        : cTiers.rows,
+      ...(legacyClient
+        ? {}
+        : {
+      top_n: LEADERBOARD_TOP_N,
+      totals: {
+        wins: cWins.total,
+        sessions: cSessions.total,
+        win_rate: cWinRate.total,
+        potd: cPotd.total,
+        goalie: cGoalie.total,
+        defender: cDefender.total,
+        midfielder: cMidfielder.total,
+        attacker: cAttacker.total,
+        goals: cGoals.total,
+        points: cPoints.total,
+        points_all_time: cPointsAll.total,
+        tiers: cTiers.total,
+      },
+        }),
+      ...(legacyClient ? {} : { season: currentSeason(), points: cPoints.rows, points_all_time: cPointsAll.rows }),
     });
   } catch (err) {
     console.log(`[api/${ROUTE}] GET top-level failure — returning empty categories`, err);

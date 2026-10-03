@@ -97,8 +97,8 @@ export default function SessionEconomicsScreen() {
 
   return (
     <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 60 }}>
-      <Stack.Screen options={{ title: "Session Economics", headerStyle: { backgroundColor: themeColor().bg }, headerTintColor: themeColor().text, headerShadowVisible: false }} />
-      <Text style={s.title}>Session Economics</Text>
+      <Stack.Screen options={{ title: "Payouts", headerStyle: { backgroundColor: themeColor().bg }, headerTintColor: themeColor().text, headerShadowVisible: false }} />
+      <Text style={s.title}>Payouts</Text>
       <Text style={s.sub}>Who to pay after each session settles.</Text>
 
       {runs.length === 0 && (

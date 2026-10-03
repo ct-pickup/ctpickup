@@ -15,6 +15,7 @@ import { Stack, useRouter } from "expo-router";
 import { fmtPickupWhenEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
 import { withRunTimeTbd } from "@/lib/pickup/runTimeTbd";
 import * as Location from "expo-location";
+import { requestLocationWithExplainer } from "@/lib/locationPrompt";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
@@ -1430,8 +1431,7 @@ export default function CommunityMapScreen() {
   useEffect(() => {
     void (async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") return;
+        if ((await requestLocationWithExplainer({ auto: true })) !== "granted") return;
         const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         setUserLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude });
       } catch {
@@ -1668,11 +1668,11 @@ function make_s() {
   },
   zoomBtnText: { color: themeColor().text, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
 
-  pinCenter: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  pinCenter: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
   pinNum: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
 
   loadingCenter: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1745,7 +1745,7 @@ function make_s() {
     justifyContent: "flex-end",
   },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: themeColor().scrim,
   },
   modalCard: {

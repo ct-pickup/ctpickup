@@ -1,7 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { fetchAdminPlayerRatings, type AdminPlayerRating } from "@/lib/adminApi";
 import { siteOrigin } from "@/lib/env";
-import { formatStars } from "@/lib/starRatings";
+import { formatStars, SKILL_STAR_RANGE } from "@/lib/starRatings";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { headline, themeColor, useThemedStyles } from "@/theme";
@@ -18,6 +18,12 @@ function TIER_COLORS(): Record<string, string> {
 }
 
 const TIERS = ["bronze", "silver", "gold", "platinum", "diamond"];
+
+/** Admin-facing label for a stored tier value: its star range ("3.5–4.0"), never the tier name. */
+function tierLabel(tier: string): string {
+  const r = SKILL_STAR_RANGE[tier];
+  return r ? `${r.low.toFixed(1)}–${r.high.toFixed(1)}` : "Unrated";
+}
 const VERIF_LEVELS = ["self", "document", "vouched"];
 
 type Player = {
@@ -107,7 +113,7 @@ export default function AdminTierManagementScreen() {
 
   return (
     <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
-      <Text style={s.title}>Tier Management</Text>
+      <Text style={s.title}>Player levels</Text>
 
       <View style={s.searchRow}>
         <TextInput
@@ -137,7 +143,7 @@ export default function AdminTierManagementScreen() {
                 <Text style={s.name}>{name}</Text>
                 {player.username && <Text style={s.meta}>@{player.username}</Text>}
                 <Text style={s.meta}>
-                  Score: {player.rating?.score != null ? Number(player.rating.score).toFixed(1) : "—"} · {currentTier.charAt(0).toUpperCase() + currentTier.slice(1)}
+                  Score: {player.rating?.score != null ? Number(player.rating.score).toFixed(1) : "—"} · {tierLabel(currentTier)}
                   {player.rating?.star_rating != null
                     ? ` · ${formatStars(Number(player.rating.star_rating))}${player.rating.star_provisional ? " (provisional)" : ""}`
                     : ""}
@@ -146,13 +152,13 @@ export default function AdminTierManagementScreen() {
               {busy && <ActivityIndicator color={themeColor().pitchText} />}
             </View>
 
-            <Text style={s.sectionLabel}>SET TIER</Text>
+            <Text style={s.sectionLabel}>SET LEVEL RANGE</Text>
             <View style={s.chipRow}>
               {TIERS.map((t) => (
                 <Pressable key={t} onPress={() => void setTier(player, t)} disabled={!!busy}
                   style={[s.chip, currentTier === t && { borderColor: TIER_COLORS()[t], backgroundColor: `${TIER_COLORS()[t]}22` }]}>
                   <Text style={[s.chipText, currentTier === t && { color: TIER_COLORS()[t] }]}>
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                    {tierLabel(t)}
                   </Text>
                 </Pressable>
               ))}

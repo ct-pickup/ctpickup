@@ -154,8 +154,8 @@ function make_accountStyles() {
   },
   creditExpired: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().coralText },
   modalRoot: { flex: 1 },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: themeColor().scrim },
-  modalCardWrap: { ...StyleSheet.absoluteFillObject, justifyContent: "center", paddingHorizontal: 28 },
+  modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: themeColor().scrim },
+  modalCardWrap: { ...StyleSheet.absoluteFill, justifyContent: "center", paddingHorizontal: 28 },
   modalCard: {
     backgroundColor: themeColor().card,
     borderRadius: 12,

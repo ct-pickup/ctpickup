@@ -16,7 +16,9 @@ import {
   type ChatReportReason,
 } from "@/lib/chatApi";
 import { ANNOUNCEMENTS_CHAT_SLUG, isAdminDmGroupSlug } from "@/lib/teamChat";
-import { useFocusEffect } from "@react-navigation/native";
+import { tabBarContentPadding } from "@/lib/tabBar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router/react-navigation";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { headline, themeColor, useThemedStyles } from "@/theme";
@@ -25,6 +27,7 @@ import {
   Alert,
   Dimensions,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -89,6 +92,16 @@ export default function TeamChatThreadScreen() {
   useThemedStyles(publish_styles);
 
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [keyboardUp, setKeyboardUp] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow", () => setKeyboardUp(true));
+    const hide = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide", () => setKeyboardUp(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   const navigation = useNavigation();
   const params = useLocalSearchParams();
   const { isReady, session, supabase } = useAuth();
@@ -113,6 +126,7 @@ export default function TeamChatThreadScreen() {
     loading: msgsLoading,
     error: msgsError,
     send,
+    remove,
     currentUserId,
   } = useTeamChatMessages(roomId);
   const { adminIds, adminSenderDisplayNorms } = useChatAdminUserIds(enabled);
@@ -143,6 +157,8 @@ export default function TeamChatThreadScreen() {
     messageId: string;
     anchor: { x: number; y: number; width: number; height: number };
     modTarget: MenuTarget | null;
+    /** The sender or an admin can delete this message. */
+    canDelete: boolean;
   };
   const [reactionPicker, setReactionPicker] = useState<ReactionPickerState | null>(null);
 
@@ -159,6 +175,23 @@ export default function TeamChatThreadScreen() {
       setModerationToast("Something went wrong. Please try again.");
     }
     setTimeout(() => setModerationToast(null), 3500);
+  }
+
+  function confirmDelete(messageId: string) {
+    Alert.alert("Delete this message?", "It will be removed for everyone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          void (async () => {
+            const ok = await remove(messageId);
+            setModerationToast(ok ? "Message deleted." : "Couldn’t delete this message.");
+            setTimeout(() => setModerationToast(null), 3500);
+          })();
+        },
+      },
+    ]);
   }
 
   function confirmBlock(target: MenuTarget) {
@@ -371,7 +404,7 @@ export default function TeamChatThreadScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.screen}
+      style={[styles.screen, { paddingBottom: keyboardUp ? 8 : tabBarContentPadding(insets.bottom, 8) }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 84 : 0}
     >
@@ -420,7 +453,7 @@ export default function TeamChatThreadScreen() {
         }}
         data={visibleMessages}
         keyExtractor={(m) => m.id}
-        contentContainerStyle={[styles.listContent, { paddingBottom: 200 }]}
+        contentContainerStyle={[styles.listContent, { paddingBottom: 24 }]}
         onContentSizeChange={() => {
           try {
             listRef.current?.scrollToEnd({ animated: false });
@@ -477,6 +510,7 @@ export default function TeamChatThreadScreen() {
                 messageId: m.id,
                 anchor: { x, y, width, height },
                 modTarget,
+                canDelete: mine || isAdmin === true,
               });
             });
           };
@@ -591,7 +625,7 @@ export default function TeamChatThreadScreen() {
             <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
               {(() => {
                 const winW = Dimensions.get("window").width;
-                const barPad = reactionPicker.modTarget ? 44 : 0;
+                const barPad = (reactionPicker.modTarget ? 44 : 0) + (reactionPicker.canDelete ? 44 : 0);
                 const barW = REACTION_PICKER_EMOJIS.length * 40 + barPad + 20;
                 const top = Math.max(52, reactionPicker.anchor.y - 54);
                 const center = reactionPicker.anchor.x + reactionPicker.anchor.width / 2;
@@ -623,6 +657,21 @@ export default function TeamChatThreadScreen() {
                         <Text style={styles.reactionPickerEmoji}>{em}</Text>
                       </Pressable>
                     ))}
+                    {reactionPicker.canDelete ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Delete message"
+                        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                        onPress={() => {
+                          const id = reactionPicker.messageId;
+                          setReactionPicker(null);
+                          confirmDelete(id);
+                        }}
+                        style={({ pressed }) => [styles.reactionPickerMoreBtn, pressed && { opacity: 0.75 }]}
+                      >
+                        <FontAwesome name="trash-o" size={18} color={themeColor().coralText} />
+                      </Pressable>
+                    ) : null}
                     {reactionPicker.modTarget ? (
                       <Pressable
                         accessibilityRole="button"

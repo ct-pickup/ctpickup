@@ -45,6 +45,7 @@ export function GameCard({
   playedWith,
   onPress,
   style,
+  shortSocial = false,
 }: {
   run: GameCardRun;
   photo: string | undefined;
@@ -52,6 +53,8 @@ export function GameCard({
   playedWith: PlayedWithSummary | undefined;
   onPress: () => void;
   style?: StyleProp<ViewStyle>;
+  /** Home: one-line "Played with Kofi +2" copy. */
+  shortSocial?: boolean;
 }) {
   useThemedStyles(publish_styles);
 
@@ -90,7 +93,7 @@ export function GameCard({
             {crowdLine(crowd.avgStar, going)}
           </Text>
         </View>
-        <PlayedWithRow summary={playedWith} style={styles.playedWith} />
+        <PlayedWithRow summary={playedWith} short={shortSocial} style={styles.playedWith} />
       </View>
     </Pressable>
   );
@@ -100,10 +103,12 @@ export function BestGameCard({
   game,
   photo,
   onPress,
+  shortSocial = false,
 }: {
   game: BestGame;
   photo: string | undefined;
   onPress: () => void;
+  shortSocial?: boolean;
 }) {
   useThemedStyles(publish_styles);
 
@@ -143,7 +148,7 @@ export function BestGameCard({
             ))}
           </View>
         ) : null}
-        <PlayedWithRow summary={game.played_with} style={styles.playedWith} />
+        <PlayedWithRow summary={game.played_with} short={shortSocial} style={styles.playedWith} />
       </View>
     </Pressable>
   );

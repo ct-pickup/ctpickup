@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { Redirect, Tabs, useFocusEffect, useRouter, type Href } from "expo-router";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,6 +17,7 @@ import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { useWaiver } from "@/context/WaiverContext";
 import { RunsPickerBridgeProvider } from "@/context/RunsPickerBridge";
 import { hasCompletedOnboarding } from "@/lib/onboarding";
+import { seasonIntroSeenThisSession, SEASON_PRIZE_ENABLED, shouldShowSeasonIntro } from "@/lib/seasonPrize";
 
 import { themeColor, useThemedStyles } from "@/theme";
 export default function TabLayout() {
@@ -29,6 +30,9 @@ export default function TabLayout() {
   const { profileGateLoading, profileNeedsCompletion } = useProfileCompletionGate();
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState(false);
+  // Season prize intro: checked right after sign-in, before the waiver. Never checked while the flag is off.
+  const [seasonChecked, setSeasonChecked] = useState(!SEASON_PRIZE_ENABLED);
+  const [seasonIntroNeeded, setSeasonIntroNeeded] = useState(false);
 
   const userId = session?.user?.id;
 
@@ -42,8 +46,15 @@ export default function TabLayout() {
 
       let cancelled = false;
       setOnboardingChecked(false);
+      if (SEASON_PRIZE_ENABLED) setSeasonChecked(false);
 
       void (async () => {
+        if (SEASON_PRIZE_ENABLED) {
+          const show = await shouldShowSeasonIntro(userId);
+          if (cancelled) return;
+          setSeasonIntroNeeded(show);
+          setSeasonChecked(true);
+        }
         const done = await hasCompletedOnboarding();
         if (cancelled) return;
         setOnboardingComplete(done);
@@ -66,6 +77,19 @@ export default function TabLayout() {
 
   if (!session?.user?.email) {
     return <Redirect href="/login" />;
+  }
+
+  if (SEASON_PRIZE_ENABLED) {
+    if (!seasonChecked) {
+      return (
+        <View style={{ flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color={themeColor().text} />
+        </View>
+      );
+    }
+    if (seasonIntroNeeded && !seasonIntroSeenThisSession(userId)) {
+      return <Redirect href={"/season-prize" as Href} />;
+    }
   }
 
   if (waiverLoading) {

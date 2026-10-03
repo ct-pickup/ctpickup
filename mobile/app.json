@@ -8,19 +8,13 @@
     "icon": "./assets/images/icon.png",
     "scheme": "ctpickup",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/brand/ct-splash-light.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#F4F1EA"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ctpickup.mobile",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "CFBundleDisplayName": "CT",
-        "NSLocationWhenInUseUsageDescription": "Show pickup sessions near you."
+        "NSLocationWhenInUseUsageDescription": "Show pickup sessions near you.",
+        "CFBundleDisplayName": "CT"
       },
       "buildNumber": "47"
     },
@@ -30,7 +24,6 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "versionCode": 3,
       "permissions": [
@@ -45,6 +38,19 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-image",
+      "expo-web-browser",
+      "expo-status-bar",
       [
         "expo-notifications",
         {
@@ -69,19 +75,19 @@
         }
       ],
       [
-        "expo-image-picker",
-        {
-          "photosPermission": "Competitive Together uses your photos so you can add a profile photo other players will recognize.",
-          "cameraPermission": "Competitive Together uses your camera so you can take a profile photo other players will recognize."
-        }
-      ],
-      [
         "expo-location",
         {
           "locationWhenInUsePermission": "Show pickup sessions near you."
         }
       ],
-      "@sentry/react-native"
+      "@sentry/react-native",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Competitive Together uses your photos so you can add a profile photo other players will recognize.",
+          "cameraPermission": "Competitive Together uses your camera so you can take a profile photo other players will recognize."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

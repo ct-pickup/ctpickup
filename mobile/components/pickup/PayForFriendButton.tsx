@@ -313,7 +313,7 @@ function make_styles() {
   btnText: { color: themeColor().onPitchPanel, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
   backdrop: { flex: 1, justifyContent: "center", padding: 20 },
   backdropPress: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: themeColor().scrim,
   },
   card: {

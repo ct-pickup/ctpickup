@@ -18,6 +18,10 @@ import { PhotoUploadField } from "@/components/photo";
 import BadgeShelf from "@/components/profile/BadgeShelf";
 import FormPills from "@/components/profile/FormPills";
 import PlayerCard, { type PlayerCardData } from "@/components/profile/PlayerCard";
+import ProfileCard from "@/components/profile/ProfileCard";
+import { SeasonCard } from "@/components/season/SeasonCard";
+import ShareCardSheet from "@/components/ctplus/ShareCardSheet";
+import { CTPLUS_ENABLED } from "@/lib/ctplus/config";
 import PositionPitch from "@/components/profile/PositionPitch";
 import { tabBarContentPadding } from "@/lib/tabBar";
 import { StarLevelsSheet } from "@/components/StarLevels";
@@ -35,6 +39,8 @@ import { canShareStory, shareStoryImage } from "@/lib/shareStory";
 import { fetchPlayerCard, type PlayerCard as StarCard } from "@/lib/starRatings";
 import { radius, themeColor, useThemedStyles } from "@/theme";
 import { isVerifiedLevel } from "@shared/badges";
+import { INSTAGRAM_VERIFICATION_HANDLE } from "@/lib/brand";
+import { SEASON_PRIZE_ENABLED } from "@/lib/seasonPrize";
 
 const SHARE_READY_TIMEOUT_MS = 4000;
 const STATS_CACHE_KEY = "cached_profile_stats.v3";
@@ -81,6 +87,7 @@ export default function ProfileScreen() {
   const [editing, setEditing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [levelsOpen, setLevelsOpen] = useState(false);
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
 
   useHubVenueResolve(profile, (venue) => setProfile((p) => (p ? { ...p, nearest_venue: venue } : p)));
 
@@ -255,13 +262,16 @@ export default function ProfileScreen() {
 
   return (
     <View style={s.screen}>
+      {/* Solid band behind the status bar so the clock and Dynamic Island never sit on the card. */}
+      <View style={[s.statusBand, { height: insets.top }]} />
       <ScrollView
-        contentContainerStyle={{ paddingBottom: tabBarContentPadding(insets.bottom) }}
+        contentContainerStyle={{ paddingBottom: tabBarContentPadding(insets.bottom, 8) }}
+        alwaysBounceVertical
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={themeColor().pitchText} />
         }
       >
-        <View style={[s.topBar, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
+        <View style={s.topBar}>
           <Pressable
             onPress={() => setEditing((v) => !v)}
             hitSlop={10}
@@ -283,7 +293,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={s.cardWrap}>
-          <PlayerCard
+          <ProfileCard
             data={cardData}
             onPressAvatar={editing ? pickAndUploadAvatar : undefined}
             onPressRating={() => setLevelsOpen(true)}
@@ -295,8 +305,17 @@ export default function ProfileScreen() {
                 </View>
               ) : null
             }
+            onShare={canShare ? (CTPLUS_ENABLED ? () => setShareSheetOpen(true) : () => void onShare()) : undefined}
+            shareBusy={sharing}
+            shareDisabled={!cardReady}
           />
         </View>
+
+        {SEASON_PRIZE_ENABLED ? (
+          <View style={s.seasonWrap}>
+            <SeasonCard />
+          </View>
+        ) : null}
 
         {editing ? (
           <View style={s.editPanel}>
@@ -304,7 +323,7 @@ export default function ProfileScreen() {
               bucket="action-photos"
               name="action"
               label="Card photo"
-              hint="A shot of you playing, shown behind your card. Tap your avatar to change your profile photo."
+              hint="A shot of you playing, used as the background of your shared card image. Tap your avatar to change your profile photo."
               aspect="wide"
               preview={false}
               value={actionPhotoUrl}
@@ -313,31 +332,40 @@ export default function ProfileScreen() {
           </View>
         ) : null}
 
-        {canShare ? (
-          <View style={s.shareWrap}>
-            <Pressable
-              onPress={() => void onShare()}
-              disabled={sharing || !cardReady}
-              style={({ pressed }) => [s.shareBtn, (pressed || sharing || !cardReady) && s.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel="Share my player card"
-            >
-              {sharing ? <ActivityIndicator color={themeColor().accent} /> : <Text style={s.shareBtnText}>Share my card</Text>}
-            </Pressable>
+        <View style={s.tiles}>
+          <View style={s.tile}>
+            <Text style={s.tileLabel}>Position</Text>
+            <PositionPitch primary={spot} others={otherSpots} compact />
           </View>
-        ) : null}
-
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>Position</Text>
-          <PositionPitch primary={spot} others={otherSpots} />
+          <View style={s.tile}>
+            <Text style={s.tileLabel}>Form</Text>
+            {form.length > 0 ? <FormPills form={form} dots /> : <Text style={s.tileEmpty}>No games yet</Text>}
+          </View>
         </View>
 
-        {form.length > 0 ? (
-          <View style={s.section}>
-            <Text style={s.sectionLabel}>Form</Text>
-            <FormPills form={form} />
+        <Pressable
+          onPress={() => (router.push as (href: string) => void)("/instagram-verification")}
+          style={({ pressed }) => [s.verifyRow, pressed && s.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel={isVerifiedLevel(profile?.verification_level) ? "Verified. Open Instagram verification" : "Get verified with Instagram"}
+        >
+          <FontAwesome name="instagram" size={18} color={themeColor().text} />
+          <View style={s.verifyText}>
+            {isVerifiedLevel(profile?.verification_level) ? (
+              <Text style={s.verifyTitle}>{profile?.verification_level === "instagram" ? "Instagram verified" : "Verified"}</Text>
+            ) : (
+              <>
+                <Text style={s.verifyTitle}>Get verified with Instagram</Text>
+                <Text style={s.verifySub}>Instagram: @{INSTAGRAM_VERIFICATION_HANDLE}</Text>
+              </>
+            )}
           </View>
-        ) : null}
+          {isVerifiedLevel(profile?.verification_level) ? (
+            <FontAwesome name="check-circle" size={18} color={themeColor().pitchText} />
+          ) : (
+            <FontAwesome name="chevron-right" size={12} color={themeColor().muted} />
+          )}
+        </Pressable>
 
         <View style={s.sectionBleed}>
           <Text style={[s.sectionLabel, s.sectionLabelInset]}>Badges</Text>
@@ -346,6 +374,17 @@ export default function ProfileScreen() {
       </ScrollView>
 
       <StarLevelsSheet visible={levelsOpen} onClose={() => setLevelsOpen(false)} />
+
+      {CTPLUS_ENABLED && canShare ? (
+        <ShareCardSheet
+          visible={shareSheetOpen}
+          onClose={() => setShareSheetOpen(false)}
+          data={cardData}
+          onShareClassic={onShare}
+          classicBusy={sharing}
+          classicDisabled={!cardReady}
+        />
+      ) : null}
 
       {canShare ? (
         <View style={s.offscreen} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -360,16 +399,17 @@ function make_s() {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: themeColor().bg },
     center: { flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center" },
+    statusBand: { backgroundColor: themeColor().bg },
     topBar: {
       paddingHorizontal: 16,
-      marginBottom: 12,
+      paddingVertical: 4,
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
     },
     topBtn: {
-      minWidth: 36,
-      height: 36,
+      minWidth: 32,
+      height: 32,
       paddingHorizontal: 12,
       borderRadius: radius.pill,
       backgroundColor: themeColor().overlay,
@@ -379,6 +419,7 @@ function make_s() {
     topBtnText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     pressed: { opacity: 0.7 },
     cardWrap: { paddingHorizontal: 16 },
+    seasonWrap: { paddingHorizontal: 16, marginTop: 10 },
     cameraBadge: {
       position: "absolute",
       right: 2,
@@ -393,25 +434,43 @@ function make_s() {
       justifyContent: "center",
     },
     editPanel: { paddingHorizontal: 20, paddingTop: 16 },
-    shareWrap: { paddingHorizontal: 16, paddingTop: 12 },
-    shareBtn: {
-      paddingVertical: 14,
-      borderRadius: radius.button,
-      borderWidth: 1.5,
-      borderColor: themeColor().accent,
-      alignItems: "center",
+    tiles: { flexDirection: "row", gap: 10, paddingHorizontal: 16, marginTop: 10 },
+    tile: {
+      flex: 1,
+      padding: 12,
+      borderRadius: radius.card,
+      backgroundColor: themeColor().card,
+      borderWidth: 1,
+      borderColor: themeColor().line,
     },
-    shareBtnText: { color: themeColor().accent, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-    section: { marginTop: 24, paddingHorizontal: 20 },
-    sectionBleed: { marginTop: 24 },
+    tileLabel: { marginBottom: 8, color: themeColor().muted, fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    tileEmpty: { color: themeColor().muted, fontSize: 12, fontFamily: "Inter_400Regular" },
+    verifyRow: {
+      marginTop: 10,
+      marginHorizontal: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      minHeight: 44,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: themeColor().line,
+      backgroundColor: themeColor().card,
+    },
+    verifyText: { flex: 1 },
+    verifyTitle: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    verifySub: { color: themeColor().muted, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
+    sectionBleed: { marginTop: 12 },
     sectionLabel: {
-      marginBottom: 12,
+      marginBottom: 6,
       color: themeColor().text,
-      fontSize: 15,
+      fontSize: 14,
       fontFamily: "Inter_600SemiBold",
       fontWeight: "600",
     },
-    sectionLabelInset: { paddingHorizontal: 20 },
+    sectionLabelInset: { paddingHorizontal: 16 },
     offscreen: { position: "absolute", top: 0, left: -10000 },
   });
 }

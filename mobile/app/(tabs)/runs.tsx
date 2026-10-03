@@ -24,7 +24,7 @@ import { fetchPickupRegionRuns, fetchPickupStanding } from "@/lib/siteApi";
 import { useUserChatRooms } from "@/lib/teamChat";
 import { serviceRegionName, type ServiceRegionCode } from "@/lib/serviceRegions";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect } from "expo-router/react-navigation";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import * as Linking from "expo-linking";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -1449,7 +1449,7 @@ function make_styles() {
   },
   creditApplyBtnText: { color: themeColor().onPitchPanel, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: themeColor().scrim },
+  modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: themeColor().scrim },
   detailSheet: {
     maxHeight: "92%",
     borderTopLeftRadius: 20,

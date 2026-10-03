@@ -256,7 +256,7 @@ export default function AdminAnalyticsScreen() {
         ) : null}
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Runs per region</Text>
+          <Text style={styles.cardTitle}>Runs by area</Text>
           {(data?.runs_per_region ?? []).length === 0 ? (
             <Text style={styles.muted}>No completed runs this month.</Text>
           ) : (
@@ -334,7 +334,7 @@ export default function AdminAnalyticsScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Best Times to Run 📅</Text>
+          <Text style={styles.cardTitle}>Best Times to Run</Text>
           <View style={styles.regionChips}>
             {SCHEDULE_REGION_OPTIONS.map((opt) => {
               const selected = scheduleRegion === opt.key;
@@ -355,7 +355,7 @@ export default function AdminAnalyticsScreen() {
           </View>
           {bestTimes.length === 0 ? (
             <Text style={styles.muted}>
-              Not enough run history yet for this region. Run more sessions to see scheduling suggestions.
+              Not enough run history yet for this area. Run more sessions to see scheduling suggestions.
             </Text>
           ) : (
             bestTimes.map((slot) => {
