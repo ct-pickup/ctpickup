@@ -87,3 +87,17 @@ export function dayLabel(key: DateKey): string {
 export function weekdayShort(key: DateKey): string {
   return new Date(toUtc(key)).toLocaleDateString("en-US", { timeZone: "UTC", weekday: "short" });
 }
+
+function shortDate(key: DateKey): string {
+  return new Date(toUtc(key)).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" });
+}
+
+/**
+ * Strip header: the selected day's month ("October 2026"), or the range ("Sep 27 – Oct 3") when the visible
+ * week spans two months.
+ */
+export function weekHeaderLabel(visibleWeekStart: DateKey, selected: DateKey): string {
+  const days = weekDays(visibleWeekStart);
+  if (monthOf(days[0]).month !== monthOf(days[6]).month) return `${shortDate(days[0])} – ${shortDate(days[6])}`;
+  return monthLabel(monthOf(selected));
+}

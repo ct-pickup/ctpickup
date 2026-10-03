@@ -661,9 +661,7 @@ export default function HomeScreen() {
       <SectionHeader label="Nearby games" {...(mapRuns.length > 0 ? { actionLabel: "View map", onAction: openMap } : {})} />
       {mapRuns.length === 0 ? (
         <View style={styles.mapEmptyRow}>
-          <Text style={styles.mapEmptyText} numberOfLines={1}>
-            No games near you yet. Be the first to host one.
-          </Text>
+          <Text style={styles.mapEmptyText}>No games near you yet.</Text>
           <Pressable
             accessibilityRole="button"
             onPress={() => push("/session-create")}
