@@ -4,7 +4,7 @@ import { hapticTap } from "@/lib/haptics";
 import { Ionicons } from "@expo/vector-icons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useNavigation, useRouter } from "expo-router";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -22,7 +22,9 @@ import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
 import DiscoverPanel from "@/components/discover/DiscoverPanel";
 import { DiscoverRequestError, fetchWeeklyPicks, searchPlayers as searchDiscover } from "@/lib/discoverApi";
 import type { DiscoverPlayer } from "@shared/discover";
+import CtPlusPaywall from "@/components/ctplus/CtPlusPaywall";
 import { StarLevelsLink } from "@/components/StarLevels";
+import { CTPLUS_ENABLED } from "@/lib/ctplus/config";
 import { StarRating } from "@/components/StarRating";
 import { fetchPlayerCards, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
@@ -50,6 +52,8 @@ type ApiRow = {
   value: number;
   win_rate?: number;
   games_played?: number;
+  /** True position in the full category, from the server. */
+  rank?: number;
 };
 
 type LeaderboardsPayload = {
@@ -67,12 +71,18 @@ type LeaderboardsPayload = {
   points: unknown[];
   points_all_time: unknown[];
   season: string | null;
+  /** Rows returned per category before the player's own and played-with rows. */
+  top_n: number;
+  /** Size of each full category, for "Showing top 10 of 58". */
+  totals: Record<string, number>;
 };
 
 type PointsScope = "season" | "all";
 
 type RankedPlayer = {
   user_id: string;
+  /** True position in the full Stars ranking, from the server. */
+  rank: number;
   games: number;
   points: number;
   name: string;
@@ -130,6 +140,10 @@ function parsePayload(json: unknown): LeaderboardsPayload | null {
     points: asRowArray(json.points),
     points_all_time: asRowArray(json.points_all_time),
     season: typeof json.season === "string" && json.season ? json.season : null,
+    top_n: typeof json.top_n === "number" && json.top_n > 0 ? json.top_n : 10,
+    totals: isRecord(json.totals)
+      ? Object.fromEntries(Object.entries(json.totals).filter((e): e is [string, number] => typeof e[1] === "number"))
+      : {},
   };
 }
 
@@ -149,6 +163,7 @@ function parseRow(v: unknown): ApiRow | null {
     value,
     win_rate: typeof v.win_rate === "number" ? v.win_rate : undefined,
     games_played: typeof v.games_played === "number" ? v.games_played : undefined,
+    rank: typeof v.rank === "number" ? v.rank : undefined,
   };
 }
 
@@ -192,6 +207,7 @@ export default function LeaderboardsScreen() {
   const navigation = useNavigation();
   const { session, supabase } = useAuth();
   const myUserId = session?.user?.id ?? null;
+  const token = session?.access_token ?? null;
 
   const [tab, setTab] = useState<TabId>("stars");
   // Region filtering is hidden until the location work lands; queries stay unscoped.
@@ -219,6 +235,7 @@ export default function LeaderboardsScreen() {
   const [rankedPlayers, setRankedPlayers] = useState<RankedPlayer[]>([]);
   const [myCard, setMyCard] = useState<PlayerCard | null>(_cachedMyCard);
   const [starsLoading, setStarsLoading] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
 
   const rowsForTab = useMemo(() => {
     if (!payload) return [];
@@ -250,63 +267,49 @@ export default function LeaderboardsScreen() {
     return out;
   }, [payload, tab, pointsScope]);
 
-  const loadStars = useCallback(async () => {
-    const origin = siteOrigin();
-    if (!origin) return;
-    setStarsLoading(true);
-    try {
-      const u = new URL(`${origin}/api/leaderboards`);
-      if (region !== "ALL") u.searchParams.set("region", region);
-      const r = await fetch(u.toString(), {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-      });
-      const json = (await r.json().catch(() => null)) as unknown;
-      const rowsRaw = isRecord(json) && Array.isArray(json.tiers) ? (json.tiers as unknown[]) : [];
+  /** Builds the Stars list from the capped `tiers` rows (already in rank order); stars and percentile come from player_cards. */
+  const applyTiers = useCallback(
+    async (rowsRaw: unknown[]) => {
+      setStarsLoading(true);
+      try {
+        const rows: Omit<RankedPlayer, "card">[] = [];
+        for (const item of rowsRaw) {
+          if (!isRecord(item)) continue;
+          const userId = typeof item.user_id === "string" ? item.user_id : null;
+          if (!userId) continue;
+          const first = typeof item.first_name === "string" ? item.first_name : null;
+          const last = typeof item.last_name === "string" ? item.last_name : null;
+          const username = typeof item.username === "string" ? item.username : null;
+          rows.push({
+            user_id: userId,
+            rank: typeof item.rank === "number" ? item.rank : rows.length + 1,
+            games: typeof item.games === "number" && Number.isFinite(item.games) ? item.games : 0,
+            points: typeof item.points === "number" && Number.isFinite(item.points) ? item.points : 0,
+            name: [first, last].filter(Boolean).join(" ").trim() || username || "Player",
+            username,
+            avatar_url: typeof item.avatar_url === "string" ? item.avatar_url.trim() || null : null,
+            nearest_venue: typeof item.nearest_venue === "string" ? item.nearest_venue : null,
+          });
+        }
 
-      const rows: Omit<RankedPlayer, "card">[] = [];
-      for (const item of rowsRaw) {
-        if (!isRecord(item)) continue;
-        const userId = typeof item.user_id === "string" ? item.user_id : null;
-        if (!userId) continue;
-        const first = typeof item.first_name === "string" ? item.first_name : null;
-        const last = typeof item.last_name === "string" ? item.last_name : null;
-        const username = typeof item.username === "string" ? item.username : null;
-        rows.push({
-          user_id: userId,
-          games: typeof item.games === "number" && Number.isFinite(item.games) ? item.games : 0,
-          points: typeof item.points === "number" && Number.isFinite(item.points) ? item.points : 0,
-          name: [first, last].filter(Boolean).join(" ").trim() || username || "Player",
-          username,
-          avatar_url: typeof item.avatar_url === "string" ? item.avatar_url.trim() || null : null,
-          nearest_venue: typeof item.nearest_venue === "string" ? item.nearest_venue : null,
-        });
+        const cards = supabase
+          ? await fetchPlayerCards(supabase, [...rows.map((p) => p.user_id), ...(myUserId ? [myUserId] : [])])
+          : new Map<string, PlayerCard>();
+
+        setRankedPlayers(rows.map((p) => ({ ...p, card: cards.get(p.user_id) ?? null })).sort((a, b) => a.rank - b.rank));
+
+        const mine = myUserId ? (cards.get(myUserId) ?? null) : null;
+        _cachedMyCard = mine;
+        setMyCard(mine);
+      } catch (e) {
+        console.error("[leaderboards] applyTiers failed:", e);
+        setRankedPlayers([]);
+      } finally {
+        setStarsLoading(false);
       }
-
-      const cards = supabase
-        ? await fetchPlayerCards(supabase, [...rows.map((p) => p.user_id), ...(myUserId ? [myUserId] : [])])
-        : new Map<string, PlayerCard>();
-
-      const sorted = rows
-        .map((p) => ({ ...p, card: cards.get(p.user_id) ?? null }))
-        .sort((a, b) => (b.card?.star ?? -1) - (a.card?.star ?? -1) || b.points - a.points);
-      setRankedPlayers(sorted);
-
-      const mine = myUserId ? (cards.get(myUserId) ?? null) : null;
-      _cachedMyCard = mine;
-      setMyCard(mine);
-    } catch (e) {
-      console.error("[leaderboards] loadStars failed:", e);
-      setRankedPlayers([]);
-    } finally {
-      setStarsLoading(false);
-    }
-  }, [myUserId, region, supabase]);
-
-  useEffect(() => {
-    if (tab === "stars") void loadStars();
-  }, [tab, loadStars]);
+    },
+    [myUserId, supabase],
+  );
 
   const load = useCallback(
     async (isRefresh: boolean) => {
@@ -324,7 +327,11 @@ export default function LeaderboardsScreen() {
       try {
         const u = new URL(`${origin}/api/leaderboards`);
         if (region !== "ALL") u.searchParams.set("region", region);
-        const r = await fetch(u.toString(), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" });
+        const r = await fetch(u.toString(), {
+          method: "GET",
+          headers: { Accept: "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          cache: "no-store",
+        });
         const json = (await r.json().catch(() => null)) as unknown;
         if (!r.ok) {
           setErr("Something went wrong. Please try again.");
@@ -344,6 +351,7 @@ export default function LeaderboardsScreen() {
         );
         setErr(null);
         setPayload(parsed);
+        void applyTiers(isRecord(json) && Array.isArray(json.tiers) ? (json.tiers as unknown[]) : []);
       } catch (e) {
         console.error("[leaderboards] failed:", e);
         setErr("Something went wrong. Please try again.");
@@ -353,7 +361,7 @@ export default function LeaderboardsScreen() {
         setRefreshing(false);
       }
     },
-    [region],
+    [region, token, applyTiers],
   );
 
   useLayoutEffect(() => {
@@ -363,8 +371,6 @@ export default function LeaderboardsScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({ headerRight: undefined });
   }, [navigation]);
-
-  const token = session?.access_token ?? null;
 
   const loadPicks = useCallback(
     async (refresh: boolean) => {
@@ -490,15 +496,34 @@ export default function LeaderboardsScreen() {
     );
   }
 
+  const topN = payload?.top_n ?? 10;
+
+  /** "Showing top 10 of 58" and, when CT+ is on, the full-leaderboard prompt. */
+  function renderCapFooter(total: number | undefined) {
+    const shown = total != null && total > topN ? `Showing top ${topN} of ${total}` : null;
+    if (!shown && !CTPLUS_ENABLED) return null;
+    return (
+      <View style={styles.capFooter}>
+        {shown ? <Text style={styles.capFooterText}>{shown}</Text> : null}
+        {CTPLUS_ENABLED ? (
+          <Pressable onPress={() => setPaywallOpen(true)} hitSlop={8} accessibilityRole="button">
+            <Text style={styles.capFooterLink}>See the full leaderboard with CT+</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    );
+  }
+
   function renderRankedRow(item: RankedPlayer, index: number) {
-    const rank = index + 1;
+    const rank = item.rank;
     const mine = myUserId != null && item.user_id === myUserId;
     const top3 = rank <= 3;
+    const gapBefore = rank > topN && index > 0 && (rankedPlayers[index - 1]?.rank ?? 0) <= topN;
     return (
       <Pressable
         key={item.user_id}
         onPress={() => router.push(`/player/${item.user_id}`)}
-        style={({ pressed }) => [styles.playerRow, mine && styles.playerRowMine, pressed && { opacity: 0.85 }]}
+        style={({ pressed }) => [styles.playerRow, mine && styles.playerRowMine, gapBefore && styles.gapBefore, pressed && { opacity: 0.85 }]}
       >
         <View style={[styles.rankCell, top3 && styles.rankCircleTop3]}>
           <Text style={[styles.rankText, top3 && styles.rankTextTop3, mine && styles.onPanelText]}>{rank}</Text>
@@ -515,9 +540,16 @@ export default function LeaderboardsScreen() {
         </View>
 
         <View style={styles.playerInfo}>
-          <Text style={[styles.playerName, mine && styles.onPanelText]} numberOfLines={1}>
-            {item.name}
-          </Text>
+          <View style={styles.nameLine}>
+            <Text style={[styles.playerName, styles.nameFlex, mine && styles.onPanelText]} numberOfLines={1}>
+              {item.name}
+            </Text>
+            {mine ? (
+              <View style={styles.youTag}>
+                <Text style={styles.youTagText}>You</Text>
+              </View>
+            ) : null}
+          </View>
           {item.card ? (
             <StarRating value={item.card.star} provisional={item.card.provisional} size="sm" style={styles.playerStars} />
           ) : null}
@@ -540,7 +572,7 @@ export default function LeaderboardsScreen() {
       <ScrollView
         style={styles.listFlex}
         contentContainerStyle={styles.tierContent}
-        refreshControl={<RefreshControl refreshing={starsLoading} onRefresh={() => void loadStars()} tintColor={themeColor().pitchText} />}
+        refreshControl={<RefreshControl refreshing={refreshing || starsLoading} onRefresh={onRefresh} tintColor={themeColor().pitchText} />}
       >
         {renderHero()}
 
@@ -563,6 +595,7 @@ export default function LeaderboardsScreen() {
         ) : (
           <View style={{ gap: 8 }}>{rankedPlayers.map((p, i) => renderRankedRow(p, i))}</View>
         )}
+        {renderCapFooter(payload?.totals.tiers)}
 
         <ChalkDivider style={styles.sectionDivider} />
 
@@ -640,15 +673,17 @@ export default function LeaderboardsScreen() {
             />
           ) : null
         }
+        ListFooterComponent={err || rowsForTab.length === 0 ? null : renderCapFooter(payload?.totals[tab === "points" ? (pointsScope === "season" ? "points" : "points_all_time") : tab === "sessions" ? "sessions" : tab])}
         renderItem={({ item, index }) => {
-          const rank = index + 1;
+          const rank = item.rank ?? index + 1;
           const mine = myUserId != null && item.id === myUserId;
           const top3 = rank <= 3;
+          const gapBefore = rank > topN && index > 0 && (rowsForTab[index - 1]?.rank ?? 0) <= topN;
           const name = displayPlayerName(item);
           return (
             <Pressable
               onPress={() => router.push(`/player/${encodeURIComponent(item.id)}`)}
-              style={({ pressed }) => [styles.playerRow, mine && styles.playerRowMine, pressed && { opacity: 0.85 }]}
+              style={({ pressed }) => [styles.playerRow, mine && styles.playerRowMine, gapBefore && styles.gapBefore, pressed && { opacity: 0.85 }]}
             >
               <View style={[styles.rankCell, top3 && styles.rankCircleTop3]}>
                 <Text style={[styles.rankText, top3 && styles.rankTextTop3, mine && styles.onPanelText]}>{rank}</Text>
@@ -659,9 +694,16 @@ export default function LeaderboardsScreen() {
                 </View>
               </View>
               <View style={styles.playerInfo}>
-                <Text style={styles.playerName} numberOfLines={1}>
-                  {name}
-                </Text>
+                <View style={styles.nameLine}>
+                  <Text style={[styles.playerName, styles.nameFlex, mine && styles.onPanelText]} numberOfLines={1}>
+                    {name}
+                  </Text>
+                  {mine ? (
+                    <View style={styles.youTag}>
+                      <Text style={styles.youTagText}>You</Text>
+                    </View>
+                  ) : null}
+                </View>
                 {item.username ? (
                   <Text style={[styles.playerStats, mine && styles.onPanelText]} numberOfLines={1}>
                     @{item.username}
@@ -722,6 +764,17 @@ export default function LeaderboardsScreen() {
           <View style={styles.listWrap}>{tab === "stars" ? renderStarsTab() : renderApiTab()}</View>
         </>
       )}
+
+      {CTPLUS_ENABLED ? (
+        <CtPlusPaywall
+          visible={paywallOpen}
+          design={null}
+          data={null}
+          lead="See the full leaderboard"
+          onClose={() => setPaywallOpen(false)}
+          onPurchased={() => setPaywallOpen(false)}
+        />
+      ) : null}
 
       {/* More tabs dropdown */}
       <Modal visible={moreOpen} transparent animationType="fade" onRequestClose={() => setMoreOpen(false)}>
@@ -866,6 +919,14 @@ function make_styles() {
   rankText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "800" },
   rankTextTop3: { color: themeColor().onPitchPanel },
   onPanelText: { color: themeColor().onPitchPanel },
+  gapBefore: { marginTop: 16 },
+  nameLine: { flexDirection: "row", alignItems: "center", gap: 6 },
+  nameFlex: { flexShrink: 1 },
+  youTag: { paddingHorizontal: 8, paddingVertical: 1, borderRadius: 999, backgroundColor: themeColor().pitch },
+  youTagText: { color: themeColor().onPitch, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  capFooter: { alignItems: "center", gap: 6, paddingVertical: 16 },
+  capFooterText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_500Medium" },
+  capFooterLink: { color: themeColor().accent, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   avatarRing: { width: 46, height: 46, borderRadius: 999, borderWidth: 2, padding: 4 },
   avatarImg: { width: "100%", height: "100%", borderRadius: 999 },
   avatarFallback: { backgroundColor: themeColor().overlaySubtle, alignItems: "center", justifyContent: "center" },

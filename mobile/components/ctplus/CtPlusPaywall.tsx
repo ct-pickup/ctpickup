@@ -15,12 +15,18 @@ const PERKS = ["3 premium card designs: Dark, Gold and Club", "Story and square 
 export default function CtPlusPaywall({
   design,
   data,
+  visible,
+  lead,
   onClose,
   onPurchased,
 }: {
-  /** The locked design to preview; null keeps the paywall closed. */
+  /** The locked design to preview; with no preview, pass `visible` to open the paywall anyway. */
   design: Exclude<CardDesignId, "classic"> | null;
-  data: PlayerCardData;
+  data: PlayerCardData | null;
+  /** Overrides the default "open when a design is set". */
+  visible?: boolean;
+  /** Headline when the paywall is opened from somewhere other than the card picker. */
+  lead?: string;
   onClose: () => void;
   onPurchased: () => void;
 }) {
@@ -42,7 +48,7 @@ export default function CtPlusPaywall({
   }
 
   return (
-    <Modal visible={design != null} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal visible={visible ?? design != null} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={styles.root}>
         <View style={styles.header}>
           <Text style={styles.title}>CT+</Text>
@@ -51,12 +57,12 @@ export default function CtPlusPaywall({
           </Pressable>
         </View>
         <ScrollView contentContainerStyle={[styles.body, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
-          {design ? (
+          {design && data ? (
             <View style={styles.preview}>
               <PremiumShareCard design={design} size="story" data={data} width={190} />
             </View>
           ) : null}
-          <Text style={styles.lead}>Share your card your way.</Text>
+          <Text style={styles.lead}>{lead ?? "Share your card your way."}</Text>
           <View style={styles.perks}>
             {PERKS.map((p) => (
               <View key={p} style={styles.perkRow}>
