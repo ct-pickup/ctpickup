@@ -198,7 +198,6 @@ function useHomeData() {
   const [firstName, setFirstName] = useState<string | null>(null);
   const [homeZip, setHomeZip] = useState<string | null>(null);
   const [maxDriveMinutes, setMaxDriveMinutes] = useState<number | null>(null);
-  const [nextMatch, setNextMatch] = useState<HomeRun | null>(null);
   const [nearRuns, setNearRuns] = useState<HomeRun[]>([]);
   const [regionRuns, setRegionRuns] = useState<HomeRun[]>([]);
   const [regionName, setRegionName] = useState<string | null>(null);
@@ -266,36 +265,23 @@ function useHomeData() {
       ),
     );
 
-    let next: HomeRun | null = null;
     let recentRuns: Array<{ id: string; title: string | null; created_by: string | null; tier_session_id: string | null }> = [];
     if (myRunIds.length > 0) {
-      const [nextRes, recentRes] = await Promise.all([
-        supabase
-          .from("pickup_runs")
-          .select(RUN_COLUMNS)
-          .in("id", myRunIds)
-          .gte("start_at", nowIso)
-          .order("start_at", { ascending: true })
-          .limit(1),
-        supabase
-          .from("pickup_runs")
-          .select("id,title,start_at,created_by,tier_session_id,status")
-          .in("id", myRunIds)
-          .gt("start_at", threeHoursAgo)
-          .lt("start_at", nowIso)
-          .in("status", ["planning", "active", "in_progress", "completed"])
-          .order("start_at", { ascending: false })
-          .limit(8),
-      ]);
-      note("next game", nextRes.error);
+      const recentRes = await supabase
+        .from("pickup_runs")
+        .select("id,title,start_at,created_by,tier_session_id,status")
+        .in("id", myRunIds)
+        .gt("start_at", threeHoursAgo)
+        .lt("start_at", nowIso)
+        .in("status", ["planning", "active", "in_progress", "completed"])
+        .order("start_at", { ascending: false })
+        .limit(8);
       note("recent games", recentRes.error);
-      next = ((nextRes.data ?? []) as HomeRun[])[0] ?? null;
       recentRuns = (recentRes.data ?? []) as typeof recentRuns;
     }
     const mapRows = (mapRes.data ?? []) as HomeRun[];
-    const tbd = await fetchRunTimeTbdIds(supabase, [...(next ? [next.id] : []), ...mapRows.map((r) => r.id)]);
+    const tbd = await fetchRunTimeTbdIds(supabase, mapRows.map((r) => r.id));
     const withTbd = (r: HomeRun): HomeRun => ({ ...r, time_tbd: tbd.has(r.id) });
-    setNextMatch(next ? withTbd(next) : null);
 
     const runs = mapRows.map(withTbd);
     const radiusMiles = driveRadiusMiles(effectiveMaxDriveMinutes(profile?.max_drive_minutes ?? null));
@@ -342,7 +328,7 @@ function useHomeData() {
     setRegionName(fallbackRegion ? serviceRegionName(fallbackRegion) : null);
 
     // Crowds: RSVPs, profiles and stars are separate queries merged here.
-    const crowdRunIds = [...(next ? [next.id] : []), ...near.map((r) => r.id), ...fallback.map((r) => r.id)];
+    const crowdRunIds = [...near.map((r) => r.id), ...fallback.map((r) => r.id)];
     const crowdRsvpRes = crowdRunIds.length
       ? await supabase
           .from("pickup_run_rsvps")
@@ -416,7 +402,6 @@ function useHomeData() {
     firstName,
     homeZip,
     maxDriveMinutes,
-    nextMatch,
     nearRuns,
     regionRuns,
     regionName,
@@ -517,7 +502,6 @@ export default function HomeScreen() {
   const firstName = fixture ? fixture.firstName : live.firstName;
   const homeZip = fixture ? fixture.homeZip : live.homeZip;
   const maxDriveMinutes = fixture ? fixture.maxDriveMinutes : live.maxDriveMinutes;
-  const nextMatch: HomeRun | null = fixture ? fixture.upNext : live.nextMatch;
   const nearRuns: HomeRun[] = fixture ? fixture.nearby : live.nearRuns;
   const regionRuns: HomeRun[] = fixture ? [] : live.regionRuns;
   const mapRuns: HomeRun[] = fixture ? [fixture.upNext, ...fixture.nearby] : live.mapRuns;
@@ -534,7 +518,7 @@ export default function HomeScreen() {
   }, [fixture, live.crowds]);
 
   const name = firstName || firstNameFromEmail(session?.user?.email ?? undefined);
-  const cardRunIds = [...(nextMatch ? [nextMatch.id] : []), ...nearRuns.map((r) => r.id), ...regionRuns.map((r) => r.id)];
+  const cardRunIds = [...nearRuns.map((r) => r.id), ...regionRuns.map((r) => r.id)];
   const livePhotos = useFieldPhotos(fixture ? [] : [...cardRunIds, ...bestGames.map((g) => g.id)]);
   const fieldPhotos: Record<string, string> = fixture
     ? Object.fromEntries([fixture.upNext, ...fixture.nearby].map((r) => [r.id, r.photo]))

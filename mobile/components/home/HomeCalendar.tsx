@@ -17,6 +17,7 @@ import {
   monthsBetween,
   shiftMonth,
   weekDays,
+  weekdayShort,
   weekStart,
   weeksBetween,
   WEEKDAY_LETTERS,
@@ -123,6 +124,45 @@ function useMyGames(supabase: SupabaseClient | null, myUserId: string | null, vi
     if (loaded.current) void fetchRange(loaded.current);
   }, [fetchRange]);
 
+  /**
+   * The player's first game after `afterKey` (an Eastern day), for when none is in the fetched window.
+   * Same two-step filter as fetchRange, but no upper bound and limit 5.
+   */
+  const [beyond, setBeyond] = useState<MyGame | null>(null);
+  const lookupNextAfter = useCallback(
+    async (afterKey: DateKey) => {
+      if (!supabase || !myUserId) return;
+      const lo = new Date(`${addDays(afterKey, 0)}T00:00:00Z`).toISOString();
+      const rsvpRes = await supabase.from("pickup_run_rsvps").select("run_id").eq("user_id", myUserId).in("status", GOING_STATUSES).limit(500);
+      if (rsvpRes.error) return;
+      const ids = Array.from(
+        new Set(((rsvpRes.data ?? []) as Array<{ run_id: string | null }>).map((r) => r.run_id).filter((v): v is string => Boolean(v))),
+      );
+      const mine = ids.length > 0 ? `id.in.(${ids.join(",")}),created_by.eq.${myUserId}` : `created_by.eq.${myUserId}`;
+      const runsRes = await supabase
+        .from("pickup_runs")
+        .select(RUN_COLUMNS)
+        .or(mine)
+        .gte("start_at", lo)
+        .not("status", "in", "(canceled,cancelled)")
+        .order("start_at", { ascending: true })
+        .limit(5);
+      if (runsRes.error) return;
+      const rows = (runsRes.data ?? []) as unknown as Array<Omit<MyGame, "time_tbd" | "min_star" | "hosting">>;
+      const row = rows.find((r) => {
+        const k = etDateKey(r.start_at);
+        return k != null && k > afterKey;
+      });
+      if (!row) {
+        setBeyond(null);
+        return;
+      }
+      const tbd = await fetchRunTimeTbdIds(supabase, [row.id]);
+      setBeyond({ ...row, time_tbd: tbd.has(row.id), min_star: null, hosting: row.created_by === myUserId });
+    },
+    [supabase, myUserId],
+  );
+
   // Fetch (with padding) whenever the visible range leaves what is loaded.
   useFocusEffect(
     useCallback(() => {
@@ -138,7 +178,7 @@ function useMyGames(supabase: SupabaseClient | null, myUserId: string | null, vi
     }, [fetchRange]),
   );
 
-  return { games, refresh };
+  return { games, refresh, beyond, lookupNextAfter };
 }
 
 /** Eastern calendar day today, kept fresh when the screen regains focus. */
@@ -187,7 +227,7 @@ export default function HomeCalendar({
     ? { from: grid[0] < week.from ? grid[0] : week.from, to: grid[41] > week.to ? grid[41] : week.to }
     : week;
 
-  const { games, refresh } = useMyGames(supabase, myUserId, visible);
+  const { games, refresh, beyond, lookupNextAfter } = useMyGames(supabase, myUserId, visible);
   useEffect(() => {
     registerRefresh?.(refresh);
   }, [registerRefresh, refresh]);
@@ -203,6 +243,28 @@ export default function HomeCalendar({
     }
     return map;
   }, [games]);
+
+  // Next game after the selected day, from what is already fetched; one extra lookup only when none is in range.
+  const laterInRange = useMemo(() => {
+    let best: { key: DateKey; game: MyGame } | null = null;
+    for (const g of games) {
+      const k = etDateKey(g.start_at);
+      if (k && k > selected && (!best || g.start_at < best.game.start_at)) best = { key: k, game: g };
+    }
+    return best;
+  }, [games, selected]);
+  const asked = useRef<DateKey | null>(null);
+  const selectedHasGames = byDay.has(selected);
+  useFocusEffect(
+    useCallback(() => {
+      if (selectedHasGames || laterInRange || asked.current === selected) return;
+      asked.current = selected;
+      void lookupNextAfter(selected);
+    }, [selectedHasGames, laterInRange, selected, lookupNextAfter]),
+  );
+  const beyondKey = beyond ? etDateKey(beyond.start_at) : null;
+  const nextLater =
+    laterInRange ?? (beyond && beyondKey && beyondKey > selected ? { key: beyondKey, game: beyond } : null);
 
   const goToWeek = (offset: number, animated = true) => {
     const clamped = Math.max(-WEEKS_EACH_WAY, Math.min(WEEKS_EACH_WAY, offset));
@@ -299,6 +361,19 @@ export default function HomeCalendar({
           </Pressable>
         </View>
       )}
+      {dayGames.length === 0 && nextLater ? (
+        <Pressable
+          onPress={() => selectDay(nextLater.key)}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel="Go to your next game"
+        >
+          <Text style={styles.nextLine} numberOfLines={1}>
+            Next: {weekdayShort(nextLater.key)} {fmtPickupTimeEt(nextLater.game.start_at, runTimeTbd(nextLater.game))} ·{" "}
+            {splitLocation(nextLater.game.location_text, nextLater.game.title).field}
+          </Text>
+        </Pressable>
+      ) : null}
 
       <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
         <View style={styles.sheetRoot}>
@@ -467,6 +542,7 @@ function make_styles() {
     gameTitle: { fontSize: 18, ...headline, color: c.text },
     gameSub: { fontSize: 13, fontFamily: "Inter_400Regular", color: c.muted },
     emptyCard: { minHeight: 64, paddingHorizontal: 16, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+    nextLine: { marginTop: 2, marginBottom: 8, fontSize: 13, fontFamily: "Inter_600SemiBold", color: c.pitchText },
     emptyTitle: { flexShrink: 1, fontSize: 15, fontFamily: "Inter_600SemiBold", color: c.text },
     accentBtn: { backgroundColor: c.accent, borderRadius: radius.button, paddingVertical: 8, paddingHorizontal: 16 },
     accentBtnText: { color: c.onAccent, fontSize: 14, fontFamily: "Inter_600SemiBold" },

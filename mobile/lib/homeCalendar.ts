@@ -82,3 +82,8 @@ export function dayLabel(key: DateKey): string {
     day: "numeric",
   });
 }
+
+/** "Wed". */
+export function weekdayShort(key: DateKey): string {
+  return new Date(toUtc(key)).toLocaleDateString("en-US", { timeZone: "UTC", weekday: "short" });
+}
