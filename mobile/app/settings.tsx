@@ -1258,6 +1258,13 @@ export default function SettingsScreen() {
           contentContainerStyle={[s.content, { paddingBottom: insets.bottom + 48 }]}
           keyboardShouldPersistTaps="handled"
         >
+          <SettingsSection title="Shortcuts">
+            <View style={s.group}>
+              {isAdmin ? <Row icon="shield" label="Admin" onPress={() => push("/(tabs)/admin")} /> : null}
+              <Row icon="trophy" label="Tournaments" onPress={() => push("/(tabs)/tournaments")} last />
+            </View>
+          </SettingsSection>
+
           <SettingsSection title="Account">
             <View style={s.group}>
               <Pressable

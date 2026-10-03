@@ -2,10 +2,12 @@ import React, { useCallback, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { Redirect, Tabs, useFocusEffect, useRouter, type Href } from "expo-router";
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { CreateMenuSheet } from "@/components/CreateMenuSheet";
 import { hapticTap } from "@/lib/haptics";
+import { useHostedRunNeedingResult } from "@/lib/useHostedRunNeedingResult";
 import { useClientOnlyValue } from "@/components/useClientOnlyValue";
 import { useAdminMode } from "@/context/AdminModeContext";
 import { useAuth } from "@/context/AuthContext";
@@ -20,8 +22,8 @@ export default function TabLayout() {
   useThemedStyles(publish_tabStyles);
 
   const { session, isReady } = useAuth();
-  const { enabled: adminModeEnabled, isReady: adminModeReady } = useAdminMode();
-  const { isAdmin, isReady: profileAdminReady } = useProfileAdmin();
+  const { isReady: adminModeReady } = useAdminMode();
+  const { isReady: profileAdminReady } = useProfileAdmin();
   const { waiverAccepted, waiverLoading } = useWaiver();
   const { profileGateLoading, profileNeedsCompletion } = useProfileCompletionGate();
   const [onboardingChecked, setOnboardingChecked] = useState(false);
@@ -103,17 +105,17 @@ export default function TabLayout() {
 
   return (
     <RunsPickerBridgeProvider>
-      <TabsWithRunsPickerReset adminModeEnabled={adminModeEnabled} isAdmin={isAdmin} />
+      <TabsWithRunsPickerReset />
     </RunsPickerBridgeProvider>
   );
 }
 
 /**
- * The redesigned 5-slot bar: Home · Games · Host (elevated) · Rankings · Profile,
- * plus a conditional 6th Admin slot. Host jumps via the create menu; Rankings /
- * Home / Games / Profile / Admin map to registered tab screens.
+ * The 5-slot bar: Home · Games · + (elevated) · Players · Profile. There is no Admin
+ * slot; admins reach the admin home from the row at the top of Settings. The + opens
+ * the create menu sheet.
  */
-function CTTabBar({ state, navigation, isAdmin }: BottomTabBarProps & { isAdmin: boolean }) {
+function CTTabBar({ state, navigation }: BottomTabBarProps) {
   useThemedStyles(publish_tabStyles);
 
   const router = useRouter();
@@ -128,17 +130,15 @@ function CTTabBar({ state, navigation, isAdmin }: BottomTabBarProps & { isAdmin:
     [navigation, activeName],
   );
 
+  const [createOpen, setCreateOpen] = useState(false);
+  const resultRunId = useHostedRunNeedingResult(createOpen);
+
   const openCreateMenu = useCallback(() => {
     void hapticTap();
-    const push = router.push as (href: string) => void;
-    Alert.alert("Menu", undefined, [
-      { text: "Host a game", onPress: () => push("/session-create") },
-      { text: "Ask AI", onPress: () => push("/help") },
-      { text: "Search Players", onPress: () => push("/players") },
-      { text: "Messages", onPress: () => push("/(tabs)/messages") },
-      { text: "Cancel", style: "cancel" },
-    ]);
-  }, [router]);
+    setCreateOpen(true);
+  }, []);
+
+  const push = router.push as (href: string) => void;
 
   return (
     <View
@@ -160,21 +160,21 @@ function CTTabBar({ state, navigation, isAdmin }: BottomTabBarProps & { isAdmin:
         onPress={() => goTab("sessions")}
       />
       <HostButton onPress={openCreateMenu} />
-      <TabItem icon="trophy" label="Rankings" active={activeName === "leaderboards"} onPress={() => goTab("leaderboards")} />
+      <TabItem icon="users" label="Players" active={activeName === "leaderboards"} onPress={() => goTab("leaderboards")} />
       <TabItem
         icon="user"
         label="Profile"
         active={activeName === "account"}
         onPress={() => goTab("account")}
       />
-      {isAdmin && (
-        <TabItem
-          icon="shield"
-          label="Admin"
-          active={activeName === "admin"}
-          onPress={() => goTab("admin")}
-        />
-      )}
+
+      <CreateMenuSheet
+        visible={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onHostGame={() => push("/session-create")}
+        resultRunId={resultRunId}
+        onPostResult={(runId) => push(`/session/${runId}`)}
+      />
     </View>
   );
 }
@@ -253,14 +253,12 @@ function publish_tabStyles() {
 }
 
 
-function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; isAdmin: boolean }) {
+function TabsWithRunsPickerReset() {
   useThemedStyles(publish_tabStyles);
-
-  const showAdmin = props.isAdmin && props.adminModeEnabled;
 
   return (
     <Tabs
-      tabBar={(bar) => <CTTabBar {...bar} isAdmin={showAdmin} />}
+      tabBar={(bar: BottomTabBarProps) => <CTTabBar {...bar} />}
       screenOptions={{
         headerShown: useClientOnlyValue(false, true),
         headerStyle: { backgroundColor: themeColor().bg },
@@ -274,7 +272,7 @@ function TabsWithRunsPickerReset(props: { adminModeEnabled: boolean; isAdmin: bo
       <Tabs.Screen name="messages" options={{ title: "Messages", headerShown: false }} />
       <Tabs.Screen name="account" options={{ title: "Profile", headerShown: false }} />
       <Tabs.Screen name="leaderboards" options={{ title: "Rankings" }} />
-      <Tabs.Screen name="admin" options={{ title: "Admin", headerShown: false }} />
+      <Tabs.Screen name="admin" options={{ title: "Admin", headerShown: false, href: null }} />
     </Tabs>
   );
 }
