@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { StarRating } from "@/components/StarRating";
 import { fetchPlayerCards, type PlayerCard } from "@/lib/starRatings";
@@ -28,6 +29,7 @@ type ProfileRow = {
 };
 
 export default function PeerVoteScreen() {
+  const insets = useSafeAreaInsets();
   useThemedStyles(publish_s);
 
   const { id: sessionId } = useLocalSearchParams<{ id: string }>();
@@ -119,14 +121,14 @@ export default function PeerVoteScreen() {
 
   if (loading) {
     return (
-      <View style={[s.screen, s.center]}>
+      <View style={[s.screen, s.center, { paddingTop: insets.top + 8 }]}>
         <ActivityIndicator color={themeColor().pitchText} />
       </View>
     );
   }
 
   return (
-    <View style={s.screen}>
+    <View style={[s.screen, { paddingTop: insets.top + 8 }]}>
       <Text style={s.eyebrow}>SESSION COMPLETE</Text>
       <Text style={s.title}>Who were the three best?</Text>
       <Text style={s.sub}>
@@ -187,7 +189,7 @@ export default function PeerVoteScreen() {
 
 function make_s() {
   return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: themeColor().card, padding: 20, paddingTop: 56 },
+  screen: { flex: 1, backgroundColor: themeColor().card, padding: 20 },
   center: { alignItems: "center", justifyContent: "center" },
   eyebrow: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   title: { color: themeColor().text, fontSize: 32, ...headline, marginTop: 4 },
