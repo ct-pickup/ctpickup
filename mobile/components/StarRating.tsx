@@ -55,7 +55,7 @@ function roundedStarPath(): string {
 
 const STAR_PATH = roundedStarPath();
 
-function StarGlyph({
+export function StarGlyph({
   fill,
   px,
   clipId,

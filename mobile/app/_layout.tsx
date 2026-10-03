@@ -472,6 +472,13 @@ function RootLayoutNav() {
                               gestureEnabled: false,
                             }}
                           />
+                          <Stack.Screen
+                            name="peer-ratings/[id]"
+                            options={{
+                              headerShown: false,
+                              presentation: "modal",
+                            }}
+                          />
                           </Stack>
                         </ThemeProvider>
                         {minVersionBlocked ? null : <CancellationPolicyNotice />}
