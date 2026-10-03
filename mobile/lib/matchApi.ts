@@ -108,6 +108,20 @@ export function postMatchInvite(
   return call(accessToken, "/api/match/invite", { method: "POST", body: { run_id: runId, invite_token: inviteToken } });
 }
 
+/**
+ * One-line social copy for cards: "Played with Kofi", "Played with Kofi and Liam", "Played with Kofi +2".
+ * Falls back to the "+N" form when the two-name form would be long, so it never needs an ellipsis.
+ */
+export function playedWithShort(summary: PlayedWithSummary): string | null {
+  if (summary.count <= 0) return null;
+  const names = summary.people.map((p) => p.first_name?.trim() || "A player");
+  const a = names[0] ?? "A player";
+  if (summary.count === 1) return `Played with ${a}`;
+  const b = names[1] ?? "a player";
+  if (summary.count === 2 && a.length + b.length <= 14) return `Played with ${a} and ${b}`;
+  return `Played with ${a} +${summary.count - 1}`;
+}
+
 /** "Jude, you've played with" / "Jude and Dylan, you've played with" / "Jude, Dylan + 2 you've played with". */
 export function playedWithLine(summary: PlayedWithSummary): string | null {
   if (summary.count <= 0) return null;
