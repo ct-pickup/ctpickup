@@ -18,6 +18,7 @@ import {
   shiftMonth,
   weekDays,
   weekdayShort,
+  weekHeaderLabel,
   weekStart,
   weeksBetween,
   WEEKDAY_LETTERS,
@@ -287,7 +288,7 @@ export default function HomeCalendar({
     setSheetOpen(true);
   };
 
-  const headerMonth = monthLabel(monthOf(addDays(visibleWeek, 3)));
+  const headerMonth = weekHeaderLabel(visibleWeek, selected);
   const dayGames = byDay.get(selected) ?? [];
   const isToday = selected === today;
   const sheetBase = monthOf(today);
@@ -334,7 +335,6 @@ export default function HomeCalendar({
                   selected={selected}
                   hasGame={byDay.has(key)}
                   onPress={() => setSelected(key)}
-                  showLetter
                 />
               ))}
             </View>
@@ -444,7 +444,6 @@ function DayCell({
   selected,
   hasGame,
   dim,
-  showLetter,
   compact,
   onPress,
 }: {
@@ -453,7 +452,6 @@ function DayCell({
   selected: DateKey;
   hasGame: boolean;
   dim?: boolean;
-  showLetter?: boolean;
   compact?: boolean;
   onPress: () => void;
 }) {
@@ -461,19 +459,36 @@ function DayCell({
   const isToday = dayKey === today;
   const isSelected = dayKey === selected;
   const letter = WEEKDAY_LETTERS[new Date(`${dayKey}T00:00:00Z`).getUTCDay()];
+  const label = `${dayLabel(dayKey)}${isToday ? ", today" : ""}${hasGame ? ", has a game" : ""}`;
+  if (compact) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={[styles.cell, styles.cellCompact]}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isSelected }}
+        accessibilityLabel={label}
+      >
+        <View style={[styles.datePill, isSelected && styles.datePillSelected, isToday && !isSelected && styles.datePillToday]}>
+          <Text style={[styles.dateText, dim && styles.dim, isSelected && styles.onSelected]}>{dayNumber(dayKey)}</Text>
+        </View>
+        <View style={[styles.dot, hasGame && styles.dotOn]} />
+      </Pressable>
+    );
+  }
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.cell, compact && styles.cellCompact]}
+      style={styles.dayWrap}
       accessibilityRole="button"
       accessibilityState={{ selected: isSelected }}
-      accessibilityLabel={`${dayLabel(dayKey)}${isToday ? ", today" : ""}${hasGame ? ", has a game" : ""}`}
+      accessibilityLabel={label}
     >
-      {showLetter ? <Text style={styles.cellLetter}>{letter}</Text> : null}
-      <View style={[styles.datePill, isToday && styles.datePillToday, isSelected && !isToday && styles.datePillSelected]}>
-        <Text style={[styles.dateText, dim && styles.dim, isToday && styles.dateTextToday]}>{dayNumber(dayKey)}</Text>
+      <View style={[styles.dayCard, isSelected && styles.dayCardSelected, isToday && !isSelected && styles.dayCardToday]}>
+        <Text style={[styles.dayLetter, isSelected && styles.onSelected]}>{letter}</Text>
+        <Text style={[styles.dayNum, isSelected && styles.onSelected]}>{dayNumber(dayKey)}</Text>
+        {hasGame ? <View style={[styles.cardDot, isSelected && styles.cardDotSelected]} /> : null}
       </View>
-      <View style={[styles.dot, hasGame && styles.dotOn]} />
     </Pressable>
   );
 }
@@ -522,14 +537,30 @@ function make_styles() {
 
     cell: { flex: 1, height: CELL_H, alignItems: "center", justifyContent: "flex-start", gap: 2 },
     cellCompact: { height: 46 },
-    cellLetter: { fontSize: 12, fontFamily: "Inter_500Medium", color: c.muted },
     letter: { flex: 1, textAlign: "center", fontSize: 12, fontFamily: "Inter_500Medium", color: c.muted, paddingBottom: 4 },
     datePill: { width: 34, height: 34, borderRadius: radius.pill, alignItems: "center", justifyContent: "center" },
-    datePillToday: { backgroundColor: c.pitch },
-    datePillSelected: { borderWidth: 1.5, borderColor: c.accent },
+    datePillSelected: { backgroundColor: c.pitch },
+    datePillToday: { borderWidth: 1.5, borderColor: c.accent },
+    onSelected: { color: c.onPitch, opacity: 1 },
     dateText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: c.text },
-    dateTextToday: { color: c.onPitch },
     dim: { opacity: 0.35 },
+    dayWrap: { flex: 1, minHeight: 48, paddingHorizontal: 3, justifyContent: "center" },
+    dayCard: {
+      height: 62,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.line,
+      backgroundColor: c.card,
+      alignItems: "center",
+      paddingTop: 8,
+      gap: 2,
+    },
+    dayCardSelected: { backgroundColor: c.pitch, borderColor: c.pitch },
+    dayCardToday: { borderWidth: 1.5, borderColor: c.accent },
+    dayLetter: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: c.text, opacity: 0.55 },
+    dayNum: { fontSize: 17, fontFamily: "Inter_700Bold", fontWeight: "700", color: c.text },
+    cardDot: { position: "absolute", bottom: 6, width: 5, height: 5, borderRadius: 3, backgroundColor: c.accent },
+    cardDotSelected: { backgroundColor: c.onPitch },
     dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "transparent" },
     dotOn: { backgroundColor: c.accent },
 
