@@ -234,6 +234,8 @@ export default function LeaderboardsScreen() {
 
   // Stars tab: points from /api/leaderboards, stars and percentile from player_cards.
   const [rankedPlayers, setRankedPlayers] = useState<RankedPlayer[]>([]);
+  /** Size of the Stars ranking when the app had to rank it itself (older server); null when the server sent totals. */
+  const [starsTotal, setStarsTotal] = useState<number | null>(null);
   const [myCard, setMyCard] = useState<PlayerCard | null>(_cachedMyCard);
   const [starsLoading, setStarsLoading] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
@@ -270,12 +272,22 @@ export default function LeaderboardsScreen() {
     return out;
   }, [payload, tab, pointsScope]);
 
-  /** Builds the Stars list from the capped `tiers` rows (already in rank order); stars and percentile come from player_cards. */
+  /**
+   * Builds the Stars list from the `tiers` rows of /api/leaderboards.
+   *   - Capped server (rows carry a true `rank`): the rows are used as sent, in rank order.
+   *   - Anything else (an older deployment that sends the whole list, or rows without ranks): the list is ranked here the
+   *     same way the server does it (half-star rating, then season points), then cut to the top STARS_CAP plus the
+   *     viewer's own row, each with its true rank. Stars come from the row's `star`, or from player_cards when the row
+   *     has none. Played-with rows cannot be known here and are not added.
+   * Either way the screen never renders more than STARS_CAP top rows.
+   */
   const applyTiers = useCallback(
-    async (rowsRaw: unknown[]) => {
+    async (rowsRaw: unknown[], cap: number) => {
       setStarsLoading(true);
       try {
-        const rows: Omit<RankedPlayer, "card">[] = [];
+        type Row = Omit<RankedPlayer, "card"> & { star: number | null };
+        const rows: Row[] = [];
+        let serverRanked = true;
         for (const item of rowsRaw) {
           if (!isRecord(item)) continue;
           const userId = typeof item.user_id === "string" ? item.user_id : null;
@@ -283,9 +295,12 @@ export default function LeaderboardsScreen() {
           const first = typeof item.first_name === "string" ? item.first_name : null;
           const last = typeof item.last_name === "string" ? item.last_name : null;
           const username = typeof item.username === "string" ? item.username : null;
+          if (typeof item.rank !== "number") serverRanked = false;
+          const starNum = typeof item.star === "number" && Number.isFinite(item.star) ? item.star : null;
           rows.push({
             user_id: userId,
             rank: typeof item.rank === "number" ? item.rank : rows.length + 1,
+            star: starNum,
             games: typeof item.games === "number" && Number.isFinite(item.games) ? item.games : 0,
             points: typeof item.points === "number" && Number.isFinite(item.points) ? item.points : 0,
             name: [first, last].filter(Boolean).join(" ").trim() || username || "Player",
@@ -295,11 +310,37 @@ export default function LeaderboardsScreen() {
           });
         }
 
-        const cards = supabase
-          ? await fetchPlayerCards(supabase, [...rows.map((p) => p.user_id), ...(myUserId ? [myUserId] : [])])
-          : new Map<string, PlayerCard>();
+        let shown: Row[];
+        let total: number | null = null;
+        let cards = new Map<string, PlayerCard>();
+        if (serverRanked) {
+          // A server that sends ranks is the capped one: top rows plus the viewer's and played-with rows.
+          shown = [...rows].sort((a, b) => a.rank - b.rank);
+          const ids = [...shown.map((p) => p.user_id), ...(myUserId ? [myUserId] : [])];
+          if (supabase) cards = await fetchPlayerCards(supabase, ids);
+        } else {
+          // Fallback ranking. Needs every row's stars: the row's own, else player_cards for the whole list.
+          if (supabase && rows.some((r) => r.star == null)) {
+            cards = await fetchPlayerCards(supabase, [...rows.map((p) => p.user_id), ...(myUserId ? [myUserId] : [])]);
+          }
+          const starOf = (r: Row) => r.star ?? cards.get(r.user_id)?.star ?? -1;
+          const ranked = [...rows]
+            .sort((a, b) => starOf(b) - starOf(a) || b.points - a.points)
+            .map((r, i) => ({ ...r, rank: i + 1 }));
+          total = ranked.length;
+          shown = ranked.filter((r) => r.rank <= cap || r.user_id === myUserId);
+          // Percentile and the hero card need player_cards for the rows we actually show.
+          if (supabase && rows.every((r) => r.star != null)) {
+            cards = await fetchPlayerCards(supabase, [...shown.map((p) => p.user_id), ...(myUserId ? [myUserId] : [])]);
+          }
+        }
+        setStarsTotal(total);
 
-        setRankedPlayers(rows.map((p) => ({ ...p, card: cards.get(p.user_id) ?? null })).sort((a, b) => a.rank - b.rank));
+        setRankedPlayers(
+          shown
+            .map(({ star, ...p }) => ({ ...p, card: cards.get(p.user_id) ?? (star != null ? { star, provisional: false, percentile: null } : null) }))
+            .sort((a, b) => a.rank - b.rank),
+        );
 
         const mine = myUserId ? (cards.get(myUserId) ?? null) : null;
         _cachedMyCard = mine;
@@ -355,7 +396,7 @@ export default function LeaderboardsScreen() {
         setErr(null);
         setPayload(parsed);
         if (SEASON_PRIZE_ENABLED) void fetchSeasonEntered(token).then(setInSeason);
-        void applyTiers(isRecord(json) && Array.isArray(json.tiers) ? (json.tiers as unknown[]) : []);
+        void applyTiers(isRecord(json) && Array.isArray(json.tiers) ? (json.tiers as unknown[]) : [], parsed.top_n);
       } catch (e) {
         console.error("[leaderboards] failed:", e);
         setErr("Something went wrong. Please try again.");
@@ -604,7 +645,7 @@ export default function LeaderboardsScreen() {
         ) : (
           <View style={{ gap: 8 }}>{rankedPlayers.map((p, i) => renderRankedRow(p, i))}</View>
         )}
-        {renderCapFooter(payload?.totals.tiers)}
+        {renderCapFooter(starsTotal ?? payload?.totals.tiers)}
 
         <ChalkDivider style={styles.sectionDivider} />
 
