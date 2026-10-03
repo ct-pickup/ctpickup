@@ -5,6 +5,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Modal,
+  ScrollView,
   Platform,
   Pressable,
   StyleSheet,
@@ -19,8 +20,9 @@ import { useAuth } from "@/context/AuthContext";
 import { fetchAdminAnalyticsDashboard } from "@/lib/adminApi";
 import { hapticError, hapticGoal, hapticTap } from "@/lib/haptics";
 import { siteOrigin } from "@/lib/env";
+import { tabBarContentPadding } from "@/lib/tabBar";
 
-import { headline, themeColor, useThemedStyles } from "@/theme";
+import { themeColor, useThemedStyles } from "@/theme";
 function utcMonthKey(d = new Date()): string {
   const y = d.getUTCFullYear();
   const m = d.getUTCMonth() + 1;
@@ -75,7 +77,7 @@ type Member = {
 export default function AdminMembersScreen() {
   useThemedStyles(publish_styles);
 
-  const { session } = useAuth();
+  const { session, supabase } = useAuth();
   const insets = useSafeAreaInsets();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(false);
@@ -90,10 +92,28 @@ export default function AdminMembersScreen() {
   const [playersByVenue, setPlayersByVenue] = useState<{ venue: string; count: number }[]>([]);
   const [playersByZip, setPlayersByZip] = useState<{ zip_code: string; count: number }[]>([]);
   const [adminTab, setAdminTab] = useState<AdminTab>("members");
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<string>("all");
+  const [counts, setCounts] = useState<{ total: number; pending: number } | null>(null);
   const [reports, setReports] = useState<PlayerReport[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [reportsError, setReportsError] = useState<string | null>(null);
   const [reportBusy, setReportBusy] = useState<string | null>(null);
+
+  /** Totals for the one-line count; the list itself only holds the newest 50 members. */
+  const loadCounts = useCallback(async () => {
+    if (!supabase) return;
+    const [all, pending] = await Promise.all([
+      supabase.from("profiles").select("id", { count: "exact", head: true }),
+      supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .or("approved.is.null,approved.eq.false")
+        .or("is_banned.is.null,is_banned.eq.false"),
+    ]);
+    if (all.error || pending.error) return;
+    setCounts({ total: all.count ?? 0, pending: pending.count ?? 0 });
+  }, [supabase]);
 
   const loadReports = useCallback(async () => {
     const token = session?.access_token;
@@ -163,12 +183,13 @@ export default function AdminMembersScreen() {
         return;
       }
       setMembers((j as { members?: Member[] }).members || []);
+      void loadCounts();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Request failed");
     } finally {
       setLoading(false);
     }
-  }, [session?.access_token]);
+  }, [session?.access_token, loadCounts]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -222,6 +243,17 @@ export default function AdminMembersScreen() {
       return tb - ta;
     });
   }, [members]);
+
+  const filteredMembers = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return sortedMembers.filter((m) => {
+      if (filter === "pending" && (m.approved || m.is_banned)) return false;
+      if (filter === "banned" && !m.is_banned) return false;
+      if (filter.startsWith("tier:") && m.tier_rank !== Number(filter.slice(5))) return false;
+      if (!q) return true;
+      return [m.first_name, m.last_name, m.username, m.instagram].filter(Boolean).join(" ").toLowerCase().includes(q);
+    });
+  }, [sortedMembers, query, filter]);
 
   async function saveStats(userId: string) {
     void hapticGoal();
@@ -646,7 +678,7 @@ export default function AdminMembersScreen() {
     : "";
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={styles.root}>
       <Modal
         visible={dmTarget !== null}
         transparent
@@ -690,7 +722,6 @@ export default function AdminMembersScreen() {
           </KeyboardAvoidingView>
         </Pressable>
       </Modal>
-      <Text style={styles.title}>Members</Text>
       <View style={styles.tabRow}>
         <Pressable
           onPress={() => {
@@ -717,16 +748,51 @@ export default function AdminMembersScreen() {
       </View>
       {adminTab === "members" ? (
         <>
-          {loading ? <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 32 }} /> : null}
+          <View style={styles.searchWrap}>
+            <TextInput
+              style={styles.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search players"
+              placeholderTextColor={themeColor().muted}
+              autoCorrect={false}
+              autoCapitalize="none"
+              clearButtonMode="while-editing"
+            />
+            <Text style={styles.countLine}>
+              {counts
+                ? `${counts.total} players, ${counts.pending} awaiting approval`
+                : loading
+                  ? "Loading…"
+                  : `${members.length} players`}
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow} keyboardShouldPersistTaps="handled">
+              {[
+                { key: "all", label: "All" },
+                { key: "pending", label: "Pending" },
+                { key: "banned", label: "Banned" },
+                ...TIERS.map((t) => ({ key: `tier:${t.rank}`, label: `Tier ${t.label}` })),
+              ].map((f) => (
+                <Pressable
+                  key={f.key}
+                  onPress={() => setFilter(f.key)}
+                  style={[styles.filterChip, filter === f.key && styles.filterChipOn]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: filter === f.key }}
+                >
+                  <Text style={[styles.filterChipText, filter === f.key && styles.filterChipTextOn]}>{f.label}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+          {loading && members.length === 0 ? <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 32 }} /> : null}
           {error ? <Text style={styles.err}>{error}</Text> : null}
           <FlatList
-            data={sortedMembers}
+            data={filteredMembers}
             keyExtractor={(m) => m.id}
             renderItem={renderItem}
-            contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
-            ListHeaderComponent={
-              <PlayerLocationBreakdown playersByVenue={playersByVenue} playersByZip={playersByZip} />
-            }
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ padding: 16, paddingBottom: tabBarContentPadding(insets.bottom) }}
             ListEmptyComponent={!loading ? <Text style={styles.muted}>No members found.</Text> : null}
             onRefresh={load}
             refreshing={loading}
@@ -742,7 +808,10 @@ export default function AdminMembersScreen() {
             data={reports}
             keyExtractor={(r) => r.id}
             renderItem={renderReport}
-            contentContainerStyle={{ padding: 16, paddingBottom: 60, flexGrow: 1 }}
+            contentContainerStyle={{ padding: 16, paddingBottom: tabBarContentPadding(insets.bottom), flexGrow: 1 }}
+            ListFooterComponent={
+              <PlayerLocationBreakdown playersByVenue={playersByVenue} playersByZip={playersByZip} />
+            }
             ListEmptyComponent={
               !reportsLoading ? <Text style={styles.muted}>No reports yet</Text> : null
             }
@@ -758,7 +827,14 @@ export default function AdminMembersScreen() {
 function make_styles() {
   return StyleSheet.create({
   root: { flex: 1, backgroundColor: themeColor().bg },
-  title: { color: themeColor().text, fontSize: 24, ...headline, paddingHorizontal: 16, paddingVertical: 12 },
+  searchWrap: { paddingHorizontal: 16, paddingTop: 8, gap: 8 },
+  searchInput: { borderWidth: 1, borderColor: themeColor().line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: themeColor().text, fontSize: 15, fontFamily: "Inter_400Regular", backgroundColor: themeColor().card },
+  countLine: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_500Medium" },
+  filterRow: { gap: 8, paddingBottom: 4 },
+  filterChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: themeColor().line },
+  filterChipOn: { backgroundColor: themeColor().pitch, borderColor: themeColor().pitch },
+  filterChipText: { color: themeColor().text, fontSize: 12, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  filterChipTextOn: { color: themeColor().onPitch },
   card: { backgroundColor: themeColor().bg, borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: themeColor().line },
   cardBanned: { borderColor: themeColor().coral, backgroundColor: themeColor().card },
   cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
