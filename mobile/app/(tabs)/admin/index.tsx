@@ -34,12 +34,13 @@ export default function AdminMenuScreen() {
   const insets = useSafeAreaInsets();
   const { counts } = useAdminAttention();
 
+  // No Payouts row here: it needs a "paid out" marker (migration) before it can be a real queue.
+  // Payouts stays reachable from the tile grid.
   const rows = counts
     ? [
         { key: "verify", label: "Verification requests", count: counts.verifications, href: "/admin/verification" as Href },
         { key: "signups", label: "New signups to approve", count: counts.signups, href: "/admin/members" as Href },
         { key: "settle", label: "Sessions to settle", count: counts.settlements, href: "/admin/pickup" as Href },
-        { key: "payouts", label: "Payouts to review", count: counts.payouts, href: "/admin/session-economics" as Href },
       ].filter((r) => r.count > 0)
     : [];
 
