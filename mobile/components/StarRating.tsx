@@ -18,6 +18,9 @@ type Props = {
   tone?: "theme" | "onPhoto";
   /** Exact star size in points; overrides `size` for rendered images. */
   px?: number;
+  /** Fill colors for the premium share cards; the free card and the app leave these unset. */
+  color?: string;
+  offColor?: string;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -60,14 +63,18 @@ export function StarGlyph({
   px,
   clipId,
   tone,
+  color,
+  offColor,
 }: {
   fill: 0 | 0.5 | 1;
   px: number;
   clipId: string;
   tone: "theme" | "onPhoto";
+  color?: string;
+  offColor?: string;
 }) {
-  const on = tone === "onPhoto" ? shareCardColor.accent : themeColor().accent;
-  const off = tone === "onPhoto" ? shareCardColor.starOff : themeColor().line;
+  const on = color ?? (tone === "onPhoto" ? shareCardColor.accent : themeColor().accent);
+  const off = offColor ?? (tone === "onPhoto" ? shareCardColor.starOff : themeColor().line);
   return (
     <Svg width={px} height={px} viewBox="0 0 24 24">
       {fill === 0.5 ? (
@@ -91,6 +98,8 @@ export function StarRating({
   showLevel,
   tone = "theme",
   px: pxOverride,
+  color,
+  offColor,
   style,
 }: Props) {
   useThemedStyles(publish_styles);
@@ -113,7 +122,7 @@ export function StarRating({
       <View style={[styles.row, { gap }, provisional && styles.provisional]}>
         {[0, 1, 2, 3, 4].map((i) => {
           const fill: 0 | 0.5 | 1 = halves >= (i + 1) * 2 ? 1 : halves === i * 2 + 1 ? 0.5 : 0;
-          return <StarGlyph key={i} fill={fill} px={px} clipId={`star-half-${baseId}-${i}`} tone={tone} />;
+          return <StarGlyph key={i} fill={fill} px={px} clipId={`star-half-${baseId}-${i}`} tone={tone} color={color} offColor={offColor} />;
         })}
         {showValue ? (
           <Text style={[styles.value, styles[`value_${size}`], customText, onPhoto && styles.valueOnPhoto]}>

@@ -45,15 +45,22 @@ export async function canShareStory(): Promise<boolean> {
   }
 }
 
-/** Renders `target` to a 1080×1920 PNG and opens the system share sheet (Save Image, Instagram Stories, Messages). */
-export async function shareStoryImage(target: RefObject<View | null>, dialogTitle: string): Promise<void> {
+/**
+ * Renders `target` to a PNG (1080×1920 unless `size` says otherwise) and opens the system share sheet
+ * (Save Image, Instagram Stories, Messages).
+ */
+export async function shareStoryImage(
+  target: RefObject<View | null>,
+  dialogTitle: string,
+  size: { width: number; height: number } = { width: STORY_WIDTH, height: STORY_HEIGHT },
+): Promise<void> {
   const mods = loadModules();
   if (!mods) throw new Error("Sharing needs the latest app build.");
   const uri = await mods.viewShot.captureRef(target, {
     format: "png",
     quality: 1,
-    width: STORY_WIDTH,
-    height: STORY_HEIGHT,
+    width: size.width,
+    height: size.height,
     result: "tmpfile",
   });
   const url = uri.startsWith("file://") ? uri : `file://${uri}`;
