@@ -32,13 +32,13 @@ import {
 } from "@/components/games/GameCards";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { toggleDevPreview, useDevPreview } from "@/lib/devPreview";
+import { useInboxBadges } from "@/hooks/useInboxBadges";
 import { fetchBestGames, type BestGame, type PlayedWithSummary } from "@/lib/matchApi";
 import { effectiveMaxDriveMinutes } from "@/lib/pickup/profileMaxDriveFilter";
 import { currentHourEt, fmtPickupSlotChipEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
 import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 import { isServiceRegionCode, serviceRegionName } from "@/lib/serviceRegions";
 import { averageStars, fetchPlayerCards, type PlayerCard } from "@/lib/starRatings";
-import { StarRating } from "@/components/StarRating";
 import { driveRadiusMiles, milesFromZip, zipCentroid, zipState } from "@/lib/venueDistance";
 import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
@@ -74,7 +74,7 @@ const OPEN_STATUSES = new Set(["planning", "likely_on", "active"]);
 const NEAR_LIMIT = 10;
 const REGION_FALLBACK_LIMIT = 3;
 const BEST_GAMES_LIMIT = 3;
-const MAP_HEIGHT = 160;
+const MAP_HEIGHT = 140;
 const MAP_MAX_WIDTH_MILES = 60;
 const MILES_PER_LAT_DEGREE = 69;
 
@@ -577,7 +577,6 @@ export default function HomeScreen() {
   const mapRuns: HomeRun[] = fixture ? [fixture.upNext, ...fixture.nearby] : live.mapRuns;
   const bestGames: BestGame[] = fixture ? fixture.bestGames : live.bestGames;
   const rateBanner = fixture ? null : live.rateBanner;
-  const myCard: PlayerCard | null = fixture ? fixture.myCard : live.myCard;
   const crowds = useMemo(() => {
     if (!fixture) return live.crowds;
     return new Map<string, RunCrowd>(
@@ -600,6 +599,7 @@ export default function HomeScreen() {
     ? null
     : (live.loadError ?? (livePlayedWith.error ? "Some of Home did not load. Pull down to try again." : null));
   const openRun = (id: string) => push(`/session/${encodeURIComponent(id)}`);
+  const badges = useInboxBadges();
   const openMap = () => push("/community-map");
 
   const reload = live.reload;
@@ -640,29 +640,26 @@ export default function HomeScreen() {
       }
     >
       <View style={styles.header}>
-        <Wordmark style={styles.wordmark} onLongPress={__DEV__ ? toggleDevPreview : undefined} />
+        <Wordmark
+          size={20}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.8}
+          style={styles.wordmark}
+          onLongPress={__DEV__ ? toggleDevPreview : undefined}
+        />
         <View style={styles.headerRight}>
-          {myCard ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Your rating"
-              onPress={() => push("/(tabs)/leaderboards")}
-              hitSlop={8}
-            >
-              <StarRating value={myCard.star} provisional={myCard.provisional} size="sm" />
-            </Pressable>
-          ) : null}
           <HeaderIcon
             icon="envelope-o"
             label="Messages"
-            unread={UNREAD_MESSAGES}
+            unread={badges.messages}
             onPress={() => push("/(tabs)/messages")}
           />
           <HeaderIcon
             icon="bell-o"
             label="Notifications"
-            unread={UNREAD_NOTIFICATIONS}
-            onPress={() => push("/(tabs)/messages")}
+            unread={badges.notifications}
+            onPress={() => push("/notifications")}
           />
         </View>
       </View>
@@ -713,6 +710,13 @@ export default function HomeScreen() {
         </View>
       )}
 
+      {bestGames.length > 0 ? (
+        <>
+          <SectionHeader label="Best games for you" />
+          <BestGamesCarousel games={bestGames} photos={fieldPhotos} onOpen={openRun} bleed={20} />
+        </>
+      ) : null}
+
       {gamesSection ? (
         <>
           <SectionHeader label={gamesSection.title} actionLabel="See all" onAction={() => push("/session-map")} />
@@ -736,7 +740,21 @@ export default function HomeScreen() {
         </>
       ) : null}
 
-      <SectionHeader label="Nearby games" actionLabel="View map" onAction={openMap} />
+      <SectionHeader label="Nearby games" {...(mapRuns.length > 0 ? { actionLabel: "View map", onAction: openMap } : {})} />
+      {mapRuns.length === 0 ? (
+        <View style={styles.mapEmptyRow}>
+          <Text style={styles.mapEmptyText} numberOfLines={1}>
+            No games near you yet. Be the first to host one.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => push("/session-create")}
+            style={({ pressed }) => [styles.outlineBtn, pressed && styles.pressed]}
+          >
+            <Text style={styles.outlineBtnText}>Host a game</Text>
+          </Pressable>
+        </View>
+      ) : (
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Open map"
@@ -767,32 +785,15 @@ export default function HomeScreen() {
           </MapView>
         </View>
       </Pressable>
+      )}
 
-      {bestGames.length > 0 ? (
-        <>
-          <SectionHeader label="Best games for you" />
-          <BestGamesCarousel games={bestGames} photos={fieldPhotos} onOpen={openRun} bleed={20} />
-        </>
-      ) : null}
     </ScrollView>
   );
 }
 
 /* --------------------------------------------------------------- styles */
 
-/**
- * Unread counts for the header icons. Typed as number, not the literal 0, so the
- * badge branch stays live once a real source replaces these.
- */
-const UNREAD_MESSAGES: number = 0;
-const UNREAD_NOTIFICATIONS: number = 0;
-
-/**
- * Header icon with an unread badge. `unread` of 0 paints no badge.
- *
- * There is no read-state tracking in the schema yet (chat_rooms has no per-user
- * last-read, and there is no notifications feed), so callers pass 0 until that lands.
- */
+/** Header icon with an unread badge. `unread` of 0 paints no badge. */
 function HeaderIcon(props: {
   icon: React.ComponentProps<typeof FontAwesome>["name"];
   label: string;
@@ -904,6 +905,22 @@ function make_styles() {
     stripContent: { paddingHorizontal: 20, gap: 12 },
 
     /* map */
+    mapEmptyRow: {
+      marginTop: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    mapEmptyText: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium", color: themeColor().muted },
+    outlineBtn: {
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: themeColor().line,
+    },
+    outlineBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().text },
     mapWrap: {
       height: MAP_HEIGHT,
       borderRadius: radius.card,
