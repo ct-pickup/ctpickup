@@ -186,7 +186,7 @@ export function usePushRegistration(accessToken: string | null) {
           if (fid) {
             router.push({ pathname: "/player/[id]", params: { id: fid } } as const);
           } else {
-            router.push("/players" as const);
+            router.push("/(tabs)/leaderboards" as const);
           }
           void hapticForNotificationTap(kind);
           return;

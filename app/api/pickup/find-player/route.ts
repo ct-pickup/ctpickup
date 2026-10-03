@@ -76,7 +76,8 @@ export async function GET(req: Request) {
       }
     }
 
-    // Match PostgREST `or` format used elsewhere (e.g. mobile/app/players.tsx): unquoted %pat%.
+    // Match PostgREST `or` format used elsewhere: unquoted %pat%. Host-scoped and
+    // capped, so this is an invite lookup rather than a browsable directory.
     const safe = needle.replace(/%/g, "\\%").replace(/_/g, "\\_");
     const like = `%${safe}%`;
 

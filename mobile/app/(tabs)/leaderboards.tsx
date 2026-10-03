@@ -19,6 +19,9 @@ import {
 } from "react-native";
 
 import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
+import DiscoverPanel from "@/components/discover/DiscoverPanel";
+import { DiscoverRequestError, fetchWeeklyPicks, searchPlayers as searchDiscover } from "@/lib/discoverApi";
+import type { DiscoverPlayer } from "@shared/discover";
 import { StarLevelsLink } from "@/components/StarLevels";
 import { StarRating } from "@/components/StarRating";
 import { fetchPlayerCards, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
@@ -194,6 +197,15 @@ export default function LeaderboardsScreen() {
   // Region filtering is hidden until the location work lands; queries stay unscoped.
   const [region] = useState<RegionFilter>("ALL");
   const [mode, setMode] = useState<PlayersMode>("leaderboard");
+
+  const [picks, setPicks] = useState<DiscoverPlayer[]>([]);
+  const [picksLoading, setPicksLoading] = useState(false);
+  const [picksLoaded, setPicksLoaded] = useState(false);
+  const [picksError, setPicksError] = useState<string | null>(null);
+  const [picksRefreshing, setPicksRefreshing] = useState(false);
+  const [searchResults, setSearchResults] = useState<DiscoverPlayer[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [pointsScope, setPointsScope] = useState<PointsScope>("season");
 
@@ -351,6 +363,52 @@ export default function LeaderboardsScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({ headerRight: undefined });
   }, [navigation]);
+
+  const token = session?.access_token ?? null;
+
+  const loadPicks = useCallback(
+    async (refresh: boolean) => {
+      if (!token) return;
+      if (refresh) setPicksRefreshing(true);
+      else setPicksLoading(true);
+      setPicksError(null);
+      try {
+        const res = await fetchWeeklyPicks(token);
+        setPicks(Array.isArray(res.players) ? res.players : []);
+        setPicksLoaded(true);
+      } catch (e) {
+        setPicksError(e instanceof DiscoverRequestError ? e.message : "We could not load your picks right now.");
+      } finally {
+        setPicksLoading(false);
+        setPicksRefreshing(false);
+      }
+    },
+    [token],
+  );
+
+  const onDiscoverSearch = useCallback(
+    (q: string) => {
+      if (!q) {
+        setSearchResults(null);
+        setSearchError(null);
+        return;
+      }
+      if (!token) return;
+      setSearching(true);
+      setSearchError(null);
+      void (async () => {
+        try {
+          setSearchResults(await searchDiscover(token, q));
+        } catch (e) {
+          setSearchError(e instanceof DiscoverRequestError ? e.message : "We could not run that search right now.");
+          setSearchResults(null);
+        } finally {
+          setSearching(false);
+        }
+      })();
+    },
+    [token],
+  );
 
   const onRefresh = useCallback(() => void load(true), [load]);
 
@@ -634,6 +692,7 @@ export default function LeaderboardsScreen() {
               onPress={() => {
                 void hapticTap();
                 setMode(m);
+                if (m === "discover" && !picksLoaded && !picksLoading) void loadPicks(false);
               }}
               style={[styles.segmentItem, on && styles.segmentItemOn]}
             >
@@ -646,10 +705,17 @@ export default function LeaderboardsScreen() {
       </View>
 
       {mode === "discover" ? (
-        <View style={styles.comingSoon}>
-          <Text style={styles.comingSoonTitle}>Coming soon</Text>
-          <Text style={styles.comingSoonBody}>Find players to game with. We are still building this.</Text>
-        </View>
+        <DiscoverPanel
+          loading={picksLoading}
+          error={picksError}
+          players={picks}
+          onRefresh={() => void loadPicks(true)}
+          refreshing={picksRefreshing}
+          searching={searching}
+          searchError={searchError}
+          searchResults={searchResults}
+          onSearch={onDiscoverSearch}
+        />
       ) : (
         <>
           {renderTabBar()}
@@ -763,9 +829,6 @@ function make_styles() {
   segmentItemOn: { backgroundColor: themeColor().bg },
   segmentText: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().muted },
   segmentTextOn: { color: themeColor().text },
-  comingSoon: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 8 },
-  comingSoonTitle: { fontFamily: headline.fontFamily, fontSize: 20, color: themeColor().text },
-  comingSoonBody: { fontSize: 14, color: themeColor().muted, textAlign: "center" },
   regionDropdown: {
     flexDirection: "row",
     alignItems: "center",

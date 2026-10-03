@@ -271,7 +271,7 @@ function TabsWithRunsPickerReset() {
       <Tabs.Screen name="tournaments" options={{ title: "Tournaments", href: null }} />
       <Tabs.Screen name="messages" options={{ title: "Messages", headerShown: false }} />
       <Tabs.Screen name="account" options={{ title: "Profile", headerShown: false }} />
-      <Tabs.Screen name="leaderboards" options={{ title: "Rankings" }} />
+      <Tabs.Screen name="leaderboards" options={{ title: "Players" }} />
       <Tabs.Screen name="admin" options={{ title: "Admin", headerShown: false, href: null }} />
     </Tabs>
   );
