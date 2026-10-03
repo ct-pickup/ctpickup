@@ -70,6 +70,7 @@ export default function SeasonPrizeScreen() {
 
   async function finish() {
     if (userId) await markSeasonIntroSeen(userId);
+    else skipSeasonIntroThisSession(null);
     router.replace("/(tabs)");
   }
 
@@ -89,7 +90,7 @@ export default function SeasonPrizeScreen() {
 
   /** Entries are not open yet: into the app, nothing recorded (the intro returns next launch). */
   function continueWithoutEntry() {
-    if (userId) skipSeasonIntroThisSession(userId);
+    skipSeasonIntroThisSession(userId);
     router.replace("/(tabs)");
   }
 

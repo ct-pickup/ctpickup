@@ -16,6 +16,9 @@ const FRESH_SIGNUP_KEY = "ctpickup_season_prize_fresh_signup";
 /** Users who finished the intro in this app session, so the gate never bounces back before storage is re-read. */
 const seenThisSession = new Set<string>();
 
+/** In-memory only, never stored. Set when the player leaves the intro without entering (Continue after a 404). Cleared by an app relaunch. */
+let introSuppressedThisSession = false;
+
 async function readSeen(): Promise<string[]> {
   try {
     const raw = await appAsyncStorage.getItem(seenStorageKey());
@@ -36,7 +39,7 @@ export async function markFreshSignup(): Promise<void> {
 
 /** Show the intro: always right after a fresh signup, otherwise once per season per user. */
 export async function shouldShowSeasonIntro(userId: string): Promise<boolean> {
-  if (seenThisSession.has(userId)) return false;
+  if (introSuppressedThisSession || seenThisSession.has(userId)) return false;
   try {
     if ((await appAsyncStorage.getItem(FRESH_SIGNUP_KEY)) === "1") return true;
   } catch {
@@ -46,12 +49,13 @@ export async function shouldShowSeasonIntro(userId: string): Promise<boolean> {
 }
 
 export function seasonIntroSeenThisSession(userId: string | null | undefined): boolean {
-  return !!userId && seenThisSession.has(userId);
+  return introSuppressedThisSession || (!!userId && seenThisSession.has(userId));
 }
 
 /** Lets the player into the app for this session without recording the intro as seen (it shows again next launch). */
-export function skipSeasonIntroThisSession(userId: string): void {
-  seenThisSession.add(userId);
+export function skipSeasonIntroThisSession(userId?: string | null): void {
+  introSuppressedThisSession = true;
+  if (userId) seenThisSession.add(userId);
 }
 
 export async function markSeasonIntroSeen(userId: string): Promise<void> {
