@@ -1,5 +1,5 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useState, type ComponentProps } from "react";
+import { useMemo, useState, type ComponentProps } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -44,10 +44,16 @@ export default function BadgeShelf({ badges }: { badges: ProfileBadge[] }) {
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState<ProfileBadge | null>(null);
 
+  // Earned first, each group keeping the order BADGES declares.
+  const ordered = useMemo(
+    () => [...badges].sort((a, b) => Number(b.earned) - Number(a.earned)),
+    [badges],
+  );
+
   return (
     <>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-        {badges.map((b) => (
+        {ordered.map((b) => (
           <Pressable
             key={b.id}
             onPress={() => setOpen(b)}

@@ -89,6 +89,7 @@ export default function ProfilePhotoPicker({
           <Text style={styles.btnOutlineText}>Choose from library</Text>
         </Pressable>
       </View>
+      <Text style={styles.hint}>Crop to just you</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
   );
@@ -133,6 +134,7 @@ function make_styles() {
     btnOutline: { borderWidth: 1, borderColor: themeColor().accent },
     btnOutlineText: { color: themeColor().accent, fontSize: 16, fontFamily: "Inter_700Bold" },
     disabled: { opacity: 0.5 },
+    hint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_500Medium", textAlign: "center" },
     error: { color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
   });
 }

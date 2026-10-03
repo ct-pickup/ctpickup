@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CreateMenuSheet } from "@/components/CreateMenuSheet";
 import { hapticTap } from "@/lib/haptics";
+import { TAB_BAR_MIN_INSET, tabBarHeight } from "@/lib/tabBar";
 import { useHostedRunNeedingResult } from "@/lib/useHostedRunNeedingResult";
 import { useClientOnlyValue } from "@/components/useClientOnlyValue";
 import { useAdminMode } from "@/context/AdminModeContext";
@@ -144,7 +145,7 @@ function CTTabBar({ state, navigation }: BottomTabBarProps) {
     <View
       style={[
         tabStyles.bar,
-        { paddingBottom: Math.max(insets.bottom, 8), height: 60 + Math.max(insets.bottom, 8) },
+        { paddingBottom: Math.max(insets.bottom, TAB_BAR_MIN_INSET), height: tabBarHeight(insets.bottom) },
       ]}
     >
       <TabItem
