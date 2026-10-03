@@ -19,6 +19,8 @@ import BadgeShelf from "@/components/profile/BadgeShelf";
 import FormPills from "@/components/profile/FormPills";
 import PlayerCard, { type PlayerCardData } from "@/components/profile/PlayerCard";
 import ProfileCard from "@/components/profile/ProfileCard";
+import ShareCardSheet from "@/components/ctplus/ShareCardSheet";
+import { CTPLUS_ENABLED } from "@/lib/ctplus/config";
 import PositionPitch from "@/components/profile/PositionPitch";
 import { tabBarContentPadding } from "@/lib/tabBar";
 import { StarLevelsSheet } from "@/components/StarLevels";
@@ -82,6 +84,7 @@ export default function ProfileScreen() {
   const [editing, setEditing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [levelsOpen, setLevelsOpen] = useState(false);
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
 
   useHubVenueResolve(profile, (venue) => setProfile((p) => (p ? { ...p, nearest_venue: venue } : p)));
 
@@ -299,7 +302,7 @@ export default function ProfileScreen() {
                 </View>
               ) : null
             }
-            onShare={canShare ? () => void onShare() : undefined}
+            onShare={canShare ? (CTPLUS_ENABLED ? () => setShareSheetOpen(true) : () => void onShare()) : undefined}
             shareBusy={sharing}
             shareDisabled={!cardReady}
           />
@@ -338,6 +341,17 @@ export default function ProfileScreen() {
       </ScrollView>
 
       <StarLevelsSheet visible={levelsOpen} onClose={() => setLevelsOpen(false)} />
+
+      {CTPLUS_ENABLED && canShare ? (
+        <ShareCardSheet
+          visible={shareSheetOpen}
+          onClose={() => setShareSheetOpen(false)}
+          data={cardData}
+          onShareClassic={onShare}
+          classicBusy={sharing}
+          classicDisabled={!cardReady}
+        />
+      ) : null}
 
       {canShare ? (
         <View style={s.offscreen} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">

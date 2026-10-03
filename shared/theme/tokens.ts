@@ -14,6 +14,8 @@ export const palette = {
   /** Dark mode accent only. Never on light surfaces. */
   pitchBright: "#6FD3A0",
   coral: "#FF6B4A",
+  /** CT+ premium card accent only. */
+  gold: "#C9A24B",
   coralDeep: "#B33A1E",
   pitchPanelDark: "#1C2E25",
   onPitchPanelDark: "#A9CDB8",

@@ -20,6 +20,7 @@ import { AccountIntroReplayProvider } from "@/context/AccountIntroReplayContext"
 import { AdminModeProvider } from "@/context/AdminModeContext";
 import { AppearanceProvider, useAppearance } from "@/context/AppearanceContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { CtPlusProvider } from "@/context/CtPlusContext";
 import { ProfileCompletionProvider } from "@/context/ProfileCompletionContext";
 import { ProfilePhotoProvider } from "@/context/ProfilePhotoContext";
 import { ProfileAdminProvider } from "@/context/ProfileAdminContext";
@@ -166,6 +167,7 @@ function RootLayoutNav() {
                 <SelectedRegionProvider>
                   <AppLockProvider>
                     <AccountIntroReplayProvider>
+                    <CtPlusProvider>
                     <ProfilePhotoProvider>
                       <View style={{ flex: 1 }}>
                         {minVersionBlocked ? <UpdateRequiredGate /> : null}
@@ -486,6 +488,7 @@ function RootLayoutNav() {
                         <AppLockOverlay />
                       </View>
                     </ProfilePhotoProvider>
+                    </CtPlusProvider>
                     </AccountIntroReplayProvider>
                   </AppLockProvider>
                 </SelectedRegionProvider>
