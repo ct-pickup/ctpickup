@@ -221,6 +221,15 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
+                            name="season-prize"
+                            options={{
+                              headerShown: false,
+                              title: "Win the season",
+                              gestureEnabled: false,
+                              headerBackVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
                             name="onboarding"
                             options={{
                               headerShown: false,
