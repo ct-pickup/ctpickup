@@ -76,8 +76,9 @@ export default function SeasonRulesPage() {
               (December to February). Only games played during the season count.
             </p>
             <p className="mt-3">
-              Prize for the season: ${SEASON_PRIZE_USD} to the first-place player. Currency, taxes and any additional prizes:{" "}
-              <span className={TODO}>[TO CONFIRM]</span>.
+              Prizes for the season go to the top three players. Prize amounts by place:{" "}
+              <span className={TODO}>[TO CONFIRM: 1st ${SEASON_PRIZE_USD}, 2nd and 3rd amounts]</span>. Currency, taxes and any
+              additional prizes: <span className={TODO}>[TO CONFIRM]</span>.
             </p>
           </section>
 
