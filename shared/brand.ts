@@ -21,3 +21,6 @@ export const INSTAGRAM_URL = `https://instagram.com/${INSTAGRAM_HANDLE}`;
 /** Opens the profile in the Instagram app; fall back to INSTAGRAM_URL when it can't open. */
 export const INSTAGRAM_APP_URL = `instagram://user?username=${INSTAGRAM_HANDLE}`;
 export const INSTAGRAM_VERIFICATION_URL = INSTAGRAM_URL;
+
+/** App Store page, used as the invite link when no site URL is configured. */
+export const APP_STORE_URL = "https://apps.apple.com/app/id6766061001";
