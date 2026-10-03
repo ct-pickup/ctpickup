@@ -1322,6 +1322,15 @@ export default function SessionDetailScreen() {
     setTimeout(action, Platform.OS === "ios" ? 350 : 0);
   }
 
+  // Half-star peer ratings: same window as the top-3 ballot, opened from a second row.
+  const canRatePlayers = isJoined && !isHost && (isCompleted || sessionStarted);
+
+  async function openPeerRatings() {
+    const tid = await ensureTierSessionId();
+    if (!tid) return;
+    (router.push as (href: string) => void)(`/peer-ratings/${tid}`);
+  }
+
   function openVoteModal() {
     setVoteStep(hasVoted && !hasPotdVoted ? 2 : 1);
     setVoteOpen(true);
@@ -1412,6 +1421,18 @@ export default function SessionDetailScreen() {
               >
                 <FontAwesome name="star" size={14} color={themeColor().onAccent} />
                 <Text style={s.rateBannerText}>{voteBtnLabel}</Text>
+              </Pressable>
+            ) : null}
+
+            {canRatePlayers ? (
+              <Pressable
+                onPress={() => void openPeerRatings()}
+                style={s.hostRateBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Rate players with half stars"
+              >
+                <FontAwesome name="star-half-o" size={14} color={themeColor().accent} />
+                <Text style={s.hostRateBtnText}>Rate players</Text>
               </Pressable>
             ) : null}
 
