@@ -15,6 +15,8 @@ import { isValidHalfStar } from "@/lib/halfStars";
 
 import { headline, themeColor, useThemedStyles } from "@/theme";
 
+const NOT_ATTENDED = "Only players who attended can rate.";
+
 type Player = { user_id: string; name: string };
 
 type ProfileRow = {
@@ -38,6 +40,7 @@ export default function PeerRatingsScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attended, setAttended] = useState(true);
 
   useEffect(() => {
     if (!supabase || !me || !sessionId) return;
@@ -54,8 +57,9 @@ export default function PeerRatingsScreen() {
         return;
       }
 
-      const ids = ((data ?? []) as { user_id: string }[])
-        .map((r) => r.user_id)
+      const roster = ((data ?? []) as { user_id: string }[]).map((r) => r.user_id);
+      setAttended(roster.includes(me));
+      const ids = roster
         .filter((uid) => uid && uid !== me);
 
       const [{ data: profRows, error: profErr }, { data: mine }] = await Promise.all([
@@ -104,7 +108,12 @@ export default function PeerRatingsScreen() {
     setSubmitting(false);
 
     if (upErr) {
-      setError("Couldn't save your ratings. Check your connection and try again.");
+      // 42501 = row-level security: only players marked attended can rate.
+      setError(
+        upErr.code === "42501"
+          ? NOT_ATTENDED
+          : "Couldn't save your ratings. Check your connection and try again.",
+      );
       return;
     }
     router.back();
@@ -148,12 +157,13 @@ export default function PeerRatingsScreen() {
         )}
       />
 
+      {!attended ? <Text style={s.error}>{NOT_ATTENDED}</Text> : null}
       {error ? <Text style={s.error}>{error}</Text> : null}
 
       <Pressable
         onPress={() => void submit()}
-        disabled={ratedCount === 0 || submitting}
-        style={[s.cta, ratedCount === 0 && s.ctaOff, { marginBottom: insets.bottom }]}
+        disabled={ratedCount === 0 || submitting || !attended}
+        style={[s.cta, (ratedCount === 0 || !attended) && s.ctaOff, { marginBottom: insets.bottom }]}
       >
         <Text style={s.ctaText}>{submitting ? "Saving…" : `Submit ${ratedCount}/${players.length}`}</Text>
       </Pressable>

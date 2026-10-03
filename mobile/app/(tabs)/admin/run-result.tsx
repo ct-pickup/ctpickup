@@ -563,7 +563,7 @@ export default function AdminRunResultScreen() {
       <View style={styles.headerCard}>
         <Text style={styles.h1}>{isReadonly ? "Results" : "Post Results"}</Text>
         <Text style={styles.sub}>
-          {region ? `Region: ${serviceRegionName(region)}` : "Region: —"}{"\n"}
+          {region ? `Area: ${serviceRegionName(region)}` : "Area: —"}{"\n"}
           Confirmed players: {confirmed.length}
         </Text>
       </View>
@@ -702,7 +702,7 @@ export default function AdminRunResultScreen() {
       <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Step 3: Awards</Text>
       <View style={styles.card}>
         <View style={styles.potdVoteCard}>
-          <Text style={styles.awardLabel}>Player of the Day 🏆 (attendee vote)</Text>
+          <Text style={styles.awardLabel}>Player of the Day (attendee vote)</Text>
           {potdVoteSummary && potdVoteSummary.totalVotes > 0 && potdVoteSummary.winnerId ? (
             <Text style={styles.potdVoteBody}>
               {potdVoteSummary.voteCount} player{potdVoteSummary.voteCount === 1 ? "" : "s"} voted{" "}
@@ -727,7 +727,7 @@ export default function AdminRunResultScreen() {
           )}
         </View>
         <AwardRow
-          label="Goalie of the Day 🧤"
+          label="Goalie of the Day"
           valueLabel={goalieOfTheDay ? nameFor(confirmed.find((p) => p.id === goalieOfTheDay) || { id: goalieOfTheDay, full_name: null }) : "None"}
           hasValue={Boolean(goalieOfTheDay)}
           disabled={isReadonly}
@@ -741,7 +741,7 @@ export default function AdminRunResultScreen() {
           }}
         />
         <AwardRow
-          label="Attacker of the Day ⚡"
+          label="Attacker of the Day"
           valueLabel={attackerOfDay ? nameFor(confirmed.find((p) => p.id === attackerOfDay) || { id: attackerOfDay, full_name: null }) : "None"}
           hasValue={Boolean(attackerOfDay)}
           disabled={isReadonly}
@@ -755,7 +755,7 @@ export default function AdminRunResultScreen() {
           }}
         />
         <AwardRow
-          label="Midfielder of the Day 🎯"
+          label="Midfielder of the Day"
           valueLabel={midfielderOfDay ? nameFor(confirmed.find((p) => p.id === midfielderOfDay) || { id: midfielderOfDay, full_name: null }) : "None"}
           hasValue={Boolean(midfielderOfDay)}
           disabled={isReadonly}
@@ -769,7 +769,7 @@ export default function AdminRunResultScreen() {
           }}
         />
         <AwardRow
-          label="Defender of the Day 🛡️"
+          label="Defender of the Day"
           valueLabel={defenderOfDay ? nameFor(confirmed.find((p) => p.id === defenderOfDay) || { id: defenderOfDay, full_name: null }) : "None"}
           hasValue={Boolean(defenderOfDay)}
           disabled={isReadonly}
@@ -815,12 +815,12 @@ export default function AdminRunResultScreen() {
         visible={picker?.kind === "award"}
         title={
           picker?.kind === "award" && picker.which === "goalie"
-            ? "Goalie of the Day 🧤"
+            ? "Goalie of the Day"
             : picker?.kind === "award" && picker.which === "attacker"
-              ? "Attacker of the Day ⚡"
+              ? "Attacker of the Day"
               : picker?.kind === "award" && picker.which === "midfielder"
-                ? "Midfielder of the Day 🎯"
-                : "Defender of the Day 🛡️"
+                ? "Midfielder of the Day"
+                : "Defender of the Day"
         }
         options={awardOptions}
         allowClear

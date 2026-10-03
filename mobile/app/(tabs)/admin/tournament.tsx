@@ -364,8 +364,8 @@ export default function AdminTournamentScreen() {
       }
       if (!createRegionFromAddress && !createRegionOverride) {
         return Alert.alert(
-          "Pick a region",
-          "Could not detect NY, CT, NJ, or MD from the address. Select a service region.",
+          "Pick an area",
+          "Could not detect NY, CT, NJ, or MD from the address. Select an area.",
         );
       }
       venueLabel = customName;
@@ -519,7 +519,7 @@ export default function AdminTournamentScreen() {
           />
           {showCreateRegionPicker ? (
             <>
-              <Text style={styles.label}>Service region</Text>
+              <Text style={styles.label}>Area</Text>
               <View style={styles.regionChipRow}>
                 {SERVICE_REGIONS.map(({ code }) => {
                   const active = createRegionOverride === code;

@@ -5,6 +5,8 @@ type Err = { message: string; code?: string };
 type Result = { data: unknown; error: Err | null };
 
 const TABLE = "instagram_verification_requests";
+/** star_seed_unverified_cap(): the highest star without verification. */
+const UNVERIFIED_CAP = 3.0;
 
 class FakeDb {
   tables: Record<string, Row[]> = {};
@@ -12,6 +14,8 @@ class FakeDb {
   missingColumns: Record<string, string[]> = {};
   rateBuckets = new Map<string, number>();
   rpcFails = false;
+  /** Functions the 20261006100000 migration adds; remove one to simulate it not being applied yet. */
+  migratedFunctions = new Set(['approve_instagram_with_level']);
   failWrites = new Set<string>();
   auth = {
     getUser: async (token: string) => ({ data: { user: token ? { id: token } : null }, error: null }),
@@ -23,14 +27,48 @@ class FakeDb {
   from(table: string) {
     return new FakeQuery(this, table);
   }
-  async rpc(name: string, args: { p_bucket_key: string; p_limit: number }) {
+  async rpc(name: string, args: Record<string, unknown>) {
+    if (name === "approve_instagram_with_level") return this.approveInstagramWithLevel(args);
     if (this.rpcFails || name !== "api_rate_limit_check") {
       return { data: null, error: { message: `Could not find the function public.${name}` } };
     }
-    const n = (this.rateBuckets.get(args.p_bucket_key) ?? 0) + 1;
-    if (n > args.p_limit) return { data: { allowed: false, retry_after_seconds: 3600 }, error: null };
-    this.rateBuckets.set(args.p_bucket_key, n);
+    const bucketKey = String(args.p_bucket_key);
+    const limit = Number(args.p_limit);
+    const n = (this.rateBuckets.get(bucketKey) ?? 0) + 1;
+    if (n > limit) return { data: { allowed: false, retry_after_seconds: 3600 }, error: null };
+    this.rateBuckets.set(bucketKey, n);
     return { data: { allowed: true, retry_after_seconds: 0 }, error: null };
+  }
+
+  /** Mirrors public.approve_instagram_with_level: seed while provisional, lift the 3.0 cap only above it. */
+  private async approveInstagramWithLevel(args: Record<string, unknown>) {
+    if (!this.migratedFunctions.has("approve_instagram_with_level")) {
+      return { data: null, error: { message: "Could not find the function public.approve_instagram_with_level", code: "PGRST202" } };
+    }
+    if (this.failWrites.has("rpc.approve_instagram_with_level")) return { data: null, error: { message: "write failed" } };
+    const level = Number(args.p_level);
+    if (!Number.isFinite(level) || level < 0.5 || level > 5 || level * 2 !== Math.floor(level * 2)) {
+      return { data: null, error: { message: `approve_instagram_with_level: unknown level ${level}` } };
+    }
+    const ratings = this.rows("player_ratings");
+    let r = ratings.find((x) => x.user_id === args.p_user_id);
+    if (!r) {
+      r = { user_id: args.p_user_id, score: 50, verification: "self", star_provisional: true };
+      ratings.push(r);
+    }
+    const lift = level > UNVERIFIED_CAP;
+    const provisional = r.star_provisional !== false;
+    this.rows("rating_seed_log").push({
+      user_id: args.p_user_id,
+      actor_id: args.p_admin_id,
+      source: "admin",
+      chosen_level: level,
+      applied_level: provisional ? level : null,
+      old_score: r.score,
+    });
+    if (lift) r.verification = "instagram";
+    if (provisional) r.seeded_level = level;
+    return { data: { seeded: provisional, cap_lifted: lift }, error: null };
   }
 }
 
@@ -218,6 +256,7 @@ function req(path: string, userId: string | null, body?: unknown) {
 
 const start = (userId: string | null, handle: unknown) => userPOST(req("/api/account/instagram-verification", userId, { handle }));
 const status = (userId: string) => userGET(req("/api/account/instagram-verification", userId));
+const LEVEL_COLLEGE = 4.0;
 const review = (userId: string, body: Record<string, unknown>) => adminPOST(req("/api/admin/instagram-verification", userId, body));
 
 function seedProfile(id: string, overrides: Row = {}) {
@@ -453,18 +492,69 @@ describe("admin review", () => {
   it("approve with the right code sets instagram on both columns and records the reviewer", async () => {
     const code = await startAndGetCode();
     h.db.rows("player_ratings").push({ user_id: PLAYER, score: 80, verification: "self" });
-    const res = await review(STAFF, { request_id: "req-1", decision: "approve", code: code.toLowerCase() });
+    const res = await review(STAFF, { request_id: "req-1", decision: "approve", code: code.toLowerCase(), level: LEVEL_COLLEGE });
     expect(res.status).toBe(200);
     expect(profile(PLAYER).verification_level).toBe("instagram");
-    expect(h.db.rows("player_ratings")[0].verification).toBe("instagram");
+    expect(h.db.rows("player_ratings")[0]).toMatchObject({ verification: "instagram", seeded_level: 4.0 });
+    expect(h.db.rows("rating_seed_log")[0]).toMatchObject({ user_id: PLAYER, actor_id: STAFF, source: "admin", chosen_level: 4.0 });
     expect(requests()[0]).toMatchObject({ status: "approved", reviewed_by: STAFF });
     expect(typeof requests()[0].reviewed_at).toBe("string");
+  });
+
+  it("approve without a level is rejected and changes nothing", async () => {
+    const code = await startAndGetCode();
+    h.db.rows("player_ratings").push({ user_id: PLAYER, score: 50, verification: "self", star_provisional: true });
+    for (const level of [undefined, null, "", "abc", 0.5, 2.2, 5.5]) {
+      const res = await review(STAFF, { request_id: "req-1", decision: "approve", code, level });
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as { error: string }).error).toMatch(/starting level/i);
+    }
+    expect(profile(PLAYER).verification_level).toBe("self");
+    expect(h.db.rows("player_ratings")[0].verification).toBe("self");
+    expect(h.db.rows("rating_seed_log")).toHaveLength(0);
+    expect(requests()[0].status).toBe("pending");
+    expect(requests()[0].reviewed_by ?? null).toBeNull();
+  });
+
+  it("approving at 3.0 verifies the profile but keeps the 3.0 cap", async () => {
+    const code = await startAndGetCode();
+    h.db.rows("player_ratings").push({ user_id: PLAYER, score: 50, verification: "self", star_provisional: true });
+    const res = await review(STAFF, { request_id: "req-1", decision: "approve", code, level: 3.0 });
+    expect(res.status).toBe(200);
+    expect(profile(PLAYER).verification_level).toBe("instagram");
+    expect(h.db.rows("player_ratings")[0]).toMatchObject({ verification: "self", seeded_level: 3.0 });
+    expect(h.db.rows("rating_seed_log")[0]).toMatchObject({ chosen_level: 3.0 });
+  });
+
+  it("lifts the cap only for a level above 3.0", async () => {
+    const lifted: Record<string, boolean> = {};
+    for (const level of [1.0, 2.5, 3.0, 3.5, 4.0, 5.0]) {
+      h.db.tables = {};
+      h.db.rateBuckets.clear();
+      seedProfile(PLAYER);
+      seedProfile(STAFF, { is_admin: true, first_name: "Staff" });
+      h.db.rows("player_ratings").push({ user_id: PLAYER, score: 50, verification: "self", star_provisional: true });
+      const code = await startAndGetCode();
+      const res = await review(STAFF, { request_id: "req-1", decision: "approve", code, level });
+      expect(res.status).toBe(200);
+      lifted[String(level)] = h.db.rows("player_ratings")[0].verification === "instagram";
+    }
+    expect(lifted).toEqual({ "1": false, "2.5": false, "3": false, "3.5": true, "4": true, "5": true });
+  });
+
+  it("answers unavailable and rolls back when the level migration has not run", async () => {
+    const code = await startAndGetCode();
+    h.db.migratedFunctions.delete("approve_instagram_with_level");
+    const res = await review(STAFF, { request_id: "req-1", decision: "approve", code, level: LEVEL_COLLEGE });
+    expect(res.status).toBe(503);
+    expect(profile(PLAYER).verification_level).toBe("self");
+    expect(requests()[0].status).toBe("pending");
   });
 
   it("approve with the wrong code changes nothing", async () => {
     const code = await startAndGetCode();
     const wrong = code.slice(0, -1) + (code.endsWith("A") ? "B" : "A");
-    const res = await review(STAFF, { request_id: "req-1", decision: "approve", code: wrong });
+    const res = await review(STAFF, { request_id: "req-1", decision: "approve", code: wrong, level: LEVEL_COLLEGE });
     expect(res.status).toBe(400);
     expect(profile(PLAYER).verification_level).toBe("self");
     expect(requests()[0].status).toBe("pending");
@@ -473,7 +563,7 @@ describe("admin review", () => {
   it("approve fails on an expired code", async () => {
     const code = await startAndGetCode();
     requests()[0].expires_at = new Date(Date.now() - 1000).toISOString();
-    const res = await review(STAFF, { request_id: "req-1", decision: "approve", code });
+    const res = await review(STAFF, { request_id: "req-1", decision: "approve", code, level: LEVEL_COLLEGE });
     expect(res.status).toBe(409);
     expect(requests()[0].status).toBe("expired");
     expect(profile(PLAYER).verification_level).toBe("self");
@@ -481,8 +571,8 @@ describe("admin review", () => {
 
   it("a failed rating write rolls the approval back", async () => {
     const code = await startAndGetCode();
-    h.db.failWrites.add("player_ratings.upsert");
-    const res = await review(STAFF, { request_id: "req-1", decision: "approve", code });
+    h.db.failWrites.add("rpc.approve_instagram_with_level");
+    const res = await review(STAFF, { request_id: "req-1", decision: "approve", code, level: LEVEL_COLLEGE });
     expect(res.status).toBe(500);
     expect(profile(PLAYER).verification_level).toBe("self");
     expect(requests()[0]).toMatchObject({ status: "pending", reviewed_by: null });
@@ -507,7 +597,7 @@ describe("admin review", () => {
 
   it("cannot review twice", async () => {
     const code = await startAndGetCode();
-    expect((await review(STAFF, { request_id: "req-1", decision: "approve", code })).status).toBe(200);
+    expect((await review(STAFF, { request_id: "req-1", decision: "approve", code, level: LEVEL_COLLEGE })).status).toBe(200);
     expect((await review(STAFF, { request_id: "req-1", decision: "reject", reason: "x" })).status).toBe(409);
   });
 });
@@ -515,7 +605,7 @@ describe("admin review", () => {
 describe("show Instagram toggle", () => {
   async function verify() {
     const code = await startAndGetCode("pat.player");
-    await review(STAFF, { request_id: "req-1", decision: "approve", code });
+    await review(STAFF, { request_id: "req-1", decision: "approve", code, level: LEVEL_COLLEGE });
   }
   const toggle = (userId: string, show: unknown) => visibilityPOST(req("/api/account/instagram-visibility", userId, { show }));
   const publicProfile = async () => {

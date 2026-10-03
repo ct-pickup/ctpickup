@@ -1,6 +1,6 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useMemo, useState, type ComponentProps } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { ProfileBadge } from "@/lib/playerBadges";
@@ -24,21 +24,21 @@ const GLYPH: Record<BadgeId, { icon: IconName } | { numeral: string }> = {
 
 const UNEARNED_OPACITY = 0.3;
 
-function BadgeGlyph({ id, size }: { id: BadgeId; size: number }) {
+function BadgeGlyph({ id, size, locked = false }: { id: BadgeId; size: number; locked?: boolean }) {
   const g = GLYPH[id];
   const box = { width: size, height: size, borderRadius: size / 2 };
   return (
-    <View style={[styles.glyph, box]}>
+    <View style={[styles.glyph, box, locked && styles.glyphLocked]}>
       {"icon" in g ? (
-        <FontAwesome name={g.icon} size={Math.round(size * 0.4)} color={themeColor().onPitchPanel} />
+        <FontAwesome name={g.icon} size={Math.round(size * 0.4)} color={locked ? themeColor().muted : themeColor().onPitchPanel} />
       ) : (
-        <Text style={[styles.numeral, { fontSize: Math.round(size * 0.34) }]}>{g.numeral}</Text>
+        <Text style={[styles.numeral, locked && styles.numeralLocked, { fontSize: Math.round(size * 0.34) }]}>{g.numeral}</Text>
       )}
     </View>
   );
 }
 
-/** Horizontal badge row. Unearned badges are faded; tapping any badge explains how to earn it. */
+/** Wrapping badge grid, every badge visible. Unearned badges are greyed; tapping any badge explains how to earn it. */
 export default function BadgeShelf({ badges }: { badges: ProfileBadge[] }) {
   useThemedStyles(publish_styles);
   const insets = useSafeAreaInsets();
@@ -52,22 +52,22 @@ export default function BadgeShelf({ badges }: { badges: ProfileBadge[] }) {
 
   return (
     <>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+      <View style={styles.grid}>
         {ordered.map((b) => (
           <Pressable
             key={b.id}
             onPress={() => setOpen(b)}
-            style={({ pressed }) => [styles.badge, !b.earned && styles.unearned, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.badge, pressed && styles.pressed]}
             accessibilityRole="button"
             accessibilityLabel={`${b.label}, ${b.earned ? "earned" : "not earned yet"}`}
           >
-            <BadgeGlyph id={b.id} size={56} />
-            <Text style={styles.label} numberOfLines={2}>
+            <BadgeGlyph id={b.id} size={36} locked={!b.earned} />
+            <Text style={[styles.label, !b.earned && styles.labelLocked]} numberOfLines={2}>
               {b.label}
             </Text>
           </Pressable>
         ))}
-      </ScrollView>
+      </View>
 
       <Modal visible={open != null} transparent animationType="slide" onRequestClose={() => setOpen(null)}>
         <View style={styles.root}>
@@ -98,18 +98,21 @@ export default function BadgeShelf({ badges }: { badges: ProfileBadge[] }) {
 
 function make_styles() {
   return StyleSheet.create({
-    row: { gap: 12, paddingHorizontal: 20 },
-    badge: { width: 76, alignItems: "center" },
+    grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, rowGap: 6 },
+    badge: { width: "20%", alignItems: "center", paddingHorizontal: 2 },
     unearned: { opacity: UNEARNED_OPACITY },
+    glyphLocked: { backgroundColor: themeColor().overlayStrong },
+    numeralLocked: { color: themeColor().muted },
+    labelLocked: { color: themeColor().muted },
     pressed: { opacity: 0.7 },
     glyph: { backgroundColor: themeColor().pitchPanel, alignItems: "center", justifyContent: "center" },
     numeral: { fontFamily: headline.fontFamily, color: themeColor().onPitchPanel },
     label: {
-      marginTop: 6,
+      marginTop: 3,
       textAlign: "center",
       color: themeColor().text,
-      fontSize: 12,
-      lineHeight: 15,
+      fontSize: 10.5,
+      lineHeight: 13,
       fontFamily: "Inter_600SemiBold",
       fontWeight: "600",
     },

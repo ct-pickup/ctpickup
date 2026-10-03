@@ -18,6 +18,7 @@ import { PhotoUploadField } from "@/components/photo";
 import BadgeShelf from "@/components/profile/BadgeShelf";
 import FormPills from "@/components/profile/FormPills";
 import PlayerCard, { type PlayerCardData } from "@/components/profile/PlayerCard";
+import ProfileCard from "@/components/profile/ProfileCard";
 import PositionPitch from "@/components/profile/PositionPitch";
 import { tabBarContentPadding } from "@/lib/tabBar";
 import { StarLevelsSheet } from "@/components/StarLevels";
@@ -255,13 +256,16 @@ export default function ProfileScreen() {
 
   return (
     <View style={s.screen}>
+      {/* Solid band behind the status bar so the clock and Dynamic Island never sit on the card. */}
+      <View style={[s.statusBand, { height: insets.top }]} />
       <ScrollView
-        contentContainerStyle={{ paddingBottom: tabBarContentPadding(insets.bottom) }}
+        contentContainerStyle={{ paddingBottom: tabBarContentPadding(insets.bottom, 8) }}
+        alwaysBounceVertical
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={themeColor().pitchText} />
         }
       >
-        <View style={[s.topBar, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
+        <View style={s.topBar}>
           <Pressable
             onPress={() => setEditing((v) => !v)}
             hitSlop={10}
@@ -283,7 +287,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={s.cardWrap}>
-          <PlayerCard
+          <ProfileCard
             data={cardData}
             onPressAvatar={editing ? pickAndUploadAvatar : undefined}
             onPressRating={() => setLevelsOpen(true)}
@@ -295,6 +299,9 @@ export default function ProfileScreen() {
                 </View>
               ) : null
             }
+            onShare={canShare ? () => void onShare() : undefined}
+            shareBusy={sharing}
+            shareDisabled={!cardReady}
           />
         </View>
 
@@ -304,7 +311,7 @@ export default function ProfileScreen() {
               bucket="action-photos"
               name="action"
               label="Card photo"
-              hint="A shot of you playing, shown behind your card. Tap your avatar to change your profile photo."
+              hint="A shot of you playing, used as the background of your shared card image. Tap your avatar to change your profile photo."
               aspect="wide"
               preview={false}
               value={actionPhotoUrl}
@@ -313,31 +320,16 @@ export default function ProfileScreen() {
           </View>
         ) : null}
 
-        {canShare ? (
-          <View style={s.shareWrap}>
-            <Pressable
-              onPress={() => void onShare()}
-              disabled={sharing || !cardReady}
-              style={({ pressed }) => [s.shareBtn, (pressed || sharing || !cardReady) && s.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel="Share my player card"
-            >
-              {sharing ? <ActivityIndicator color={themeColor().accent} /> : <Text style={s.shareBtnText}>Share my card</Text>}
-            </Pressable>
+        <View style={s.tiles}>
+          <View style={s.tile}>
+            <Text style={s.tileLabel}>Position</Text>
+            <PositionPitch primary={spot} others={otherSpots} compact />
           </View>
-        ) : null}
-
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>Position</Text>
-          <PositionPitch primary={spot} others={otherSpots} />
+          <View style={s.tile}>
+            <Text style={s.tileLabel}>Form</Text>
+            {form.length > 0 ? <FormPills form={form} dots /> : <Text style={s.tileEmpty}>No games yet</Text>}
+          </View>
         </View>
-
-        {form.length > 0 ? (
-          <View style={s.section}>
-            <Text style={s.sectionLabel}>Form</Text>
-            <FormPills form={form} />
-          </View>
-        ) : null}
 
         <View style={s.sectionBleed}>
           <Text style={[s.sectionLabel, s.sectionLabelInset]}>Badges</Text>
@@ -360,16 +352,17 @@ function make_s() {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: themeColor().bg },
     center: { flex: 1, backgroundColor: themeColor().bg, justifyContent: "center", alignItems: "center" },
+    statusBand: { backgroundColor: themeColor().bg },
     topBar: {
       paddingHorizontal: 16,
-      marginBottom: 12,
+      paddingVertical: 4,
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
     },
     topBtn: {
-      minWidth: 36,
-      height: 36,
+      minWidth: 32,
+      height: 32,
       paddingHorizontal: 12,
       borderRadius: radius.pill,
       backgroundColor: themeColor().overlay,
@@ -393,25 +386,26 @@ function make_s() {
       justifyContent: "center",
     },
     editPanel: { paddingHorizontal: 20, paddingTop: 16 },
-    shareWrap: { paddingHorizontal: 16, paddingTop: 12 },
-    shareBtn: {
-      paddingVertical: 14,
-      borderRadius: radius.button,
-      borderWidth: 1.5,
-      borderColor: themeColor().accent,
-      alignItems: "center",
+    tiles: { flexDirection: "row", gap: 10, paddingHorizontal: 16, marginTop: 10 },
+    tile: {
+      flex: 1,
+      padding: 12,
+      borderRadius: radius.card,
+      backgroundColor: themeColor().card,
+      borderWidth: 1,
+      borderColor: themeColor().line,
     },
-    shareBtnText: { color: themeColor().accent, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-    section: { marginTop: 24, paddingHorizontal: 20 },
-    sectionBleed: { marginTop: 24 },
+    tileLabel: { marginBottom: 8, color: themeColor().muted, fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    tileEmpty: { color: themeColor().muted, fontSize: 12, fontFamily: "Inter_400Regular" },
+    sectionBleed: { marginTop: 12 },
     sectionLabel: {
-      marginBottom: 12,
+      marginBottom: 6,
       color: themeColor().text,
-      fontSize: 15,
+      fontSize: 14,
       fontFamily: "Inter_600SemiBold",
       fontWeight: "600",
     },
-    sectionLabelInset: { paddingHorizontal: 20 },
+    sectionLabelInset: { paddingHorizontal: 16 },
     offscreen: { position: "absolute", top: 0, left: -10000 },
   });
 }

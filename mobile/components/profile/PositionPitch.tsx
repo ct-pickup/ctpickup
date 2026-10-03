@@ -8,7 +8,6 @@ import { themeColor, useThemedStyles } from "@/theme";
 const HEIGHT = 160;
 const VB_W = 68;
 const VB_H = 105;
-const WIDTH = Math.round((HEIGHT * VB_W) / VB_H);
 const DOT_R = 3.6;
 
 type PositionPitchProps = {
@@ -16,6 +15,8 @@ type PositionPitchProps = {
   primary: PitchSpot | null;
   /** Outlined dots. The primary spot is never repeated here. */
   others?: PitchSpot[];
+  /** Smaller pitch and type for the Profile tile. */
+  compact?: boolean;
 };
 
 /**
@@ -23,8 +24,10 @@ type PositionPitchProps = {
  * spot filled, any other positions outlined. Unused spots are not drawn, so the
  * pitch reads as their position rather than a formation chart.
  */
-export default function PositionPitch({ primary, others = [] }: PositionPitchProps) {
+export default function PositionPitch({ primary, others = [], compact = false }: PositionPitchProps) {
   useThemedStyles(publish_styles);
+  const height = compact ? 76 : HEIGHT;
+  const width = Math.round((height * VB_W) / VB_H);
   const chalk = useChalkStroke("line", { width: 0.9 });
   const c = themeColor();
 
@@ -34,8 +37,8 @@ export default function PositionPitch({ primary, others = [] }: PositionPitchPro
     : "No position set";
 
   return (
-    <View style={styles.row}>
-      <Svg width={WIDTH} height={HEIGHT} viewBox={`-1 -1 ${VB_W + 2} ${VB_H + 2}`} accessible accessibilityLabel={label}>
+    <View style={[styles.row, compact && styles.rowCompact]}>
+      <Svg width={width} height={height} viewBox={`-1 -1 ${VB_W + 2} ${VB_H + 2}`} accessible accessibilityLabel={label}>
         <Rect x={0} y={0} width={VB_W} height={VB_H} rx={1.5} {...chalk} />
         <Line x1={0} y1={VB_H / 2} x2={VB_W} y2={VB_H / 2} {...chalk} />
         <Circle cx={VB_W / 2} cy={VB_H / 2} r={9.15} {...chalk} />
@@ -58,8 +61,10 @@ export default function PositionPitch({ primary, others = [] }: PositionPitchPro
         {primary ? (
           <>
             <Text style={styles.code}>{primary}</Text>
-            <Text style={styles.name}>{PITCH_SPOT_NAME[primary]}</Text>
-            {secondary.length > 0 ? (
+            <Text style={[styles.name, compact && styles.nameCompact]} numberOfLines={compact ? 2 : undefined}>
+              {PITCH_SPOT_NAME[primary]}
+            </Text>
+            {secondary.length > 0 && !compact ? (
               <Text style={styles.also}>Also plays {secondary.join(", ")}</Text>
             ) : null}
           </>
@@ -74,7 +79,9 @@ export default function PositionPitch({ primary, others = [] }: PositionPitchPro
 function make_styles() {
   return StyleSheet.create({
     row: { flexDirection: "row", alignItems: "center", gap: 20 },
+    rowCompact: { gap: 10 },
     text: { flex: 1 },
+    nameCompact: { fontSize: 12 },
     code: { color: themeColor().text, fontSize: 20, fontFamily: "Inter_700Bold", fontWeight: "700" },
     name: { marginTop: 2, color: themeColor().muted, fontSize: 14, fontFamily: "Inter_500Medium", fontWeight: "500" },
     also: { marginTop: 6, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
