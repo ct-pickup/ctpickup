@@ -95,7 +95,8 @@ export function CreateMenuSheet({ visible, onClose, onHostGame, resultRunId, onP
         }
       }
 
-      const link = origin ?? APP_STORE_URL;
+      // App Store page first; the site URL only when no App Store link is configured.
+      const link = APP_STORE_URL || origin || "";
       const message =
         `Join me on ${PRODUCT_NAME} — competitive pickup soccer. ${link}` +
         (code ? `\nUse my referral code ${code} when you sign up.` : "");
