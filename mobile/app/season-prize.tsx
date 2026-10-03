@@ -1,3 +1,4 @@
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { AccessibilityInfo, Animated, BackHandler, Easing, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -7,7 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import { POINTS } from "@/lib/pickup/points";
 import { SEASON_PRIZE_USD, seasonWindowFor } from "@/lib/pickup/seasonPrize";
-import { enterSeason, markSeasonIntroSeen, SEASON_PRIZE_ENABLED } from "@/lib/seasonPrize";
+import { enterSeason, markSeasonIntroSeen, SEASON_PRIZE_ENABLED, skipSeasonIntroThisSession } from "@/lib/seasonPrize";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
 const COUNTDOWN_SECONDS = 5;
@@ -32,7 +33,9 @@ export default function SeasonPrizeScreen() {
   const [reduceMotion, setReduceMotion] = useState(false);
   const [pledged, setPledged] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  /** "soon": the server answered 404, entries are not open yet. "failed": a real failure, retry. */
+  const [notice, setNotice] = useState<"soon" | "failed" | null>(null);
+  const [noticeText, setNoticeText] = useState<string | null>(null);
   const [progress] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
@@ -73,14 +76,21 @@ export default function SeasonPrizeScreen() {
   async function enter() {
     if (!pledged || busy) return;
     setBusy(true);
-    setError(null);
+    setNotice(null);
     const res = await enterSeason(token);
     if (!res.ok) {
       setBusy(false);
-      setError(res.error);
+      setNotice(res.kind === "unavailable" ? "soon" : "failed");
+      setNoticeText(res.error);
       return;
     }
     await finish();
+  }
+
+  /** Entries are not open yet: into the app, nothing recorded (the intro returns next launch). */
+  function continueWithoutEntry() {
+    if (userId) skipSeasonIntroThisSession(userId);
+    router.replace("/(tabs)");
   }
 
   function openRules() {
@@ -99,7 +109,8 @@ export default function SeasonPrizeScreen() {
         <View style={styles.card}>
           <Text style={styles.eyebrow}>{season.label}</Text>
           <Text style={styles.title}>Win the season.</Text>
-          <Text style={styles.prize}>First place earns ${SEASON_PRIZE_USD}.</Text>
+          <Text style={styles.prize}>Win up to ${SEASON_PRIZE_USD}.</Text>
+          <Text style={styles.prizeSub}>Top 3 earn prizes. See the official rules.</Text>
           <Text style={styles.dates}>
             {season.startText} to {season.endText}
           </Text>
@@ -122,6 +133,17 @@ export default function SeasonPrizeScreen() {
               </View>
             )}
           </View>
+        ) : notice === "soon" ? (
+          <View style={styles.actions}>
+            <Text style={styles.soon}>{noticeText ?? "Season entries open soon."}</Text>
+            <Pressable
+              onPress={continueWithoutEntry}
+              style={({ pressed }) => [styles.enterBtn, pressed && styles.pressed]}
+              accessibilityRole="button"
+            >
+              <Text style={styles.enterText}>Continue</Text>
+            </Pressable>
+          </View>
         ) : (
           <View style={styles.actions}>
             <Pressable
@@ -135,7 +157,12 @@ export default function SeasonPrizeScreen() {
               <Text style={styles.pledgeText}>{PLEDGE}</Text>
             </Pressable>
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {notice === "failed" ? (
+              <View style={styles.calm} accessibilityLiveRegion="polite">
+                <FontAwesome name="info-circle" size={14} color={themeColor().text} />
+                <Text style={styles.calmText}>{noticeText}</Text>
+              </View>
+            ) : null}
 
             <Pressable
               onPress={() => void enter()}
@@ -144,7 +171,7 @@ export default function SeasonPrizeScreen() {
               accessibilityRole="button"
               accessibilityState={{ disabled: !pledged || busy }}
             >
-              <Text style={styles.enterText}>{busy ? "Entering…" : error ? "Try again" : "Enter the season"}</Text>
+              <Text style={styles.enterText}>{busy ? "Entering…" : notice === "failed" ? "Try again" : "Enter the season"}</Text>
             </Pressable>
             <Pressable onPress={() => void finish()} disabled={busy} hitSlop={8} style={styles.skipBtn} accessibilityRole="button">
               <Text style={styles.skipText}>Skip</Text>
@@ -180,7 +207,10 @@ function make_styles() {
     boxOn: { backgroundColor: c.pitch, borderColor: c.pitch },
     tick: { color: c.onPitch, fontSize: 15, fontFamily: "Inter_700Bold" },
     pledgeText: { flex: 1, color: c.text, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
-    error: { color: c.coralText, fontSize: 13, fontFamily: "Inter_500Medium" },
+    prizeSub: { color: c.onPitch, opacity: 0.85, fontSize: 14, fontFamily: "Inter_500Medium", marginTop: 2 },
+    soon: { color: c.muted, fontSize: 15, fontFamily: "Inter_500Medium", textAlign: "center" },
+    calm: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+    calmText: { flex: 1, color: c.text, fontSize: 13, fontFamily: "Inter_500Medium", lineHeight: 18 },
     enterBtn: { backgroundColor: c.pitch, borderRadius: radius.button, paddingVertical: 16, alignItems: "center" },
     enterText: { color: c.onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
     disabled: { opacity: 0.35 },

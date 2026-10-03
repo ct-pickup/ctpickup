@@ -49,6 +49,11 @@ export function seasonIntroSeenThisSession(userId: string | null | undefined): b
   return !!userId && seenThisSession.has(userId);
 }
 
+/** Lets the player into the app for this session without recording the intro as seen (it shows again next launch). */
+export function skipSeasonIntroThisSession(userId: string): void {
+  seenThisSession.add(userId);
+}
+
 export async function markSeasonIntroSeen(userId: string): Promise<void> {
   seenThisSession.add(userId);
   try {
@@ -60,12 +65,13 @@ export async function markSeasonIntroSeen(userId: string): Promise<void> {
   }
 }
 
-export type SeasonEntryResult = { ok: true } | { ok: false; error: string };
+/** `unavailable`: the server answered 404 (flag off or route not deployed). `failed`: network, 5xx, 429 or anything else. */
+export type SeasonEntryResult = { ok: true } | { ok: false; kind: "unavailable" | "failed"; error: string };
 
 /** Records the player's entry for the current season. Safe to call again after a failure. */
 export async function enterSeason(accessToken: string | null): Promise<SeasonEntryResult> {
   const origin = siteOrigin();
-  if (!origin || !accessToken) return { ok: false, error: "You need to be signed in. Please try again." };
+  if (!origin || !accessToken) return { ok: false, kind: "failed", error: "You need to be signed in. Please try again." };
   try {
     const r = await fetch(`${origin}/api/season-prize/entry`, {
       method: "POST",
@@ -73,10 +79,10 @@ export async function enterSeason(accessToken: string | null): Promise<SeasonEnt
       body: JSON.stringify({ rules_version: SEASON_PRIZE_RULES_VERSION }),
     });
     if (r.ok) return { ok: true };
-    const j = (await r.json().catch(() => null)) as { error?: string } | null;
-    return { ok: false, error: typeof j?.error === "string" ? j.error : "We couldn't record your entry. Please try again." };
+    if (r.status === 404) return { ok: false, kind: "unavailable", error: "Season entries open soon." };
+    return { ok: false, kind: "failed", error: "Couldn't save your entry. Check your connection and try again." };
   } catch {
-    return { ok: false, error: "Couldn't reach the server. Check your connection and try again." };
+    return { ok: false, kind: "failed", error: "Couldn't save your entry. Check your connection and try again." };
   }
 }
 
