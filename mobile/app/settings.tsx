@@ -1278,7 +1278,10 @@ export default function SettingsScreen() {
                   size={32}
                   style={s.rowAvatar}
                 />
-                <Text style={s.rowLabel}>Profile photo</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.rowLabel}>Profile photo</Text>
+                  <Text style={s.rowHint}>Crop to just you</Text>
+                </View>
                 {avatarUploading ? <ActivityIndicator color={themeColor().muted} /> : <Chevron />}
               </Pressable>
               <Row icon="user" label="Name" value={fullName || "Not set"} onPress={openEdit} />

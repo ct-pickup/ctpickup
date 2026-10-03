@@ -19,13 +19,14 @@ import BadgeShelf from "@/components/profile/BadgeShelf";
 import FormPills from "@/components/profile/FormPills";
 import PlayerCard, { type PlayerCardData } from "@/components/profile/PlayerCard";
 import PositionPitch from "@/components/profile/PositionPitch";
+import { tabBarContentPadding } from "@/lib/tabBar";
 import { StarLevelsSheet } from "@/components/StarLevels";
 import { useAuth } from "@/context/AuthContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { useAvatarPhoto } from "@/hooks/useAvatarPhoto";
 import { useHubVenueResolve } from "@/hooks/useHubVenueResolve";
 import type { PlayerOutcome } from "@/lib/pickup/resultOutcome";
-import { primaryPitchSpot } from "@/lib/pitchPosition";
+import { primaryPitchSpot, type PitchSpot } from "@/lib/pitchPosition";
 import { fetchActionPhotoUrl } from "@/lib/photoUpload";
 import { fetchMyBadges, unearnedBadges, type ProfileBadge } from "@/lib/playerBadges";
 import { positionAbbreviation, positionTownLine, townFromZip } from "@/lib/playerIdentity";
@@ -43,6 +44,7 @@ type ProfileRow = {
   last_name: string | null;
   username: string | null;
   primary_position: string | null;
+  secondary_positions: string[] | null;
   playing_position: string | null;
   zip_code: string | null;
   nearest_venue: string | null;
@@ -51,7 +53,7 @@ type ProfileRow = {
 };
 
 const PROFILE_SELECT =
-  "first_name,last_name,username,primary_position,playing_position,zip_code,nearest_venue,max_drive_minutes,verification_level";
+  "first_name,last_name,username,primary_position,secondary_positions,playing_position,zip_code,nearest_venue,max_drive_minutes,verification_level";
 
 type ProfileStats = { games: number; winPct: number | null; potd: number; form: PlayerOutcome[] };
 
@@ -241,17 +243,25 @@ export default function ProfileScreen() {
     photo: actionPhotoUrl,
   };
   const spot = primaryPitchSpot(profile?.primary_position, profile?.playing_position);
+  // Plain computation, not a hook: this sits after the loading early-returns.
+  const otherSpots = Array.from(
+    new Set(
+      (Array.isArray(profile?.secondary_positions) ? profile.secondary_positions : [])
+        .map((p) => primaryPitchSpot(p, null))
+        .filter((p): p is PitchSpot => p != null),
+    ),
+  ).filter((p) => p !== spot);
   const form = stats && stats.games >= 1 ? stats.form : [];
 
   return (
     <View style={s.screen}>
       <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 120 }}
+        contentContainerStyle={{ paddingBottom: tabBarContentPadding(insets.bottom) }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={themeColor().pitchText} />
         }
       >
-        <View style={s.topBar}>
+        <View style={[s.topBar, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
           <Pressable
             onPress={() => setEditing((v) => !v)}
             hitSlop={10}
@@ -319,7 +329,7 @@ export default function ProfileScreen() {
 
         <View style={s.section}>
           <Text style={s.sectionLabel}>Position</Text>
-          <PositionPitch spot={spot} />
+          <PositionPitch primary={spot} others={otherSpots} />
         </View>
 
         {form.length > 0 ? (
