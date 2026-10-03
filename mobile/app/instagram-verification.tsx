@@ -185,6 +185,7 @@ export default function InstagramVerificationScreen() {
             </View>
             {state.code ? (
               <>
+                <Text style={s.body}>Instagram: @{INSTAGRAM_VERIFICATION_HANDLE}</Text>
                 <Text style={s.body} selectable>
                   {verificationDmInstruction(INSTAGRAM_VERIFICATION_HANDLE, state.handle ?? "", state.code)}
                 </Text>

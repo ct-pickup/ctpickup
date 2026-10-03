@@ -38,6 +38,7 @@ import { canShareStory, shareStoryImage } from "@/lib/shareStory";
 import { fetchPlayerCard, type PlayerCard as StarCard } from "@/lib/starRatings";
 import { radius, themeColor, useThemedStyles } from "@/theme";
 import { isVerifiedLevel } from "@shared/badges";
+import { INSTAGRAM_VERIFICATION_HANDLE } from "@/lib/brand";
 
 const SHARE_READY_TIMEOUT_MS = 4000;
 const STATS_CACHE_KEY = "cached_profile_stats.v3";
@@ -334,6 +335,30 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        <Pressable
+          onPress={() => (router.push as (href: string) => void)("/instagram-verification")}
+          style={({ pressed }) => [s.verifyRow, pressed && s.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel={isVerifiedLevel(profile?.verification_level) ? "Verified. Open Instagram verification" : "Get verified with Instagram"}
+        >
+          <FontAwesome name="instagram" size={18} color={themeColor().text} />
+          <View style={s.verifyText}>
+            {isVerifiedLevel(profile?.verification_level) ? (
+              <Text style={s.verifyTitle}>{profile?.verification_level === "instagram" ? "Instagram verified" : "Verified"}</Text>
+            ) : (
+              <>
+                <Text style={s.verifyTitle}>Get verified with Instagram</Text>
+                <Text style={s.verifySub}>Instagram: @{INSTAGRAM_VERIFICATION_HANDLE}</Text>
+              </>
+            )}
+          </View>
+          {isVerifiedLevel(profile?.verification_level) ? (
+            <FontAwesome name="check-circle" size={18} color={themeColor().pitchText} />
+          ) : (
+            <FontAwesome name="chevron-right" size={12} color={themeColor().muted} />
+          )}
+        </Pressable>
+
         <View style={s.sectionBleed}>
           <Text style={[s.sectionLabel, s.sectionLabelInset]}>Badges</Text>
           <BadgeShelf badges={badges} />
@@ -411,6 +436,23 @@ function make_s() {
     },
     tileLabel: { marginBottom: 8, color: themeColor().muted, fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     tileEmpty: { color: themeColor().muted, fontSize: 12, fontFamily: "Inter_400Regular" },
+    verifyRow: {
+      marginTop: 10,
+      marginHorizontal: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      minHeight: 44,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: themeColor().line,
+      backgroundColor: themeColor().card,
+    },
+    verifyText: { flex: 1 },
+    verifyTitle: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    verifySub: { color: themeColor().muted, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
     sectionBleed: { marginTop: 12 },
     sectionLabel: {
       marginBottom: 6,
