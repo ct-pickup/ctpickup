@@ -25,6 +25,7 @@ import type { DiscoverPlayer } from "@shared/discover";
 import CtPlusPaywall from "@/components/ctplus/CtPlusPaywall";
 import { StarLevelsLink } from "@/components/StarLevels";
 import { CTPLUS_ENABLED } from "@/lib/ctplus/config";
+import { fetchSeasonEntered, SEASON_PRIZE_ENABLED } from "@/lib/seasonPrize";
 import { StarRating } from "@/components/StarRating";
 import { fetchPlayerCards, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
@@ -236,6 +237,8 @@ export default function LeaderboardsScreen() {
   const [myCard, setMyCard] = useState<PlayerCard | null>(_cachedMyCard);
   const [starsLoading, setStarsLoading] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  /** Season prize: whether the signed-in player entered. Only their own entry is ever fetched. */
+  const [inSeason, setInSeason] = useState(false);
 
   const rowsForTab = useMemo(() => {
     if (!payload) return [];
@@ -351,6 +354,7 @@ export default function LeaderboardsScreen() {
         );
         setErr(null);
         setPayload(parsed);
+        if (SEASON_PRIZE_ENABLED) void fetchSeasonEntered(token).then(setInSeason);
         void applyTiers(isRecord(json) && Array.isArray(json.tiers) ? (json.tiers as unknown[]) : []);
       } catch (e) {
         console.error("[leaderboards] failed:", e);
@@ -549,6 +553,11 @@ export default function LeaderboardsScreen() {
                 <Text style={styles.youTagText}>You</Text>
               </View>
             ) : null}
+            {mine && inSeason ? (
+              <View style={styles.seasonTag}>
+                <Text style={styles.seasonTagText}>In the season</Text>
+              </View>
+            ) : null}
           </View>
           {item.card ? (
             <StarRating value={item.card.star} provisional={item.card.provisional} size="sm" style={styles.playerStars} />
@@ -701,6 +710,11 @@ export default function LeaderboardsScreen() {
                   {mine ? (
                     <View style={styles.youTag}>
                       <Text style={styles.youTagText}>You</Text>
+                    </View>
+                  ) : null}
+                  {mine && inSeason ? (
+                    <View style={styles.seasonTag}>
+                      <Text style={styles.seasonTagText}>In the season</Text>
                     </View>
                   ) : null}
                 </View>
@@ -924,6 +938,8 @@ function make_styles() {
   nameFlex: { flexShrink: 1 },
   youTag: { paddingHorizontal: 8, paddingVertical: 1, borderRadius: 999, backgroundColor: themeColor().pitch },
   youTagText: { color: themeColor().onPitch, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  seasonTag: { paddingHorizontal: 8, paddingVertical: 1, borderRadius: 999, borderWidth: 1, borderColor: themeColor().pitch },
+  seasonTagText: { color: themeColor().pitchText, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700" },
   capFooter: { alignItems: "center", gap: 6, paddingVertical: 16 },
   capFooterText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_500Medium" },
   capFooterLink: { color: themeColor().accent, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
