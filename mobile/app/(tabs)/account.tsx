@@ -311,7 +311,7 @@ export default function ProfileScreen() {
               bucket="action-photos"
               name="action"
               label="Card photo"
-              hint="A shot of you playing, shown behind your card. Tap your avatar to change your profile photo."
+              hint="A shot of you playing, used as the background of your shared card image. Tap your avatar to change your profile photo."
               aspect="wide"
               preview={false}
               value={actionPhotoUrl}

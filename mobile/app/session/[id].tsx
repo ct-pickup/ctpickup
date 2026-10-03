@@ -1340,6 +1340,7 @@ export default function SessionDetailScreen() {
     <>
       <View style={s.screen}>
         <Stack.Screen options={{ headerShown: false }} />
+        <View pointerEvents="none" style={[s.statusBand, { height: insets.top }]} />
         <ScrollView
           style={s.root}
           contentContainerStyle={{ paddingBottom: (showJoinBar ? joinBarTotal : insets.bottom) + 32 }}
@@ -2094,6 +2095,7 @@ export default function SessionDetailScreen() {
 function make_s() {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: themeColor().bg },
+  statusBand: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 10, backgroundColor: themeColor().bg },
   root: { flex: 1, backgroundColor: themeColor().bg },
   body: { paddingHorizontal: 20, paddingTop: 16 },
   heroBar: { position: "absolute", left: 16, right: 16, flexDirection: "row", justifyContent: "space-between" },
