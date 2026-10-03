@@ -53,8 +53,9 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Auth is required (so we can safely return the approved player directory),
-    // but admin status is NOT required.
+    // Admin only. The player directory is no longer browsable by members: Discover
+    // (/api/discover) returns five picks a week and /api/discover/search matches an
+    // exact name or @username. Admin tools still need the full list.
     const { data: userData, error: authErr } = await admin.auth.getUser(token);
     if (authErr || !userData.user?.id) {
       return NextResponse.json({ error: authErr ? authErr.message : "Unauthorized" }, { status: 401 });
@@ -67,15 +68,8 @@ export async function GET(req: Request) {
       .eq("id", viewerId)
       .maybeSingle();
 
-    const viewerApproved = viewerProf.data?.approved === true;
-    const viewerIsAdmin = viewerProf.data?.is_admin === true;
-    const canViewDirectory = viewerApproved || viewerIsAdmin;
-
-    if (!canViewDirectory) {
-      return NextResponse.json(
-        { error: "Your account must be approved to browse players." },
-        { status: 403 },
-      );
+    if (viewerProf.data?.is_admin !== true) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     const url = new URL(req.url);
