@@ -91,7 +91,7 @@ export default function TeamChatThreadScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const params = useLocalSearchParams();
-  const { isReady, session } = useAuth();
+  const { isReady, session, supabase } = useAuth();
   const signedIn = !!session?.user?.id;
 
   const { allowed, isAdmin } = useTeamChatAccess();
@@ -195,6 +195,27 @@ export default function TeamChatThreadScreen() {
   /** Group threads use `id` routing; slug threads are announcements / team. */
   const isGroupRoom = !!trimmedId;
   const isDmGroup = !!(room?.slug && isAdminDmGroupSlug(room.slug));
+  // Opening the thread clears its unread state. Before the inbox migration the
+  // column is absent and the update quietly no-ops, which is fine: no badge either.
+  useFocusEffect(
+    useCallback(() => {
+      const uid = session?.user?.id;
+      if (!roomId || !uid || !supabase) return;
+      let cancelled = false;
+      void (async () => {
+        if (cancelled) return;
+        await supabase
+          .from("chat_room_members")
+          .update({ last_read_at: new Date().toISOString() })
+          .eq("room_id", roomId)
+          .eq("user_id", uid);
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [roomId, session, supabase]),
+  );
+
   const isRunBanterRoom = room?.room_type === "run_banter";
   const runBanterAutoCloseAt = room?.auto_close_at ?? null;
 

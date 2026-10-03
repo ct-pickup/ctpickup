@@ -1,6 +1,9 @@
 import { AnimatedPressScale } from "@/components/AnimatedPressScale";
 import { SignInPanel } from "@/components/SignInPanel";
+import PlayerAvatar from "@/components/PlayerAvatar";
 import { useAuth } from "@/context/AuthContext";
+import { useRoomPreviews, type RoomPreview } from "@/hooks/useRoomPreviews";
+import { notificationTime } from "@shared/notifications";
 import { useAdminDmPeerLabels, useTeamChatAccess } from "@/hooks/useTeamChat";
 import { hapticTap } from "@/lib/haptics";
 import {
@@ -71,6 +74,7 @@ export default function MessagesIndex() {
   }, [reload]);
 
   const bySlug = useMemo(() => new Map(rooms.map((r) => [r.slug, r] as const)), [rooms]);
+  const previews = useRoomPreviews(useMemo(() => rooms.map((r) => r.id), [rooms]));
   const announcementsTitle = bySlug.get(ANNOUNCEMENTS_CHAT_SLUG)?.title ?? "Announcements";
   const teamTitle = bySlug.get(TEAM_CHAT_SLUG)?.title ?? "Team chat";
 
@@ -161,22 +165,16 @@ export default function MessagesIndex() {
           router.push({ pathname: "/(tabs)/messages/thread", params: { slug: ANNOUNCEMENTS_CHAT_SLUG } })
         }
       >
-        <FontAwesome name="bullhorn" size={18} color={themeColor().pitchText} style={styles.rowIcon} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.rowTitle}>{announcementsTitle}</Text>
-          <Text style={styles.rowSub}>Staff updates</Text>
-        </View>
+        <RoomRowLead preview={previews.get(bySlug.get(ANNOUNCEMENTS_CHAT_SLUG)?.id ?? "")} icon="bullhorn" />
+        <RoomRowBody title={announcementsTitle} fallbackSub="Staff updates" preview={previews.get(bySlug.get(ANNOUNCEMENTS_CHAT_SLUG)?.id ?? "")} />
         <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
       </Pressable>
       <Pressable
         style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
         onPress={() => router.push({ pathname: "/(tabs)/messages/thread", params: { slug: TEAM_CHAT_SLUG } })}
       >
-        <FontAwesome name="comments" size={18} color={themeColor().pitchText} style={styles.rowIcon} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.rowTitle}>{teamTitle}</Text>
-          <Text style={styles.rowSub}>Team chat</Text>
-        </View>
+        <RoomRowLead preview={previews.get(bySlug.get(TEAM_CHAT_SLUG)?.id ?? "")} icon="comments" />
+        <RoomRowBody title={teamTitle} fallbackSub="Team chat" preview={previews.get(bySlug.get(TEAM_CHAT_SLUG)?.id ?? "")} />
         <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
       </Pressable>
 
@@ -189,11 +187,8 @@ export default function MessagesIndex() {
               style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
               onPress={() => router.push({ pathname: "/(tabs)/messages/thread", params: { id: r.id } })}
             >
-              <FontAwesome name="users" size={18} color={themeColor().pitchText} style={styles.rowIcon} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowTitle}>{titleForRoomRow(r, isAdmin === true, adminDmPeerLabels)}</Text>
-                <Text style={styles.rowSub}>Group chat</Text>
-              </View>
+              <RoomRowLead preview={previews.get(r.id)} icon="users" />
+              <RoomRowBody title={titleForRoomRow(r, isAdmin === true, adminDmPeerLabels)} fallbackSub="Group chat" preview={previews.get(r.id)} />
               <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
             </Pressable>
           ))}
@@ -209,11 +204,8 @@ export default function MessagesIndex() {
               style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
               onPress={() => router.push({ pathname: "/(tabs)/messages/thread", params: { id: r.id } })}
             >
-              <FontAwesome name="users" size={18} color={themeColor().pitchText} style={styles.rowIcon} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowTitle}>{r.title}</Text>
-                <Text style={styles.rowSub}>Tournament team</Text>
-              </View>
+              <RoomRowLead preview={previews.get(r.id)} icon="users" />
+              <RoomRowBody title={r.title} fallbackSub="Tournament team" preview={previews.get(r.id)} />
               <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
             </Pressable>
           ))}
@@ -286,6 +278,56 @@ export default function MessagesIndex() {
   );
 }
 
+
+/**
+ * Row contents shared by every conversation group: the last message and when it
+ * landed, with an unread dot. Falls back to the static subtitle for a room that
+ * has no messages yet.
+ */
+function RoomRowBody({
+  title,
+  fallbackSub,
+  preview,
+}: {
+  title: string;
+  fallbackSub: string;
+  preview: RoomPreview | undefined;
+}) {
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={styles.rowTopLine}>
+        <Text style={[styles.rowTitle, preview?.unread && styles.rowTitleUnread]} numberOfLines={1}>
+          {title}
+        </Text>
+        {preview ? <Text style={styles.rowTime}>{notificationTime(preview.at)}</Text> : null}
+      </View>
+      <Text style={styles.rowSub} numberOfLines={1}>
+        {preview ? `${preview.senderName}: ${preview.body}` : fallbackSub}
+      </Text>
+    </View>
+  );
+}
+
+/** Last sender's photo when there is one, otherwise the group icon. */
+function RoomRowLead({
+  preview,
+  icon,
+}: {
+  preview: RoomPreview | undefined;
+  icon: React.ComponentProps<typeof FontAwesome>["name"];
+}) {
+  if (preview?.senderAvatarUrl) {
+    return (
+      <PlayerAvatar
+        person={{ first_name: preview.senderName, last_name: null, avatar_url: preview.senderAvatarUrl }}
+        size={32}
+        style={styles.rowIcon}
+      />
+    );
+  }
+  return <FontAwesome name={icon} size={18} color={themeColor().pitchText} style={styles.rowIcon} />;
+}
+
 function make_styles() {
   return StyleSheet.create({
   root: { flex: 1, backgroundColor: themeColor().bg },
@@ -341,6 +383,9 @@ function make_styles() {
   },
   rowPressed: { opacity: 0.92 },
   rowIcon: { marginRight: 12 },
+  rowTopLine: { flexDirection: "row", alignItems: "center", gap: 8 },
+  rowTitleUnread: { fontFamily: "Inter_700Bold", fontWeight: "700" },
+  rowTime: { fontSize: 11, color: themeColor().muted, fontFamily: "Inter_500Medium" },
   rowTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
   rowSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   err: { color: themeColor().coralText, marginBottom: 12, fontSize: 13, fontFamily: "Inter_400Regular" },
