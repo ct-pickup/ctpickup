@@ -17,6 +17,7 @@ import {
 import MapView, { Marker, type MapMarkerProps, Region } from "react-native-maps";
 import Svg, { Circle } from "react-native-svg";
 import * as Location from "expo-location";
+import { requestLocationWithExplainer } from "@/lib/locationPrompt";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 
@@ -456,8 +457,7 @@ export default function SessionMapScreen() {
   useEffect(() => {
     void (async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") return;
+        if ((await requestLocationWithExplainer({ auto: true })) !== "granted") return;
         const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         // Small delay ensures MapView is fully mounted before animating
         setTimeout(() => {
@@ -475,9 +475,9 @@ export default function SessionMapScreen() {
   async function detectGpsZip() {
     setZipGpsLoading(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Permission denied", "Location access is required to detect your ZIP.");
+      const access = await requestLocationWithExplainer();
+      if (access !== "granted") {
+        if (access === "denied") Alert.alert("Permission denied", "Location access is required to detect your ZIP.");
         return;
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });

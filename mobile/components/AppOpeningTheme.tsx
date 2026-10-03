@@ -1,6 +1,6 @@
 import { appAsyncStorage } from "@/lib/appAsyncStorage";
-import { useEffect, useState } from "react";
-import { StyleSheet, useWindowDimensions, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming } from "react-native-reanimated";
 
 import { themeColor, useThemedStyles } from "@/theme";
@@ -71,6 +71,23 @@ function AppOpeningThemeInner({ onDone }: { onDone: () => void }) {
   const ripple2Opacity = useSharedValue(0);
   const brandOpacity = useSharedValue(0);
   const shellOpacity = useSharedValue(1);
+  const doneRef = useRef(false);
+
+  const finishOnce = useCallback(() => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    void (async () => {
+      await persistSeen();
+      onDone();
+    })();
+  }, [onDone]);
+
+  /** A tap skips the intro: fade out quickly, then finish. */
+  const skip = useCallback(() => {
+    if (doneRef.current) return;
+    shellOpacity.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.quad) });
+    setTimeout(finishOnce, 200);
+  }, [finishOnce, shellOpacity]);
 
   useEffect(() => {
     ripple1Opacity.value = withSequence(
@@ -93,12 +110,7 @@ function AppOpeningThemeInner({ onDone }: { onDone: () => void }) {
     const fadeTimer = setTimeout(() => {
       shellOpacity.value = withTiming(0, { duration: 420, easing: Easing.in(Easing.quad) });
     }, 2850);
-    const finishTimer = setTimeout(() => {
-      void (async () => {
-        await persistSeen();
-        onDone();
-      })();
-    }, 3300);
+    const finishTimer = setTimeout(finishOnce, 3300);
 
     return () => {
       clearTimeout(fadeTimer);
@@ -127,7 +139,8 @@ function AppOpeningThemeInner({ onDone }: { onDone: () => void }) {
 
   return (
     <Animated.View style={[styles.shell, shellStyle]} pointerEvents="auto">
-      <View style={styles.stage}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={skip} accessibilityRole="button" accessibilityLabel="Skip intro" />
+      <View style={styles.stage} pointerEvents="none">
         <View style={styles.ringLayer} pointerEvents="none">
           <Animated.View style={[styles.ring, r1Style]} />
           <Animated.View style={[styles.ring, r2Style]} />

@@ -11,6 +11,7 @@ import {
   PROFILE_USERNAME_MAX_LEN,
   USERNAME_TAKEN_USER_MESSAGE,
 } from "@/lib/profileIdentityFields";
+import { applyReferralCode } from "@/lib/referralApi";
 import { allocateUniqueProfileUsername } from "@/lib/profileUsernameAllocate";
 import { COMPLETE_PROFILE_ZIP_NO_VENUE_MSG } from "@/lib/playerLocationHints";
 import { getNearestVenues, getNearestVenuesFromApi, type VenueDistanceRow } from "@/lib/venueDistance";
@@ -197,6 +198,10 @@ export default function CompleteProfileScreen() {
   const [busy, setBusy] = useState(false);
   const [postSaveVenues, setPostSaveVenues] = useState<VenueDistanceRow[] | null>(null);
   const [photoStepDone, setPhotoStepDone] = useState(false);
+  const [showReferral, setShowReferral] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
+  /** Set when a typed code could not be applied; shown after the save and never blocks it. */
+  const [referralNote, setReferralNote] = useState<string | null>(null);
   const {
     required: photoRequired,
     avatarUrl,
@@ -445,6 +450,12 @@ export default function CompleteProfileScreen() {
         }
       }
 
+      // Optional referral code: same call as Settings. A bad code only leaves a note; saving is already done.
+      if (referralCode.trim()) {
+        const res = await applyReferralCode(session?.access_token ?? null, referralCode);
+        setReferralNote(res.ok ? null : `${res.error} You can try again later in Settings.`);
+      }
+
       setPostSaveVenues(nearestVenues);
     } catch (e) {
       const userMsg = "Something went wrong while saving your profile. Please try again.";
@@ -476,6 +487,7 @@ export default function CompleteProfileScreen() {
     session?.user?.id,
     session?.access_token,
     supabase,
+    referralCode,
   ]);
 
   const onContinueToApp = useCallback(() => {
@@ -544,6 +556,7 @@ export default function CompleteProfileScreen() {
             <>
               <Text style={styles.title}>{PHOTO_STEP_TITLE}</Text>
               <Text style={styles.subtitle}>{PHOTO_STEP_BODY}</Text>
+              {referralNote ? <Text style={styles.referralNote}>{referralNote}</Text> : null}
               <View style={styles.photoStep}>
                 <ProfilePhotoPicker
                   value={avatarUrl}
@@ -573,6 +586,7 @@ export default function CompleteProfileScreen() {
             <>
               <Text style={styles.title}>Profile saved</Text>
               <Text style={styles.subtitle}>You&apos;re ready to find pickup and events.</Text>
+              {referralNote ? <Text style={styles.referralNote}>{referralNote}</Text> : null}
 
               <View style={styles.nearestCard}>
                 <Text style={styles.nearestCardTitle}>Your nearest locations:</Text>
@@ -641,6 +655,27 @@ export default function CompleteProfileScreen() {
               autoCorrect
             />
             {liveErrors.last_name ? <Text style={styles.errText}>{liveErrors.last_name}</Text> : null}
+          </View>
+
+          <View style={styles.fieldBlock}>
+            {showReferral ? (
+              <>
+                <Text style={styles.label}>Have a referral code? (optional)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter code"
+                  placeholderTextColor={themeColor().muted}
+                  value={referralCode}
+                  onChangeText={setReferralCode}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                />
+              </>
+            ) : (
+              <Pressable onPress={() => setShowReferral(true)} hitSlop={8} accessibilityRole="button">
+                <Text style={styles.referralLink}>Have a code?</Text>
+              </Pressable>
+            )}
           </View>
 
           <View style={styles.fieldBlock}>
@@ -866,6 +901,8 @@ function make_styles() {
     textAlign: "center",
   },
   photoSkip: { marginTop: 16, alignSelf: "center", paddingVertical: 8 },
+  referralLink: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: themeColor().accent },
+  referralNote: { marginTop: 12, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().coralText, textAlign: "center" },
   photoSkipText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: themeColor().muted },
   label: {
     fontSize: 13, fontFamily: "Inter_700Bold",

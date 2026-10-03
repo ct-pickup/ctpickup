@@ -1,4 +1,5 @@
 import { siteOrigin } from "@/lib/env";
+import { applyReferralCode } from "@/lib/referralApi";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -118,31 +119,19 @@ export function ReferralSection({ accessToken }: Props) {
   }, [load]);
 
   async function onApplyCode() {
-    const origin = siteOrigin();
     const code = applyCode.trim().toUpperCase();
-    if (!origin || !accessToken || !code) return;
+    if (!accessToken || !code) return;
     setApplyBusy(true);
     setApplyMsg(null);
     try {
-      const r = await fetch(`${origin}/api/referral/apply`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ referral_code: code }),
-      });
-      const j = (await r.json().catch(() => null)) as { ok?: boolean; error?: string };
-      if (r.ok) {
+      const res = await applyReferralCode(accessToken, code);
+      if (res.ok) {
         setApplyCode("");
         setApplyMsg("Referral code applied.");
         await load();
       } else {
-        setApplyMsg(typeof j?.error === "string" ? j.error : "Could not apply code.");
+        setApplyMsg(res.error);
       }
-    } catch {
-      setApplyMsg("Network error. Try again.");
     } finally {
       setApplyBusy(false);
     }

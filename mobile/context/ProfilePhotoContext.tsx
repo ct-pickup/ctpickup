@@ -6,6 +6,7 @@ import ProfilePhotoSheet, { type PhotoSheetReason } from "@/components/photo/Pro
 import { useAuth } from "@/context/AuthContext";
 import { useProfileCompletionGate } from "@/context/ProfileCompletionContext";
 import { useWaiver } from "@/context/WaiverContext";
+import { appAsyncStorage } from "@/lib/appAsyncStorage";
 import { fetchProfilePhotoStatus } from "@/lib/profilePhoto";
 import { hasProfilePhoto, PHOTO_REQUIRED_CODE } from "@shared/profilePhoto";
 
@@ -21,11 +22,25 @@ type ProfilePhotoContextValue = {
   ensurePhotoForGame: () => boolean;
   /** Opens the sheet when an API response is 403 photo_required. Returns true if it handled the response. */
   handlePhotoRequired: (status: number, json: unknown) => boolean;
-  /** Stops the automatic sheet for the rest of this launch (signup "Not now"). */
+  /** True while the photo sheet is open (other first-run prompts wait for it). */
+  sheetOpen: boolean;
+  /** Stops the automatic sheet for the rest of this launch and for 7 days (signup "Not now"). */
   dismissNudge: () => void;
 };
 
 const ProfilePhotoContext = createContext<ProfilePhotoContextValue | undefined>(undefined);
+
+/** The nudge sheet (not the "removed" one) shows at most once per this long. */
+const NUDGE_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+const NUDGE_LAST_SHOWN_KEY = "ctpickup_photo_nudge_last_shown_v1";
+
+async function stampNudge(): Promise<void> {
+  try {
+    await appAsyncStorage.setItem(NUDGE_LAST_SHOWN_KEY, String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+}
 
 const NO_AUTO_SHEET_PATHS = ["/login", "/waiver", "/complete-profile", "/onboarding", "/reset-password"];
 
@@ -43,6 +58,8 @@ export function ProfilePhotoProvider({ children }: { children: React.ReactNode }
   const [hasPhoto, setHasPhoto] = useState<boolean | null>(null);
   const [sheet, setSheet] = useState<PhotoSheetReason | null>(null);
   const nudged = useRef(false);
+  /** null until the last-shown stamp has been read. */
+  const [nudgeDue, setNudgeDue] = useState<boolean | null>(null);
   const removedShown = useRef(false);
 
   const refresh = useCallback(async () => {
@@ -73,6 +90,23 @@ export function ProfilePhotoProvider({ children }: { children: React.ReactNode }
   }, [refresh]);
 
   useEffect(() => {
+    let cancelled = false;
+    void appAsyncStorage
+      .getItem(NUDGE_LAST_SHOWN_KEY)
+      .then((raw) => {
+        if (cancelled) return;
+        const last = raw ? Number(raw) : NaN;
+        setNudgeDue(!Number.isFinite(last) || Date.now() - last >= NUDGE_INTERVAL_MS);
+      })
+      .catch(() => {
+        if (!cancelled) setNudgeDue(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  useEffect(() => {
     const sub = AppState.addEventListener("change", (s) => {
       if (s === "active") void refresh();
     });
@@ -90,11 +124,12 @@ export function ProfilePhotoProvider({ children }: { children: React.ReactNode }
       setSheet("removed");
       return;
     }
-    if (!nudged.current) {
+    if (!nudged.current && nudgeDue === true) {
       nudged.current = true;
+      void stampNudge();
       setSheet("nudge");
     }
-  }, [gatesPassed, hasPhoto, removed, sheet, pathname]);
+  }, [gatesPassed, hasPhoto, removed, sheet, pathname, nudgeDue]);
 
   const setAvatarUrl = useCallback((url: string | null) => {
     setAvatarUrlState(url);
@@ -105,6 +140,7 @@ export function ProfilePhotoProvider({ children }: { children: React.ReactNode }
   const openPhotoSheet = useCallback((reason: PhotoSheetReason) => setSheet(reason), []);
   const dismissNudge = useCallback(() => {
     nudged.current = true;
+    void stampNudge();
   }, []);
 
   const ensurePhotoForGame = useCallback(() => {
@@ -123,8 +159,8 @@ export function ProfilePhotoProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const value = useMemo(
-    () => ({ required, avatarUrl, hasPhoto, setAvatarUrl, openPhotoSheet, ensurePhotoForGame, handlePhotoRequired, dismissNudge }),
-    [required, avatarUrl, hasPhoto, setAvatarUrl, openPhotoSheet, ensurePhotoForGame, handlePhotoRequired, dismissNudge],
+    () => ({ required, avatarUrl, hasPhoto, sheetOpen: sheet !== null, setAvatarUrl, openPhotoSheet, ensurePhotoForGame, handlePhotoRequired, dismissNudge }),
+    [required, avatarUrl, hasPhoto, sheet, setAvatarUrl, openPhotoSheet, ensurePhotoForGame, handlePhotoRequired, dismissNudge],
   );
 
   return (
