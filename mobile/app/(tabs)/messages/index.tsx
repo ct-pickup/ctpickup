@@ -1,5 +1,9 @@
 import { AnimatedPressScale } from "@/components/AnimatedPressScale";
 import { SignInPanel } from "@/components/SignInPanel";
+import NewMessageSheet from "@/components/chat/NewMessageSheet";
+import { useStartDm } from "@/components/chat/StartDmSheet";
+import { tabBarContentPadding } from "@/lib/tabBar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PlayerAvatar from "@/components/PlayerAvatar";
 import { useAuth } from "@/context/AuthContext";
 import { useRoomPreviews, type RoomPreview } from "@/hooks/useRoomPreviews";
@@ -55,6 +59,7 @@ export default function MessagesIndex() {
   useThemedStyles(publish_styles);
 
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { isReady, session } = useAuth();
   const signedIn = !!session?.user?.id;
   const { allowed, isAdmin } = useTeamChatAccess();
@@ -62,6 +67,8 @@ export default function MessagesIndex() {
   const { rooms, loading, error, reload } = useUserChatRooms(enabled);
   const adminDmPeerLabels = useAdminDmPeerLabels(enabled, isAdmin === true, rooms, session?.user?.id ?? null);
 
+  const [newMessageOpen, setNewMessageOpen] = useState(false);
+  const startDm = useStartDm();
   const [runChatTab, setRunChatTab] = useState<"active" | "past">("active");
   const [listRefreshing, setListRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
@@ -143,7 +150,7 @@ export default function MessagesIndex() {
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom: tabBarContentPadding(insets.bottom) }]}
       refreshControl={
         <RefreshControl
           refreshing={listRefreshing}
@@ -152,7 +159,22 @@ export default function MessagesIndex() {
         />
       }
     >
-      <Text style={styles.heading}>Messages</Text>
+      <View style={styles.headingRow}>
+        <Text style={styles.heading}>Messages</Text>
+        {isAdmin === true ? (
+          <Pressable
+            onPress={() => setNewMessageOpen(true)}
+            style={({ pressed }) => [styles.newBtn, pressed && styles.rowPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="New message"
+          >
+            <FontAwesome name="pencil-square-o" size={15} color={themeColor().onPitch} />
+            <Text style={styles.newBtnText}>New message</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      <NewMessageSheet visible={newMessageOpen} onClose={() => setNewMessageOpen(false)} onPick={(t) => void startDm.open(t)} />
+      {startDm.sheet}
       {loading && !listRefreshing ? (
         <ActivityIndicator color={themeColor().pitchText} style={{ marginVertical: 24 }} />
       ) : null}
@@ -340,7 +362,10 @@ function make_styles() {
     alignItems: "center",
   },
   pad: { flex: 1, backgroundColor: themeColor().bg, padding: 16 },
-  heading: { color: themeColor().text, fontSize: 24, ...headline, marginBottom: 4 },
+  headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
+  heading: { color: themeColor().text, fontSize: 24, ...headline },
+  newBtn: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: themeColor().pitch, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
+  newBtnText: { color: themeColor().onPitch, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
   title: {
     fontSize: 20, ...headline,
     color: themeColor().text,
