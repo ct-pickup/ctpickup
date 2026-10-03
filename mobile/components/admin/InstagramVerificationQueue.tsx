@@ -4,8 +4,10 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View 
 
 import PlayerAvatar from "@/components/PlayerAvatar";
 import { useAuth } from "@/context/AuthContext";
+import { StarLevelSelect } from "@/components/StarLevels";
 import { approveInstagramRequest, fetchInstagramQueue, rejectInstagramRequest } from "@/lib/instagramVerifyApi";
 import { themeColor, useThemedStyles } from "@/theme";
+import { INSTAGRAM_VERIFICATION_HANDLE } from "@/lib/brand";
 import { maskedVerificationHint, type InstagramVerificationQueueItem } from "@shared/instagramVerification";
 
 type Mode = { id: string; kind: "approve" | "reject" } | null;
@@ -28,6 +30,7 @@ export function InstagramVerificationQueue() {
   const [input, setInput] = useState("");
   const [inputError, setInputError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [level, setLevel] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -51,6 +54,7 @@ export function InstagramVerificationQueue() {
   function open(id: string, kind: "approve" | "reject") {
     setMode({ id, kind });
     setInput("");
+    setLevel(null);
     setInputError(null);
   }
 
@@ -61,10 +65,14 @@ export function InstagramVerificationQueue() {
       setInputError(mode.kind === "approve" ? "Enter the code from the DM." : "A reason is required.");
       return;
     }
+    if (mode.kind === "approve" && level == null) {
+      setInputError("Choose a starting level.");
+      return;
+    }
     setBusyId(item.id);
     const res =
       mode.kind === "approve"
-        ? await approveInstagramRequest(token, item.id, value)
+        ? await approveInstagramRequest(token, item.id, value, level as number)
         : await rejectInstagramRequest(token, item.id, value);
     setBusyId(null);
     if (!res.ok) {
@@ -119,6 +127,23 @@ export function InstagramVerificationQueue() {
                   style={s.input}
                   editable={!busy}
                 />
+                {active.kind === "approve" ? (
+                  <View style={s.levelBox}>
+                    <Text style={s.hint}>
+                      @{item.handle} · DM sent to @{INSTAGRAM_VERIFICATION_HANDLE}
+                    </Text>
+                    <Text style={s.meta}>
+                      Starting level. Above 3.0 lifts the unverified cap; 3.0 and below keeps it.
+                    </Text>
+                    <StarLevelSelect
+                      value={level}
+                      onChange={setLevel}
+                      minStar={1}
+                      title="Starting level"
+                      placeholder="Choose a starting level…"
+                    />
+                  </View>
+                ) : null}
                 {inputError ? <Text style={s.error}>{inputError}</Text> : null}
                 <View style={s.actions}>
                   <Pressable onPress={() => setMode(null)} disabled={busy} style={s.ghostBtn}>
@@ -196,6 +221,7 @@ function make_s() {
     muted: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular" },
     hint: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     entry: { gap: 8 },
+    levelBox: { gap: 6 },
     input: {
       borderWidth: 1,
       borderColor: themeColor().line,

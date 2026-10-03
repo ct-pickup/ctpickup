@@ -15,6 +15,7 @@ import {
   type InstagramVerificationQueueItem,
   type InstagramVerificationStatus,
 } from "@/shared/instagramVerification";
+import { isStarLevel } from "@/shared/starLevels";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -88,7 +89,15 @@ export async function GET(req: Request) {
   return NextResponse.json({ items });
 }
 
-type Body = { request_id?: unknown; decision?: unknown; code?: unknown; reason?: unknown };
+type Body = { request_id?: unknown; decision?: unknown; code?: unknown; reason?: unknown; level?: unknown };
+
+/** Lowest starting level an admin can pick on approval (Beginner). */
+const MIN_START_LEVEL = 1.0;
+
+/** PostgREST / Postgres codes for a function that has not been migrated yet. */
+function isMissingFunction(err: { code?: string; message?: string } | null): boolean {
+  return !!err && (err.code === "PGRST202" || err.code === "42883" || /could not find the function/i.test(err.message ?? ""));
+}
 
 export async function POST(req: Request) {
   const guard = await requireAdminBearer(req);
@@ -111,6 +120,10 @@ export async function POST(req: Request) {
   const reason = typeof body.reason === "string" ? body.reason.trim() : "";
   if (decision === "approve" && !code) {
     return NextResponse.json({ error: "Enter the 6-character code from the DM." }, { status: 400 });
+  }
+  const level = typeof body.level === "string" ? Number(body.level) : body.level;
+  if (decision === "approve" && !(isStarLevel(level) && level >= MIN_START_LEVEL)) {
+    return NextResponse.json({ error: "Choose a starting level, Beginner through Pro." }, { status: 400 });
   }
   if (decision === "reject" && !reason) {
     return NextResponse.json({ error: "Add a reason so the player knows what to fix." }, { status: 400 });
@@ -193,13 +206,18 @@ export async function POST(req: Request) {
     await release();
     return isMissingSchema(prof.error) ? unavailableResponse() : failed("profiles update", prof.error);
   }
-  const rating = await admin
-    .from("player_ratings")
-    .upsert({ user_id: row.user_id, verification: "instagram", updated_at: reviewedAt }, { onConflict: "user_id" });
+  // Seeds the chosen level and lifts the 3.0 cap only for a level above it. Never lifts silently.
+  const rating = await admin.rpc("approve_instagram_with_level", {
+    p_user_id: row.user_id,
+    p_level: level,
+    p_admin_id: guard.userId,
+  });
   if (rating.error) {
     await admin.from("profiles").update({ verification_level: priorLevel }).eq("id", row.user_id);
     await release();
-    return isMissingSchema(rating.error) ? unavailableResponse() : failed("player_ratings upsert", rating.error);
+    return isMissingSchema(rating.error) || isMissingFunction(rating.error)
+      ? unavailableResponse()
+      : failed("approve_instagram_with_level", rating.error);
   }
 
   return NextResponse.json({ ok: true, status: "approved" });

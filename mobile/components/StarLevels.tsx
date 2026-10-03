@@ -108,6 +108,7 @@ export function StarLevelSelect({
   title = "What's the highest level you've played?",
   placeholder = "Choose your level…",
   invalid,
+  minStar,
   style,
 }: {
   value: number | null;
@@ -115,6 +116,8 @@ export function StarLevelSelect({
   title?: string;
   placeholder?: string;
   invalid?: boolean;
+  /** Hide levels below this star (e.g. 1 hides "New"). */
+  minStar?: number;
   style?: StyleProp<ViewStyle>;
 }) {
   useThemedStyles(publish_styles);
@@ -134,7 +137,7 @@ export function StarLevelSelect({
         <FontAwesome name="caret-down" size={14} color={themeColor().muted} />
       </Pressable>
       <Sheet visible={open} title={title} onClose={() => setOpen(false)}>
-        {STAR_LEVELS.map((level) => (
+        {STAR_LEVELS.filter((level) => minStar == null || level.star >= minStar).map((level) => (
           <LevelRow
             key={level.star}
             level={level}
