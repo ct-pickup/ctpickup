@@ -1,7 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -18,16 +18,14 @@ import { useColorScheme } from "@/components/useColorScheme";
 import MapView, { Marker, type Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AvatarStack, type AvatarPerson } from "@/components/PlayerAvatar";
-import { PhotoHeader, useFieldPhotos } from "@/components/photo";
-import PlayedWithRow, { usePlayedWith } from "@/components/pickup/PlayedWithRow";
-import SpotsBadge, { ALMOST_FULL_AT } from "@/components/pickup/SpotsBadge";
+import { type AvatarPerson } from "@/components/PlayerAvatar";
+import { useFieldPhotos } from "@/components/photo";
+import { usePlayedWith } from "@/components/pickup/PlayedWithRow";
+import { ALMOST_FULL_AT } from "@/components/pickup/SpotsBadge";
 import {
   BestGamesCarousel,
-  crowdLine,
   EMPTY_CROWD,
   GameCard,
-  splitLocation,
   type RunCrowd,
 } from "@/components/games/GameCards";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
@@ -35,7 +33,7 @@ import { toggleDevPreview, useDevPreview } from "@/lib/devPreview";
 import { useInboxBadges } from "@/hooks/useInboxBadges";
 import { fetchBestGames, type BestGame, type PlayedWithSummary } from "@/lib/matchApi";
 import { effectiveMaxDriveMinutes } from "@/lib/pickup/profileMaxDriveFilter";
-import { currentHourEt, fmtPickupSlotChipEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
+import { currentHourEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
 import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 import { isServiceRegionCode, serviceRegionName } from "@/lib/serviceRegions";
 import { averageStars, fetchPlayerCards, type PlayerCard } from "@/lib/starRatings";
@@ -44,6 +42,8 @@ import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import type { DevFixtures } from "../../dev-fixtures";
 import { Wordmark } from "@/components/brand/Wordmark";
+import HomeCalendar from "@/components/home/HomeCalendar";
+import { tabBarContentPadding } from "@/lib/tabBar";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- must stay a __DEV__ require so release bundles drop dev-fixtures
 const devFixtures: DevFixtures | null = __DEV__ ? require("../../dev-fixtures").default : null;
@@ -494,64 +494,6 @@ function MapDot({ run }: { run: HomeRun }) {
   );
 }
 
-function UpNextCard({
-  run,
-  photo,
-  crowd,
-  playedWith,
-  onPress,
-}: {
-  run: HomeRun;
-  photo: string | undefined;
-  crowd: RunCrowd;
-  playedWith: PlayedWithSummary | undefined;
-  onPress: () => void;
-}) {
-  useThemedStyles(publish_styles);
-
-  const left = Math.max(run.capacity - run.spots_taken, 0);
-  const going = Math.max(run.spots_taken, crowd.people.length);
-  const { field, town } = splitLocation(run.location_text, run.title);
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel={`Up next, ${field}, ${fmtPickupSlotChipEt(run.start_at, runTimeTbd(run))}`}
-    >
-      {photo ? (
-        <View>
-          <PhotoHeader uri={photo} accessibilityLabel={`${field} field photo`} />
-          <SpotsBadge spotsLeft={left} style={styles.photoBadge} />
-        </View>
-      ) : null}
-      <View style={styles.cardBody}>
-        <View style={styles.cardTopRow}>
-          <Text style={styles.when} numberOfLines={1}>
-            {fmtPickupSlotChipEt(run.start_at, runTimeTbd(run))}
-          </Text>
-          {photo ? null : <SpotsBadge spotsLeft={left} />}
-        </View>
-        <Text style={styles.cardTitle} numberOfLines={1}>
-          {field}
-        </Text>
-        {town ? (
-          <Text style={styles.cardSub} numberOfLines={1}>
-            {town}
-          </Text>
-        ) : null}
-        <View style={styles.crowdRow}>
-          <AvatarStack people={crowd.people} total={going} />
-          <Text style={styles.crowdText} numberOfLines={1}>
-            {crowdLine(crowd.avgStar, going)}
-          </Text>
-        </View>
-        <PlayedWithRow summary={playedWith} style={styles.playedWith} />
-      </View>
-    </Pressable>
-  );
-}
-
 /* --------------------------------------------------------------- screen */
 
 export default function HomeScreen() {
@@ -564,7 +506,11 @@ export default function HomeScreen() {
   const preview = useDevPreview();
   const fixture = useMemo(() => (preview && devFixtures ? devFixtures.home() : null), [preview]);
   const scheme = useColorScheme();
-  const { session } = useAuth();
+  const { session, supabase } = useAuth();
+  const calendarRefresh = useRef<(() => void) | null>(null);
+  const registerCalendarRefresh = useCallback((fn: () => void) => {
+    calendarRefresh.current = fn;
+  }, []);
   const [refreshing, setRefreshing] = useState(false);
   const [mapWidth, setMapWidth] = useState(() => Dimensions.get("window").width - 40);
 
@@ -607,6 +553,7 @@ export default function HomeScreen() {
     setRefreshing(true);
     try {
       await reload();
+      calendarRefresh.current?.();
     } finally {
       setRefreshing(false);
     }
@@ -634,7 +581,10 @@ export default function HomeScreen() {
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 12) + 8 }]}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: Math.max(insets.top, 12) + 8, paddingBottom: tabBarContentPadding(insets.bottom) },
+      ]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={themeColor().muted} />
       }
@@ -686,29 +636,13 @@ export default function HomeScreen() {
         </Pressable>
       ) : null}
 
-      <SectionHeader label="Up next" />
-      {nextMatch ? (
-        <UpNextCard
-          run={nextMatch}
-          photo={fieldPhotos[nextMatch.id]}
-          crowd={crowds.get(nextMatch.id) ?? EMPTY_CROWD}
-          playedWith={playedWith[nextMatch.id]}
-          onPress={() => openRun(nextMatch.id)}
-        />
-      ) : (
-        <View style={[styles.card, styles.emptyCard]}>
-          <Text style={styles.emptyTitle} numberOfLines={1}>
-            Nothing on your calendar.
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={openMap}
-            style={({ pressed }) => [styles.accentBtn, pressed && styles.pressed]}
-          >
-            <Text style={styles.accentBtnText}>Get a game</Text>
-          </Pressable>
-        </View>
-      )}
+      <HomeCalendar
+        supabase={supabase}
+        myUserId={live.myUserId}
+        onOpenRun={openRun}
+        onGetGame={openMap}
+        registerRefresh={registerCalendarRefresh}
+      />
 
       {bestGames.length > 0 ? (
         <>
