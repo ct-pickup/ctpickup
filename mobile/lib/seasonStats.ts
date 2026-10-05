@@ -1,11 +1,22 @@
 import { seasonForStartAt } from "./pickup/points";
-import type { RecordGame } from "./playerRecord";
+
+/** The part of a record game these helpers read (structurally the same as StatsGame in playerRecord.ts). */
+export type StatsGame = {
+  run_id: string;
+  start_at: string | null;
+  title: string | null;
+  location_text: string | null;
+  team: string | null;
+  outcome: "W" | "D" | "L" | null;
+  score: string | null;
+  potd: boolean;
+};
 
 /** Games, wins, draws, losses and Player of the Day awards in one season, from the player's own game log. */
 export type SeasonTotals = { games: number; wins: number; draws: number; losses: number; potd: number };
 
 /** Only games with a posted result count, matching the points ledger's "played" rows. Season label like "Fall 2026". */
-export function seasonTotals(log: readonly RecordGame[] | null | undefined, season: string): SeasonTotals {
+export function seasonTotals(log: readonly StatsGame[] | null | undefined, season: string): SeasonTotals {
   const t: SeasonTotals = { games: 0, wins: 0, draws: 0, losses: 0, potd: 0 };
   for (const g of log ?? []) {
     if (g.outcome == null || seasonForStartAt(g.start_at) !== season) continue;
@@ -19,7 +30,7 @@ export function seasonTotals(log: readonly RecordGame[] | null | undefined, seas
 }
 
 /** The latest games that have a result, newest first. */
-export function lastGames(log: readonly RecordGame[] | null | undefined, n: number): RecordGame[] {
+export function lastGames(log: readonly StatsGame[] | null | undefined, n: number): StatsGame[] {
   return (log ?? [])
     .filter((g) => g.outcome != null)
     .sort((a, b) => String(b.start_at ?? "").localeCompare(String(a.start_at ?? "")))

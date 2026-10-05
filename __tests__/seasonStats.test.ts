@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { lastGames, seasonTotals, trendShape } from "../mobile/lib/seasonStats";
-import type { RecordGame } from "../mobile/lib/playerRecord";
+import { lastGames, seasonTotals, trendShape, type StatsGame } from "../mobile/lib/seasonStats";
 
-const g = (id: string, start: string | null, outcome: RecordGame["outcome"], potd = false): RecordGame => ({
+const g = (id: string, start: string | null, outcome: StatsGame["outcome"], potd = false): StatsGame => ({
   run_id: id, start_at: start, title: null, location_text: null, team: "A", outcome, score: null, potd,
 });
 
