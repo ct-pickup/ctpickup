@@ -74,6 +74,7 @@ export default function AdminLayout() {
       <Stack.Screen name="tools" options={{ title: "Admin Tools", headerShown: false, headerBackTitle: "Back" }} />
       <Stack.Screen name="proximity-search" options={{ title: "Proximity Search", headerShown: false, headerBackTitle: "Back" }} />
       <Stack.Screen name="monthly-leaders" options={{ title: "Monthly Leaders", headerShown: false, headerBackTitle: "Back" }} />
+      <Stack.Screen name="season-prize" options={{ title: "Season prize", headerShown: false, headerBackTitle: "Back" }} />
       <Stack.Screen name="tier-suggestions" options={{ title: "Tier Suggestions", headerBackTitle: "Back" }} />
       <Stack.Screen name="standing" options={{ title: "Standing", headerBackTitle: "Back" }} />
       <Stack.Screen name="chat" options={{ title: "Chat moderation", headerBackTitle: "Back" }} />

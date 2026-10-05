@@ -111,7 +111,7 @@ export default function SeasonPrizeScreen() {
           <Text style={styles.eyebrow}>{season.label}</Text>
           <Text style={styles.title}>Win the season.</Text>
           <Text style={styles.prize}>Win up to ${SEASON_PRIZE_USD}.</Text>
-          <Text style={styles.prizeSub}>Top 3 earn prizes. See the official rules.</Text>
+          <Text style={styles.prizeSub}>One winner takes the prize. See the official rules.</Text>
           <Text style={styles.dates}>
             {season.startText} to {season.endText}
           </Text>
