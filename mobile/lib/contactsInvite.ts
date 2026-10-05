@@ -43,3 +43,42 @@ export function filterInviteContacts(list: readonly InviteContact[], query: stri
   const digits = q.replace(/\D/g, "");
   return list.filter((c) => c.name.toLowerCase().includes(q) || (digits.length >= 3 && c.phone.replace(/\D/g, "").includes(digits)));
 }
+
+/** Digits of a phone number, with a leading US country code dropped, so "(203) 555-0100" and "+1 203 555 0100" match. */
+export function phoneKey(phone: string): string {
+  const d = phone.replace(/\D/g, "");
+  return d.length === 11 && d.startsWith("1") ? d.slice(1) : d;
+}
+
+/** One entry per phone number, first one wins, so nobody is texted twice. */
+export function dedupeByNumber(list: readonly InviteContact[]): InviteContact[] {
+  const seen = new Set<string>();
+  const out: InviteContact[] = [];
+  for (const c of list) {
+    const key = phoneKey(c.phone);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(c);
+  }
+  return out;
+}
+
+export type InviteSender = {
+  isSmsAvailable: () => Promise<boolean>;
+  sendSms: (addresses: string[], message: string) => Promise<unknown>;
+  share: (message: string) => Promise<unknown>;
+};
+
+/**
+ * Invites exactly one person. The message composer is only ever given that one number, never a list, so no recipient
+ * can see another's number. Without a composer (iPad, simulator) the share sheet carries the same message, with no
+ * recipient attached.
+ */
+export async function inviteOne(contact: InviteContact, message: string, sender: InviteSender): Promise<"composer" | "share"> {
+  if (await sender.isSmsAvailable()) {
+    await sender.sendSms([contact.phone], message);
+    return "composer";
+  }
+  await sender.share(message);
+  return "share";
+}

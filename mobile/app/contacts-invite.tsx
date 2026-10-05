@@ -7,7 +7,7 @@ import { ActivityIndicator, FlatList, Linking, Pressable, Share, StyleSheet, Tex
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
-import { CONTACTS_INVITE_ENABLED, filterInviteContacts, inviteContactsFrom, type InviteContact } from "@/lib/contactsInvite";
+import { CONTACTS_INVITE_ENABLED, dedupeByNumber, filterInviteContacts, inviteContactsFrom, inviteOne, type InviteContact } from "@/lib/contactsInvite";
 import { hapticTap } from "@/lib/haptics";
 import { buildInviteMessage } from "@/lib/invite";
 import { radius, themeColor, useThemedStyles } from "@/theme";
@@ -40,6 +40,10 @@ export default function ContactsInviteScreen() {
   const [phase, setPhase] = useState<"composing" | "next">("composing");
   const messageRef = useRef("");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Set by Done and on leaving the screen: nothing further opens after that, even if a composer is still up. */
+  const stoppedRef = useRef(false);
+  /** True while a composer is open, so a double tap cannot open a second one. */
+  const composingRef = useRef(false);
 
   const visible = useMemo(() => filterInviteContacts(contacts, query), [contacts, query]);
 
@@ -85,25 +89,44 @@ export default function ContactsInviteScreen() {
     timerRef.current = null;
   }, []);
 
-  useEffect(() => clearTimer, [clearTimer]);
+  useEffect(
+    () => () => {
+      stoppedRef.current = true;
+      clearTimer();
+    },
+    [clearTimer],
+  );
+
+  const stop = useCallback(() => {
+    stoppedRef.current = true;
+    clearTimer();
+    router.back();
+  }, [clearTimer, router]);
 
   /** Opens the composer for one person (never a group), then moves on whether the message was sent or cancelled. */
   async function openFor(list: InviteContact[], i: number) {
     clearTimer();
+    if (stoppedRef.current || composingRef.current) return;
+    composingRef.current = true;
     setPos(i);
     setPhase("composing");
     try {
-      if (await SMS.isAvailableAsync()) await SMS.sendSMSAsync([list[i]!.phone], messageRef.current);
-      // No text composer (iPad, simulator): the share sheet carries the same message for this one person.
-      else await Share.share({ message: messageRef.current });
+      await inviteOne(list[i]!, messageRef.current, {
+        isSmsAvailable: () => SMS.isAvailableAsync(),
+        sendSms: (addresses, message) => SMS.sendSMSAsync(addresses, message),
+        share: (message) => Share.share({ message }),
+      });
     } catch {
       setNotice("Couldn't open Messages for that person.");
+    } finally {
+      composingRef.current = false;
     }
     queueNext(list, i + 1);
   }
 
   /** Shows "Next: <name>" and opens that person's composer after a short pause (Skip and Done cancel it). */
   function queueNext(list: InviteContact[], i: number) {
+    if (stoppedRef.current) return;
     if (i >= list.length) {
       router.back();
       return;
@@ -118,7 +141,8 @@ export default function ContactsInviteScreen() {
     setSending(true);
     setNotice(null);
     try {
-      const list = contacts.filter((c) => selected.has(c.id));
+      const list = dedupeByNumber(contacts.filter((c) => selected.has(c.id)));
+      stoppedRef.current = false;
       messageRef.current = await buildInviteMessage(session?.access_token);
       setQueue(list);
       void openFor(list, 0);
@@ -146,7 +170,7 @@ export default function ContactsInviteScreen() {
           {pos + 1} of {queue.length}
         </Text>
         <Text style={styles.title}>{phase === "next" ? `Next: ${person?.name ?? ""}` : (person?.name ?? "")}</Text>
-        <Text style={styles.body}>{phase === "next" ? "Opening Messages…" : "Send the invite, or cancel to move on."}</Text>
+        <Text style={styles.body}>{phase === "next" ? "Opening Messages…" : "Send the invite, or cancel to move on. Tap Done to stop."}</Text>
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
         {phase === "next" ? (
           <>
@@ -165,14 +189,7 @@ export default function ContactsInviteScreen() {
             </Pressable>
           </>
         ) : null}
-        <Pressable
-          onPress={() => {
-            clearTimer();
-            router.back();
-          }}
-          hitSlop={8}
-          accessibilityRole="button"
-        >
+        <Pressable onPress={stop} hitSlop={8} accessibilityRole="button" accessibilityLabel="Stop inviting">
           <Text style={styles.link}>Done</Text>
         </Pressable>
       </View>
@@ -272,7 +289,7 @@ export default function ContactsInviteScreen() {
         <>
           <FontAwesome name="address-book-o" size={32} color={themeColor().pitchText} />
           <Text style={styles.title}>Invite friends</Text>
-          <Text style={styles.body}>Pick friends to invite. Contacts stay on your phone.</Text>
+          <Text style={styles.body}>Pick friends to invite. Each friend gets their own message. Contacts stay on your phone.</Text>
           {notice ? <Text style={styles.notice}>{notice}</Text> : null}
           <Pressable onPress={() => void start()} style={({ pressed }) => [styles.btn, pressed && styles.pressed]} accessibilityRole="button">
             <Text style={styles.btnText}>Choose friends</Text>
