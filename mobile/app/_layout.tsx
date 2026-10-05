@@ -390,6 +390,17 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
+                            name="season-stats"
+                            options={{
+                              headerShown: true,
+                              title: "Season stats",
+                              headerBackTitle: "Profile",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
                             name="following"
                             options={{
                               headerShown: true,
