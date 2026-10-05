@@ -76,9 +76,8 @@ export default function SeasonRulesPage() {
               (December to February). Only games played during the season count.
             </p>
             <p className="mt-3">
-              Prizes for the season go to the top three players. Prize amounts by place:{" "}
-              <span className={TODO}>[TO CONFIRM: 1st ${SEASON_PRIZE_USD}, 2nd and 3rd amounts]</span>. Currency, taxes and any
-              additional prizes: <span className={TODO}>[TO CONFIRM]</span>.
+              There is one prize each season: ${SEASON_PRIZE_USD} to the single winner, the eligible player in first place. There is
+              no second or third place prize. Currency and taxes: <span className={TODO}>[TO CONFIRM]</span>.
             </p>
           </section>
 
@@ -92,7 +91,10 @@ export default function SeasonRulesPage() {
               <li>{POINTS.potd} points for Player of the Day</li>
             </ul>
             <p className="mt-3">
-              Rank is by season points. Tie-breaker: <span className={TODO}>[TO CONFIRM]</span>. The leaderboard in the app is the
+              The winner is the eligible player with the most season points. If players are tied, the tie is broken in this
+              order: (1) most season points, (2) most wins, (3) most Player of the Day awards, (4) earliest season entry time.
+              Tie-breaker wording: <span className={TODO}>[TO CONFIRM]</span>. If the winner is disqualified, the prize goes to the
+              next eligible player in the same order. The leaderboard in the app is the
               reference for standings during the season; the Organizer&rsquo;s final tally at the end of the season decides.
             </p>
           </section>
