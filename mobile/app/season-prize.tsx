@@ -1,13 +1,13 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { useEffect, useState } from "react";
-import { AccessibilityInfo, Animated, BackHandler, Easing, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, Animated, BackHandler, Easing, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
-import { siteOrigin } from "@/lib/env";
 import { POINTS } from "@/lib/pickup/points";
 import { SEASON_PRIZE_USD, seasonWindowFor } from "@/lib/pickup/seasonPrize";
+import { APPLE_DISCLAIMER } from "@shared/seasonRules";
 import { enterSeason, markSeasonIntroSeen, SEASON_PRIZE_ENABLED, skipSeasonIntroThisSession } from "@/lib/seasonPrize";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
@@ -95,8 +95,7 @@ export default function SeasonPrizeScreen() {
   }
 
   function openRules() {
-    const origin = siteOrigin();
-    if (origin) void Linking.openURL(`${origin}/season-rules`);
+    router.push("/season-rules" as Href);
   }
 
   if (!SEASON_PRIZE_ENABLED) {
@@ -123,6 +122,7 @@ export default function SeasonPrizeScreen() {
           <Pressable onPress={openRules} hitSlop={8} accessibilityRole="link">
             <Text style={styles.link}>Read the official rules</Text>
           </Pressable>
+          <Text style={styles.apple}>{APPLE_DISCLAIMER}</Text>
         </View>
 
         {!ready ? (
@@ -208,6 +208,7 @@ function make_styles() {
     boxOn: { backgroundColor: c.pitch, borderColor: c.pitch },
     tick: { color: c.onPitch, fontSize: 15, fontFamily: "Inter_700Bold" },
     pledgeText: { flex: 1, color: c.text, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
+    apple: { color: c.onPitch, opacity: 0.8, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 6 },
     prizeSub: { color: c.onPitch, opacity: 0.85, fontSize: 14, fontFamily: "Inter_500Medium", marginTop: 2 },
     soon: { color: c.muted, fontSize: 15, fontFamily: "Inter_500Medium", textAlign: "center" },
     calm: { flexDirection: "row", alignItems: "flex-start", gap: 8 },

@@ -8,6 +8,7 @@ import { seasonWindowFor, SEASON_PRIZE_MIN_GAMES, SEASON_PRIZE_USD } from "@/lib
 import { fetchSeasonStanding, seasonDaysLeft, seasonGamesFromLog, type SeasonStanding } from "@/lib/seasonCard";
 import { fetchSeasonEntered, SEASON_PRIZE_ENABLED } from "@/lib/seasonPrize";
 import { radius, themeColor, useThemedStyles } from "@/theme";
+import { APPLE_DISCLAIMER } from "@shared/seasonRules";
 
 type Props = {
   /**
@@ -81,6 +82,9 @@ function SeasonCardInner({ standing: given }: Props) {
         <Stat value={standing ? rankText : "–"} label="Rank" />
         <Stat value={games == null ? "–" : `${games} of ${SEASON_PRIZE_MIN_GAMES}`} label="Games" />
       </View>
+      <Pressable onPress={() => (router.push as (href: string) => void)("/season-rules")} hitSlop={6} accessibilityRole="link">
+        <Text style={styles.rules}>Official rules · {APPLE_DISCLAIMER}</Text>
+      </Pressable>
     </View>
   );
 }
@@ -109,6 +113,7 @@ function make_styles() {
     enterBtn: { backgroundColor: c.pitch, borderRadius: radius.button, paddingHorizontal: 14, paddingVertical: 8 },
     enterText: { color: c.onPitch, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
     pressed: { opacity: 0.85 },
+    rules: { color: c.muted, fontSize: 11, fontFamily: "Inter_500Medium" },
     stats: { flexDirection: "row", gap: 8 },
     stat: { flex: 1, minWidth: 0 },
     statValue: { color: c.text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },

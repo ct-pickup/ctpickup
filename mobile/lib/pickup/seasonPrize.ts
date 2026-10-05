@@ -12,9 +12,9 @@
 export const SEASON_PRIZE_USD = 150;
 
 /** Version of the official rules the entry pledge was accepted under. Bump when the rules change. */
-export const SEASON_PRIZE_RULES_VERSION = "draft-1";
+export const SEASON_PRIZE_RULES_VERSION = "draft-2";
 
-/** Games needed in the season to be prize-eligible (stated in the rules page; not enforced here). */
+/** Games needed in the season to be prize-eligible (stated in the rules and applied when ranking winners (lib/season/prizeRanking.ts); not a condition of entering). */
 export const SEASON_PRIZE_MIN_GAMES = 10;
 
 const TIME_ZONE = "America/New_York";
