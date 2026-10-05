@@ -1,17 +1,20 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- react-native-purchases needs native code, required lazily so Expo Go still loads */
 import { NativeModules, Platform, TurboModuleRegistry } from "react-native";
 
-import { CTPLUS_ENTITLEMENT_ID, CTPLUS_PRODUCT_ID, revenueCatIosKey } from "@/lib/ctplus/config";
+import { CTPLUS_ENTITLEMENT_ID, revenueCatIosKey } from "@/lib/ctplus/config";
+import { PLAN_IDS, PLAN_META, type PlanId } from "@/lib/ctplus/plans";
 
 type CustomerInfo = { entitlements: { active: Record<string, unknown> } };
-type StoreProduct = { identifier: string; priceString: string };
+type StoreProduct = { identifier: string; priceString: string; price: number; currencyCode: string };
+type RcPackage = { identifier: string; product: StoreProduct };
+type Offerings = { current: { availablePackages: RcPackage[] } | null };
 type PurchasesModule = {
   configure: (opts: { apiKey: string; appUserID?: string | null }) => void;
   logIn: (appUserID: string) => Promise<{ customerInfo: CustomerInfo }>;
   logOut: () => Promise<CustomerInfo>;
   getCustomerInfo: () => Promise<CustomerInfo>;
-  getProducts: (ids: string[]) => Promise<StoreProduct[]>;
-  purchaseStoreProduct: (product: StoreProduct) => Promise<{ customerInfo: CustomerInfo }>;
+  getOfferings: () => Promise<Offerings>;
+  purchasePackage: (pkg: RcPackage) => Promise<{ customerInfo: CustomerInfo }>;
   restorePurchases: () => Promise<CustomerInfo>;
   addCustomerInfoUpdateListener: (cb: (info: CustomerInfo) => void) => void;
   removeCustomerInfoUpdateListener: (cb: (info: CustomerInfo) => void) => boolean | void;
@@ -80,27 +83,55 @@ export function onEntitlementChange(cb: (isPlus: boolean) => void): () => void {
   };
 }
 
-/** The store's localized price for the annual product, e.g. "$9.99". */
-export async function fetchPriceString(): Promise<string | null> {
+/** One purchasable plan from the current offering. `price` and `priceString` are the store's own. */
+export type CtPlusPlan = {
+  id: PlanId;
+  productId: string;
+  priceString: string;
+  price: number;
+  currencyCode: string;
+  /** The RevenueCat package, handed back to purchasePackage. */
+  pkg: unknown;
+};
+
+export type OfferingResult = { ok: true; plans: Partial<Record<PlanId, CtPlusPlan>> } | { ok: false };
+
+/**
+ * The monthly ($rc_monthly) and annual ($rc_annual) packages of the RevenueCat current offering.
+ * Fails (ok false) when the SDK is unavailable, the request errors or the offering has neither package.
+ */
+export async function loadOffering(): Promise<OfferingResult> {
   const api = loadPurchases();
-  if (!api) return null;
+  if (!api) return { ok: false };
   try {
-    const [product] = await api.getProducts([CTPLUS_PRODUCT_ID]);
-    return product?.priceString ?? null;
+    const offerings = await api.getOfferings();
+    const packages = offerings.current?.availablePackages ?? [];
+    const plans: Partial<Record<PlanId, CtPlusPlan>> = {};
+    for (const id of PLAN_IDS) {
+      const pkg = packages.find((p) => p.identifier === PLAN_META[id].packageId);
+      if (!pkg) continue;
+      plans[id] = {
+        id,
+        productId: pkg.product.identifier,
+        priceString: pkg.product.priceString,
+        price: pkg.product.price,
+        currencyCode: pkg.product.currencyCode,
+        pkg,
+      };
+    }
+    return plans.monthly || plans.annual ? { ok: true, plans } : { ok: false };
   } catch {
-    return null;
+    return { ok: false };
   }
 }
 
 export type PurchaseOutcome = "purchased" | "cancelled" | "unavailable" | "failed";
 
-export async function purchaseAnnual(): Promise<PurchaseOutcome> {
+export async function purchasePlan(plan: CtPlusPlan): Promise<PurchaseOutcome> {
   const api = loadPurchases();
   if (!api) return "unavailable";
   try {
-    const [product] = await api.getProducts([CTPLUS_PRODUCT_ID]);
-    if (!product) return "unavailable";
-    const { customerInfo } = await api.purchaseStoreProduct(product);
+    const { customerInfo } = await api.purchasePackage(plan.pkg as RcPackage);
     return hasCtPlus(customerInfo) ? "purchased" : "failed";
   } catch (e) {
     return (e as { userCancelled?: boolean })?.userCancelled ? "cancelled" : "failed";

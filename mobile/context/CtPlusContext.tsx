@@ -1,15 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { useAuth } from "@/context/AuthContext";
-import { CTPLUS_ENABLED, CTPLUS_FALLBACK_PRICE } from "@/lib/ctplus/config";
+import { CTPLUS_ENABLED } from "@/lib/ctplus/config";
+import type { PlanId } from "@/lib/ctplus/plans";
 import {
-  fetchPriceString,
   forget,
   identify,
+  loadOffering,
   onEntitlementChange,
-  purchaseAnnual,
+  purchasePlan,
   purchasesAvailable,
   restore,
+  type CtPlusPlan,
   type PurchaseOutcome,
 } from "@/lib/ctplus/purchases";
 
@@ -20,9 +22,13 @@ type CtPlusValue = {
   isPlus: boolean;
   /** Purchases can run (iOS dev/production build with the SDK and a key). False in Expo Go. */
   canPurchase: boolean;
-  priceLabel: string;
+  /** The plans in the RevenueCat current offering, with the store's prices. Empty until loaded. */
+  plans: Partial<Record<PlanId, CtPlusPlan>>;
+  /** "loading" until the offering answers; "unavailable" when it failed or has no packages. */
+  offering: "loading" | "ready" | "unavailable";
+  reloadOffering: () => Promise<void>;
   busy: boolean;
-  purchase: () => Promise<PurchaseOutcome>;
+  purchase: (plan: PlanId) => Promise<PurchaseOutcome>;
   restorePurchases: () => Promise<boolean>;
 };
 
@@ -30,7 +36,9 @@ const OFF: CtPlusValue = {
   enabled: false,
   isPlus: false,
   canPurchase: false,
-  priceLabel: CTPLUS_FALLBACK_PRICE,
+  plans: {},
+  offering: "unavailable",
+  reloadOffering: async () => {},
   busy: false,
   purchase: async () => "unavailable",
   restorePurchases: async () => false,
@@ -42,8 +50,16 @@ export function CtPlusProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   const userId = session?.user?.id ?? null;
   const [isPlus, setIsPlus] = useState(false);
-  const [price, setPrice] = useState<string | null>(null);
+  const [plans, setPlans] = useState<Partial<Record<PlanId, CtPlusPlan>>>({});
+  const [offering, setOffering] = useState<"loading" | "ready" | "unavailable">("loading");
   const [busy, setBusy] = useState(false);
+
+  const reloadOffering = useCallback(async () => {
+    setOffering("loading");
+    const r = await loadOffering();
+    setPlans(r.ok ? r.plans : {});
+    setOffering(r.ok ? "ready" : "unavailable");
+  }, []);
 
   useEffect(() => {
     if (!CTPLUS_ENABLED) return;
@@ -55,10 +71,11 @@ export function CtPlusProvider({ children }: { children: ReactNode }) {
         return;
       }
       const plus = await identify(userId).catch(() => false);
-      const label = await fetchPriceString();
+      const result = await loadOffering();
       if (cancelled) return;
       setIsPlus(plus);
-      setPrice(label);
+      setPlans(result.ok ? result.plans : {});
+      setOffering(result.ok ? "ready" : "unavailable");
     })();
     const off = CTPLUS_ENABLED ? onEntitlementChange(setIsPlus) : () => {};
     return () => {
@@ -67,16 +84,21 @@ export function CtPlusProvider({ children }: { children: ReactNode }) {
     };
   }, [userId]);
 
-  const purchase = useCallback(async () => {
-    setBusy(true);
-    try {
-      const outcome = await purchaseAnnual();
-      if (outcome === "purchased") setIsPlus(true);
-      return outcome;
-    } finally {
-      setBusy(false);
-    }
-  }, []);
+  const purchase = useCallback(
+    async (planId: PlanId) => {
+      const plan = plans[planId];
+      if (!plan) return "unavailable" as const;
+      setBusy(true);
+      try {
+        const outcome = await purchasePlan(plan);
+        if (outcome === "purchased") setIsPlus(true);
+        return outcome;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [plans],
+  );
 
   const restorePurchases = useCallback(async () => {
     setBusy(true);
@@ -96,13 +118,15 @@ export function CtPlusProvider({ children }: { children: ReactNode }) {
             enabled: true,
             isPlus,
             canPurchase: purchasesAvailable(),
-            priceLabel: price ?? CTPLUS_FALLBACK_PRICE,
+            plans,
+            offering,
+            reloadOffering,
             busy,
             purchase,
             restorePurchases,
           }
         : OFF,
-    [isPlus, price, busy, purchase, restorePurchases],
+    [isPlus, plans, offering, reloadOffering, busy, purchase, restorePurchases],
   );
 
   return <CtPlusContext.Provider value={value}>{children}</CtPlusContext.Provider>;
