@@ -204,7 +204,7 @@ function productionPushDeviceQuery(admin: SupabaseClient, opts?: PushDeviceQuery
   // New registrations must set standalone/bare; storeClient is never stored.
   let q = admin
     .from("user_push_devices")
-    .select("expo_push_token, installation_context")
+    .select("user_id, expo_push_token, installation_context")
     .eq("push_notifications_enabled", true)
     .or(
       `installation_context.in.(${PRODUCTION_PUSH_INSTALLATION_CONTEXTS.join(",")}),installation_context.is.null`,
@@ -330,6 +330,7 @@ export async function sendPushToAll(
 export async function sendMarketingPushToAll(
   admin: SupabaseClient,
   payload: ExpoPushPayload,
+  opts?: { excludeUserIds?: ReadonlySet<string> },
 ): Promise<SendPushResult> {
   const res = await productionPushDeviceQuery(admin, { marketingOnly: true }).limit(MAX_TOKEN_QUERY);
   if (res.error) {
@@ -338,7 +339,9 @@ export async function sendMarketingPushToAll(
     });
     return { tokens: 0, batches: [], lookupError: res.error.message };
   }
+  const excluded = opts?.excludeUserIds;
   const tokens = (res.data ?? [])
+    .filter((r) => !excluded?.size || !excluded.has(String((r as { user_id?: unknown }).user_id ?? "")))
     .map((r) => (r as { expo_push_token?: unknown }).expo_push_token)
     .filter((t): t is string => typeof t === "string" && t.length > 10);
   return sendTokensToExpo(admin, tokens, payload);

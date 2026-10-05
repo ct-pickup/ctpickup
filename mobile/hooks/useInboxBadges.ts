@@ -2,6 +2,7 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 
 import { useAuth } from "@/context/AuthContext";
+import { fetchActiveMutes } from "@/lib/chatMute";
 import { fetchNotifications } from "@/lib/notificationsApi";
 
 export type InboxBadges = { messages: number; notifications: number };
@@ -41,8 +42,11 @@ export function useInboxBadges(): InboxBadges {
           .eq("user_id", userId);
         if (members.error || !members.data?.length) return 0;
 
+        // A muted chat stays quiet: its unread messages show in the list but do not add to this count.
+        const muted = await fetchActiveMutes(supabase, userId);
         let total = 0;
         for (const row of members.data as Array<{ room_id: string; last_read_at: string | null }>) {
+          if (muted.has(row.room_id)) continue;
           let q = supabase
             .from("chat_messages")
             .select("id", { count: "exact", head: true })
