@@ -61,7 +61,7 @@ function SeasonCardInner({ standing: given }: Props) {
           <Text style={styles.label} numberOfLines={1}>
             {season.label} · {daysLeft} {daysLeft === 1 ? "day" : "days"} left
           </Text>
-          <Text style={styles.prize}>Win up to ${SEASON_PRIZE_USD}</Text>
+          <Text style={styles.prize}>Win ${SEASON_PRIZE_USD}</Text>
         </View>
         {entered ? (
           <View style={styles.badge}>

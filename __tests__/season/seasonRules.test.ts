@@ -7,7 +7,7 @@ const sections = seasonRuleSections({
   minGames: 10,
   points: { played: 1, win: 3, draw: 1, potd: 2 },
   season: { label: "Fall 2026", startText: "Sep 1", endText: "Nov 30, 2026" },
-  rulesVersion: "draft-2",
+  rulesVersion: "draft-3",
 });
 const text = JSON.stringify(sections);
 
@@ -22,19 +22,25 @@ describe("season official rules", () => {
     expect(text).toContain("Apple Inc. is not involved");
   });
 
-  it("keeps every item the sponsor must fill as a visible placeholder", () => {
-    expect(listPlaceholders(sections)).toEqual(
-      expect.arrayContaining([
-        "[SPONSOR LEGAL NAME AND ADDRESS]",
-        "[MINIMUM AGE]",
-        "[SEASON START]",
-        "[SEASON END]",
-        "[ANNOUNCE DATE]",
-        "[PAYOUT METHOD]",
-        "[CLAIM DAYS]",
-        "[CONTACT EMAIL]",
-      ]),
-    );
+  it("has no placeholders left, and splitting still highlights any that appear", () => {
+    expect(listPlaceholders(sections)).toEqual([]);
+    expect(listPlaceholders([{ id: "x", title: "x", blocks: [{ kind: "p", text: "Email [CONTACT EMAIL]" }] }])).toEqual(["[CONTACT EMAIL]"]);
+  });
+
+  it("states the filled-in sponsor, age, dates, announcement, payout, claim, contact and exclusions", () => {
+    expect(text).toContain("CT Pickup LLC (doing business as Competitive Together), 2389 Main Street, STE 100, Glastonbury, CT 06033, United States");
+    expect(text).toContain("be 18 years of age or older");
+    expect(text).toContain("The Fall 2026 season runs from Sep 1 through Nov 30, 2026, Eastern Time.");
+    expect(text).toContain("within 7 days after the season ends");
+    expect(text).toContain("by Venmo, PayPal or check, at the winner\u2019s choice");
+    expect(text).toContain("within 14 days of being notified");
+    expect(text).toContain("pickupct@gmail.com");
+    expect(text).toContain("Employees, hosts and administrators of Competitive Together, and members of their households, are not eligible to win.");
+  });
+
+  it("says free and paid games count the same toward the minimum", () => {
+    expect(text).toContain("Games with no fee count toward the 10-game minimum exactly the same as paid games");
+    expect(text).toContain("paid and free games are counted identically");
   });
 
   it("describes one winner and the tie-break order the code implements", () => {
