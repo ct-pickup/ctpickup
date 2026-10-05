@@ -17,7 +17,8 @@ function bearer(req: Request) {
 /**
  * GET /api/discover/directory?position=&min_star=&max_star=&max_drive=&cursor=
  *
- * One page (20) of the player directory. CT+ is gated in the app only; this route has no server-side subscription
+ * One page (20) of the player directory. Distance is only ever a range (driveBucket), never exact minutes; max_drive
+ * must be 15, 30 or 45 (anything else is a 400). CT+ is gated in the app only; this route has no server-side subscription
  * check, so it is safe for any approved member: same people and same fields as Discover, rate limited, and never
  * deeper than DIRECTORY_MAX_OFFSET players into a filtered list.
  */
