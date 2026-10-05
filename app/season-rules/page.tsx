@@ -9,8 +9,8 @@ import { APPLE_DISCLAIMER, seasonRuleSections, splitPlaceholders } from "@/share
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Season Prize Official Rules (Draft) | Competitive Together",
-  description: "Official rules for the Competitive Together season prize. Draft, pending legal review.",
+  title: "Season Prize Official Rules | Competitive Together",
+  description: "Official rules for the Competitive Together season prize.",
 };
 
 const TODO = "rounded bg-card px-1 font-medium text-ink ring-1 ring-line";
@@ -55,10 +55,6 @@ export default function SeasonRulesPage() {
       <h1 className="mt-6 text-h1 font-serif font-semibold text-ink md:text-display">Season Prize: Official Rules</h1>
       <p className="mt-2 text-small text-muted">Rules version {SEASON_PRIZE_RULES_VERSION}</p>
 
-      <div className="mt-4 rounded-lg border border-line bg-card p-4 text-small text-ink" role="note">
-        <strong>Draft, pending legal review.</strong> These rules are not final. Items in{" "}
-        <span className={TODO}>[BRACKETS]</span> are still to be filled in.
-      </div>
       <p className="mt-4 text-small font-medium text-ink">{APPLE_DISCLAIMER}</p>
 
       <Panel className="mt-6 p-6 md:p-8">

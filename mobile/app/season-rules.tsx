@@ -5,7 +5,7 @@ import { siteOrigin } from "@/lib/env";
 import { POINTS } from "@/lib/pickup/points";
 import { SEASON_PRIZE_MIN_GAMES, SEASON_PRIZE_RULES_VERSION, SEASON_PRIZE_USD, seasonWindowFor } from "@/lib/pickup/seasonPrize";
 import { SEASON_PRIZE_ENABLED } from "@/lib/seasonPrize";
-import { radius, themeColor, useThemedStyles } from "@/theme";
+import { themeColor, useThemedStyles } from "@/theme";
 import { APPLE_DISCLAIMER, seasonRuleSections, splitPlaceholders } from "@shared/seasonRules";
 
 function Rich({ text, style }: { text: string; style: object }) {
@@ -60,9 +60,6 @@ export default function SeasonRulesScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Season Prize: Official Rules</Text>
       <Text style={styles.meta}>Rules version {SEASON_PRIZE_RULES_VERSION}</Text>
-      <View style={styles.note}>
-        <Rich style={styles.noteText} text="Draft, pending legal review. These rules are not final. Items in [BRACKETS] are still to be filled in." />
-      </View>
       <Text style={styles.apple}>{APPLE_DISCLAIMER}</Text>
 
       {sections.map((s) => (
@@ -100,8 +97,6 @@ function make_styles() {
     content: { padding: 16, paddingBottom: 48, gap: 14 },
     title: { color: c.text, fontSize: 22, fontFamily: "Inter_700Bold", fontWeight: "700" },
     meta: { color: c.muted, fontSize: 12, fontFamily: "Inter_400Regular" },
-    note: { padding: 12, borderRadius: radius.card, borderWidth: 1, borderColor: c.line, backgroundColor: c.card },
-    noteText: { color: c.text, fontSize: 13, fontFamily: "Inter_500Medium", lineHeight: 19 },
     apple: { color: c.text, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     section: { gap: 8 },
     h2: { color: c.text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },

@@ -1,7 +1,7 @@
 /**
  * Season prize official rules: the single source for the website (/season-rules) and the in-app rules screen.
- * Plain English, numbered sections. Every [BRACKETED] item is a placeholder that must be filled before launch; the
- * page and the app render them highlighted. Behaviour described here comes from the code:
+ * Plain English, numbered sections. Any [BRACKETED] item is a placeholder that must be filled before launch; the
+ * page and the app render them highlighted (none are left at the moment). Behaviour described here comes from the code:
  *   - ranking and tie-break: lib/season/prizeRanking.ts
  *   - points and what counts as a posted result: lib/pickup/points.ts, lib/points/ledger.ts
  *   - entry: app/api/season-prize/entry/route.ts; disqualification: app/api/admin/season-prize/route.ts
@@ -59,7 +59,7 @@ export function seasonRuleSections(i: SeasonRulesInput): RuleSection[] {
       id: "sponsor",
       title: "1. Sponsor",
       blocks: [
-        p("This contest is sponsored by [SPONSOR LEGAL NAME AND ADDRESS] (the “Sponsor”)."),
+        p("This contest is sponsored by CT Pickup LLC (doing business as Competitive Together), 2389 Main Street, STE 100, Glastonbury, CT 06033, United States (the “Sponsor”)."),
         p(`${APPLE_DISCLAIMER} Apple Inc. is not involved in this contest in any way.`),
       ],
     },
@@ -73,7 +73,7 @@ export function seasonRuleSections(i: SeasonRulesInput): RuleSection[] {
         p(
           "Buying a game spot, a subscription (such as CT+) or any other product does not improve your chances of winning. The winner is chosen only by the results described in section 5.",
         ),
-        p("How a player can qualify for the minimum games in section 3 without paying: [CONFIRM: free way to qualify, or an alternate free method of entry]."),
+        p(`No purchase is necessary to enter or to qualify. Games with no fee count toward the ${i.minGames}-game minimum exactly the same as paid games, so a player can qualify by playing only free games. Paying for a game does not improve a player\u2019s chances of winning, and paid and free games are counted identically.`),
       ],
     },
     {
@@ -82,23 +82,21 @@ export function seasonRuleSections(i: SeasonRulesInput): RuleSection[] {
       blocks: [
         p("To be eligible to win you must:"),
         ul(
-          "be at least [MINIMUM AGE] years old;",
+          "be 18 years of age or older;",
           "have entered the season in the app and accepted the fair-play pledge (playing games does not enter you automatically);",
           "not be disqualified from the season (section 7) and not be banned from Competitive Together; and",
           `have at least ${i.minGames} games with a posted result in the season (section 5).`,
         ),
-        p("Not eligible: employees and organizers of the Sponsor and members of their households [CONFIRM who is excluded]."),
+        p("Employees, hosts and administrators of Competitive Together, and members of their households, are not eligible to win."),
       ],
     },
     {
       id: "dates",
       title: "4. Season dates and announcement",
       blocks: [
-        p("The contest runs from [SEASON START] to [SEASON END] (Eastern Time). Only games played during the season count."),
-        p("The winner will be announced on or before [ANNOUNCE DATE]."),
-        p(
-          `For reference, the season the app shows now is ${i.season.label}, ${i.season.startText} through ${i.season.endText} (Eastern Time). Seasons follow the app: Spring is March to May, Summer is June to August, Fall is September to November and Winter is December to February.`,
-        ),
+        p(`The ${i.season.label} season runs from ${i.season.startText} through ${i.season.endText}, Eastern Time. Only games played during the season count.`),
+        p("The winner will be announced within 7 days after the season ends."),
+        p("Seasons follow the app: Spring is March to May, Summer is June to August, Fall is September to November and Winter is December to February."),
       ],
     },
     {
@@ -131,7 +129,7 @@ export function seasonRuleSections(i: SeasonRulesInput): RuleSection[] {
       title: "6. Prize",
       blocks: [
         p(
-          `There is one prize each season: ${usd} paid by [PAYOUT METHOD] to the single winner. There is no second or third place prize. The prize cannot be substituted, transferred or exchanged, and there is no cash alternative other than the prize described here. The winner is responsible for any taxes on the prize.`,
+          `There is one prize each season: ${usd} paid to the single winner by Venmo, PayPal or check, at the winner\u2019s choice. There is no second or third place prize. The prize cannot be substituted, transferred or exchanged, and there is no cash alternative other than the prize described here. The winner is responsible for any taxes on the prize.`,
         ),
       ],
     },
@@ -148,7 +146,7 @@ export function seasonRuleSections(i: SeasonRulesInput): RuleSection[] {
       id: "claim",
       title: "8. Winner notification and claim",
       blocks: [
-        p("The winner will be contacted through the app and by email and must claim the prize within [CLAIM DAYS] days of being notified."),
+        p("The winner will be contacted through the app and by email and must claim the prize within 14 days of being notified."),
         p("If the prize is not claimed in that time, or the winner cannot be reached or is not eligible, the Sponsor may award it to the next eligible player in the order in section 5."),
       ],
     },
@@ -172,7 +170,7 @@ export function seasonRuleSections(i: SeasonRulesInput): RuleSection[] {
     {
       id: "contact",
       title: "11. Contact",
-      blocks: [p("Questions about these rules: [CONTACT EMAIL].")],
+      blocks: [p("Questions about these rules: pickupct@gmail.com.")],
     },
   ];
 }
