@@ -16,6 +16,9 @@ import {
 import { ChalkEmptyState } from "@/components/chalk";
 import { StarRating } from "@/components/StarRating";
 import { CONTACTS_INVITE_ENABLED } from "@/lib/contactsInvite";
+import CtPlusPaywall from "@/components/ctplus/CtPlusPaywall";
+import { useCtPlus } from "@/context/CtPlusContext";
+import { CTPLUS_ENABLED } from "@/lib/ctplus/config";
 import { hapticTap } from "@/lib/haptics";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import { DISCOVER_PICK_COUNT, type DiscoverPlayer } from "@shared/discover";
@@ -40,6 +43,8 @@ export default function DiscoverPanel(props: DiscoverPanelProps) {
 
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const { isPlus } = useCtPlus();
+  const [paywall, setPaywall] = useState(false);
 
   const openPlayer = useCallback(
     (id: string) => {
@@ -165,12 +170,29 @@ export default function DiscoverPanel(props: DiscoverPanelProps) {
               <Text style={styles.teaserTitle}>See every player near you</Text>
             </View>
             <Text style={styles.teaserPitch}>Full directory, filters by position, level and distance</Text>
-            <View style={styles.teaserBtn} accessibilityRole="text">
-              <Text style={styles.teaserBtnText}>Coming soon</Text>
-            </View>
+            {CTPLUS_ENABLED ? (
+              <Pressable
+                onPress={() => {
+                  void hapticTap();
+                  if (isPlus) router.push("/player-directory" as Href);
+                  else setPaywall(true);
+                }}
+                style={({ pressed }) => [styles.teaserBtn, pressed && { opacity: 0.85 }]}
+                accessibilityRole="button"
+              >
+                <Text style={styles.teaserBtnText}>{isPlus ? "Open the directory" : "Unlock with CT+"}</Text>
+              </Pressable>
+            ) : (
+              <View style={styles.teaserBtn} accessibilityRole="text">
+                <Text style={styles.teaserBtnText}>Coming soon</Text>
+              </View>
+            )}
           </View>
 
           <Text style={styles.footNote}>New picks every Monday.</Text>
+          {CTPLUS_ENABLED ? (
+            <CtPlusPaywall design={null} data={null} visible={paywall} lead="See every player near you." onClose={() => setPaywall(false)} onPurchased={() => setPaywall(false)} />
+          ) : null}
         </>
       ) : null}
     </ScrollView>

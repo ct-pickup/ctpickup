@@ -1,5 +1,5 @@
 import { siteOrigin } from "@/lib/env";
-import type { DiscoverPlayer, DiscoverResponse, SearchResponse } from "@shared/discover";
+import type { DirectoryResponse, DiscoverPlayer, DiscoverResponse, SearchResponse } from "@shared/discover";
 
 /** Plain-words failure the Discover screen can show as-is. */
 export class DiscoverRequestError extends Error {}
@@ -40,4 +40,25 @@ export async function searchPlayers(accessToken: string, query: string): Promise
     "We could not run that search right now.",
   );
   return Array.isArray(res.players) ? res.players : [];
+}
+
+export type DirectoryFilters = {
+  /** "Keeper", "Defender", "Midfielder" or "Attacker", or null for any. */
+  position: string | null;
+  minStar: number | null;
+  maxStar: number | null;
+  maxDrive: number | null;
+};
+
+/** One page of the player directory (20 players) and the cursor for the next. */
+export async function fetchDirectory(accessToken: string, filters: DirectoryFilters, cursor: string | null): Promise<DirectoryResponse> {
+  const q = new URLSearchParams();
+  if (filters.position) q.set("position", filters.position);
+  if (filters.minStar != null) q.set("min_star", String(filters.minStar));
+  if (filters.maxStar != null) q.set("max_star", String(filters.maxStar));
+  if (filters.maxDrive != null) q.set("max_drive", String(filters.maxDrive));
+  if (cursor) q.set("cursor", cursor);
+  const qs = q.toString();
+  const res = await get<DirectoryResponse>(`/api/discover/directory${qs ? `?${qs}` : ""}`, accessToken, "We could not load players right now.");
+  return { players: Array.isArray(res.players) ? res.players : [], nextCursor: typeof res.nextCursor === "string" ? res.nextCursor : null };
 }
