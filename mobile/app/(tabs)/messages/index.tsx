@@ -6,6 +6,7 @@ import { tabBarContentPadding } from "@/lib/tabBar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PlayerAvatar from "@/components/PlayerAvatar";
 import { useAuth } from "@/context/AuthContext";
+import { useChatMutes } from "@/hooks/useChatMutes";
 import { useRoomPreviews, type RoomPreview } from "@/hooks/useRoomPreviews";
 import { notificationTime } from "@shared/notifications";
 import { useAdminDmPeerLabels, useTeamChatAccess } from "@/hooks/useTeamChat";
@@ -81,6 +82,7 @@ export default function MessagesIndex() {
   }, [reload]);
 
   const bySlug = useMemo(() => new Map(rooms.map((r) => [r.slug, r] as const)), [rooms]);
+  const mutes = useChatMutes();
   const previews = useRoomPreviews(useMemo(() => rooms.map((r) => r.id), [rooms]));
   const announcementsTitle = bySlug.get(ANNOUNCEMENTS_CHAT_SLUG)?.title ?? "Announcements";
   const teamTitle = bySlug.get(TEAM_CHAT_SLUG)?.title ?? "Team chat";
@@ -188,7 +190,7 @@ export default function MessagesIndex() {
         }
       >
         <RoomRowLead preview={previews.get(bySlug.get(ANNOUNCEMENTS_CHAT_SLUG)?.id ?? "")} icon="bullhorn" />
-        <RoomRowBody title={announcementsTitle} fallbackSub="Staff updates" preview={previews.get(bySlug.get(ANNOUNCEMENTS_CHAT_SLUG)?.id ?? "")} />
+        <RoomRowBody title={announcementsTitle} fallbackSub="Staff updates" preview={previews.get(bySlug.get(ANNOUNCEMENTS_CHAT_SLUG)?.id ?? "")} muted={mutes.has(bySlug.get(ANNOUNCEMENTS_CHAT_SLUG)?.id ?? "")} />
         <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
       </Pressable>
       <Pressable
@@ -196,7 +198,7 @@ export default function MessagesIndex() {
         onPress={() => router.push({ pathname: "/(tabs)/messages/thread", params: { slug: TEAM_CHAT_SLUG } })}
       >
         <RoomRowLead preview={previews.get(bySlug.get(TEAM_CHAT_SLUG)?.id ?? "")} icon="comments" />
-        <RoomRowBody title={teamTitle} fallbackSub="Team chat" preview={previews.get(bySlug.get(TEAM_CHAT_SLUG)?.id ?? "")} />
+        <RoomRowBody title={teamTitle} fallbackSub="Team chat" preview={previews.get(bySlug.get(TEAM_CHAT_SLUG)?.id ?? "")} muted={mutes.has(bySlug.get(TEAM_CHAT_SLUG)?.id ?? "")} />
         <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
       </Pressable>
 
@@ -210,7 +212,7 @@ export default function MessagesIndex() {
               onPress={() => router.push({ pathname: "/(tabs)/messages/thread", params: { id: r.id } })}
             >
               <RoomRowLead preview={previews.get(r.id)} icon="users" />
-              <RoomRowBody title={titleForRoomRow(r, isAdmin === true, adminDmPeerLabels)} fallbackSub="Group chat" preview={previews.get(r.id)} />
+              <RoomRowBody title={titleForRoomRow(r, isAdmin === true, adminDmPeerLabels)} fallbackSub="Group chat" preview={previews.get(r.id)} muted={mutes.has(r.id)} />
               <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
             </Pressable>
           ))}
@@ -227,7 +229,7 @@ export default function MessagesIndex() {
               onPress={() => router.push({ pathname: "/(tabs)/messages/thread", params: { id: r.id } })}
             >
               <RoomRowLead preview={previews.get(r.id)} icon="users" />
-              <RoomRowBody title={r.title} fallbackSub="Tournament team" preview={previews.get(r.id)} />
+              <RoomRowBody title={r.title} fallbackSub="Tournament team" preview={previews.get(r.id)} muted={mutes.has(r.id)} />
               <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
             </Pressable>
           ))}
@@ -288,7 +290,10 @@ export default function MessagesIndex() {
             >
               <FontAwesome name="user" size={18} color={themeColor().pitchText} style={styles.rowIcon} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.rowTitle}>{titleForRoomRow(r, isAdmin === true, adminDmPeerLabels)}</Text>
+                <View style={styles.rowTopLine}>
+                  <Text style={styles.rowTitle}>{titleForRoomRow(r, isAdmin === true, adminDmPeerLabels)}</Text>
+                  {mutes.has(r.id) ? <FontAwesome name="bell-slash" size={12} color={themeColor().muted} accessibilityLabel="Muted" /> : null}
+                </View>
                 <Text style={styles.rowSub}>Direct message</Text>
               </View>
               <FontAwesome name="chevron-right" size={14} color={themeColor().muted} />
@@ -310,10 +315,13 @@ function RoomRowBody({
   title,
   fallbackSub,
   preview,
+  muted,
 }: {
   title: string;
   fallbackSub: string;
   preview: RoomPreview | undefined;
+  /** The player muted this chat: a small bell-off next to the name, and unread shows as a quiet dot. */
+  muted?: boolean;
 }) {
   return (
     <View style={{ flex: 1 }}>
@@ -321,6 +329,8 @@ function RoomRowBody({
         <Text style={[styles.rowTitle, preview?.unread && styles.rowTitleUnread]} numberOfLines={1}>
           {title}
         </Text>
+        {muted ? <FontAwesome name="bell-slash" size={12} color={themeColor().muted} accessibilityLabel="Muted" /> : null}
+        {muted && preview?.unread ? <View style={styles.rowMutedDot} accessibilityLabel="Unread" /> : null}
         {preview ? <Text style={styles.rowTime}>{notificationTime(preview.at)}</Text> : null}
       </View>
       <Text style={styles.rowSub} numberOfLines={1}>
@@ -409,6 +419,7 @@ function make_styles() {
   rowPressed: { opacity: 0.92 },
   rowIcon: { marginRight: 12 },
   rowTopLine: { flexDirection: "row", alignItems: "center", gap: 8 },
+  rowMutedDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: themeColor().muted },
   rowTitleUnread: { fontFamily: "Inter_700Bold", fontWeight: "700" },
   rowTime: { fontSize: 11, color: themeColor().muted, fontFamily: "Inter_500Medium" },
   rowTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },

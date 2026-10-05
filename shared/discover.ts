@@ -133,6 +133,10 @@ export type ReasonInput = {
   positionLabel: string | null;
   driveMinutes: number | null;
   mutualCount: number;
+  /** Completed sessions the viewer and this player attended together. */
+  playedTogether?: number;
+  /** True when both have a home town and it is the same one. The card already shows their town. */
+  sameTown?: boolean;
 };
 
 /**
@@ -161,6 +165,15 @@ export function discoverReasons(input: ReasonInput): string[] {
     candidates.push({ component: "mutuals", value: input.mutuals, label: `${input.mutualCount} mutual ${plural}` });
   }
 
+  // Real shared history and a shared town rank just under an exact level match; they are not part of the score.
+  if ((input.playedTogether ?? 0) >= 1) {
+    const n = input.playedTogether as number;
+    candidates.push({ component: "mutuals", value: 0.95, label: n === 1 ? "Played together once" : `Played together ${n} times` });
+  }
+  if (input.sameTown) {
+    candidates.push({ component: "distance", value: 0.7, label: "Same town" });
+  }
+
   return candidates
     .sort((a, b) => b.value - a.value)
     .slice(0, MAX_DISCOVER_REASONS)
@@ -182,3 +195,36 @@ export function mutualsFit(count: number): number {
   if (!(count > 0)) return 0;
   return Math.min(1, count / MUTUAL_SATURATION);
 }
+
+/** Player directory (CT+): the same safe fields Discover shows, one page at a time. */
+export const DIRECTORY_PAGE_SIZE = 20;
+/** No request reaches deeper than this many players into a filtered list. */
+export const DIRECTORY_MAX_OFFSET = 1000;
+/** Directory calls allowed per user per rolling hour. */
+export const DIRECTORY_REQUESTS_PER_HOUR = 40;
+/** Drive-time choices in the distance filter, in minutes. */
+export const DIRECTORY_DRIVE_CHOICES = [15, 30, 45] as const;
+
+/** How far away a player is, as a range. The exact drive time never leaves the server. */
+export type DriveBucket = "under_15" | "15_30" | "30_45" | "45_plus";
+
+/** Closest first. */
+export const DRIVE_BUCKETS: readonly DriveBucket[] = ["under_15", "15_30", "30_45", "45_plus"];
+
+export const DRIVE_BUCKET_LABEL: Record<DriveBucket, string> = {
+  under_15: "Under 15 min",
+  "15_30": "15 to 30 min",
+  "30_45": "30 to 45 min",
+  "45_plus": "45+ min",
+};
+
+export type DirectoryPlayer = Omit<DiscoverPlayer, "reasons"> & {
+  /** Drive time from the viewer as a range. Null when either ZIP is unknown. Never an exact number. */
+  driveBucket: DriveBucket | null;
+};
+
+export type DirectoryResponse = {
+  players: DirectoryPlayer[];
+  /** Pass back as `cursor` for the next page; null on the last page. */
+  nextCursor: string | null;
+};

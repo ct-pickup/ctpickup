@@ -23,6 +23,10 @@ import { useAuth } from "@/context/AuthContext";
 
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { ChalkEmptyState } from "@/components/chalk";
+import { FinderFilterBar, FinderFilterSheet } from "@/components/games/FinderFilters";
+import { filterRuns, hubRegionDelta, NO_FINDER_FILTERS, type FinderFilters } from "@/lib/finderFilters";
+import { finderHubById } from "@/lib/finderHubs";
+import { fetchRunMinStars } from "@/lib/starRatings";
 import PlayedWithRow, { usePlayedWith } from "@/components/pickup/PlayedWithRow";
 import type { PlayedWithSummary } from "@/lib/matchApi";
 import { fmtPickupWhenEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
@@ -426,7 +430,23 @@ export default function SessionMapScreen() {
   const { supabase, session: authSession } = useAuth();
   const [filter, setFilter] = useState<Level | "all">("all");
 
-  const { sessions, loading, error, reload } = useSessions(filter);
+  const { sessions: allSessions, loading, error, reload } = useSessions(filter);
+  const [filters, setFilters] = useState<FinderFilters>(NO_FINDER_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [minStars, setMinStars] = useState<Map<string, number>>(new Map());
+  const sessions = useMemo(() => filterRuns(allSessions, filters, minStars), [allSessions, filters, minStars]);
+
+  // Minimum levels for the star filter. A missing column reads as no minimum (every game open).
+  useEffect(() => {
+    if (!supabase || allSessions.length === 0) return;
+    let live = true;
+    void fetchRunMinStars(supabase, allSessions.map((s) => s.id)).then((m) => {
+      if (live) setMinStars(m);
+    });
+    return () => {
+      live = false;
+    };
+  }, [supabase, allSessions]);
   const playedWith = usePlayedWith(sessions.map((s) => s.id)).byRun;
   const trainingPosts = useTrainingPosts();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -566,7 +586,30 @@ export default function SessionMapScreen() {
     [sessions, selectedId],
   );
 
-  const empty = !loading && sessions.length === 0;
+  const empty = !loading && allSessions.length === 0;
+  const noMatch = !loading && allSessions.length > 0 && sessions.length === 0;
+
+  /** Hub: center and zoom the map and cut the list to its radius. Nearby: back to the player's location, no cut. */
+  const recenter = useCallback(async (hubId: string | null) => {
+    const hub = finderHubById(hubId);
+    if (hub) {
+      const d = hubRegionDelta(hub.radiusMiles);
+      mapRef.current?.animateToRegion({ latitude: hub.lat, longitude: hub.lng, latitudeDelta: d, longitudeDelta: d }, 500);
+      return;
+    }
+    try {
+      if ((await requestLocationWithExplainer({ auto: true })) !== "granted") return;
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      mapRef.current?.animateToRegion({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, latitudeDelta: 0.18, longitudeDelta: 0.18 }, 500);
+    } catch {}
+  }, []);
+  const changeFilters = useCallback(
+    (next: FinderFilters) => {
+      setFilters(next);
+      if (next.hubId !== filters.hubId) void recenter(next.hubId);
+    },
+    [filters.hubId, recenter],
+  );
 
   const header = useMemo(
     () => (
@@ -641,10 +684,16 @@ export default function SessionMapScreen() {
       </MapView>
 
       <View style={styles.topBar} pointerEvents="box-none">
-        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>{"‹"} Back</Text>
-        </Pressable>
+        <View style={styles.headerRow}>
+          <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
+            <Text style={styles.backBtnText}>{"‹"} Back</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push("/community-map")} hitSlop={10} style={styles.membersLink} accessibilityRole="link">
+            <Text style={styles.membersLinkText}>See where members are</Text>
+          </Pressable>
+        </View>
         {header}
+        <FinderFilterBar filters={filters} onOpen={() => setFiltersOpen(true)} onChange={changeFilters} />
       </View>
 
       {/* ZIP pill — floated independently so it can never be hidden by chips */}
@@ -683,7 +732,23 @@ export default function SessionMapScreen() {
         </View>
       )}
 
-      {!empty && (
+      {noMatch && (
+        <View style={styles.emptyWrap}>
+          <ChalkEmptyState
+            graphic="circle"
+            size="sm"
+            title="No games match these filters"
+            body="Try a different day, time or place."
+            actionLabel="Clear filters"
+            onAction={() => changeFilters(NO_FINDER_FILTERS)}
+          />
+          <Pressable onPress={() => router.push("/session-create")} style={styles.noMatchHost} accessibilityRole="button">
+            <Text style={styles.noMatchHostText}>Host a game</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {!empty && !noMatch && (
         <FlatList
           ref={listRef}
           data={sessions}
@@ -705,6 +770,8 @@ export default function SessionMapScreen() {
           )}
         />
       )}
+
+      <FinderFilterSheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} filters={filters} onChange={changeFilters} onPickHub={(id) => changeFilters({ ...filters, hubId: id })} />
 
       {/* ZIP Update Modal */}
       <Modal
@@ -772,7 +839,10 @@ function make_styles() {
   center: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
 
   topBar: { position: "absolute", top: 60, left: 0, right: 0 },
-  backBtn: { marginLeft: 12, marginBottom: 8, backgroundColor: themeColor().card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, alignSelf: "flex-start" },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8, marginRight: 110 },
+  membersLink: { flexShrink: 1, paddingVertical: 8 },
+  membersLinkText: { color: themeColor().pitchText, fontWeight: "600", fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  backBtn: { marginLeft: 12, backgroundColor: themeColor().card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, alignSelf: "flex-start" },
   backBtnText: { color: themeColor().text, fontWeight: "600", fontSize: 16, fontFamily: "Inter_600SemiBold" },
   zipPill: { position: "absolute", top: 60, right: 12, zIndex: 999, backgroundColor: themeColor().card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: themeColor().pitch },
   zipPillText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
@@ -843,6 +913,8 @@ function make_styles() {
   },
   trainingPinText: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
 
+  noMatchHost: { alignSelf: "center", paddingVertical: 12 },
+  noMatchHostText: { color: themeColor().pitchText, fontSize: 15, fontFamily: "Inter_700Bold", fontWeight: "700" },
   carouselWrap: { position: "absolute", bottom: 34, left: 0, right: 0 },
   carousel: { paddingHorizontal: (SCREEN_W - CARD_W) / 2, gap: CARD_GAP },
 

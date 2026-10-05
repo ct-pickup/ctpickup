@@ -380,6 +380,49 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
+                            name="contacts-invite"
+                            options={{
+                              headerShown: true,
+                              title: "Invite friends",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="season-stats"
+                            options={{
+                              headerShown: true,
+                              title: "Season stats",
+                              headerBackTitle: "Profile",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="player-directory"
+                            options={{
+                              headerShown: true,
+                              title: "Players near you",
+                              headerBackTitle: "Players",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
+                            name="season-rules"
+                            options={{
+                              headerShown: true,
+                              title: "Official rules",
+                              headerBackTitle: "Back",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
                             name="following"
                             options={{
                               headerShown: true,
@@ -455,7 +498,7 @@ function RootLayoutNav() {
                           />
                           <Stack.Screen
                             name="session-map"
-                            options={{ headerShown: false }}
+                            options={{ headerShown: false, title: "Games", headerBackTitle: "Games" }}
                           />
                           <Stack.Screen
                             name="session/[id]"

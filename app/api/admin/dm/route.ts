@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDmRoomSlug, isAdminDmGroupSlug } from "@/lib/chat/adminDmRoom";
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
+import { filterUnmutedUserIds } from "@/lib/chat/notificationMutes";
 import { truncatePushBody } from "@/lib/push/truncatePushBody";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
@@ -137,7 +138,8 @@ export async function POST(req: Request) {
 
   const pushTitle = truncatePushBody(row.sender_display_name || adminTitle, 80);
   const pushBody = "You have a new message from Competitive Together";
-  await sendPushToUsers(admin, [target_user_id], {
+  // A DM is a chat message, so the player's mute on this conversation applies.
+  await sendPushToUsers(admin, await filterUnmutedUserIds(admin, roomId, [target_user_id]), {
     title: pushTitle,
     body: pushBody,
     data: {

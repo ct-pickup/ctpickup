@@ -35,7 +35,6 @@ import { driveRadiusMiles, milesFromZip, zipState } from "@/lib/venueDistance";
 import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import type { DevFixtures } from "../../dev-fixtures";
-import { Wordmark } from "@/components/brand/Wordmark";
 import HomeCalendar from "@/components/home/HomeCalendar";
 import { tabBarContentPadding } from "@/lib/tabBar";
 
@@ -414,7 +413,7 @@ export default function HomeScreen() {
     : (live.loadError ?? (livePlayedWith.error ? "Some of Home did not load. Pull down to try again." : null));
   const openRun = (id: string) => push(`/session/${encodeURIComponent(id)}`);
   const badges = useInboxBadges();
-  const openMap = () => push("/community-map");
+  const openGamesMap = () => push("/session-map");
 
   const reload = live.reload;
   const onRefresh = useCallback(async () => {
@@ -454,14 +453,15 @@ export default function HomeScreen() {
       }
     >
       <View style={styles.header}>
-        <Wordmark
-          size={20}
+        <Text
+          style={styles.greeting}
           numberOfLines={1}
           adjustsFontSizeToFit
-          minimumFontScale={0.8}
-          style={styles.wordmark}
+          minimumFontScale={0.7}
           onLongPress={__DEV__ ? toggleDevPreview : undefined}
-        />
+        >
+          {greeting()}, <Text style={styles.greetingName}>{name}</Text>
+        </Text>
         <View style={styles.headerRight}>
           <HeaderIcon
             icon="envelope-o"
@@ -478,12 +478,8 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <Text style={styles.greeting} numberOfLines={1}>
-        {greeting()}, <Text style={styles.greetingName}>{name}</Text>
-      </Text>
-
       {__DEV__ && fixture ? (
-        <Text style={styles.devLine}>Showing preview data. Long-press the wordmark to exit.</Text>
+        <Text style={styles.devLine}>Showing preview data. Long-press the greeting to exit.</Text>
       ) : null}
 
       {loadError ? <Text style={styles.errorLine}>{loadError}</Text> : null}
@@ -504,7 +500,7 @@ export default function HomeScreen() {
         supabase={supabase}
         myUserId={live.myUserId}
         onOpenRun={openRun}
-        onGetGame={openMap}
+        onGetGame={openGamesMap}
         registerRefresh={registerCalendarRefresh}
       />
 
@@ -539,7 +535,7 @@ export default function HomeScreen() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Nearby games on the map"
-        onPress={openMap}
+        onPress={openGamesMap}
         style={({ pressed }) => [styles.mapRow, pressed && styles.pressed]}
       >
         <FontAwesome name="map-o" size={16} color={themeColor().pitchText} />
@@ -582,7 +578,7 @@ function make_styles() {
     pressed: { opacity: 0.88 },
 
     /* header */
-    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
     headerRight: { flexDirection: "row", alignItems: "center", gap: 16 },
     headerBadge: {
       position: "absolute",
@@ -597,8 +593,7 @@ function make_styles() {
       justifyContent: "center",
     },
     headerBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().onAccent },
-    wordmark: { flexShrink: 1, color: themeColor().text },
-    greeting: { marginTop: 16, fontSize: 28, ...headline, color: themeColor().text },
+    greeting: { flex: 1, flexShrink: 1, fontSize: 28, ...headline, color: themeColor().text },
     greetingName: { color: themeColor().pitchText },
     devLine: { marginTop: 8, fontSize: 13, fontFamily: "Inter_500Medium", color: themeColor().muted },
     errorLine: { marginTop: 8, fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().coralText },

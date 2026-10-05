@@ -157,7 +157,8 @@ export async function loadConfirmedAttendees(
   return { byRun, error: res.error };
 }
 
-export type PlayHistory = { playedWith: Set<string>; pastStarts: string[] };
+/** `timesWith`: how many completed sessions this user attended together with each other player. */
+export type PlayHistory = { playedWith: Set<string>; pastStarts: string[]; timesWith?: Map<string, number> };
 
 /**
  * Who each user attended a completed session with, and when they played.
@@ -169,7 +170,7 @@ export async function loadPlayHistory(
   userIds: string[],
 ): Promise<{ byUser: Map<string, PlayHistory>; error: DbError }> {
   const byUser = new Map<string, PlayHistory>();
-  for (const id of userIds) byUser.set(id, { playedWith: new Set(), pastStarts: [] });
+  for (const id of userIds) byUser.set(id, { playedWith: new Set(), pastStarts: [], timesWith: new Map() });
   if (!userIds.length) return { byUser, error: null };
 
   const mine = await selectInChunks<{ session_id: string; user_id: string }>(userIds, (chunk) =>
@@ -204,7 +205,10 @@ export async function loadPlayHistory(
     if (!start || !h) continue;
     h.pastStarts.push(start);
     for (const other of bySession.get(r.session_id) ?? []) {
-      if (other !== r.user_id) h.playedWith.add(other);
+      if (other !== r.user_id) {
+        h.playedWith.add(other);
+        h.timesWith?.set(other, (h.timesWith.get(other) ?? 0) + 1);
+      }
     }
   }
   return { byUser, error: null };

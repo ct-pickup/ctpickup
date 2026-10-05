@@ -3,7 +3,7 @@
     "name": "CT",
     "description": "Soccer pickup & tournaments",
     "slug": "ctpickup-mobile",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "ctpickup",
@@ -14,9 +14,10 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "Show pickup sessions near you.",
+        "NSContactsUsageDescription": "Competitive Together uses your contacts so you can pick friends to invite. Your contacts are never uploaded.",
         "CFBundleDisplayName": "CT"
       },
-      "buildNumber": "47"
+      "buildNumber": "50"
     },
     "android": {
       "package": "com.ctpickup.mobile",
@@ -38,6 +39,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Competitive Together uses your contacts so you can pick friends to invite. Your contacts are never uploaded."
+        }
+      ],
       [
         "expo-audio",
         {

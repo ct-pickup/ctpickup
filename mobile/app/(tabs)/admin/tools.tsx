@@ -1,5 +1,6 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { goToAdminMenu } from "@/lib/adminNavigation";
+import { SEASON_PRIZE_ENABLED } from "@/lib/seasonPrize";
 import { useRouter, type Href } from "expo-router";
 import type { ComponentProps } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -43,6 +44,17 @@ const TOOLS: ToolDef[] = [
     icon: "bar-chart",
     href: "/admin/analytics",
   },
+  ...(SEASON_PRIZE_ENABLED
+    ? [
+        {
+          id: "season-prize",
+          title: "Season prize",
+          description: "Current winner and the top 10 eligible entrants",
+          icon: "trophy" as const,
+          href: "/admin/season-prize" as Href,
+        },
+      ]
+    : []),
   {
     id: "photo-reports",
     title: "Photo reports",

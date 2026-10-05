@@ -969,6 +969,42 @@ export function fetchAdminMonthlyLeaders(accessToken: string) {
   });
 }
 
+export type SeasonPrizeEntrant = {
+  user_id: string;
+  name: string;
+  rank: number;
+  is_winner: boolean;
+  points: number;
+  wins: number;
+  potd: number;
+  games: number;
+  accepted_at: string;
+};
+
+export type SeasonPrizeAdminResponse = {
+  season: { key: string; label: string };
+  prize_usd: number;
+  min_games: number;
+  entrants_total: number;
+  /** Top 10 eligible entrants in prize order; the first is the current winner. */
+  top: SeasonPrizeEntrant[];
+  disqualified: { user_id: string; name: string; reason: string | null }[];
+  /** Staff or admin accounts that entered. They never rank. */
+  excluded_staff: { user_id: string; name: string; points: number; games: number }[];
+};
+
+export function fetchAdminSeasonPrize(accessToken: string) {
+  return adminFetch<SeasonPrizeAdminResponse>("/api/admin/season-prize", accessToken, { method: "GET" });
+}
+
+export function setAdminSeasonPrizeDisqualified(accessToken: string, userId: string, disqualified: boolean) {
+  return adminFetch<{ ok: boolean }>("/api/admin/season-prize", accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId, disqualified }),
+  });
+}
+
 export type ProximitySearchPlayer = {
   id: string;
   first_name: string | null;

@@ -1,3 +1,4 @@
+import { checkSkillEligibility, parseMinStar } from "@/lib/pickup/minStar";
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
@@ -28,27 +29,35 @@ export async function POST(req: Request) {
   const { data: { user } } = await admin.auth.getUser(token);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { latitude, longitude, min_tier, radius_miles = 30 } = await req.json() as {
+  const { latitude, longitude, min_tier, min_star: minStarRaw, radius_miles = 30 } = await req.json() as {
     latitude: number;
     longitude: number;
     min_tier: string;
+    /** Optional half star, 0.5 to 5.0. When sent, players are counted by their star, not their tier band. */
+    min_star?: unknown;
     radius_miles?: number;
   };
+
+  const minStarParsed = parseMinStar(minStarRaw);
+  if (!minStarParsed.ok) return NextResponse.json({ error: minStarParsed.error }, { status: 400 });
+  const minStar = minStarParsed.value;
 
   if (!latitude || !longitude) return NextResponse.json({ error: "latitude and longitude required" }, { status: 400 });
 
   const minRank = TIER_RANK[min_tier ?? "all"] ?? 0;
 
   // Get all approved players with ratings
-  const { data: ratings } = await admin
-    .from("player_ratings")
-    .select("user_id, tier")
-    .not("tier", "is", null);
+  type RatingRow = { user_id: string; tier: string; star_rating?: number | string | null };
+  const withStar = await admin.from("player_ratings").select("user_id, tier, star_rating").not("tier", "is", null);
+  // star_rating column not there yet: count by tier alone.
+  const ratings = (withStar.error
+    ? (await admin.from("player_ratings").select("user_id, tier").not("tier", "is", null)).data
+    : withStar.data) as RatingRow[] | null;
 
   if (!ratings || ratings.length === 0) return NextResponse.json({ ok: true, counts: {}, total: 0 });
 
   const eligibleIds = ratings
-    .filter((r: any) => (TIER_RANK[r.tier] ?? 0) >= minRank)
+    .filter((r: any) => (minStar != null ? checkSkillEligibility({ min_star: minStar }, r).ok : (TIER_RANK[r.tier] ?? 0) >= minRank))
     .map((r: any) => r.user_id);
 
   if (eligibleIds.length === 0) return NextResponse.json({ ok: true, counts: {}, total: 0 });

@@ -5,13 +5,8 @@
  */
 export const CTPLUS_ENABLED = (process.env.EXPO_PUBLIC_CTPLUS_ENABLED ?? "").trim().toLowerCase() === "true";
 
-/** One product: annual, $9.99. Create it in App Store Connect with this id. */
-export const CTPLUS_PRODUCT_ID = "ctplus_annual";
-/** RevenueCat entitlement that the product unlocks. Placeholder: create it in the RevenueCat dashboard. */
+/** RevenueCat entitlement that CT+ unlocks (both plans). Placeholder: create it in the RevenueCat dashboard. */
 export const CTPLUS_ENTITLEMENT_ID = "ctplus";
-/** Shown until the store returns the localized price. */
-export const CTPLUS_FALLBACK_PRICE = "$9.99";
-export const CTPLUS_PERIOD_LABEL = "year";
 
 /** RevenueCat public iOS SDK key. */
 export function revenueCatIosKey(): string | null {

@@ -22,6 +22,9 @@ import { starLevelName } from "@/shared/starLevels";
 /** How many top-ranked candidates get the (more expensive) mutual-teammate pass. */
 const SHORTLIST = 40;
 
+/** No response carries more than this many players. */
+const MAX_DISCOVER_RESULTS = 20;
+
 /** Default max drive time when the viewer has not set one. */
 const DEFAULT_MAX_DRIVE_MINUTES = 30;
 
@@ -34,7 +37,7 @@ export class DiscoverError extends Error {
   }
 }
 
-type CandidateRow = MatchProfile & {
+export type CandidateRow = MatchProfile & {
   username?: string | null;
   is_banned?: boolean | null;
 };
@@ -64,7 +67,7 @@ async function excludedIds(admin: SupabaseClient, viewerId: string): Promise<Set
   return out;
 }
 
-function positions(p: CandidateRow): { primary: string | null; secondary: string[] } {
+export function positions(p: CandidateRow): { primary: string | null; secondary: string[] } {
   const primary = (p.primary_position ?? p.playing_position ?? null) || null;
   const secondary = Array.isArray(p.secondary_positions) ? p.secondary_positions.filter(Boolean) : [];
   return { primary, secondary };
@@ -82,13 +85,13 @@ function positionFit(mine: string | null, theirs: string | null): number {
   return a && b && a === b ? 0.6 : 0.2;
 }
 
-async function loadViewer(admin: SupabaseClient, viewerId: string): Promise<CandidateRow> {
+export async function loadViewer(admin: SupabaseClient, viewerId: string): Promise<CandidateRow> {
   const res = await admin.from("profiles").select(CANDIDATE_COLUMNS).eq("id", viewerId).maybeSingle();
   if (res.error || !res.data) throw new DiscoverError("We could not load your profile.", 500);
   return res.data as CandidateRow;
 }
 
-async function loadStarsFor(admin: SupabaseClient, ids: string[]): Promise<Map<string, number>> {
+export async function loadStarsFor(admin: SupabaseClient, ids: string[]): Promise<Map<string, number>> {
   const out = new Map<string, number>();
   if (!ids.length) return out;
   const res = await admin.from("player_ratings").select("user_id,tier,star_rating").in("user_id", ids);
@@ -123,7 +126,7 @@ function toDiscoverPlayer(
  * Candidates the viewer is allowed to be shown: approved, not banned, has a photo,
  * invitable, and not excluded. Returns rows only; ranking happens separately.
  */
-async function loadCandidates(admin: SupabaseClient, viewerId: string): Promise<CandidateRow[]> {
+export async function loadCandidates(admin: SupabaseClient, viewerId: string): Promise<CandidateRow[]> {
   const excluded = await excludedIds(admin, viewerId);
 
   const res = await admin
@@ -208,7 +211,10 @@ async function hydrate(admin: SupabaseClient, viewer: CandidateRow, ids: string[
     }
   }
 
-  const present = ids.map((id) => byId.get(id)).filter((r): r is CandidateRow => r != null);
+  const present = ids
+    .map((id) => byId.get(id))
+    .filter((r): r is CandidateRow => r != null)
+    .slice(0, MAX_DISCOVER_RESULTS);
   if (!present.length) return [];
 
   const stars = await loadStarsFor(admin, [viewer.id, ...present.map((p) => p.id)]);
@@ -226,6 +232,8 @@ async function hydrate(admin: SupabaseClient, viewer: CandidateRow, ids: string[
     const theirs = history.byUser.get(row.id)?.playedWith ?? new Set<string>();
     let mutual = 0;
     for (const id of theirs) if (id !== viewer.id && myTeammates.has(id)) mutual += 1;
+    const myTown = townFromZip(viewer.zip_code);
+    const theirTown = townFromZip(row.zip_code);
 
     const theirPrimary = positions(row).primary;
     const reasons = discoverReasons({
@@ -236,6 +244,8 @@ async function hydrate(admin: SupabaseClient, viewer: CandidateRow, ids: string[
       positionLabel: positionLabel(theirPrimary),
       driveMinutes,
       mutualCount: mutual,
+      playedTogether: history.byUser.get(viewer.id)?.timesWith?.get(row.id) ?? 0,
+      sameTown: myTown != null && myTown === theirTown,
     });
 
     return toDiscoverPlayer(row, theirStar, reasons);

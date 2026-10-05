@@ -834,7 +834,6 @@ export default function LeaderboardsScreen() {
           visible={paywallOpen}
           design={null}
           data={null}
-          lead="See the full leaderboard"
           onClose={() => setPaywallOpen(false)}
           onPurchased={() => setPaywallOpen(false)}
         />

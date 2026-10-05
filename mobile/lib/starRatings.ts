@@ -81,7 +81,10 @@ export const SKILL_STAR_RANGE: Record<string, { low: number; high: number }> = {
   diamond: { low: 4.5, high: 5.0 },
 };
 
-/** Planned `pickup_runs.min_star`. Missing column means every run reads as open level. */
+/** Lowest star of each open_tier_rank band: rank 0 is open to everyone and has no entry. */
+const TIER_RANK_STAR_LOW: Record<number, number> = { 1: 0.5, 2: 1.5, 3: 2.5, 4: 3.5, 5: 4.5 };
+
+/** A game's minimum level in stars: `pickup_runs.min_star`, else its `open_tier_rank` band. Absent means open level. */
 export async function fetchRunMinStars(
   supabase: SupabaseClient,
   runIds: string[],
@@ -89,14 +92,22 @@ export async function fetchRunMinStars(
   const ids = Array.from(new Set(runIds.filter(Boolean)));
   const minStars = new Map<string, number>();
   if (ids.length === 0) return minStars;
-  const { data, error } = await supabase.from("pickup_runs").select("id,min_star").in("id", ids);
+
+  // min_star (any half star) wins. Games made before it, or before its migration, use their open_tier_rank band.
+  const { data, error } = await supabase.from("pickup_runs").select("id,min_star,open_tier_rank").in("id", ids);
+  let rows = data as Array<{ id: string; min_star?: number | string | null; open_tier_rank?: number | string | null }> | null;
   if (error) {
-    console.warn("[stars] pickup_runs.min_star unavailable:", error.message);
-    return minStars;
+    const ranks = await supabase.from("pickup_runs").select("id,open_tier_rank").in("id", ids);
+    rows = ranks.data as typeof rows;
   }
-  for (const row of (data ?? []) as Array<{ id: string; min_star: number | string | null }>) {
-    const n = row.min_star == null ? NaN : Number(row.min_star);
-    if (Number.isFinite(n)) minStars.set(row.id, n);
+  for (const row of rows ?? []) {
+    const exact = row.min_star == null ? NaN : Number(row.min_star);
+    if (Number.isFinite(exact)) {
+      minStars.set(row.id, exact);
+      continue;
+    }
+    const low = TIER_RANK_STAR_LOW[Number(row.open_tier_rank)];
+    if (low != null) minStars.set(row.id, low);
   }
   return minStars;
 }

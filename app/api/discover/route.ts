@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { DiscoverError, weeklyPicks } from "@/lib/discover/discoverService";
+import { checkPersistentRateLimit, rateLimitResponse } from "@/lib/server/persistentRateLimit";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -37,6 +38,10 @@ export async function GET(req: Request) {
     if (!approved) {
       return NextResponse.json({ error: "Your account must be approved to see player picks." }, { status: 403 });
     }
+
+    // Its own counter (bucket "discover:<user id>"), separate from the search quota. Fails open if the store is down.
+    const limited = await checkPersistentRateLimit({ route: "discover", ip: viewerId, limit: 120, windowSeconds: 3600 });
+    if (!limited.ok) return rateLimitResponse(limited.retryAfterSeconds);
 
     const result = await weeklyPicks(admin, viewerId);
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });

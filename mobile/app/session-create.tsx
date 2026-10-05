@@ -20,6 +20,7 @@ import {
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 import { PhotoUploadField } from "@/components/photo";
+import { hapticTap } from "@/lib/haptics";
 import { setRunFieldPhoto } from "@/lib/photoUpload";
 import { reportPhotoUploadError } from "@/lib/reportPhotoUploadError";
 import { SKILL_STAR_RANGE } from "@/lib/starRatings";
@@ -29,10 +30,19 @@ const CAPACITY_MAX = 30;
 const FORMATS = ["5v5", "6v6", "7v7", "Open"];
 const SKILL_KEYS = ["bronze", "silver", "gold", "platinum", "diamond"] as const;
 const starRange = (key: string) => `${SKILL_STAR_RANGE[key].low}–${SKILL_STAR_RANGE[key].high}★`;
+// Any half star from 0.5 to 5.0, or All levels. min_star is sent as the exact minimum; min_tier is the tier band that
+// contains it, which older builds and the server's tier gate read.
+const MIN_STAR_STEPS = Array.from({ length: 10 }, (_, i) => (i + 1) / 2);
+const tierKeyForStar = (star: number) => SKILL_KEYS.find((k) => star >= SKILL_STAR_RANGE[k].low && star <= SKILL_STAR_RANGE[k].high) ?? "bronze";
 const SKILL_LEVELS = [
-  { value: "all", label: "All levels" },
-  { value: "bronze", label: `${SKILL_STAR_RANGE.bronze.low}★+ (rated players)` },
-  ...SKILL_KEYS.slice(1).map((value) => ({ value, label: `${SKILL_STAR_RANGE[value].low}★+` })),
+  { value: "all", label: "All levels", short: "All levels", a11y: "All levels", star: null as number | null },
+  ...MIN_STAR_STEPS.map((star) => ({
+    value: String(star),
+    label: star === 0.5 ? "0.5★+ (rated players)" : `${star.toFixed(1)}★+`,
+    short: `${star.toFixed(1)}★+`,
+    a11y: `Minimum ${star.toFixed(1)} stars and up`,
+    star: star as number | null,
+  })),
 ];
 const RATING_PRICES: Array<{ key: string; text: string; value: string; earns?: boolean }> = [
   { key: "bronze", text: "players pay", value: "$12" },
@@ -146,7 +156,8 @@ export default function SessionCreateScreen() {
         body: JSON.stringify({
           latitude: parseFloat(locationSelected.lat),
           longitude: parseFloat(locationSelected.lon),
-          min_tier: tier === "all" ? "bronze" : tier,
+          min_tier: tier === "all" ? "bronze" : tierKeyForStar(Number(tier)),
+          ...(tier === "all" ? {} : { min_star: Number(tier) }),
           radius_miles: 30,
         }),
       });
@@ -226,7 +237,8 @@ export default function SessionCreateScreen() {
         start_time: timeTbd ? null : `${pad2(sessionTime.getHours())}:${pad2(sessionTime.getMinutes())}`,
         start_at: dt.toISOString(),
         capacity: playerLimit,
-        min_tier: skillLevel === "all" ? null : skillLevel,
+        min_tier: skillLevel === "all" ? null : tierKeyForStar(Number(skillLevel)),
+        ...(skillLevel === "all" ? {} : { min_star: Number(skillLevel) }),
         format,
         fee_cents: buyInCents(),
         invite_only: isInviteOnly,
@@ -389,16 +401,27 @@ export default function SessionCreateScreen() {
             </View>
 
             <Text style={[s.fieldLabel, { marginTop: 20 }]}>MINIMUM SKILL LEVEL</Text>
-            {SKILL_LEVELS.map((sl) => (
-              <Pressable key={sl.value} onPress={() => {
-                setSkillLevel(sl.value);
-                void fetchPlayerCounts(sl.value);
-              }}
-                style={[s.radioRow, skillLevel === sl.value && s.radioRowActive]}>
-                <View style={[s.radio, skillLevel === sl.value && s.radioActive]} />
-                <Text style={s.radioLabel}>{sl.label}</Text>
-              </Pressable>
-            ))}
+            <View style={s.skillGrid}>
+              {SKILL_LEVELS.map((sl) => {
+                const on = skillLevel === sl.value;
+                return (
+                  <Pressable
+                    key={sl.value}
+                    onPress={() => {
+                      void hapticTap();
+                      setSkillLevel(sl.value);
+                      void fetchPlayerCounts(sl.value);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={sl.a11y}
+                    accessibilityState={{ selected: on }}
+                    style={[s.chip, s.skillChip, sl.value === "all" && s.skillChipAll, on && s.chipActive]}
+                  >
+                    <Text style={[s.chipText, on && s.chipTextActive]}>{sl.short}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
             {locationSelected && playerCounts && (
               <View style={{ marginTop: 12, backgroundColor: themeColor().overlaySubtle, borderRadius: 10, padding: 12, gap: 4 }}>
                 <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 4 }}>
@@ -605,6 +628,9 @@ function make_s() {
   chipTextActive: { color: themeColor().pitchText },
   capacityInput: { backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, fontSize: 20, ...headline, paddingHorizontal: 16, paddingVertical: 12, textAlign: "center", width: 100 },
   capacityHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
+  skillGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  skillChip: { width: "31.5%", alignItems: "center", paddingHorizontal: 8 },
+  skillChipAll: { width: "100%" },
   radioRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, paddingHorizontal: 4, borderRadius: 10 },
   radioRowActive: { backgroundColor: themeColor().pitchPanel },
   radio: { width: 18, height: 18, borderRadius: 10, borderWidth: 2, borderColor: themeColor().line },
