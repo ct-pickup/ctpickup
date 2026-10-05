@@ -412,6 +412,17 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
+                            name="season-rules"
+                            options={{
+                              headerShown: true,
+                              title: "Official rules",
+                              headerBackTitle: "Back",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
                             name="following"
                             options={{
                               headerShown: true,
