@@ -182,3 +182,23 @@ export function mutualsFit(count: number): number {
   if (!(count > 0)) return 0;
   return Math.min(1, count / MUTUAL_SATURATION);
 }
+
+/** Player directory (CT+): the same safe fields Discover shows, one page at a time. */
+export const DIRECTORY_PAGE_SIZE = 20;
+/** No request reaches deeper than this many players into a filtered list. */
+export const DIRECTORY_MAX_OFFSET = 1000;
+/** Directory calls allowed per user per rolling hour. */
+export const DIRECTORY_REQUESTS_PER_HOUR = 40;
+/** Drive-time choices in the distance filter, in minutes. */
+export const DIRECTORY_DRIVE_CHOICES = [15, 30, 45, 60] as const;
+
+export type DirectoryPlayer = Omit<DiscoverPlayer, "reasons"> & {
+  /** Estimated drive time from the viewer, rounded to 5 minutes. Null when either ZIP is unknown. */
+  driveMinutes: number | null;
+};
+
+export type DirectoryResponse = {
+  players: DirectoryPlayer[];
+  /** Pass back as `cursor` for the next page; null on the last page. */
+  nextCursor: string | null;
+};

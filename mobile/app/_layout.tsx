@@ -380,6 +380,17 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
+                            name="player-directory"
+                            options={{
+                              headerShown: true,
+                              title: "Players near you",
+                              headerBackTitle: "Players",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
                             name="following"
                             options={{
                               headerShown: true,
