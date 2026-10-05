@@ -2,7 +2,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as Contacts from "expo-contacts/legacy";
 import { useRouter } from "expo-router";
 import * as SMS from "expo-sms";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Linking, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -11,6 +11,9 @@ import { CONTACTS_INVITE_ENABLED, filterInviteContacts, inviteContactsFrom, type
 import { hapticTap } from "@/lib/haptics";
 import { buildInviteMessage } from "@/lib/invite";
 import { radius, themeColor, useThemedStyles } from "@/theme";
+
+/** Pause before the next person's composer opens, so Skip or Done can be tapped. */
+const NEXT_DELAY_MS = 1500;
 
 type Stage = "intro" | "loading" | "denied" | "list";
 
@@ -32,6 +35,11 @@ export default function ContactsInviteScreen() {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [queue, setQueue] = useState<InviteContact[] | null>(null);
+  const [pos, setPos] = useState(0);
+  const [phase, setPhase] = useState<"composing" | "next">("composing");
+  const messageRef = useRef("");
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const visible = useMemo(() => filterInviteContacts(contacts, query), [contacts, query]);
 
@@ -72,31 +80,101 @@ export default function ContactsInviteScreen() {
     });
   }, []);
 
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+  }, []);
+
+  useEffect(() => clearTimer, [clearTimer]);
+
+  /** Opens the composer for one person (never a group), then moves on whether the message was sent or cancelled. */
+  async function openFor(list: InviteContact[], i: number) {
+    clearTimer();
+    setPos(i);
+    setPhase("composing");
+    try {
+      if (await SMS.isAvailableAsync()) await SMS.sendSMSAsync([list[i]!.phone], messageRef.current);
+      // No text composer (iPad, simulator): the share sheet carries the same message for this one person.
+      else await Share.share({ message: messageRef.current });
+    } catch {
+      setNotice("Couldn't open Messages for that person.");
+    }
+    queueNext(list, i + 1);
+  }
+
+  /** Shows "Next: <name>" and opens that person's composer after a short pause (Skip and Done cancel it). */
+  function queueNext(list: InviteContact[], i: number) {
+    if (i >= list.length) {
+      router.back();
+      return;
+    }
+    setPos(i);
+    setPhase("next");
+    timerRef.current = setTimeout(() => void openFor(list, i), NEXT_DELAY_MS);
+  }
+
   const invite = useCallback(async () => {
     if (sending || selected.size === 0) return;
     setSending(true);
     setNotice(null);
     try {
-      const numbers = contacts.filter((c) => selected.has(c.id)).map((c) => c.phone);
-      const message = await buildInviteMessage(session?.access_token);
-      if (await SMS.isAvailableAsync()) {
-        const { result } = await SMS.sendSMSAsync(numbers, message);
-        if (result === "sent") router.back();
-      } else {
-        // No text composer (iPad, simulator): the share sheet carries the same message.
-        await Share.share({ message });
-      }
+      const list = contacts.filter((c) => selected.has(c.id));
+      messageRef.current = await buildInviteMessage(session?.access_token);
+      setQueue(list);
+      void openFor(list, 0);
     } catch {
       setNotice("Couldn't open Messages. Please try again.");
     } finally {
       setSending(false);
     }
-  }, [contacts, router, selected, sending, session?.access_token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contacts, selected, sending, session?.access_token]);
 
   if (!CONTACTS_INVITE_ENABLED) {
     return (
       <View style={styles.center}>
         <Text style={styles.body}>This is not available yet.</Text>
+      </View>
+    );
+  }
+
+  if (queue) {
+    const person = queue[pos];
+    return (
+      <View style={[styles.screen, styles.centerPad]}>
+        <Text style={styles.count}>
+          {pos + 1} of {queue.length}
+        </Text>
+        <Text style={styles.title}>{phase === "next" ? `Next: ${person?.name ?? ""}` : (person?.name ?? "")}</Text>
+        <Text style={styles.body}>{phase === "next" ? "Opening Messages…" : "Send the invite, or cancel to move on."}</Text>
+        {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+        {phase === "next" ? (
+          <>
+            <Pressable onPress={() => void openFor(queue, pos)} style={({ pressed }) => [styles.btn, pressed && styles.pressed]} accessibilityRole="button">
+              <Text style={styles.btnText}>Open message</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                clearTimer();
+                queueNext(queue, pos + 1);
+              }}
+              hitSlop={8}
+              accessibilityRole="button"
+            >
+              <Text style={styles.link}>Skip</Text>
+            </Pressable>
+          </>
+        ) : null}
+        <Pressable
+          onPress={() => {
+            clearTimer();
+            router.back();
+          }}
+          hitSlop={8}
+          accessibilityRole="button"
+        >
+          <Text style={styles.link}>Done</Text>
+        </Pressable>
       </View>
     );
   }
@@ -213,6 +291,8 @@ function make_styles() {
     centerPad: { alignItems: "center", justifyContent: "center", padding: 24, gap: 12 },
     title: { color: c.text, fontSize: 20, fontFamily: "Inter_700Bold", fontWeight: "700", textAlign: "center" },
     body: { color: c.muted, fontSize: 15, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 21 },
+    count: { color: c.muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    link: { color: c.accent, fontSize: 15, fontFamily: "Inter_600SemiBold", fontWeight: "600", paddingVertical: 8 },
     notice: { color: c.muted, fontSize: 13, fontFamily: "Inter_500Medium", textAlign: "center" },
     btn: { alignSelf: "stretch", backgroundColor: c.pitch, borderRadius: radius.button, paddingVertical: 16, alignItems: "center", marginTop: 8 },
     btnText: { color: c.onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
