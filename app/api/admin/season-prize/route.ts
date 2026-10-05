@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { isSeasonPrizeEnabled, SEASON_PRIZE_MIN_GAMES, SEASON_PRIZE_USD, seasonWindowFor } from "@/lib/pickup/seasonPrize";
-import { adminPrizeList, type SeasonEntrantStats } from "@/lib/season/prizeRanking";
+import { adminPrizeList, excludedStaffEntrants, type SeasonEntrantStats } from "@/lib/season/prizeRanking";
 import { supabaseService } from "@/lib/supabase/service";
 
 export const runtime = "nodejs";
@@ -27,7 +27,8 @@ async function loadEntries(admin: ReturnType<typeof supabaseService>, seasonKey:
 /**
  * GET /api/admin/season-prize
  * The top 10 eligible entrants for the current season in prize order (points, wins, Player of the Day awards,
- * earliest entry), with the first marked as the current winner, plus the disqualified entrants.
+ * earliest entry), with the first marked as the current winner, plus the disqualified entrants and the staff or admin
+ * accounts that are excluded from ranking (profiles.is_admin).
  * Admin only, checked here on the server.
  */
 export async function GET(req: Request) {
@@ -43,12 +44,12 @@ export async function GET(req: Request) {
   const ids = entries.map((e) => e.user_id);
 
   const stats = new Map<string, { points: number; wins: number; potd: number; games: number }>();
-  const names = new Map<string, { name: string; banned: boolean }>();
+  const names = new Map<string, { name: string; banned: boolean; staff: boolean }>();
   for (let i = 0; i < ids.length; i += CHUNK) {
     const chunk = ids.slice(i, i + CHUNK);
     const [ledger, profiles] = await Promise.all([
       admin.from("points_events").select("user_id,reason,points").eq("season", season.label).in("user_id", chunk),
-      admin.from("profiles").select("id,first_name,last_name,is_banned").in("id", chunk),
+      admin.from("profiles").select("id,first_name,last_name,is_banned,is_admin").in("id", chunk),
     ]);
     if (ledger.error || profiles.error) return NextResponse.json({ error: "Could not load standings." }, { status: 500 });
     for (const row of ledger.data ?? []) {
@@ -61,14 +62,14 @@ export async function GET(req: Request) {
       stats.set(r.user_id, s);
     }
     for (const row of profiles.data ?? []) {
-      const p = row as { id: string; first_name: string | null; last_name: string | null; is_banned: boolean | null };
-      names.set(p.id, { name: `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || "Player", banned: p.is_banned === true });
+      const p = row as { id: string; first_name: string | null; last_name: string | null; is_banned: boolean | null; is_admin: boolean | null };
+      names.set(p.id, { name: `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || "Player", banned: p.is_banned === true, staff: p.is_admin === true });
     }
   }
 
   const entrants: SeasonEntrantStats[] = entries.map((e) => {
     const s = stats.get(e.user_id) ?? { points: 0, wins: 0, potd: 0, games: 0 };
-    return { user_id: e.user_id, ...s, accepted_at: e.accepted_at, disqualified: e.disqualified_at != null, in_good_standing: !names.get(e.user_id)?.banned };
+    return { user_id: e.user_id, ...s, accepted_at: e.accepted_at, disqualified: e.disqualified_at != null, in_good_standing: !names.get(e.user_id)?.banned, is_staff: names.get(e.user_id)?.staff === true };
   });
 
   const label = (id: string) => names.get(id)?.name ?? "Player";
@@ -79,6 +80,7 @@ export async function GET(req: Request) {
       min_games: SEASON_PRIZE_MIN_GAMES,
       entrants_total: entries.length,
       top: adminPrizeList(entrants).map((e) => ({ ...e, name: label(e.user_id) })),
+      excluded_staff: excludedStaffEntrants(entrants).map((e) => ({ user_id: e.user_id, name: label(e.user_id), points: e.points, games: e.games })),
       disqualified: entries
         .filter((e) => e.disqualified_at != null)
         .map((e) => ({ user_id: e.user_id, name: label(e.user_id), reason: e.disqualified_reason ?? null })),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { adminPrizeList, rankEligibleEntrants, type SeasonEntrantStats } from "@/lib/season/prizeRanking";
+import { adminPrizeList, excludedStaffEntrants, rankEligibleEntrants, type SeasonEntrantStats } from "@/lib/season/prizeRanking";
 
 function e(id: string, over: Partial<SeasonEntrantStats> = {}): SeasonEntrantStats {
   return { user_id: id, points: 100, wins: 5, potd: 1, games: 12, accepted_at: "2026-09-02T12:00:00Z", disqualified: false, ...over };
@@ -52,5 +52,23 @@ describe("one winner", () => {
 
   it("has no winner with no eligible entrants", () => {
     expect(adminPrizeList([e("a", { games: 2 })])).toEqual([]);
+  });
+});
+
+describe("staff and admin accounts", () => {
+  it("never rank, even with the most points, and the win goes to the next player", () => {
+    const r = rankEligibleEntrants([e("admin", { points: 999, is_staff: true }), e("a", { points: 80 }), e("b", { points: 70 })]);
+    expect(r.map((x) => x.user_id)).toEqual(["a", "b"]);
+    expect(r[0]).toMatchObject({ user_id: "a", is_winner: true });
+    expect(adminPrizeList([e("admin", { points: 999, is_staff: true }), e("a")]).map((x) => x.user_id)).toEqual(["a"]);
+  });
+
+  it("are listed as excluded instead of vanishing, most points first", () => {
+    const list = [e("s1", { points: 10, is_staff: true }), e("s2", { points: 50, is_staff: true, games: 2 }), e("a")];
+    expect(excludedStaffEntrants(list).map((x) => x.user_id)).toEqual(["s2", "s1"]);
+  });
+
+  it("leave the game minimum and other rules alone", () => {
+    expect(rankEligibleEntrants([e("few", { games: 9 }), e("ok", { games: 10 })]).map((x) => x.user_id)).toEqual(["ok"]);
   });
 });

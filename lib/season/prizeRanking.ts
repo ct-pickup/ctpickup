@@ -3,7 +3,8 @@
  *
  * There is exactly ONE prize per season: first place, $150. No second or third place.
  *
- * Who is ranked: players who entered the season, have not been disqualified, and have at least
+ * Who is ranked: players who entered the season, have not been disqualified, are not staff or admin accounts
+ * (profiles.is_admin; the official rules exclude employees and administrators), and have at least
  * SEASON_PRIZE_MIN_GAMES games with a posted result in the season.
  *
  * Tie-break order (exactly this order):
@@ -36,6 +37,8 @@ export type SeasonEntrantStats = {
   disqualified: boolean;
   /** False for banned players. */
   in_good_standing?: boolean;
+  /** True for staff or admin accounts (profiles.is_admin). They never rank; the admin view lists them as excluded. */
+  is_staff?: boolean;
 };
 
 export type RankedEntrant = SeasonEntrantStats & { rank: number; is_winner: boolean };
@@ -44,7 +47,7 @@ export type RankedEntrant = SeasonEntrantStats & { rank: number; is_winner: bool
 export const ADMIN_PRIZE_LIST_SIZE = 10;
 
 export function isPrizeEligible(e: SeasonEntrantStats, minGames: number = SEASON_PRIZE_MIN_GAMES): boolean {
-  return !e.disqualified && e.in_good_standing !== false && e.games >= minGames;
+  return !e.disqualified && !e.is_staff && e.in_good_standing !== false && e.games >= minGames;
 }
 
 /** Points, then wins, then Player of the Day awards, then earliest entry. Negative when `a` ranks ahead of `b`. */
@@ -69,4 +72,9 @@ export function rankEligibleEntrants(entrants: readonly SeasonEntrantStats[], mi
 /** What the admin sees: the top ADMIN_PRIZE_LIST_SIZE eligible entrants, the first being the current winner. */
 export function adminPrizeList(entrants: readonly SeasonEntrantStats[], minGames: number = SEASON_PRIZE_MIN_GAMES): RankedEntrant[] {
   return rankEligibleEntrants(entrants, minGames).slice(0, ADMIN_PRIZE_LIST_SIZE);
+}
+
+/** Entrants excluded because they are staff or admin accounts, most points first, so the admin view can show them. */
+export function excludedStaffEntrants(entrants: readonly SeasonEntrantStats[]): SeasonEntrantStats[] {
+  return entrants.filter((e) => e.is_staff).sort(compareEntrants);
 }

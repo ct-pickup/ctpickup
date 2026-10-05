@@ -35,7 +35,7 @@ describe("season official rules", () => {
     expect(text).toContain("by Venmo, PayPal or check, at the winner\u2019s choice");
     expect(text).toContain("within 14 days of being notified");
     expect(text).toContain("pickupct@gmail.com");
-    expect(text).toContain("Employees, hosts and administrators of Competitive Together, and members of their households, are not eligible to win.");
+    expect(text).toContain("Employees and administrators of Competitive Together, and members of their households, are not eligible to win.");
   });
 
   it("says free and paid games count the same toward the minimum", () => {

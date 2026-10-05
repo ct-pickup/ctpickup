@@ -87,7 +87,7 @@ export function seasonRuleSections(i: SeasonRulesInput): RuleSection[] {
           "not be disqualified from the season (section 7) and not be banned from Competitive Together; and",
           `have at least ${i.minGames} games with a posted result in the season (section 5).`,
         ),
-        p("Employees, hosts and administrators of Competitive Together, and members of their households, are not eligible to win."),
+        p("Employees and administrators of Competitive Together, and members of their households, are not eligible to win."),
       ],
     },
     {
