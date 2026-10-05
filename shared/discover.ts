@@ -190,11 +190,24 @@ export const DIRECTORY_MAX_OFFSET = 1000;
 /** Directory calls allowed per user per rolling hour. */
 export const DIRECTORY_REQUESTS_PER_HOUR = 40;
 /** Drive-time choices in the distance filter, in minutes. */
-export const DIRECTORY_DRIVE_CHOICES = [15, 30, 45, 60] as const;
+export const DIRECTORY_DRIVE_CHOICES = [15, 30, 45] as const;
+
+/** How far away a player is, as a range. The exact drive time never leaves the server. */
+export type DriveBucket = "under_15" | "15_30" | "30_45" | "45_plus";
+
+/** Closest first. */
+export const DRIVE_BUCKETS: readonly DriveBucket[] = ["under_15", "15_30", "30_45", "45_plus"];
+
+export const DRIVE_BUCKET_LABEL: Record<DriveBucket, string> = {
+  under_15: "Under 15 min",
+  "15_30": "15 to 30 min",
+  "30_45": "30 to 45 min",
+  "45_plus": "45+ min",
+};
 
 export type DirectoryPlayer = Omit<DiscoverPlayer, "reasons"> & {
-  /** Estimated drive time from the viewer, rounded to 5 minutes. Null when either ZIP is unknown. */
-  driveMinutes: number | null;
+  /** Drive time from the viewer as a range. Null when either ZIP is unknown. Never an exact number. */
+  driveBucket: DriveBucket | null;
 };
 
 export type DirectoryResponse = {

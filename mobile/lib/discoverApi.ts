@@ -47,7 +47,8 @@ export type DirectoryFilters = {
   position: string | null;
   minStar: number | null;
   maxStar: number | null;
-  maxDrive: number | null;
+  /** 15, 30 or 45 minutes, or null for any. The server rejects other values. */
+  maxDrive: 15 | 30 | 45 | null;
 };
 
 /** One page of the player directory (20 players) and the cursor for the next. */

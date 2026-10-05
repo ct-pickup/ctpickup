@@ -8,7 +8,9 @@ import {
   DIRECTORY_MAX_OFFSET,
   DIRECTORY_PAGE_SIZE,
   displayName,
+  DRIVE_BUCKETS,
   type DirectoryPlayer,
+  type DriveBucket,
   type DirectoryResponse,
 } from "@/shared/discover";
 import { starLevelName } from "@/shared/starLevels";
@@ -51,7 +53,7 @@ export function parseDirectoryQuery(params: URLSearchParams): DirectoryQueryPars
   if (driveRaw != null && driveRaw !== "") {
     const n = Number(driveRaw);
     if (!(DIRECTORY_DRIVE_CHOICES as readonly number[]).includes(n)) {
-      return { ok: false, error: `Distance must be one of ${DIRECTORY_DRIVE_CHOICES.join(", ")} minutes.` };
+      return { ok: false, error: `max_drive must be ${DIRECTORY_DRIVE_CHOICES.join(", ")} or left out.` };
     }
     maxDriveMinutes = n;
   }
@@ -65,10 +67,21 @@ export function parseDirectoryQuery(params: URLSearchParams): DirectoryQueryPars
   return { ok: true, query: { position, minStar: min.value, maxStar: max.value, maxDriveMinutes, offset } };
 }
 
+/** The range an exact drive time falls in: under 15, 15 up to 30, 30 up to 45, 45 or more. Null when unknown. */
+export function driveBucketFor(minutes: number | null | undefined): DriveBucket | null {
+  if (minutes == null || !Number.isFinite(minutes) || minutes < 0) return null;
+  if (minutes < 15) return "under_15";
+  if (minutes < 30) return "15_30";
+  if (minutes < 45) return "30_45";
+  return "45_plus";
+}
+
+const BUCKET_RANK = new Map<DriveBucket | null, number>([...DRIVE_BUCKETS.map((b, i) => [b, i] as const), [null, DRIVE_BUCKETS.length]]);
+
 /** A candidate with everything the filters and the sort need. Never leaves the server as is. */
 export type DirectoryEntry = {
   player: DirectoryPlayer;
-  /** Unrounded, for sorting and filtering only. */
+  /** Exact, for the distance filter only. Never serialized and never used to order results. */
   drive: number | null;
 };
 
@@ -90,9 +103,10 @@ export function pageDirectory(entries: readonly DirectoryEntry[], q: DirectoryQu
     if (q.maxDriveMinutes != null && (drive == null || drive > q.maxDriveMinutes)) return false;
     return true;
   });
+  // Closest range first, then name. Ordering inside a range is by name so it carries no distance information.
   kept.sort(
     (a, b) =>
-      (a.drive ?? Number.POSITIVE_INFINITY) - (b.drive ?? Number.POSITIVE_INFINITY) ||
+      (BUCKET_RANK.get(a.player.driveBucket) ?? 0) - (BUCKET_RANK.get(b.player.driveBucket) ?? 0) ||
       a.player.name.localeCompare(b.player.name) ||
       a.player.id.localeCompare(b.player.id),
   );
@@ -134,7 +148,7 @@ function toEntry(row: CandidateRow, viewerZip: string | null | undefined, star: 
       levelName: starLevelName(star),
       position: positionLabel(positions(row).primary),
       town: townFromZip(row.zip_code),
-      driveMinutes: drive == null ? null : Math.max(5, Math.round(drive / 5) * 5),
+      driveBucket: driveBucketFor(drive),
     },
   };
 }
@@ -142,7 +156,7 @@ function toEntry(row: CandidateRow, viewerZip: string | null | undefined, star: 
 /**
  * One page of the directory. The people are exactly Discover's candidates: approved, not banned, with a photo, not
  * hidden by "allow host invites", and never anyone blocked either way or reported by the viewer. The fields are the
- * Discover card fields (name as "Sam R.", photo, level, position, town) plus a rounded drive time. No email, phone,
+ * Discover card fields (name as "Sam R.", photo, level, position, town) plus a drive-time range (never the exact minutes). No email, phone,
  * Instagram handle, ZIP, rating score or reliability ever leaves the server.
  */
 export async function directoryPage(admin: SupabaseClient, viewerId: string, q: DirectoryQuery): Promise<DirectoryResponse> {

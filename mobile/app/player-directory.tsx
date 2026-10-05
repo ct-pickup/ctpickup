@@ -11,7 +11,7 @@ import { DiscoverRequestError, fetchDirectory, type DirectoryFilters } from "@/l
 import { hapticTap } from "@/lib/haptics";
 import { SKILL_STAR_RANGE } from "@/lib/starRatings";
 import { radius, themeColor, useThemedStyles } from "@/theme";
-import { DIRECTORY_DRIVE_CHOICES, type DirectoryPlayer } from "@shared/discover";
+import { DIRECTORY_DRIVE_CHOICES, DRIVE_BUCKET_LABEL, type DirectoryPlayer } from "@shared/discover";
 
 const POSITIONS = ["Keeper", "Defender", "Midfielder", "Attacker"];
 const LEVELS = Object.values(SKILL_STAR_RANGE).sort((a, b) => a.low - b.low);
@@ -161,7 +161,7 @@ export default function PlayerDirectoryScreen() {
                 {item.levelName ? <Text style={styles.meta}>{item.levelName}</Text> : null}
               </View>
               <Text style={styles.meta} numberOfLines={1}>
-                {[item.position, item.town, item.driveMinutes != null ? `${item.driveMinutes} min away` : null].filter(Boolean).join(" · ")}
+                {[item.position, item.town, item.driveBucket ? DRIVE_BUCKET_LABEL[item.driveBucket] : null].filter(Boolean).join(" · ")}
               </Text>
             </View>
           </Pressable>
