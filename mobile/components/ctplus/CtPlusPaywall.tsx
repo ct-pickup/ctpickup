@@ -1,5 +1,5 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { PlayerCardData } from "@/components/profile/PlayerCard";
@@ -7,6 +7,7 @@ import PremiumShareCard from "@/components/profile/PremiumShareCard";
 import { useCtPlus } from "@/context/CtPlusContext";
 import type { CardDesignId } from "@/lib/cardDesigns";
 import { CTPLUS_PERIOD_LABEL } from "@/lib/ctplus/config";
+import { siteOrigin } from "@/lib/env";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
 const PERKS = ["3 premium card designs: Dark, Gold and Club", "Story and square sizes for every design", "Your action photo on the card"];
@@ -39,6 +40,12 @@ export default function CtPlusPaywall({
     if (outcome === "purchased") onPurchased();
     else if (outcome === "failed") Alert.alert("Couldn't complete the purchase", "Please try again.");
     else if (outcome === "unavailable") Alert.alert("Not available yet", "Purchases aren't available in this build.");
+  }
+
+  /** Terms and Privacy are the site pages (/terms, /privacy), opened in the browser so they show over this sheet. */
+  function openLegal(path: "/terms" | "/privacy") {
+    const origin = siteOrigin();
+    if (origin) void Linking.openURL(`${origin}${path}`);
   }
 
   async function restore() {
@@ -86,6 +93,7 @@ export default function CtPlusPaywall({
               </Text>
             )}
           </Pressable>
+          <Text style={styles.renew}>Auto-renews yearly at {priceLabel} until canceled. Cancel anytime in your Apple ID settings.</Text>
           {!canPurchase ? <Text style={styles.note}>Purchases aren&apos;t available in this build.</Text> : null}
           <Pressable onPress={() => void restore()} disabled={busy} hitSlop={8} style={styles.restore} accessibilityRole="button">
             <Text style={styles.restoreText}>Restore purchases</Text>
@@ -94,6 +102,15 @@ export default function CtPlusPaywall({
             {priceLabel} per {CTPLUS_PERIOD_LABEL}, billed to your Apple ID. Renews automatically unless canceled at least 24 hours before the
             period ends. Manage or cancel in your App Store account settings. Your free card is always free.
           </Text>
+          <View style={styles.legalRow}>
+            <Pressable onPress={() => openLegal("/terms")} hitSlop={8} accessibilityRole="link">
+              <Text style={styles.legalLink}>Terms of Use</Text>
+            </Pressable>
+            <Text style={styles.legalDot}>·</Text>
+            <Pressable onPress={() => openLegal("/privacy")} hitSlop={8} accessibilityRole="link">
+              <Text style={styles.legalLink}>Privacy Policy</Text>
+            </Pressable>
+          </View>
         </ScrollView>
       </View>
     </Modal>
@@ -118,6 +135,10 @@ function make_styles() {
     note: { color: c.muted, fontSize: 13, fontFamily: "Inter_400Regular" },
     restore: { paddingVertical: 4 },
     restoreText: { color: c.accent, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    renew: { color: c.text, fontSize: 13, fontFamily: "Inter_500Medium", textAlign: "center" },
+    legalRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+    legalLink: { color: c.accent, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", textDecorationLine: "underline" },
+    legalDot: { color: c.muted, fontSize: 13 },
     fine: { color: c.muted, fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16, textAlign: "center" },
   });
 }
