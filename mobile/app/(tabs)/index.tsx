@@ -414,7 +414,6 @@ export default function HomeScreen() {
     : (live.loadError ?? (livePlayedWith.error ? "Some of Home did not load. Pull down to try again." : null));
   const openRun = (id: string) => push(`/session/${encodeURIComponent(id)}`);
   const badges = useInboxBadges();
-  const openMap = () => push("/community-map");
   const openGamesMap = () => push("/session-map");
 
   const reload = live.reload;
@@ -505,7 +504,7 @@ export default function HomeScreen() {
         supabase={supabase}
         myUserId={live.myUserId}
         onOpenRun={openRun}
-        onGetGame={openMap}
+        onGetGame={openGamesMap}
         registerRefresh={registerCalendarRefresh}
       />
 

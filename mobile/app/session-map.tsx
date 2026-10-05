@@ -684,9 +684,14 @@ export default function SessionMapScreen() {
       </MapView>
 
       <View style={styles.topBar} pointerEvents="box-none">
-        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>{"‹"} Back</Text>
-        </Pressable>
+        <View style={styles.headerRow}>
+          <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
+            <Text style={styles.backBtnText}>{"‹"} Back</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push("/community-map")} hitSlop={10} style={styles.membersLink} accessibilityRole="link">
+            <Text style={styles.membersLinkText}>See where members are</Text>
+          </Pressable>
+        </View>
         {header}
         <FinderFilterBar filters={filters} onOpen={() => setFiltersOpen(true)} onChange={changeFilters} />
       </View>
@@ -834,7 +839,10 @@ function make_styles() {
   center: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
 
   topBar: { position: "absolute", top: 60, left: 0, right: 0 },
-  backBtn: { marginLeft: 12, marginBottom: 8, backgroundColor: themeColor().card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, alignSelf: "flex-start" },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8, marginRight: 110 },
+  membersLink: { flexShrink: 1, paddingVertical: 8 },
+  membersLinkText: { color: themeColor().pitchText, fontWeight: "600", fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  backBtn: { marginLeft: 12, backgroundColor: themeColor().card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, alignSelf: "flex-start" },
   backBtnText: { color: themeColor().text, fontWeight: "600", fontSize: 16, fontFamily: "Inter_600SemiBold" },
   zipPill: { position: "absolute", top: 60, right: 12, zIndex: 999, backgroundColor: themeColor().card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: themeColor().pitch },
   zipPillText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
