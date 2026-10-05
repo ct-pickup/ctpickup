@@ -5,6 +5,7 @@ import {
   scheduleSessionRateRemindersForRun,
 } from "@/lib/pickup/sessionLifecycle";
 import { etDateKey, fmtPickupSlotChipEt } from "@/lib/pickup/runStartAtDisplay";
+import { parseMinStar, tierBandForStar, writeWithOptionalMinStar } from "@/lib/pickup/minStar";
 import { writeWithOptionalTimeTbd } from "@/lib/pickup/runTimeTbd";
 import { serviceRegionForVenueName } from "@/lib/pickup/venueServiceRegion";
 import { pickupStartFromHostBody } from "@/lib/datetime/easternWallTime";
@@ -74,8 +75,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `format must be one of: ${ALLOWED_FORMATS.join(", ")}` }, { status: 400 });
   }
 
+  // min_star (a half star, 0.5 to 5.0) is the exact minimum. When it is sent, min_tier / open_tier_rank are set to the
+  // band that contains it (so older app builds read the game correctly) and win over any min_tier in the body.
+  const minStarParsed = parseMinStar(body.min_star);
+  if (!minStarParsed.ok) return NextResponse.json({ error: minStarParsed.error }, { status: 400 });
+  const min_star = minStarParsed.value;
+
   const min_tier_raw = String(body.min_tier ?? "all").trim().toLowerCase();
-  const tierConfig = TIER_MAP[min_tier_raw] ?? TIER_MAP["all"]!;
+  const band = min_star != null ? tierBandForStar(min_star) : null;
+  const tierConfig = band ? { level: band.level, open_tier_rank: band.open_tier_rank } : (TIER_MAP[min_tier_raw] ?? TIER_MAP["all"]!);
 
   const fee_cents = Math.max(0, Math.round(Number(body.fee_cents ?? 0)));
   if (fee_cents > 50000) return NextResponse.json({ error: "fee_cents cannot exceed $500." }, { status: 400 });
@@ -89,7 +97,7 @@ export async function POST(req: Request) {
   const title = `${host_name}'s ${format} Session`;
   const now = new Date().toISOString();
 
-  const { data: run, error: insertErr } = await writeWithOptionalTimeTbd((withTimeTbd) => admin
+  const { data: run, error: insertErr } = await writeWithOptionalTimeTbd((withTimeTbd) => writeWithOptionalMinStar((withMinStar) => admin
     .from("pickup_runs")
     .insert({
       title,
@@ -98,6 +106,7 @@ export async function POST(req: Request) {
       longitude,
       start_at,
       ...(withTimeTbd ? { time_tbd } : {}),
+      ...(withMinStar && min_star != null ? { min_star } : {}),
       capacity,
       spots_taken: 0,
       level: tierConfig.level,
@@ -115,7 +124,7 @@ export async function POST(req: Request) {
       updated_at: now,
     })
     .select("id")
-    .maybeSingle());
+    .maybeSingle()));
 
   if (insertErr || !run) {
     console.error("[sessions/create] insert error", insertErr);

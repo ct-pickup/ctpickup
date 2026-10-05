@@ -1,3 +1,4 @@
+import { checkSkillEligibility } from "@/lib/pickup/minStar";
 import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
@@ -458,33 +459,19 @@ export async function POST(req: Request) {
     );
   }
 
-  // Tier gate — check player's tier against session minimum
-  const minTierRank = typeof run.open_tier_rank === "number" ? run.open_tier_rank : 0;
-  if (minTierRank > 0) {
-    const { data: playerRating } = await admin
-      .from("player_ratings")
-      .select("tier, score")
-      .eq("user_id", targetUserId)
-      .maybeSingle();
-
-    const TIER_RANK: Record<string, number> = {
-      bronze: 1, silver: 2, gold: 3, platinum: 4, diamond: 5,
-    };
-    const playerTierRank = playerRating?.tier ? (TIER_RANK[playerRating.tier] ?? 0) : 0;
-
-    if (playerTierRank < minTierRank) {
-      const MIN_STAR: Record<number, number> = { 1: 0.5, 2: 1.5, 3: 2.5, 4: 3.5, 5: 4.5 };
-      const minStar = MIN_STAR[minTierRank];
-      return NextResponse.json(
-        {
-          error:
-            minStar != null
-              ? `This session is for players rated ${minStar.toFixed(1)}★ and up.`
-              : "This session is for higher-rated players.",
-        },
-        { status: 403 },
-      );
+  // Skill gate. A game with min_star compares the player's star to it; otherwise the tier gate below is unchanged.
+  if (run.min_star != null || (typeof run.open_tier_rank === "number" && run.open_tier_rank > 0)) {
+    let playerRating: { tier?: string | null; star_rating?: number | string | null } | null = null;
+    const withStar = await admin.from("player_ratings").select("tier, score, star_rating").eq("user_id", targetUserId).maybeSingle();
+    if (withStar.error) {
+      // star_rating column not there yet: the tier alone is enough for the tier gate.
+      const tierOnly = await admin.from("player_ratings").select("tier, score").eq("user_id", targetUserId).maybeSingle();
+      playerRating = tierOnly.data;
+    } else {
+      playerRating = withStar.data;
     }
+    const skill = checkSkillEligibility(run, playerRating);
+    if (!skill.ok) return NextResponse.json({ error: skill.error }, { status: 403 });
   }
 
   const existing = await admin
