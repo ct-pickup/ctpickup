@@ -343,6 +343,21 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {CTPLUS_ENABLED ? (
+          <Pressable
+            onPress={() => (router.push as (href: string) => void)("/season-stats")}
+            style={({ pressed }) => [s.verifyRow, pressed && s.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Season stats and rating history"
+          >
+            <FontAwesome name="line-chart" size={18} color={themeColor().text} />
+            <View style={s.verifyText}>
+              <Text style={s.verifyTitle}>Season stats and rating history</Text>
+            </View>
+            <FontAwesome name="chevron-right" size={12} color={themeColor().muted} />
+          </Pressable>
+        ) : null}
+
         <Pressable
           onPress={() => (router.push as (href: string) => void)("/instagram-verification")}
           style={({ pressed }) => [s.verifyRow, pressed && s.pressed]}
