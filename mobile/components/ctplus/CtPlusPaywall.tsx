@@ -11,14 +11,21 @@ import { annualSaving, FALLBACK_PRICE, PLAN_IDS, PLAN_META, renewLine, type Plan
 import { siteOrigin } from "@/lib/env";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
-const PERKS = ["3 premium card designs: Dark, Gold and Club", "Story and square sizes for every design", "Your action photo on the card"];
+/** Every CT+ perk, and only real ones, directory first. The same list shows wherever the paywall is opened from. */
+export const CTPLUS_PERKS = [
+  "Player directory with filters (position, level, distance)",
+  "Season stats and rating trend",
+  "Premium share card designs (Dark, Gold, Club)",
+  "Story and square sizes",
+  "Your action photo on the card",
+];
+const SUBLINE = "One subscription unlocks everything below.";
 
-/** CT+ paywall: one annual plan, with a preview of the player's own card in the design they tapped. */
+/** CT+ paywall: one headline and one perks list wherever it is opened from, with monthly and yearly plans. */
 export default function CtPlusPaywall({
   design,
   data,
   visible,
-  lead,
   onClose,
   onPurchased,
 }: {
@@ -27,7 +34,7 @@ export default function CtPlusPaywall({
   data: PlayerCardData | null;
   /** Overrides the default "open when a design is set". */
   visible?: boolean;
-  /** Headline when the paywall is opened from somewhere other than the card picker. */
+  /** @deprecated Ignored. The paywall has one fixed headline wherever it is opened from. */
   lead?: string;
   onClose: () => void;
   onPurchased: () => void;
@@ -75,9 +82,9 @@ export default function CtPlusPaywall({
               <PremiumShareCard design={design} size="story" data={data} width={190} />
             </View>
           ) : null}
-          <Text style={styles.lead}>{lead ?? "Share your card your way."}</Text>
+          <Text style={styles.lead}>{SUBLINE}</Text>
           <View style={styles.perks}>
-            {PERKS.map((p) => (
+            {CTPLUS_PERKS.map((p) => (
               <View key={p} style={styles.perkRow}>
                 <FontAwesome name="check" size={14} color={themeColor().pitchText} />
                 <Text style={styles.perk}>{p}</Text>
