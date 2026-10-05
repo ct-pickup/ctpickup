@@ -415,6 +415,7 @@ export default function HomeScreen() {
   const openRun = (id: string) => push(`/session/${encodeURIComponent(id)}`);
   const badges = useInboxBadges();
   const openMap = () => push("/community-map");
+  const openGamesMap = () => push("/session-map");
 
   const reload = live.reload;
   const onRefresh = useCallback(async () => {
@@ -539,7 +540,7 @@ export default function HomeScreen() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Nearby games on the map"
-        onPress={openMap}
+        onPress={openGamesMap}
         style={({ pressed }) => [styles.mapRow, pressed && styles.pressed]}
       >
         <FontAwesome name="map-o" size={16} color={themeColor().pitchText} />
