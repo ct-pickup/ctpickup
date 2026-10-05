@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -20,7 +21,9 @@ import FormPills from "@/components/profile/FormPills";
 import PlayerCard, { type PlayerCardData } from "@/components/profile/PlayerCard";
 import ProfileCard from "@/components/profile/ProfileCard";
 import { SeasonCard } from "@/components/season/SeasonCard";
+import CtPlusPaywall from "@/components/ctplus/CtPlusPaywall";
 import ShareCardSheet from "@/components/ctplus/ShareCardSheet";
+import { useCtPlus } from "@/context/CtPlusContext";
 import { CTPLUS_ENABLED } from "@/lib/ctplus/config";
 import PositionPitch from "@/components/profile/PositionPitch";
 import { tabBarContentPadding } from "@/lib/tabBar";
@@ -68,6 +71,9 @@ let _cachedCard: StarCard | null | undefined;
 let _cachedStats: ProfileStats | null = null;
 let _cachedBadges: ProfileBadge[] | null = null;
 
+/** Apple's subscriptions page, where a CT+ subscriber manages or cancels. */
+const MANAGE_SUBSCRIPTIONS_URL = "https://apps.apple.com/account/subscriptions";
+
 export default function ProfileScreen() {
   useThemedStyles(publish_s);
 
@@ -87,6 +93,8 @@ export default function ProfileScreen() {
   const [editing, setEditing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [levelsOpen, setLevelsOpen] = useState(false);
+  const { isPlus } = useCtPlus();
+  const [paywallOpen, setPaywallOpen] = useState(false);
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
 
   useHubVenueResolve(profile, (venue) => setProfile((p) => (p ? { ...p, nearest_venue: venue } : p)));
@@ -344,6 +352,7 @@ export default function ProfileScreen() {
         </View>
 
         {CTPLUS_ENABLED ? (
+          <>
           <Pressable
             onPress={() => (router.push as (href: string) => void)("/season-stats")}
             style={({ pressed }) => [s.verifyRow, pressed && s.pressed]}
@@ -356,6 +365,19 @@ export default function ProfileScreen() {
             </View>
             <FontAwesome name="chevron-right" size={12} color={themeColor().muted} />
           </Pressable>
+          <Pressable
+            onPress={() => (isPlus ? void Linking.openURL(MANAGE_SUBSCRIPTIONS_URL) : setPaywallOpen(true))}
+            style={({ pressed }) => [s.verifyRow, pressed && s.pressed]}
+            accessibilityRole={isPlus ? "link" : "button"}
+            accessibilityLabel={isPlus ? "CT+ active. Manage subscription" : "CT+"}
+          >
+            <FontAwesome name="star" size={18} color={themeColor().text} />
+            <View style={s.verifyText}>
+              <Text style={s.verifyTitle}>{isPlus ? "CT+ active" : "CT+"}</Text>
+            </View>
+            {isPlus ? <Text style={s.manageLink}>Manage</Text> : <FontAwesome name="chevron-right" size={12} color={themeColor().muted} />}
+          </Pressable>
+          </>
         ) : null}
 
         <Pressable
@@ -389,6 +411,10 @@ export default function ProfileScreen() {
       </ScrollView>
 
       <StarLevelsSheet visible={levelsOpen} onClose={() => setLevelsOpen(false)} />
+
+      {CTPLUS_ENABLED ? (
+        <CtPlusPaywall design={null} data={null} visible={paywallOpen} onClose={() => setPaywallOpen(false)} onPurchased={() => setPaywallOpen(false)} />
+      ) : null}
 
       {CTPLUS_ENABLED && canShare ? (
         <ShareCardSheet
@@ -460,6 +486,7 @@ function make_s() {
     },
     tileLabel: { marginBottom: 8, color: themeColor().muted, fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     tileEmpty: { color: themeColor().muted, fontSize: 12, fontFamily: "Inter_400Regular" },
+    manageLink: { color: themeColor().accent, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     verifyRow: {
       marginTop: 10,
       marginHorizontal: 16,
