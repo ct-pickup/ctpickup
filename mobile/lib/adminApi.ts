@@ -989,6 +989,8 @@ export type SeasonPrizeAdminResponse = {
   /** Top 10 eligible entrants in prize order; the first is the current winner. */
   top: SeasonPrizeEntrant[];
   disqualified: { user_id: string; name: string; reason: string | null }[];
+  /** Staff or admin accounts that entered. They never rank. */
+  excluded_staff: { user_id: string; name: string; points: number; games: number }[];
 };
 
 export function fetchAdminSeasonPrize(accessToken: string) {

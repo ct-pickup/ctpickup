@@ -128,6 +128,20 @@ export default function AdminSeasonPrizeScreen() {
               </View>
             ))}
 
+            {data.excluded_staff.length > 0 ? (
+              <>
+                <Text style={styles.section}>Excluded (staff)</Text>
+                {data.excluded_staff.map((x) => (
+                  <View key={x.user_id} style={styles.card}>
+                    <Text style={styles.name}>{x.name}</Text>
+                    <Text style={styles.meta}>
+                      {x.points} pts · {x.games} games · not eligible to win
+                    </Text>
+                  </View>
+                ))}
+              </>
+            ) : null}
+
             {data.disqualified.length > 0 ? (
               <>
                 <Text style={styles.section}>Disqualified</Text>
