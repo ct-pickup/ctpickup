@@ -30,16 +30,18 @@ const CAPACITY_MAX = 30;
 const FORMATS = ["5v5", "6v6", "7v7", "Open"];
 const SKILL_KEYS = ["bronze", "silver", "gold", "platinum", "diamond"] as const;
 const starRange = (key: string) => `${SKILL_STAR_RANGE[key].low}–${SKILL_STAR_RANGE[key].high}★`;
-// Only the values /api/sessions/create accepts for min_tier (all, bronze..diamond). The server stores the
-// game's minimum as a band (0.5, 1.5, 2.5, 3.5, 4.5 and up), so the in-between half stars cannot be chosen.
+// Any half star from 0.5 to 5.0, or All levels. min_star is sent as the exact minimum; min_tier is the tier band that
+// contains it, which older builds and the server's tier gate read.
+const MIN_STAR_STEPS = Array.from({ length: 10 }, (_, i) => (i + 1) / 2);
+const tierKeyForStar = (star: number) => SKILL_KEYS.find((k) => star >= SKILL_STAR_RANGE[k].low && star <= SKILL_STAR_RANGE[k].high) ?? "bronze";
 const SKILL_LEVELS = [
-  { value: "all", label: "All levels", short: "All levels", a11y: "All levels" },
-  { value: "bronze", label: `${SKILL_STAR_RANGE.bronze.low}★+ (rated players)`, short: `${SKILL_STAR_RANGE.bronze.low}★+`, a11y: `Minimum ${SKILL_STAR_RANGE.bronze.low} stars and up, rated players` },
-  ...SKILL_KEYS.slice(1).map((value) => ({
-    value,
-    label: `${SKILL_STAR_RANGE[value].low}★+`,
-    short: `${SKILL_STAR_RANGE[value].low}★+`,
-    a11y: `Minimum ${SKILL_STAR_RANGE[value].low} stars and up`,
+  { value: "all", label: "All levels", short: "All levels", a11y: "All levels", star: null as number | null },
+  ...MIN_STAR_STEPS.map((star) => ({
+    value: String(star),
+    label: star === 0.5 ? "0.5★+ (rated players)" : `${star.toFixed(1)}★+`,
+    short: `${star.toFixed(1)}★+`,
+    a11y: `Minimum ${star.toFixed(1)} stars and up`,
+    star: star as number | null,
   })),
 ];
 const RATING_PRICES: Array<{ key: string; text: string; value: string; earns?: boolean }> = [
@@ -154,7 +156,8 @@ export default function SessionCreateScreen() {
         body: JSON.stringify({
           latitude: parseFloat(locationSelected.lat),
           longitude: parseFloat(locationSelected.lon),
-          min_tier: tier === "all" ? "bronze" : tier,
+          min_tier: tier === "all" ? "bronze" : tierKeyForStar(Number(tier)),
+          ...(tier === "all" ? {} : { min_star: Number(tier) }),
           radius_miles: 30,
         }),
       });
@@ -234,7 +237,8 @@ export default function SessionCreateScreen() {
         start_time: timeTbd ? null : `${pad2(sessionTime.getHours())}:${pad2(sessionTime.getMinutes())}`,
         start_at: dt.toISOString(),
         capacity: playerLimit,
-        min_tier: skillLevel === "all" ? null : skillLevel,
+        min_tier: skillLevel === "all" ? null : tierKeyForStar(Number(skillLevel)),
+        ...(skillLevel === "all" ? {} : { min_star: Number(skillLevel) }),
         format,
         fee_cents: buyInCents(),
         invite_only: isInviteOnly,

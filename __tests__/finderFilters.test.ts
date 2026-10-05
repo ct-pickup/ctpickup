@@ -62,6 +62,15 @@ describe("filterRuns", () => {
     expect(filterRuns([high, low, open], f, mins, NOW).map((r) => r.id)).toEqual(["high", "open"]);
   });
 
+  it("places in-between half stars in the right band", () => {
+    const r1 = run("one", "2026-10-07T23:00:00Z");
+    const r3 = run("three", "2026-10-07T23:00:00Z");
+    const mins = new Map([["one", 1.0], ["three", 3.0]]);
+    const f = (low: number, high: number) => ({ ...NO_FINDER_FILTERS, stars: { low, high } });
+    expect(filterRuns([r1, r3], f(0.5, 1.0), mins, NOW).map((r) => r.id)).toEqual(["one"]);
+    expect(filterRuns([r1, r3], f(2.5, 3.0), mins, NOW).map((r) => r.id)).toEqual(["three"]);
+  });
+
   it("keeps only games inside a hub's radius", () => {
     const stamford = run("ct", "2026-10-07T23:00:00Z", { latitude: 41.05, longitude: -73.54 });
     const lewisburg = run("pa", "2026-10-07T23:00:00Z", { latitude: 40.96, longitude: -76.88 });
