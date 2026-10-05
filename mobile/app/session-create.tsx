@@ -20,6 +20,7 @@ import {
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 import { PhotoUploadField } from "@/components/photo";
+import { hapticTap } from "@/lib/haptics";
 import { setRunFieldPhoto } from "@/lib/photoUpload";
 import { reportPhotoUploadError } from "@/lib/reportPhotoUploadError";
 import { SKILL_STAR_RANGE } from "@/lib/starRatings";
@@ -29,10 +30,17 @@ const CAPACITY_MAX = 30;
 const FORMATS = ["5v5", "6v6", "7v7", "Open"];
 const SKILL_KEYS = ["bronze", "silver", "gold", "platinum", "diamond"] as const;
 const starRange = (key: string) => `${SKILL_STAR_RANGE[key].low}–${SKILL_STAR_RANGE[key].high}★`;
+// Only the values /api/sessions/create accepts for min_tier (all, bronze..diamond). The server stores the
+// game's minimum as a band (0.5, 1.5, 2.5, 3.5, 4.5 and up), so the in-between half stars cannot be chosen.
 const SKILL_LEVELS = [
-  { value: "all", label: "All levels" },
-  { value: "bronze", label: `${SKILL_STAR_RANGE.bronze.low}★+ (rated players)` },
-  ...SKILL_KEYS.slice(1).map((value) => ({ value, label: `${SKILL_STAR_RANGE[value].low}★+` })),
+  { value: "all", label: "All levels", short: "All levels", a11y: "All levels" },
+  { value: "bronze", label: `${SKILL_STAR_RANGE.bronze.low}★+ (rated players)`, short: `${SKILL_STAR_RANGE.bronze.low}★+`, a11y: `Minimum ${SKILL_STAR_RANGE.bronze.low} stars and up, rated players` },
+  ...SKILL_KEYS.slice(1).map((value) => ({
+    value,
+    label: `${SKILL_STAR_RANGE[value].low}★+`,
+    short: `${SKILL_STAR_RANGE[value].low}★+`,
+    a11y: `Minimum ${SKILL_STAR_RANGE[value].low} stars and up`,
+  })),
 ];
 const RATING_PRICES: Array<{ key: string; text: string; value: string; earns?: boolean }> = [
   { key: "bronze", text: "players pay", value: "$12" },
@@ -389,16 +397,27 @@ export default function SessionCreateScreen() {
             </View>
 
             <Text style={[s.fieldLabel, { marginTop: 20 }]}>MINIMUM SKILL LEVEL</Text>
-            {SKILL_LEVELS.map((sl) => (
-              <Pressable key={sl.value} onPress={() => {
-                setSkillLevel(sl.value);
-                void fetchPlayerCounts(sl.value);
-              }}
-                style={[s.radioRow, skillLevel === sl.value && s.radioRowActive]}>
-                <View style={[s.radio, skillLevel === sl.value && s.radioActive]} />
-                <Text style={s.radioLabel}>{sl.label}</Text>
-              </Pressable>
-            ))}
+            <View style={s.skillGrid}>
+              {SKILL_LEVELS.map((sl) => {
+                const on = skillLevel === sl.value;
+                return (
+                  <Pressable
+                    key={sl.value}
+                    onPress={() => {
+                      void hapticTap();
+                      setSkillLevel(sl.value);
+                      void fetchPlayerCounts(sl.value);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={sl.a11y}
+                    accessibilityState={{ selected: on }}
+                    style={[s.chip, s.skillChip, sl.value === "all" && s.skillChipAll, on && s.chipActive]}
+                  >
+                    <Text style={[s.chipText, on && s.chipTextActive]}>{sl.short}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
             {locationSelected && playerCounts && (
               <View style={{ marginTop: 12, backgroundColor: themeColor().overlaySubtle, borderRadius: 10, padding: 12, gap: 4 }}>
                 <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 4 }}>
@@ -605,6 +624,9 @@ function make_s() {
   chipTextActive: { color: themeColor().pitchText },
   capacityInput: { backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, color: themeColor().text, fontSize: 20, ...headline, paddingHorizontal: 16, paddingVertical: 12, textAlign: "center", width: 100 },
   capacityHint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
+  skillGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  skillChip: { width: "31.5%", alignItems: "center", paddingHorizontal: 8 },
+  skillChipAll: { width: "100%" },
   radioRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, paddingHorizontal: 4, borderRadius: 10 },
   radioRowActive: { backgroundColor: themeColor().pitchPanel },
   radio: { width: 18, height: 18, borderRadius: 10, borderWidth: 2, borderColor: themeColor().line },

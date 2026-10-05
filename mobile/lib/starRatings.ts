@@ -81,6 +81,9 @@ export const SKILL_STAR_RANGE: Record<string, { low: number; high: number }> = {
   diamond: { low: 4.5, high: 5.0 },
 };
 
+/** Lowest star of each open_tier_rank band: rank 0 is open to everyone and has no entry. */
+const TIER_RANK_STAR_LOW: Record<number, number> = { 1: 0.5, 2: 1.5, 3: 2.5, 4: 3.5, 5: 4.5 };
+
 /** Planned `pickup_runs.min_star`. Missing column means every run reads as open level. */
 export async function fetchRunMinStars(
   supabase: SupabaseClient,
@@ -91,7 +94,12 @@ export async function fetchRunMinStars(
   if (ids.length === 0) return minStars;
   const { data, error } = await supabase.from("pickup_runs").select("id,min_star").in("id", ids);
   if (error) {
-    console.warn("[stars] pickup_runs.min_star unavailable:", error.message);
+    // No min_star column yet: the game's minimum is its open_tier_rank band (1 to 5 = 0.5, 1.5 ... 4.5 and up).
+    const ranks = await supabase.from("pickup_runs").select("id,open_tier_rank").in("id", ids);
+    for (const row of (ranks.data ?? []) as Array<{ id: string; open_tier_rank: number | string | null }>) {
+      const low = TIER_RANK_STAR_LOW[Number(row.open_tier_rank)];
+      if (low != null) minStars.set(row.id, low);
+    }
     return minStars;
   }
   for (const row of (data ?? []) as Array<{ id: string; min_star: number | string | null }>) {

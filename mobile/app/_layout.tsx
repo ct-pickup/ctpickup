@@ -455,7 +455,7 @@ function RootLayoutNav() {
                           />
                           <Stack.Screen
                             name="session-map"
-                            options={{ headerShown: false }}
+                            options={{ headerShown: false, title: "Games", headerBackTitle: "Games" }}
                           />
                           <Stack.Screen
                             name="session/[id]"
