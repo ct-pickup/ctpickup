@@ -22,6 +22,9 @@ import { starLevelName } from "@/shared/starLevels";
 /** How many top-ranked candidates get the (more expensive) mutual-teammate pass. */
 const SHORTLIST = 40;
 
+/** No response carries more than this many players. */
+const MAX_DISCOVER_RESULTS = 20;
+
 /** Default max drive time when the viewer has not set one. */
 const DEFAULT_MAX_DRIVE_MINUTES = 30;
 
@@ -208,7 +211,10 @@ async function hydrate(admin: SupabaseClient, viewer: CandidateRow, ids: string[
     }
   }
 
-  const present = ids.map((id) => byId.get(id)).filter((r): r is CandidateRow => r != null);
+  const present = ids
+    .map((id) => byId.get(id))
+    .filter((r): r is CandidateRow => r != null)
+    .slice(0, MAX_DISCOVER_RESULTS);
   if (!present.length) return [];
 
   const stars = await loadStarsFor(admin, [viewer.id, ...present.map((p) => p.id)]);
@@ -226,6 +232,8 @@ async function hydrate(admin: SupabaseClient, viewer: CandidateRow, ids: string[
     const theirs = history.byUser.get(row.id)?.playedWith ?? new Set<string>();
     let mutual = 0;
     for (const id of theirs) if (id !== viewer.id && myTeammates.has(id)) mutual += 1;
+    const myTown = townFromZip(viewer.zip_code);
+    const theirTown = townFromZip(row.zip_code);
 
     const theirPrimary = positions(row).primary;
     const reasons = discoverReasons({
@@ -236,6 +244,8 @@ async function hydrate(admin: SupabaseClient, viewer: CandidateRow, ids: string[
       positionLabel: positionLabel(theirPrimary),
       driveMinutes,
       mutualCount: mutual,
+      playedTogether: history.byUser.get(viewer.id)?.timesWith?.get(row.id) ?? 0,
+      sameTown: myTown != null && myTown === theirTown,
     });
 
     return toDiscoverPlayer(row, theirStar, reasons);

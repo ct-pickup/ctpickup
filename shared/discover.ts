@@ -133,6 +133,10 @@ export type ReasonInput = {
   positionLabel: string | null;
   driveMinutes: number | null;
   mutualCount: number;
+  /** Completed sessions the viewer and this player attended together. */
+  playedTogether?: number;
+  /** True when both have a home town and it is the same one. The card already shows their town. */
+  sameTown?: boolean;
 };
 
 /**
@@ -159,6 +163,15 @@ export function discoverReasons(input: ReasonInput): string[] {
   if (input.mutuals >= DISCOVER_REASON_THRESHOLDS.mutuals && input.mutualCount > 0) {
     const plural = input.mutualCount === 1 ? "teammate" : "teammates";
     candidates.push({ component: "mutuals", value: input.mutuals, label: `${input.mutualCount} mutual ${plural}` });
+  }
+
+  // Real shared history and a shared town rank just under an exact level match; they are not part of the score.
+  if ((input.playedTogether ?? 0) >= 1) {
+    const n = input.playedTogether as number;
+    candidates.push({ component: "mutuals", value: 0.95, label: n === 1 ? "Played together once" : `Played together ${n} times` });
+  }
+  if (input.sameTown) {
+    candidates.push({ component: "distance", value: 0.7, label: "Same town" });
   }
 
   return candidates

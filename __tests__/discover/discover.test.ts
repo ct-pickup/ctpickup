@@ -64,6 +64,19 @@ describe("discover reasons", () => {
     expect(discoverReasons({ ...base, mutuals: 1, mutualCount: 3 })).toEqual(["3 mutual teammates"]);
   });
 
+  it("names real shared history and a shared town", () => {
+    expect(discoverReasons({ ...base, playedTogether: 1 })).toEqual(["Played together once"]);
+    expect(discoverReasons({ ...base, playedTogether: 2 })).toEqual(["Played together 2 times"]);
+    expect(discoverReasons({ ...base, sameTown: true })).toEqual(["Same town"]);
+    expect(discoverReasons({ ...base, playedTogether: 0, sameTown: false })).toEqual([]);
+  });
+
+  it("caps at two chips when several apply", () => {
+    const r = discoverReasons({ ...base, level: 1, playedTogether: 3, sameTown: true });
+    expect(r).toEqual(["Same level", "Played together 3 times"]);
+    expect(r).toHaveLength(MAX_DISCOVER_REASONS);
+  });
+
   it("returns the two strongest reasons, strongest first", () => {
     const reasons = discoverReasons({
       level: 1,
