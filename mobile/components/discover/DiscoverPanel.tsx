@@ -1,6 +1,6 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -15,6 +15,7 @@ import {
 
 import { ChalkEmptyState } from "@/components/chalk";
 import { StarRating } from "@/components/StarRating";
+import { CONTACTS_INVITE_ENABLED } from "@/lib/contactsInvite";
 import { hapticTap } from "@/lib/haptics";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import { DISCOVER_PICK_COUNT, type DiscoverPlayer } from "@shared/discover";
@@ -89,6 +90,22 @@ export default function DiscoverPanel(props: DiscoverPanelProps) {
           </Pressable>
         ) : null}
       </View>
+
+      {CONTACTS_INVITE_ENABLED ? (
+        <Pressable
+          onPress={() => {
+            void hapticTap();
+            router.push("/contacts-invite" as Href);
+          }}
+          style={({ pressed }) => [styles.inviteRow, pressed && { opacity: 0.85 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Invite friends from your contacts"
+        >
+          <FontAwesome name="address-book-o" size={16} color={themeColor().pitchText} />
+          <Text style={styles.inviteText}>Invite friends from your contacts</Text>
+          <FontAwesome name="chevron-right" size={12} color={themeColor().muted} />
+        </Pressable>
+      ) : null}
 
       {props.searching ? (
         <Text style={styles.note}>Searching.</Text>
@@ -234,6 +251,19 @@ function make_styles() {
   return StyleSheet.create({
     content: { padding: 12, paddingBottom: 32, gap: 12 },
     center: { alignItems: "center", gap: 8, paddingVertical: 24 },
+
+    inviteRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingHorizontal: 14,
+      minHeight: 44,
+      borderRadius: radius.card,
+      backgroundColor: c.card,
+      borderWidth: 1,
+      borderColor: c.line,
+    },
+    inviteText: { flex: 1, color: c.text, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
 
     searchRow: {
       flexDirection: "row",

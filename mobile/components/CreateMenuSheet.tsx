@@ -1,11 +1,12 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useRouter, type Href } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Animated, Modal, PanResponder, Pressable, Share, StyleSheet, Text, View } from "react-native";
 
 import { useAuth } from "@/context/AuthContext";
-import { APP_STORE_URL, PRODUCT_NAME } from "@/lib/brand";
-import { siteOrigin } from "@/lib/env";
+import { CONTACTS_INVITE_ENABLED } from "@/lib/contactsInvite";
 import { hapticTap } from "@/lib/haptics";
+import { buildInviteMessage } from "@/lib/invite";
 import { radius, themeColor, useThemedStyles } from "@/theme";
 
 /** Drag further than this and the sheet closes instead of springing back. */
@@ -31,6 +32,7 @@ export function CreateMenuSheet({ visible, onClose, onHostGame, resultRunId, onP
   useThemedStyles(publish_styles);
 
   const { session } = useAuth();
+  const router = useRouter();
   const dragY = useMemo(() => new Animated.Value(0), []);
 
   const close = useCallback(() => {
@@ -71,35 +73,14 @@ export function CreateMenuSheet({ visible, onClose, onHostGame, resultRunId, onP
   const inviteFriends = useCallback(async () => {
     if (inviting) return;
     void hapticTap();
+    if (CONTACTS_INVITE_ENABLED) {
+      close();
+      router.push("/contacts-invite" as Href);
+      return;
+    }
     setInviting(true);
     try {
-      const origin = siteOrigin();
-      const token = session?.access_token;
-      let code: string | null = null;
-
-      if (origin && token) {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 3000);
-        try {
-          const res = await fetch(`${origin}/api/referral/code`, {
-            headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-            cache: "no-store",
-            signal: controller.signal,
-          });
-          const json = (await res.json().catch(() => null)) as { referral_code?: string } | null;
-          if (res.ok && typeof json?.referral_code === "string") code = json.referral_code;
-        } catch {
-          code = null; // No code is fine: the invite still goes out.
-        } finally {
-          clearTimeout(timer);
-        }
-      }
-
-      // App Store page first; the site URL only when no App Store link is configured.
-      const link = APP_STORE_URL || origin || "";
-      const message =
-        `Join me on ${PRODUCT_NAME} — competitive pickup soccer. ${link}` +
-        (code ? `\nUse my referral code ${code} when you sign up.` : "");
+      const message = await buildInviteMessage(session?.access_token);
 
       await Share.share({ message });
       close();
@@ -109,7 +90,7 @@ export function CreateMenuSheet({ visible, onClose, onHostGame, resultRunId, onP
     } finally {
       setInviting(false);
     }
-  }, [close, inviting, session, showToast]);
+  }, [close, inviting, router, session, showToast]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>

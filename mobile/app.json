@@ -14,6 +14,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "Show pickup sessions near you.",
+        "NSContactsUsageDescription": "Competitive Together uses your contacts so you can pick friends to invite. Your contacts are never uploaded.",
         "CFBundleDisplayName": "CT"
       },
       "buildNumber": "47"
@@ -38,6 +39,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Competitive Together uses your contacts so you can pick friends to invite. Your contacts are never uploaded."
+        }
+      ],
       [
         "expo-audio",
         {

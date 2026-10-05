@@ -380,6 +380,16 @@ function RootLayoutNav() {
                             }}
                           />
                           <Stack.Screen
+                            name="contacts-invite"
+                            options={{
+                              headerShown: true,
+                              title: "Invite friends",
+                              headerStyle: { backgroundColor: themeColor().bg },
+                              headerTintColor: themeColor().text,
+                              headerShadowVisible: false,
+                            }}
+                          />
+                          <Stack.Screen
                             name="following"
                             options={{
                               headerShown: true,
