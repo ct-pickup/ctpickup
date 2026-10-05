@@ -1,5 +1,7 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { SignInPanel } from "@/components/SignInPanel";
+import MuteSheet from "@/components/chat/MuteSheet";
+import { useRoomMute } from "@/hooks/useChatMutes";
 import { useAuth } from "@/context/AuthContext";
 import {
   normalizeChatSenderDisplayForMatch,
@@ -118,6 +120,8 @@ export default function TeamChatThreadScreen() {
     : ({ slug: trimmedSlug || ANNOUNCEMENTS_CHAT_SLUG } as const);
   const { room, loading: roomLoading, error: roomError } = useTeamChatRoom(enabled, lookup);
   const roomId = room?.id ?? null;
+  const roomMute = useRoomMute(roomId);
+  const [muteSheetOpen, setMuteSheetOpen] = useState(false);
 
   const {
     messages,
@@ -260,6 +264,19 @@ export default function TeamChatThreadScreen() {
         headerTintColor: themeColor().text,
         headerShadowVisible: false,
         headerBackVisible: false,
+        headerRight: roomId
+          ? () => (
+              <Pressable
+                onPress={() => setMuteSheetOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel={roomMute.muted ? "Notifications muted. Open mute options" : "Mute notifications"}
+                hitSlop={10}
+                style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1, paddingHorizontal: 8 })}
+              >
+                <FontAwesome name={roomMute.muted ? "bell-slash" : "bell-o"} size={18} color={themeColor().text} />
+              </Pressable>
+            )
+          : undefined,
         headerLeft: () => (
           <Pressable
             onPress={() => router.back()}
@@ -275,10 +292,11 @@ export default function TeamChatThreadScreen() {
       return () => {
         navigation.setOptions({
           headerLeft: undefined,
+          headerRight: undefined,
           headerBackVisible: undefined,
         });
       };
-    }, [navigation, router, room]),
+    }, [navigation, router, room, roomId, roomMute.muted]),
   );
 
   useEffect(() => {
@@ -408,6 +426,16 @@ export default function TeamChatThreadScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 84 : 0}
     >
+      <MuteSheet
+        visible={muteSheetOpen}
+        onClose={() => setMuteSheetOpen(false)}
+        muted={roomMute.muted}
+        mutedUntil={roomMute.mutedUntil}
+        busy={roomMute.busy}
+        error={roomMute.error}
+        onMute={(choice) => void roomMute.mute(choice).then((ok) => ok && setMuteSheetOpen(false))}
+        onUnmute={() => void roomMute.unmute().then((ok) => ok && setMuteSheetOpen(false))}
+      />
       {announcementsOnly ? (
         <View style={styles.notice}>
           <Text style={styles.noticeText}>

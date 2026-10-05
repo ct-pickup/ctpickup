@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { activeMutedUserIds, filterUnmutedUserIds } from "@/lib/chat/notificationMutes";
 import { truncatePushBody } from "@/lib/push/truncatePushBody";
 import {
   sendMarketingPushToAll,
@@ -50,8 +51,10 @@ export async function staffInsertChatMessageAndPush(
     },
   };
 
+  // Players can mute any chat, announcements included. This only covers the chat message itself: urgent or system
+  // notifications (pickup, payments, admin DMs about your account) are sent elsewhere and never read these mutes.
   const push = isGroup
-    ? await sendPushToUsers(admin, userIds, pushPayload)
-    : await sendMarketingPushToAll(admin, pushPayload);
+    ? await sendPushToUsers(admin, await filterUnmutedUserIds(admin, room.id, userIds), pushPayload)
+    : await sendMarketingPushToAll(admin, pushPayload, { excludeUserIds: await activeMutedUserIds(admin, room.id) });
   return { insertError: null, push };
 }

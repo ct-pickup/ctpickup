@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { filterUnmutedUserIds } from "@/lib/chat/notificationMutes";
 import { TEAM_CHAT_SLUG } from "@/lib/chat/constants";
 import { truncatePushBody } from "@/lib/push/truncatePushBody";
 import { fetchApprovedUserIds } from "@/lib/push/approvedUserIds";
@@ -144,6 +145,9 @@ export async function POST(req: Request) {
       pushTargetIds = idsRes.ids.filter((id) => id !== uid);
     }
   }
+
+  // Skip anyone who muted this chat (their own notification mute, not the admin posting mute above).
+  pushTargetIds = await filterUnmutedUserIds(admin, room.id, pushTargetIds);
 
   if (pushTargetIds.length > 0) {
     await sendPushToUsers(admin, pushTargetIds, {
