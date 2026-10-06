@@ -13,8 +13,10 @@ import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
 /** Every CT+ perk, and only real ones, directory first. The same list shows wherever the paywall is opened from. */
 export const CTPLUS_PERKS = [
+  "Full game log with details: teammates, awards, points and rating direction",
+  "Record with each teammate you have played with 3+ times",
+  "Win streaks and your rating trend across the year",
   "Player directory with filters (position, level, distance)",
-  "Season stats and rating trend",
   "Premium share card designs (Dark, Gold, Club)",
   "Story and square sizes",
   "Your action photo on the card",
