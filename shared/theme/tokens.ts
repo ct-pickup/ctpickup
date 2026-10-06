@@ -10,7 +10,7 @@ export const palette = {
   /** Primary text, and every dark surface and card. */
   ink: "#0B1218",
   /** Cyan used as text, links or thin lines on light backgrounds. */
-  cyanDeep: "#0891B2",
+  cyanDeep: "#0E7490",
   /** App background. */
   bg: "#F5F8FA",
   card: "#FFFFFF",
@@ -19,7 +19,7 @@ export const palette = {
   /** Wins, W badges and confirmations. */
   success: "#16A34A",
   warning: "#F59E0B",
-  error: "#EF4444",
+  error: "#DC2626",
   /** CT+ premium card accent only. */
   gold: "#C9A24B",
 } as const;
