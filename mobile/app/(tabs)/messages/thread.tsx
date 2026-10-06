@@ -1,3 +1,4 @@
+import { goBack } from "@/lib/goBack";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { SignInPanel } from "@/components/SignInPanel";
 import MuteSheet from "@/components/chat/MuteSheet";
@@ -279,7 +280,7 @@ export default function TeamChatThreadScreen() {
           : undefined,
         headerLeft: () => (
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => goBack(router, "/(tabs)/messages")}
             accessibilityRole="button"
             accessibilityLabel="Go back"
             hitSlop={10}

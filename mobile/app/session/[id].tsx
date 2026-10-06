@@ -1,3 +1,4 @@
+import { goBack } from "@/lib/goBack";
 import { useAuth } from "@/context/AuthContext";
 import { useProfilePhoto } from "@/context/ProfilePhotoContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
@@ -1238,7 +1239,7 @@ export default function SessionDetailScreen() {
       <View style={s.center}>
         <Stack.Screen options={{ headerShown: false }} />
         <Text style={s.errorText}>Session not found.</Text>
-        <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={s.backBtnText}>Go back</Text></Pressable>
+        <Pressable onPress={() => goBack(router, "/(tabs)/sessions")} style={s.backBtn}><Text style={s.backBtnText}>Go back</Text></Pressable>
       </View>
     );
   }
@@ -1342,7 +1343,7 @@ export default function SessionDetailScreen() {
             <PhotoHeader uri={heroPhoto} aspect="tall" chalkSize="md" accessibilityLabel="Field photo" />
             <View style={[s.heroBar, { top: insets.top + 8 }]}>
               <Pressable
-                onPress={() => router.back()}
+                onPress={() => goBack(router, "/(tabs)/sessions")}
                 style={s.heroBtn}
                 hitSlop={8}
                 accessibilityRole="button"

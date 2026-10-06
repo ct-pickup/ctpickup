@@ -1,3 +1,4 @@
+import { goBack } from "@/lib/goBack";
 import { useRouter } from "expo-router";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -82,7 +83,7 @@ export default function SeasonRulesScreen() {
           )}
         </View>
       ))}
-      <Pressable onPress={() => router.back()} hitSlop={8} style={styles.back} accessibilityRole="button">
+      <Pressable onPress={() => goBack(router, "/(tabs)/account")} hitSlop={8} style={styles.back} accessibilityRole="button">
         <Text style={styles.link}>Back</Text>
       </Pressable>
     </ScrollView>

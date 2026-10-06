@@ -1,3 +1,4 @@
+import { goBack } from "@/lib/goBack";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "expo-router";
@@ -269,7 +270,7 @@ export default function SeasonStatsScreen() {
         </>
       )}
 
-      <Pressable onPress={() => router.back()} hitSlop={8} style={styles.back} accessibilityRole="button">
+      <Pressable onPress={() => goBack(router, "/(tabs)/account")} hitSlop={8} style={styles.back} accessibilityRole="button">
         <Text style={styles.link}>Back</Text>
       </Pressable>
     </ScrollView>
