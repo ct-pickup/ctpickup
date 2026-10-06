@@ -175,7 +175,7 @@ export default function MatchRecapScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Player of the Day</Text>
             <View style={[styles.card, styles.potdRow]}>
-              <FontAwesome name="star" size={16} color={themeColor().accent} />
+              <FontAwesome name="star" size={16} color={themeColor().pitchText} />
               <Text style={[styles.potdName, recap.potd.isMe && styles.potdMe]}>{recap.potd.name}</Text>
             </View>
           </View>
@@ -290,7 +290,7 @@ function make_styles() {
 
     teamsRow: { flexDirection: "row", gap: 12 },
     teamCard: { flex: 1, padding: 12, gap: 4 },
-    teamCardMine: { borderColor: themeColor().accent },
+    teamCardMine: { borderColor: themeColor().pitchText },
     teamHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
     teamName: { fontSize: 15, fontFamily: "Inter_700Bold", color: themeColor().text },
     teamWon: { fontSize: 11, fontFamily: "Inter_700Bold", color: themeColor().pitchText },

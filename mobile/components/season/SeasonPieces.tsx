@@ -175,7 +175,7 @@ function make_styles() {
       justifyContent: "center",
     },
     pillMd: { height: 28, paddingHorizontal: 12 },
-    pillWin: { backgroundColor: themeColor().accent, borderColor: themeColor().accent },
+    pillWin: { backgroundColor: themeColor().accent, borderColor: themeColor().pitchText },
     pillLoss: { backgroundColor: themeColor().overlay, borderColor: themeColor().overlay },
     pillDraw: { backgroundColor: "transparent", borderColor: themeColor().muted },
     pillText: { fontSize: 11, fontFamily: "Inter_700Bold" },

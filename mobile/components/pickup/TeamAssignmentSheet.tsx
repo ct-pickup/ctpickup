@@ -188,7 +188,7 @@ function make_styles() {
     borderWidth: 1,
     borderColor: themeColor().line,
   },
-  teamToggleActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
+  teamToggleActive: { borderColor: themeColor().pitchText, backgroundColor: themeColor().pitchPanel },
   teamToggleText: { color: themeColor().muted, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   teamToggleTextActive: { color: themeColor().pitchText },
   rebalanceBtn: {
@@ -196,9 +196,9 @@ function make_styles() {
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: themeColor().accent,
+    borderColor: themeColor().pitchText,
   },
-  rebalanceText: { color: themeColor().accent, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
+  rebalanceText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   teamList: { maxHeight: 360, marginBottom: 12 },
   teamPlayerRow: {
     paddingVertical: 8,
@@ -218,7 +218,7 @@ function make_styles() {
     borderColor: themeColor().line,
     alignItems: "center",
   },
-  teamChipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
+  teamChipActive: { borderColor: themeColor().pitchText, backgroundColor: themeColor().pitchPanel },
   teamChipText: { color: themeColor().muted, fontWeight: "800" },
   teamChipTextActive: { color: themeColor().pitchText },
   primaryBtn: {

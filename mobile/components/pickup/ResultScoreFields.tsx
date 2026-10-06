@@ -126,12 +126,12 @@ function make_styles() {
       borderWidth: 2,
       borderColor: themeColor().overlay,
     },
-    pickSelected: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitch },
+    pickSelected: { borderColor: themeColor().pitchText, backgroundColor: themeColor().pitch },
     pickText: { fontSize: 17, ...headline, color: themeColor().text },
     pickTextSelected: { color: themeColor().onPitch },
     toggleRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 },
     checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 1.5, borderColor: themeColor().muted },
-    checkboxOn: { backgroundColor: themeColor().pitch, borderColor: themeColor().pitch },
+    checkboxOn: { backgroundColor: themeColor().pitch, borderColor: themeColor().pitchText },
     toggleText: { fontSize: 14, fontFamily: "Inter_500Medium", color: themeColor().text },
   });
 }

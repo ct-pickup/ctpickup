@@ -40,7 +40,7 @@ type StandingRow = {
 function chipTone(eff: string): string {
   switch (eff) {
     case "good":
-      return "border-pitch bg-pitch-panel text-on-pitch-panel";
+      return "border-pitch-text bg-pitch-panel text-on-pitch-panel";
     case "warning":
       return "border-line bg-overlay-subtle text-muted";
     case "suspended":

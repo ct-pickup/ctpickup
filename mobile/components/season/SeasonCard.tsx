@@ -108,7 +108,7 @@ function make_styles() {
     topText: { flex: 1, minWidth: 0 },
     label: { color: c.muted, fontSize: 12, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     prize: { color: c.text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 2 },
-    badge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, borderWidth: 1, borderColor: c.pitch },
+    badge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, borderWidth: 1, borderColor: c.pitchText },
     badgeText: { color: c.pitchText, fontSize: 12, fontFamily: "Inter_700Bold", fontWeight: "700" },
     enterBtn: { backgroundColor: c.pitch, borderRadius: radius.button, paddingHorizontal: 14, paddingVertical: 8 },
     enterText: { color: c.onPitch, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },

@@ -176,7 +176,7 @@ function make_styles() {
     err: { color: c.coralText, lineHeight: 20 },
     section: { color: c.muted, fontSize: 12, fontFamily: "Inter_600SemiBold", fontWeight: "600", marginTop: 12 },
     card: { padding: 14, borderRadius: radius.card, borderWidth: 1, borderColor: c.line, backgroundColor: c.card, gap: 8 },
-    winnerCard: { borderColor: c.pitch, backgroundColor: c.pitchPanel },
+    winnerCard: { borderColor: c.pitchText, backgroundColor: c.pitchPanel },
     cardTop: { flexDirection: "row", alignItems: "center", gap: 10 },
     cardBody: { flex: 1, minWidth: 0 },
     rank: { width: 22, color: c.pitchText, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800" },
@@ -184,7 +184,7 @@ function make_styles() {
     meta: { color: c.muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
     badge: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: c.pitch, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
     badgeText: { color: c.onPitch, fontSize: 12, fontFamily: "Inter_700Bold", fontWeight: "700" },
-    action: { color: c.accent, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    action: { color: c.pitchText, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   });
 }
 let styles = make_styles();

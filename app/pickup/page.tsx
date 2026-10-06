@@ -24,7 +24,7 @@ type PendingPickup =
 type Data = any;
 
 function pill(status: string) {
-  if (status === "active") return "border-pitch bg-pitch-panel text-on-pitch-panel";
+  if (status === "active") return "border-pitch-text bg-pitch-panel text-on-pitch-panel";
   if (status === "planning") return "border-line bg-overlay text-ink";
   if (status === "cancelled" || status === "canceled") return "border-coral bg-overlay-subtle text-coral-text";
   return "border-line bg-overlay-subtle text-muted";
@@ -453,7 +453,7 @@ export default function PickupPage() {
                     <div className="flex flex-wrap gap-3">
                       {data.final?.my_status === "confirmed" ? (
                         <>
-                          <div className="inline-flex items-center rounded-pill border border-pitch bg-pitch-panel px-4 py-2 text-small font-semibold text-on-pitch-panel">
+                          <div className="inline-flex items-center rounded-pill border border-pitch-text bg-pitch-panel px-4 py-2 text-small font-semibold text-on-pitch-panel">
                             Confirmed
                           </div>
                           <button

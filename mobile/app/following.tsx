@@ -313,7 +313,7 @@ function make_styles() {
     alignItems: "center",
   },
   tabBtnOn: {
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   tabBtnText: { fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },

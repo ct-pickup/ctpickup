@@ -1655,7 +1655,7 @@ function make_s() {
       alignItems: "center",
       justifyContent: "center",
     },
-    radioOn: { borderColor: themeColor().accent },
+    radioOn: { borderColor: themeColor().pitchText },
     radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: themeColor().accent },
     noteBlock: { paddingVertical: 12, gap: 4 },
     noteTitle: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },

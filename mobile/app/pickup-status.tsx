@@ -265,7 +265,7 @@ function make_styles() {
     paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   labelBadgeEveryoneText: { color: themeColor().onPitchPanel, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
@@ -325,11 +325,11 @@ function make_styles() {
   },
   pillLikely: {
     backgroundColor: themeColor().pitchPanel,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
   },
   pillActive: {
     backgroundColor: themeColor().pitchPanel,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
   },
   runTitle: {
     marginTop: 12,

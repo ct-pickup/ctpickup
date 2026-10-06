@@ -1215,7 +1215,7 @@ function make_styles() {
   },
   valueK: { color: themeColor().muted, fontWeight: "900" },
   linkRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  linkText: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().accent },
+  linkText: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().pitchText },
   h2hHairline: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: themeColor().overlay,

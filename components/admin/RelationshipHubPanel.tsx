@@ -86,7 +86,7 @@ export function RelationshipHubPanel({
   if (!isReady) return <p className="text-small text-muted">Loading hub controls…</p>;
 
   return (
-    <div className="mt-8 space-y-8 rounded-card border border-pitch bg-pitch-panel p-5">
+    <div className="mt-8 space-y-8 rounded-card border border-pitch-text bg-pitch-panel p-5">
       <div>
         <h3 className="text-small font-semibold text-ink">Fix hub links here</h3>
         <p className="mt-1 text-caption text-muted">

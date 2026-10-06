@@ -1,52 +1,60 @@
 /* Generated from shared/theme/tokens.ts. Do not edit by hand. */
 :root {
-  --canvas: #F4F1EA;
+  --canvas: #F5F8FA;
   --card: #FFFFFF;
-  --ink: #111111;
-  --muted: #6B6B66;
-  --line: #E2DED4;
-  --pitch: #1F4D3A;
-  --pitch-text: #1F4D3A;
-  --pitch-soft: #E3ECE6;
-  --pitch-panel: #E3ECE6;
-  --on-pitch-panel: #1F4D3A;
-  --coral: #FF6B4A;
-  --coral-text: #B33A1E;
-  --on-pitch: #FFFFFF;
-  --overlay-subtle: rgba(17,17,17,0.04);
-  --overlay: rgba(17,17,17,0.08);
-  --overlay-strong: rgba(17,17,17,0.14);
-  --scrim: rgba(17,17,17,0.45);
-  --chalk: #F4F1EA;
+  --ink: #0B1218;
+  --muted: #5B6B76;
+  --line: #E1E8ED;
+  --pitch: #14E4FC;
+  --pitch-text: #0E7490;
+  --pitch-soft: rgba(20,228,252,0.14);
+  --pitch-panel: rgba(20,228,252,0.14);
+  --on-pitch-panel: #0B1218;
+  --coral: #DC2626;
+  --coral-text: #DC2626;
+  --on-pitch: #0B1218;
+  --overlay-subtle: rgba(11,18,24,0.04);
+  --overlay: rgba(11,18,24,0.08);
+  --overlay-strong: rgba(11,18,24,0.14);
+  --scrim: rgba(11,18,24,0.45);
+  --chalk: #F5F8FA;
   --paper: #FFFFFF;
-  --ink-solid: #111111;
-  --ink-card: #1A1A1A;
+  --ink-solid: #0B1218;
+  --ink-card: #0B1218;
+  --on-ink: #FFFFFF;
+  --success: #16A34A;
+  --warning: #F59E0B;
+  --error: #DC2626;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-  --canvas: #111111;
-  --card: #1A1A1A;
-  --ink: #F4F1EA;
-  --muted: #A3A39E;
-  --line: #2A2A2A;
-  --pitch: #1F4D3A;
-  --pitch-text: #E3ECE6;
-  --pitch-soft: #E3ECE6;
-  --pitch-panel: #1C2E25;
-  --on-pitch-panel: #A9CDB8;
-  --coral: #FF6B4A;
-  --coral-text: #FF6B4A;
-  --on-pitch: #FFFFFF;
+  --canvas: #0B1218;
+  --card: rgba(255,255,255,0.06);
+  --ink: #FFFFFF;
+  --muted: rgba(255,255,255,0.64);
+  --line: rgba(255,255,255,0.14);
+  --pitch: #14E4FC;
+  --pitch-text: #14E4FC;
+  --pitch-soft: rgba(20,228,252,0.16);
+  --pitch-panel: rgba(20,228,252,0.16);
+  --on-pitch-panel: #FFFFFF;
+  --coral: #DC2626;
+  --coral-text: #DC2626;
+  --on-pitch: #0B1218;
   --overlay-subtle: rgba(255,255,255,0.04);
   --overlay: rgba(255,255,255,0.08);
   --overlay-strong: rgba(255,255,255,0.14);
   --scrim: rgba(0,0,0,0.55);
-  --chalk: #F4F1EA;
+  --chalk: #F5F8FA;
   --paper: #FFFFFF;
-  --ink-solid: #111111;
-  --ink-card: #1A1A1A;
+  --ink-solid: #0B1218;
+  --ink-card: #0B1218;
+  --on-ink: #FFFFFF;
+  --success: #16A34A;
+  --warning: #F59E0B;
+  --error: #DC2626;
     color-scheme: dark;
   }
 }
@@ -73,6 +81,10 @@
   --color-paper: var(--paper);
   --color-ink-solid: var(--ink-solid);
   --color-ink-card: var(--ink-card);
+  --color-on-ink: var(--on-ink);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-serif), Georgia, "Times New Roman", serif;
   --radius-card: 12px;

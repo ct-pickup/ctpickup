@@ -148,7 +148,7 @@ function make_s() {
   tierCard: { backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 16, marginBottom: 24 },
   tierTitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 12 },
   tierRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 },
-  tierBadge: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold", borderWidth: 1, borderColor: themeColor().pitch, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
+  tierBadge: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold", borderWidth: 1, borderColor: themeColor().pitchText, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
   tierDesc: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },  label: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text, marginBottom: 8, },
   input: { backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1.5, borderColor: themeColor().line, color: themeColor().text, paddingHorizontal: 12, paddingVertical: 12, fontSize: 16, fontFamily: "Inter_400Regular", minHeight: 80, textAlignVertical: "top" },
   hint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 8, lineHeight: 19 },

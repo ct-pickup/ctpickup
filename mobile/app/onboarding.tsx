@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
-  Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -21,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChalkBox, ChalkCenterCircle } from "@/components/chalk";
 import { headline, themeColor, useThemedStyles } from "@/theme";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { PRODUCT_NAME } from "@/lib/brand";
 type Slide =
   | { kind: "logo"; title: string; body: string }
@@ -122,12 +122,9 @@ export default function OnboardingScreen() {
     return (
       <View style={[styles.slide, { width: SCREEN_WIDTH }]}>
         {item.kind === "logo" ? (
-          <Image
-            source={require("../assets/images/icon.png")}
-            style={styles.logo}
-            resizeMode="contain"
-            accessibilityLabel={PRODUCT_NAME}
-          />
+          <View style={styles.logo}>
+            <BrandLogo />
+          </View>
         ) : (
           <View style={styles.chalkMark}>
             {item.graphic === "circle" ? <ChalkCenterCircle size="md" /> : <ChalkBox size="md" />}
@@ -261,11 +258,7 @@ function make_styles() {
     paddingHorizontal: 28,
     paddingBottom: 24,
   },
-  logo: {
-    width: 120,
-    height: 120,
-    marginBottom: 28,
-  },
+  logo: { marginBottom: 28 },
   chalkMark: { height: 96, justifyContent: "center", marginBottom: 28 },
   title: {
     color: themeColor().text,

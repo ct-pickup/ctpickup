@@ -169,7 +169,7 @@ function make_styles() {
     errorBlock: { marginTop: 8, gap: 8 },
     note: { marginTop: 8, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted },
     error: { marginTop: 8, fontSize: 13, fontFamily: "Inter_500Medium", color: themeColor().coralText },
-    link: { fontSize: 14, fontFamily: "Inter_500Medium", color: themeColor().accent },
+    link: { fontSize: 14, fontFamily: "Inter_500Medium", color: themeColor().pitchText },
     row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
     rowDivider: { borderTopWidth: 1, borderTopColor: themeColor().line },
     rowText: { flex: 1, minWidth: 0, gap: 2 },

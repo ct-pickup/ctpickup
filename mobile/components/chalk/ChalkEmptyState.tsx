@@ -67,9 +67,9 @@ function make_styles() {
       paddingVertical: 8,
       borderRadius: 999,
       borderWidth: 1,
-      borderColor: themeColor().accent,
+      borderColor: themeColor().pitchText,
     },
-    actionText: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().accent },
+    actionText: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().pitchText },
   });
 }
 let styles = make_styles();

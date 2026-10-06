@@ -486,7 +486,7 @@ function make_s() {
     },
     tileLabel: { marginBottom: 8, color: themeColor().muted, fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     tileEmpty: { color: themeColor().muted, fontSize: 12, fontFamily: "Inter_400Regular" },
-    manageLink: { color: themeColor().accent, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    manageLink: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     verifyRow: {
       marginTop: 10,
       marginHorizontal: 16,

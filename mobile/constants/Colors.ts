@@ -5,14 +5,14 @@ const Colors = {
   light: {
     text: lightColor.text,
     background: lightColor.bg,
-    tint: palette.pitch,
+    tint: palette.cyanDeep,
     tabIconDefault: lightColor.muted,
-    tabIconSelected: palette.pitch,
+    tabIconSelected: palette.cyanDeep,
   },
   dark: {
     text: darkColor.text,
     background: darkColor.bg,
-    tint: palette.pitch,
+    tint: palette.cyan,
     tabIconDefault: darkColor.muted,
     tabIconSelected: darkColor.text,
   },
@@ -20,4 +20,4 @@ const Colors = {
 
 export default Colors;
 
-export const CT_PICKUP_LIME = palette.pitch;
+export const CT_PICKUP_LIME = palette.cyan;

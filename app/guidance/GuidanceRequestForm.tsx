@@ -123,7 +123,7 @@ export function GuidanceRequestForm({ plan, onPlanChange }: Props) {
 
   if (done) {
     return (
-      <div className="rounded-card border border-pitch bg-pitch-panel px-5 py-6 text-small leading-relaxed text-on-pitch-panel">
+      <div className="rounded-card border border-pitch-text bg-pitch-panel px-5 py-6 text-small leading-relaxed text-on-pitch-panel">
         <p className="font-semibold text-ink">Request received.</p>
         <p className="mt-2 text-ink">
           Your request is saved to our system. We will follow up using the path

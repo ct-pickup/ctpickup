@@ -555,7 +555,7 @@ function make_styles() {
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     marginBottom: 8,
     backgroundColor: themeColor().card,
   },

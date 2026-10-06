@@ -24,10 +24,14 @@ function vars(color: typeof lightColor): string {
     `  --overlay: ${color.overlay};`,
     `  --overlay-strong: ${color.overlayStrong};`,
     `  --scrim: ${color.scrim};`,
-    `  --chalk: ${palette.chalk};`,
-    `  --paper: ${palette.paper};`,
+    `  --chalk: ${palette.bg};`,
+    `  --paper: ${palette.card};`,
     `  --ink-solid: ${palette.ink};`,
-    `  --ink-card: ${palette.inkCard};`,
+    `  --ink-card: ${color.inkSurface};`,
+    `  --on-ink: ${color.onInk};`,
+    `  --success: ${color.success};`,
+    `  --warning: ${color.warning};`,
+    `  --error: ${color.error};`,
   ].join("\n");
 }
 
@@ -66,6 +70,10 @@ ${vars(darkColor)}
   --color-paper: var(--paper);
   --color-ink-solid: var(--ink-solid);
   --color-ink-card: var(--ink-card);
+  --color-on-ink: var(--on-ink);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-serif), Georgia, "Times New Roman", serif;
   --radius-card: ${radius.card}px;

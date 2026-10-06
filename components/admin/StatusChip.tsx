@@ -12,9 +12,9 @@ export type AdminStatusTone =
 
 const TONE_STYLES: Record<AdminStatusTone, string> = {
   draft: "border-line bg-overlay-subtle text-muted",
-  published: "border-pitch bg-pitch-panel text-on-pitch-panel",
+  published: "border-pitch-text bg-pitch-panel text-on-pitch-panel",
   scheduled: "border-line bg-overlay-subtle text-muted",
-  synced: "border-pitch bg-pitch-panel text-on-pitch-panel",
+  synced: "border-pitch-text bg-pitch-panel text-on-pitch-panel",
   pending: "border-line bg-overlay-subtle text-muted",
   failed: "border-coral bg-overlay-subtle text-coral-text",
   incomplete: "border-line bg-overlay-subtle text-muted",

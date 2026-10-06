@@ -352,7 +352,7 @@ function make_styles() {
     paddingHorizontal: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   aiBadgeText: {
@@ -383,7 +383,7 @@ function make_styles() {
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().card,
   },
   chipPressed: { opacity: 0.85 },

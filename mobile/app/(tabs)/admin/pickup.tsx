@@ -697,7 +697,7 @@ export default function AdminPickupOpsScreen() {
             }}
             style={({ pressed }) => [styles.refreshBtn, pressed && { opacity: 0.85 }]}
           >
-            <FontAwesome name="refresh" size={14} color={themeColor().accent} />
+            <FontAwesome name="refresh" size={14} color={themeColor().pitchText} />
           </Pressable>
         </View>
 
@@ -1300,7 +1300,7 @@ function make_styles() {
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: themeColor().accent,
+    borderColor: themeColor().pitchText,
   },
   refreshText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   toolbar: { flexDirection: "row", gap: 8, marginBottom: 12 },
@@ -1334,7 +1334,7 @@ function make_styles() {
     borderWidth: 1,
     borderColor: themeColor().line,
   },
-  chipActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
+  chipActive: { borderColor: themeColor().pitchText, backgroundColor: themeColor().pitchPanel },
   chipText: { color: themeColor().muted, fontWeight: "700" },
   chipTextActive: { color: themeColor().pitchText },
   tabRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
@@ -1346,7 +1346,7 @@ function make_styles() {
     borderColor: themeColor().line,
     alignItems: "center",
   },
-  tabActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
+  tabActive: { borderColor: themeColor().pitchText, backgroundColor: themeColor().pitchPanel },
   tabText: { color: themeColor().muted, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   tabTextActive: { color: themeColor().pitchText },
   err: { color: themeColor().coralText, marginBottom: 12, lineHeight: 20 },
@@ -1439,7 +1439,7 @@ function make_styles() {
     borderColor: themeColor().line,
     alignItems: "center",
   },
-  typeToggleActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
+  typeToggleActive: { borderColor: themeColor().pitchText, backgroundColor: themeColor().pitchPanel },
   typeToggleText: { color: themeColor().muted, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   typeToggleTextActive: { color: themeColor().pitchText },
   input: {
@@ -1481,10 +1481,10 @@ function make_styles() {
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: themeColor().accent,
+    borderColor: themeColor().pitchText,
     marginBottom: 8,
   },
-  addSlotBtnText: { color: themeColor().accent, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
+  addSlotBtnText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
   regionDetectedHint: {
     marginTop: 8,
     fontSize: 13, fontFamily: "Inter_600SemiBold",
@@ -1506,11 +1506,11 @@ function make_styles() {
     marginTop: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: themeColor().accent,
+    borderColor: themeColor().pitchText,
     paddingVertical: 8,
     alignItems: "center",
   },
-  usePriceBtnText: { color: themeColor().accent, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
+  usePriceBtnText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
   primaryBtn: {
     marginTop: 20,
     backgroundColor: themeColor().pitch,
@@ -1536,7 +1536,7 @@ function make_styles() {
     paddingVertical: 12,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   skipWaveBtnText: { color: themeColor().onPitchPanel, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },

@@ -424,7 +424,7 @@ function make_styles() {
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   refreshText: { color: themeColor().onPitchPanel, fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
@@ -506,7 +506,7 @@ function make_styles() {
     backgroundColor: themeColor().overlaySubtle,
   },
   regionChipSelected: {
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   regionChipText: { color: themeColor().text, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },

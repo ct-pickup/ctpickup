@@ -53,7 +53,7 @@ export const shareCardColor = {
   faint: "rgba(255,255,255,0.22)",
   accent: darkTheme.color.accent,
   onAccent: darkTheme.color.onAccent,
-  scrim: "#111111",
+  scrim: palette.ink,
   starOff: "rgba(255,255,255,0.28)",
 } as const;
 
@@ -63,15 +63,25 @@ export const shareCardColor = {
  */
 export const playerCardColor = {
   bg: palette.ink,
-  name: palette.chalk,
+  name: darkTheme.color.text,
   muted: darkTheme.color.muted,
-  accent: palette.pitchBright,
+  accent: palette.cyan,
   rule: shareCardColor.faint,
   chipBg: darkTheme.color.pitchPanel,
   chipText: darkTheme.color.onPitchPanel,
   chipLine: shareCardColor.faint,
   photoScrim: darkTheme.color.photoScrim,
 } as const;
+
+/** First-run intro. Pure black in both schemes so it matches the native splash (app.json) with no color change at the handoff. */
+export const introColor = {
+  bg: "#000000",
+  text: palette.card,
+  ring: palette.cyan,
+} as const;
+
+/** Width of the logo in the native splash (app.json `imageWidth`) and in the intro, so it does not resize at the handoff. */
+export const SPLASH_LOGO_WIDTH = 200;
 
 /** Opacity of the tiling noise texture (assets/grain.png) on photos and the player card. */
 export const GRAIN_OPACITY = 0.07;

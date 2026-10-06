@@ -13,7 +13,7 @@
   --border: rgba(255,255,255,0.08);
 
   /* brand */
-  --brand: #22c55e;
+  --brand: #14E4FC;
 
   /* layout */
   --radius: 16px;

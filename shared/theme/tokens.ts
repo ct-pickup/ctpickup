@@ -5,24 +5,23 @@
  */
 
 export const palette = {
-  chalk: "#F4F1EA",
-  paper: "#FFFFFF",
-  ink: "#111111",
-  inkCard: "#1A1A1A",
-  pitch: "#1F4D3A",
-  pitchSoft: "#E3ECE6",
-  /** Dark mode accent only. Never on light surfaces. */
-  pitchBright: "#6FD3A0",
-  coral: "#FF6B4A",
+  /** Brand cyan (logo). Buttons, fills, highlights, icons and selected states. Text and icons on it are always `ink`. */
+  cyan: "#14E4FC",
+  /** Primary text, and every dark surface and card. */
+  ink: "#0B1218",
+  /** Cyan used as text, links or thin lines on light backgrounds. */
+  cyanDeep: "#0E7490",
+  /** App background. */
+  bg: "#F5F8FA",
+  card: "#FFFFFF",
+  border: "#E1E8ED",
+  muted: "#5B6B76",
+  /** Wins, W badges and confirmations. */
+  success: "#16A34A",
+  warning: "#F59E0B",
+  error: "#DC2626",
   /** CT+ premium card accent only. */
   gold: "#C9A24B",
-  coralDeep: "#B33A1E",
-  pitchPanelDark: "#1C2E25",
-  onPitchPanelDark: "#A9CDB8",
-  mutedLight: "#6B6B66",
-  mutedDark: "#A3A39E",
-  lineLight: "#E2DED4",
-  lineDark: "#2A2A2A",
 } as const;
 
 export const radius = {
@@ -76,8 +75,9 @@ export type ThemeColors = {
   text: string;
   muted: string;
   line: string;
+  /** Primary fill (the name is kept from the old green so call sites stay): brand cyan. Text on it is `onPitch` (ink). */
   pitch: string;
-  /** Pitch used as text or icon color. Pitch in light; pitch-soft in dark so it stays readable on ink. */
+  /** Brand cyan used as text, link or thin line: deep cyan on light backgrounds, brand cyan on dark. */
   pitchText: string;
   pitchSoft: string;
   /** Interactive accent: + button, outline buttons, links, active tab, Open dot. Pitch in light; pitchBright in dark. */
@@ -92,7 +92,15 @@ export type ThemeColors = {
   coral: string;
   /** Coral used as text. Deeper in light so small text stays readable on chalk. */
   coralText: string;
+  /** Text and icons on a pitch (brand cyan) fill. Always ink, never white. */
   onPitch: string;
+  /** Dark surface (ink) for cards and panels that were dark green. White text (`onInk`) and cyan accents sit on it. */
+  inkSurface: string;
+  /** Text and icons on inkSurface. */
+  onInk: string;
+  success: string;
+  warning: string;
+  error: string;
   overlaySubtle: string;
   overlay: string;
   overlayStrong: string;
@@ -103,53 +111,63 @@ export type ThemeColors = {
   onPhoto: string;
 };
 
-/** Semantic colors. `bg` is chalk in light and ink in dark. */
+/** Semantic colors. `bg` is the light background in light and ink in dark. */
 export const lightColor: ThemeColors = {
-  bg: palette.chalk,
-  card: palette.paper,
+  bg: palette.bg,
+  card: palette.card,
   text: palette.ink,
-  muted: palette.mutedLight,
-  line: palette.lineLight,
-  pitch: palette.pitch,
-  pitchText: palette.pitch,
-  pitchSoft: palette.pitchSoft,
-  accent: palette.pitch,
-  onAccent: palette.paper,
-  pitchPanel: palette.pitchSoft,
-  onPitchPanel: palette.pitch,
-  coral: palette.coral,
-  coralText: palette.coralDeep,
-  onPitch: palette.paper,
-  overlaySubtle: "rgba(17,17,17,0.04)",
-  overlay: "rgba(17,17,17,0.08)",
-  overlayStrong: "rgba(17,17,17,0.14)",
-  scrim: "rgba(17,17,17,0.45)",
-  photoScrim: "rgba(17,17,17,0.72)",
-  onPhoto: palette.paper,
+  muted: palette.muted,
+  line: palette.border,
+  pitch: palette.cyan,
+  pitchText: palette.cyanDeep,
+  pitchSoft: "rgba(20,228,252,0.14)",
+  accent: palette.cyan,
+  onAccent: palette.ink,
+  pitchPanel: "rgba(20,228,252,0.14)",
+  onPitchPanel: palette.ink,
+  coral: palette.error,
+  coralText: palette.error,
+  onPitch: palette.ink,
+  inkSurface: palette.ink,
+  onInk: palette.card,
+  success: palette.success,
+  warning: palette.warning,
+  error: palette.error,
+  overlaySubtle: "rgba(11,18,24,0.04)",
+  overlay: "rgba(11,18,24,0.08)",
+  overlayStrong: "rgba(11,18,24,0.14)",
+  scrim: "rgba(11,18,24,0.45)",
+  photoScrim: "rgba(11,18,24,0.72)",
+  onPhoto: palette.card,
 };
 
 export const darkColor: ThemeColors = {
   bg: palette.ink,
-  card: palette.inkCard,
-  text: palette.chalk,
-  muted: palette.mutedDark,
-  line: palette.lineDark,
-  pitch: palette.pitch,
-  pitchText: palette.pitchSoft,
-  pitchSoft: palette.pitchSoft,
-  accent: palette.pitchBright,
+  card: "rgba(255,255,255,0.06)",
+  text: palette.card,
+  muted: "rgba(255,255,255,0.64)",
+  line: "rgba(255,255,255,0.14)",
+  pitch: palette.cyan,
+  pitchText: palette.cyan,
+  pitchSoft: "rgba(20,228,252,0.16)",
+  accent: palette.cyan,
   onAccent: palette.ink,
-  pitchPanel: palette.pitchPanelDark,
-  onPitchPanel: palette.onPitchPanelDark,
-  coral: palette.coral,
-  coralText: palette.coral,
-  onPitch: palette.paper,
+  pitchPanel: "rgba(20,228,252,0.16)",
+  onPitchPanel: palette.card,
+  coral: palette.error,
+  coralText: palette.error,
+  onPitch: palette.ink,
+  inkSurface: palette.ink,
+  onInk: palette.card,
+  success: palette.success,
+  warning: palette.warning,
+  error: palette.error,
   overlaySubtle: "rgba(255,255,255,0.04)",
   overlay: "rgba(255,255,255,0.08)",
   overlayStrong: "rgba(255,255,255,0.14)",
   scrim: "rgba(0,0,0,0.55)",
-  photoScrim: "rgba(17,17,17,0.72)",
-  onPhoto: palette.paper,
+  photoScrim: "rgba(11,18,24,0.72)",
+  onPhoto: palette.card,
 };
 
 export type Theme = {

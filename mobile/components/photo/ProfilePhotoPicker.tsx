@@ -85,7 +85,7 @@ export default function ProfilePhotoPicker({
           disabled={busy}
           accessibilityRole="button"
         >
-          <FontAwesome name="image" size={14} color={themeColor().accent} />
+          <FontAwesome name="image" size={14} color={themeColor().pitchText} />
           <Text style={styles.btnOutlineText}>Choose from library</Text>
         </Pressable>
       </View>
@@ -131,8 +131,8 @@ function make_styles() {
     },
     btnPrimary: { backgroundColor: themeColor().pitch },
     btnPrimaryText: { color: themeColor().onPitch, fontSize: 16, fontFamily: "Inter_700Bold" },
-    btnOutline: { borderWidth: 1, borderColor: themeColor().accent },
-    btnOutlineText: { color: themeColor().accent, fontSize: 16, fontFamily: "Inter_700Bold" },
+    btnOutline: { borderWidth: 1, borderColor: themeColor().pitchText },
+    btnOutlineText: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold" },
     disabled: { opacity: 0.5 },
     hint: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_500Medium", textAlign: "center" },
     error: { color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },

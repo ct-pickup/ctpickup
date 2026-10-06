@@ -201,7 +201,7 @@ function make_styles() {
   linkText: {
     fontSize: 14, fontFamily: "Inter_600SemiBold",
     lineHeight: 20,
-    color: themeColor().accent,
+    color: themeColor().pitchText,
     fontWeight: "600",
     textDecorationLine: "underline",
   },

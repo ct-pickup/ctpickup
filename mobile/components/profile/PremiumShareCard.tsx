@@ -9,16 +9,16 @@ import type { PlayerCardData } from "@/components/profile/PlayerCard";
 import { CARD_SIZES, type CardDesignId, type CardSizeId } from "@/lib/cardDesigns";
 import { TAGLINE } from "@/lib/brand";
 import { headline } from "@/theme";
-import { palette } from "@theme/tokens";
+import { darkColor, palette } from "@theme/tokens";
 import { starLevelName } from "@shared/starLevels";
 
 type Premium = Exclude<CardDesignId, "classic">;
 
 /** Palette per design, from the shared tokens only. */
 const LOOK: Record<Premium, { bg: string; text: string; muted: string; accent: string; off: string; scrim: number; frame: boolean }> = {
-  dark: { bg: palette.ink, text: palette.chalk, muted: palette.mutedDark, accent: palette.pitchBright, off: palette.lineDark, scrim: 0.72, frame: false },
-  gold: { bg: palette.ink, text: palette.chalk, muted: palette.mutedDark, accent: palette.gold, off: palette.lineDark, scrim: 0.78, frame: true },
-  club: { bg: palette.pitch, text: palette.chalk, muted: palette.pitchSoft, accent: palette.chalk, off: palette.onPitchPanelDark, scrim: 0.82, frame: false },
+  dark: { bg: palette.ink, text: darkColor.text, muted: darkColor.muted, accent: palette.cyan, off: darkColor.line, scrim: 0.72, frame: false },
+  gold: { bg: palette.ink, text: darkColor.text, muted: darkColor.muted, accent: palette.gold, off: darkColor.line, scrim: 0.78, frame: true },
+  club: { bg: palette.ink, text: darkColor.text, muted: darkColor.muted, accent: palette.cyan, off: darkColor.line, scrim: 0.82, frame: false },
 };
 
 type Props = {

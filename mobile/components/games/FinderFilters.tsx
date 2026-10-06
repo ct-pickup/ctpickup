@@ -193,12 +193,12 @@ function make_styles() {
     wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     dayRow: { gap: 8, paddingTop: 2 },
     opt: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.card, backgroundColor: c.card, borderWidth: 1, borderColor: c.line },
-    optOn: { backgroundColor: c.pitch, borderColor: c.pitch },
+    optOn: { backgroundColor: c.pitch, borderColor: c.pitchText },
     optText: { color: c.text, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     optSub: { color: c.muted, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
     optTextOn: { color: c.onPitch },
     clear: { alignSelf: "center", paddingVertical: 14 },
-    clearText: { color: c.accent, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    clearText: { color: c.pitchText, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   });
 }
 let styles = make_styles();

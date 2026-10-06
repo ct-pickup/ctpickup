@@ -169,7 +169,7 @@ export default function AdminTierManagementScreen() {
             <View style={s.chipRow}>
               {VERIF_LEVELS.map((v) => (
                 <Pressable key={v} onPress={() => void setVerification(player, v)} disabled={!!busy}
-                  style={[s.chip, currentVerif === v && { borderColor: themeColor().pitch, backgroundColor: themeColor().pitch }]}>
+                  style={[s.chip, currentVerif === v && { borderColor: themeColor().pitchText, backgroundColor: themeColor().pitch }]}>
                   <Text style={[s.chipText, currentVerif === v && { color: themeColor().pitchText }]}>
                     {v === "self" ? "Self" : v === "document" ? "✓ Document" : "✓ Vouched"}
                   </Text>

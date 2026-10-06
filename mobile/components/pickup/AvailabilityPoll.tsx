@@ -255,7 +255,7 @@ function make_styles() {
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: "transparent",
     maxWidth: "100%",
   },

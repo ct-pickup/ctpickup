@@ -121,7 +121,7 @@ function make_styles() {
     alignItems: "center",
   },
   dayCellActive: {
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   weekday: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", },

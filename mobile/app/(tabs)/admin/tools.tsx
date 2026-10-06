@@ -156,7 +156,7 @@ function make_styles() {
     justifyContent: "center",
     backgroundColor: themeColor().pitchPanel,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
   },
   cardBody: { flex: 1, minWidth: 0 },
   cardTitle: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },

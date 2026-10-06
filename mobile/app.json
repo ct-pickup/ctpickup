@@ -17,7 +17,7 @@
         "NSContactsUsageDescription": "Competitive Together uses your contacts so you can pick friends to invite. Your contacts are never uploaded.",
         "CFBundleDisplayName": "CT"
       },
-      "buildNumber": "50"
+      "buildNumber": "51"
     },
     "android": {
       "package": "com.ctpickup.mobile",
@@ -62,16 +62,17 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#ffffff",
+          "color": "#14E4FC",
           "sounds": []
         }
       ],
       [
         "expo-splash-screen",
         {
-          "image": "./assets/brand/ct-splash-light.png",
+          "image": "./assets/brand/ct-logo.png",
+          "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#F4F1EA"
+          "backgroundColor": "#000000"
         }
       ],
       "expo-secure-store",

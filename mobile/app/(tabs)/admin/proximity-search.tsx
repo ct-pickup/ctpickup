@@ -271,7 +271,7 @@ function make_styles() {
     borderRadius: 10,
     backgroundColor: themeColor().pitchPanel,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
   },
   tierBadgeText: { color: themeColor().onPitchPanel, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "800" },
   resultMeta: { marginTop: 4, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },

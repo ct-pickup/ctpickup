@@ -55,7 +55,7 @@ function make_styles() {
     height: 40,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
     alignItems: "center",
     justifyContent: "center",
