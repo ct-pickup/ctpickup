@@ -1,14 +1,18 @@
 import { appAsyncStorage } from "@/lib/appAsyncStorage";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Image } from "expo-image";
+import { StatusBar } from "expo-status-bar";
+import { Pressable, StyleSheet, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming } from "react-native-reanimated";
 
-import { themeColor, useThemedStyles } from "@/theme";
-import { Monogram } from "@/components/brand/Monogram";
+import { introColor, SPLASH_LOGO_WIDTH, useThemedStyles } from "@/theme";
 import { Wordmark } from "@/components/brand/Wordmark";
+import { PRODUCT_NAME } from "@/lib/brand";
 export const APP_OPENING_THEME_STORAGE_KEY = "ctpickup_app_opening_theme_v1";
 
 const RING = 108;
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- static asset
+const LOGO = require("@/assets/brand/ct-logo.png");
 
 async function loadSeen(): Promise<boolean> {
   try {
@@ -36,7 +40,7 @@ export async function clearAppOpeningThemeFlag(): Promise<void> {
   }
 }
 
-/** First cold open only: green ripple pulse, then wordmark; auto-dismiss after ~3s. */
+/** First cold open only: cyan ripple pulse around the CT logo, then wordmark; auto-dismiss after ~3s. */
 export function AppOpeningTheme() {
   useThemedStyles(publish_styles);
 
@@ -62,9 +66,6 @@ export function AppOpeningTheme() {
 function AppOpeningThemeInner({ onDone }: { onDone: () => void }) {
   useThemedStyles(publish_styles);
 
-  const { width: windowW } = useWindowDimensions();
-  const iconSize = Math.min(180, windowW * 0.42);
-
   const ripple1Scale = useSharedValue(0.08);
   const ripple1Opacity = useSharedValue(0);
   const ripple2Scale = useSharedValue(0.08);
@@ -72,6 +73,7 @@ function AppOpeningThemeInner({ onDone }: { onDone: () => void }) {
   const brandOpacity = useSharedValue(0);
   const shellOpacity = useSharedValue(1);
   const doneRef = useRef(false);
+  const skipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const finishOnce = useCallback(() => {
     if (doneRef.current) return;
@@ -86,7 +88,7 @@ function AppOpeningThemeInner({ onDone }: { onDone: () => void }) {
   const skip = useCallback(() => {
     if (doneRef.current) return;
     shellOpacity.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.quad) });
-    setTimeout(finishOnce, 200);
+    skipTimerRef.current = setTimeout(finishOnce, 200);
   }, [finishOnce, shellOpacity]);
 
   useEffect(() => {
@@ -115,6 +117,7 @@ function AppOpeningThemeInner({ onDone }: { onDone: () => void }) {
     return () => {
       clearTimeout(fadeTimer);
       clearTimeout(finishTimer);
+      if (skipTimerRef.current) clearTimeout(skipTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run entrance animation once per mount
   }, []);
@@ -139,6 +142,7 @@ function AppOpeningThemeInner({ onDone }: { onDone: () => void }) {
 
   return (
     <Animated.View style={[styles.shell, shellStyle]} pointerEvents="auto">
+      <StatusBar style="light" />
       <Pressable style={StyleSheet.absoluteFill} onPress={skip} accessibilityRole="button" accessibilityLabel="Skip intro" />
       <View style={styles.stage} pointerEvents="none">
         <View style={styles.ringLayer} pointerEvents="none">
@@ -146,8 +150,8 @@ function AppOpeningThemeInner({ onDone }: { onDone: () => void }) {
           <Animated.View style={[styles.ring, r2Style]} />
         </View>
         <Animated.View style={[styles.brand, brandStyle]}>
-          <Monogram size={iconSize} tile={false} color={themeColor().pitchText} />
-          <Wordmark size={24} style={styles.wordmark} />
+          <Image source={LOGO} style={styles.logo} contentFit="contain" alt={PRODUCT_NAME} />
+          <Wordmark size={24} color={introColor.text} style={styles.wordmark} />
         </Animated.View>
       </View>
     </Animated.View>
@@ -159,7 +163,7 @@ function make_styles() {
   shell: {
     ...StyleSheet.absoluteFill,
     zIndex: 100000,
-    backgroundColor: themeColor().bg,
+    backgroundColor: introColor.bg,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -184,16 +188,19 @@ function make_styles() {
     height: RING,
     borderRadius: RING / 2,
     borderWidth: 2,
-    borderColor: themeColor().pitchText,
+    borderColor: introColor.ring,
     backgroundColor: "transparent",
   },
+  // The logo is the only in-flow child so it stays at the exact screen center, like the native splash.
   brand: {
     alignItems: "center",
     zIndex: 2,
   },
+  logo: { width: SPLASH_LOGO_WIDTH, height: SPLASH_LOGO_WIDTH },
   wordmark: {
+    position: "absolute",
+    top: SPLASH_LOGO_WIDTH + 16,
     alignSelf: "center",
-    marginTop: 16,
   },
 });
 }

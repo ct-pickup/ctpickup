@@ -73,6 +73,16 @@ export const playerCardColor = {
   photoScrim: darkTheme.color.photoScrim,
 } as const;
 
+/** First-run intro. Pure black in both schemes so it matches the native splash (app.json) with no color change at the handoff. */
+export const introColor = {
+  bg: "#000000",
+  text: palette.card,
+  ring: palette.cyan,
+} as const;
+
+/** Width of the logo in the native splash (app.json `imageWidth`) and in the intro, so it does not resize at the handoff. */
+export const SPLASH_LOGO_WIDTH = 200;
+
 /** Opacity of the tiling noise texture (assets/grain.png) on photos and the player card. */
 export const GRAIN_OPACITY = 0.07;
 
