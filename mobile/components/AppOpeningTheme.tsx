@@ -6,7 +6,6 @@ import { Pressable, StyleSheet, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming } from "react-native-reanimated";
 
 import { introColor, SPLASH_LOGO_WIDTH, useThemedStyles } from "@/theme";
-import { Wordmark } from "@/components/brand/Wordmark";
 import { PRODUCT_NAME } from "@/lib/brand";
 export const APP_OPENING_THEME_STORAGE_KEY = "ctpickup_app_opening_theme_v1";
 
@@ -40,7 +39,7 @@ export async function clearAppOpeningThemeFlag(): Promise<void> {
   }
 }
 
-/** First cold open only: cyan ripple pulse around the CT logo, then wordmark; auto-dismiss after ~3s. */
+/** First cold open only: cyan ripple pulse around the CT logo; auto-dismiss after ~3s. */
 export function AppOpeningTheme() {
   useThemedStyles(publish_styles);
 
@@ -151,7 +150,6 @@ function AppOpeningThemeInner({ onDone }: { onDone: () => void }) {
         </View>
         <Animated.View style={[styles.brand, brandStyle]}>
           <Image source={LOGO} style={styles.logo} contentFit="contain" alt={PRODUCT_NAME} />
-          <Wordmark size={24} color={introColor.text} style={styles.wordmark} />
         </Animated.View>
       </View>
     </Animated.View>
@@ -197,11 +195,6 @@ function make_styles() {
     zIndex: 2,
   },
   logo: { width: SPLASH_LOGO_WIDTH, height: SPLASH_LOGO_WIDTH },
-  wordmark: {
-    position: "absolute",
-    top: SPLASH_LOGO_WIDTH + 16,
-    alignSelf: "center",
-  },
 });
 }
 let styles = make_styles();
