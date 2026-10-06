@@ -123,7 +123,7 @@ function LivePulseDot({ size = 8 }: { size?: number }) {
   );
 }
 
-function useSessions(level: Level | "all") {
+function useSessions() {
   useThemedStyles(publish_styles);
 
   const { supabase } = useAuth();
@@ -135,7 +135,7 @@ function useSessions(level: Level | "all") {
     if (!supabase) return;
     setLoading(true);
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-    let q = supabase
+    const q = supabase
       .from("pickup_runs")
       .select(
         "id,title,location_private,latitude,longitude,start_at,run_type,level,capacity,spots_taken,fee_cents",
@@ -149,8 +149,6 @@ function useSessions(level: Level | "all") {
       .order("start_at", { ascending: true })
       .limit(60);
 
-    if (level !== "all") q = q.eq("level", level);
-
     const { data, error } = await q;
     if (error) setError("Could not load sessions. Pull to retry.");
     else {
@@ -158,7 +156,7 @@ function useSessions(level: Level | "all") {
       setError(null);
     }
     setLoading(false);
-  }, [supabase, level]);
+  }, [supabase]);
 
   useEffect(() => {
     void load();
@@ -423,14 +421,12 @@ function SessionCard({
 
 /* ----------------------------------------------------------------- screen */
 
-const FILTERS: Array<Level | "all"> = ["all", "casual", "competitive", "elite"];
 
 export default function SessionMapScreen() {
   const router = useRouter();
   const { supabase, session: authSession } = useAuth();
-  const [filter, setFilter] = useState<Level | "all">("all");
 
-  const { sessions: allSessions, loading, error, reload } = useSessions(filter);
+  const { sessions: allSessions, loading, error, reload } = useSessions();
   const [filters, setFilters] = useState<FinderFilters>(NO_FINDER_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [minStars, setMinStars] = useState<Map<string, number>>(new Map());
@@ -611,33 +607,6 @@ export default function SessionMapScreen() {
     [filters.hubId, recenter],
   );
 
-  const header = useMemo(
-    () => (
-      <View style={styles.filterRow}>
-        {FILTERS.map((f) => {
-          const on = filter === f;
-          return (
-            <Pressable
-              key={f}
-              onPress={() => setFilter(f)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on }}
-              style={[styles.chip, on && styles.chipOn]}
-            >
-              {f !== "all" && (
-                <View style={[styles.levelDot, { backgroundColor: LEVEL_COLOR[f as Level] }]} />
-              )}
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>
-                {f === "all" ? "All levels" : f[0].toUpperCase() + f.slice(1)}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    ),
-    [filter],
-  );
-
   return (
     <View style={styles.root}>
       <MapView
@@ -692,7 +661,6 @@ export default function SessionMapScreen() {
             <Text style={styles.membersLinkText}>See where members are</Text>
           </Pressable>
         </View>
-        {header}
         <FinderFilterBar filters={filters} onOpen={() => setFiltersOpen(true)} onChange={changeFilters} />
       </View>
 
@@ -839,14 +807,13 @@ function make_styles() {
   center: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
 
   topBar: { position: "absolute", top: 60, left: 0, right: 0 },
-  headerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8, marginRight: 110 },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginRight: 110 },
   membersLink: { flexShrink: 1, paddingVertical: 8 },
   membersLinkText: { color: themeColor().pitchText, fontWeight: "600", fontSize: 13, fontFamily: "Inter_600SemiBold" },
   backBtn: { marginLeft: 12, backgroundColor: themeColor().card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, alignSelf: "flex-start" },
   backBtnText: { color: themeColor().text, fontWeight: "600", fontSize: 16, fontFamily: "Inter_600SemiBold" },
   zipPill: { position: "absolute", top: 60, right: 12, zIndex: 999, backgroundColor: themeColor().card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: themeColor().pitch },
   zipPillText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
-  filterRow: { flexDirection: "row", paddingHorizontal: 16, gap: 8 },
 
   zipModal: { flex: 1, backgroundColor: themeColor().bg, padding: 24 },
   zipModalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 28, paddingTop: 8 },
@@ -858,20 +825,6 @@ function make_styles() {
   zipGpsBtnText: { color: themeColor().text, fontWeight: "600", fontSize: 16, fontFamily: "Inter_600SemiBold" },
   zipSaveBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center" },
   zipSaveBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: C().surface,
-    borderWidth: 1,
-    borderColor: C().hairline,
-  },
-  chipOn: { backgroundColor: C().chalk, borderColor: C().chalk },
-  chipText: { color: C().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-  chipTextOn: { color: C().bg },
 
   pinLabel: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
   pinNum: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", fontVariant: ["tabular-nums"] },
