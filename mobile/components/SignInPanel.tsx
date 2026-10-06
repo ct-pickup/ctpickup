@@ -22,7 +22,6 @@ import {
   Alert,
   Animated,
   Easing,
-  Image,
   LayoutAnimation,
   Platform,
   Pressable,
@@ -33,6 +32,7 @@ import {
   UIManager,
   View,
 } from "react-native";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { PRODUCT_NAME } from "@/lib/brand";
 
@@ -588,8 +588,8 @@ export function SignInPanel({ hideHeading, variant = "segmented" }: Props) {
     <View style={styles.panelRoot}>
       {isPremium ? (
         <View style={styles.brandHeader}>
-          <View style={styles.brandIconWrap}>
-            <Image source={require("@/assets/images/icon.png")} style={styles.brandIcon} accessibilityLabel={PRODUCT_NAME} />
+          <View style={styles.brandLogoWrap}>
+            <BrandLogo />
           </View>
           <Wordmark size={32} numberOfLines={2} style={styles.brandTitle} />
           <Text style={styles.brandTagline}>Community. Culture. Competitive.</Text>
@@ -813,23 +813,7 @@ function make_styles() {
     alignItems: "center",
     marginBottom: 28,
   },
-  brandIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 999,
-    backgroundColor: themeColor().pitchPanel,
-    borderWidth: 1,
-    borderColor: themeColor().pitchText,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-    overflow: "hidden",
-  },
-  brandIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-  },
+  brandLogoWrap: { marginBottom: 16 },
   brandTitle: {
     color: themeColor().text,
     textAlign: "center",

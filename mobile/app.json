@@ -69,9 +69,10 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/brand/ct-splash-light.png",
+          "image": "./assets/brand/ct-logo.png",
+          "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#F5F8FA"
+          "backgroundColor": "#000000"
         }
       ],
       "expo-secure-store",
