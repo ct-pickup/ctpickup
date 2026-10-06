@@ -70,7 +70,6 @@ export default function ProfileCard({
                 {level}
               </Text>
             ) : null}
-            {data.provisional ? <Text allowFontScaling={false} style={styles.chip}>New</Text> : null}
             {data.verified ? (
               <View style={styles.verified}>
                 <FontAwesome name="check" size={10} color={c.onInk} />
@@ -153,7 +152,7 @@ export default function ProfileCard({
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <View style={styles.stat}>
-      <Text allowFontScaling={false} style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
+      <Text allowFontScaling={false} style={styles.statValue} numberOfLines={1}>
         {value}
       </Text>
       <Text allowFontScaling={false} style={styles.statLabel}>
@@ -199,8 +198,8 @@ function make_styles() {
     rule: { height: StyleSheet.hairlineWidth, backgroundColor: c.onInk, opacity: 0.35, marginTop: 10, marginBottom: 8 },
     stats: { flexDirection: "row" },
     stat: { flex: 1 },
-    statValue: { fontFamily: headline.fontFamily, fontSize: 18, lineHeight: 22, color: c.onInk },
-    statLabel: { color: c.onInk, opacity: 0.8, fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    statValue: { fontFamily: headline.fontFamily, fontSize: 22, lineHeight: 26, fontWeight: "700", color: c.onInk },
+    statLabel: { color: c.muted, fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   });
 }
 let styles = make_styles();

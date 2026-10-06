@@ -17,7 +17,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PhotoUploadField } from "@/components/photo";
 import BadgeShelf from "@/components/profile/BadgeShelf";
-import FormPills from "@/components/profile/FormPills";
 import PlayerCard, { type PlayerCardData } from "@/components/profile/PlayerCard";
 import ProfileCard from "@/components/profile/ProfileCard";
 import { SeasonCard } from "@/components/season/SeasonCard";
@@ -266,7 +265,6 @@ export default function ProfileScreen() {
         .filter((p): p is PitchSpot => p != null),
     ),
   ).filter((p) => p !== spot);
-  const form = stats && stats.games >= 1 ? stats.form : [];
 
   return (
     <View style={s.screen}>
@@ -344,10 +342,6 @@ export default function ProfileScreen() {
           <View style={s.tile}>
             <Text style={s.tileLabel}>Position</Text>
             <PositionPitch primary={spot} others={otherSpots} compact />
-          </View>
-          <View style={s.tile}>
-            <Text style={s.tileLabel}>Form</Text>
-            {form.length > 0 ? <FormPills form={form} dots /> : <Text style={s.tileEmpty}>No games yet</Text>}
           </View>
         </View>
 
@@ -485,7 +479,6 @@ function make_s() {
       borderColor: themeColor().line,
     },
     tileLabel: { marginBottom: 8, color: themeColor().muted, fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-    tileEmpty: { color: themeColor().muted, fontSize: 12, fontFamily: "Inter_400Regular" },
     manageLink: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     verifyRow: {
       marginTop: 10,

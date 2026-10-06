@@ -80,7 +80,7 @@ function SeasonCardInner({ standing: given }: Props) {
       <View style={styles.stats}>
         <Stat value={standing ? standing.points.toLocaleString() : "–"} label="Points" />
         <Stat value={standing ? rankText : "–"} label="Rank" />
-        <Stat value={games == null ? "–" : `${games} of ${SEASON_PRIZE_MIN_GAMES}`} label="Games" />
+        <Stat value={games == null ? "–" : `${games} of ${SEASON_PRIZE_MIN_GAMES}`} label="Games toward prize" />
       </View>
       <Pressable onPress={() => (router.push as (href: string) => void)("/season-rules")} hitSlop={6} accessibilityRole="link">
         <Text style={styles.rules}>Official rules · {APPLE_DISCLAIMER}</Text>

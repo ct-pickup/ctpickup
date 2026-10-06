@@ -376,7 +376,7 @@ function make_styles() {
   awardNameMuted: { color: themeColor().muted, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
 
   pill: { marginTop: 12, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1 },
-  pillWin: { borderColor: themeColor().success, backgroundColor: themeColor().success },
+  pillWin: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitch },
   pillLoss: { borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
   pillText: { fontWeight: "900", fontSize: 13, fontFamily: "Inter_700Bold" },
   pillTextWin: { color: themeColor().onPitch },
