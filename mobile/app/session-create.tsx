@@ -1,3 +1,4 @@
+import { goBack } from "@/lib/goBack";
 import { useAuth } from "@/context/AuthContext";
 import { useProfilePhoto } from "@/context/ProfilePhotoContext";
 import { siteOrigin } from "@/lib/env";
@@ -287,7 +288,7 @@ export default function SessionCreateScreen() {
 
         {/* Header */}
         <View style={s.header}>
-          <Pressable onPress={() => step === 1 ? router.back() : setStep((step - 1) as Step)} hitSlop={10}>
+          <Pressable onPress={() => step === 1 ? goBack(router, "/(tabs)/sessions") : setStep((step - 1) as Step)} hitSlop={10}>
             <FontAwesome name="chevron-left" size={16} color={themeColor().muted} />
           </Pressable>
           <Text style={s.headerTitle}>Host a Session</Text>

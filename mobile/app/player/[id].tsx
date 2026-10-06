@@ -1,3 +1,4 @@
+import { goBack } from "@/lib/goBack";
 import { useAuth } from "@/context/AuthContext";
 import { postPlayerProfileReportViaApi } from "@/lib/chatApi";
 import { postPhotoReport } from "@/lib/profilePhoto";
@@ -669,7 +670,15 @@ export default function PlayerProfileScreen() {
     <>
       <Stack.Screen
         options={{
-          headerBackTitle: "",
+          headerBackTitle: "Back",
+          // Opened from a push or a link there is nothing to go back to: offer Back to the leaderboard, not Home.
+          headerLeft: router.canGoBack()
+            ? undefined
+            : () => (
+                <Pressable onPress={() => goBack(router, "/(tabs)/leaderboards")} accessibilityRole="button" accessibilityLabel="Back" hitSlop={10}>
+                  <FontAwesome name="chevron-left" size={18} color={themeColor().text} />
+                </Pressable>
+              ),
           title: nameForTitle,
           headerStyle: { backgroundColor: themeColor().bg },
           headerTintColor: themeColor().text,

@@ -1,3 +1,4 @@
+import { goBack } from "@/lib/goBack";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -1537,7 +1538,7 @@ export default function CommunityMapScreen() {
         ) : null}
 
         <View style={s.topBar} pointerEvents="box-none">
-          <Pressable onPress={() => router.back()} hitSlop={10} style={s.backBtn}>
+          <Pressable onPress={() => goBack(router, "/session-map")} hitSlop={10} style={s.backBtn}>
             <Text style={s.backBtnText}>‹ Back</Text>
           </Pressable>
           <View style={s.layerToggle} pointerEvents="auto">

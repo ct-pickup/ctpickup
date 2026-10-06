@@ -188,12 +188,12 @@ function RootLayoutNav() {
                             },
                           }}
                         >
-                          <Stack>
+                          <Stack screenOptions={{ headerBackTitle: "Back" }}>
                             <Stack.Screen
                             name="(tabs)"
                             options={{
                               headerShown: false,
-                              title: "Home",
+                              title: "Back",
                               headerBackTitle: "Back",
                             }}
                           />
@@ -252,7 +252,7 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Settings",
-                              headerBackTitle: "Profile",
+                              headerBackTitle: "Back",
                               headerStyle: { backgroundColor: themeColor().bg },
                               headerTintColor: themeColor().text,
                               headerShadowVisible: false,
@@ -263,7 +263,7 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Verification",
-                              headerBackTitle: "Settings",
+                              headerBackTitle: "Back",
                               headerStyle: { backgroundColor: themeColor().bg },
                               headerTintColor: themeColor().text,
                               headerShadowVisible: false,
@@ -450,7 +450,7 @@ function RootLayoutNav() {
                               headerStyle: { backgroundColor: themeColor().bg },
                               headerTintColor: themeColor().text,
                               headerShadowVisible: false,
-                              headerBackTitle: "",
+                              headerBackTitle: "Back",
                             }}
                           />
                           <Stack.Screen name="player-card/[id]" options={{ headerShown: false }} />
@@ -490,7 +490,7 @@ function RootLayoutNav() {
                             options={{
                               headerShown: true,
                               title: "Game recap",
-                              headerBackTitle: "Games",
+                              headerBackTitle: "Back",
                               headerStyle: { backgroundColor: themeColor().bg },
                               headerTintColor: themeColor().text,
                               headerShadowVisible: false,

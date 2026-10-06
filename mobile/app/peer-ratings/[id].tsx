@@ -1,3 +1,4 @@
+import { goBack } from "@/lib/goBack";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -131,7 +132,7 @@ export default function PeerRatingsScreen() {
     <View style={[s.screen, { paddingTop: insets.top + 8 }]}>
       <View style={s.headerRow}>
         <Text style={s.eyebrow}>SESSION COMPLETE</Text>
-        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
+        <Pressable onPress={() => goBack(router, "/(tabs)/sessions")} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
           <Text style={s.close}>Close</Text>
         </Pressable>
       </View>

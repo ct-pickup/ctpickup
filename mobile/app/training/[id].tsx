@@ -1,3 +1,4 @@
+import { goBack } from "@/lib/goBack";
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import { fetchPlayerCards, type PlayerCard } from "@/lib/starRatings";
@@ -270,7 +271,7 @@ export default function TrainingDetailScreen() {
       <View style={s.center}>
         <Stack.Screen options={{ headerShown: false }} />
         <Text style={s.errorText}>Training session not found.</Text>
-        <Pressable onPress={() => router.back()} style={s.backBtn}>
+        <Pressable onPress={() => goBack(router, "/(tabs)/sessions")} style={s.backBtn}>
           <Text style={s.backBtnText}>Go back</Text>
         </Pressable>
       </View>
@@ -298,7 +299,7 @@ export default function TrainingDetailScreen() {
       <ScrollView style={[s.root, { paddingTop: insets.top }]} contentContainerStyle={{ paddingBottom: 60 }}>
         {/* Header */}
         <View style={s.header}>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
+          <Pressable onPress={() => goBack(router, "/(tabs)/sessions")} hitSlop={10}>
             <FontAwesome name="chevron-left" size={16} color={themeColor().muted} />
           </Pressable>
           <Text style={s.headerTitle} numberOfLines={1}>

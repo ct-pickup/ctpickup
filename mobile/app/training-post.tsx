@@ -1,3 +1,4 @@
+import { goBack } from "@/lib/goBack";
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -166,7 +167,7 @@ export default function TrainingPostScreen() {
         {/* Header */}
         <View style={s.header}>
           <Text style={s.headerTitle}>Start Training</Text>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
+          <Pressable onPress={() => goBack(router, "/(tabs)/sessions")} hitSlop={10}>
             <FontAwesome name="times" size={20} color={themeColor().muted} />
           </Pressable>
         </View>
