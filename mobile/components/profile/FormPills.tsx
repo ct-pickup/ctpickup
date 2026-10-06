@@ -26,7 +26,7 @@ function make_styles() {
     dot: { minWidth: 0, width: 24, height: 24, paddingHorizontal: 0 },
     textDot: { fontSize: 11 },
     pill: { minWidth: 40, height: 32, paddingHorizontal: 12, borderRadius: 999, alignItems: "center", justifyContent: "center" },
-    pill_W: { backgroundColor: themeColor().success },
+    pill_W: { backgroundColor: themeColor().pitch },
     pill_D: { backgroundColor: themeColor().overlayStrong },
     pill_L: { borderWidth: 1.5, borderColor: themeColor().line },
     text: { fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
