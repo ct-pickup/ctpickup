@@ -618,7 +618,7 @@ function make_styles() {
       marginBottom: 12,
     },
     sectionTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold", color: themeColor().text },
-    sectionAction: { fontSize: 14, fontFamily: "Inter_500Medium", color: themeColor().accent },
+    sectionAction: { fontSize: 14, fontFamily: "Inter_500Medium", color: themeColor().pitchText },
 
     /* cards */
     card: {

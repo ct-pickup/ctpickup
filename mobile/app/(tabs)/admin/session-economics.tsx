@@ -125,7 +125,7 @@ export default function SessionEconomicsScreen() {
                   {" · "}{run.status}
                 </Text>
               </View>
-              <View style={[s.statusPill, run.status === "completed" ? { borderColor: themeColor().pitch } : { borderColor: themeColor().line, backgroundColor: themeColor().card }]}>
+              <View style={[s.statusPill, run.status === "completed" ? { borderColor: themeColor().pitchText } : { borderColor: themeColor().line, backgroundColor: themeColor().card }]}>
                 <Text style={[s.statusText, { color: run.status === "completed" ? themeColor().onPitchPanel : themeColor().muted }]}>
                   {run.payments.length} paid
                 </Text>

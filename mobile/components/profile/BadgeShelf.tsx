@@ -145,10 +145,10 @@ function make_styles() {
       paddingVertical: 14,
       borderRadius: 10,
       borderWidth: 1.5,
-      borderColor: themeColor().accent,
+      borderColor: themeColor().pitchText,
       alignItems: "center",
     },
-    closeText: { color: themeColor().accent, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    closeText: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   });
 }
 let styles = make_styles();

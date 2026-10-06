@@ -229,8 +229,8 @@ function make_styles() {
     borderColor: themeColor().line,
     marginBottom: 8,
   },
-  slotRowActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
-  slotRowPopular: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
+  slotRowActive: { borderColor: themeColor().pitchText, backgroundColor: themeColor().pitchPanel },
+  slotRowPopular: { borderColor: themeColor().pitchText, backgroundColor: themeColor().pitchPanel },
   popularBadge: {
     color: themeColor().pitchText,
     fontSize: 11, fontFamily: "Inter_700Bold",

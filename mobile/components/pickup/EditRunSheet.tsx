@@ -161,7 +161,7 @@ function make_styles() {
     borderWidth: 1,
     borderColor: themeColor().line,
   },
-  tbdToggleOn: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
+  tbdToggleOn: { borderColor: themeColor().pitchText, backgroundColor: themeColor().pitchPanel },
   tbdToggleText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   tbdToggleTextOn: { color: themeColor().pitchText },
   hint: { color: themeColor().muted, lineHeight: 20, marginTop: 12, marginBottom: 8, fontSize: 13, fontFamily: "Inter_400Regular" },

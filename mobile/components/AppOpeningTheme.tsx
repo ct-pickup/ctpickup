@@ -184,7 +184,7 @@ function make_styles() {
     height: RING,
     borderRadius: RING / 2,
     borderWidth: 2,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: "transparent",
   },
   brand: {

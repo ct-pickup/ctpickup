@@ -464,7 +464,7 @@ function make_s() {
     pageTitle: { color: c.text, fontSize: 24, ...headline, marginTop: 8, marginBottom: 12 },
     chips: { flexDirection: "row", gap: 8, marginBottom: 16 },
     chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill, borderWidth: 1, borderColor: c.line },
-    chipOn: { backgroundColor: c.pitch, borderColor: c.pitch },
+    chipOn: { backgroundColor: c.pitch, borderColor: c.pitchText },
     chipText: { color: c.text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     chipTextOn: { color: c.onPitch },
     error: { color: c.coralText, fontSize: 13, fontFamily: "Inter_500Medium", marginBottom: 8 },
@@ -503,7 +503,7 @@ function make_s() {
     label: { marginTop: 12, color: c.muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
     hint: { color: c.muted, fontSize: 13, fontFamily: "Inter_400Regular" },
     body: { color: c.text, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
-    urlRow: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.pitchPanel, borderRadius: 10, borderWidth: 1, borderColor: c.pitch, padding: 8 },
+    urlRow: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.pitchPanel, borderRadius: 10, borderWidth: 1, borderColor: c.pitchText, padding: 8 },
     urlText: { flex: 1, color: c.pitchText, fontSize: 13, fontFamily: "Inter_400Regular" },
     input: {
       borderWidth: 1,

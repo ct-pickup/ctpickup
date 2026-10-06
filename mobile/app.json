@@ -62,7 +62,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#ffffff",
+          "color": "#14E4FC",
           "sounds": []
         }
       ],
@@ -71,7 +71,7 @@
         {
           "image": "./assets/brand/ct-splash-light.png",
           "resizeMode": "contain",
-          "backgroundColor": "#F4F1EA"
+          "backgroundColor": "#F5F8FA"
         }
       ],
       "expo-secure-store",

@@ -283,7 +283,7 @@ function make_styles() {
     gap: 8,
   },
   teamCardActive: {
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   teamName: { fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text },
@@ -305,7 +305,7 @@ function make_styles() {
     borderRadius: 12,
     backgroundColor: themeColor().pitchPanel,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
   },
   pendingTitle: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().pitchText, },
   pendingText: { marginTop: 4, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().text, lineHeight: 20 },

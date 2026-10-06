@@ -177,7 +177,7 @@ function make_styles() {
   },
   value: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().text },
   linkRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  linkText: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().accent },
+  linkText: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().pitchText },
   note: { marginTop: 8, fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().muted, lineHeight: 18 },
 });
 }

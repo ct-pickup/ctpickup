@@ -692,7 +692,7 @@ function make_styles() {
   },
   tabActive: {
     backgroundColor: themeColor().pitchPanel,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
   },
   tabText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", textAlign: "center" },
   tabTextActive: { color: themeColor().text },
@@ -737,7 +737,7 @@ function make_styles() {
     paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   mvpVoteBtnText: { color: themeColor().onPitchPanel, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
@@ -769,7 +769,7 @@ function make_styles() {
     borderColor: themeColor().line,
   },
   mvpNameRowSelected: {
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   mvpNameText: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
@@ -801,7 +801,7 @@ function make_styles() {
   },
   scorerRowTop: {
     backgroundColor: themeColor().pitchPanel,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
   },
   scorerRank: { width: 52, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().text, textAlign: "left" },
   scorerName: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700", marginRight: 8 },

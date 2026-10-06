@@ -53,7 +53,7 @@ export const shareCardColor = {
   faint: "rgba(255,255,255,0.22)",
   accent: darkTheme.color.accent,
   onAccent: darkTheme.color.onAccent,
-  scrim: "#111111",
+  scrim: palette.ink,
   starOff: "rgba(255,255,255,0.28)",
 } as const;
 
@@ -63,9 +63,9 @@ export const shareCardColor = {
  */
 export const playerCardColor = {
   bg: palette.ink,
-  name: palette.chalk,
+  name: darkTheme.color.text,
   muted: darkTheme.color.muted,
-  accent: palette.pitchBright,
+  accent: palette.cyan,
   rule: shareCardColor.faint,
   chipBg: darkTheme.color.pitchPanel,
   chipText: darkTheme.color.onPitchPanel,

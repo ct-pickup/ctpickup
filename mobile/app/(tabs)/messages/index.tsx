@@ -435,7 +435,7 @@ function make_styles() {
     backgroundColor: themeColor().overlaySubtle,
   },
   runTabActive: {
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   runTabText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },

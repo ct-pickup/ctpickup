@@ -46,7 +46,7 @@ function badgeClasses(ui: ReturnType<typeof matchWorkflowUiLabel>): string {
   switch (ui) {
     case "finalized":
     case "confirmed":
-      return "border-pitch bg-pitch-panel text-on-pitch-panel";
+      return "border-pitch-text bg-pitch-panel text-on-pitch-panel";
     case "awaiting_confirmation":
       return "border-coral bg-overlay-subtle text-coral-text";
     case "disputed":

@@ -25,8 +25,8 @@ const UI: Record<
     label: "Confirmed",
     headline: "Tournament confirmed",
     blurb: "Date is locked. Details will be posted here first.",
-    card: "border border-pitch bg-pitch-panel",
-    pillActive: "border border-pitch bg-pitch-panel text-on-pitch-panel",
+    card: "border border-pitch-text bg-pitch-panel",
+    pillActive: "border border-pitch-text bg-pitch-panel text-on-pitch-panel",
   },
   planning: {
     label: "Planning",

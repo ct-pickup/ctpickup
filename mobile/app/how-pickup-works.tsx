@@ -137,7 +137,7 @@ function make_styles() {
   },
   importantCard: {
     marginTop: 20,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   importantLabel: {

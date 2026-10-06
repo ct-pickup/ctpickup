@@ -819,7 +819,7 @@ function make_styles() {
     borderRadius: 999,
     backgroundColor: themeColor().pitchPanel,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
@@ -929,7 +929,7 @@ function make_styles() {
     borderWidth: 1,
     borderColor: themeColor().line,
     borderLeftWidth: 4,
-    borderLeftColor: themeColor().pitch,
+    borderLeftColor: themeColor().pitchText,
     backgroundColor: themeColor().card,
   },
   cardPremium: {

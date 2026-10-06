@@ -40,7 +40,7 @@ export function OperatorActionResult({
 
   if (ok) {
     return (
-      <div className="rounded-card border border-pitch bg-pitch-panel px-4 py-3 text-small text-on-pitch-panel space-y-3">
+      <div className="rounded-card border border-pitch-text bg-pitch-panel px-4 py-3 text-small text-on-pitch-panel space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <StatusChip tone="published">{skipped ? "No-op" : "Success"}</StatusChip>
         </div>

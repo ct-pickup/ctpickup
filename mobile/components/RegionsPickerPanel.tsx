@@ -110,7 +110,7 @@ function make_styles() {
     borderRadius: 12,
     backgroundColor: themeColor().pitchPanel,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     alignItems: "center",
     justifyContent: "center",
   },

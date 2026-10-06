@@ -103,7 +103,7 @@ function make_styles() {
     h2: { color: c.text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
     body: { color: c.muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 },
     list: { gap: 4, paddingLeft: 4 },
-    link: { color: c.accent, fontSize: 15, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    link: { color: c.pitchText, fontSize: 15, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     back: { alignSelf: "center", paddingVertical: 12 },
   });
 }

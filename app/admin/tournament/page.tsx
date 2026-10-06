@@ -127,7 +127,7 @@ export default async function AdminTournamentPage({
         <PageTop flush title="Staff · Tournaments" fallbackHref={APP_HOME_URL} />
 
         {sp.ok ? (
-          <div className="rounded-card border border-pitch bg-pitch-panel px-4 py-3 text-small text-on-pitch-panel">
+          <div className="rounded-card border border-pitch-text bg-pitch-panel px-4 py-3 text-small text-on-pitch-panel">
             {sp.ok === "active" && "Live tournament updated."}
             {sp.ok === "cleared" && "No tournament is live."}
             {sp.ok === "created" && "Tournament created."}

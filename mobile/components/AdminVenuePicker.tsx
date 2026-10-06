@@ -79,7 +79,7 @@ function make_styles() {
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   selectedText: { color: themeColor().text, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
@@ -96,7 +96,7 @@ function make_styles() {
     backgroundColor: themeColor().overlaySubtle,
   },
   chipActive: {
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   chipText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().muted },

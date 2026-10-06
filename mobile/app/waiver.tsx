@@ -357,7 +357,7 @@ function make_styles() {
   },
   strong: { color: themeColor().text, fontWeight: "600" },
   emphasis: { color: themeColor().text },
-  link: { color: themeColor().accent, textDecorationLine: "underline", fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22 },
+  link: { color: themeColor().pitchText, textDecorationLine: "underline", fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22 },
   stickyBar: {
     position: "absolute",
     left: 0,

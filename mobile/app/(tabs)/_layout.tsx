@@ -212,7 +212,7 @@ function TabItem(props: {
 }) {
   useThemedStyles(publish_tabStyles);
 
-  const color = props.active ? themeColor().accent : themeColor().muted;
+  const color = props.active ? themeColor().pitchText : themeColor().muted;
   return (
     <Pressable
       accessibilityRole="button"

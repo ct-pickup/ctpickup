@@ -223,7 +223,7 @@ export function KnockoutBracketDisplay({
   return (
     <div className={className}>
       {tournamentComplete ? (
-        <div className="mb-6 rounded-button border border-pitch bg-pitch-panel px-4 py-3 text-center md:text-left">
+        <div className="mb-6 rounded-button border border-pitch-text bg-pitch-panel px-4 py-3 text-center md:text-left">
           <p className="text-small font-semibold text-pitch-text">Bracket complete</p>
           <p className="mt-0.5 text-caption text-pitch-text">All knockout matches have a recorded winner.</p>
         </div>

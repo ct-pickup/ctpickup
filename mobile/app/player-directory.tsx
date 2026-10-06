@@ -184,7 +184,7 @@ function make_styles() {
     filters: { paddingVertical: 8, gap: 8 },
     chipRow: { gap: 8, paddingHorizontal: 12 },
     chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: c.line, backgroundColor: c.card },
-    chipOn: { backgroundColor: c.pitch, borderColor: c.pitch },
+    chipOn: { backgroundColor: c.pitch, borderColor: c.pitchText },
     chipText: { color: c.text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     chipTextOn: { color: c.onPitch },
     list: { paddingHorizontal: 12, paddingBottom: 32 },
@@ -196,7 +196,7 @@ function make_styles() {
     name: { color: c.text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
     metaRow: { flexDirection: "row", alignItems: "center", gap: 8 },
     meta: { color: c.muted, fontSize: 13, fontFamily: "Inter_400Regular" },
-    link: { color: c.accent, fontSize: 15, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    link: { color: c.pitchText, fontSize: 15, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   });
 }
 let styles = make_styles();

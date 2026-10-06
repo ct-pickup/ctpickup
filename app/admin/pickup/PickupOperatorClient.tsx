@@ -684,7 +684,7 @@ export default function PickupOperatorClient() {
                     className={[
                       "cursor-pointer rounded-card border p-4 text-left transition-colors",
                       selected
-                        ? "border-pitch bg-pitch-panel"
+                        ? "border-pitch-text bg-pitch-panel"
                         : "border-line bg-overlay-subtle hover:border-line",
                     ].join("  ")}
                   >
@@ -702,7 +702,7 @@ export default function PickupOperatorClient() {
                         </div>
                       </div>
                       {r.is_current ? (
-                        <span className="shrink-0 rounded-pill border border-pitch bg-pitch-panel px-2 py-0.5 text-micro font-bold text-on-pitch-panel">
+                        <span className="shrink-0 rounded-pill border border-pitch-text bg-pitch-panel px-2 py-0.5 text-micro font-bold text-on-pitch-panel">
                           HUB
                         </span>
                       ) : null}
@@ -777,7 +777,7 @@ export default function PickupOperatorClient() {
                                 e.stopPropagation();
                                 void promoteHubRun(id);
                               }}
-                              className="rounded-pill border border-pitch bg-pitch-panel px-3 py-1.5 text-caption font-semibold text-on-pitch-panel disabled:opacity-50"
+                              className="rounded-pill border border-pitch-text bg-pitch-panel px-3 py-1.5 text-caption font-semibold text-on-pitch-panel disabled:opacity-50"
                             >
                               Promote to hub
                             </button>

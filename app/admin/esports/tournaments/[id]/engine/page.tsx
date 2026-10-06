@@ -156,7 +156,7 @@ export default async function AdminTournamentEnginePage({
         </div>
 
         {sp.ok ? (
-          <div className="rounded-card border border-pitch bg-pitch-panel px-4 py-3 text-small text-on-pitch-panel">
+          <div className="rounded-card border border-pitch-text bg-pitch-panel px-4 py-3 text-small text-on-pitch-panel">
             {sp.ok === "group_stage_generated" && "Group stage generated."}
             {sp.ok === "group_stage_locked" && "Group stage locked."}
             {sp.ok === "knockout_generated" && "Knockout bracket generated (first knockout round)." }

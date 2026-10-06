@@ -288,7 +288,7 @@ export default async function AdminEsportsPage({
         </section>
 
         {sp.ok ? (
-          <div className="rounded-card border border-pitch bg-pitch-panel px-4 py-3 text-small text-on-pitch-panel">
+          <div className="rounded-card border border-pitch-text bg-pitch-panel px-4 py-3 text-small text-on-pitch-panel">
             {sp.ok === "created" && "Esports tournament created."}
             {sp.ok === "saved" && "Esports tournament updated."}
             {sp.ok === "deleted" && "Esports tournament deleted."}

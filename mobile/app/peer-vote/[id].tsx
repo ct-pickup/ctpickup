@@ -202,7 +202,7 @@ function make_s() {
     borderBottomWidth: 1,
     borderBottomColor: themeColor().line,
   },
-  rowPicked: { borderBottomColor: themeColor().pitch },
+  rowPicked: { borderBottomColor: themeColor().pitchText },
   rowDim: { opacity: 0.35 },
   slot: {
     width: 32,
@@ -213,7 +213,7 @@ function make_s() {
     alignItems: "center",
     justifyContent: "center",
   },
-  slotPicked: { backgroundColor: themeColor().pitch, borderColor: themeColor().pitch },
+  slotPicked: { backgroundColor: themeColor().pitch, borderColor: themeColor().pitchText },
   slotText: { color: themeColor().muted, fontWeight: "700" },
   slotTextPicked: { color: themeColor().onPitch },
   name: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },

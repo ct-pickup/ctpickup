@@ -93,7 +93,7 @@ export function StarLevelsLink({ style, label = "What do stars mean?" }: { style
         accessibilityRole="button"
         style={({ pressed }) => [styles.link, style, pressed && styles.pressed]}
       >
-        <FontAwesome name="question-circle-o" size={14} color={themeColor().accent} />
+        <FontAwesome name="question-circle-o" size={14} color={themeColor().pitchText} />
         <Text style={styles.linkText}>{label}</Text>
       </Pressable>
       <StarLevelsSheet visible={open} onClose={() => setOpen(false)} />
@@ -173,14 +173,14 @@ function make_styles() {
     list: { paddingTop: 12, paddingBottom: 8, gap: 4 },
     row: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 10 },
     rowPick: { paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, backgroundColor: themeColor().card },
-    rowOn: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
+    rowOn: { borderColor: themeColor().pitchText, backgroundColor: themeColor().pitchPanel },
     rowStar: { width: 48, color: themeColor().text, fontSize: 15, fontFamily: "Inter_700Bold", fontWeight: "700" },
     rowText: { flex: 1 },
     rowName: { color: themeColor().text, fontSize: 15, fontFamily: "Inter_700Bold", fontWeight: "700" },
     rowNameOn: { color: themeColor().onPitchPanel },
     rowDesc: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, marginTop: 2 },
     link: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start" },
-    linkText: { color: themeColor().accent, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    linkText: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     trigger: {
       flexDirection: "row",
       alignItems: "center",

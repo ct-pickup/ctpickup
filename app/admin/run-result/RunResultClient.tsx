@@ -222,7 +222,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
       </div>
 
       <div className="mx-auto max-w-2xl space-y-6 px-4 py-8 sm:px-0">
-        <div className="rounded-card border border-pitch bg-pitch-panel p-5">
+        <div className="rounded-card border border-pitch-text bg-pitch-panel p-5">
           <p className="text-caption font-semibold text-muted">Run</p>
           <p className="mt-2 text-small text-muted">
             {region ? serviceRegionName(region) : "Region —"} · {confirmed.length} confirmed
@@ -243,7 +243,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
                 setTotalTeams(2);
                 setWinningTeam("A");
               }}
-              className={`flex-1 rounded-card border px-4 py-3 text-small font-semibold ${ totalTeams === 2 ? "border-pitch bg-pitch-panel text-on-pitch-panel" : "border-line bg-card text-muted" }`}
+              className={`flex-1 rounded-card border px-4 py-3 text-small font-semibold ${ totalTeams === 2 ? "border-pitch-text bg-pitch-panel text-on-pitch-panel" : "border-line bg-card text-muted" }`}
             >
               2 teams
             </button>
@@ -253,7 +253,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
                 setTotalTeams(3);
                 setWinningTeam("A");
               }}
-              className={`flex-1 rounded-card border px-4 py-3 text-small font-semibold ${ totalTeams === 3 ? "border-pitch bg-pitch-panel text-on-pitch-panel" : "border-line bg-card text-muted" }`}
+              className={`flex-1 rounded-card border px-4 py-3 text-small font-semibold ${ totalTeams === 3 ? "border-pitch-text bg-pitch-panel text-on-pitch-panel" : "border-line bg-card text-muted" }`}
             >
               3 teams
             </button>
@@ -327,7 +327,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
                 <div className="min-w-0 flex-1 flex items-center gap-2 truncate">
                   <span className="text-small font-semibold text-ink truncate">{nameFor(p)}</span>
                   {p.photo_package ? (
-                    <span className="shrink-0 rounded-pill bg-pitch-panel border border-pitch px-2 py-0.5 text-caption font-semibold text-on-pitch-panel">
+                    <span className="shrink-0 rounded-pill bg-pitch-panel border border-pitch-text px-2 py-0.5 text-caption font-semibold text-on-pitch-panel">
                       📸 Photos
                     </span>
                   ) : null}
@@ -337,7 +337,7 @@ export default function RunResultClient({ runId }: { runId: string }) {
                   onChange={(e) =>
                     setTeamByUser((c) => ({ ...c, [p.id]: e.target.value as Team }))
                   }
-                  className="rounded-pill border border-pitch bg-pitch-panel px-3 py-2 text-caption font-bold text-on-pitch-panel"
+                  className="rounded-pill border border-pitch-text bg-pitch-panel px-3 py-2 text-caption font-bold text-on-pitch-panel"
                 >
                   {allowedTeams.map((t) => (
                     <option key={t} value={t}>

@@ -410,7 +410,7 @@ function make_styles() {
     backgroundColor: themeColor().overlaySubtle,
   },
   chipOn: {
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   chipText: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", textAlign: "center" },
@@ -426,7 +426,7 @@ function make_styles() {
     borderColor: themeColor().line,
     backgroundColor: themeColor().card,
   },
-  runCardOn: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
+  runCardOn: { borderColor: themeColor().pitchText, backgroundColor: themeColor().pitchPanel },
   runCardText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   previewBox: {
     marginTop: 8,

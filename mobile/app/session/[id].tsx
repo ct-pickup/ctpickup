@@ -1426,7 +1426,7 @@ export default function SessionDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Rate players with half stars"
               >
-                <FontAwesome name="star-half-o" size={14} color={themeColor().accent} />
+                <FontAwesome name="star-half-o" size={14} color={themeColor().pitchText} />
                 <Text style={s.hostRateBtnText}>Rate players</Text>
               </Pressable>
             ) : null}
@@ -1449,7 +1449,7 @@ export default function SessionDetailScreen() {
                 }}
                 style={s.hostRateBtn}
               >
-                <FontAwesome name="star-o" size={14} color={themeColor().accent} />
+                <FontAwesome name="star-o" size={14} color={themeColor().pitchText} />
                 <Text style={s.hostRateBtnText}>Rate the host</Text>
               </Pressable>
             )}
@@ -1543,15 +1543,15 @@ export default function SessionDetailScreen() {
                     <Text style={s.inviteBtnText}>Invite players</Text>
                   </Pressable>
                   <Pressable onPress={() => void shareSession()} style={s.shareBtn}>
-                    <FontAwesome name="share" size={14} color={themeColor().accent} />
+                    <FontAwesome name="share" size={14} color={themeColor().pitchText} />
                     <Text style={s.shareBtnText}>Share link</Text>
                   </Pressable>
                   <Pressable onPress={() => setTeamsOpen(true)} style={s.shareBtn}>
-                    <FontAwesome name="users" size={14} color={themeColor().accent} />
+                    <FontAwesome name="users" size={14} color={themeColor().pitchText} />
                     <Text style={s.shareBtnText}>Assign teams</Text>
                   </Pressable>
                   <Pressable onPress={() => openResult(postedResult ? "edit" : "record")} style={s.shareBtn}>
-                    <FontAwesome name="trophy" size={14} color={themeColor().accent} />
+                    <FontAwesome name="trophy" size={14} color={themeColor().pitchText} />
                     <Text style={s.shareBtnText}>Record result</Text>
                   </Pressable>
                   <Pressable onPress={() => void cancelSession()} disabled={endBusy}
@@ -1569,7 +1569,7 @@ export default function SessionDetailScreen() {
 
             {isCompleted && canEditScore && (
               <Pressable onPress={() => openResult("edit")} style={[s.shareBtn, { marginTop: 16 }]}>
-                <FontAwesome name="pencil" size={14} color={themeColor().accent} />
+                <FontAwesome name="pencil" size={14} color={themeColor().pitchText} />
                 <Text style={s.shareBtnText}>Edit score</Text>
               </Pressable>
             )}
@@ -1605,7 +1605,7 @@ export default function SessionDetailScreen() {
               ]}
             >
               {rsvpBusy ? (
-                <ActivityIndicator color={join.variant === "filled" ? themeColor().onAccent : themeColor().accent} />
+                <ActivityIndicator color={join.variant === "filled" ? themeColor().onAccent : themeColor().pitchText} />
               ) : (
                 <Text style={join.variant === "filled" ? s.joinFilledText : s.joinOutlineText}>{join.label}</Text>
               )}
@@ -1720,7 +1720,7 @@ export default function SessionDetailScreen() {
                     <Pressable
                       onPress={() => toggleVotePick(item.user_id)}
                       disabled={full}
-                      style={[s.playerRow, picked && { borderWidth: 1, borderColor: themeColor().pitch }, full && { opacity: 0.35 }]}
+                      style={[s.playerRow, picked && { borderWidth: 1, borderColor: themeColor().pitchText }, full && { opacity: 0.35 }]}
                     >
                       <View style={[s.avatar, picked && { backgroundColor: themeColor().pitch }]}>
                         <Text style={[s.avatarText, picked && { color: themeColor().onPitch }]}>
@@ -1760,7 +1760,7 @@ export default function SessionDetailScreen() {
                   return (
                     <Pressable
                       onPress={() => setPotdNominee(selected ? null : item.user_id)}
-                      style={[s.playerRow, selected && { borderWidth: 1, borderColor: themeColor().pitch }]}
+                      style={[s.playerRow, selected && { borderWidth: 1, borderColor: themeColor().pitchText }]}
                     >
                       <View style={[s.avatar, selected && { backgroundColor: themeColor().pitch }]}>
                         <Text style={[s.avatarText, selected && { color: themeColor().onPitch }]}>
@@ -1921,7 +1921,7 @@ export default function SessionDetailScreen() {
               <View style={{ marginHorizontal: 16, marginTop: 12, marginBottom: 4, backgroundColor: themeColor().overlaySubtle, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: themeColor().line }}>
                 <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 }}>You cannot receive awards for sessions you host.</Text>
               </View>
-              <View style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 4, backgroundColor: themeColor().pitch, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: themeColor().pitch }}>
+              <View style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 4, backgroundColor: themeColor().pitch, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: themeColor().pitchText }}>
                 <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 }}>
                   Player of the Day is voted by attendees. Pick Defender, Midfielder, Attacker, and Goalie awards below.
                 </Text>
@@ -2116,12 +2116,12 @@ function make_s() {
   infoDivider: { borderTopWidth: 1, borderTopColor: themeColor().line },
   infoTitle: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold" },
   infoSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
-  linkText: { color: themeColor().accent, fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  linkText: { color: themeColor().pitchText, fontSize: 14, fontFamily: "Inter_600SemiBold" },
   joinBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingTop: 12, paddingHorizontal: 20, backgroundColor: themeColor().bg, borderTopWidth: 1, borderTopColor: themeColor().line },
   joinFilled: { height: 52, borderRadius: radius.button, backgroundColor: themeColor().accent, alignItems: "center", justifyContent: "center" },
   joinFilledText: { color: themeColor().onAccent, fontSize: 16, fontFamily: "Inter_700Bold" },
-  joinOutline: { height: 52, borderRadius: radius.button, borderWidth: 1, borderColor: themeColor().accent, alignItems: "center", justifyContent: "center" },
-  joinOutlineText: { color: themeColor().accent, fontSize: 16, fontFamily: "Inter_700Bold" },
+  joinOutline: { height: 52, borderRadius: radius.button, borderWidth: 1, borderColor: themeColor().pitchText, alignItems: "center", justifyContent: "center" },
+  joinOutlineText: { color: themeColor().pitchText, fontSize: 16, fontFamily: "Inter_700Bold" },
   toast: { position: "absolute", left: 20, right: 20, borderRadius: radius.button, paddingVertical: 12, paddingHorizontal: 16, backgroundColor: themeColor().text },
   toastText: { color: themeColor().bg, fontSize: 14, fontFamily: "Inter_600SemiBold", textAlign: "center" },
   menuBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: themeColor().scrim },
@@ -2156,10 +2156,10 @@ function make_s() {
     gap: 8,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: themeColor().accent,
+    borderColor: themeColor().pitchText,
     backgroundColor: "transparent",
   },
-  hostRateBtnText: { color: themeColor().accent, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
+  hostRateBtnText: { color: themeColor().pitchText, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   hostRatedDone: {
     borderRadius: 12,
     paddingVertical: 12,
@@ -2181,8 +2181,8 @@ function make_s() {
   hostRatingStars: { flexDirection: "row", alignItems: "center", gap: 4 },
   inviteBtn: { backgroundColor: themeColor().accent, borderRadius: 12, paddingVertical: 16, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 },
   inviteBtnText: { color: themeColor().onAccent, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
-  shareBtn: { borderRadius: 12, paddingVertical: 12, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8, borderWidth: 1, borderColor: themeColor().accent },
-  shareBtnText: { color: themeColor().accent, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
+  shareBtn: { borderRadius: 12, paddingVertical: 12, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8, borderWidth: 1, borderColor: themeColor().pitchText },
+  shareBtnText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
   endBtn: { borderRadius: 12, paddingVertical: 12, alignItems: "center", borderWidth: 1, borderColor: themeColor().coral },
   endBtnText: { color: themeColor().coralText, fontWeight: "700", fontSize: 16, fontFamily: "Inter_700Bold" },
   sectionTitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", marginBottom: 8 },
@@ -2195,16 +2195,16 @@ function make_s() {
   modalTitle: { color: themeColor().text, fontSize: 20, ...headline },
   modalSearch: { flexDirection: "row", alignItems: "center", gap: 8, margin: 16, backgroundColor: themeColor().overlay, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 12, paddingVertical: 12 },
   modalSearchInput: { flex: 1, color: themeColor().text, fontSize: 16, fontFamily: "Inter_400Regular" },
-  shareLinkRow: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 16, marginBottom: 8, padding: 12, backgroundColor: themeColor().pitchPanel, borderRadius: 12, borderWidth: 1, borderColor: themeColor().pitch },
+  shareLinkRow: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 16, marginBottom: 8, padding: 12, backgroundColor: themeColor().pitchPanel, borderRadius: 12, borderWidth: 1, borderColor: themeColor().pitchText },
   shareLinkText: { flex: 1, color: themeColor().onPitchPanel, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   emptyText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: 20 },
   playerRow: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: themeColor().card, borderRadius: 12, padding: 12 },
   playerName: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   playerUsername: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
   playerPos: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4 },
-  inviteRowBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: themeColor().accent },
+  inviteRowBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: themeColor().pitchText },
   inviteRowBtnDone: { borderColor: themeColor().line, backgroundColor: themeColor().overlaySubtle },
-  inviteRowBtnText: { color: themeColor().accent, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
+  inviteRowBtnText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
   inviteRowBtnTextDone: { color: themeColor().muted },
   voteSubtitle: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", padding: 16, paddingBottom: 8, lineHeight: 18 },
   potdResultCard: {
@@ -2213,7 +2213,7 @@ function make_s() {
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   potdResultTitle: { color: themeColor().onPitchPanel, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold", marginBottom: 4 },
@@ -2246,10 +2246,10 @@ function make_s() {
     borderColor: themeColor().line,
     backgroundColor: themeColor().overlaySubtle,
   },
-  assignCardA: { borderColor: themeColor().pitch, backgroundColor: themeColor().card },
+  assignCardA: { borderColor: themeColor().pitchText, backgroundColor: themeColor().card },
   assignCardB: { borderColor: themeColor().text, backgroundColor: themeColor().overlaySubtle },
   assignCardSelected: {
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     borderWidth: 2,
     backgroundColor: themeColor().pitchPanel,
   },

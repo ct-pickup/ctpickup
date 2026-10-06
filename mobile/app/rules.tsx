@@ -217,7 +217,7 @@ function make_styles() {
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   closingTitle: {

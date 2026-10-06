@@ -321,7 +321,7 @@ function make_styles() {
     pressed: { opacity: 0.85 },
     moreBtn: { alignSelf: "center", paddingVertical: 12 },
     back: { alignSelf: "center", paddingVertical: 12 },
-    link: { color: c.accent, fontSize: 15, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    link: { color: c.pitchText, fontSize: 15, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   });
 }
 let styles = make_styles();

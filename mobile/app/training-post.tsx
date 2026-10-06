@@ -366,7 +366,7 @@ function make_s() {
     backgroundColor: themeColor().pitchPanel,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
   },
   selectedText: { flex: 1, color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular" },
   pickerBtn: {
@@ -389,7 +389,7 @@ function make_s() {
     borderColor: themeColor().line,
     alignItems: "center",
   },
-  toggleBtnActive: { borderColor: themeColor().pitch, backgroundColor: themeColor().pitchPanel },
+  toggleBtnActive: { borderColor: themeColor().pitchText, backgroundColor: themeColor().pitchPanel },
   toggleBtnText: { color: themeColor().muted, fontWeight: "700", fontSize: 14, fontFamily: "Inter_700Bold" },
   toggleBtnTextActive: { color: themeColor().pitchText },
   goLiveBtn: { backgroundColor: themeColor().pitch, borderRadius: 12, paddingVertical: 16, alignItems: "center", marginTop: 4 },

@@ -49,7 +49,7 @@ export default function ProfileCard({
       />
       {avatarBusy ? (
         <View style={[StyleSheet.absoluteFill, styles.avatarBusy]}>
-          <ActivityIndicator color={c.onPitch} />
+          <ActivityIndicator color={c.onInk} />
         </View>
       ) : null}
       {avatarBadge}
@@ -73,7 +73,7 @@ export default function ProfileCard({
             {data.provisional ? <Text allowFontScaling={false} style={styles.chip}>New</Text> : null}
             {data.verified ? (
               <View style={styles.verified}>
-                <FontAwesome name="check" size={10} color={c.onPitch} />
+                <FontAwesome name="check" size={10} color={c.onInk} />
                 <Text allowFontScaling={false} style={styles.chip}>Verified</Text>
               </View>
             ) : null}
@@ -118,9 +118,9 @@ export default function ProfileCard({
             accessibilityLabel="Share my player card"
           >
             {shareBusy ? (
-              <ActivityIndicator size="small" color={c.onPitch} />
+              <ActivityIndicator size="small" color={c.onInk} />
             ) : (
-              <FontAwesome name="share-square-o" size={16} color={c.onPitch} />
+              <FontAwesome name="share-square-o" size={16} color={c.onInk} />
             )}
           </Pressable>
         ) : null}
@@ -166,7 +166,7 @@ function Stat({ value, label }: { value: string; label: string }) {
 function make_styles() {
   const c = themeColor();
   return StyleSheet.create({
-    card: { borderRadius: radius.playerCard, backgroundColor: c.pitch, padding: 14 },
+    card: { borderRadius: radius.playerCard, backgroundColor: c.inkSurface, borderWidth: StyleSheet.hairlineWidth, borderColor: c.line, padding: 14 },
     top: { flexDirection: "row", alignItems: "center", gap: 12 },
     avatarWrap: { width: AVATAR_SIZE, height: AVATAR_SIZE },
     avatarBusy: {
@@ -176,8 +176,8 @@ function make_styles() {
       justifyContent: "center",
     },
     identity: { flex: 1, minWidth: 0 },
-    name: { fontFamily: headline.fontFamily, fontSize: 22, lineHeight: 26, color: c.onPitch },
-    meta: { marginTop: 1, color: c.onPitch, opacity: 0.8, fontSize: 13, fontFamily: "Inter_500Medium", fontWeight: "500" },
+    name: { fontFamily: headline.fontFamily, fontSize: 22, lineHeight: 26, color: c.onInk },
+    meta: { marginTop: 1, color: c.onInk, opacity: 0.8, fontSize: 13, fontFamily: "Inter_500Medium", fontWeight: "500" },
     shareBtn: {
       alignSelf: "flex-start",
       width: 32,
@@ -190,17 +190,17 @@ function make_styles() {
     pressed: { opacity: 0.6 },
     ratingWrap: { marginTop: 10, alignSelf: "flex-start" },
     ratingRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-    bigNumber: { fontFamily: headline.fontFamily, fontSize: 44, lineHeight: 48, color: c.onPitch },
+    bigNumber: { fontFamily: headline.fontFamily, fontSize: 44, lineHeight: 48, color: c.pitch },
     ratingSide: { gap: 3 },
     levelRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-    level: { color: c.onPitch, fontSize: 15, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-    chip: { color: c.onPitch, opacity: 0.8, fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    level: { color: c.onInk, fontSize: 15, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    chip: { color: c.onInk, opacity: 0.8, fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     verified: { flexDirection: "row", alignItems: "center", gap: 3 },
-    rule: { height: StyleSheet.hairlineWidth, backgroundColor: c.onPitch, opacity: 0.35, marginTop: 10, marginBottom: 8 },
+    rule: { height: StyleSheet.hairlineWidth, backgroundColor: c.onInk, opacity: 0.35, marginTop: 10, marginBottom: 8 },
     stats: { flexDirection: "row" },
     stat: { flex: 1 },
-    statValue: { fontFamily: headline.fontFamily, fontSize: 18, lineHeight: 22, color: c.onPitch },
-    statLabel: { color: c.onPitch, opacity: 0.8, fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    statValue: { fontFamily: headline.fontFamily, fontSize: 18, lineHeight: 22, color: c.onInk },
+    statLabel: { color: c.onInk, opacity: 0.8, fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   });
 }
 let styles = make_styles();

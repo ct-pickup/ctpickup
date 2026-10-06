@@ -46,12 +46,12 @@ function pillForRunStatus(status: string) {
   if (status === "in_progress")
     return {
       label: "In progress",
-      cls: "border-pitch bg-pitch-panel text-on-pitch-panel",
+      cls: "border-pitch-text bg-pitch-panel text-on-pitch-panel",
     };
   if (status === "active")
     return {
       label: "Active",
-      cls: "border-pitch bg-pitch-panel text-on-pitch-panel",
+      cls: "border-pitch-text bg-pitch-panel text-on-pitch-panel",
     };
   if (status === "likely_on")
     return {

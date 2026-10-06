@@ -173,9 +173,9 @@ function make_styles() {
       paddingVertical: 8,
       borderRadius: 999,
       borderWidth: 1,
-      borderColor: themeColor().accent,
+      borderColor: themeColor().pitchText,
     },
-    btnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().accent },
+    btnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().pitchText },
     btnQuiet: { paddingHorizontal: 16, paddingVertical: 8 },
     btnQuietText: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().muted },
   });

@@ -20,7 +20,7 @@ export default function MessagePlayerButton({ target }: { target: DmTarget }) {
         accessibilityRole="button"
         accessibilityLabel={`Message ${target.name}`}
       >
-        {checking ? <ActivityIndicator color={themeColor().accent} size="small" /> : <FontAwesome name="comment-o" size={15} color={themeColor().accent} />}
+        {checking ? <ActivityIndicator color={themeColor().pitchText} size="small" /> : <FontAwesome name="comment-o" size={15} color={themeColor().pitchText} />}
         <Text style={styles.text}>Message</Text>
       </Pressable>
       {sheet}
@@ -40,10 +40,10 @@ function make_styles() {
       paddingVertical: 10,
       borderRadius: radius.button,
       borderWidth: 1.5,
-      borderColor: c.accent,
+      borderColor: c.pitchText,
     },
     dim: { opacity: 0.6 },
-    text: { color: c.accent, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    text: { color: c.pitchText, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   });
 }
 let styles = make_styles();

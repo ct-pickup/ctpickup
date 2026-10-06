@@ -25,7 +25,7 @@ export default function RatingTrend({
         const x = pad + i * step;
         return <Line key={i} x1={x} x2={x} y1={pad} y2={height - pad} stroke={themeColor().line} strokeWidth={1} strokeDasharray="3,3" />;
       })}
-      <Polyline points={pts.map(([x, y]) => `${x},${y}`).join(" ")} fill="none" stroke={themeColor().pitch} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+      <Polyline points={pts.map(([x, y]) => `${x},${y}`).join(" ")} fill="none" stroke={themeColor().pitchText} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
       {last ? <Circle cx={last[0]} cy={last[1]} r={4} fill={themeColor().pitch} /> : null}
     </Svg>
   );

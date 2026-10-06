@@ -813,7 +813,7 @@ function make_styles() {
   membersLinkText: { color: themeColor().pitchText, fontWeight: "600", fontSize: 13, fontFamily: "Inter_600SemiBold" },
   backBtn: { marginLeft: 12, backgroundColor: themeColor().card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, alignSelf: "flex-start" },
   backBtnText: { color: themeColor().text, fontWeight: "600", fontSize: 16, fontFamily: "Inter_600SemiBold" },
-  zipPill: { position: "absolute", top: 60, right: 12, zIndex: 999, backgroundColor: themeColor().card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: themeColor().pitch },
+  zipPill: { position: "absolute", top: 60, right: 12, zIndex: 999, backgroundColor: themeColor().card, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: themeColor().pitchText },
   zipPillText: { color: themeColor().pitchText, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" },
 
   zipModal: { flex: 1, backgroundColor: themeColor().bg, padding: 24 },
@@ -861,7 +861,7 @@ function make_styles() {
     borderRadius: 12,
     backgroundColor: C().bg,
     borderWidth: 2,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     alignItems: "center",
     justifyContent: "center",
   },

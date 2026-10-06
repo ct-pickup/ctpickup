@@ -133,7 +133,7 @@ export default async function AdminSyncPage({
 
       <AdminWorkArea question="Where is automation caught up, where is it waiting, and what page refresh or delivery still needs a retry?">
         {sp.ok ? (
-          <div className="mb-6 rounded-card border border-pitch bg-pitch-panel px-4 py-3 text-small text-on-pitch-panel">
+          <div className="mb-6 rounded-card border border-pitch-text bg-pitch-panel px-4 py-3 text-small text-on-pitch-panel">
             {sp.ok === "job" && "Page refresh job ran again."}
             {sp.ok === "delivery" && "Delivery retried."}
           </div>

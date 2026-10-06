@@ -897,7 +897,7 @@ function make_styles() {
     backgroundColor: themeColor().overlaySubtle,
   },
   noticeLime: {
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   noticeText: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
@@ -992,7 +992,7 @@ function make_styles() {
   },
   msgSenderAvatarAdmin: {
     backgroundColor: themeColor().pitchPanel,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
   },
   msgSenderAvatarText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
   msgSenderAvatarTextOther: { color: themeColor().muted },
@@ -1021,7 +1021,7 @@ function make_styles() {
     backgroundColor: themeColor().pitchPanel,
     borderColor: themeColor().line,
     borderLeftWidth: 3,
-    borderLeftColor: themeColor().pitch,
+    borderLeftColor: themeColor().pitchText,
   },
   bubbleText: { fontSize: 16, fontFamily: "Inter_400Regular", lineHeight: 20 },
   bubbleTextMine: { color: themeColor().onPitch, fontWeight: "700" },
@@ -1065,7 +1065,7 @@ function make_styles() {
   },
   reactionPillMine: {
     backgroundColor: themeColor().pitchPanel,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
   },
   reactionPillEmoji: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 18 },
   reactionPillCount: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", color: themeColor().muted },

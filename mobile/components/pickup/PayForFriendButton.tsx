@@ -306,7 +306,7 @@ function make_styles() {
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: themeColor().pitch,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
   btnDisabled: { opacity: 0.5 },
