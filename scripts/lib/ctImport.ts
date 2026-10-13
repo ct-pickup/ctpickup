@@ -48,9 +48,11 @@ function toText(v: unknown): string | null {
   return s === "" ? null : s;
 }
 
-export type NormalizeResult = { row: Record<string, unknown> | null; problems: string[]; droppedKeys: string[] };
+/** `skipped: "unnamed"` means the row is fine except it has no name (the database requires one). Not an error. */
+export type NormalizeResult = { row: Record<string, unknown> | null; problems: string[]; droppedKeys: string[]; skipped?: "unnamed" };
+export type NormalizeOptions = { unnamedAs?: string | null };
 
-function normalize(raw: unknown, columns: readonly string[], keyColumn: string): NormalizeResult {
+function normalize(raw: unknown, columns: readonly string[], keyColumn: string, opts: NormalizeOptions): NormalizeResult {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { row: null, problems: ["row is not an object"], droppedKeys: [] };
   const src = raw as Record<string, unknown>;
   const known = new Set<string>(columns);
@@ -78,16 +80,22 @@ function normalize(raw: unknown, columns: readonly string[], keyColumn: string):
     }
   }
   if (!row[keyColumn]) problems.push(`${keyColumn} is missing`);
-  if (!row.name) problems.push("name is missing");
+  let unnamed = false;
+  if (!row.name) {
+    if (opts.unnamedAs) row.name = opts.unnamedAs;
+    else unnamed = true;
+  }
   for (const [col, allowed] of Object.entries(ALLOWED)) {
     const v = row[col];
     if (v != null && !allowed.includes(String(v))) problems.push(`${col}: "${String(v)}" is not one of ${allowed.join(" | ")}`);
   }
-  return { row: problems.length ? null : row, problems, droppedKeys };
+  if (problems.length) return { row: null, problems, droppedKeys };
+  if (unnamed) return { row: null, problems: [], droppedKeys, skipped: "unnamed" };
+  return { row, problems, droppedKeys };
 }
 
-export const normalizeVenue = (raw: unknown): NormalizeResult => normalize(raw, VENUE_COLUMNS, "venue_key");
-export const normalizeSchool = (raw: unknown): NormalizeResult => normalize(raw, SCHOOL_COLUMNS, "school_key");
+export const normalizeVenue = (raw: unknown, opts: NormalizeOptions = {}): NormalizeResult => normalize(raw, VENUE_COLUMNS, "venue_key", opts);
+export const normalizeSchool = (raw: unknown, opts: NormalizeOptions = {}): NormalizeResult => normalize(raw, SCHOOL_COLUMNS, "school_key", opts);
 
 /** Accepts a bare array, or an object wrapping one under venues / schools / rows / data / items. */
 export function extractRows(json: unknown): unknown[] {

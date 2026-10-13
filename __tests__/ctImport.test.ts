@@ -23,6 +23,13 @@ describe("normalizeVenue", () => {
     expect(normalizeVenue({ venue_key: "a", name: "A", booking_method: "email" }).row).toBeNull();
     expect(normalizeVenue({ name: "A" }).row).toBeNull();
   });
+  it("skips unnamed rows by default and names them on request", () => {
+    const skipped = normalizeVenue({ venue_key: "a", name: "" });
+    expect(skipped.row).toBeNull();
+    expect(skipped.skipped).toBe("unnamed");
+    expect(skipped.problems).toEqual([]);
+    expect(normalizeVenue({ venue_key: "a", name: "" }, { unnamedAs: "Unnamed field" }).row?.name).toBe("Unnamed field");
+  });
 });
 
 describe("normalizeSchool", () => {

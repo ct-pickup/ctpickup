@@ -12,6 +12,7 @@
  *   --dry-run            validate and count only; no key needed and no network
  *   --expect-host HOST   required for any remote database: repeat the host to confirm it is the one you mean
  *   --allow-prod         lets the run proceed when the URL looks like production (still needs --expect-host)
+ *   --include-unnamed    import rows with no name as "Unnamed field" / "Unnamed school" (default: skip and report them)
  *   --venues PATH / --schools PATH   override the default file locations
  *
  * The service role key is read only from SUPABASE_SERVICE_ROLE_KEY and is never printed or logged.
@@ -22,6 +23,7 @@ import { resolve } from "node:path";
 import { checkTarget, chunk, extractRows, normalizeSchool, normalizeVenue, redact, type NormalizeResult } from "./lib/ctImport.ts";
 
 const BATCH = 500;
+const INCLUDE_UNNAMED_AS: Record<string, string> = { venues: "Unnamed field", schools: "Unnamed school" };
 
 function arg(name: string): string | null {
   const i = process.argv.indexOf(name);
@@ -35,6 +37,7 @@ function fail(message: string): never {
 }
 
 function load(path: string, normalize: (r: unknown) => NormalizeResult, label: string) {
+  let unnamed = 0;
   let json: unknown;
   try {
     json = JSON.parse(readFileSync(resolve(path), "utf8"));
@@ -54,6 +57,7 @@ function load(path: string, normalize: (r: unknown) => NormalizeResult, label: s
     const res = normalize(r);
     res.droppedKeys.forEach((k) => dropped.add(k));
     if (res.row) rows.push(res.row);
+    else if (res.skipped === "unnamed") unnamed += 1;
     else bad.push(`  row ${i}${(r as { venue_key?: string; school_key?: string })?.venue_key ? ` (${(r as { venue_key?: string }).venue_key})` : ""}: ${res.problems.join("; ")}`);
   });
   if (bad.length) {
@@ -62,7 +66,8 @@ function load(path: string, normalize: (r: unknown) => NormalizeResult, label: s
     process.exit(1);
   }
   const keyed = new Set(rows.map((r) => String(r.venue_key ?? r.school_key)));
-  console.log(`${label}: ${rows.length} rows (${rows.length - keyed.size} duplicate keys will collapse)${dropped.size ? `; ignoring unknown fields: ${[...dropped].join(", ")}` : ""}`);
+  console.log(`${label}: ${rows.length} rows to import (${rows.length - keyed.size} duplicate keys will collapse)${dropped.size ? `; ignoring unknown fields: ${[...dropped].join(", ")}` : ""}`);
+  if (unnamed) console.log(`${label}: skipped ${unnamed} rows with no name (the database requires one). Pass --include-unnamed to import them as "${INCLUDE_UNNAMED_AS[label] ?? "Unnamed"}".`);
   return rows;
 }
 
@@ -94,8 +99,9 @@ async function rpc(url: string, key: string, fn: string, rows: Record<string, un
 
 async function main() {
   const dryRun = flag("--dry-run");
-  const schools = load(arg("--schools") ?? "data/ct/ct_schools.json", normalizeSchool, "schools");
-  const venues = load(arg("--venues") ?? "data/ct/ct_venues.json", normalizeVenue, "venues");
+  const includeUnnamed = flag("--include-unnamed");
+  const schools = load(arg("--schools") ?? "data/ct/ct_schools.json", (r) => normalizeSchool(r, { unnamedAs: includeUnnamed ? INCLUDE_UNNAMED_AS.schools : null }), "schools");
+  const venues = load(arg("--venues") ?? "data/ct/ct_venues.json", (r) => normalizeVenue(r, { unnamedAs: includeUnnamed ? INCLUDE_UNNAMED_AS.venues : null }), "venues");
   const verified = venues.filter((v) => v.verified === true).length;
   console.log(`venues marked verified in the file: ${verified} (they keep their price, booking and permit data if the database already has them verified)`);
 
