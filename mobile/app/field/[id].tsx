@@ -1,8 +1,10 @@
-import { Link, Stack, useLocalSearchParams } from "expo-router";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Link, Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useState } from "react";
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ConfirmationBadge } from "@/components/fields/FieldBits";
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
+import { useAuth } from "@/context/AuthContext";
 import { fieldCountLabel, hasLights, isTurf, permitConfirmation, permitDetail, priceConfirmation, priceLabel } from "@/lib/fields/presentation";
 import { reportFieldIssueUrl } from "@/lib/fields/report";
 import { getSampleField } from "@/lib/fields/sampleData";
@@ -10,6 +12,9 @@ import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
 export default function FieldDetailScreen() {
   useThemedStyles(publish_styles);
+  const router = useRouter();
+  const { supabase, session } = useAuth();
+  const [saved, setSaved] = useState(false);
   const { id } = useLocalSearchParams<{ id: string }>();
   const item = getSampleField(id);
 
@@ -24,6 +29,16 @@ export default function FieldDetailScreen() {
   }
 
   const v = item.venue;
+
+  async function toggleSaved() {
+    const uid = session?.user?.id;
+    if (!supabase || !uid) return;
+    const res = saved
+      ? await supabase.from("saved_venues").delete().eq("user_id", uid).eq("venue_key", v.venue_key)
+      : await supabase.from("saved_venues").insert({ user_id: uid, venue_key: v.venue_key });
+    if (res.error) Alert.alert("Couldn’t save", "This field isn’t in the database yet.");
+    else setSaved(!saved);
+  }
   const permit = permitDetail(v);
   const surface = isTurf(v) ? "Turf" : v.surface ? v.surface.charAt(0).toUpperCase() + v.surface.slice(1) : "Unknown";
   const lights = v.lit == null || v.lit === "unknown" ? "Unknown" : hasLights(v) ? "Yes" : "No";
@@ -75,6 +90,18 @@ export default function FieldDetailScreen() {
           </>
         ) : null}
       </View>
+
+      <Pressable
+        onPress={() => router.push({ pathname: "/field-schedule", params: { id: v.venue_key } })}
+        style={styles.linkRow}
+        accessibilityRole="button"
+      >
+        <Text style={styles.linkRowText}>See schedule</Text>
+        <Text style={styles.linkRowChevron}>{"›"}</Text>
+      </Pressable>
+      <Pressable onPress={() => void toggleSaved()} style={styles.linkRow} accessibilityRole="button" accessibilityState={{ selected: saved }}>
+        <Text style={styles.linkRowText}>{saved ? "Saved. Tap to remove" : "Save this field for alerts"}</Text>
+      </Pressable>
     </FieldScreenShell>
   );
 }
@@ -115,6 +142,9 @@ function make_styles() {
     rowHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     label: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: c.muted },
     value: { fontSize: 17, fontFamily: "Inter_600SemiBold", color: c.text },
+    linkRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 14, borderRadius: radius.card, backgroundColor: themeColor().card, borderWidth: 1, borderColor: themeColor().line },
+    linkRowText: { fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().text },
+    linkRowChevron: { fontSize: 20, color: themeColor().muted },
     sep: { height: StyleSheet.hairlineWidth, backgroundColor: c.line, marginVertical: 14 },
     cta: { backgroundColor: c.pitch, borderRadius: radius.button, paddingVertical: 16, alignItems: "center" },
     ctaText: { color: c.onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },

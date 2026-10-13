@@ -116,17 +116,20 @@ export function fieldCountLabel(v: Pick<Venue, "field_count">): string | null {
 export type SlotStatus = "open" | "booked" | "pending" | "unknown";
 
 /**
- * The only place a time can become Open. Without a connected calendar every time is Unknown, whatever else we hold,
- * except a request the player themselves made (Pending), which we know about because it is ours.
+ * The only place a time can become Open. A time is Open only when the venue's calendar is connected AND nothing is
+ * booked then. Without a connected calendar a free-looking time is Unknown. A booking we hold a row for (booked or pending)
+ * is real information and always shows, and the player's own request shows as Pending.
  */
 export function slotStatus(args: {
   calendarConnected: boolean;
   booked: boolean;
+  pending?: boolean;
   yourRequest: boolean;
 }): SlotStatus {
   if (args.yourRequest) return "pending";
-  if (!args.calendarConnected) return "unknown";
-  return args.booked ? "booked" : "open";
+  if (args.booked) return "booked";
+  if (args.pending) return "pending";
+  return args.calendarConnected ? "open" : "unknown";
 }
 
 /** Whole hours × hourly price. Null when the venue is paid with no usable hourly price, or the price is not per hour. */

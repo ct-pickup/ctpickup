@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BestGamesCarousel, EMPTY_CROWD, GameCard, type GameCardRun, type RunCrowd } from "@/components/games/GameCards";
+import { EventsPanel } from "@/components/fields/EventsPanel";
 import { FieldsPanel } from "@/components/fields/FieldsPanel";
 import { useFieldPhotos } from "@/components/photo";
 import { usePlayedWith } from "@/components/pickup/PlayedWithRow";
@@ -93,9 +94,9 @@ export default function GamesTabScreen() {
   const params = useLocalSearchParams<{ view?: string }>();
   // Fields runs on sample data until the venues table is live, so only admins see it.
   const { isAdmin } = useProfileAdmin();
-  const [chosenView, setView] = useState<"season" | "fields">(params.view === "fields" ? "fields" : "season");
+  const [chosenView, setView] = useState<"season" | "fields" | "events">(params.view === "fields" ? "fields" : params.view === "events" ? "events" : "season");
   useEffect(() => {
-    if (params.view === "fields") setView("fields");
+    if (params.view === "fields" || params.view === "events") setView(params.view);
   }, [params.view]);
   const view = isAdmin ? chosenView : "season";
   const [variantIndex, setVariantIndex] = useState(0);
@@ -144,12 +145,12 @@ export default function GamesTabScreen() {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <Text style={styles.header} onLongPress={__DEV__ ? toggleDevPreview : undefined}>
-        {view === "fields" ? "Fields" : "Your season"}
+        {view === "fields" ? "Fields" : view === "events" ? "Games" : "Your season"}
       </Text>
 
       {isAdmin ? (
       <View style={styles.toggle} accessibilityRole="tablist">
-        {(["season", "fields"] as const).map((v) => (
+        {(["season", "fields", "events"] as const).map((v) => (
           <Pressable
             key={v}
             onPress={() => setView(v)}
@@ -157,13 +158,17 @@ export default function GamesTabScreen() {
             accessibilityRole="tab"
             accessibilityState={{ selected: view === v }}
           >
-            <Text style={[styles.toggleText, view === v && styles.toggleTextOn]}>{v === "season" ? "Season" : "Fields"}</Text>
+            <Text style={[styles.toggleText, view === v && styles.toggleTextOn]}>{v === "season" ? "Season" : v === "fields" ? "Fields" : "Events"}</Text>
           </Pressable>
         ))}
       </View>
       ) : null}
 
-      {view === "fields" ? (
+      {view === "events" ? (
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]}>
+          <EventsPanel />
+        </ScrollView>
+      ) : view === "fields" ? (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]} keyboardShouldPersistTaps="handled">
           <FieldsPanel sample fields={SAMPLE_FIELDS} onOpen={(key) => push(`/field/${encodeURIComponent(key)}`)} onMyRequests={() => push("/field-requests")} />
         </ScrollView>
