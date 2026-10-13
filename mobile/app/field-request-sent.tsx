@@ -9,7 +9,7 @@ import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
 const STEPS = [
   { title: "Received by Competitive Together", sub: "Just now", done: true },
-  { title: "Sending to the venue", sub: "Facility-use request, sent by our team", done: false },
+  { title: "Sending to the venue", sub: "Our team sends the facility-use request", done: false },
   { title: "Venue approves", sub: "We'll notify you", done: false },
   { title: "You're confirmed", sub: "Pay and invite your players", done: false },
 ] as const;
@@ -50,7 +50,6 @@ export default function FieldRequestSentScreen() {
           </View>
         ))}
       </View>
-      <Text style={styles.sample}>Sample data. Nothing was sent: saving requests comes in the next step.</Text>
     </FieldScreenShell>
   );
 }
@@ -68,7 +67,6 @@ function make_styles() {
     stepTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: c.text },
     stepTitleTodo: { color: c.muted },
     stepSub: { fontSize: 13, fontFamily: "Inter_400Regular", color: c.muted },
-    sample: { fontSize: 12, fontFamily: "Inter_500Medium", color: c.muted },
     cta: { backgroundColor: c.pitch, borderRadius: radius.button, paddingVertical: 16, alignItems: "center" },
     ctaText: { color: c.onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
   });

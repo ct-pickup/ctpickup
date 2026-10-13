@@ -1,8 +1,9 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
+import { useAuth } from "@/context/AuthContext";
 import { requestEstimate } from "@/lib/fields/presentation";
 import {
   clampPlayers,
@@ -11,12 +12,16 @@ import {
   TIME_OPTIONS,
   weekendDays,
 } from "@/lib/fields/requestOptions";
+import { submitFieldRequest } from "@/lib/fields/requestApi";
 import { getSampleField } from "@/lib/fields/sampleData";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
 export default function FieldRequestScreen() {
   useThemedStyles(publish_styles);
   const router = useRouter();
+  const { session } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { id } = useLocalSearchParams<{ id: string }>();
   const item = getSampleField(id);
   const days = useMemo(() => weekendDays(new Date()), []);
@@ -38,17 +43,39 @@ export default function FieldRequestScreen() {
   const perHour = estimate.cents != null && estimate.cents > 0 ? ` × $${Math.round(estimate.cents / 100 / REQUEST_HOURS)}` : "";
   const permitNeeded = v.permit_required === "yes";
 
-  function send() {
-    router.replace({ pathname: "/field-request-sent", params: { id: v.venue_key, day, time, players: String(players) } });
+  async function send() {
+    const token = session?.access_token;
+    if (!token) {
+      setError("Sign in again to send a request.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const res = await submitFieldRequest(token, {
+      venue_key: v.venue_key,
+      requested_date: day,
+      start_time: time,
+      players,
+      duration_hours: REQUEST_HOURS,
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setError(res.message);
+      return;
+    }
+    router.replace({ pathname: "/field-request-sent", params: { id: v.venue_key, day, time, players: String(players), request: res.id } });
   }
 
   return (
     <FieldScreenShell
       fallback={{ pathname: "/field/[id]", params: { id: v.venue_key } }}
       footer={
-        <Pressable onPress={send} style={styles.cta} accessibilityRole="button">
-          <Text style={styles.ctaText}>Send request</Text>
-        </Pressable>
+        <>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <Pressable onPress={() => void send()} disabled={busy} style={[styles.cta, busy && styles.ctaBusy]} accessibilityRole="button">
+            {busy ? <ActivityIndicator color={themeColor().onPitch} /> : <Text style={styles.ctaText}>Send request</Text>}
+          </Pressable>
+        </>
       }
     >
       <Stack.Screen options={{ headerShown: false }} />
@@ -138,6 +165,8 @@ function make_styles() {
     noticeBody: { fontSize: 14, fontFamily: "Inter_400Regular", color: c.onPitchPanel, lineHeight: 20 },
     estimate: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 4 },
     estimateValue: { fontSize: 20, ...headline, color: c.text },
+    error: { color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_500Medium", textAlign: "center" },
+    ctaBusy: { opacity: 0.7 },
     cta: { backgroundColor: c.pitch, borderRadius: radius.button, paddingVertical: 16, alignItems: "center" },
     ctaText: { color: c.onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
   });

@@ -84,6 +84,7 @@ export default function AdminLayout() {
       <Stack.Screen name="tournament-join" options={{ title: "Find a team", headerBackTitle: "Back" }} />
       <Stack.Screen name="tournament-bracket-view" options={{ title: "Live bracket", headerBackTitle: "Back" }} />
       <Stack.Screen name="members" options={{ title: "Members", headerBackTitle: "Back" }} />
+      <Stack.Screen name="field-requests" options={{ title: "Requests", headerShown: false, headerBackTitle: "Back" }} />
       <Stack.Screen name="verification" options={{ title: "Verification", headerBackTitle: "Back" }} />
       <Stack.Screen name="tier-management" options={{ title: "Player levels", headerBackTitle: "Back" }} />
       <Stack.Screen name="session-economics" options={{ title: "Payouts", headerBackTitle: "Back" }} />

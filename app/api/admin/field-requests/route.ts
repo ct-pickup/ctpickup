@@ -1,0 +1,133 @@
+import { NextResponse } from "next/server";
+
+import { requireAdminBearer } from "@/lib/admin/requireAdmin";
+import { sendPushToUsers } from "@/lib/push/sendExpoPush";
+import { supabaseService } from "@/lib/supabase/service";
+import { formatRequestWhen, isAdminSettableStatus, playerStatusPush, type RequestStatus } from "@/shared/fields/requestEmail";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const STATUSES = ["new", "waiting_on_school", "approved", "declined"] as const;
+
+type RequestRow = {
+  id: string;
+  user_id: string;
+  venue_key: string;
+  requested_date: string;
+  start_time: string;
+  duration_hours: number;
+  players: number;
+  estimate_cents: number | null;
+  status: RequestStatus;
+  draft_email: string | null;
+  school_contact_email: string | null;
+  admin_notes: string | null;
+  created_at: string;
+  status_changed_at: string;
+};
+
+/**
+ * GET /api/admin/field-requests?status=new|waiting_on_school|approved|declined
+ * The request queue, newest first, with the venue and the player's name. Admin only (checked here on the server).
+ */
+export async function GET(req: Request) {
+  const guard = await requireAdminBearer(req);
+  if (!guard.ok) return guard.response;
+  const admin = supabaseService();
+
+  const status = new URL(req.url).searchParams.get("status");
+  let q = admin
+    .from("venue_requests")
+    .select("id,user_id,venue_key,requested_date,start_time,duration_hours,players,estimate_cents,status,draft_email,school_contact_email,admin_notes,created_at,status_changed_at")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (status && (STATUSES as readonly string[]).includes(status)) q = q.eq("status", status);
+  const { data, error } = await q;
+  if (error) return NextResponse.json({ error: "Could not load requests." }, { status: 500 });
+  const rows = (data ?? []) as RequestRow[];
+
+  const venueKeys = [...new Set(rows.map((r) => r.venue_key))];
+  const userIds = [...new Set(rows.map((r) => r.user_id))];
+  const [venues, profiles, counts] = await Promise.all([
+    venueKeys.length ? admin.from("venues").select("venue_key,name,address,school_name,website,booking_phone").in("venue_key", venueKeys) : { data: [] },
+    userIds.length ? admin.from("profiles").select("id,first_name,last_name,username").in("id", userIds) : { data: [] },
+    Promise.all(STATUSES.map((s) => admin.from("venue_requests").select("id", { count: "exact", head: true }).eq("status", s))),
+  ]);
+  const vMap = new Map(((venues.data ?? []) as { venue_key: string }[]).map((v) => [v.venue_key, v]));
+  const pMap = new Map(((profiles.data ?? []) as { id: string }[]).map((p) => [p.id, p]));
+
+  return NextResponse.json({
+    ok: true,
+    counts: Object.fromEntries(STATUSES.map((s, i) => [s, counts[i]?.count ?? 0])),
+    items: rows.map((r) => {
+      const p = pMap.get(r.user_id) as { first_name?: string | null; last_name?: string | null; username?: string | null } | undefined;
+      return {
+        ...r,
+        venue: vMap.get(r.venue_key) ?? null,
+        requested_by: [p?.first_name, p?.last_name].filter(Boolean).join(" ") || p?.username || "Player",
+      };
+    }),
+  });
+}
+
+/**
+ * PATCH /api/admin/field-requests  { id, status?, school_contact_email?, admin_notes? }
+ * Moves a request to waiting_on_school, approved or declined, and pushes the player when the status changes.
+ * Never sends email: the admin sends the draft to the school by hand.
+ */
+export async function PATCH(req: Request) {
+  const guard = await requireAdminBearer(req);
+  if (!guard.ok) return guard.response;
+  const admin = supabaseService();
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  }
+  const id = typeof body.id === "string" ? body.id : "";
+  if (!id) return NextResponse.json({ error: "id is required." }, { status: 400 });
+
+  const patch: Record<string, unknown> = {};
+  if (body.status !== undefined) {
+    if (!isAdminSettableStatus(body.status)) return NextResponse.json({ error: "Status must be waiting_on_school, approved or declined." }, { status: 400 });
+    patch.status = body.status;
+  }
+  if (body.school_contact_email !== undefined) {
+    const e = typeof body.school_contact_email === "string" ? body.school_contact_email.trim() : "";
+    if (e && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return NextResponse.json({ error: "That email doesn't look right." }, { status: 400 });
+    patch.school_contact_email = e || null;
+  }
+  if (body.admin_notes !== undefined) patch.admin_notes = typeof body.admin_notes === "string" ? body.admin_notes.trim().slice(0, 2000) || null : null;
+  if (Object.keys(patch).length === 0) return NextResponse.json({ error: "Nothing to update." }, { status: 400 });
+
+  const { data: before, error: readErr } = await admin.from("venue_requests").select("status,user_id,venue_key,requested_date,start_time,duration_hours").eq("id", id).maybeSingle();
+  if (readErr) return NextResponse.json({ error: "Could not load the request." }, { status: 500 });
+  if (!before) return NextResponse.json({ error: "Request not found." }, { status: 404 });
+  const prev = before as { status: RequestStatus; user_id: string; venue_key: string; requested_date: string; start_time: string; duration_hours: number };
+
+  const { error: updErr } = await admin.from("venue_requests").update(patch).eq("id", id);
+  if (updErr) return NextResponse.json({ error: "Could not update the request." }, { status: 500 });
+
+  const changed = typeof patch.status === "string" && patch.status !== prev.status;
+  if (changed) {
+    try {
+      const { data: venue } = await admin.from("venues").select("name").eq("venue_key", prev.venue_key).maybeSingle();
+      const msg = playerStatusPush(
+        patch.status as RequestStatus,
+        (venue as { name?: string } | null)?.name ?? "the venue",
+        formatRequestWhen(prev.requested_date, prev.start_time, Number(prev.duration_hours)),
+      );
+      // Respect a player who turned request updates off (no row means on).
+      const { data: pref } = await admin.from("alert_subscriptions").select("enabled").eq("user_id", prev.user_id).eq("alert_type", "request_updates").maybeSingle();
+      const muted = (pref as { enabled?: boolean } | null)?.enabled === false;
+      if (msg && !muted) await sendPushToUsers(admin, [prev.user_id], { ...msg, data: { screen: "field-request", request_id: id } });
+    } catch (e) {
+      console.error("[api/admin/field-requests] player push failed", e);
+    }
+  }
+
+  return NextResponse.json({ ok: true });
+}

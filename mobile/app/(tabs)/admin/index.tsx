@@ -23,6 +23,7 @@ const MORE: Array<{ label: string; href: Href }> = [
   { label: "Player levels", href: "/admin/tier-management" as Href },
   { label: "Standing", href: "/admin/standing" as Href },
   { label: "Chat moderation", href: "/admin/chat" as Href },
+  { label: "Field requests", href: "/admin/field-requests" as Href },
   { label: "Tournaments", href: "/admin/tournament" as Href },
   { label: "Tools", href: "/admin/tools" as Href },
 ];
@@ -39,6 +40,7 @@ export default function AdminMenuScreen() {
   const rows = counts
     ? [
         { key: "verify", label: "Verification requests", count: counts.verifications, href: "/admin/verification" as Href },
+        { key: "fields", label: "Field requests", count: counts.fieldRequests, href: "/admin/field-requests" as Href },
         { key: "signups", label: "New signups to approve", count: counts.signups, href: "/admin/members" as Href },
         { key: "settle", label: "Sessions to settle", count: counts.settlements, href: "/admin/pickup" as Href },
       ].filter((r) => r.count > 0)

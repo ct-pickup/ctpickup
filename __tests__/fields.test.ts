@@ -91,3 +91,34 @@ describe("request helpers", () => {
     expect(clampPlayers(99)).toBe(30);
   });
 });
+
+import { adminNewRequestPush, draftEmail, draftMailto, formatRequestWhen, isAdminSettableStatus, playerStatusPush } from "../shared/fields/requestEmail";
+
+describe("request email and pushes", () => {
+  it("formats the requested time", () => {
+    expect(formatRequestWhen("2026-10-17", "11:00:00", 2)).toBe("Sat, Oct 17, 11 AM–1 PM");
+    expect(formatRequestWhen("2026-10-18", "18:00", 2)).toBe("Sun, Oct 18, 6 PM–8 PM");
+    expect(formatRequestWhen("2026-10-17", "09:00", 1.5)).toBe("Sat, Oct 17, 9 AM–10:30 AM");
+  });
+  it("drafts an email with no player details", () => {
+    const d = draftEmail({ venueName: "Hillcrest High School Turf", venueKind: "school", date: "2026-10-17", start: "11:00", hours: 2, players: 14 });
+    expect(d.subject).toContain("Hillcrest High School Turf");
+    expect(d.body).toContain("about 14 players");
+    expect(d.body).toContain("facility-use process");
+  });
+  it("builds a mailto that works with no address on file", () => {
+    const d = { subject: "A b", body: "Hi\nthere" };
+    expect(draftMailto(null, d)).toBe("mailto:?subject=A%20b&body=Hi%0Athere");
+    expect(draftMailto("a@b.org", d).startsWith("mailto:a%40b.org?")).toBe(true);
+  });
+  it("only lets admins set the three working statuses", () => {
+    expect(isAdminSettableStatus("approved")).toBe(true);
+    expect(isAdminSettableStatus("new")).toBe(false);
+    expect(isAdminSettableStatus("cancelled")).toBe(false);
+  });
+  it("writes player and admin push text", () => {
+    expect(playerStatusPush("approved", "Hillcrest", "Sat, Oct 17, 11 AM–1 PM")?.title).toBe("Field approved");
+    expect(playerStatusPush("new", "Hillcrest", "x")).toBeNull();
+    expect(adminNewRequestPush("Sam", "Hillcrest", "Sat", 14).body).toBe("Sam · Hillcrest · Sat · 14 players");
+  });
+});
