@@ -92,6 +92,16 @@ export function isNoPermit(v: Pick<Venue, "permit_required" | "permit_type">): b
   return v.permit_type === "walk_up" || v.permit_required === "no";
 }
 
+/** Indoor or both. A missing setting counts as outdoor. */
+export function isIndoor(v: Pick<Venue, "setting">): boolean {
+  return v.setting === "indoor" || v.setting === "both";
+}
+
+/** Small tag text: "Indoor", "Indoor + outdoor", or null for an outdoor field (no tag). */
+export function settingTag(v: Pick<Venue, "setting">): string | null {
+  return v.setting === "indoor" ? "Indoor" : v.setting === "both" ? "Indoor + outdoor" : null;
+}
+
 export function filterFields(list: FieldListing[], f: FieldFilters): FieldListing[] {
   const q = f.query.trim().toLowerCase();
   return list.filter(({ venue: v, kind_label }) => {
@@ -99,6 +109,7 @@ export function filterFields(list: FieldListing[], f: FieldFilters): FieldListin
     if (f.turf && !isTurf(v)) return false;
     if (f.noPermit && !isNoPermit(v)) return false;
     if (f.lights && !hasLights(v)) return false;
+    if (f.indoor && !isIndoor(v)) return false;
     if (q) {
       const hay = [v.name, v.address, v.school_name, v.operator, kind_label].filter(Boolean).join(" ").toLowerCase();
       if (!hay.includes(q)) return false;

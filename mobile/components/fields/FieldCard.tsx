@@ -2,7 +2,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Tag } from "@/components/fields/FieldBits";
-import { fieldCountLabel, isTurf, permitChip, priceLabel } from "@/lib/fields/presentation";
+import { fieldCountLabel, isTurf, permitChip, priceLabel, settingTag } from "@/lib/fields/presentation";
 import type { FieldListing } from "@/lib/fields/types";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
@@ -32,6 +32,7 @@ export function FieldCard({ item, onPress }: { item: FieldListing; onPress: () =
         </Text>
         <View style={styles.tags}>
           <Tag label={priceLabel(v)} tone={v.price_status === "free" ? "good" : "neutral"} />
+          {settingTag(v) ? <Tag label={settingTag(v)!} /> : null}
           {isTurf(v) ? <Tag label="Turf" /> : null}
           {permit ? <Tag label={permit.label} tone={permit.tone} /> : null}
         </View>

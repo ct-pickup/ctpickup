@@ -2,7 +2,8 @@
  * Imports the Connecticut venue data run into a Supabase database through public.upsert_schools and
  * public.upsert_venues (migration 20261013000000 keeps verified, manual and hand-checked price / booking / permit data).
  *
- * Reads data/ct/ct_schools.json and data/ct/ct_venues.json, converts verified 0/1 to booleans, validates every row,
+ * Reads data/ct/ct_schools.json and data/ct/ct_venues.json, converts verified 0/1 to booleans, reads setting (outdoor | indoor | both,
+ * outdoor when missing, anything else rejected), validates every row,
  * then sends batches of 500. Prints inserted / updated / protected counts. Writes nothing but those RPC calls.
  *
  *   SUPABASE_URL=https://<dev-ref>.supabase.co SUPABASE_SERVICE_ROLE_KEY=... \
@@ -103,6 +104,8 @@ async function main() {
   const schools = load(arg("--schools") ?? "data/ct/ct_schools.json", (r) => normalizeSchool(r, { unnamedAs: includeUnnamed ? INCLUDE_UNNAMED_AS.schools : null }), "schools");
   const venues = load(arg("--venues") ?? "data/ct/ct_venues.json", (r) => normalizeVenue(r, { unnamedAs: includeUnnamed ? INCLUDE_UNNAMED_AS.venues : null }), "venues");
   const verified = venues.filter((v) => v.verified === true).length;
+  const bySetting = venues.reduce<Record<string, number>>((m, v) => ((m[String(v.setting)] = (m[String(v.setting)] ?? 0) + 1), m), {});
+  console.log(`venues by setting: ${Object.entries(bySetting).map(([k, n]) => `${k} ${n}`).join(", ")}`);
   console.log(`venues marked verified in the file: ${verified} (they keep their price, booking and permit data if the database already has them verified)`);
 
   if (dryRun) {

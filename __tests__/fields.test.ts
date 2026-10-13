@@ -475,3 +475,33 @@ describe("requested window status", () => {
     expect(windowStatus({ date: "2026-10-17", start: "09:00", hours: 1, slots, calendarConnected: true })).toBe("open");
   });
 });
+
+import { isIndoor, settingTag } from "../mobile/lib/fields/presentation";
+
+describe("indoor setting", () => {
+  const v = (setting: "outdoor" | "indoor" | "both" | null | undefined) => toListing({ ...SAMPLE_FIELDS[0]!.venue, setting });
+  it("matches indoor and both, not outdoor or missing", () => {
+    expect(isIndoor(v("indoor").venue)).toBe(true);
+    expect(isIndoor(v("both").venue)).toBe(true);
+    expect(isIndoor(v("outdoor").venue)).toBe(false);
+    expect(isIndoor(v(undefined).venue)).toBe(false);
+    expect(isIndoor(v(null).venue)).toBe(false);
+  });
+  it("tags indoor and indoor + outdoor only", () => {
+    expect(settingTag(v("indoor").venue)).toBe("Indoor");
+    expect(settingTag(v("both").venue)).toBe("Indoor + outdoor");
+    expect(settingTag(v("outdoor").venue)).toBeNull();
+    expect(settingTag(v(undefined).venue)).toBeNull();
+  });
+  it("filters the list with the Indoor chip", () => {
+    const list = [v("outdoor"), v("indoor"), v("both"), v(undefined)].map((l, i) => ({ ...l, venue: { ...l.venue, venue_key: `k${i}`, name: `V${i}` } }));
+    const shown = filterFields(list, { ...NO_FIELD_FILTERS, indoor: true });
+    expect(shown.map((l) => l.venue.venue_key)).toEqual(["k1", "k2"]);
+    expect(filterFields(list, NO_FIELD_FILTERS)).toHaveLength(4);
+  });
+  it("combines with other chips", () => {
+    const a = { ...v("indoor"), venue: { ...v("indoor").venue, venue_key: "a", name: "A", price_status: "free" as const } };
+    const b = { ...v("indoor"), venue: { ...v("indoor").venue, venue_key: "b", name: "B", price_status: "paid" as const } };
+    expect(filterFields([a, b], { ...NO_FIELD_FILTERS, indoor: true, free: true }).map((l) => l.venue.venue_key)).toEqual(["a"]);
+  });
+});

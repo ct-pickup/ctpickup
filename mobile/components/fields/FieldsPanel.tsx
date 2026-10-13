@@ -15,6 +15,7 @@ const CHIPS: { key: Exclude<keyof FieldFilters, "query">; label: string }[] = [
   { key: "turf", label: "Turf" },
   { key: "noPermit", label: "No permit" },
   { key: "lights", label: "Lights" },
+  { key: "indoor", label: "Indoor" },
 ];
 
 /** List rows shown before "Show more". The map has its own pin cap (see FieldsMap). */

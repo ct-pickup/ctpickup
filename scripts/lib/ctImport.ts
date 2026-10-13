@@ -6,7 +6,7 @@ export const VENUE_COLUMNS = [
   "price_status", "price_text", "price_min", "price_max", "price_unit", "price_source",
   "booking_method", "booking_url", "booking_phone", "booking_basis",
   "permit_required", "permit_type", "permit_basis",
-  "verified", "last_verified_at", "updated_at",
+  "verified", "last_verified_at", "updated_at", "setting",
 ] as const;
 
 export const SCHOOL_COLUMNS = [
@@ -23,7 +23,11 @@ const ALLOWED: Record<string, readonly string[]> = {
   price_source: ["osm", "manual", "unknown"],
   booking_method: ["online", "phone", "permit_request", "unknown"],
   permit_required: ["yes", "no", "unknown"],
+  setting: ["outdoor", "indoor", "both"],
 };
+
+/** Where a venue is. A missing or blank value means outdoor, the database default. */
+export const DEFAULT_SETTING = "outdoor";
 
 export function toBoolean(v: unknown): boolean | null {
   if (v === true || v === 1 || v === "1") return true;
@@ -75,10 +79,14 @@ function normalize(raw: unknown, columns: readonly string[], keyColumn: string, 
       const n = toNumber(v);
       row[col] = n === null ? null : Math.trunc(n);
       if (n === null && v !== null && v !== undefined && v !== "") problems.push(`${col}: not a number`);
+    } else if (col === "setting") {
+      // Case-insensitive; anything that is not outdoor / indoor / both is rejected below.
+      row[col] = toText(v)?.toLowerCase() ?? DEFAULT_SETTING;
     } else {
       row[col] = toText(v);
     }
   }
+  if (columns.includes("setting") && !("setting" in row)) row.setting = DEFAULT_SETTING;
   if (!row[keyColumn]) problems.push(`${keyColumn} is missing`);
   let unnamed = false;
   if (!row.name) {

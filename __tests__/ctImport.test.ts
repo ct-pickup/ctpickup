@@ -32,6 +32,28 @@ describe("normalizeVenue", () => {
   });
 });
 
+describe("setting (indoor / outdoor)", () => {
+  it("reads outdoor, indoor and both", () => {
+    expect(normalizeVenue({ venue_key: "a", name: "A", setting: "indoor" }).row?.setting).toBe("indoor");
+    expect(normalizeVenue({ venue_key: "a", name: "A", setting: "both" }).row?.setting).toBe("both");
+    expect(normalizeVenue({ venue_key: "a", name: "A", setting: "outdoor" }).row?.setting).toBe("outdoor");
+  });
+  it("defaults to outdoor when the key is missing, null or blank", () => {
+    expect(normalizeVenue({ venue_key: "a", name: "A" }).row?.setting).toBe("outdoor");
+    expect(normalizeVenue({ venue_key: "a", name: "A", setting: null }).row?.setting).toBe("outdoor");
+    expect(normalizeVenue({ venue_key: "a", name: "A", setting: "  " }).row?.setting).toBe("outdoor");
+  });
+  it("ignores case and spacing, and rejects unknown values", () => {
+    expect(normalizeVenue({ venue_key: "a", name: "A", setting: " Indoor " }).row?.setting).toBe("indoor");
+    const bad = normalizeVenue({ venue_key: "a", name: "A", setting: "covered" });
+    expect(bad.row).toBeNull();
+    expect(bad.problems.join()).toContain("setting");
+  });
+  it("does not add setting to schools", () => {
+    expect(normalizeSchool({ school_key: "s", name: "S" }).row).not.toHaveProperty("setting");
+  });
+});
+
 describe("normalizeSchool", () => {
   it("converts has_field_mapped", () => {
     expect(normalizeSchool({ school_key: "s", name: "S", has_field_mapped: "1" }).row?.has_field_mapped).toBe(true);

@@ -5,6 +5,7 @@ export type PriceStatus = "free" | "paid" | "unknown";
 export type PriceSource = "osm" | "manual" | "unknown";
 export type BookingMethod = "online" | "phone" | "permit_request" | "unknown";
 export type PermitRequired = "yes" | "no" | "unknown";
+export type VenueSetting = "outdoor" | "indoor" | "both";
 export type PermitType = "permit" | "reservation" | "membership" | "school_use_request" | "walk_up";
 
 export type Venue = {
@@ -43,6 +44,8 @@ export type Venue = {
   permit_type: PermitType | null;
   /** "tag…" (from map data), "assumed: …" (a guess) or "manual" (a person checked). */
   permit_basis: string | null;
+  /** Where the field is. Rows read before the setting column existed have none: treat that as outdoor. */
+  setting?: VenueSetting | null;
   verified: boolean;
   last_verified_at: string | null;
   updated_at: string | null;
@@ -58,5 +61,5 @@ export type FieldListing = {
   calendar_connected: boolean;
 };
 
-export type FieldFilters = { free: boolean; turf: boolean; noPermit: boolean; lights: boolean; query: string };
-export const NO_FIELD_FILTERS: FieldFilters = { free: false, turf: false, noPermit: false, lights: false, query: "" };
+export type FieldFilters = { free: boolean; turf: boolean; noPermit: boolean; lights: boolean; indoor: boolean; query: string };
+export const NO_FIELD_FILTERS: FieldFilters = { free: false, turf: false, noPermit: false, lights: false, indoor: false, query: "" };

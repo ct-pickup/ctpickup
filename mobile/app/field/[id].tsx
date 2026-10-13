@@ -2,11 +2,11 @@ import { Link, Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { ConfirmationBadge } from "@/components/fields/FieldBits";
+import { ConfirmationBadge, Tag } from "@/components/fields/FieldBits";
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { useAuth } from "@/context/AuthContext";
 import { useFieldListing } from "@/hooks/useFieldListings";
-import { fieldCountLabel, hasLights, isTurf, permitConfirmation, permitDetail, priceConfirmation, priceLabel } from "@/lib/fields/presentation";
+import { fieldCountLabel, hasLights, isTurf, permitConfirmation, permitDetail, priceConfirmation, priceLabel, settingTag } from "@/lib/fields/presentation";
 import { reportFieldIssueUrl } from "@/lib/fields/report";
 import { FIELDS_SAMPLE_DATA } from "@/lib/fields/config";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
@@ -74,6 +74,11 @@ export default function FieldDetailScreen() {
       <View style={{ gap: 4 }}>
         <Text style={styles.sub}>{sub}</Text>
         <Text style={styles.title}>{v.name}</Text>
+        {settingTag(v) ? (
+          <View style={styles.tagRow}>
+            <Tag label={settingTag(v)!} />
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.stats}>
@@ -155,6 +160,7 @@ function make_styles() {
     linkRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 14, borderRadius: radius.card, backgroundColor: themeColor().card, borderWidth: 1, borderColor: themeColor().line },
     linkRowText: { fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().text },
     linkRowChevron: { fontSize: 20, color: themeColor().muted },
+    tagRow: { flexDirection: "row", marginTop: 6 },
     sep: { height: StyleSheet.hairlineWidth, backgroundColor: c.line, marginVertical: 14 },
     cta: { backgroundColor: c.pitch, borderRadius: radius.button, paddingVertical: 16, alignItems: "center" },
     ctaText: { color: c.onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
