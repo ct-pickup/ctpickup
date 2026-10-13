@@ -1,0 +1,127 @@
+import { Link, Stack, useLocalSearchParams } from "expo-router";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+
+import { ConfirmationBadge } from "@/components/fields/FieldBits";
+import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
+import { fieldCountLabel, hasLights, isTurf, permitConfirmation, permitDetail, priceConfirmation, priceLabel } from "@/lib/fields/presentation";
+import { reportFieldIssueUrl } from "@/lib/fields/report";
+import { getSampleField } from "@/lib/fields/sampleData";
+import { headline, radius, themeColor, useThemedStyles } from "@/theme";
+
+export default function FieldDetailScreen() {
+  useThemedStyles(publish_styles);
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const item = getSampleField(id);
+
+  if (!item) {
+    return (
+      <FieldScreenShell fallback="/(tabs)/sessions">
+        <Stack.Screen options={{ headerShown: false }} />
+        <Text style={styles.title}>Field not found</Text>
+        <Text style={styles.muted}>This field may have been removed.</Text>
+      </FieldScreenShell>
+    );
+  }
+
+  const v = item.venue;
+  const permit = permitDetail(v);
+  const surface = isTurf(v) ? "Turf" : v.surface ? v.surface.charAt(0).toUpperCase() + v.surface.slice(1) : "Unknown";
+  const lights = v.lit == null || v.lit === "unknown" ? "Unknown" : hasLights(v) ? "Yes" : "No";
+  const sub = [item.kind_label, item.distance_mi != null ? `${item.distance_mi.toFixed(1)} mi away` : null, "Sample data"].filter(Boolean).join(" · ");
+
+  return (
+    <FieldScreenShell
+      fallback="/(tabs)/sessions"
+      footer={
+        <>
+          <Link href={{ pathname: "/field-request", params: { id: v.venue_key } }} asChild>
+            <Pressable style={styles.cta} accessibilityRole="button">
+              <Text style={styles.ctaText}>Request this field</Text>
+            </Pressable>
+          </Link>
+          <Pressable onPress={() => void Linking.openURL(reportFieldIssueUrl(v.name, v.venue_key))} accessibilityRole="link" hitSlop={8}>
+            <Text style={styles.report}>Report wrong price or permit info</Text>
+          </Pressable>
+        </>
+      }
+    >
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={{ gap: 4 }}>
+        <Text style={styles.sub}>{sub}</Text>
+        <Text style={styles.title}>{v.name}</Text>
+      </View>
+
+      <View style={styles.stats}>
+        <Stat label="Fields" value={fieldCountLabel(v)?.split(" ")[0] ?? "?"} />
+        <Stat label="Surface" value={surface} />
+        <Stat label="Lights" value={lights} />
+      </View>
+
+      <View style={styles.card}>
+        <Row label="Price" badge={<ConfirmationBadge value={priceConfirmation(v)} />}>
+          <Text style={styles.value}>{priceLabel(v) === "Free" ? "Free" : priceLabel(v).replace("/hr", " per hour")}</Text>
+        </Row>
+        <View style={styles.sep} />
+        <Row label="Permit" badge={<ConfirmationBadge value={permitConfirmation(v)} />}>
+          <Text style={styles.value}>{permit.title}</Text>
+          {permit.sub ? <Text style={styles.muted}>{permit.sub}</Text> : null}
+        </Row>
+        {v.address ? (
+          <>
+            <View style={styles.sep} />
+            <Row label="Address">
+              <Text style={styles.value}>{v.address}</Text>
+            </Row>
+          </>
+        ) : null}
+      </View>
+    </FieldScreenShell>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.stat}>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+    </View>
+  );
+}
+
+function Row({ label, badge, children }: { label: string; badge?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowHead}>
+        <Text style={styles.label}>{label}</Text>
+        {badge}
+      </View>
+      {children}
+    </View>
+  );
+}
+
+function make_styles() {
+  const c = themeColor();
+  return StyleSheet.create({
+    title: { fontSize: 28, lineHeight: 32, ...headline, color: c.text },
+    sub: { fontSize: 13, fontFamily: "Inter_500Medium", color: c.muted },
+    muted: { fontSize: 14, fontFamily: "Inter_400Regular", color: c.muted },
+    stats: { flexDirection: "row", gap: 10 },
+    stat: { flex: 1, padding: 12, borderRadius: radius.card, backgroundColor: c.card, borderWidth: 1, borderColor: c.line, gap: 2 },
+    statLabel: { fontSize: 12, fontFamily: "Inter_500Medium", color: c.muted },
+    statValue: { fontSize: 18, ...headline, color: c.text },
+    card: { backgroundColor: c.card, borderRadius: radius.card, borderWidth: 1, borderColor: c.line, padding: 16 },
+    row: { gap: 4 },
+    rowHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    label: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: c.muted },
+    value: { fontSize: 17, fontFamily: "Inter_600SemiBold", color: c.text },
+    sep: { height: StyleSheet.hairlineWidth, backgroundColor: c.line, marginVertical: 14 },
+    cta: { backgroundColor: c.pitch, borderRadius: radius.button, paddingVertical: 16, alignItems: "center" },
+    ctaText: { color: c.onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
+    report: { textAlign: "center", color: c.pitchText, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+  });
+}
+let styles = make_styles();
+function publish_styles() {
+  styles = make_styles();
+}

@@ -1,14 +1,16 @@
 import { useAuth } from "@/context/AuthContext";
-import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BestGamesCarousel, EMPTY_CROWD, GameCard, type GameCardRun, type RunCrowd } from "@/components/games/GameCards";
+import { FieldsPanel } from "@/components/fields/FieldsPanel";
 import { useFieldPhotos } from "@/components/photo";
 import { usePlayedWith } from "@/components/pickup/PlayedWithRow";
 import { MatchLogRow, SeasonHeaderCard } from "@/components/season/SeasonPieces";
 import { toggleDevPreview, useDevPreview } from "@/lib/devPreview";
+import { SAMPLE_FIELDS } from "@/lib/fields/sampleData";
 import { fetchBestGames, type BestGame, type PlayedWithSummary } from "@/lib/matchApi";
 import { groupByMonthEt } from "@/lib/season";
 import { fetchSeason, type PastGame, type SeasonData } from "@/lib/seasonData";
@@ -87,6 +89,11 @@ export default function GamesTabScreen() {
   const router = useRouter();
   const push = router.push as (href: string) => void;
   const preview = useDevPreview();
+  const params = useLocalSearchParams<{ view?: string }>();
+  const [view, setView] = useState<"season" | "fields">(params.view === "fields" ? "fields" : "season");
+  useEffect(() => {
+    if (params.view === "fields") setView("fields");
+  }, [params.view]);
   const [variantIndex, setVariantIndex] = useState(0);
   const variant = FIXTURE_VARIANTS[variantIndex % FIXTURE_VARIANTS.length]!;
   const fixture = useMemo(
@@ -133,9 +140,28 @@ export default function GamesTabScreen() {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <Text style={styles.header} onLongPress={__DEV__ ? toggleDevPreview : undefined}>
-        Your season
+        {view === "fields" ? "Fields" : "Your season"}
       </Text>
 
+      <View style={styles.toggle} accessibilityRole="tablist">
+        {(["season", "fields"] as const).map((v) => (
+          <Pressable
+            key={v}
+            onPress={() => setView(v)}
+            style={[styles.toggleBtn, view === v && styles.toggleBtnOn]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: view === v }}
+          >
+            <Text style={[styles.toggleText, view === v && styles.toggleTextOn]}>{v === "season" ? "Season" : "Fields"}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {view === "fields" ? (
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]} keyboardShouldPersistTaps="handled">
+          <FieldsPanel sample fields={SAMPLE_FIELDS} onOpen={(key) => push(`/field/${encodeURIComponent(key)}`)} />
+        </ScrollView>
+      ) : (
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]}
         refreshControl={
@@ -233,6 +259,7 @@ export default function GamesTabScreen() {
           </>
         )}
       </ScrollView>
+      )}
     </View>
   );
 }
@@ -241,6 +268,21 @@ function make_styles() {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: themeColor().bg },
     pressed: { opacity: 0.88 },
+    toggle: {
+      flexDirection: "row",
+      alignSelf: "flex-start",
+      marginHorizontal: PAGE_PADDING,
+      marginBottom: 12,
+      padding: 3,
+      borderRadius: radius.pill,
+      backgroundColor: themeColor().card,
+      borderWidth: 1,
+      borderColor: themeColor().line,
+    },
+    toggleBtn: { paddingHorizontal: 18, paddingVertical: 7, borderRadius: radius.pill },
+    toggleBtnOn: { backgroundColor: themeColor().pitch },
+    toggleText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: themeColor().text },
+    toggleTextOn: { color: themeColor().onPitch },
     header: {
       color: themeColor().text,
       fontSize: 32,
