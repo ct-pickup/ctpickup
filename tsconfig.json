@@ -10,6 +10,7 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
@@ -44,6 +45,7 @@
     "mobile",
     "ctpickup-mobile-*",
     "scripts/emit-theme-css.ts",
-    "scripts/import-ct-venues.ts"
+    "scripts/import-ct-venues.ts",
+    "scripts/import-venues.ts"
   ]
 }

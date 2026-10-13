@@ -505,3 +505,69 @@ describe("indoor setting", () => {
     expect(filterFields([a, b], { ...NO_FIELD_FILTERS, indoor: true, free: true }).map((l) => l.venue.venue_key)).toEqual(["a"]);
   });
 });
+
+import { countLabel, nearbyKey, nearbyParams, regionBounds, rowsToListings } from "../mobile/lib/fields/nearby";
+
+describe("nearby search parameters", () => {
+  const region = { latitude: 41.2, longitude: -73.2, latitudeDelta: 0.2, longitudeDelta: 0.3 };
+  const base = { region, user: null, filters: NO_FIELD_FILTERS, limit: 200, offset: 0 };
+  it("uses the visible map as a box and sorts from its middle when the player's position is unknown", () => {
+    const p = nearbyParams(base);
+    expect(p).toMatchObject({ p_center_lat: null, p_center_lon: null, p_query: null, p_limit: 200, p_offset: 0, p_radius_miles: null });
+    expect(p.p_min_lat).toBeCloseTo(41.1, 5);
+    expect(p.p_max_lat).toBeCloseTo(41.3, 5);
+    expect(p.p_min_lon).toBeCloseTo(-73.35, 5);
+    expect(p.p_max_lon).toBeCloseTo(-73.05, 5);
+    expect(regionBounds(region).maxLat).toBeCloseTo(41.3, 5);
+  });
+  it("sorts from the player when their position is known, but still bounds by the map", () => {
+    const p = nearbyParams({ ...base, user: { lat: 41.15, lon: -73.25 } });
+    expect(p).toMatchObject({ p_center_lat: 41.15, p_center_lon: -73.25 });
+    expect(p.p_min_lat).not.toBeNull();
+  });
+  it("passes every chip, matching the database function's parameters", () => {
+    const p = nearbyParams({ ...base, filters: { free: true, turf: true, noPermit: true, lights: true, indoor: true, query: "" } });
+    expect(p).toMatchObject({ p_free: true, p_turf: true, p_no_permit: true, p_lights: true, p_indoor: true });
+    expect(nearbyParams(base)).toMatchObject({ p_free: false, p_turf: false, p_no_permit: false, p_lights: false, p_indoor: false });
+  });
+  it("searches everywhere (no box) when there is a text query, sorted from the map middle or the player", () => {
+    const p = nearbyParams({ ...base, filters: { ...NO_FIELD_FILTERS, query: "  Danbury " } });
+    expect(p).toMatchObject({ p_min_lat: null, p_max_lat: null, p_min_lon: null, p_max_lon: null, p_query: "Danbury", p_center_lat: 41.2, p_center_lon: -73.2 });
+    expect(nearbyParams({ ...base, user: { lat: 40, lon: -74 }, filters: { ...NO_FIELD_FILTERS, query: "x" } })).toMatchObject({ p_center_lat: 40, p_center_lon: -74 });
+  });
+  it("passes paging through and sends nothing for a missing region", () => {
+    expect(nearbyParams({ ...base, limit: 100, offset: 200 })).toMatchObject({ p_limit: 100, p_offset: 200 });
+    expect(nearbyParams({ ...base, region: null })).toMatchObject({ p_min_lat: null, p_center_lat: null });
+  });
+  it("keeps one key for a pan that barely moves, and a new one for a real move, a chip or a search", () => {
+    const k = nearbyKey({ region, user: null, filters: NO_FIELD_FILTERS });
+    expect(nearbyKey({ region: { ...region, latitude: 41.2001 }, user: null, filters: NO_FIELD_FILTERS })).toBe(k);
+    expect(nearbyKey({ region: { ...region, latitude: 41.3 }, user: null, filters: NO_FIELD_FILTERS })).not.toBe(k);
+    expect(nearbyKey({ region, user: null, filters: { ...NO_FIELD_FILTERS, indoor: true } })).not.toBe(k);
+    const s1 = nearbyKey({ region, user: null, filters: { ...NO_FIELD_FILTERS, query: "Danbury" } });
+    expect(nearbyKey({ region: { ...region, latitude: 45 }, user: null, filters: { ...NO_FIELD_FILTERS, query: "danbury" } })).toBe(s1);
+  });
+});
+
+describe("nearby results", () => {
+  const venue = (key: string) => ({ ...SAMPLE_FIELDS[0]!.venue, venue_key: key, name: key, venue_type: "club" as const });
+  it("maps rows to listings, shows distance only from the player, and marks connected calendars", () => {
+    const rows = [
+      { venue: venue("a"), distance_mi: 1.25, total_count: "357" },
+      { venue: venue("b"), distance_mi: null, total_count: 357 },
+    ];
+    const near = rowsToListings(rows, { connected: new Set(["a"]), fromUser: true });
+    expect(near.total).toBe(357);
+    expect(near.items[0]).toMatchObject({ distance_mi: 1.25, calendar_connected: true, kind_label: "Club" });
+    expect(near.items[1]).toMatchObject({ distance_mi: null, calendar_connected: false });
+    expect(rowsToListings(rows, { connected: new Set(), fromUser: false }).items[0]!.distance_mi).toBeNull();
+    expect(rowsToListings([], { connected: new Set(), fromUser: true })).toEqual({ items: [], total: 0 });
+  });
+  it("says how many fields are near you", () => {
+    expect(countLabel(1284, false)).toBe("1,284 fields near you");
+    expect(countLabel(1, false)).toBe("1 field near you");
+    expect(countLabel(0, false)).toBe("0 fields near you");
+    expect(countLabel(12, true)).toBe("12 fields match");
+    expect(countLabel(1, true)).toBe("1 field matches");
+  });
+});

@@ -1,36 +1,41 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import MapView, { Marker, type Region } from "react-native-maps";
 
-import { clusterListings, clusterSize, initialRegion, regionForCluster, type MapSize } from "@/lib/fields/clusters";
+import { clusterListings, clusterSize, regionForCluster, type MapSize } from "@/lib/fields/clusters";
 import { pinLabel } from "@/lib/fields/presentation";
 import type { FieldListing } from "@/lib/fields/types";
 import { radius, themeColor, useThemedStyles } from "@/theme";
 
-const CT_REGION: Region = { latitude: 41.6, longitude: -72.75, latitudeDelta: 1.3, longitudeDelta: 1.5 };
 /** Most markers (pins and cluster bubbles together) drawn at once. */
 export const MAX_PINS = 60;
 
 type Props = {
-  /** Venues to draw: the filtered list. */
+  /** Venues for the current view, already filtered and loaded from the database. */
   shown: FieldListing[];
-  /** Every venue, to pick the opening view (so a filter does not move the map on first load). */
-  all: FieldListing[];
-  user: { lat: number; lon: number } | null;
+  /** Where the map opens. */
+  start: Region;
+  /** Fires after each pan or zoom with the new view. */
+  onRegionChange: (r: Region) => void;
+  /** Move the map here when `nonce` changes (a search result, for example). */
+  fit: { region: Region; nonce: number } | null;
   onOpen: (venueKey: string) => void;
 };
 
 /**
- * The Fields map. Opens zoomed in near the user (or on the best venue's nearest neighbors), merges pins that would overlap
- * into numbered bubbles that zoom in when tapped, and shows individual price pins once they have room.
+ * The Fields map. Merges pins that would overlap into numbered bubbles that zoom in when tapped, and shows individual price pins
+ * once they have room. The venues themselves come from the database for the visible area, so this never holds the whole country.
  */
-export function FieldsMap({ shown, all, user, onOpen }: Props) {
+export function FieldsMap({ shown, start, onRegionChange, fit, onOpen }: Props) {
   useThemedStyles(publish_styles);
   const mapRef = useRef<MapView>(null);
-  const [start] = useState<Region>(() => initialRegion(all, user) ?? CT_REGION);
   const [region, setRegion] = useState<Region>(start);
   const [size, setSize] = useState<MapSize>({ width: 350, height: 240 });
   const items = useMemo(() => clusterListings(shown, region, size, { cap: MAX_PINS }), [shown, region, size]);
+
+  useEffect(() => {
+    if (fit) mapRef.current?.animateToRegion(fit.region, 400);
+  }, [fit]);
 
   function onLayout(e: LayoutChangeEvent) {
     const { width, height } = e.nativeEvent.layout;
@@ -39,7 +44,15 @@ export function FieldsMap({ shown, all, user, onOpen }: Props) {
 
   return (
     <View style={styles.wrap} onLayout={onLayout}>
-      <MapView ref={mapRef} style={StyleSheet.absoluteFill} initialRegion={start} onRegionChangeComplete={setRegion}>
+      <MapView
+        ref={mapRef}
+        style={StyleSheet.absoluteFill}
+        initialRegion={start}
+        onRegionChangeComplete={(r) => {
+          setRegion(r);
+          onRegionChange(r);
+        }}
+      >
         {items.map((it) =>
           it.kind === "cluster" ? (
             <Marker

@@ -1,4 +1,6 @@
 /**
+ * (For the nationwide SQLite snapshot use scripts/import-venues.ts. This one still loads data/ct/*.json.)
+ *
  * Imports the Connecticut venue data run into a Supabase database through public.upsert_schools and
  * public.upsert_venues (migration 20261013000000 keeps verified, manual and hand-checked price / booking / permit data).
  *

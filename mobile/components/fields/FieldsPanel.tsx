@@ -1,14 +1,17 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import type { Region } from "react-native-maps";
 
 import { FieldCard } from "@/components/fields/FieldCard";
 import { FieldsMap } from "@/components/fields/FieldsMap";
 import { YourPlan } from "@/components/fields/YourPlan";
-import { useFieldListings } from "@/hooks/useFieldListings";
+import { useNearbyFields } from "@/hooks/useNearbyFields";
+import { fitRegion, initialRegion } from "@/lib/fields/clusters";
 import { FIELDS_SAMPLE_DATA } from "@/lib/fields/config";
-import { filterFields } from "@/lib/fields/presentation";
-import { NO_FIELD_FILTERS, type FieldFilters } from "@/lib/fields/types";
+import { countLabel } from "@/lib/fields/nearby";
+import { NO_FIELD_FILTERS, type FieldFilters, type FieldListing } from "@/lib/fields/types";
+import { quietUserLocation } from "@/lib/fields/venueStore";
 import { radius, themeColor, useThemedStyles } from "@/theme";
 
 const CHIPS: { key: Exclude<keyof FieldFilters, "query">; label: string }[] = [
@@ -19,8 +22,11 @@ const CHIPS: { key: Exclude<keyof FieldFilters, "query">; label: string }[] = [
   { key: "indoor", label: "Indoor" },
 ];
 
-/** List rows shown before "Show more". The map has its own pin cap (see FieldsMap). */
+/** List rows shown before "Show more" (the next page is fetched from the database when the loaded ones run out). */
 const PAGE_SIZE = 25;
+/** Where the map opens when the player's location is not available: Fairfield County, Connecticut. */
+const DEFAULT_REGION: Region = { latitude: 41.25, longitude: -73.25, latitudeDelta: 0.35, longitudeDelta: 0.5 };
+const OSM_COPYRIGHT_URL = "https://www.openstreetmap.org/copyright";
 
 type Props = {
   onOpen: (venueKey: string) => void;
@@ -30,13 +36,58 @@ type Props = {
   onPlans?: () => void;
 };
 
-/** Search, filter chips, the map and the list of fields. Lives under the Fields toggle on the Games tab. */
+/**
+ * Search, filter chips, the map and the list of fields. Lives under the Fields toggle on the Games tab. Venues are fetched
+ * from the database for the visible map area as it moves (venues_nearby), never all at once.
+ */
 export function FieldsPanel({ onOpen, onMyRequests, onPlans }: Props) {
   useThemedStyles(publish_styles);
-  const { fields, loading, error, user, reload } = useFieldListings();
+  // undefined while the player's location is being read, null when it is not available.
+  const [user, setUser] = useState<{ lat: number; lon: number } | null | undefined>(undefined);
+  const [region, setRegion] = useState<Region | null>(null);
+  const [fit, setFit] = useState<{ region: Region; nonce: number } | null>(null);
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [filters, setFilters] = useState<FieldFilters>(NO_FIELD_FILTERS);
-  const shown = useMemo(() => filterFields(fields, filters), [fields, filters]);
+  const fittedFor = useRef("");
+
+  useEffect(() => {
+    let cancelled = false;
+    void quietUserLocation().then((u) => {
+      if (!cancelled) setUser(u);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const start: Region | null = user === undefined ? null : ((user ? initialRegion([], user) : null) ?? DEFAULT_REGION);
+  const searching = filters.query.trim().length > 0;
+
+  const { items, total, loading, error, loadMore, reload, hasMore } = useNearbyFields({
+    region: region ?? start,
+    user: user ?? null,
+    filters,
+    enabled: start != null,
+    // A search looks everywhere, so move the map to the best matches (once per search).
+    onSearchResults: (found: FieldListing[], query: string) => {
+      if (fittedFor.current === query) return;
+      fittedFor.current = query;
+      const pts = found
+        .slice(0, 15)
+        .filter((f) => f.venue.lat != null && f.venue.lon != null)
+        .map((f) => ({ lat: f.venue.lat!, lon: f.venue.lon! }));
+      const r = fitRegion(pts);
+      if (r) setFit({ region: r, nonce: Date.now() });
+    },
+  });
+
+  function showMore() {
+    if (limit < items.length) setLimit((n) => n + PAGE_SIZE);
+    else if (hasMore) {
+      void loadMore();
+      setLimit((n) => n + PAGE_SIZE);
+    }
+  }
 
   return (
     <View style={styles.root}>
@@ -48,6 +99,7 @@ export function FieldsPanel({ onOpen, onMyRequests, onPlans }: Props) {
           onChangeText={(query) => {
             setFilters((f) => ({ ...f, query }));
             setLimit(PAGE_SIZE);
+            if (!query.trim()) fittedFor.current = "";
           }}
           placeholder="Search fields, schools, towns"
           placeholderTextColor={themeColor().muted}
@@ -77,17 +129,17 @@ export function FieldsPanel({ onOpen, onMyRequests, onPlans }: Props) {
         })}
       </View>
 
-      {loading ? (
+      {start == null ? (
         <View style={[styles.mapWrap, styles.mapLoading]}>
           <ActivityIndicator color={themeColor().muted} />
         </View>
       ) : (
-        <FieldsMap shown={shown} all={fields} user={user} onOpen={onOpen} />
+        <FieldsMap shown={items} start={start} onRegionChange={setRegion} fit={fit} onOpen={onOpen} />
       )}
 
       <View style={styles.listHead}>
-        <Text style={styles.listTitle}>Fields near you</Text>
-        {FIELDS_SAMPLE_DATA ? <Text style={styles.sample}>Sample data</Text> : <Text style={styles.sample}>{shown.length} {shown.length === 1 ? "field" : "fields"}</Text>}
+        <Text style={styles.listTitle}>{loading && items.length === 0 ? "Finding fields" : countLabel(total, searching)}</Text>
+        {FIELDS_SAMPLE_DATA ? <Text style={styles.sample}>Sample data</Text> : null}
       </View>
       {onMyRequests ? (
         <Pressable onPress={onMyRequests} accessibilityRole="link" hitSlop={8} style={styles.myRequests}>
@@ -96,26 +148,30 @@ export function FieldsPanel({ onOpen, onMyRequests, onPlans }: Props) {
       ) : null}
 
       {error ? (
-        <Pressable onPress={() => void reload()} accessibilityRole="button">
+        <Pressable onPress={reload} accessibilityRole="button">
           <Text style={styles.error}>{error} Tap to retry.</Text>
         </Pressable>
       ) : null}
-      {loading ? (
+      {loading && items.length === 0 ? (
         <ActivityIndicator color={themeColor().muted} />
-      ) : shown.length > 0 ? (
+      ) : items.length > 0 ? (
         <View style={styles.list}>
-          {shown.slice(0, limit).map((f) => (
+          {items.slice(0, limit).map((f) => (
             <FieldCard key={f.venue.venue_key} item={f} onPress={() => onOpen(f.venue.venue_key)} />
           ))}
-          {shown.length > limit ? (
-            <Pressable onPress={() => setLimit((n) => n + PAGE_SIZE)} style={styles.more} accessibilityRole="button">
-              <Text style={styles.moreText}>Show more ({shown.length - limit} left)</Text>
+          {items.length > limit || hasMore ? (
+            <Pressable onPress={showMore} style={styles.more} accessibilityRole="button">
+              <Text style={styles.moreText}>Show more ({Math.max(total - limit, 0).toLocaleString("en-US")} left)</Text>
             </Pressable>
           ) : null}
         </View>
       ) : (
-        <Text style={styles.empty}>{error ? "" : "No fields match. Try removing a filter."}</Text>
+        <Text style={styles.empty}>{error ? "" : searching ? "No fields match that search." : "No fields in this area. Move the map or remove a filter."}</Text>
       )}
+
+      <Pressable onPress={() => void Linking.openURL(OSM_COPYRIGHT_URL)} accessibilityRole="link" accessibilityLabel="Venue data © OpenStreetMap contributors. Opens the OpenStreetMap copyright page." hitSlop={8} style={styles.attribution}>
+        <Text style={styles.attributionText}>Venue data © OpenStreetMap contributors</Text>
+      </Pressable>
     </View>
   );
 }
@@ -147,6 +203,8 @@ function make_styles() {
     listTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold", color: c.text },
     myRequests: { alignSelf: "flex-start", marginTop: -6 },
     myRequestsText: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: c.pitchText },
+    attribution: { alignSelf: "center", paddingVertical: 6 },
+    attributionText: { fontSize: 12, fontFamily: "Inter_400Regular", color: c.muted, textDecorationLine: "underline" },
     sample: { fontSize: 12, fontFamily: "Inter_500Medium", color: c.muted },
     list: { gap: 10 },
     error: { fontSize: 14, fontFamily: "Inter_500Medium", color: c.coralText },

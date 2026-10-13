@@ -1,17 +1,16 @@
 import { Stack, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { FieldCard } from "@/components/fields/FieldCard";
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { useAuth } from "@/context/AuthContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
-import { useFieldListings } from "@/hooks/useFieldListings";
+import { fetchNearby } from "@/lib/fields/nearbyApi";
 import { startPlanCheckout } from "@/lib/fields/plansApi";
-import { filterFields } from "@/lib/fields/presentation";
 import { DEFAULT_START, DURATIONS, START_TIMES, timeLabel } from "@/lib/fields/requestOptions";
-import { NO_FIELD_FILTERS } from "@/lib/fields/types";
+import { NO_FIELD_FILTERS, type FieldListing } from "@/lib/fields/types";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import { formatPlanPrice, PLANS, SEASON_COUNTS_COPY, SEASON_DEFAULT_WEEKS, SEASON_WEEK_OPTIONS } from "@shared/fields/plans";
 import { durationLabel } from "@shared/fields/requestRules";
@@ -27,19 +26,39 @@ const WEEKDAYS = [1, 2, 3, 4, 5, 6, 0]; // Monday first
 export default function SeasonBookScreen() {
   useThemedStyles(publish_styles);
   const router = useRouter();
-  const { session } = useAuth();
+  const { session, supabase } = useAuth();
   const { isAdmin } = useProfileAdmin();
-  const { fields, loading } = useFieldListings();
   const [query, setQuery] = useState("");
-  const [venueKey, setVenueKey] = useState<string | null>(null);
   const [weekday, setWeekday] = useState(6);
   const [time, setTime] = useState<string>(DEFAULT_START);
   const [hours, setHours] = useState<number>(2);
   const [weeks, setWeeks] = useState<number>(SEASON_DEFAULT_WEEKS);
   const [busy, setBusy] = useState(false);
 
-  const picked = useMemo(() => fields.find((f) => f.venue.venue_key === venueKey) ?? null, [fields, venueKey]);
-  const matches = useMemo(() => (query.trim().length < 2 ? [] : filterFields(fields, { ...NO_FIELD_FILTERS, query }).slice(0, MATCHES)), [fields, query]);
+  const [matches, setMatches] = useState<FieldListing[]>([]);
+  const [picked, setPicked] = useState<FieldListing | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Search the whole country by name or town (venues_nearby with a text query), after a short pause in typing.
+  useEffect(() => {
+    if (!supabase || query.trim().length < 2) return;
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await fetchNearby(supabase, { region: null, user: null, filters: { ...NO_FIELD_FILTERS, query }, limit: MATCHES, offset: 0 });
+        if (!cancelled) setMatches(res.items);
+      } catch {
+        if (!cancelled) setMatches([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [supabase, query]);
   const price = PLANS.season.priceCents;
 
   async function pay() {
@@ -88,7 +107,7 @@ export default function SeasonBookScreen() {
       <Text style={styles.label}>Field</Text>
       {picked ? (
         <View style={{ gap: 8 }}>
-          <FieldCard item={picked} onPress={() => setVenueKey(null)} />
+          <FieldCard item={picked} onPress={() => setPicked(null)} />
           <Text style={styles.muted}>Tap the field to choose a different one.</Text>
         </View>
       ) : (
@@ -102,8 +121,8 @@ export default function SeasonBookScreen() {
             accessibilityLabel="Search fields"
           />
           {loading ? <ActivityIndicator color={themeColor().muted} /> : null}
-          {matches.map((f) => (
-            <FieldCard key={f.venue.venue_key} item={f} onPress={() => setVenueKey(f.venue.venue_key)} />
+          {(query.trim().length >= 2 ? matches : []).map((f) => (
+            <FieldCard key={f.venue.venue_key} item={f} onPress={() => setPicked(f)} />
           ))}
           {!loading && query.trim().length >= 2 && matches.length === 0 ? <Text style={styles.muted}>No fields match.</Text> : null}
         </View>
