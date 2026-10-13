@@ -336,3 +336,64 @@ describe("real venue listings", () => {
     expect(pinsInRegion([toListing(mk("nl", "NoLoc", null, null, 1))], view, 60)).toHaveLength(0);
   });
 });
+
+import { clusterListings, clusterSize, fitRegion, initialRegion, MIN_CLUSTER_DELTA, regionForCluster } from "../mobile/lib/fields/clusters";
+
+describe("map clustering", () => {
+  const size = { width: 350, height: 240 };
+  const venue = (key: string, lat: number | null, lon: number | null) => toListing({ ...SAMPLE_FIELDS[0]!.venue, venue_key: key, name: key, lat, lon });
+  // ~0.2 degrees across 350 px => 0.001 degree is ~1.75 px, so a tight pack of 10 sits inside one 56 px circle.
+  const wide = { latitude: 41.2, longitude: -73.2, latitudeDelta: 0.2, longitudeDelta: 0.3 };
+
+  it("merges venues that would overlap into one numbered cluster", () => {
+    const pack = Array.from({ length: 10 }, (_, i) => venue(`p${i}`, 41.2 + i * 0.0003, -73.2 + i * 0.0003));
+    const lone = venue("lone", 41.28, -73.05);
+    const items = clusterListings([...pack, lone], wide, size);
+    const clusters = items.filter((i) => i.kind === "cluster");
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0]!.kind === "cluster" && clusters[0]!.count).toBe(10);
+    expect(items.filter((i) => i.kind === "pin").map((i) => i.key)).toEqual(["lone"]);
+  });
+  it("shows individual pins when they do not overlap", () => {
+    const a = venue("a", 41.1, -73.3);
+    const b = venue("b", 41.3, -73.1);
+    expect(clusterListings([a, b], wide, size).every((i) => i.kind === "pin")).toBe(true);
+  });
+  it("splits a cluster as the map zooms in", () => {
+    const list = [venue("a", 41.2, -73.2), venue("b", 41.2, -73.1985), venue("c", 41.2, -73.197)];
+    expect(clusterListings(list, wide, size)).toHaveLength(1);
+    const zoomed = { ...wide, latitudeDelta: 0.005, longitudeDelta: 0.007 };
+    // At the closest zoom nothing is merged, even venues on the same spot.
+    expect(clusterListings(list, { ...zoomed, latitudeDelta: MIN_CLUSTER_DELTA, longitudeDelta: 0.008 }, size).every((i) => i.kind === "pin")).toBe(true);
+    const mid = { latitude: 41.2, longitude: -73.1985, latitudeDelta: 0.007, longitudeDelta: 0.0045 };
+    expect(clusterListings(list, mid, size).length).toBeGreaterThan(1);
+  });
+  it("drops venues outside the view and without coordinates, and keeps the cap", () => {
+    const many = Array.from({ length: 200 }, (_, i) => venue(`m${i}`, 41.1 + (i % 20) * 0.01, -73.3 + Math.floor(i / 20) * 0.02));
+    const items = clusterListings([...many, venue("far", 45, -70), venue("noloc", null, null)], { latitude: 41.2, longitude: -73.2, latitudeDelta: 0.4, longitudeDelta: 0.5 }, { width: 3000, height: 2000 }, { cap: 60 });
+    expect(items.length).toBeLessThanOrEqual(60);
+    expect(items.some((i) => i.key === "far" || i.key === "noloc")).toBe(false);
+  });
+  it("opens near the user, or around the best venue's nearest neighbors without a position", () => {
+    const list = Array.from({ length: 40 }, (_, i) => venue(`v${i}`, 41.0 + i * 0.02, -73.5 + i * 0.01));
+    const user = initialRegion(list, { lat: 41.15, lon: -73.25 });
+    expect(user).toMatchObject({ latitude: 41.15, longitude: -73.25 });
+    expect(user!.latitudeDelta).toBeLessThan(0.2);
+    const none = initialRegion(list, null)!;
+    // 15 nearest of a 40-venue line spans 14 steps of 0.02 degrees, well under the whole 0.78 span
+    expect(none.latitudeDelta).toBeLessThan(0.5);
+    expect(none.latitudeDelta).toBeGreaterThan(0.2);
+    expect(initialRegion([], null)).toBeNull();
+    expect(fitRegion([])).toBeNull();
+  });
+  it("zooms a tapped cluster in at least 3x and sizes bubbles by count", () => {
+    const members = [venue("a", 41.2, -73.2), venue("b", 41.21, -73.21)];
+    const r = regionForCluster(members, wide);
+    expect(r.latitudeDelta).toBeLessThanOrEqual(wide.latitudeDelta / 3 + 1e-9);
+    expect(r.latitudeDelta).toBeGreaterThan(0);
+    const same = regionForCluster([venue("x", 41.2, -73.2), venue("y", 41.2, -73.2)], wide);
+    expect(same.latitudeDelta).toBeLessThan(MIN_CLUSTER_DELTA + 1e-9);
+    expect(clusterSize(2)).toBeLessThan(clusterSize(50));
+    expect(clusterSize(5000)).toBe(56);
+  });
+});

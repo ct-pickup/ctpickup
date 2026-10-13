@@ -1,13 +1,12 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import MapView, { Marker, type Region } from "react-native-maps";
 
 import { FieldCard } from "@/components/fields/FieldCard";
+import { FieldsMap } from "@/components/fields/FieldsMap";
 import { useFieldListings } from "@/hooks/useFieldListings";
 import { FIELDS_SAMPLE_DATA } from "@/lib/fields/config";
-import { pinsInRegion } from "@/lib/fields/listings";
-import { filterFields, pinLabel } from "@/lib/fields/presentation";
+import { filterFields } from "@/lib/fields/presentation";
 import { NO_FIELD_FILTERS, type FieldFilters } from "@/lib/fields/types";
 import { radius, themeColor, useThemedStyles } from "@/theme";
 
@@ -18,9 +17,7 @@ const CHIPS: { key: Exclude<keyof FieldFilters, "query">; label: string }[] = [
   { key: "lights", label: "Lights" },
 ];
 
-const CT_REGION: Region = { latitude: 41.6, longitude: -72.75, latitudeDelta: 1.3, longitudeDelta: 1.5 };
-/** Most pins drawn at once, and list rows shown before "Show more". Keeps the map and list light with hundreds of venues. */
-const MAX_PINS = 60;
+/** List rows shown before "Show more". The map has its own pin cap (see FieldsMap). */
 const PAGE_SIZE = 25;
 
 type Props = {
@@ -32,12 +29,10 @@ type Props = {
 /** Search, filter chips, the map and the list of fields. Lives under the Fields toggle on the Games tab. */
 export function FieldsPanel({ onOpen, onMyRequests }: Props) {
   useThemedStyles(publish_styles);
-  const { fields, loading, error, reload } = useFieldListings();
-  const [region, setRegion] = useState<Region>(CT_REGION);
+  const { fields, loading, error, user, reload } = useFieldListings();
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [filters, setFilters] = useState<FieldFilters>(NO_FIELD_FILTERS);
   const shown = useMemo(() => filterFields(fields, filters), [fields, filters]);
-  const pinned = useMemo(() => pinsInRegion(shown, region, MAX_PINS), [shown, region]);
 
   return (
     <View style={styles.root}>
@@ -77,24 +72,13 @@ export function FieldsPanel({ onOpen, onMyRequests }: Props) {
         })}
       </View>
 
-      <View style={styles.mapWrap}>
-        <MapView style={StyleSheet.absoluteFill} initialRegion={CT_REGION} onRegionChangeComplete={setRegion}>
-          {pinned.map((f) => (
-            <Marker
-              key={f.venue.venue_key}
-              coordinate={{ latitude: f.venue.lat!, longitude: f.venue.lon! }}
-              onPress={() => onOpen(f.venue.venue_key)}
-              accessibilityLabel={f.venue.name}
-            >
-              <View style={[styles.pin, f.venue.price_status === "free" && styles.pinFree]}>
-                <Text style={[styles.pinText, f.venue.price_status === "free" && styles.pinTextFree]} allowFontScaling={false}>
-                  {pinLabel(f.venue)}
-                </Text>
-              </View>
-            </Marker>
-          ))}
-        </MapView>
-      </View>
+      {loading ? (
+        <View style={[styles.mapWrap, styles.mapLoading]}>
+          <ActivityIndicator color={themeColor().muted} />
+        </View>
+      ) : (
+        <FieldsMap shown={shown} all={fields} user={user} onOpen={onOpen} />
+      )}
 
       <View style={styles.listHead}>
         <Text style={styles.listTitle}>Fields near you</Text>
@@ -152,11 +136,8 @@ function make_styles() {
     chipOn: { backgroundColor: c.pitch, borderColor: c.pitch },
     chipText: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: c.text },
     chipTextOn: { color: c.onPitch },
+    mapLoading: { alignItems: "center", justifyContent: "center", backgroundColor: themeColor().card },
     mapWrap: { height: 240, borderRadius: radius.card, overflow: "hidden", borderWidth: 1, borderColor: c.line },
-    pin: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: c.inkSurface },
-    pinFree: { backgroundColor: c.pitch },
-    pinText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: c.onInk },
-    pinTextFree: { color: c.onPitch },
     listHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
     listTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold", color: c.text },
     myRequests: { alignSelf: "flex-start", marginTop: -6 },

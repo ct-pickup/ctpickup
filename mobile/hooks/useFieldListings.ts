@@ -13,6 +13,7 @@ export function useFieldListings() {
   const [fields, setFields] = useState<FieldListing[]>(() => (FIELDS_SAMPLE_DATA ? SAMPLE_FIELDS : []));
   const [loading, setLoading] = useState(!FIELDS_SAMPLE_DATA);
   const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<{ lat: number; lon: number } | null>(null);
 
   const load = useCallback(async () => {
     if (FIELDS_SAMPLE_DATA) return;
@@ -21,8 +22,9 @@ export function useFieldListings() {
       return;
     }
     try {
-      const user = await quietUserLocation();
-      setFields(await loadFieldListings(supabase, user));
+      const where = await quietUserLocation();
+      setUser(where);
+      setFields(await loadFieldListings(supabase, where));
       setError(null);
     } catch {
       setError("We couldn’t load fields. Check your connection and try again.");
@@ -35,7 +37,7 @@ export function useFieldListings() {
     void load();
   }, [load]);
 
-  return { fields, loading, error, reload: load };
+  return { fields, loading, error, user, reload: load };
 }
 
 /** One field by key: from the loaded list when there, otherwise fetched. */
