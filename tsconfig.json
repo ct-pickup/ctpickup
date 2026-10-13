@@ -43,6 +43,7 @@
     "node_modules",
     "mobile",
     "ctpickup-mobile-*",
-    "scripts/emit-theme-css.ts"
+    "scripts/emit-theme-css.ts",
+    "scripts/import-ct-venues.ts"
   ]
 }
