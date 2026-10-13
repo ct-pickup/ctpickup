@@ -165,7 +165,7 @@ export default function GamesTabScreen() {
 
       {view === "fields" ? (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]} keyboardShouldPersistTaps="handled">
-          <FieldsPanel sample fields={SAMPLE_FIELDS} onOpen={(key) => push(`/field/${encodeURIComponent(key)}`)} />
+          <FieldsPanel sample fields={SAMPLE_FIELDS} onOpen={(key) => push(`/field/${encodeURIComponent(key)}`)} onMyRequests={() => push("/field-requests")} />
         </ScrollView>
       ) : (
       <ScrollView

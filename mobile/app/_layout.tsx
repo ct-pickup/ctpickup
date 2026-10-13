@@ -14,6 +14,7 @@ import { AppOpeningTheme, clearAppOpeningThemeFlag } from "@/components/AppOpeni
 import { AppLockOverlay } from "@/components/AppLockOverlay";
 import { CancellationPolicyNotice } from "@/components/CancellationPolicyNotice";
 import { PushRegistrar } from "@/components/PushRegistrar";
+import { PushTapRouter } from "@/components/PushTapRouter";
 import { ReviewModeBanner } from "@/components/ReviewModeBanner";
 import { AppLockProvider } from "@/context/AppLockContext";
 import { AccountIntroReplayProvider } from "@/context/AccountIntroReplayContext";
@@ -173,6 +174,7 @@ function RootLayoutNav() {
                         {minVersionBlocked ? <UpdateRequiredGate /> : null}
                         <ReviewModeBanner />
                         <PushRegistrar />
+                        <PushTapRouter />
                         <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
                         <ThemeProvider
                           value={{

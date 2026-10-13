@@ -123,7 +123,7 @@ export async function PATCH(req: Request) {
       // Respect a player who turned request updates off (no row means on).
       const { data: pref } = await admin.from("alert_subscriptions").select("enabled").eq("user_id", prev.user_id).eq("alert_type", "request_updates").maybeSingle();
       const muted = (pref as { enabled?: boolean } | null)?.enabled === false;
-      if (msg && !muted) await sendPushToUsers(admin, [prev.user_id], { ...msg, data: { screen: "field-request", request_id: id } });
+      if (msg && !muted) await sendPushToUsers(admin, [prev.user_id], { ...msg, data: { screen: "field-requests", request_id: id } });
     } catch (e) {
       console.error("[api/admin/field-requests] player push failed", e);
     }

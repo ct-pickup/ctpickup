@@ -122,3 +122,40 @@ describe("request email and pushes", () => {
     expect(adminNewRequestPush("Sam", "Hillcrest", "Sat", 14).body).toBe("Sam · Hillcrest · Sat · 14 players");
   });
 });
+
+import { routeForPushData } from "../mobile/lib/pushRouting";
+import { statusLabel, trackerSteps } from "../mobile/lib/fields/requestTracker";
+
+const RID = "123e4567-e89b-12d3-a456-426614174000";
+
+describe("push tap routing", () => {
+  it("sends a player to their request", () => {
+    expect(routeForPushData({ screen: "field-requests", request_id: RID }, { isAdmin: false })).toBe(`/field-requests?request=${RID}`);
+    expect(routeForPushData({ screen: "field-requests" }, { isAdmin: false })).toBe("/field-requests");
+  });
+  it("sends an admin to the queue, and nobody else", () => {
+    expect(routeForPushData({ screen: "admin/field-requests", request_id: RID }, { isAdmin: true })).toBe("/admin/field-requests");
+    expect(routeForPushData({ screen: "admin/field-requests" }, { isAdmin: false })).toBeNull();
+  });
+  it("ignores other pushes and bad ids", () => {
+    expect(routeForPushData({ screen: "admin/verification" }, { isAdmin: true })).toBeNull();
+    expect(routeForPushData(null, { isAdmin: true })).toBeNull();
+    expect(routeForPushData({ screen: "field-requests", request_id: "../../x" }, { isAdmin: false })).toBe("/field-requests");
+  });
+});
+
+describe("request tracker", () => {
+  it("moves through the four steps", () => {
+    expect(trackerSteps("new").map((s) => s.state)).toEqual(["done", "todo", "todo", "todo"]);
+    expect(trackerSteps("waiting_on_school").map((s) => s.state)).toEqual(["done", "done", "todo", "todo"]);
+    expect(trackerSteps("approved").map((s) => s.state)).toEqual(["done", "done", "done", "done"]);
+  });
+  it("ends a declined request at the venue and never confirms it", () => {
+    const steps = trackerSteps("declined");
+    expect(steps.at(-1)?.state).toBe("declined");
+    expect(steps.some((s) => s.title === "You're confirmed")).toBe(false);
+  });
+  it("labels statuses", () => {
+    expect(statusLabel("waiting_on_school")).toBe("Waiting on the venue");
+  });
+});

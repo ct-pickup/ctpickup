@@ -130,11 +130,39 @@ const oakHill: Venue = {
   address: "77 Oak Hill Ave, Trumbull, CT",
 };
 
+const penfield: Venue = {
+  ...BASE,
+  venue_key: "sample-penfield-field",
+  name: "Penfield Field",
+  lat: 41.1198,
+  lon: -73.2503,
+  venue_type: "park",
+  access: "public",
+  field_count: 2,
+  turf_count: 0,
+  surface: "grass",
+  lit: "yes",
+  address: "12 Reef Rd, Fairfield, CT",
+  operator: "Town Parks and Recreation",
+  price_status: "paid",
+  price_min: 25,
+  price_max: 25,
+  price_unit: "hour",
+  price_source: "osm",
+  booking_method: "online",
+  booking_url: "https://example.org/parks/permits",
+  permit_required: "yes",
+  permit_type: "permit",
+  permit_basis: "tag: access=permit",
+  verified: false,
+};
+
 export const SAMPLE_FIELDS: FieldListing[] = [
   { venue: riverside, kind_label: "Town park", distance_mi: 1.2, calendar_connected: false },
   { venue: hillcrest, kind_label: "Public school", distance_mi: 2.4, calendar_connected: false },
   { venue: lakeview, kind_label: "Private club", distance_mi: 3.1, calendar_connected: false },
   { venue: oakHill, kind_label: "School", distance_mi: 4.8, calendar_connected: false },
+  { venue: penfield, kind_label: "Town park", distance_mi: 5.2, calendar_connected: false },
 ];
 
 export function getSampleField(venueKey: string | null | undefined): FieldListing | null {

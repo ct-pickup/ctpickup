@@ -22,10 +22,12 @@ type Props = {
   /** "Sample data" tag until the venues table is live. */
   sample?: boolean;
   onOpen: (venueKey: string) => void;
+  /** Opens the player's own requests. */
+  onMyRequests?: () => void;
 };
 
 /** Search, filter chips, the map and the list of fields. Lives under the Fields toggle on the Games tab. */
-export function FieldsPanel({ fields, sample, onOpen }: Props) {
+export function FieldsPanel({ fields, sample, onOpen, onMyRequests }: Props) {
   useThemedStyles(publish_styles);
   const [filters, setFilters] = useState<FieldFilters>(NO_FIELD_FILTERS);
   const shown = useMemo(() => filterFields(fields, filters), [fields, filters]);
@@ -86,6 +88,11 @@ export function FieldsPanel({ fields, sample, onOpen }: Props) {
         <Text style={styles.listTitle}>Fields near you</Text>
         {sample ? <Text style={styles.sample}>Sample data</Text> : null}
       </View>
+      {onMyRequests ? (
+        <Pressable onPress={onMyRequests} accessibilityRole="link" hitSlop={8} style={styles.myRequests}>
+          <Text style={styles.myRequestsText}>My requests</Text>
+        </Pressable>
+      ) : null}
 
       {shown.length > 0 ? (
         <View style={styles.list}>
@@ -128,6 +135,8 @@ function make_styles() {
     pinTextFree: { color: c.onPitch },
     listHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
     listTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold", color: c.text },
+    myRequests: { alignSelf: "flex-start", marginTop: -6 },
+    myRequestsText: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: c.pitchText },
     sample: { fontSize: 12, fontFamily: "Inter_500Medium", color: c.muted },
     list: { gap: 10 },
     empty: { fontSize: 14, fontFamily: "Inter_400Regular", color: c.muted },
