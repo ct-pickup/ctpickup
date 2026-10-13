@@ -9,7 +9,7 @@ import {
   requestEstimate,
   slotStatus,
 } from "../mobile/lib/fields/presentation";
-import { clampPlayers, weekendDays } from "../mobile/lib/fields/requestOptions";
+import { clampPlayers, defaultDay, requestDays } from "../mobile/lib/fields/requestOptions";
 import { SAMPLE_FIELDS } from "../mobile/lib/fields/sampleData";
 import { NO_FIELD_FILTERS } from "../mobile/lib/fields/types";
 
@@ -84,10 +84,21 @@ describe("request helpers", () => {
     expect(requestEstimate(riverside!, 2).label).toBe("Free");
     expect(requestEstimate(oakHill!, 2).cents).toBeNull();
   });
-  it("lists the next weekend days after today", () => {
-    const days = weekendDays(new Date(2026, 9, 13), 4); // Tue Oct 13 2026
-    expect(days.map((d) => d.iso)).toEqual(["2026-10-17", "2026-10-18", "2026-10-24", "2026-10-25"]);
-    expect(days[0]!.long).toBe("Sat, Oct 17");
+  it("lists every day from tomorrow through 30 days out, weekdays included", () => {
+    const days = requestDays(new Date("2026-10-13T16:00:00Z")); // Tue Oct 13 2026, midday Eastern
+    expect(days).toHaveLength(30);
+    expect(days[0]).toMatchObject({ iso: "2026-10-14", weekday: "Wed", dayNum: 14, weekend: false });
+    expect(days[29]!.iso).toBe("2026-11-12");
+    expect(days.filter((d) => !d.weekend).length).toBeGreaterThan(15);
+    expect(days.find((d) => d.iso === "2026-11-01")).toMatchObject({ month: "Nov", dayNum: 1 });
+    expect(days[3]!.long).toBe("Sat, Oct 17");
+  });
+  it("starts on the first weekend day in range", () => {
+    expect(defaultDay(requestDays(new Date("2026-10-13T16:00:00Z")))).toBe("2026-10-17");
+  });
+  it("uses the Eastern date for today late in the evening", () => {
+    // 01:00Z on Oct 14 is 9 PM Oct 13 in Eastern: tomorrow is still Oct 14
+    expect(requestDays(new Date("2026-10-14T01:00:00Z"))[0]!.iso).toBe("2026-10-14");
   });
   it("clamps players", () => {
     expect(clampPlayers(0)).toBe(2);
@@ -395,5 +406,72 @@ describe("map clustering", () => {
     expect(same.latitudeDelta).toBeLessThan(MIN_CLUSTER_DELTA + 1e-9);
     expect(clusterSize(2)).toBeLessThan(clusterSize(50));
     expect(clusterSize(5000)).toBe(56);
+  });
+});
+
+import { addDaysIso, DURATIONS, durationLabel, etToday, isDateInWindow, isValidDuration, isValidStartTime, START_TIMES, timeLabel12 } from "../shared/fields/requestRules";
+import { windowStatus } from "../mobile/lib/fields/schedule";
+
+describe("request rules", () => {
+  it("offers every 30 minutes from 7 AM to 9 PM", () => {
+    expect(START_TIMES).toHaveLength(29);
+    expect(START_TIMES[0]).toBe("07:00");
+    expect(START_TIMES[1]).toBe("07:30");
+    expect(START_TIMES.at(-1)).toBe("21:00");
+    expect(START_TIMES).not.toContain("21:30");
+    expect(START_TIMES).not.toContain("06:30");
+  });
+  it("validates start times and lengths", () => {
+    expect(isValidStartTime("07:30")).toBe(true);
+    expect(isValidStartTime("13:00:00")).toBe(true);
+    expect(isValidStartTime("21:00")).toBe(true);
+    expect(isValidStartTime("06:30")).toBe(false);
+    expect(isValidStartTime("21:30")).toBe(false);
+    expect(isValidStartTime("11:15")).toBe(false);
+    expect(isValidStartTime(null)).toBe(false);
+    expect([...DURATIONS]).toEqual([1, 1.5, 2]);
+    expect(isValidDuration(1.5)).toBe(true);
+    expect(isValidDuration(3)).toBe(false);
+    expect(isValidDuration("2")).toBe(false);
+  });
+  it("accepts dates from tomorrow to 30 days out only", () => {
+    const today = "2026-10-13";
+    expect(isDateInWindow("2026-10-13", today)).toBe(false);
+    expect(isDateInWindow("2026-10-14", today)).toBe(true);
+    expect(isDateInWindow("2026-11-12", today)).toBe(true);
+    expect(isDateInWindow("2026-11-13", today)).toBe(false);
+    expect(isDateInWindow("nope", today)).toBe(false);
+    expect(addDaysIso("2026-10-31", 1)).toBe("2026-11-01");
+    expect(etToday(new Date("2026-10-14T01:00:00Z"))).toBe("2026-10-13");
+  });
+  it("labels times and lengths", () => {
+    expect(timeLabel12("07:00")).toBe("7:00 AM");
+    expect(timeLabel12("12:30")).toBe("12:30 PM");
+    expect(timeLabel12("21:00")).toBe("9:00 PM");
+    expect(durationLabel(1)).toBe("1 hour");
+    expect(durationLabel(1.5)).toBe("1.5 hours");
+  });
+  it("drafts the email and times correctly for a half-hour weekday request", () => {
+    expect(formatRequestWhen("2026-10-14", "07:30", 1.5)).toBe("Wed, Oct 14, 7:30 AM–9 AM");
+    expect(formatRequestWhen("2026-10-15", "20:30", 2)).toBe("Thu, Oct 15, 8:30 PM–10:30 PM");
+  });
+});
+
+describe("requested window status", () => {
+  // Oct 17 2026 is EDT (UTC-4): a booking 10:00-11:00 local is 14:00-15:00Z.
+  const slots = [{ starts_at: "2026-10-17T14:00:00Z", ends_at: "2026-10-17T15:00:00Z", status: "booked" as const, title: "Youth league" }];
+  it("never says Open without a connected calendar", () => {
+    expect(windowStatus({ date: "2026-10-17", start: "08:00", hours: 1, slots, calendarConnected: false })).toBe("unknown");
+    expect(windowStatus({ date: "2026-10-17", start: "12:00", hours: 2, slots: [], calendarConnected: false })).toBe("unknown");
+  });
+  it("always flags a known booking, connected or not, including partial overlap", () => {
+    expect(windowStatus({ date: "2026-10-17", start: "10:30", hours: 1, slots, calendarConnected: false })).toBe("booked");
+    expect(windowStatus({ date: "2026-10-17", start: "09:30", hours: 1, slots, calendarConnected: true })).toBe("booked");
+    expect(windowStatus({ date: "2026-10-17", start: "09:00", hours: 1, slots, calendarConnected: true })).toBe("open");
+    expect(windowStatus({ date: "2026-10-17", start: "11:00", hours: 1, slots, calendarConnected: true })).toBe("open");
+  });
+  it("uses the chosen length when checking for overlap", () => {
+    expect(windowStatus({ date: "2026-10-17", start: "09:00", hours: 1.5, slots, calendarConnected: true })).toBe("booked");
+    expect(windowStatus({ date: "2026-10-17", start: "09:00", hours: 1, slots, calendarConnected: true })).toBe("open");
   });
 });

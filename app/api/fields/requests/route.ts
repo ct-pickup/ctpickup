@@ -5,27 +5,13 @@ import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { requireAuthedUser } from "@/lib/referral/auth";
 import { checkPersistentRateLimit, rateLimitResponse } from "@/lib/server/persistentRateLimit";
 import { adminNewRequestPush, draftEmail, formatRequestWhen } from "@/shared/fields/requestEmail";
+import { DEFAULT_DURATION, etToday, isDateInWindow, isValidDuration, isValidStartTime } from "@/shared/fields/requestRules";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const ROUTE = "field-requests";
 const REQUESTS_PER_HOUR = 5;
-const MAX_DAYS_AHEAD = 120;
-const DEFAULT_HOURS = 2;
-
-const ALLOWED_TIMES = new Set(["09:00", "11:00", "13:00", "18:00"]);
-
-function todayUtcIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function addDaysIso(iso: string, days: number): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
 /** Whole-hours price from the venue row. Null when the venue is paid with no per-hour price: the admin confirms it. */
 function estimateCents(v: { price_status: string | null; price_min: number | null; price_unit: string | null }, hours: number): number | null {
   if (v.price_status === "free") return 0;
@@ -59,17 +45,17 @@ export async function POST(req: Request) {
   const date = typeof body.requested_date === "string" ? body.requested_date.trim() : "";
   const start = typeof body.start_time === "string" ? body.start_time.trim().slice(0, 5) : "";
   const players = Number(body.players);
-  const hours = body.duration_hours == null ? DEFAULT_HOURS : Number(body.duration_hours);
+  const hours = body.duration_hours == null ? DEFAULT_DURATION : Number(body.duration_hours);
 
   if (!venueKey) return NextResponse.json({ error: "Pick a field." }, { status: 400 });
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date <= todayUtcIso() || date > addDaysIso(todayUtcIso(), MAX_DAYS_AHEAD)) {
-    return NextResponse.json({ error: "Pick a day in the next few months." }, { status: 400 });
+  if (!isDateInWindow(date, etToday())) {
+    return NextResponse.json({ error: "Pick a day within the next 30 days." }, { status: 400 });
   }
-  if (!ALLOWED_TIMES.has(start)) return NextResponse.json({ error: "Pick a start time." }, { status: 400 });
+  if (!isValidStartTime(start)) return NextResponse.json({ error: "Pick a start time between 7 AM and 9 PM, on the hour or half hour." }, { status: 400 });
   if (!Number.isInteger(players) || players < 1 || players > 100) {
     return NextResponse.json({ error: "Players must be between 1 and 100." }, { status: 400 });
   }
-  if (!Number.isFinite(hours) || hours <= 0 || hours > 8) return NextResponse.json({ error: "Pick a length up to 8 hours." }, { status: 400 });
+  if (!isValidDuration(hours)) return NextResponse.json({ error: "Pick 1, 1.5 or 2 hours." }, { status: 400 });
 
   const { data: venue, error: venueErr } = await auth.admin
     .from("venues")

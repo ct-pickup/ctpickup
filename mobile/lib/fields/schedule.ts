@@ -89,3 +89,27 @@ export function buildDay(args: {
   }
   return rows;
 }
+
+/**
+ * Status of one requested window (date, start "HH:MM", length in hours) at a venue. Same rule as the schedule screen:
+ * a booking we hold always shows (Booked, or Pending for a pending hold), a free window is Open only when the venue's
+ * calendar is connected and Unknown otherwise.
+ */
+export function windowStatus(args: {
+  date: string;
+  start: string;
+  hours: number;
+  slots: DbSlot[];
+  calendarConnected: boolean;
+}): SlotStatus {
+  const [h, m] = args.start.split(":").map(Number);
+  const a = localMinutes(args.date, h ?? 0, m ?? 0);
+  const b = a + Math.round(args.hours * 60);
+  const hit = args.slots.map((s) => ({ s, a: instantMinutes(s.starts_at), b: instantMinutes(s.ends_at) })).filter((x) => x.a < b && x.b > a);
+  return slotStatus({
+    calendarConnected: args.calendarConnected,
+    booked: hit.some((x) => x.s.status === "booked"),
+    pending: hit.some((x) => x.s.status === "pending"),
+    yourRequest: false,
+  });
+}
