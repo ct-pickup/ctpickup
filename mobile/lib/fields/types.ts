@@ -1,4 +1,4 @@
-/** Mirrors the `venues` table (see supabase/migrations/20261012000000_fields_venues.sql once step 2 lands). */
+/** Mirrors the `venues` table (see supabase/migrations/20261012000000_fields_venues_schools.sql). */
 export type VenueType = "school_public" | "school_private" | "school_unknown" | "park" | "club" | "other";
 export type Access = "public" | "private" | "restricted" | "unknown";
 export type PriceStatus = "free" | "paid" | "unknown";

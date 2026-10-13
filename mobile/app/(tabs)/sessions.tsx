@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -90,10 +91,13 @@ export default function GamesTabScreen() {
   const push = router.push as (href: string) => void;
   const preview = useDevPreview();
   const params = useLocalSearchParams<{ view?: string }>();
-  const [view, setView] = useState<"season" | "fields">(params.view === "fields" ? "fields" : "season");
+  // Fields runs on sample data until the venues table is live, so only admins see it.
+  const { isAdmin } = useProfileAdmin();
+  const [chosenView, setView] = useState<"season" | "fields">(params.view === "fields" ? "fields" : "season");
   useEffect(() => {
     if (params.view === "fields") setView("fields");
   }, [params.view]);
+  const view = isAdmin ? chosenView : "season";
   const [variantIndex, setVariantIndex] = useState(0);
   const variant = FIXTURE_VARIANTS[variantIndex % FIXTURE_VARIANTS.length]!;
   const fixture = useMemo(
@@ -143,6 +147,7 @@ export default function GamesTabScreen() {
         {view === "fields" ? "Fields" : "Your season"}
       </Text>
 
+      {isAdmin ? (
       <View style={styles.toggle} accessibilityRole="tablist">
         {(["season", "fields"] as const).map((v) => (
           <Pressable
@@ -156,6 +161,7 @@ export default function GamesTabScreen() {
           </Pressable>
         ))}
       </View>
+      ) : null}
 
       {view === "fields" ? (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]} keyboardShouldPersistTaps="handled">
