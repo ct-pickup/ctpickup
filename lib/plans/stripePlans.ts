@@ -1,24 +1,25 @@
 import type Stripe from "stripe";
 
-import { isPlanId, type PlanId, PLAN_IDS } from "@/shared/fields/plans";
+import { CHECKOUT_PLAN_IDS, type CheckoutPlanId } from "@/shared/fields/plans";
 
-/** Marks Stripe objects (subscription metadata, checkout metadata) that belong to Fields plans. */
+/** Marks the Concierge subscription (subscription metadata, checkout metadata). */
 export const PLAN_PRODUCT_TAG = "fields_plan";
+/** Marks a one-time "Book my season" payment (checkout metadata, payment intent metadata). */
+export const SEASON_PRODUCT_TAG = "fields_season";
 
-const PRICE_ENV: Record<PlanId, string> = {
-  scout: "STRIPE_PRICE_SCOUT",
-  email: "STRIPE_PRICE_EMAIL",
+const PRICE_ENV: Record<CheckoutPlanId, string> = {
+  season: "STRIPE_PRICE_SEASON",
   concierge: "STRIPE_PRICE_CONCIERGE",
 };
 
-export function planPriceId(plan: PlanId, env: NodeJS.ProcessEnv = process.env): string | null {
+export function planPriceId(plan: CheckoutPlanId, env: NodeJS.ProcessEnv = process.env): string | null {
   return env[PRICE_ENV[plan]]?.trim() || null;
 }
 
-/** Which plan a Stripe price id belongs to, from the three STRIPE_PRICE_* variables. */
-export function planFromPriceId(priceId: string | null | undefined, env: NodeJS.ProcessEnv = process.env): PlanId | null {
+/** Which paid plan a Stripe price id belongs to, from STRIPE_PRICE_SEASON / STRIPE_PRICE_CONCIERGE. */
+export function planFromPriceId(priceId: string | null | undefined, env: NodeJS.ProcessEnv = process.env): CheckoutPlanId | null {
   if (!priceId) return null;
-  return PLAN_IDS.find((p) => planPriceId(p, env) === priceId) ?? null;
+  return CHECKOUT_PLAN_IDS.find((p) => planPriceId(p, env) === priceId) ?? null;
 }
 
 /** Step 1 is Stripe TEST mode only. A live key is refused here, whatever the environment. */
@@ -39,7 +40,7 @@ const KNOWN_STATUSES = ["incomplete", "incomplete_expired", "trialing", "active"
 
 export type PlanSubscriptionRow = {
   user_id: string;
-  plan: PlanId;
+  plan: "concierge";
   status: (typeof KNOWN_STATUSES)[number];
   stripe_customer_id: string | null;
   stripe_subscription_id: string;
@@ -64,8 +65,9 @@ export function subscriptionToRow(sub: Stripe.Subscription, fallbackUserId: stri
   const userId = sub.metadata?.user_id || fallbackUserId;
   if (!userId) return null;
   const priceId = sub.items?.data?.[0]?.price?.id;
-  const plan = planFromPriceId(priceId, env) ?? (isPlanId(sub.metadata?.plan) ? sub.metadata.plan : null);
-  if (!plan) return null;
+  // Only Concierge is a subscription. The price decides; the metadata is a fallback.
+  const plan = planFromPriceId(priceId, env) ?? (sub.metadata?.plan === "concierge" ? "concierge" : null);
+  if (plan !== "concierge") return null;
   const status = (KNOWN_STATUSES as readonly string[]).includes(sub.status) ? (sub.status as PlanSubscriptionRow["status"]) : "incomplete";
   const customer = typeof sub.customer === "string" ? sub.customer : (sub.customer?.id ?? null);
   return {

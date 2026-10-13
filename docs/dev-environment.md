@@ -24,9 +24,9 @@ Delete (or rename) both `.env.development.local` files, stop the Next server, re
 Do not run `eas build` / `eas update` while these files exist.
 
 ## Fields plans in Stripe test mode (dev only)
-Needs migration `20261015000000_plans.sql` applied to dev, and `STRIPE_SECRET_KEY=sk_test_...` in the root `.env.development.local`.
-1. Stripe Dashboard, test mode ON. Product catalog: create products Scout ($5.99), Email ($10.99), Concierge ($29.99), each with one recurring monthly price. Copy each price id (`price_...`).
-2. Root `.env.development.local`: `STRIPE_PRICE_SCOUT`, `STRIPE_PRICE_EMAIL`, `STRIPE_PRICE_CONCIERGE`, and `STRIPE_PLANS_WEBHOOK_SECRET` (below).
+Needs migrations `20261015000000_plans.sql` then `20261016000000_plans_v2_season.sql` applied to dev, and `STRIPE_SECRET_KEY=sk_test_...` in the root `.env.development.local`.
+1. Stripe Dashboard, test mode ON. Product catalog: create "Book my season" with ONE-TIME price $39, and "Concierge" with a RECURRING MONTHLY price $29.99. Copy each price id (`price_...`).
+2. Root `.env.development.local`: `STRIPE_PRICE_SEASON`, `STRIPE_PRICE_CONCIERGE`, `STRIPE_PLANS_WEBHOOK_SECRET` (below).
 3. Webhook: run `stripe listen --forward-to localhost:3000/api/stripe/plans-webhook` (Stripe CLI) and use the `whsec_...` it prints as `STRIPE_PLANS_WEBHOOK_SECRET`. Restart `npm run dev`.
-4. In the app (admin): Games > Fields > Plans > Choose. Pay with test card 4242 4242 4242 4242, any future date, any CVC, any ZIP.
-The plans routes refuse a live key (`sk_live_`) and non-admin users. Never use live keys here.
+4. In the app (admin): Games > Fields > Plans. Season: pick field, day, time, length, weeks, then pay. Concierge: Choose Concierge. Test card 4242 4242 4242 4242, any future date, any CVC, any ZIP.
+Prices shown in the app are in `shared/fields/plans.ts` (one file). The plans routes refuse a live key (`sk_live_`) and non-admin users. Never use live keys here.

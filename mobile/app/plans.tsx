@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
@@ -12,36 +12,38 @@ import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import {
   CREDIT_COPY,
   extraRequestLine,
+  FIELD_FEES_COPY,
   FIRST_REQUEST_FREE_COPY,
   formatPlanPrice,
   PLAN_IDS,
+  planPriceSuffix,
   PLANS,
-  SEASON_COPY,
   yourPlanLine,
-  type PlanId,
 } from "@shared/fields/plans";
 
 /**
- * Plans: Scout, Email and Concierge. Choose opens Stripe Checkout (test mode) in an in-app browser sheet, then the plan
- * status is refreshed when the sheet closes. Admin only for now. No Apple in-app purchase in this step.
+ * Plans (board 11): Book my season (highlighted, one-time), Concierge (monthly) and Do it yourself (free).
+ * Concierge opens Stripe Checkout (test mode) in an in-app browser sheet and refreshes the plan status when it closes.
+ * Book my season first collects the field, weekday, time and weeks. Admin only for now. No Apple in-app purchase.
  */
 export default function PlansScreen() {
   useThemedStyles(publish_styles);
+  const router = useRouter();
   const { session } = useAuth();
   const { isAdmin } = useProfileAdmin();
-  const { status, refresh } = usePlanStatus();
-  const [busy, setBusy] = useState<PlanId | null>(null);
-  const current = status?.plan ?? null;
-  const line = yourPlanLine(status);
+  const { status, seasons, refresh } = usePlanStatus();
+  const [busy, setBusy] = useState(false);
+  const isConcierge = status?.plan === "concierge";
+  const line = yourPlanLine(status, seasons);
 
-  async function choose(plan: PlanId) {
+  async function chooseConcierge() {
     const token = session?.access_token;
     if (!token) return;
-    setBusy(plan);
+    setBusy(true);
     try {
-      const res = await startPlanCheckout(token, plan);
+      const res = await startPlanCheckout(token, { plan: "concierge" });
       if (!res.ok) {
-        Alert.alert(res.code === "already_subscribed" ? "You already have a plan" : "Couldn’t start checkout", res.message);
+        Alert.alert(res.code === "already_subscribed" ? "You already have Concierge" : "Couldn’t start checkout", res.message);
         return;
       }
       await WebBrowser.openBrowserAsync(res.url);
@@ -49,7 +51,7 @@ export default function PlansScreen() {
       await refresh();
       setTimeout(() => void refresh(), 3000);
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   }
 
@@ -70,7 +72,7 @@ export default function PlansScreen() {
 
       <View style={styles.banner}>
         <Text style={styles.bannerTitle}>{FIRST_REQUEST_FREE_COPY}</Text>
-        <Text style={styles.bannerBody}>{status?.free_request_used === true ? "You’ve used it. Pick a plan for more." : "Try it before you pick a plan."}</Text>
+        <Text style={styles.bannerBody}>{status?.free_request_used === true ? "You’ve used it. Pick a plan for more." : "Try it before you pay for anything."}</Text>
       </View>
 
       <View style={styles.yours}>
@@ -81,15 +83,17 @@ export default function PlansScreen() {
 
       {PLAN_IDS.map((id) => {
         const p = PLANS[id];
-        const mine = current === id;
+        const mine = (id === "concierge" && isConcierge) || (id === "free" && !isConcierge);
         const extra = extraRequestLine(p);
+        const highlight = id === "season";
         return (
-          <View key={id} style={[styles.card, mine && styles.cardMine]}>
+          <View key={id} style={[styles.card, highlight && styles.cardHighlight, mine && styles.cardMine]}>
+            {highlight ? <Text style={styles.badge}>Best for a full season</Text> : null}
             <View style={styles.cardHead}>
               <Text style={styles.planName}>{p.name}</Text>
               <Text style={styles.price}>
                 {formatPlanPrice(p.priceCents)}
-                <Text style={styles.per}>/mo</Text>
+                <Text style={styles.per}>{planPriceSuffix(p)}</Text>
               </Text>
             </View>
             <Text style={styles.muted}>{p.tagline}</Text>
@@ -101,21 +105,27 @@ export default function PlansScreen() {
               ))}
               {extra ? <Text style={styles.feature}>• {extra}</Text> : null}
             </View>
-            <Pressable
-              onPress={() => void choose(id)}
-              disabled={busy != null || mine}
-              style={[styles.cta, (busy != null || mine) && styles.ctaOff]}
-              accessibilityRole="button"
-              accessibilityLabel={mine ? `${p.name}, your plan` : `Choose ${p.name}`}
-            >
-              {busy === id ? <ActivityIndicator color={themeColor().onPitch} /> : <Text style={styles.ctaText}>{mine ? "Your plan" : "Choose"}</Text>}
-            </Pressable>
+            {id === "free" ? (
+              <View style={[styles.cta, styles.ctaOff]} accessibilityRole="text">
+                <Text style={styles.ctaText}>{mine ? "Your plan" : "Included"}</Text>
+              </View>
+            ) : (
+              <Pressable
+                onPress={() => (id === "season" ? router.push("/season-book") : void chooseConcierge())}
+                disabled={busy || mine}
+                style={[styles.cta, (busy || mine) && styles.ctaOff]}
+                accessibilityRole="button"
+                accessibilityLabel={mine ? `${p.name}, your plan` : p.cta}
+              >
+                {busy && id === "concierge" ? <ActivityIndicator color={themeColor().onPitch} /> : <Text style={styles.ctaText}>{mine ? "Your plan" : p.cta}</Text>}
+              </Pressable>
+            )}
           </View>
         );
       })}
 
-      <Text style={styles.foot}>{SEASON_COPY}</Text>
       <Text style={styles.foot}>{CREDIT_COPY}</Text>
+      <Text style={styles.foot}>{FIELD_FEES_COPY}</Text>
       <Text style={styles.foot}>Test mode: use Stripe’s test card 4242 4242 4242 4242. No real charges.</Text>
     </FieldScreenShell>
   );
@@ -133,7 +143,9 @@ function make_styles() {
     yoursLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: c.muted },
     yoursTitle: { fontSize: 18, ...headline, color: c.text },
     card: { padding: 16, borderRadius: radius.card, backgroundColor: c.card, borderWidth: 1, borderColor: c.line, gap: 8 },
-    cardMine: { borderColor: c.pitchText, borderWidth: 2 },
+    cardHighlight: { borderColor: c.pitchText, borderWidth: 2, backgroundColor: c.pitchPanel },
+    cardMine: { borderColor: c.pitchText },
+    badge: { alignSelf: "flex-start", fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700", color: c.onPitch, backgroundColor: c.pitch, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill, overflow: "hidden" },
     cardHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
     planName: { fontSize: 22, ...headline, color: c.text },
     price: { fontSize: 22, ...headline, color: c.text },

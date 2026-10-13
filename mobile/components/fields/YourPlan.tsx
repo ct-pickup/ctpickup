@@ -7,8 +7,8 @@ import { yourPlanLine } from "@shared/fields/plans";
 /** "Your plan" with requests left. Tapping opens the Plans screen. */
 export function YourPlan({ onPress }: { onPress: () => void }) {
   useThemedStyles(publish_styles);
-  const { status } = usePlanStatus();
-  const line = yourPlanLine(status);
+  const { status, seasons } = usePlanStatus();
+  const line = yourPlanLine(status, seasons);
   return (
     <Pressable onPress={onPress} style={styles.card} accessibilityRole="button" accessibilityLabel={`Your plan: ${line.title}. ${line.detail}`}>
       <View style={{ flex: 1, gap: 2 }}>

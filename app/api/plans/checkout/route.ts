@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-import { assertPlansTestKey, planPriceId, PLAN_PRODUCT_TAG } from "@/lib/plans/stripePlans";
+import { assertPlansTestKey, planPriceId, PLAN_PRODUCT_TAG, SEASON_PRODUCT_TAG } from "@/lib/plans/stripePlans";
 import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
 import { requireAuthedUser } from "@/lib/referral/auth";
 import { checkPersistentRateLimit, rateLimitResponse } from "@/lib/server/persistentRateLimit";
-import { isPlanId } from "@/shared/fields/plans";
+import { isCheckoutPlanId } from "@/shared/fields/plans";
+import { etToday } from "@/shared/fields/requestRules";
+import { nextWeekdayDate, validateSeasonInput } from "@/shared/fields/season";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,8 +16,11 @@ const ROUTE = "plans-checkout";
 const PER_HOUR = 10;
 
 /**
- * POST /api/plans/checkout  { plan: "scout" | "email" | "concierge" }
- * Creates a Stripe Checkout Session (subscription mode) and returns its URL. TEST mode only, and admin only for now.
+ * POST /api/plans/checkout
+ *   { plan: "concierge" }                                                      subscription, $/month
+ *   { plan: "season", venue_key, weekday, start_time, duration_hours?, weeks, players? }   one-time payment
+ * Creates a Stripe Checkout Session (mode=subscription for Concierge, mode=payment for a season) and returns its URL.
+ * TEST mode only, and admin only for now.
  */
 export async function POST(req: Request) {
   const auth = await requireAuthedUser(req);
@@ -36,7 +41,7 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
-  if (!isPlanId(body.plan)) return NextResponse.json({ error: "Pick a plan." }, { status: 400 });
+  if (!isCheckoutPlanId(body.plan)) return NextResponse.json({ error: "Pick a plan." }, { status: 400 });
   const plan = body.plan;
 
   let secret: string;
@@ -48,7 +53,61 @@ export async function POST(req: Request) {
   const priceId = planPriceId(plan);
   if (!priceId) return NextResponse.json({ error: `Missing the Stripe price for ${plan}.` }, { status: 503 });
 
-  // One live plan at a time. Changing plans comes later.
+  const stripe = new Stripe(secret);
+  const origin = requestSiteUrlFromRequest(req);
+  const successUrl = `${origin}/plans/return?status=success`;
+  const cancelUrl = `${origin}/plans/return?status=canceled`;
+
+  if (plan === "season") {
+    const v = validateSeasonInput(body);
+    if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 });
+    const { data: venue } = await auth.admin.from("venues").select("venue_key").eq("venue_key", v.value.venue_key).maybeSingle();
+    if (!venue) return NextResponse.json({ error: "That field isn’t available yet." }, { status: 404 });
+
+    // Record the purchase first (pending). The webhook marks it paid and creates the one request.
+    const startDate = nextWeekdayDate(etToday(), v.value.weekday);
+    const { data: purchase, error: pErr } = await auth.admin
+      .from("season_purchases")
+      .insert({
+        user_id: auth.user.id,
+        venue_key: v.value.venue_key,
+        requested_start_date: startDate,
+        weekday: v.value.weekday,
+        start_time: `${v.value.start_time}:00`,
+        duration_hours: v.value.duration_hours,
+        weeks: v.value.weeks,
+        players: v.value.players,
+      })
+      .select("id")
+      .single();
+    if (pErr || !purchase) {
+      console.error(`[api/${ROUTE}] season insert failed`, pErr?.message);
+      return NextResponse.json({ error: "We couldn’t start checkout. Please try again." }, { status: 500 });
+    }
+    const purchaseId = (purchase as { id: string }).id;
+    const meta = { product: SEASON_PRODUCT_TAG, user_id: auth.user.id, purchase_id: purchaseId };
+    try {
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        line_items: [{ price: priceId, quantity: 1 }],
+        client_reference_id: auth.user.id,
+        customer_email: auth.user.email ?? undefined,
+        metadata: meta,
+        payment_intent_data: { metadata: meta },
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+      });
+      if (!session.url) return NextResponse.json({ error: "Stripe did not return a checkout link." }, { status: 502 });
+      await auth.admin.from("season_purchases").update({ stripe_checkout_session_id: session.id }).eq("id", purchaseId);
+      return NextResponse.json({ ok: true, url: session.url, purchase_id: purchaseId });
+    } catch (e) {
+      await auth.admin.from("season_purchases").update({ status: "failed" }).eq("id", purchaseId);
+      console.error(`[api/${ROUTE}] stripe error`, e instanceof Error ? e.message : "unknown");
+      return NextResponse.json({ error: "We couldn’t start checkout. Please try again." }, { status: 502 });
+    }
+  }
+
+  // Concierge: one live subscription at a time. Changing plans comes later.
   const { data: existing } = await auth.admin
     .from("plan_subscriptions")
     .select("plan,stripe_customer_id")
@@ -56,10 +115,8 @@ export async function POST(req: Request) {
     .in("status", ["active", "trialing"])
     .limit(1);
   const current = (existing ?? [])[0] as { plan: string; stripe_customer_id: string | null } | undefined;
-  if (current) return NextResponse.json({ error: `You already have the ${current.plan} plan.`, code: "already_subscribed" }, { status: 409 });
+  if (current) return NextResponse.json({ error: "You already have the Concierge plan.", code: "already_subscribed" }, { status: 409 });
 
-  const stripe = new Stripe(secret);
-  const origin = requestSiteUrlFromRequest(req);
   const meta = { product: PLAN_PRODUCT_TAG, user_id: auth.user.id, plan };
   try {
     const { data: priorCustomer } = await auth.admin
@@ -77,8 +134,8 @@ export async function POST(req: Request) {
       ...(customer ? { customer } : { customer_email: auth.user.email ?? undefined }),
       metadata: meta,
       subscription_data: { metadata: meta },
-      success_url: `${origin}/plans/return?status=success`,
-      cancel_url: `${origin}/plans/return?status=canceled`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
     });
     if (!session.url) return NextResponse.json({ error: "Stripe did not return a checkout link." }, { status: 502 });
     return NextResponse.json({ ok: true, url: session.url });

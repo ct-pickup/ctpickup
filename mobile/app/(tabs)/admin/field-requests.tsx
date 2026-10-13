@@ -33,7 +33,8 @@ type Item = {
   created_at: string;
   requested_by: string;
   plan?: string | null;
-  plan_kind?: "free" | "included" | "extra" | null;
+  plan_kind?: "free" | "included" | "extra" | "season" | null;
+  weeks?: number | null;
   venue: { name: string; booking_phone: string | null } | null;
 };
 
@@ -188,12 +189,18 @@ export default function AdminFieldRequestsScreen() {
                   </Text>
                   {it.plan_kind ? (
                     <View style={styles.planRow}>
-                      <View style={[styles.planTag, it.plan_kind === "extra" && styles.planTagExtra]}>
-                        <Text style={[styles.planTagText, it.plan_kind === "extra" && styles.planTagTextExtra]}>
-                          {it.plan_kind === "extra" ? "EXTRA request" : it.plan_kind === "free" ? "Free first request" : "Included"}
+                      <View style={[styles.planTag, (it.plan_kind === "extra" || it.plan_kind === "season") && styles.planTagExtra]}>
+                        <Text style={[styles.planTagText, (it.plan_kind === "extra" || it.plan_kind === "season") && styles.planTagTextExtra]}>
+                          {it.plan_kind === "extra"
+                            ? "EXTRA request"
+                            : it.plan_kind === "season"
+                              ? `SEASON${it.weeks ? ` · ${it.weeks} weeks` : ""}`
+                              : it.plan_kind === "free"
+                                ? "Free first request"
+                                : "Included"}
                         </Text>
                       </View>
-                      <Text style={styles.sub}>{it.plan ? `${it.plan} plan` : "No plan"}</Text>
+                      <Text style={styles.sub}>{it.plan === "concierge" ? "Concierge" : it.plan === "season" ? "Paid season" : "Do it yourself"}</Text>
                     </View>
                   ) : null}
                 </Pressable>
@@ -202,6 +209,7 @@ export default function AdminFieldRequestsScreen() {
                   <View style={styles.detail}>
                     <Row label="When" value={when} />
                     <Row label="Players" value={String(it.players)} />
+                    {it.weeks ? <Row label="Season" value={`Same time every week for ${it.weeks} weeks`} /> : null}
                     {it.estimate_cents != null ? <Row label="Estimate" value={it.estimate_cents === 0 ? "Free" : `$${(it.estimate_cents / 100).toFixed(0)}`} /> : null}
 
                     <Text style={styles.label}>School contact email</Text>

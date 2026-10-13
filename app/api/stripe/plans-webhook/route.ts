@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-import { assertPlansTestKey, plansWebhookSecret, PLAN_PRODUCT_TAG, subscriptionToRow } from "@/lib/plans/stripePlans";
+import { fulfillSeasonPurchase } from "@/lib/plans/seasonFulfillment";
+import { assertPlansTestKey, plansWebhookSecret, PLAN_PRODUCT_TAG, SEASON_PRODUCT_TAG, subscriptionToRow } from "@/lib/plans/stripePlans";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -24,8 +25,10 @@ async function saveSubscription(sub: Stripe.Subscription, fallbackUserId: string
 
 /**
  * POST /api/stripe/plans-webhook  (Stripe TEST mode, Fields plans only)
- * Verifies the signature with STRIPE_PLANS_WEBHOOK_SECRET, then keeps plan_subscriptions in step with Stripe:
- *   checkout.session.completed, customer.subscription.updated, customer.subscription.deleted.
+ * Verifies the signature with STRIPE_PLANS_WEBHOOK_SECRET, then:
+ *   checkout.session.completed (mode=subscription)  saves the Concierge subscription in plan_subscriptions
+ *   checkout.session.completed (mode=payment)       marks the season purchase paid and creates its one request
+ *   customer.subscription.updated / .deleted        keeps plan_subscriptions in step with Stripe
  * Anything else, and subscriptions that are not Fields plans, are acknowledged and ignored.
  * A failure while saving returns 500 so Stripe retries.
  */
@@ -60,6 +63,18 @@ export async function POST(req: Request) {
         const sub = await stripe.subscriptions.retrieve(subId);
         const result = await saveSubscription(sub, session.client_reference_id ?? session.metadata?.user_id ?? null);
         console.log(JSON.stringify({ plans_webhook: true, event_id: event.id, type: event.type, result }));
+      } else if (session.mode === "payment" && session.metadata?.product === SEASON_PRODUCT_TAG && session.metadata?.purchase_id) {
+        // Only a settled payment books the season. A delayed method that has not paid yet waits for a later event.
+        if (session.payment_status === "paid") {
+          const pi = typeof session.payment_intent === "string" ? session.payment_intent : (session.payment_intent?.id ?? null);
+          const result = await fulfillSeasonPurchase(getSupabaseAdmin(), {
+            purchaseId: session.metadata.purchase_id,
+            sessionId: session.id,
+            paymentIntentId: pi,
+            amountCents: session.amount_total ?? null,
+          });
+          console.log(JSON.stringify({ plans_webhook: true, event_id: event.id, type: event.type, season: result }));
+        }
       }
     } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
       const sub = event.data.object as Stripe.Subscription;

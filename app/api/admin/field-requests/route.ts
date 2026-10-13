@@ -26,7 +26,8 @@ type RequestRow = {
   created_at: string;
   status_changed_at: string;
   plan?: string | null;
-  plan_kind?: "free" | "included" | "extra" | null;
+  plan_kind?: "free" | "included" | "extra" | "season" | null;
+  weeks?: number | null;
 };
 
 /**
@@ -45,8 +46,9 @@ export async function GET(req: Request) {
     if (status && (STATUSES as readonly string[]).includes(status)) q = q.eq("status", status);
     return q;
   };
-  // plan and plan_kind come from the plans migration. Before it is applied, read without them.
-  let res = await build(`${BASE},plan,plan_kind`);
+  // plan, plan_kind and weeks come from the plans migrations. Before they are applied, read without them.
+  let res = await build(`${BASE},plan,plan_kind,weeks`);
+  if (res.error) res = await build(`${BASE},plan,plan_kind`);
   if (res.error) res = await build(BASE);
   const { data, error } = res;
   if (error) return NextResponse.json({ error: "Could not load requests." }, { status: 500 });

@@ -82,8 +82,13 @@ export function adminNewRequestPush(
   venueName: string,
   when: string,
   players: number,
-  planKind: "free" | "included" | "extra" | null = null,
+  planKind: "free" | "included" | "extra" | "season" | null = null,
 ): { title: string; body: string } {
-  const tag = planKind === "extra" ? " · EXTRA request" : planKind === "free" ? " · free first request" : "";
+  const tag = planKind === "extra" ? " · EXTRA request" : planKind === "free" ? " · free first request" : planKind === "season" ? " · SEASON" : "";
   return { title: "New field request", body: `${playerName} · ${venueName} · ${when} · ${players} players${tag}` };
+}
+
+/** Push for admins when a player pays for a season. */
+export function adminSeasonPush(playerName: string, venueName: string, whenSeason: string): { title: string; body: string } {
+  return { title: "Season booked", body: `${playerName} paid for a season · ${venueName} · ${whenSeason}` };
 }
