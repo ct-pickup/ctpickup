@@ -12,7 +12,6 @@ import { useFieldPhotos } from "@/components/photo";
 import { usePlayedWith } from "@/components/pickup/PlayedWithRow";
 import { MatchLogRow, SeasonHeaderCard } from "@/components/season/SeasonPieces";
 import { toggleDevPreview, useDevPreview } from "@/lib/devPreview";
-import { SAMPLE_FIELDS } from "@/lib/fields/sampleData";
 import { fetchBestGames, type BestGame, type PlayedWithSummary } from "@/lib/matchApi";
 import { groupByMonthEt } from "@/lib/season";
 import { fetchSeason, type PastGame, type SeasonData } from "@/lib/seasonData";
@@ -170,7 +169,7 @@ export default function GamesTabScreen() {
         </ScrollView>
       ) : view === "fields" ? (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]} keyboardShouldPersistTaps="handled">
-          <FieldsPanel sample fields={SAMPLE_FIELDS} onOpen={(key) => push(`/field/${encodeURIComponent(key)}`)} onMyRequests={() => push("/field-requests")} />
+          <FieldsPanel onOpen={(key) => push(`/field/${encodeURIComponent(key)}`)} onMyRequests={() => push("/field-requests")} />
         </ScrollView>
       ) : (
       <ScrollView

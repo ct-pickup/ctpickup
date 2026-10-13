@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { useAuth } from "@/context/AuthContext";
-import { getSampleField } from "@/lib/fields/sampleData";
+import { useFieldListing } from "@/hooks/useFieldListings";
 import { buildDay, scheduleDays, type DbSlot, type OwnRequest } from "@/lib/fields/schedule";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
@@ -19,11 +19,11 @@ export default function FieldScheduleScreen() {
   const uid = session?.user?.id ?? null;
   const { id } = useLocalSearchParams<{ id: string }>();
   const venueKey = typeof id === "string" ? id : "";
-  const sample = getSampleField(venueKey);
+  const { listing: known } = useFieldListing(venueKey);
 
   const days = useMemo(() => scheduleDays(new Date()), []);
   const [day, setDay] = useState(days[0]!.iso);
-  const [name, setName] = useState<string | null>(sample?.venue.name ?? null);
+  const [name, setName] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [slots, setSlots] = useState<DbSlot[]>([]);
   const [own, setOwn] = useState<OwnRequest[]>([]);
@@ -78,7 +78,7 @@ export default function FieldScheduleScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={{ gap: 4 }}>
         <Text style={styles.title}>Schedule</Text>
-        {name ? <Text style={styles.muted}>{name}</Text> : null}
+        {name ?? known?.venue.name ? <Text style={styles.muted}>{name ?? known?.venue.name}</Text> : null}
       </View>
 
       <View style={styles.days}>

@@ -1,11 +1,14 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import MapView, { Marker, type Region } from "react-native-maps";
 
 import { FieldCard } from "@/components/fields/FieldCard";
+import { useFieldListings } from "@/hooks/useFieldListings";
+import { FIELDS_SAMPLE_DATA } from "@/lib/fields/config";
+import { pinsInRegion } from "@/lib/fields/listings";
 import { filterFields, pinLabel } from "@/lib/fields/presentation";
-import { NO_FIELD_FILTERS, type FieldFilters, type FieldListing } from "@/lib/fields/types";
+import { NO_FIELD_FILTERS, type FieldFilters } from "@/lib/fields/types";
 import { radius, themeColor, useThemedStyles } from "@/theme";
 
 const CHIPS: { key: Exclude<keyof FieldFilters, "query">; label: string }[] = [
@@ -15,23 +18,26 @@ const CHIPS: { key: Exclude<keyof FieldFilters, "query">; label: string }[] = [
   { key: "lights", label: "Lights" },
 ];
 
-const CT_REGION: Region = { latitude: 41.17, longitude: -73.27, latitudeDelta: 0.28, longitudeDelta: 0.28 };
+const CT_REGION: Region = { latitude: 41.6, longitude: -72.75, latitudeDelta: 1.3, longitudeDelta: 1.5 };
+/** Most pins drawn at once, and list rows shown before "Show more". Keeps the map and list light with hundreds of venues. */
+const MAX_PINS = 60;
+const PAGE_SIZE = 25;
 
 type Props = {
-  fields: FieldListing[];
-  /** "Sample data" tag until the venues table is live. */
-  sample?: boolean;
   onOpen: (venueKey: string) => void;
   /** Opens the player's own requests. */
   onMyRequests?: () => void;
 };
 
 /** Search, filter chips, the map and the list of fields. Lives under the Fields toggle on the Games tab. */
-export function FieldsPanel({ fields, sample, onOpen, onMyRequests }: Props) {
+export function FieldsPanel({ onOpen, onMyRequests }: Props) {
   useThemedStyles(publish_styles);
+  const { fields, loading, error, reload } = useFieldListings();
+  const [region, setRegion] = useState<Region>(CT_REGION);
+  const [limit, setLimit] = useState(PAGE_SIZE);
   const [filters, setFilters] = useState<FieldFilters>(NO_FIELD_FILTERS);
   const shown = useMemo(() => filterFields(fields, filters), [fields, filters]);
-  const pinned = shown.filter((f) => f.venue.lat != null && f.venue.lon != null);
+  const pinned = useMemo(() => pinsInRegion(shown, region, MAX_PINS), [shown, region]);
 
   return (
     <View style={styles.root}>
@@ -39,7 +45,10 @@ export function FieldsPanel({ fields, sample, onOpen, onMyRequests }: Props) {
         <FontAwesome name="search" size={14} color={themeColor().muted} />
         <TextInput
           value={filters.query}
-          onChangeText={(query) => setFilters((f) => ({ ...f, query }))}
+          onChangeText={(query) => {
+            setFilters((f) => ({ ...f, query }));
+            setLimit(PAGE_SIZE);
+          }}
           placeholder="Search fields, schools, towns"
           placeholderTextColor={themeColor().muted}
           style={styles.searchInput}
@@ -54,7 +63,10 @@ export function FieldsPanel({ fields, sample, onOpen, onMyRequests }: Props) {
           return (
             <Pressable
               key={c.key}
-              onPress={() => setFilters((f) => ({ ...f, [c.key]: !f[c.key] }))}
+              onPress={() => {
+                setFilters((f) => ({ ...f, [c.key]: !f[c.key] }));
+                setLimit(PAGE_SIZE);
+              }}
               style={[styles.chip, on && styles.chipOn]}
               accessibilityRole="button"
               accessibilityState={{ selected: on }}
@@ -66,7 +78,7 @@ export function FieldsPanel({ fields, sample, onOpen, onMyRequests }: Props) {
       </View>
 
       <View style={styles.mapWrap}>
-        <MapView style={StyleSheet.absoluteFill} initialRegion={CT_REGION}>
+        <MapView style={StyleSheet.absoluteFill} initialRegion={CT_REGION} onRegionChangeComplete={setRegion}>
           {pinned.map((f) => (
             <Marker
               key={f.venue.venue_key}
@@ -86,7 +98,7 @@ export function FieldsPanel({ fields, sample, onOpen, onMyRequests }: Props) {
 
       <View style={styles.listHead}>
         <Text style={styles.listTitle}>Fields near you</Text>
-        {sample ? <Text style={styles.sample}>Sample data</Text> : null}
+        {FIELDS_SAMPLE_DATA ? <Text style={styles.sample}>Sample data</Text> : <Text style={styles.sample}>{shown.length} {shown.length === 1 ? "field" : "fields"}</Text>}
       </View>
       {onMyRequests ? (
         <Pressable onPress={onMyRequests} accessibilityRole="link" hitSlop={8} style={styles.myRequests}>
@@ -94,14 +106,26 @@ export function FieldsPanel({ fields, sample, onOpen, onMyRequests }: Props) {
         </Pressable>
       ) : null}
 
-      {shown.length > 0 ? (
+      {error ? (
+        <Pressable onPress={() => void reload()} accessibilityRole="button">
+          <Text style={styles.error}>{error} Tap to retry.</Text>
+        </Pressable>
+      ) : null}
+      {loading ? (
+        <ActivityIndicator color={themeColor().muted} />
+      ) : shown.length > 0 ? (
         <View style={styles.list}>
-          {shown.map((f) => (
+          {shown.slice(0, limit).map((f) => (
             <FieldCard key={f.venue.venue_key} item={f} onPress={() => onOpen(f.venue.venue_key)} />
           ))}
+          {shown.length > limit ? (
+            <Pressable onPress={() => setLimit((n) => n + PAGE_SIZE)} style={styles.more} accessibilityRole="button">
+              <Text style={styles.moreText}>Show more ({shown.length - limit} left)</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : (
-        <Text style={styles.empty}>No fields match. Try removing a filter.</Text>
+        <Text style={styles.empty}>{error ? "" : "No fields match. Try removing a filter."}</Text>
       )}
     </View>
   );
@@ -139,6 +163,9 @@ function make_styles() {
     myRequestsText: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: c.pitchText },
     sample: { fontSize: 12, fontFamily: "Inter_500Medium", color: c.muted },
     list: { gap: 10 },
+    error: { fontSize: 14, fontFamily: "Inter_500Medium", color: c.coralText },
+    more: { alignItems: "center", paddingVertical: 12, borderRadius: radius.button, borderWidth: 1, borderColor: c.line, backgroundColor: c.card },
+    moreText: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: c.text },
     empty: { fontSize: 14, fontFamily: "Inter_400Regular", color: c.muted },
   });
 }

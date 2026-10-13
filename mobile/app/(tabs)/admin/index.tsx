@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAdminAttention } from "@/lib/adminAttention";
+import { supabaseHost } from "@/lib/env";
 import { tabBarContentPadding } from "@/lib/tabBar";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
@@ -110,6 +111,7 @@ export default function AdminMenuScreen() {
             </Pressable>
           ))}
         </View>
+        <Text style={styles.dbLine}>Database: {supabaseHost() ?? "unknown"}</Text>
       </ScrollView>
     </View>
   );
@@ -118,6 +120,7 @@ export default function AdminMenuScreen() {
 function make_styles() {
   const c = themeColor();
   return StyleSheet.create({
+    dbLine: { marginTop: 8, fontSize: 12, fontFamily: "Inter_400Regular", color: themeColor().muted },
     screen: { flex: 1, backgroundColor: c.bg },
     scroll: { flex: 1, backgroundColor: c.bg },
     content: { padding: 20 },

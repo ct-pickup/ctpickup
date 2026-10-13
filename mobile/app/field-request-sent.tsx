@@ -2,17 +2,17 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { useFieldListing } from "@/hooks/useFieldListings";
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { RequestTracker } from "@/components/fields/RequestTracker";
 import { weekendDays, timeLabel } from "@/lib/fields/requestOptions";
-import { getSampleField } from "@/lib/fields/sampleData";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
 export default function FieldRequestSentScreen() {
   useThemedStyles(publish_styles);
   const router = useRouter();
   const { id, day, time } = useLocalSearchParams<{ id: string; day?: string; time?: string; players?: string }>();
-  const item = getSampleField(id);
+  const { listing: item } = useFieldListing(id);
   const when = (weekendDays(new Date(), 8).find((d) => d.iso === day)?.long ?? day ?? "") + (time ? ` at ${timeLabel(time)}` : "");
 
   return (

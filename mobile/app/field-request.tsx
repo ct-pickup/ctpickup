@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { useAuth } from "@/context/AuthContext";
+import { useFieldListing } from "@/hooks/useFieldListings";
 import { requestEstimate } from "@/lib/fields/presentation";
 import {
   clampPlayers,
@@ -13,7 +14,7 @@ import {
   weekendDays,
 } from "@/lib/fields/requestOptions";
 import { submitFieldRequest } from "@/lib/fields/requestApi";
-import { getSampleField } from "@/lib/fields/sampleData";
+import { FIELDS_SAMPLE_DATA } from "@/lib/fields/config";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
 export default function FieldRequestScreen() {
@@ -23,11 +24,20 @@ export default function FieldRequestScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { id } = useLocalSearchParams<{ id: string }>();
-  const item = getSampleField(id);
+  const { listing: item, loading } = useFieldListing(id);
   const days = useMemo(() => weekendDays(new Date()), []);
   const [day, setDay] = useState(days[0]!.iso);
   const [time, setTime] = useState<string>(TIME_OPTIONS[1].value);
   const [players, setPlayers] = useState(DEFAULT_PLAYERS);
+
+  if (loading) {
+    return (
+      <FieldScreenShell fallback="/(tabs)/sessions">
+        <Stack.Screen options={{ headerShown: false }} />
+        <ActivityIndicator color={themeColor().muted} />
+      </FieldScreenShell>
+    );
+  }
 
   if (!item) {
     return (
@@ -81,7 +91,7 @@ export default function FieldRequestScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={{ gap: 4 }}>
         <Text style={styles.title}>Request this field</Text>
-        <Text style={styles.muted}>{v.name} · Sample data</Text>
+        <Text style={styles.muted}>{v.name}{FIELDS_SAMPLE_DATA ? " · Sample data" : ""}</Text>
       </View>
 
       <Text style={styles.label}>Day</Text>

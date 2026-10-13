@@ -1,13 +1,14 @@
 import { Link, Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ConfirmationBadge } from "@/components/fields/FieldBits";
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { useAuth } from "@/context/AuthContext";
+import { useFieldListing } from "@/hooks/useFieldListings";
 import { fieldCountLabel, hasLights, isTurf, permitConfirmation, permitDetail, priceConfirmation, priceLabel } from "@/lib/fields/presentation";
 import { reportFieldIssueUrl } from "@/lib/fields/report";
-import { getSampleField } from "@/lib/fields/sampleData";
+import { FIELDS_SAMPLE_DATA } from "@/lib/fields/config";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
 export default function FieldDetailScreen() {
@@ -16,7 +17,16 @@ export default function FieldDetailScreen() {
   const { supabase, session } = useAuth();
   const [saved, setSaved] = useState(false);
   const { id } = useLocalSearchParams<{ id: string }>();
-  const item = getSampleField(id);
+  const { listing: item, loading } = useFieldListing(id);
+
+  if (loading) {
+    return (
+      <FieldScreenShell fallback="/(tabs)/sessions">
+        <Stack.Screen options={{ headerShown: false }} />
+        <ActivityIndicator color={themeColor().muted} />
+      </FieldScreenShell>
+    );
+  }
 
   if (!item) {
     return (
@@ -42,7 +52,7 @@ export default function FieldDetailScreen() {
   const permit = permitDetail(v);
   const surface = isTurf(v) ? "Turf" : v.surface ? v.surface.charAt(0).toUpperCase() + v.surface.slice(1) : "Unknown";
   const lights = v.lit == null || v.lit === "unknown" ? "Unknown" : hasLights(v) ? "Yes" : "No";
-  const sub = [item.kind_label, item.distance_mi != null ? `${item.distance_mi.toFixed(1)} mi away` : null, "Sample data"].filter(Boolean).join(" · ");
+  const sub = [item.kind_label, item.distance_mi != null ? `${item.distance_mi.toFixed(1)} mi away` : null, FIELDS_SAMPLE_DATA ? "Sample data" : null].filter(Boolean).join(" · ");
 
   return (
     <FieldScreenShell

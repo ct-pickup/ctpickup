@@ -292,3 +292,47 @@ describe("venue calendars", () => {
     expect(calendarCounts(rows, 600, now)).toEqual({ live: 1, needsAttention: 1, unknown: 599 });
   });
 });
+
+import { kindLabel, pinsInRegion, sortListings, toListing } from "../mobile/lib/fields/listings";
+
+describe("real venue listings", () => {
+  const mk = (key: string, name: string, lat: number | null, lon: number | null, priority: number | null, venue_type: string | null = "park") => ({
+    ...SAMPLE_FIELDS[0]!.venue,
+    venue_key: key,
+    name,
+    lat,
+    lon,
+    priority,
+    venue_type: venue_type as never,
+  });
+  it("labels venue types", () => {
+    expect(kindLabel({ venue_type: "school_public" })).toBe("Public school");
+    expect(kindLabel({ venue_type: null })).toBe("Field");
+  });
+  it("adds distance only when the user's position is known", () => {
+    const v = mk("a", "A", 41.2, -73.2, 1);
+    expect(toListing(v).distance_mi).toBeNull();
+    expect(toListing(v, { user: { lat: 41.2, lon: -73.2 } }).distance_mi).toBeCloseTo(0, 5);
+    expect(toListing(v).calendar_connected).toBe(false);
+    expect(toListing(v, { connected: true }).calendar_connected).toBe(true);
+  });
+  it("sorts nearest first, then priority, then name", () => {
+    const near = toListing(mk("n", "Near", 41.2, -73.2, 1), { user: { lat: 41.2, lon: -73.2 } });
+    const far = toListing(mk("f", "Far", 42.0, -72.0, 9), { user: { lat: 41.2, lon: -73.2 } });
+    expect(sortListings([far, near]).map((l) => l.venue.venue_key)).toEqual(["n", "f"]);
+    const a = toListing(mk("a", "Alpha", null, null, 1));
+    const b = toListing(mk("b", "Beta", null, null, 3));
+    const c = toListing(mk("c", "Charlie", null, null, 3));
+    expect(sortListings([a, c, b]).map((l) => l.venue.venue_key)).toEqual(["b", "c", "a"]);
+  });
+  it("keeps only pins in view and caps them", () => {
+    const list = Array.from({ length: 100 }, (_, i) => toListing(mk(`k${i}`, `V${i}`, 41.0 + i * 0.001, -73.0, 1)));
+    const outside = toListing(mk("out", "Out", 45, -70, 1));
+    const view = { latitude: 41.05, longitude: -73.0, latitudeDelta: 0.2, longitudeDelta: 0.2 };
+    const pins = pinsInRegion([...list, outside], view, 60);
+    expect(pins).toHaveLength(60);
+    expect(pins.some((p) => p.venue.venue_key === "out")).toBe(false);
+    expect(pinsInRegion([outside], view, 60)).toHaveLength(0);
+    expect(pinsInRegion([toListing(mk("nl", "NoLoc", null, null, 1))], view, 60)).toHaveLength(0);
+  });
+});
