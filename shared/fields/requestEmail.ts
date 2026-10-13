@@ -77,6 +77,13 @@ export function playerStatusPush(status: RequestStatus, venueName: string, when:
 }
 
 /** Push text for admins when a player sends a request. */
-export function adminNewRequestPush(playerName: string, venueName: string, when: string, players: number): { title: string; body: string } {
-  return { title: "New field request", body: `${playerName} · ${venueName} · ${when} · ${players} players` };
+export function adminNewRequestPush(
+  playerName: string,
+  venueName: string,
+  when: string,
+  players: number,
+  planKind: "free" | "included" | "extra" | null = null,
+): { title: string; body: string } {
+  const tag = planKind === "extra" ? " · EXTRA request" : planKind === "free" ? " · free first request" : "";
+  return { title: "New field request", body: `${playerName} · ${venueName} · ${when} · ${players} players${tag}` };
 }

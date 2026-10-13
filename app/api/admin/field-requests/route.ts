@@ -25,6 +25,8 @@ type RequestRow = {
   admin_notes: string | null;
   created_at: string;
   status_changed_at: string;
+  plan?: string | null;
+  plan_kind?: "free" | "included" | "extra" | null;
 };
 
 /**
@@ -37,15 +39,18 @@ export async function GET(req: Request) {
   const admin = supabaseService();
 
   const status = new URL(req.url).searchParams.get("status");
-  let q = admin
-    .from("venue_requests")
-    .select("id,user_id,venue_key,requested_date,start_time,duration_hours,players,estimate_cents,status,draft_email,school_contact_email,admin_notes,created_at,status_changed_at")
-    .order("created_at", { ascending: false })
-    .limit(200);
-  if (status && (STATUSES as readonly string[]).includes(status)) q = q.eq("status", status);
-  const { data, error } = await q;
+  const BASE = "id,user_id,venue_key,requested_date,start_time,duration_hours,players,estimate_cents,status,draft_email,school_contact_email,admin_notes,created_at,status_changed_at";
+  const build = (cols: string) => {
+    let q = admin.from("venue_requests").select(cols).order("created_at", { ascending: false }).limit(200);
+    if (status && (STATUSES as readonly string[]).includes(status)) q = q.eq("status", status);
+    return q;
+  };
+  // plan and plan_kind come from the plans migration. Before it is applied, read without them.
+  let res = await build(`${BASE},plan,plan_kind`);
+  if (res.error) res = await build(BASE);
+  const { data, error } = res;
   if (error) return NextResponse.json({ error: "Could not load requests." }, { status: 500 });
-  const rows = (data ?? []) as RequestRow[];
+  const rows = (data ?? []) as unknown as RequestRow[];
 
   const venueKeys = [...new Set(rows.map((r) => r.venue_key))];
   const userIds = [...new Set(rows.map((r) => r.user_id))];

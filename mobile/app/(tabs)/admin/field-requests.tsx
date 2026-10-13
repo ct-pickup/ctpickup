@@ -32,6 +32,8 @@ type Item = {
   school_contact_email: string | null;
   created_at: string;
   requested_by: string;
+  plan?: string | null;
+  plan_kind?: "free" | "included" | "extra" | null;
   venue: { name: string; booking_phone: string | null } | null;
 };
 
@@ -184,6 +186,16 @@ export default function AdminFieldRequestsScreen() {
                   <Text style={styles.sub}>
                     Requested by {it.requested_by} · {timeAgo(it.created_at)}
                   </Text>
+                  {it.plan_kind ? (
+                    <View style={styles.planRow}>
+                      <View style={[styles.planTag, it.plan_kind === "extra" && styles.planTagExtra]}>
+                        <Text style={[styles.planTagText, it.plan_kind === "extra" && styles.planTagTextExtra]}>
+                          {it.plan_kind === "extra" ? "EXTRA request" : it.plan_kind === "free" ? "Free first request" : "Included"}
+                        </Text>
+                      </View>
+                      <Text style={styles.sub}>{it.plan ? `${it.plan} plan` : "No plan"}</Text>
+                    </View>
+                  ) : null}
                 </Pressable>
 
                 {open ? (
@@ -294,6 +306,11 @@ function make_styles() {
     card: { backgroundColor: c.card, borderRadius: radius.card, borderWidth: 1, borderColor: c.line, padding: 14, gap: 10 },
     venue: { fontSize: 17, ...headline, color: c.text },
     sub: { fontSize: 13, fontFamily: "Inter_400Regular", color: c.muted, marginTop: 2 },
+    planRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
+    planTag: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: c.overlaySubtle },
+    planTagExtra: { backgroundColor: c.pitch },
+    planTagText: { fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700", color: c.text },
+    planTagTextExtra: { color: c.onPitch },
     detail: { gap: 10, paddingTop: 4 },
     row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
     rowLabel: { fontSize: 14, fontFamily: "Inter_400Regular", color: c.muted },

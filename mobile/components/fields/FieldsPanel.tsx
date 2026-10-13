@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 
 import { FieldCard } from "@/components/fields/FieldCard";
 import { FieldsMap } from "@/components/fields/FieldsMap";
+import { YourPlan } from "@/components/fields/YourPlan";
 import { useFieldListings } from "@/hooks/useFieldListings";
 import { FIELDS_SAMPLE_DATA } from "@/lib/fields/config";
 import { filterFields } from "@/lib/fields/presentation";
@@ -25,10 +26,12 @@ type Props = {
   onOpen: (venueKey: string) => void;
   /** Opens the player's own requests. */
   onMyRequests?: () => void;
+  /** Opens the Plans screen. */
+  onPlans?: () => void;
 };
 
 /** Search, filter chips, the map and the list of fields. Lives under the Fields toggle on the Games tab. */
-export function FieldsPanel({ onOpen, onMyRequests }: Props) {
+export function FieldsPanel({ onOpen, onMyRequests, onPlans }: Props) {
   useThemedStyles(publish_styles);
   const { fields, loading, error, user, reload } = useFieldListings();
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -37,6 +40,7 @@ export function FieldsPanel({ onOpen, onMyRequests }: Props) {
 
   return (
     <View style={styles.root}>
+      {onPlans ? <YourPlan onPress={onPlans} /> : null}
       <View style={styles.search}>
         <FontAwesome name="search" size={14} color={themeColor().muted} />
         <TextInput

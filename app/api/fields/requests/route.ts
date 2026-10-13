@@ -107,6 +107,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "We couldn't send your request. Please try again." }, { status: 500 });
   }
 
+  // Record the usage against the player's plan: their free first request, then included, then "extra". This never blocks the
+  // request. If it fails (for example the plans migration is not applied yet) the request still stands and is just unflagged.
+  let planKind: "free" | "included" | "extra" | null = null;
+  try {
+    const usage = await auth.admin.rpc("record_plan_request_usage", { p_user: auth.user.id });
+    const u = (Array.isArray(usage.data) ? usage.data[0] : usage.data) as { kind?: string; plan?: string | null } | null;
+    if (!usage.error && u && (u.kind === "free" || u.kind === "included" || u.kind === "extra")) {
+      planKind = u.kind;
+      await auth.admin.from("venue_requests").update({ plan_kind: u.kind, plan: u.plan ?? null }).eq("id", (row as { id: string }).id);
+    } else if (usage.error) {
+      console.warn(`[api/${ROUTE}] plan usage not recorded:`, usage.error.message);
+    }
+  } catch (e) {
+    console.warn(`[api/${ROUTE}] plan usage failed`, e instanceof Error ? e.message : "unknown");
+  }
+
   // Tell the admins. A push failure never fails the request: it is saved and shows in the admin queue.
   try {
     const admins = await fetchAdminUserIds(auth.admin);
@@ -114,7 +130,7 @@ export async function POST(req: Request) {
       const { data: prof } = await auth.admin.from("profiles").select("first_name,last_name,username").eq("id", auth.user.id).maybeSingle();
       const p = prof as { first_name?: string | null; last_name?: string | null; username?: string | null } | null;
       const name = [p?.first_name, p?.last_name].filter(Boolean).join(" ") || p?.username || "A player";
-      const msg = adminNewRequestPush(name, venue.name, formatRequestWhen(date, start, hours), players);
+      const msg = adminNewRequestPush(name, venue.name, formatRequestWhen(date, start, hours), players, planKind);
       await sendPushToUsers(auth.admin, admins.ids, { ...msg, data: { screen: "admin/field-requests", request_id: (row as { id: string }).id } });
     }
   } catch (e) {
