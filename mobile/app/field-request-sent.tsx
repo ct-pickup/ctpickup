@@ -17,7 +17,7 @@ export default function FieldRequestSentScreen() {
 
   return (
     <FieldScreenShell
-      fallback="/(tabs)/sessions"
+      fallback="/(tabs)/sessions?view=fields"
       footer={
         <>
           <Pressable onPress={() => router.replace("/field-requests")} style={styles.cta} accessibilityRole="button">

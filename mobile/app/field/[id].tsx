@@ -21,7 +21,7 @@ export default function FieldDetailScreen() {
 
   if (loading) {
     return (
-      <FieldScreenShell fallback="/(tabs)/sessions">
+      <FieldScreenShell fallback="/(tabs)/sessions?view=fields">
         <Stack.Screen options={{ headerShown: false }} />
         <ActivityIndicator color={themeColor().muted} />
       </FieldScreenShell>
@@ -30,7 +30,7 @@ export default function FieldDetailScreen() {
 
   if (!item) {
     return (
-      <FieldScreenShell fallback="/(tabs)/sessions">
+      <FieldScreenShell fallback="/(tabs)/sessions?view=fields">
         <Stack.Screen options={{ headerShown: false }} />
         <Text style={styles.title}>Field not found</Text>
         <Text style={styles.muted}>This field may have been removed.</Text>
@@ -56,7 +56,7 @@ export default function FieldDetailScreen() {
 
   return (
     <FieldScreenShell
-      fallback="/(tabs)/sessions"
+      fallback="/(tabs)/sessions?view=fields"
       footer={
         <>
           <Link href={{ pathname: "/field-request", params: { id: v.venue_key } }} asChild>

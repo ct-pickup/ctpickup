@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { Redirect, Tabs, useFocusEffect, useRouter, type Href } from "expo-router";
@@ -17,6 +17,7 @@ import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { useWaiver } from "@/context/WaiverContext";
 import { RunsPickerBridgeProvider } from "@/context/RunsPickerBridge";
 import { hasCompletedOnboarding } from "@/lib/onboarding";
+import { gatesPassed, recheckMayBlock } from "@/lib/tabGates";
 import { seasonIntroSeenThisSession, SEASON_PRIZE_ENABLED, shouldShowSeasonIntro } from "@/lib/seasonPrize";
 
 import { themeColor, useThemedStyles } from "@/theme";
@@ -35,30 +36,39 @@ export default function TabLayout() {
   const [seasonIntroNeeded, setSeasonIntroNeeded] = useState(false);
 
   const userId = session?.user?.id;
+  // Set once the gates have been passed, so coming back to the tabs re-checks quietly instead of unmounting them.
+  const passedBefore = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
       if (!userId) {
+        passedBefore.current = false;
         setOnboardingChecked(false);
         setOnboardingComplete(false);
         return;
       }
 
       let cancelled = false;
-      setOnboardingChecked(false);
-      if (SEASON_PRIZE_ENABLED) setSeasonChecked(false);
+      // Block with a spinner only when the gates are not yet passed. Returning from a pushed screen must not put up a
+      // spinner: that would unmount <Tabs> and drop the player back on Home (see lib/tabGates.ts).
+      if (recheckMayBlock(passedBefore.current)) {
+        setOnboardingChecked(false);
+        if (SEASON_PRIZE_ENABLED) setSeasonChecked(false);
+      }
 
       void (async () => {
+        let introNeeded = false;
         if (SEASON_PRIZE_ENABLED) {
-          const show = await shouldShowSeasonIntro(userId);
+          introNeeded = await shouldShowSeasonIntro(userId);
           if (cancelled) return;
-          setSeasonIntroNeeded(show);
+          setSeasonIntroNeeded(introNeeded);
           setSeasonChecked(true);
         }
         const done = await hasCompletedOnboarding();
         if (cancelled) return;
         setOnboardingComplete(done);
         setOnboardingChecked(true);
+        passedBefore.current = gatesPassed({ onboardingDone: done, seasonEnabled: SEASON_PRIZE_ENABLED, seasonIntroNeeded: introNeeded });
       })();
 
       return () => {

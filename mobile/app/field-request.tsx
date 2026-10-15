@@ -61,7 +61,7 @@ export default function FieldRequestScreen() {
 
   if (loading) {
     return (
-      <FieldScreenShell fallback="/(tabs)/sessions">
+      <FieldScreenShell fallback="/(tabs)/sessions?view=fields">
         <Stack.Screen options={{ headerShown: false }} />
         <ActivityIndicator color={themeColor().muted} />
       </FieldScreenShell>
@@ -70,7 +70,7 @@ export default function FieldRequestScreen() {
 
   if (!item) {
     return (
-      <FieldScreenShell fallback="/(tabs)/sessions">
+      <FieldScreenShell fallback="/(tabs)/sessions?view=fields">
         <Stack.Screen options={{ headerShown: false }} />
         <Text style={styles.title}>Field not found</Text>
       </FieldScreenShell>
