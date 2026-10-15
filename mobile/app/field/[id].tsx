@@ -1,13 +1,13 @@
 import { Link, Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
-import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { ConfirmationBadge, Tag } from "@/components/fields/FieldBits";
+import { ConfirmationBadge, SourceBadges, Tag } from "@/components/fields/FieldBits";
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { useAuth } from "@/context/AuthContext";
 import { useFieldListing } from "@/hooks/useFieldListings";
 import { fieldCountLabel, hasLights, isTurf, permitConfirmation, permitDetail, priceConfirmation, priceLabel, settingTag } from "@/lib/fields/presentation";
-import { reportFieldIssueUrl } from "@/lib/fields/report";
+import { confirmVenue, fetchConfirmation } from "@/lib/fields/suggestionsApi";
 import { FIELDS_SAMPLE_DATA } from "@/lib/fields/config";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
@@ -18,6 +18,21 @@ export default function FieldDetailScreen() {
   const [saved, setSaved] = useState(false);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { listing: item, loading } = useFieldListing(id);
+  const [confirm, setConfirm] = useState({ count: 0, mine: false });
+  const uid = session?.user?.id ?? null;
+  const venueKey = item?.venue.venue_key ?? null;
+
+  // How many players said "Looks right", and whether you did.
+  useEffect(() => {
+    if (!supabase || !uid || !venueKey) return;
+    let cancelled = false;
+    void fetchConfirmation(supabase, venueKey, uid).then((c) => {
+      if (!cancelled) setConfirm(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, uid, venueKey]);
 
   if (loading) {
     return (
@@ -39,6 +54,14 @@ export default function FieldDetailScreen() {
   }
 
   const v = item.venue;
+
+  async function looksRight() {
+    if (!supabase || !uid || confirm.mine) return;
+    const res = await confirmVenue(supabase, v.venue_key, uid);
+    if (res === "confirmed") setConfirm((c) => ({ count: c.count + 1, mine: true }));
+    else if (res === "already") setConfirm((c) => ({ ...c, mine: true }));
+    else Alert.alert("Couldn’t save", "Please try again.");
+  }
 
   async function toggleSaved() {
     const uid = session?.user?.id;
@@ -64,8 +87,8 @@ export default function FieldDetailScreen() {
               <Text style={styles.ctaText}>Request this field</Text>
             </Pressable>
           </Link>
-          <Pressable onPress={() => void Linking.openURL(reportFieldIssueUrl(v.name, v.venue_key))} accessibilityRole="link" hitSlop={8}>
-            <Text style={styles.report}>Report wrong price or permit info</Text>
+          <Pressable onPress={() => router.push({ pathname: "/report-problem", params: { id: v.venue_key } })} accessibilityRole="link" hitSlop={8}>
+            <Text style={styles.report}>Report a problem</Text>
           </Pressable>
         </>
       }
@@ -79,6 +102,7 @@ export default function FieldDetailScreen() {
             <Tag label={settingTag(v)!} />
           </View>
         ) : null}
+        <SourceBadges playerReported={v.source === "player"} confirmations={confirm.count} />
       </View>
 
       <View style={styles.stats}>
@@ -113,6 +137,9 @@ export default function FieldDetailScreen() {
       >
         <Text style={styles.linkRowText}>See schedule</Text>
         <Text style={styles.linkRowChevron}>{"›"}</Text>
+      </Pressable>
+      <Pressable onPress={() => void looksRight()} disabled={confirm.mine} style={[styles.linkRow, confirm.mine && styles.linkRowDone]} accessibilityRole="button" accessibilityState={{ disabled: confirm.mine }}>
+        <Text style={styles.linkRowText}>{confirm.mine ? "Thanks, you confirmed this" : "Looks right"}</Text>
       </Pressable>
       <Pressable onPress={() => void toggleSaved()} style={styles.linkRow} accessibilityRole="button" accessibilityState={{ selected: saved }}>
         <Text style={styles.linkRowText}>{saved ? "Saved. Tap to remove" : "Save this field for alerts"}</Text>
@@ -160,6 +187,7 @@ function make_styles() {
     linkRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 14, borderRadius: radius.card, backgroundColor: themeColor().card, borderWidth: 1, borderColor: themeColor().line },
     linkRowText: { fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().text },
     linkRowChevron: { fontSize: 20, color: themeColor().muted },
+    linkRowDone: { opacity: 0.6 },
     tagRow: { flexDirection: "row", marginTop: 6 },
     sep: { height: StyleSheet.hairlineWidth, backgroundColor: c.line, marginVertical: 14 },
     cta: { backgroundColor: c.pitch, borderRadius: radius.button, paddingVertical: 16, alignItems: "center" },

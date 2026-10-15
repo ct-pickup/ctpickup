@@ -46,6 +46,10 @@ export type Venue = {
   permit_basis: string | null;
   /** Where the field is. Rows read before the setting column existed have none: treat that as outdoor. */
   setting?: VenueSetting | null;
+  /** osm = from the map data; player = added by a player and approved. Rows from before the column have none: treat as osm. */
+  source?: "osm" | "player" | null;
+  locked_fields?: string[] | null;
+  player_notes?: string | null;
   verified: boolean;
   last_verified_at: string | null;
   updated_at: string | null;

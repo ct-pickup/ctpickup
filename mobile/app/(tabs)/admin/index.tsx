@@ -25,6 +25,7 @@ const MORE: Array<{ label: string; href: Href }> = [
   { label: "Standing", href: "/admin/standing" as Href },
   { label: "Chat moderation", href: "/admin/chat" as Href },
   { label: "Field requests", href: "/admin/field-requests" as Href },
+  { label: "Field suggestions", href: "/admin/venue-suggestions" as Href },
   { label: "Venue calendars", href: "/admin/venue-calendars" as Href },
   { label: "Tournaments", href: "/admin/tournament" as Href },
   { label: "Tools", href: "/admin/tools" as Href },

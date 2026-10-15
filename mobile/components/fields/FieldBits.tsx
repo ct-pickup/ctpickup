@@ -1,7 +1,8 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { StyleSheet, Text, View } from "react-native";
 
-import { confirmationLabel, type Confirmation } from "@/lib/fields/presentation";
+import { confirmationLabel as verifiedLabel, type Confirmation } from "@/lib/fields/presentation";
+import { confirmationLabel } from "@shared/fields/suggestions";
 import { radius, themeColor, useThemedStyles } from "@/theme";
 
 type Tone = "good" | "warn" | "neutral";
@@ -23,7 +24,30 @@ export function ConfirmationBadge({ value }: { value: Confirmation }) {
   return (
     <View style={[styles.badge, verified ? styles.badgeVerified : styles.badgeConfirming]}>
       <FontAwesome name={verified ? "check-circle" : "clock-o"} size={12} color={verified ? themeColor().pitchText : themeColor().muted} />
-      <Text style={[styles.badgeText, verified ? styles.badgeTextVerified : styles.badgeTextConfirming]}>{confirmationLabel(value)}</Text>
+      <Text style={[styles.badgeText, verified ? styles.badgeTextVerified : styles.badgeTextConfirming]}>{verifiedLabel(value)}</Text>
+    </View>
+  );
+}
+
+/** "Player-reported" for a field a player added, and "Confirmed by N players" once players have said it looks right. */
+export function SourceBadges({ playerReported, confirmations }: { playerReported: boolean; confirmations: number }) {
+  useThemedStyles(publish_styles);
+  const label = confirmationLabel(confirmations);
+  if (!playerReported && !label) return null;
+  return (
+    <View style={styles.badgeRow}>
+      {playerReported ? (
+        <View style={[styles.badge, styles.badgeConfirming]}>
+          <FontAwesome name="user" size={12} color={themeColor().muted} />
+          <Text style={[styles.badgeText, styles.badgeTextConfirming]}>Player-reported</Text>
+        </View>
+      ) : null}
+      {label ? (
+        <View style={[styles.badge, styles.badgeVerified]}>
+          <FontAwesome name="check" size={12} color={themeColor().pitchText} />
+          <Text style={[styles.badgeText, styles.badgeTextVerified]}>{label}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -36,6 +60,7 @@ function make_styles() {
     tagWarn: { backgroundColor: c.overlaySubtle, borderWidth: 1, borderColor: c.line },
     tagText: { fontSize: 12, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: c.text },
     tagTextGood: { color: c.onPitchPanel },
+    badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
     badge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
     badgeVerified: { backgroundColor: c.pitchPanel },
     badgeConfirming: { backgroundColor: c.overlaySubtle },

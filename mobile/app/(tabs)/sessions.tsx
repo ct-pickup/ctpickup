@@ -169,7 +169,7 @@ export default function GamesTabScreen() {
         </ScrollView>
       ) : view === "fields" ? (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]} keyboardShouldPersistTaps="handled">
-          <FieldsPanel onOpen={(key) => push(`/field/${encodeURIComponent(key)}`)} onMyRequests={() => push("/field-requests")} onPlans={() => push("/plans")} />
+          <FieldsPanel onOpen={(key) => push(`/field/${encodeURIComponent(key)}`)} onMyRequests={() => push("/field-requests")} onPlans={() => push("/plans")} onSuggest={(a) => push(`/suggest-field?lat=${a.lat}&lon=${a.lon}&dlat=${a.dlat}&dlon=${a.dlon}`)} />
         </ScrollView>
       ) : (
       <ScrollView

@@ -34,13 +34,15 @@ type Props = {
   onMyRequests?: () => void;
   /** Opens the Plans screen. */
   onPlans?: () => void;
+  /** Opens Suggest a field, centred on the map the player is looking at. */
+  onSuggest?: (at: { lat: number; lon: number; dlat: number; dlon: number }) => void;
 };
 
 /**
  * Search, filter chips, the map and the list of fields. Lives under the Fields toggle on the Games tab. Venues are fetched
  * from the database for the visible map area as it moves (venues_nearby), never all at once.
  */
-export function FieldsPanel({ onOpen, onMyRequests, onPlans }: Props) {
+export function FieldsPanel({ onOpen, onMyRequests, onPlans, onSuggest }: Props) {
   useThemedStyles(publish_styles);
   // undefined while the player's location is being read, null when it is not available.
   const [user, setUser] = useState<{ lat: number; lon: number } | null | undefined>(undefined);
@@ -141,6 +143,19 @@ export function FieldsPanel({ onOpen, onMyRequests, onPlans }: Props) {
         <Text style={styles.listTitle}>{loading && items.length === 0 ? "Finding fields" : countLabel(total, searching)}</Text>
         {FIELDS_SAMPLE_DATA ? <Text style={styles.sample}>Sample data</Text> : null}
       </View>
+      {onSuggest ? (
+        <Pressable
+          onPress={() => {
+            const r = region ?? start ?? DEFAULT_REGION;
+            onSuggest({ lat: r.latitude, lon: r.longitude, dlat: r.latitudeDelta, dlon: r.longitudeDelta });
+          }}
+          accessibilityRole="button"
+          hitSlop={8}
+          style={styles.myRequests}
+        >
+          <Text style={styles.myRequestsText}>Suggest a field</Text>
+        </Pressable>
+      ) : null}
       {onMyRequests ? (
         <Pressable onPress={onMyRequests} accessibilityRole="link" hitSlop={8} style={styles.myRequests}>
           <Text style={styles.myRequestsText}>My requests</Text>

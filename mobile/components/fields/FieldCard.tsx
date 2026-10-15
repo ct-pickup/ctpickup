@@ -32,6 +32,7 @@ export function FieldCard({ item, onPress }: { item: FieldListing; onPress: () =
         </Text>
         <View style={styles.tags}>
           <Tag label={priceLabel(v)} tone={v.price_status === "free" ? "good" : "neutral"} />
+          {v.source === "player" ? <Tag label="Player-reported" /> : null}
           {settingTag(v) ? <Tag label={settingTag(v)!} /> : null}
           {isTurf(v) ? <Tag label="Turf" /> : null}
           {permit ? <Tag label={permit.label} tone={permit.tone} /> : null}
