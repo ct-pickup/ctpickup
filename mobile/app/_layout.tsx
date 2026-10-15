@@ -3,6 +3,8 @@ import "@/lib/appVersionHeader";
 
 Sentry.init({
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  // "dev-testflight" for the testflight-dev build, so its errors never mix with production in Sentry.
+  environment: process.env.EXPO_PUBLIC_APP_ENV?.trim() || "production",
   enabled: !__DEV__,
   debug: false,
   tracesSampleRate: 0.1,

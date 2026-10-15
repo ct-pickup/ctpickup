@@ -1,18 +1,4 @@
-const IS_DEV = process.env.APP_VARIANT === "development";
+/* eslint-disable @typescript-eslint/no-require-imports */
+const { applyVariant } = require("./buildVariant");
 
-module.exports = ({ config }) => ({
-  ...config,
-  name: IS_DEV ? "CT Dev" : config.name,
-  ios: {
-    ...config.ios,
-    infoPlist: {
-      ...config.ios?.infoPlist,
-      CFBundleDisplayName: IS_DEV
-        ? "CT Dev"
-        : config.ios?.infoPlist?.CFBundleDisplayName,
-    },
-    bundleIdentifier: IS_DEV
-      ? "com.ctpickup.mobile.dev"
-      : config.ios.bundleIdentifier,
-  },
-});
+module.exports = ({ config }) => applyVariant(config, process.env);
