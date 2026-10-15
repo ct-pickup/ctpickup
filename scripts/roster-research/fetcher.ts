@@ -8,7 +8,7 @@ import { join } from "node:path";
  */
 
 export type FetchResponse = { status: number; text(): Promise<string> };
-export type FetchLike = (url: string, init: { headers: Record<string, string>; redirect: "follow" }) => Promise<FetchResponse>;
+export type FetchLike = (url: string, init: { headers: Record<string, string>; redirect: "follow"; signal?: AbortSignal }) => Promise<FetchResponse>;
 
 export type FetchResult = { url: string; status: number; body: string; fromCache: boolean; error?: string; blockedByRobots?: boolean };
 
@@ -56,6 +56,10 @@ export type FetcherOptions = {
   cacheDir: string;
   userAgent: string;
   minIntervalMs?: number;
+  /** Slower hosts: milliseconds between requests per host. The Wayback Machine gets 2 seconds by default. */
+  hostIntervalMs?: Record<string, number>;
+  /** Give up on a request after this long (default 30 seconds). A timeout is a retryable network error, not cached. */
+  timeoutMs?: number;
   fetchImpl?: FetchLike;
   sleep?: (ms: number) => Promise<void>;
   now?: () => number;
@@ -65,6 +69,8 @@ export type FetcherOptions = {
 
 export class PoliteFetcher {
   private last = new Map<string, number>();
+  /** One request at a time per host, so two workers can never both pass the "wait a second" check together. */
+  private lanes = new Map<string, Promise<unknown>>();
   private robots = new Map<string, string | null>();
   readonly requests: string[] = [];
   private o: Required<FetcherOptions>;
@@ -72,6 +78,8 @@ export class PoliteFetcher {
   constructor(o: FetcherOptions) {
     this.o = {
       minIntervalMs: 1000,
+      hostIntervalMs: { "web.archive.org": 2000 },
+      timeoutMs: 30_000,
       offline: false,
       fetchImpl: ((url, init) => fetch(url, init)) as FetchLike,
       sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
@@ -88,7 +96,8 @@ export class PoliteFetcher {
   }
 
   private async throttle(host: string): Promise<void> {
-    const wait = (this.last.get(host) ?? 0) + this.o.minIntervalMs - this.o.now();
+    const interval = this.o.hostIntervalMs[host] ?? this.o.minIntervalMs;
+    const wait = (this.last.get(host) ?? 0) + interval - this.o.now();
     if (wait > 0) await this.o.sleep(wait);
     this.last.set(host, this.o.now());
   }
@@ -100,17 +109,34 @@ export class PoliteFetcher {
       return { url, status: c.status, body: c.body, fromCache: true };
     }
     if (this.o.offline) return { url, status: 0, body: "", fromCache: false, error: "offline: not in the cache" };
-    await this.throttle(new URL(url).hostname);
-    this.requests.push(url);
-    try {
-      const res = await this.o.fetchImpl(url, { headers: { "User-Agent": this.o.userAgent, Accept: "text/html,*/*;q=0.5" }, redirect: "follow" });
-      const body = await res.text();
-      // Cache what the site answered, even a 404, so it is not asked twice. Server errors and rate limits are retried later.
-      if (res.status < 500 && res.status !== 429) writeFileSync(file, JSON.stringify({ url, status: res.status, body, fetchedAt: new Date(this.o.now()).toISOString() }));
-      return { url, status: res.status, body, fromCache: false };
-    } catch (e) {
-      return { url, status: 0, body: "", fromCache: false, error: e instanceof Error ? e.message : "network error" };
-    }
+    const host = new URL(url).hostname;
+    const run = async (): Promise<FetchResult> => {
+      // Another worker may have fetched this exact page while this one waited its turn.
+      if (existsSync(file)) {
+        const c = JSON.parse(readFileSync(file, "utf8")) as { status: number; body: string };
+        return { url, status: c.status, body: c.body, fromCache: true };
+      }
+      await this.throttle(host);
+      this.requests.push(url);
+      try {
+        const res = await this.o.fetchImpl(url, {
+          headers: { "User-Agent": this.o.userAgent, Accept: "text/html,*/*;q=0.5" },
+          redirect: "follow",
+          signal: typeof AbortSignal !== "undefined" && "timeout" in AbortSignal ? AbortSignal.timeout(this.o.timeoutMs) : undefined,
+        });
+        const body = await res.text();
+        // Cache what the site answered, even a 404, so it is not asked twice. Server errors and rate limits are retried later.
+        if (res.status < 500 && res.status !== 429) writeFileSync(file, JSON.stringify({ url, status: res.status, body, fetchedAt: new Date(this.o.now()).toISOString() }));
+        return { url, status: res.status, body, fromCache: false };
+      } catch (e) {
+        const name = (e as { name?: string })?.name;
+        return { url, status: 0, body: "", fromCache: false, error: name === "TimeoutError" || name === "AbortError" ? `timeout after ${this.o.timeoutMs / 1000}s` : e instanceof Error ? e.message : "network error" };
+      }
+    };
+    const prev = this.lanes.get(host) ?? Promise.resolve();
+    const mine = prev.then(run, run);
+    this.lanes.set(host, mine.catch(() => undefined));
+    return mine;
   }
 
   private async robotsFor(url: string): Promise<string | null> {

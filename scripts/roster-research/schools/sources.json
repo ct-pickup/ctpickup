@@ -1,0 +1,17 @@
+{
+  "_note": "Where --build-schools looks, in order: the official directory, then Wikipedia. None of these addresses or response shapes could be checked from the build environment (it has no access to these sites), so treat them as a first guess. The builder prints how many schools each source gave; if a source gives none it moves on, and you can edit the addresses here without touching code. {sportCode} and {divisionCode} are filled in per division and team.",
+  "ncaa": {
+    "url": "https://web3.ncaa.org/directory/api/directory/memberList?type=12&sportCode={sportCode}&division={divisionCode}",
+    "sportCodes": { "men": "MSO", "women": "WSO" },
+    "divisionCodes": { "D1": 1, "D2": 2, "D3": 3 }
+  },
+  "wikipedia": {
+    "D1": { "men": "List_of_NCAA_Division_I_men's_soccer_programs", "women": "List_of_NCAA_Division_I_women's_soccer_programs" },
+    "D2": { "men": "List_of_NCAA_Division_II_men's_soccer_programs", "women": "List_of_NCAA_Division_II_women's_soccer_programs" },
+    "D3": { "men": "List_of_NCAA_Division_III_men's_soccer_programs", "women": "List_of_NCAA_Division_III_women's_soccer_programs" }
+  },
+  "njcaa": {
+    "men": ["https://www.njcaa.org/sports/msoc/index"],
+    "women": ["https://www.njcaa.org/sports/wsoc/index"]
+  }
+}

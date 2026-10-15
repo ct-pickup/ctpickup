@@ -1,12 +1,22 @@
 import { parseRosterHtml } from "./sidearm.ts";
 import { isTargetState } from "./states.ts";
 import { waybackUrl, type FetchResult } from "./fetcher.ts";
+import type { Platform, RosterInfo } from "./platform.ts";
 
 /** The collection plan, one page at a time, and how a page becomes rows. No network here: the fetcher is passed in. */
 
 export type Division = "D1" | "D2" | "D3" | "JUCO";
 export type Team = "men" | "women";
-export type School = { id: string; school: string; division: Division; conference: string; base: string };
+export type School = {
+  id: string; school: string; division: Division; conference: string; base: string;
+  /** From the school list builder; hand-written entries may lack them. */
+  state?: string;
+  men?: boolean;
+  women?: boolean;
+  platform?: Platform;
+  source?: string;
+  roster?: RosterInfo;
+};
 export type Task = { school: School; team: Team; season: number };
 
 /** Seasons we collect. D1 2023-2026 are already held elsewhere. */
@@ -16,16 +26,42 @@ export const D1_HELD_SEASONS = [2023, 2024, 2025, 2026];
 
 export const taskKey = (t: Task): string => `${t.school.id}|${t.team}|${t.season}`;
 
-export function planTasks(schools: School[], opts: { divisions: Division[]; seasons: number[]; conference?: string }): Task[] {
-  const out: Task[] = [];
+export type Skip = { school: string; division: Division; conference: string; team: Team; season: number; reason: string };
+
+/** Why a school's pages are not fetched, or null when they are. Sidearm-pattern or verified roster addresses are fetched; the rest are skipped. */
+export function skipReason(s: School): string | null {
+  const r = s.roster;
+  if (r?.status === "needs_review") return `needs_review: ${r.reason || "roster address not verified"}`;
+  if (r?.status === "unsupported_platform") return `unsupported_platform: ${r.reason}`;
+  if (r?.status === "verified") return null;
+  // Not checked yet (hand-written lists, or a list built with --skip-verify): fetch only if it is known or assumed to be Sidearm.
+  if (!s.platform || s.platform === "sidearm") return s.base ? null : "no athletics website address";
+  return `unsupported_platform: ${s.platform}`;
+}
+
+export type Plan = { tasks: Task[]; skipped: Skip[] };
+
+/** The pages to fetch, plus the programs that were left out and why (they go in the coverage log). Programs a school does not have are not planned. */
+export function planWithSkips(schools: School[], opts: { divisions: Division[]; seasons: number[]; conference?: string; state?: string }): Plan {
+  const tasks: Task[] = [];
+  const skipped: Skip[] = [];
   for (const season of opts.seasons)
     for (const s of schools) {
       if (!opts.divisions.includes(s.division)) continue;
       if (opts.conference && s.conference.toLowerCase() !== opts.conference.toLowerCase()) continue;
-      // D1 is only collected for the seasons we do not already hold, unless asked for explicitly by listing the season.
-      for (const team of ["men", "women"] as Team[]) out.push({ school: s, team, season });
+      if (opts.state && (s.state ?? "").toUpperCase() !== opts.state.toUpperCase()) continue;
+      const why = skipReason(s);
+      for (const team of ["men", "women"] as Team[]) {
+        if ((team === "men" ? s.men : s.women) === false) continue;
+        if (why) skipped.push({ school: s.school, division: s.division, conference: s.conference, team, season, reason: why });
+        else tasks.push({ school: s, team, season });
+      }
     }
-  return out;
+  return { tasks, skipped };
+}
+
+export function planTasks(schools: School[], opts: { divisions: Division[]; seasons: number[]; conference?: string; state?: string }): Task[] {
+  return planWithSkips(schools, opts).tasks;
 }
 
 export const PHASES: Record<number, { divisions: Division[]; seasons: number[]; conference?: string }> = {
@@ -36,14 +72,14 @@ export const PHASES: Record<number, { divisions: Division[]; seasons: number[]; 
 
 /** Candidate roster URLs for a task, best first. The current season's page has no year in some sites, so it is tried last. */
 export function candidateUrls(t: Task, currentSeason = 2026): string[] {
-  const slug = t.team === "men" ? "mens-soccer" : "womens-soccer";
+  const slug = t.team === "men" ? "mens-soccer" : "womens-soccer"; // Sidearm pattern: the only one the parser reads
   const base = `${t.school.base.replace(/\/+$/, "")}/sports/${slug}/roster`;
   const yy = String(t.season + 1).slice(2);
   const direct = [`${base}/${t.season}`, `${base}/${t.season}-${yy}`];
   const urls = [...direct];
   if (t.season === currentSeason) urls.push(base);
-  // Older seasons often only survive in the Wayback Machine.
-  if (t.season < currentSeason) for (const u of direct) urls.push(waybackUrl(t.season, u));
+  // Seasons before 2025: the live site first (above), then the Wayback Machine (2 seconds between requests, 30 second timeout).
+  if (t.season < 2025) for (const u of direct) urls.push(waybackUrl(t.season, u));
   return urls;
 }
 
@@ -186,6 +222,13 @@ export function coverageCsv(outcomes: Outcome[]): string {
 }
 
 export type Summary = { tasks: number; schools: number; pagesFound: number; missing: number; failed: number; rowsKept: number; skippedNonTarget: number; skippedUnreadable: number; parseFailures: number };
+/** The coverage log plus a row for every program that was skipped, with the reason. */
+export function coverageCsvWithSkips(outcomes: Outcome[], skipped: Skip[]): string {
+  const base = coverageCsv(outcomes).trimEnd().split("\n");
+  const rows = skipped.map((k) => COVERAGE_COLUMNS.map((c) => csvCell({ school: k.school, division: k.division, conference: k.conference, team: k.team, season: k.season, status: "skipped", error: k.reason }[c as string] ?? "")).join(","));
+  return [...base, ...rows].join("\n") + "\n";
+}
+
 export function summarize(outcomes: Outcome[]): Summary {
   return {
     tasks: outcomes.length,

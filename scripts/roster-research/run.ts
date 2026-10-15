@@ -5,6 +5,12 @@
  *
  * Phases:  1 pilot (D3, NESCAC, 2026)   2 (D3 + D2 + JUCO, 2026)   3 (2022, then 2018, then 2014; all divisions)
  * Options: --phase N | --division D3 --season 2026 --conference NESCAC   (override the phase)
+ *          --build-schools     build schools/d1.json d2.json d3.json juco.json: every men's and women's soccer program, the athletics site's
+ *                              platform, and a check of each Sidearm roster address (one request per program, cached). Needs the contact
+ *                              email. Options: --division D3 (one division), --limit N (check only N schools), --skip-verify (lists only),
+ *                              --refresh (check everything again). Reads schools/sources.json and schools/overrides.json.
+ *          --list-needs-review print every school whose roster address could not be used: name, division and reason (no network)
+ *          --state CT          only schools in this state (the school's state, not the players')
  *          --out DIR           default data/outreach/rosters   (gitignored; never commit the rows)
  *          --schools DIR       default scripts/roster-research/schools   (*.json lists of schools)
  *          --retry-failed      try again the pages that failed on the network last time
@@ -26,8 +32,9 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-import { buildCsvs, collectTask, coverageCsv, pendingTasks, skippedReport, PHASES, planTasks, summarize, taskKey, type Division, type Outcome, type School } from "./core.ts";
+import { buildCsvs, collectTask, coverageCsvWithSkips, pendingTasks, skippedReport, PHASES, planWithSkips, summarize, taskKey, type Division, type Outcome } from "./core.ts";
 import { buildUserAgent, PoliteFetcher } from "./fetcher.ts";
+import { buildSchoolLists, loadSchoolFiles, needsReviewLines, schoolReport, type Overrides, type SourcesConfig } from "./schoolList.ts";
 import { buildOutreach, outreachCsv, outreachSummary, unsplitCsv } from "./outreach.ts";
 import { parseCsv } from "../lib/researchImport.ts";
 import type { Row } from "./core.ts";
@@ -41,13 +48,6 @@ const fail = (m: string): never => {
   console.error(m);
   process.exit(1);
 };
-
-function loadSchools(dir: string): School[] {
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((f) => f.endsWith(".json"))
-    .flatMap((f) => (JSON.parse(readFileSync(join(dir, f), "utf8")) as { schools: School[] }).schools);
-}
 
 function loadOutcomes(file: string): Map<string, Outcome> {
   const m = new Map<string, Outcome>();
@@ -93,16 +93,45 @@ async function main() {
     return;
   }
 
+  const schoolsDir = resolve(arg("--schools") ?? "scripts/roster-research/schools");
+
+  if (flag("--list-needs-review")) {
+    const lines = needsReviewLines(loadSchoolFiles(schoolsDir), arg("--division") ?? undefined);
+    for (const l of lines) console.log(l);
+    console.log(`${lines.length} schools need review or use an unsupported platform.`);
+    return;
+  }
+  if (flag("--build-schools")) {
+    const readJson = <T,>(f: string, fallback: T): T => {
+      try {
+        return JSON.parse(readFileSync(join(schoolsDir, f), "utf8")) as T;
+      } catch {
+        return fallback;
+      }
+    };
+    const fetcher = new PoliteFetcher({ cacheDir: join(out, ".cache"), userAgent: buildUserAgent(process.env.ROSTER_CONTACT_EMAIL) });
+    const only = arg("--division") as Division | null;
+    const all = await buildSchoolLists({
+      dir: schoolsDir, sources: readJson<SourcesConfig>("sources.json", {}), overrides: readJson<Overrides>("overrides.json", {}), fetcher,
+      divisions: only ? [only] : ["D1", "D2", "D3", "JUCO"], season: Number(arg("--season") ?? 2025), nowIso: new Date().toISOString(),
+      refresh: flag("--refresh"), verify: !flag("--skip-verify"), limit: arg("--limit") ? Number(arg("--limit")) : undefined, log: (l) => console.log(l),
+    });
+    console.log("");
+    for (const l of schoolReport(all)) console.log(l);
+    console.log(`\nNetwork requests this run: ${fetcher.requests.length}. Pages already cached were not fetched again. See the schools that need review with --list-needs-review.`);
+    return;
+  }
+
   const phase = Number(arg("--phase") ?? 0);
   const preset = PHASES[phase];
   const divisions = (arg("--division") ? [arg("--division") as Division] : preset?.divisions) ?? fail("Pass --phase 1|2|3, or --division and --season.");
   const seasons = (arg("--season") ? [Number(arg("--season"))] : preset?.seasons) ?? fail("Pass --season.");
   const conference = arg("--conference") ?? preset?.conference;
 
-  const schools = loadSchools(resolve(arg("--schools") ?? "scripts/roster-research/schools"));
-  const tasks = planTasks(schools, { divisions, seasons, conference });
-  console.log(`Plan: ${tasks.length} pages (${new Set(tasks.map((t) => t.school.id)).size} schools) for ${divisions.join("/")} ${seasons.join(", ")}${conference ? ` ${conference}` : ""}`);
-  if (tasks.length === 0) fail(`No schools match. Add school lists to ${arg("--schools") ?? "scripts/roster-research/schools"}.`);
+  const schools = loadSchoolFiles(schoolsDir);
+  const { tasks, skipped } = planWithSkips(schools, { divisions, seasons, conference, state: arg("--state") ?? undefined });
+  console.log(`Plan: ${tasks.length} pages (${new Set(tasks.map((t) => t.school.id)).size} schools) for ${divisions.join("/")} ${seasons.join(", ")}${conference ? ` ${conference}` : ""}${arg("--state") ? ` in ${arg("--state")}` : ""}; ${skipped.length} programs skipped (see the coverage log)`);
+  if (tasks.length === 0) fail(`No schools match. Build the lists with --build-schools, or add school lists to ${schoolsDir}.`);
 
   const done = loadOutcomes(outcomesFile);
   const offlineOnly = flag("--report-only") || flag("--show-skipped");
@@ -138,12 +167,18 @@ async function main() {
   // Build the CSVs and the coverage log from everything collected for the planned pages.
   const mine = tasks.map((t) => done.get(taskKey(t))).filter((o): o is Outcome => !!o);
   for (const [name, csv] of buildCsvs(mine)) writeFileSync(join(out, name), csv);
-  writeFileSync(join(out, `coverage_${divisions.join("-")}_${seasons.join("-")}.csv`), coverageCsv(mine));
+  writeFileSync(join(out, `coverage_${divisions.join("-")}_${seasons.join("-")}.csv`), coverageCsvWithSkips(mine, skipped));
   const s = summarize(mine);
   console.log("\n=== Coverage ===");
   console.log(`Schools attempted: ${s.schools}   pages planned: ${tasks.length}   pages found: ${s.pagesFound}   not found: ${s.missing}   network failures: ${s.failed}`);
   console.log(`Rows kept: ${s.rowsKept}   skipped, not a target state: ${s.skippedNonTarget}   skipped, foreign or unreadable hometown: ${s.skippedUnreadable}   parse failures: ${s.parseFailures}`);
-  console.log(`Pending: ${tasks.length - mine.length}`);
+  console.log(`Pending: ${tasks.length - mine.length}   skipped programs (no usable roster address or platform): ${skipped.length}`);
+  const skipGroups = new Map<string, number>();
+  for (const k of skipped) {
+    const label = k.reason.length > 60 ? `${k.reason.slice(0, 60)}...` : k.reason;
+    skipGroups.set(label, (skipGroups.get(label) ?? 0) + 1);
+  }
+  for (const [r, n] of [...skipGroups.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8)) console.log(`  skipped ${n}: ${r}`);
   const bad = mine.filter((o) => o.status !== "ok");
   for (const o of bad.slice(0, 40)) console.log(`  ${o.status}: ${o.school} ${o.team} ${o.season}${o.error ? ` (${o.error})` : ""}`);
   console.log("");
