@@ -34,7 +34,7 @@ const hostOf = (base: string): string => {
   }
 };
 
-export type SchoolRecord = School & { ncaa_id?: string };
+export type SchoolRecord = School & { ncaa_id?: string; provisional?: boolean };
 
 // ---------------------------------------------------------------------------------------------------------------------------
 // Collecting a division from its sources
@@ -86,23 +86,30 @@ export async function collectTeam(division: Division, team: "men" | "women", cfg
   return { schools: [], source: "" };
 }
 
-export type FilterStats = { otherDivisionSchools: number; otherDivisionRows: number; divisionUnknownSchools: number; divisionUnknownRows: number; notSoccerRows: number; staleRemoved: number };
-export const emptyStats = (): FilterStats => ({ otherDivisionSchools: 0, otherDivisionRows: 0, divisionUnknownSchools: 0, divisionUnknownRows: 0, notSoccerRows: 0, staleRemoved: 0 });
+export type FilterStats = { otherDivisionSchools: number; otherDivisionRows: number; divisionUnknownSchools: number; divisionUnknownRows: number; notSoccerRows: number; deactivatedRows: number; staleRemoved: number };
+export const emptyStats = (): FilterStats => ({ otherDivisionSchools: 0, otherDivisionRows: 0, divisionUnknownSchools: 0, divisionUnknownRows: 0, notSoccerRows: 0, deactivatedRows: 0, staleRemoved: 0 });
 export const addStats = (a: FilterStats, b: FilterStats): FilterStats => ({
   otherDivisionSchools: a.otherDivisionSchools + b.otherDivisionSchools, otherDivisionRows: a.otherDivisionRows + b.otherDivisionRows,
   divisionUnknownSchools: a.divisionUnknownSchools + b.divisionUnknownSchools, divisionUnknownRows: a.divisionUnknownRows + b.divisionUnknownRows,
-  notSoccerRows: a.notSoccerRows + b.notSoccerRows, staleRemoved: a.staleRemoved + b.staleRemoved,
+  notSoccerRows: a.notSoccerRows + b.notSoccerRows, deactivatedRows: a.deactivatedRows + b.deactivatedRows, staleRemoved: a.staleRemoved + b.staleRemoved,
 });
 
 /** The identity of a school across rows: its athletics website host, else its name and state. */
 export const schoolKeys = (p: { name: string; state?: string; base?: string; ncaaId?: string }): string[] => {
+  // The NCAA's orgId is the stable identity: two records with the same orgId are one school, different orgIds never merge.
+  if (p.ncaaId) return [`id:${p.ncaaId}`];
   const keys: string[] = [];
   const h = hostOf(p.base ?? "");
   if (h) keys.push(`host:${h}`);
-  if (p.ncaaId) keys.push(`id:${p.ncaaId}`);
   keys.push(`name:${nameKey(p.name)}|${normalizeState(p.state) ?? ""}`);
   return keys;
 };
+
+/** Every way a school can be recognised (orgId, website host, name and state), for matching against older entries on disk. */
+export const allSchoolKeys = (p: { name: string; state?: string; base?: string; ncaaId?: string }): string[] => [
+  ...(p.ncaaId ? [`id:${p.ncaaId}`] : []),
+  ...schoolKeys({ name: p.name, state: p.state, base: p.base }),
+];
 
 /**
  * Men's and women's lists for one division into one record per school.
@@ -127,12 +134,17 @@ export function combineTeamsWithStats(division: Division, men: TeamResult, women
     if (!cur.conference && p.conference) cur.conference = p.conference;
     if (!cur.state && p.state) cur.state = normalizeState(p.state) ?? p.state;
     if (p.ncaaId) cur.ncaa_id = p.ncaaId;
+    if (p.provisional) cur.provisional = true;
     cur[team] = true;
     cur.source = [...new Set((cur.source ? cur.source.split(" + ") : []).concat(`${team}:${source}`))].join(" + ");
     for (const k of [...keys, ...schoolKeys({ name: cur.school, state: cur.state, base: cur.base, ncaaId: cur.ncaa_id })]) byKey.set(k, cur);
   };
   const feed = (r: TeamResult, requestTeam: "men" | "women") => {
     for (const p of r.schools) {
+      if (p.deactivated) {
+        stats.deactivatedRows++;
+        continue;
+      }
       const d = p.division ?? "";
       if (d === "") {
         stats.divisionUnknownRows++;
@@ -344,13 +356,13 @@ export async function buildSchoolLists(o: BuildOptions): Promise<BuildResult> {
     const men = await collectTeam(division, "men", o.sources, o.fetcher, o.log);
     const women = await collectTeam(division, "women", o.sources, o.fetcher, o.log);
     const { records: incoming, stats: st } = combineTeamsWithStats(division, men, women);
-    o.log(`  kept ${incoming.length} ${division} schools; dropped ${st.otherDivisionSchools} that belong to another division (${st.otherDivisionRows} rows), ${st.divisionUnknownSchools} with division unknown (${st.divisionUnknownRows} rows), ${st.notSoccerRows} rows with no soccer program`);
+    o.log(`  kept ${incoming.length} ${division} schools; dropped ${st.otherDivisionSchools} that belong to another division (${st.otherDivisionRows} rows), ${st.divisionUnknownSchools} with division unknown (${st.divisionUnknownRows} rows), ${st.deactivatedRows} deactivated members (rows), ${st.notSoccerRows} rows with no soccer program (other sources only)`);
     if (incoming.length === 0) o.log(`  no source gave any ${division} schools. Existing ${divisionFile(division)} entries are kept; add schools by hand or fix schools/sources.json.`);
     const mine = result.filter((s) => s.division === division);
     let base = mine;
     if (incoming.length > 0) {
-      const keep = new Set(incoming.flatMap((r) => schoolKeys({ name: r.school, state: r.state, base: r.base, ncaaId: r.ncaa_id })));
-      base = mine.filter((m) => curated.has(m.id) || !m.source || schoolKeys({ name: m.school, state: m.state, base: m.base, ncaaId: m.ncaa_id }).some((k) => keep.has(k)));
+      const keep = new Set(incoming.flatMap((r) => allSchoolKeys({ name: r.school, state: r.state, base: r.base, ncaaId: r.ncaa_id })));
+      base = mine.filter((m) => curated.has(m.id) || !m.source || allSchoolKeys({ name: m.school, state: m.state, base: m.base, ncaaId: m.ncaa_id }).some((k) => keep.has(k)));
       st.staleRemoved = mine.length - base.length;
       if (st.staleRemoved) o.log(`  removed ${st.staleRemoved} entries from an earlier build that this source does not list as ${division}`);
     }
@@ -400,7 +412,9 @@ export function schoolReport(schools: SchoolRecord[]): string[] {
   lines.push("=== School lists ===");
   for (const d of DIVISIONS) {
     const ds = schools.filter((s) => s.division === d);
-    lines.push(`${d}: ${ds.length} schools, ${ds.filter((s) => s.men === true).length} men's programs, ${ds.filter((s) => s.women === true).length} women's programs (${ds.filter((s) => s.men === undefined || s.women === undefined).length} schools with a program flag unknown)`);
+    const both = ds.filter((s) => s.men === true && s.women === true).length;
+    const prov = ds.filter((s) => s.provisional).length;
+    lines.push(`${d}: ${ds.length} schools, ${ds.filter((s) => s.men === true).length} men's programs, ${ds.filter((s) => s.women === true).length} women's programs, ${both} schools with both (${ds.filter((s) => s.men === undefined || s.women === undefined).length} with a program flag unknown${prov ? `, ${prov} provisional members` : ""})`);
   }
   lines.push("Schools per platform:");
   for (const [p, n] of count(schools, (s) => PLATFORM_LABEL[s.platform ?? "unknown"] ?? "unknown")) lines.push(`  ${p}: ${n}`);

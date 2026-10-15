@@ -1,0 +1,108 @@
+[
+ {
+  "orgId": 1,
+  "nameOfficial": "Example College",
+  "deactive": "N",
+  "division": 3,
+  "divisionRoman": "III",
+  "conferenceName": "NESCAC",
+  "conferenceId": 10,
+  "webSiteUrl": "https://www.examplecollege.edu/athletics/home",
+  "athleticWebUrl": "https://www.examplecollege.edu/athletics/home",
+  "memberOrgAddress": {
+   "city": "Town",
+   "state": "CT"
+  },
+  "provisionalMember": false,
+  "reclassYear": null,
+  "sportRegion": "EAST REGION"
+ },
+ {
+  "orgId": 2,
+  "nameOfficial": "Big State University",
+  "deactive": "N",
+  "division": 1,
+  "divisionRoman": "I",
+  "conferenceName": "Big 12",
+  "conferenceId": 20,
+  "webSiteUrl": "https://bigstate.edu",
+  "athleticWebUrl": "https://bigstate.edu",
+  "memberOrgAddress": {
+   "city": "Town",
+   "state": "TX"
+  },
+  "provisionalMember": false,
+  "reclassYear": null,
+  "sportRegion": "REGION VIII"
+ },
+ {
+  "orgId": 5,
+  "nameOfficial": "Emerald State",
+  "deactive": "N",
+  "division": 3,
+  "divisionRoman": "III",
+  "conferenceName": "Empire 8",
+  "conferenceId": 50,
+  "webSiteUrl": "https://www.emeraldstate.edu/",
+  "athleticWebUrl": "",
+  "memberOrgAddress": {
+   "city": "Town",
+   "state": "NY"
+  },
+  "provisionalMember": false,
+  "reclassYear": null,
+  "sportRegion": "EAST REGION"
+ },
+ {
+  "orgId": 6,
+  "nameOfficial": "Closed College",
+  "deactive": "Y",
+  "division": 3,
+  "divisionRoman": "III",
+  "conferenceName": "NJAC",
+  "conferenceId": 60,
+  "webSiteUrl": "https://closed.edu",
+  "athleticWebUrl": "https://closed.edu",
+  "memberOrgAddress": {
+   "city": "Town",
+   "state": "NJ"
+  },
+  "provisionalMember": false,
+  "reclassYear": null,
+  "sportRegion": "EAST REGION"
+ },
+ {
+  "orgId": 9,
+  "nameOfficial": "FBS Giant",
+  "deactive": "N",
+  "division": 1,
+  "divisionRoman": "I",
+  "conferenceName": "SEC",
+  "conferenceId": 90,
+  "webSiteUrl": "https://fbsgiant.com",
+  "athleticWebUrl": "https://fbsgiant.com",
+  "memberOrgAddress": {
+   "city": "Town",
+   "state": "AL"
+  },
+  "provisionalMember": false,
+  "reclassYear": null,
+  "sportRegion": "REGION VIII"
+ },
+ {
+  "orgId": 10,
+  "nameOfficial": "No Division University",
+  "deactive": "N",
+  "conferenceName": "Unknown Conf",
+  "conferenceId": 100,
+  "webSiteUrl": "https://nodiv.edu",
+  "athleticWebUrl": "https://nodiv.edu",
+  "memberOrgAddress": {
+   "city": "Town",
+   "state": "OH"
+  },
+  "provisionalMember": false,
+  "reclassYear": null,
+  "sportRegion": "EAST REGION"
+ }
+]

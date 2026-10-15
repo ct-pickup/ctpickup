@@ -22,9 +22,9 @@ export function fieldPaths(o: unknown, prefix = "", depth = 2): string[] {
 }
 
 /** Every string/number leaf under keys whose name matches `keyRe`, as "path=value" pairs. */
-function valuesUnder(o: unknown, keyRe: RegExp, prefix = "", inside = false): { path: string; value: string }[] {
+function valuesUnder(o: unknown, keyRe: RegExp, prefix = "", inside = false): { path: string; value: string | number | boolean }[] {
   if (o === null || o === undefined) return [];
-  if (typeof o !== "object") return inside ? [{ path: prefix, value: String(o) }] : [];
+  if (typeof o !== "object") return inside ? [{ path: prefix, value: o as string | number | boolean }] : [];
   if (Array.isArray(o)) return o.flatMap((x) => valuesUnder(x, keyRe, prefix, inside));
   return Object.entries(o as Obj).flatMap(([k, v]) => valuesUnder(v, keyRe, prefix ? `${prefix}.${k}` : k, inside || keyRe.test(k)));
 }
@@ -61,7 +61,15 @@ export function describeNcaa(json: unknown, url = ""): string[] {
   if (sports.length === 0) lines.push("  (no field with 'sport' in its name)");
   for (const [k, n] of tally(sports.map((d) => `${d.path} = ${JSON.stringify(d.value)}`)).slice(0, 40)) lines.push(`  ${String(n).padStart(5)}  ${k}`);
 
+  const flagValues = (key: string) => tally(records.map((r) => (r && typeof r === "object" && key in (r as Obj) ? JSON.stringify((r as Obj)[key]) : "(field missing)")));
+  for (const key of ["deactive", "provisionalMember"]) {
+    lines.push("", `${key}: distinct values with counts:`);
+    for (const [k, n] of flagValues(key)) lines.push(`  ${String(n).padStart(5)}  ${key} = ${k}`);
+  }
+  lines.push("(deactive: empty, N, No, false, 0, null or active = active member; anything else = deactivated and dropped. provisionalMember true = kept and flagged.)");
+
   const parsed = parseNcaaDirectory(json);
+  lines.push(`As parsed: ${parsed.filter((p) => p.deactivated).length} deactivated, ${parsed.filter((p) => p.provisional).length} provisional.`);
   const ids = new Set(parsed.map((p) => p.ncaaId).filter(Boolean));
   const names = new Set(parsed.map((p) => p.name.toLowerCase()));
   const nameState = new Set(parsed.map((p) => `${p.name.toLowerCase()}|${p.state}`));

@@ -125,18 +125,22 @@ async function main() {
         return fallback;
       }
     };
-    const fetcher = new PoliteFetcher({ cacheDir: join(out, ".cache"), userAgent: buildUserAgent(process.env.ROSTER_CONTACT_EMAIL) });
+    // --lists-only reads the cache and makes no network request, so it needs no contact email.
+    const listsOnly = flag("--lists-only");
+    const fetcher = listsOnly
+      ? new PoliteFetcher({ cacheDir: join(out, ".cache"), userAgent: "CTPickupRosterResearch/1.0 (offline, cache only)", offline: true })
+      : new PoliteFetcher({ cacheDir: join(out, ".cache"), userAgent: buildUserAgent(process.env.ROSTER_CONTACT_EMAIL) });
     const only = arg("--division") as Division | null;
     const all = await buildSchoolLists({
       dir: schoolsDir, sources: readJson<SourcesConfig>("sources.json", {}), overrides: readJson<Overrides>("overrides.json", {}), fetcher,
       divisions: only ? [only] : ["D1", "D2", "D3", "JUCO"], season: Number(arg("--season") ?? 2025), nowIso: new Date().toISOString(),
-      refresh: flag("--refresh"), verify: !flag("--skip-verify"), listsOnly: flag("--lists-only"), limit: arg("--limit") ? Number(arg("--limit")) : undefined, log: (l) => console.log(l),
+      refresh: flag("--refresh"), verify: !flag("--skip-verify"), listsOnly, limit: arg("--limit") ? Number(arg("--limit")) : undefined, log: (l) => console.log(l),
     });
     console.log("");
     for (const l of schoolReport(all.schools)) console.log(l);
     const st = all.stats;
-    console.log(`Dropped while building: ${st.otherDivisionSchools} schools in another division (${st.otherDivisionRows} rows), division unknown: ${st.divisionUnknownSchools} schools (${st.divisionUnknownRows} rows), rows with no soccer program: ${st.notSoccerRows}, stale entries from an earlier build removed: ${st.staleRemoved}`);
-    console.log(`\nNetwork requests this run: ${fetcher.requests.length}. Pages already cached were not fetched again. See the schools that need review with --list-needs-review.`);
+    console.log(`Dropped while building: ${st.otherDivisionSchools} schools in another division (${st.otherDivisionRows} rows), division unknown: ${st.divisionUnknownSchools} schools (${st.divisionUnknownRows} rows), deactivated members: ${st.deactivatedRows} rows, rows with no soccer program (Wikipedia/NJCAA lists only): ${st.notSoccerRows}, stale entries from an earlier build removed: ${st.staleRemoved}`);
+    console.log(`\nNetwork requests this run: ${fetcher.requests.length}. Pages already cached were not fetched again.${listsOnly && all.schools.length === 0 ? " Nothing was cached for this division: run once without --lists-only (with ROSTER_CONTACT_EMAIL) to fetch it." : ""} See the schools that need review with --list-needs-review.`);
     return;
   }
 

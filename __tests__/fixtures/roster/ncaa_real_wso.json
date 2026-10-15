@@ -1,0 +1,110 @@
+[
+ {
+  "orgId": 1,
+  "nameOfficial": "Example College",
+  "deactive": "N",
+  "division": 3,
+  "divisionRoman": "III",
+  "conferenceName": "NESCAC",
+  "conferenceId": 10,
+  "webSiteUrl": "https://www.examplecollege.edu/athletics/home",
+  "athleticWebUrl": "https://www.examplecollege.edu/athletics/home",
+  "memberOrgAddress": {
+   "city": "Town",
+   "state": "CT"
+  },
+  "provisionalMember": false,
+  "reclassYear": null,
+  "sportRegion": "EAST REGION"
+ },
+ {
+  "orgId": 2,
+  "nameOfficial": "Big State University",
+  "deactive": "N",
+  "division": 1,
+  "divisionRoman": "I",
+  "conferenceName": "Big 12",
+  "conferenceId": 20,
+  "webSiteUrl": "https://bigstate.edu",
+  "athleticWebUrl": "https://bigstate.edu",
+  "memberOrgAddress": {
+   "city": "Town",
+   "state": "TX"
+  },
+  "provisionalMember": false,
+  "reclassYear": null,
+  "sportRegion": "REGION VIII"
+ },
+ {
+  "orgId": 3,
+  "nameOfficial": "Lone Star College",
+  "deactive": "N",
+  "division": 2,
+  "divisionRoman": "II",
+  "conferenceName": "Lone Star",
+  "conferenceId": 30,
+  "webSiteUrl": "https://lonestar.edu",
+  "athleticWebUrl": "https://lonestar.edu",
+  "memberOrgAddress": {
+   "city": "Town",
+   "state": "TX"
+  },
+  "provisionalMember": false,
+  "reclassYear": null,
+  "sportRegion": "REGION VIII"
+ },
+ {
+  "orgId": 6,
+  "nameOfficial": "Closed College",
+  "deactive": "Y",
+  "division": 3,
+  "divisionRoman": "III",
+  "conferenceName": "NJAC",
+  "conferenceId": 60,
+  "webSiteUrl": "https://closed.edu",
+  "athleticWebUrl": "https://closed.edu",
+  "memberOrgAddress": {
+   "city": "Town",
+   "state": "NJ"
+  },
+  "provisionalMember": false,
+  "reclassYear": null,
+  "sportRegion": "EAST REGION"
+ },
+ {
+  "orgId": 7,
+  "nameOfficial": "Provisional Tech",
+  "deactive": "N",
+  "division": 3,
+  "divisionRoman": "III",
+  "conferenceName": "PAC",
+  "conferenceId": 70,
+  "webSiteUrl": "https://provtech.edu",
+  "athleticWebUrl": "https://provtech.edu",
+  "memberOrgAddress": {
+   "city": "Town",
+   "state": "PA"
+  },
+  "provisionalMember": true,
+  "reclassYear": null,
+  "sportRegion": "EAST REGION"
+ },
+ {
+  "orgId": 8,
+  "nameOfficial": "Women Only",
+  "deactive": "N",
+  "division": 3,
+  "divisionRoman": "III",
+  "conferenceName": "Capital",
+  "conferenceId": 80,
+  "webSiteUrl": "https://womenonly.edu",
+  "athleticWebUrl": "https://womenonly.edu",
+  "memberOrgAddress": {
+   "city": "Town",
+   "state": "MD"
+  },
+  "provisionalMember": false,
+  "reclassYear": null,
+  "sportRegion": "EAST REGION"
+ }
+]

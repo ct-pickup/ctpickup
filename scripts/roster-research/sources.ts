@@ -17,7 +17,31 @@ export type ParsedSchool = {
   teams?: ("men" | "women")[];
   /** Sport values as published, for the diagnostic. */
   rawSports?: string[];
+  /** NCAA directory: the member is deactivated (no longer a member). Such rows are dropped when the lists are built. */
+  deactivated?: boolean;
+  /** NCAA directory: a provisional member (kept, flagged). */
+  provisional?: boolean;
+  /** `deactive` / `provisionalMember` as published, for the diagnostic. */
+  rawDeactive?: string;
+  rawProvisional?: string;
 };
+
+/**
+ * The directory's `deactive` flag. Its published values are shown by --debug-source; anything that is not clearly "active"
+ * (empty, N, No, false, 0, null, active) counts as deactivated, so a date or "Y" drops the school.
+ */
+export function isDeactivated(v: unknown): boolean {
+  if (v === undefined || v === null) return false;
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v !== 0;
+  const t = String(v).trim().toLowerCase();
+  return !["", "n", "no", "false", "f", "0", "null", "none", "active"].includes(t);
+}
+export function isTruthyFlag(v: unknown): boolean {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v !== 0;
+  return ["y", "yes", "true", "t", "1"].includes(String(v ?? "").trim().toLowerCase());
+}
 
 /**
  * "III", "Division III", "NCAA Division III", 3, "D3", "DIII" -> "D3"; I / II likewise ("Division I FBS" -> "D1"). Anything else, "".
@@ -100,18 +124,23 @@ export function parseNcaaDirectory(json: unknown): ParsedSchool[] {
     const conf = pick(o, ["conferenceName", "conference", "primaryConference", "conferenceNameShort"]);
     const confName = typeof conf === "object" && conf ? str(pick(conf as Record<string, unknown>, ["name", "conferenceName"])) : str(conf);
     const divRaw = pick(o, ["division", "divisionName", "divisionCode", "divisionNumber", "divisionDesc", "divisionDescription", "ncaaDivision", "athleticsDivision", "memberDivision"]);
-    const sportKeys = Object.keys(o).filter((k) => /sport/i.test(k));
+    // The directory has NO sport field (sportRegion is a region). The sport is the request's: sportCode=MSO lists men's soccer
+    // programs, WSO women's. So `teams` stays undefined here and every record counts for the list it came from.
+    const sportKeys = Object.keys(o).filter((k) => /sport/i.test(k) && !/region/i.test(k));
     const rawSports = sportKeys.flatMap((k) => stringsIn(o[k]));
     out.push({
       division: normalizeDivision(divRaw),
       rawDivision: divRaw === undefined ? undefined : typeof divRaw === "object" ? JSON.stringify(divRaw) : String(divRaw),
-      teams: sportKeys.length > 0 ? soccerTeams(rawSports) : undefined,
       rawSports: sportKeys.length > 0 ? rawSports : undefined,
       name,
       state: normalizeState(stateRaw) ?? "",
       conference: confName,
       base: siteOrigin(pick(o, ["athleticWebUrl", "athleticsUrl", "athleticsWebsite", "athleticWebsite", "webSiteUrl", "website", "url"])),
       ncaaId: str(pick(o, ["orgId", "id", "memberOrgId"])) || undefined,
+      deactivated: isDeactivated(o.deactive),
+      provisional: isTruthyFlag(o.provisionalMember),
+      rawDeactive: o.deactive === undefined ? undefined : JSON.stringify(o.deactive),
+      rawProvisional: o.provisionalMember === undefined ? undefined : JSON.stringify(o.provisionalMember),
     });
   }
   return out;
