@@ -1,15 +1,16 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import MapView, { type Region } from "react-native-maps";
+import type { Region } from "react-native-maps";
 
+import { PinPicker } from "@/components/fields/PinPicker";
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { useAuth } from "@/context/AuthContext";
 import { findNearbyFields, submitSuggestion, type NearbyField } from "@/lib/fields/suggestionsApi";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import { DUPLICATE_RADIUS_M, newVenueProblem, type VenueSettingValue } from "@shared/fields/suggestions";
 
-const FALLBACK: Region = { latitude: 41.25, longitude: -73.25, latitudeDelta: 0.05, longitudeDelta: 0.07 };
+const FALLBACK: Region = { latitude: 41.25, longitude: -73.25, latitudeDelta: 0.35, longitudeDelta: 0.5 };
 const SETTINGS: { value: VenueSettingValue; label: string }[] = [
   { value: "outdoor", label: "Outdoor" },
   { value: "indoor", label: "Indoor" },
@@ -30,7 +31,7 @@ export default function SuggestFieldScreen() {
   const p = useLocalSearchParams<{ lat?: string; lon?: string; dlat?: string; dlon?: string }>();
   const start: Region =
     p.lat && p.lon
-      ? { latitude: Number(p.lat), longitude: Number(p.lon), latitudeDelta: Math.min(Number(p.dlat) || 0.05, 0.05), longitudeDelta: Math.min(Number(p.dlon) || 0.07, 0.07) }
+      ? { latitude: Number(p.lat), longitude: Number(p.lon), latitudeDelta: Number(p.dlat) || FALLBACK.latitudeDelta, longitudeDelta: Number(p.dlon) || FALLBACK.longitudeDelta }
       : FALLBACK;
   const centre = useRef({ lat: start.latitude, lon: start.longitude });
   const [phase, setPhase] = useState<Phase>("pin");
@@ -111,20 +112,12 @@ export default function SuggestFieldScreen() {
       >
         <Stack.Screen options={{ headerShown: false }} />
         <Text style={styles.title}>Suggest a field</Text>
-        <Text style={styles.muted}>Move the map so the pin sits on the field.</Text>
-        <View style={styles.mapWrap}>
-          <MapView
-            style={StyleSheet.absoluteFill}
-            initialRegion={start}
-            onRegionChangeComplete={(r) => {
-              centre.current = { lat: r.latitude, lon: r.longitude };
-            }}
-          />
-          <View pointerEvents="none" style={styles.pinWrap}>
-            <View style={styles.pinHead} />
-            <View style={styles.pinTip} />
-          </View>
-        </View>
+        <PinPicker
+          start={start}
+          onCenter={(lat, lon) => {
+            centre.current = { lat, lon };
+          }}
+        />
       </FieldScreenShell>
     );
   }
@@ -221,10 +214,6 @@ function make_styles() {
     label: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: c.muted, marginTop: 4 },
     link: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: c.pitchText },
     error: { color: c.coralText, fontSize: 14, fontFamily: "Inter_500Medium", textAlign: "center" },
-    mapWrap: { height: 380, borderRadius: radius.card, overflow: "hidden", borderWidth: 1, borderColor: c.line },
-    pinWrap: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
-    pinHead: { width: 26, height: 26, borderRadius: 13, backgroundColor: c.pitch, borderWidth: 4, borderColor: c.inkSurface, marginBottom: 14 },
-    pinTip: { position: "absolute", width: 4, height: 18, backgroundColor: c.inkSurface },
     input: { height: 44, paddingHorizontal: 12, borderRadius: radius.button, borderWidth: 1, borderColor: c.line, backgroundColor: c.card, color: c.text, fontSize: 15, fontFamily: "Inter_400Regular" },
     multi: { height: 90, paddingTop: 10, textAlignVertical: "top" },
     wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
