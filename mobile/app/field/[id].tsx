@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "rea
 import { ConfirmationBadge, SourceBadges, Tag } from "@/components/fields/FieldBits";
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { useAuth } from "@/context/AuthContext";
+import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { useFieldListing } from "@/hooks/useFieldListings";
 import { fieldCountLabel, hasLights, isTurf, permitConfirmation, permitDetail, priceConfirmation, priceLabel, settingTag } from "@/lib/fields/presentation";
 import { confirmVenue, fetchConfirmation } from "@/lib/fields/suggestionsApi";
@@ -15,6 +16,7 @@ export default function FieldDetailScreen() {
   useThemedStyles(publish_styles);
   const router = useRouter();
   const { supabase, session } = useAuth();
+  const { isAdmin } = useProfileAdmin();
   const [saved, setSaved] = useState(false);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { listing: item, loading } = useFieldListing(id);
@@ -130,6 +132,15 @@ export default function FieldDetailScreen() {
         ) : null}
       </View>
 
+      {isAdmin && v.player_notes?.trim() ? (
+        <View style={styles.adminNotes}>
+          <Text style={styles.adminNotesTitle}>Notes (admins only)</Text>
+          <Text style={styles.adminNotesText} selectable>
+            {v.player_notes.replace(/\[\/?research\]\n?/g, "").trim()}
+          </Text>
+        </View>
+      ) : null}
+
       <Pressable
         onPress={() => router.push({ pathname: "/field-schedule", params: { id: v.venue_key } })}
         style={styles.linkRow}
@@ -188,6 +199,9 @@ function make_styles() {
     linkRowText: { fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().text },
     linkRowChevron: { fontSize: 20, color: themeColor().muted },
     linkRowDone: { opacity: 0.6 },
+    adminNotes: { padding: 14, borderRadius: radius.card, backgroundColor: themeColor().card, borderWidth: 1, borderColor: themeColor().line, gap: 6 },
+    adminNotesTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().muted },
+    adminNotesText: { fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().text, lineHeight: 20 },
     tagRow: { flexDirection: "row", marginTop: 6 },
     sep: { height: StyleSheet.hairlineWidth, backgroundColor: c.line, marginVertical: 14 },
     cta: { backgroundColor: c.pitch, borderRadius: radius.button, paddingVertical: 16, alignItems: "center" },
