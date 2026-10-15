@@ -2,6 +2,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { VenueNotice } from "@/components/fields/FieldBits";
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { useAuth } from "@/context/AuthContext";
 import { useFieldListing } from "@/hooks/useFieldListings";
@@ -204,6 +205,7 @@ export default function FieldRequestScreen() {
         </Text>
         <Text style={styles.estimateValue}>{estimate.label}</Text>
       </View>
+      <VenueNotice />
     </FieldScreenShell>
   );
 }

@@ -194,3 +194,15 @@ export function closedBanner(v: Pick<Venue, "closed_until" | "closed_reason" | "
   const why = v.closed_reason?.trim();
   return why ? `Closed until ${when}: ${why}` : `Closed until ${when}`;
 }
+
+/**
+ * "Last confirmed Oct 2026", or "Not confirmed yet" when there is no date. stale is true when the date is more than 12 months before
+ * `now`, and the screen then adds a quiet "may be out of date".
+ */
+export function lastConfirmedLabel(lastVerifiedAt: string | null | undefined, now: Date): { text: string; stale: boolean } {
+  const t = lastVerifiedAt ? Date.parse(lastVerifiedAt) : NaN;
+  if (!Number.isFinite(t)) return { text: "Not confirmed yet", stale: false };
+  const d = new Date(t);
+  const months = (now.getUTCFullYear() - d.getUTCFullYear()) * 12 + (now.getUTCMonth() - d.getUTCMonth()) + (now.getUTCDate() >= d.getUTCDate() ? 0 : -1);
+  return { text: `Last confirmed ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`, stale: months > 12 };
+}

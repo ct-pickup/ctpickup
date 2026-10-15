@@ -1,5 +1,5 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { confirmationLabel as verifiedLabel, type Confirmation } from "@/lib/fields/presentation";
 import { confirmationLabel } from "@shared/fields/suggestions";
@@ -30,6 +30,24 @@ export function ConfirmationBadge({ value }: { value: Confirmation }) {
 }
 
 /** "Player-reported" for a field a player added, and "Confirmed by N players" once players have said it looks right. */
+const OSM_COPYRIGHT_URL = "https://www.openstreetmap.org/copyright";
+
+/** Small footer credit for screens that show map data. Tapping opens the OpenStreetMap copyright page. */
+export function OsmCredit() {
+  useThemedStyles(publish_styles);
+  return (
+    <Pressable onPress={() => void Linking.openURL(OSM_COPYRIGHT_URL)} accessibilityRole="link" accessibilityLabel="Map data © OpenStreetMap contributors. Opens the OpenStreetMap copyright page." hitSlop={8} style={styles.credit}>
+      <Text style={styles.creditText}>Map data © OpenStreetMap contributors</Text>
+    </Pressable>
+  );
+}
+
+/** Shown wherever a player is about to rely on a price, hours or access. */
+export function VenueNotice() {
+  useThemedStyles(publish_styles);
+  return <Text style={styles.notice}>Fees, hours and access change. Confirm with the venue before you go.</Text>;
+}
+
 export function SourceBadges({ playerReported, confirmations }: { playerReported: boolean; confirmations: number }) {
   useThemedStyles(publish_styles);
   const label = confirmationLabel(confirmations);
@@ -60,6 +78,9 @@ function make_styles() {
     tagWarn: { backgroundColor: c.overlaySubtle, borderWidth: 1, borderColor: c.line },
     tagText: { fontSize: 12, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: c.text },
     tagTextGood: { color: c.onPitchPanel },
+    credit: { alignSelf: "center", paddingVertical: 4 },
+    creditText: { fontSize: 12, fontFamily: "Inter_400Regular", color: c.muted, textDecorationLine: "underline" },
+    notice: { fontSize: 13, fontFamily: "Inter_400Regular", color: c.muted, lineHeight: 18 },
     badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
     badge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
     badgeVerified: { backgroundColor: c.pitchPanel },

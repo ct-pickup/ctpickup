@@ -1,13 +1,14 @@
 import { Link, Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { ConfirmationBadge, SourceBadges, Tag } from "@/components/fields/FieldBits";
+import { ConfirmationBadge, OsmCredit, SourceBadges, Tag, VenueNotice } from "@/components/fields/FieldBits";
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { useAuth } from "@/context/AuthContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { useFieldListing } from "@/hooks/useFieldListings";
-import { closedBanner, fieldCountLabel, hasLights, isTurf, permitConfirmation, permitDetail, priceConfirmation, priceLabel, settingTag } from "@/lib/fields/presentation";
+import { closedBanner, fieldCountLabel, lastConfirmedLabel, hasLights, isTurf, permitConfirmation, permitDetail, priceConfirmation, priceLabel, settingTag } from "@/lib/fields/presentation";
+import { directionsUrl } from "@/lib/fields/directions";
 import { confirmVenue, fetchConfirmation } from "@/lib/fields/suggestionsApi";
 import { FIELDS_SAMPLE_DATA } from "@/lib/fields/config";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
@@ -82,6 +83,9 @@ export default function FieldDetailScreen() {
   const permit = permitDetail(v);
   const surface = isTurf(v) ? "Turf" : v.surface ? v.surface.charAt(0).toUpperCase() + v.surface.slice(1) : "Unknown";
   const lights = v.lit == null || v.lit === "unknown" ? "Unknown" : hasLights(v) ? "Yes" : "No";
+  const confirmed = lastConfirmedLabel(v.last_verified_at, new Date());
+  const confirmedText = confirmed.stale ? `${confirmed.text} · may be out of date` : confirmed.text;
+  const mapsUrl = directionsUrl(Platform.OS, v.lat, v.lon, v.name);
   const sub = [item.kind_label, item.distance_mi != null ? `${item.distance_mi.toFixed(1)} mi away` : null, FIELDS_SAMPLE_DATA ? "Sample data" : null].filter(Boolean).join(" · ");
 
   return (
@@ -127,11 +131,13 @@ export default function FieldDetailScreen() {
       <View style={styles.card}>
         <Row label="Price" badge={<ConfirmationBadge value={priceConfirmation(v)} />}>
           <Text style={styles.value}>{priceLabel(v) === "Free" ? "Free" : priceLabel(v).replace("/hr", " per hour")}</Text>
+          <Text style={styles.confirmed}>{confirmedText}</Text>
         </Row>
         <View style={styles.sep} />
         <Row label="Permit" badge={<ConfirmationBadge value={permitConfirmation(v)} />}>
           <Text style={styles.value}>{permit.title}</Text>
           {permit.sub ? <Text style={styles.muted}>{permit.sub}</Text> : null}
+          <Text style={styles.confirmed}>{confirmedText}</Text>
         </Row>
         {v.residency_rule ? (
           <>
@@ -160,6 +166,12 @@ export default function FieldDetailScreen() {
         </View>
       ) : null}
 
+      {mapsUrl ? (
+        <Pressable onPress={() => void Linking.openURL(mapsUrl).catch(() => Alert.alert("Couldn\u2019t open maps", "Open your maps app and search for the address instead."))} style={styles.linkRow} accessibilityRole="link" accessibilityLabel={`Get directions to ${v.name}`}>
+          <Text style={styles.linkRowText}>Get directions</Text>
+          <Text style={styles.linkRowChevron}>{"›"}</Text>
+        </Pressable>
+      ) : null}
       <Pressable
         onPress={() => router.push({ pathname: "/field-schedule", params: { id: v.venue_key } })}
         style={styles.linkRow}
@@ -174,6 +186,8 @@ export default function FieldDetailScreen() {
       <Pressable onPress={() => void toggleSaved()} style={styles.linkRow} accessibilityRole="button" accessibilityState={{ selected: saved }}>
         <Text style={styles.linkRowText}>{saved ? "Saved. Tap to remove" : "Save this field for alerts"}</Text>
       </Pressable>
+      <VenueNotice />
+      <OsmCredit />
     </FieldScreenShell>
   );
 }
@@ -218,6 +232,7 @@ function make_styles() {
     linkRowText: { fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().text },
     linkRowChevron: { fontSize: 20, color: themeColor().muted },
     linkRowDone: { opacity: 0.6 },
+    confirmed: { fontSize: 12, fontFamily: "Inter_400Regular", color: themeColor().muted },
     closedBanner: { padding: 14, borderRadius: radius.card, backgroundColor: themeColor().overlaySubtle, borderWidth: 1, borderColor: themeColor().coralText },
     closedText: { fontSize: 15, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().coralText },
     adminNotes: { padding: 14, borderRadius: radius.card, backgroundColor: themeColor().card, borderWidth: 1, borderColor: themeColor().line, gap: 6 },

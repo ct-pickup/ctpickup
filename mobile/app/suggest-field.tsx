@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import type { Region } from "react-native-maps";
 
+import { OsmCredit } from "@/components/fields/FieldBits";
 import { PinPicker } from "@/components/fields/PinPicker";
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { useAuth } from "@/context/AuthContext";
@@ -118,6 +119,7 @@ export default function SuggestFieldScreen() {
             centre.current = { lat, lon };
           }}
         />
+        <OsmCredit />
       </FieldScreenShell>
     );
   }

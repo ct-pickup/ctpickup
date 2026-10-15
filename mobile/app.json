@@ -13,7 +13,7 @@
       "bundleIdentifier": "com.ctpickup.mobile",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Show pickup sessions near you.",
+        "NSLocationWhenInUseUsageDescription": "Show pickup games and soccer fields near you.",
         "NSContactsUsageDescription": "Competitive Together uses your contacts so you can pick friends to invite. Your contacts are never uploaded.",
         "CFBundleDisplayName": "CT"
       },
@@ -85,7 +85,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Show pickup sessions near you."
+          "locationWhenInUsePermission": "Show pickup games and soccer fields near you."
         }
       ],
       "@sentry/react-native",
