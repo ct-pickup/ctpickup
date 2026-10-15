@@ -1,9 +1,10 @@
-import { mkdtempSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { buildCsvs, candidateUrls, collectTask, COVERAGE_COLUMNS, CSV_COLUMNS, coverageCsv, messiestRows, pendingTasks, planTasks, summarize, taskKey, type Outcome, type School, type Task } from "../scripts/roster-research/core";
+import { buildCsvs, candidateUrls, collectTask, COVERAGE_COLUMNS, CSV_COLUMNS, coverageCsv, pendingTasks, planTasks, skippedGroups, skippedReport, summarize, taskKey, unusualKept, unusualScore, type Outcome, type School, type Task } from "../scripts/roster-research/core";
 import { buildUserAgent, PoliteFetcher, robotsAllows, waybackUrl, type FetchLike } from "../scripts/roster-research/fetcher";
 import { normalizeClass, parseHometown } from "../scripts/roster-research/hometown";
 import { parseRosterHtml } from "../scripts/roster-research/sidearm";
@@ -114,10 +115,6 @@ describe("collecting a page", () => {
     const o2 = await collectTask(task({ school: school({ division: "D1" }), season: 2022 }), okPage(fx("card.html")), "now");
     expect(o2.rows.every((r) => r.duplicate_of_existing === "")).toBe(true);
   });
-  it("lists the messiest rows", async () => {
-    const o = await collectTask(task(), okPage(fx("list.html")), "now");
-    expect(messiestRows([o], 3)[0]!.score).toBeGreaterThanOrEqual(3);
-  });
 });
 
 describe("planning, candidates, resuming", () => {
@@ -146,7 +143,7 @@ describe("planning, candidates, resuming", () => {
 
 describe("CSV and coverage", () => {
   const rows = (school_: string, name: string, extra = {}) => ({ school: school_, division: "D3", conference: "X", team: "men", season: 2026, name, class_year: "SR", position: "MF", hometown_city: "Newtown", hometown_state: "CT", source_url: "u", collected_at: "t", duplicate_of_existing: "", ...extra });
-  const out = (rowsIn: unknown[], over: Partial<Outcome> = {}) => ({ key: "k", school: "S", division: "D3", conference: "X", team: "men", season: 2026, status: "ok", urls_tried: ["u"], source_url: "u", format: "list", players_on_page: 3, rows_kept: rowsIn.length, skipped_non_target: 1, skipped_foreign_or_unreadable: 0, parse_failures: 0, failure_notes: [], error: "", rows: rowsIn, messy: [], ...over }) as unknown as Outcome;
+  const out = (rowsIn: unknown[], over: Partial<Outcome> = {}) => ({ key: "k", school: "S", division: "D3", conference: "X", team: "men", season: 2026, status: "ok", urls_tried: ["u"], source_url: "u", format: "list", players_on_page: 3, rows_kept: rowsIn.length, skipped_non_target: 1, skipped_foreign_or_unreadable: 0, parse_failures: 0, failure_notes: [], error: "", rows: rowsIn, ...over }) as unknown as Outcome;
 
   it("writes one CSV per division-season with exactly the allowed columns, deduped and quoted", () => {
     const csvs = buildCsvs([out([rows("A", "Pat O'Neil, Jr."), rows("A", "Pat O'Neil, Jr.")]), out([rows("B", "Sam")], { key: "k2" }), out([rows("C", "Lee", { division: "D2", season: 2022 })], { key: "k3", division: "D2", season: 2022 })]);
@@ -237,5 +234,137 @@ describe("repo hygiene", () => {
     for (const f of ["core.ts", "fetcher.ts", "run.ts", "sidearm.ts", "hometown.ts", "states.ts"]) {
       expect(readFileSync(new URL(`../scripts/roster-research/${f}`, import.meta.url), "utf8")).not.toMatch(/[\w.+-]+@(gmail|yahoo|outlook)\.com/);
     }
+  });
+});
+
+describe("parse_failures counts only real parse problems", () => {
+  const okPage = (html: string) => ({ get: async (url: string) => ({ url, status: 200, body: html, fromCache: false }) });
+
+  it("is 0 for a clean page, even with filter, wrapper and placeholder <li> elements", async () => {
+    const r = parseRosterHtml(fx("list_clean.html"));
+    expect(r.players.map((p) => p.name)).toEqual(["Reese Clean", "Sky Clean"]);
+    expect(r.failures).toEqual([]);
+    const o = await collectTask(task(), okPage(fx("list_clean.html")), "now");
+    expect(o.parse_failures).toBe(0);
+    expect(o.urls_tried.length).toBe(1);
+    expect(o).toMatchObject({ players_on_page: 2, rows_kept: 1, skipped_non_target: 1, skipped_foreign_or_unreadable: 0 });
+  });
+  it("is 0 for the other clean fixtures too", async () => {
+    for (const f of ["list.html", "table.html", "card.html"]) expect(parseRosterHtml(fx(f)).failures, f).toEqual([]);
+    expect((await collectTask(task(), okPage(fx("table.html")), "now")).parse_failures).toBe(0);
+  });
+  it("is 1 when a player row on the page really cannot be turned into a row", async () => {
+    const r = parseRosterHtml(fx("list_broken_row.html"));
+    expect(r.players).toHaveLength(1);
+    expect(r.failures).toHaveLength(1);
+    expect(r.failures[0]).toMatch(/without a name/);
+    expect((await collectTask(task(), okPage(fx("list_broken_row.html")), "now")).parse_failures).toBe(1);
+  });
+  it("does not count a table's total or blank rows", () => {
+    const html = `<table><tr><th>Name</th><th>Pos.</th><th>Cl.</th><th>Hometown/High School</th></tr>
+      <tr><td>A Player</td><td>D</td><td>Sr.</td><td>Newtown, Conn.</td></tr>
+      <tr><td></td><td></td><td></td><td></td></tr><tr><td>Total</td><td>-</td><td>-</td><td></td></tr></table>`;
+    const r = parseRosterHtml(html);
+    expect(r.players).toHaveLength(2);
+    expect(r.failures).toEqual([]);
+  });
+});
+
+describe("hometown strings in the nine target states are read", () => {
+  const cases: [string, string, string][] = [
+    ["Newtown, Conn.", "Newtown", "CT"], ["Newtown, CT", "Newtown", "CT"], ["Newtown, Connecticut", "Newtown", "CT"], ["Newtown, Conn", "Newtown", "CT"], ["Newtown, Ct.", "Newtown", "CT"],
+    ["Brooklyn, N.Y.", "Brooklyn", "NY"], ["Brooklyn, NY", "Brooklyn", "NY"], ["Brooklyn, New York", "Brooklyn", "NY"], ["Brooklyn, N.Y", "Brooklyn", "NY"], ["Manhattan, NYC", "Manhattan", "NY"],
+    ["Newark, N.J.", "Newark", "NJ"], ["Newark, New Jersey", "Newark", "NJ"], ["Newark, NJ 07102", "Newark", "NJ"],
+    ["Worcester, Mass.", "Worcester", "MA"], ["Worcester, Massachusetts", "Worcester", "MA"], ["Boston, MA.", "Boston", "MA"],
+    ["Bethesda, Md.", "Bethesda", "MD"], ["Baltimore, Maryland", "Baltimore", "MD"],
+    ["Philadelphia, Pa.", "Philadelphia", "PA"], ["Pittsburgh, Pennsylvania", "Pittsburgh", "PA"], ["Erie, Penn.", "Erie", "PA"],
+    ["Dover, Del.", "Dover", "DE"], ["Wilmington, Delaware", "Wilmington", "DE"],
+    ["Providence, R.I.", "Providence", "RI"], ["Newport, Rhode Island", "Newport", "RI"], ["Warwick, RI", "Warwick", "RI"],
+    ["Washington, D.C.", "Washington", "DC"], ["Wash., D.C.", "Washington", "DC"], ["Washington, DC", "Washington", "DC"], ["Washington D.C.", "Washington", "DC"], ["Washington, District of Columbia", "Washington", "DC"], ["D.C.", "Washington", "DC"],
+    // extra text around the state
+    ["Newtown, Conn., USA", "Newtown", "CT"], ["Newtown, Conn. (USA)", "Newtown", "CT"], ["Hartford, Connecticut USA", "Hartford", "CT"], ["Stamford, Conn.,", "Stamford", "CT"],
+    ["Brooklyn N.Y.", "Brooklyn", "NY"], ["Stamford CT", "Stamford", "CT"], ["Newark New Jersey", "Newark", "NJ"],
+    ["Brooklyn, N.Y. / Poly Prep", "Brooklyn", "NY"], ["Pittsburgh, Pa./Shady Side Academy", "Pittsburgh", "PA"], ["Darien, Conn. (Brunswick School)", "Darien", "CT"], ["Greenwich, CT 06830", "Greenwich", "CT"],
+    ["Brooklyn, NY Poly Prep", "Brooklyn", "NY"], ["Boston, Mass., Boston Latin", "Boston", "MA"],
+  ];
+  it.each(cases)("%s", (raw, city, state) => {
+    expect(parseHometown(raw)).toMatchObject({ city, state, kind: "us" });
+  });
+  it("still refuses places outside the US and things it can't read", () => {
+    for (const raw of ["London, England", "Toronto, Ontario", "Toronto, Ontario, Canada", "Springfield", "NYC", "Madrid, Spain", ""]) expect(parseHometown(raw).state, raw).toBeNull();
+    expect(parseHometown("Austin, Texas")).toMatchObject({ state: "TX" });
+    expect(parseHometown("Washington, Wash.")).toMatchObject({ state: "WA" });
+  });
+});
+
+describe("the skipped / unusual-hometown report (raw text only)", () => {
+  const o = (school_: string, season: number, skipped: string[], kept: { raw: string; had_extra: boolean }[] = []) =>
+    ({ key: `${school_}${season}`, school: school_, division: "D3", conference: "X", team: "men", season, status: "ok", urls_tried: [], source_url: "", format: "list", players_on_page: 0, rows_kept: kept.length, skipped_non_target: 0, skipped_foreign_or_unreadable: skipped.length, parse_failures: 0, failure_notes: [], error: "", rows: [], skipped_raw: skipped, kept_raw: kept }) as unknown as Outcome;
+
+  it("records the raw hometown of every skipped player, and never a name or a high school", async () => {
+    const page = { get: async (url: string) => ({ url, status: 200, body: fx("list.html"), fromCache: false }) };
+    const r = await collectTask(task(), page, "now");
+    expect(r.skipped_raw).toEqual(["Toronto, Ontario", ""]);
+    expect(JSON.stringify([r.skipped_raw, r.kept_raw])).not.toMatch(/Drew Fixture|Emery Nohome|Alex Example|Newtown HS/);
+    const t = await collectTask(task(), { get: async (url) => ({ url, status: 200, body: fx("table.html"), fromCache: false }) }, "now");
+    expect(t.skipped_raw).toEqual(["London, England"]);
+    expect(JSON.stringify(t.kept_raw)).not.toMatch(/Poly Prep|Walt Whitman|Central High/);
+    expect(t.kept_raw!.find((k) => k.raw === "Brooklyn, N.Y.")).toMatchObject({ had_extra: true }); // the "/ Poly Prep" part was dropped
+  });
+  it("groups by distinct raw text with a count and where it came from", () => {
+    const g = skippedGroups([o("Amherst", 2026, ["London, England", "", "London, England", "Springfield"]), o("Bates", 2026, ["London, England"])]);
+    expect(g[0]).toMatchObject({ raw: "London, England", count: 3 });
+    expect(g[0]!.where).toEqual([{ school: "Amherst", season: 2026, count: 2 }, { school: "Bates", season: 2026, count: 1 }]);
+    expect(g.map((x) => x.raw).sort()).toEqual(["", "London, England", "Springfield"]);
+  });
+  it("lists the 10 most unusual kept strings", () => {
+    const kept = [
+      { raw: "Newtown, Conn.", had_extra: false }, { raw: "Newtown, Conn.", had_extra: false },
+      { raw: "Brooklyn, N.Y.", had_extra: true }, { raw: "Boston, Mass. (USA)", had_extra: false }, { raw: "Newark,, N.J.", had_extra: false }, { raw: "ST. LOUIS, MO.", had_extra: false },
+    ];
+    const odd = unusualKept([o("A", 2026, [], kept)]);
+    expect(odd.map((x) => x.raw)).toEqual(["Boston, Mass. (USA)", "Brooklyn, N.Y.", "Newark,, N.J.", "ST. LOUIS, MO."]); // plain "Newtown, Conn." is not listed
+    expect(unusualScore("Newtown, Conn.", false)).toBe(0);
+    expect(unusualScore("Brooklyn, N.Y.", true)).toBeGreaterThan(0);
+    expect(unusualKept([o("A", 2026, [], Array.from({ length: 30 }, (_, i) => ({ raw: `Town ${i}, N.Y. (x)`, had_extra: false }))) ], 10)).toHaveLength(10);
+  });
+  it("prints a readable report, and says when older pages have no raw text yet", () => {
+    const lines = skippedReport([o("Amherst", 2026, ["London, England"], [{ raw: "Brooklyn, N.Y.", had_extra: true }]), { ...o("Bates", 2026, []), skipped_raw: undefined }]).join("\n");
+    expect(lines).toMatch(/Skipped as foreign or unreadable: 1 players, 1 distinct/);
+    expect(lines).toMatch(/"London, England"\s+\[Amherst College|"London, England"\s+\[Amherst 2026/);
+    expect(lines).toMatch(/--reparse/);
+    expect(lines).toMatch(/a '\/' part was dropped/);
+  });
+
+  it("--show-skipped prints from the local work file without fetching (and --reparse reads only the cache)", () => {
+    const out = mkdtempSync(join(tmpdir(), "roster-out-"));
+    mkdirSync(join(out, ".work"), { recursive: true });
+    const line = JSON.stringify(o("Amherst College", 2026, ["London, England", "London, England", "Narnia"], [{ raw: "Brooklyn, N.Y.", had_extra: true }])).replace('"key":"Amherst College2026"', '"key":"amherst|men|2026"');
+    writeFileSync(join(out, ".work", "outcomes.jsonl"), line + "\n");
+    const run = (args: string[]) =>
+      spawnSync(process.execPath, ["--experimental-strip-types", "--no-warnings", "scripts/roster-research/run.ts", "--phase", "1", "--out", out, ...args], { encoding: "utf8", env: { ...process.env, ROSTER_CONTACT_EMAIL: "" } });
+    const shown = run(["--show-skipped"]);
+    expect(shown.status, shown.stderr).toBe(0);
+    expect(shown.stdout).toMatch(/Skipped as foreign or unreadable: 3 players, 2 distinct/);
+    expect(shown.stdout).toMatch(/"London, England"/);
+    expect(shown.stdout).toMatch(/Brooklyn, N\.Y\./);
+    expect(shown.stdout).not.toMatch(/Fetched \d+ pages/); // nothing was fetched (and no contact email was needed)
+    const re = run(["--reparse"]);
+    expect(re.status, re.stderr).toBe(0);
+    expect(re.stdout).toMatch(/Re-parsed 0 of 22 pages from the cache \(no network\)/); // nothing cached: the old result stays
+  });
+});
+
+describe("offline fetcher", () => {
+  it("reads cached pages and never touches the network", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "roster-"));
+    let calls = 0;
+    const live = new PoliteFetcher({ cacheDir: dir, userAgent: "UA", sleep: async () => undefined, fetchImpl: async () => { calls++; return { status: 200, text: async () => "<html>page</html>" }; } });
+    await live.get("https://a.example.edu/p");
+    const before = calls;
+    const offline = new PoliteFetcher({ cacheDir: dir, userAgent: "UA", offline: true, fetchImpl: async () => { calls++; throw new Error("network used"); } });
+    expect(await offline.get("https://a.example.edu/p")).toMatchObject({ status: 200, fromCache: true });
+    expect(await offline.get("https://a.example.edu/not-cached")).toMatchObject({ status: 0, error: expect.stringMatching(/offline/) });
+    expect(calls).toBe(before);
   });
 });

@@ -59,6 +59,8 @@ export type FetcherOptions = {
   fetchImpl?: FetchLike;
   sleep?: (ms: number) => Promise<void>;
   now?: () => number;
+  /** Cache only: never touch the network. A page that is not cached comes back as an error. For re-parsing what is already collected. */
+  offline?: boolean;
 };
 
 export class PoliteFetcher {
@@ -70,6 +72,7 @@ export class PoliteFetcher {
   constructor(o: FetcherOptions) {
     this.o = {
       minIntervalMs: 1000,
+      offline: false,
       fetchImpl: ((url, init) => fetch(url, init)) as FetchLike,
       sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
       now: () => Date.now(),
@@ -96,6 +99,7 @@ export class PoliteFetcher {
       const c = JSON.parse(readFileSync(file, "utf8")) as { status: number; body: string };
       return { url, status: c.status, body: c.body, fromCache: true };
     }
+    if (this.o.offline) return { url, status: 0, body: "", fromCache: false, error: "offline: not in the cache" };
     await this.throttle(new URL(url).hostname);
     this.requests.push(url);
     try {
@@ -123,6 +127,8 @@ export class PoliteFetcher {
   }
 
   async get(url: string): Promise<FetchResult> {
+    // Offline re-parsing only reads pages that were already fetched under robots.txt, so it needs no robots check.
+    if (this.o.offline) return this.raw(url);
     const robots = await this.robotsFor(url);
     if (robots === null) return { url, status: 0, body: "", fromCache: false, error: "could not read robots.txt" };
     const u = new URL(url);

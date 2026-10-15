@@ -1,4 +1,4 @@
-import { messiness, parseRosterHtml } from "./sidearm.ts";
+import { parseRosterHtml } from "./sidearm.ts";
 import { isTargetState } from "./states.ts";
 import { waybackUrl, type FetchResult } from "./fetcher.ts";
 
@@ -69,8 +69,13 @@ export type Outcome = {
   error: string;
   /** Kept rows only. */
   rows: Row[];
-  /** For the "messiest rows" report: the raw text of the hometown cell and a score. Stays in the local work files. */
-  messy: { name: string; hometown_raw: string; score: number; school: string; team: Team; season: number }[];
+  /**
+   * The RAW hometown text (city and state as published, nothing after a "/") of every player skipped as foreign or unreadable. No
+   * names, no high schools. Absent in work files written before this field existed (re-parse them with --reparse).
+   */
+  skipped_raw?: string[];
+  /** The raw hometown text of kept rows, with whether a "/" part was dropped, for the "most unusual strings" list. */
+  kept_raw?: { raw: string; had_extra: boolean }[];
 };
 
 export type Getter = { get(url: string): Promise<FetchResult> };
@@ -80,7 +85,7 @@ export async function collectTask(t: Task, fetcher: Getter, nowIso: string): Pro
   const base: Outcome = {
     key: taskKey(t), school: t.school.school, division: t.school.division, conference: t.school.conference, team: t.team, season: t.season,
     status: "missing", urls_tried: [], source_url: "", format: "", players_on_page: 0, rows_kept: 0, skipped_non_target: 0,
-    skipped_foreign_or_unreadable: 0, parse_failures: 0, failure_notes: [], error: "", rows: [], messy: [],
+    skipped_foreign_or_unreadable: 0, parse_failures: 0, failure_notes: [], error: "", rows: [], skipped_raw: [], kept_raw: [],
   };
   let sawTransientFailure = false;
   for (const url of candidateUrls(t)) {
@@ -106,14 +111,9 @@ export async function collectTask(t: Task, fetcher: Getter, nowIso: string): Pro
     base.failure_notes.push(...parsed.failures.slice(0, 5));
     const seen = new Set<string>();
     for (const p of parsed.players) {
-      const score = messiness(p);
-      if (score >= 2) base.messy.push({ name: p.name, hometown_raw: p.hometownRaw, score, school: t.school.school, team: t.team, season: t.season });
-      if (!p.hometownRaw) {
+      if (!p.hometownRaw || !p.hometown.state) {
         base.skipped_foreign_or_unreadable++;
-        continue;
-      }
-      if (!p.hometown.state) {
-        base.skipped_foreign_or_unreadable++;
+        base.skipped_raw!.push(p.hometownRaw);
         continue;
       }
       if (!isTargetState(p.hometown.state)) {
@@ -123,6 +123,7 @@ export async function collectTask(t: Task, fetcher: Getter, nowIso: string): Pro
       const dedupe = `${p.name.toLowerCase()}|${p.classYear}|${p.hometown.city.toLowerCase()}|${p.hometown.state}`;
       if (seen.has(dedupe)) continue;
       seen.add(dedupe);
+      base.kept_raw!.push({ raw: p.hometownRaw, had_extra: p.hadExtra });
       base.rows.push({
         school: t.school.school, division: t.school.division, conference: t.school.conference, team: t.team, season: t.season, name: p.name,
         class_year: p.classYear, position: p.position, hometown_city: p.hometown.city, hometown_state: p.hometown.state, source_url: url, collected_at: nowIso,
@@ -199,6 +200,73 @@ export function summarize(outcomes: Outcome[]): Summary {
   };
 }
 
-export function messiestRows(outcomes: Outcome[], n = 10) {
-  return outcomes.flatMap((o) => o.messy).sort((a, b) => b.score - a.score).slice(0, n);
+// ---------------------------------------------------------------------------------------------------------------------------
+// Reports from the local work file (no names, no high schools: only the hometown text as published)
+// ---------------------------------------------------------------------------------------------------------------------------
+
+/** How unusual a hometown string is: extra punctuation, a "/" part, parentheses, digits, odd length or case. Higher is stranger. */
+export function unusualScore(raw: string, hadExtra: boolean): number {
+  let n = 0;
+  if (hadExtra) n += 3;
+  if (/[()[\]]/.test(raw)) n += 3;
+  if (/\d/.test(raw)) n += 2;
+  if (/[^A-Za-z .,'\u2019-]/.test(raw)) n += 2;
+  if ((raw.match(/,/g) ?? []).length > 1) n += 2;
+  if (/[.,]\s*$/.test(raw.replace(/\.$/, "")) || /,\s*$/.test(raw)) n += 1;
+  if (raw.length > 30) n += 2;
+  if (raw.length > 0 && raw === raw.toUpperCase() && /[A-Z]{4}/.test(raw)) n += 1;
+  if (/\s{2,}/.test(raw)) n += 1;
+  return n;
+}
+
+export type SkippedGroup = { raw: string; count: number; where: { school: string; season: number; count: number }[] };
+
+/** Players skipped as foreign or unreadable, grouped by distinct raw hometown text, most common first. */
+export function skippedGroups(outcomes: Outcome[]): SkippedGroup[] {
+  const m = new Map<string, Map<string, { school: string; season: number; count: number }>>();
+  for (const o of outcomes) {
+    for (const raw of o.skipped_raw ?? []) {
+      const g = m.get(raw) ?? new Map();
+      const k = `${o.school}|${o.season}`;
+      const cur = g.get(k) ?? { school: o.school, season: o.season, count: 0 };
+      cur.count++;
+      g.set(k, cur);
+      m.set(raw, g);
+    }
+  }
+  return [...m.entries()]
+    .map(([raw, g]) => ({ raw, count: [...g.values()].reduce((n, x) => n + x.count, 0), where: [...g.values()].sort((a, b) => b.count - a.count || a.school.localeCompare(b.school)) }))
+    .sort((a, b) => b.count - a.count || a.raw.localeCompare(b.raw));
+}
+
+/** The most unusual raw hometown strings among rows that were kept (distinct strings, with how many times each appeared). */
+export function unusualKept(outcomes: Outcome[], n = 10): { raw: string; had_extra: boolean; score: number; count: number }[] {
+  const m = new Map<string, { raw: string; had_extra: boolean; score: number; count: number }>();
+  for (const o of outcomes)
+    for (const k of o.kept_raw ?? []) {
+      const key = `${k.raw}|${k.had_extra}`;
+      const cur = m.get(key) ?? { raw: k.raw, had_extra: k.had_extra, score: unusualScore(k.raw, k.had_extra), count: 0 };
+      cur.count++;
+      m.set(key, cur);
+    }
+  return [...m.values()].filter((x) => x.score > 0).sort((a, b) => b.score - a.score || b.count - a.count || a.raw.localeCompare(b.raw)).slice(0, n);
+}
+
+export function skippedReport(outcomes: Outcome[]): string[] {
+  const lines: string[] = [];
+  const groups = skippedGroups(outcomes);
+  const total = groups.reduce((n, g) => n + g.count, 0);
+  const missing = outcomes.filter((o) => o.status === "ok" && o.skipped_raw === undefined).length;
+  lines.push(`=== Skipped as foreign or unreadable: ${total} players, ${groups.length} distinct hometown texts (raw text only, no names) ===`);
+  if (missing) lines.push(`  (${missing} pages were collected before raw text was saved: run again with --reparse to fill them in from the cache, no fetching)`);
+  for (const g of groups) {
+    const where = g.where.slice(0, 4).map((w) => `${w.school} ${w.season}${w.count > 1 ? ` x${w.count}` : ""}`).join("; ") + (g.where.length > 4 ? `; +${g.where.length - 4} more` : "");
+    lines.push(`  ${String(g.count).padStart(3)}  ${g.raw === "" ? "(empty hometown)" : JSON.stringify(g.raw)}  [${where}]`);
+  }
+  lines.push("");
+  lines.push("=== 10 most unusual raw hometown strings among KEPT rows ===");
+  const odd = unusualKept(outcomes);
+  if (odd.length === 0) lines.push("  (none: every kept hometown was plain 'City, State')");
+  for (const x of odd) lines.push(`  [${x.score}] x${x.count}  ${JSON.stringify(x.raw)}${x.had_extra ? "   (a '/' part was dropped)" : ""}`);
+  return lines;
 }

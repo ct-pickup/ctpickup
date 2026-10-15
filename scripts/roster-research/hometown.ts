@@ -23,26 +23,65 @@ export function cleanText(s: string): string {
     .trim();
 }
 
+const COUNTRY_TAIL = /[\s,]*[(\[]?\s*(?:u\.?\s?s\.?\s?a\.?|u\.?\s?s\.?|united states(?: of america)?)\s*[)\]]?\s*$/i;
+
+/** One chunk at a time: "Newark" + "N.J." -> city Newark, state NJ. Used when the pieces are not comma separated. */
+function splitTrailingState(base: string): { city: string; state: string } | null {
+  // "Brooklyn N.Y." / "Stamford CT" / "Newark New Jersey": a state written as the last 1 to 3 words.
+  const words = base.split(/\s+/);
+  for (const n of [3, 2, 1]) {
+    if (words.length <= n) continue;
+    const tail = words.slice(-n).join(" ");
+    const abbreviated = /\.$/.test(tail) || /^[A-Z]{2}$/.test(tail) || /^(?:[A-Za-z]\.\s?){2,3}$/.test(tail);
+    const st = normalizeState(tail);
+    if (st && (abbreviated || n >= 2 || tail.length > 2)) {
+      // A bare capitalised word that happens to be a state name is fine ("Newark New Jersey"); a lone lower-case 2-letter word is not.
+      if (n === 1 && !abbreviated && tail.length <= 2) continue;
+      return { city: words.slice(0, -n).join(" "), state: st };
+    }
+  }
+  return null;
+}
+
 export function parseHometown(rawIn: string): Hometown {
   const raw = cleanText(rawIn);
-  // "City, State / High School" and "City, State / Previous School": keep only the part before the slash.
-  const beforeSlash = raw.split(/\s\/\s|\/(?=\s*[A-Z])/)[0]!.trim();
-  const base = beforeSlash.replace(/\s*\([^)]*\)\s*$/, "").trim();
-  const messy = beforeSlash !== raw || /[()\d]/.test(base) || base.length > 40;
+  // "City, State / High School" (with or without spaces around the slash): keep only the part before it.
+  const beforeSlash = raw.split(/\s*\/\s*/)[0]!.trim();
+  let base = beforeSlash
+    .replace(/\s*[([][^)\]]*[)\]]/g, " ") // "(Poly Prep)" and "[x]" anywhere
+    .replace(COUNTRY_TAIL, "") // ", USA"
+    .replace(/[\s,]+\d{5}(?:-\d{4})?\b/g, "") // zip codes
+    .replace(/[\s,;:\-\u2013\u2014]+$/g, "") // trailing punctuation
+    .replace(/\s+/g, " ")
+    .trim();
+  base = base.replace(COUNTRY_TAIL, "").replace(/[\s,;:\-]+$/g, "").trim();
+  const messy = beforeSlash !== raw || base !== beforeSlash || /\d/.test(base) || base.length > 40;
   if (!base) return { city: "", state: null, kind: "unreadable", messy: true };
 
-  // "Washington, D.C." is the city and the state; "D.C." alone too.
-  if (/^(washington\s*,?\s*)?(d\.?\s?c\.?|district of columbia)$/i.test(base)) return { city: "Washington", state: "DC", kind: "us", messy };
+  // Every way of writing Washington, D.C. ("Wash., D.C.", "Washington DC", "D.C.").
+  if (/^(?:(?:wash(?:ington|\.)?)[\s,]*)?(?:d\.?\s?c\.?|district of columbia)$/i.test(base)) return { city: "Washington", state: "DC", kind: "us", messy };
 
   const parts = base.split(/\s*,\s*/).filter(Boolean);
   if (parts.length >= 2) {
     const last = parts[parts.length - 1]!;
     const st = normalizeState(last);
-    if (st) return { city: parts.slice(0, -1).join(", "), state: st, kind: "us", messy };
-    // "Toronto, Ontario, Canada" / "London, England"
-    return { city: parts[0]!, state: null, kind: COUNTRY_HINT.test(base) || parts.length >= 2 ? "foreign" : "unreadable", messy };
+    if (st) {
+      const city = parts.slice(0, -1).join(", ");
+      return { city: st === "DC" && /^wash(?:ington|\.)?$/i.test(city) ? "Washington" : city, state: st, kind: "us", messy };
+    }
+    // "Boston, Mass., Boston Latin" style leftovers: a state in the second-to-last part.
+    const prev = normalizeState(parts[parts.length - 2]);
+    if (prev && parts.length >= 3) return { city: parts.slice(0, -2).join(", "), state: prev, kind: "us", messy: true };
+    // "Brooklyn, NY Poly Prep": the state is the first word of the last part.
+    const firstWord = last.split(/\s+/)[0]!;
+    const lead = normalizeState(firstWord);
+    if (lead && last.split(/\s+/).length > 1 && (/^[A-Z]{2}$/.test(firstWord) || /\.$/.test(firstWord))) return { city: parts.slice(0, -1).join(", "), state: lead, kind: "us", messy: true };
+    // "Toronto, Ontario" / "London, England"
+    return { city: parts[0]!, state: null, kind: "foreign", messy };
   }
-  // A lone word: maybe "Canada", maybe a city with no state. Never guess.
+  const spaced = splitTrailingState(base);
+  if (spaced) return { city: spaced.city, state: spaced.state, kind: "us", messy: true };
+  // "NYC" alone, or a lone word: maybe "Canada", maybe a city with no state. Never guess.
   return { city: base, state: null, kind: COUNTRY_HINT.test(base) ? "foreign" : "unreadable", messy: true };
 }
 

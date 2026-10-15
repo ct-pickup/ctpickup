@@ -10,7 +10,16 @@ import { cleanText, normalizeClass, parseHometown, type Hometown } from "./homet
  *   card   <li class="s-person-card ..."> with s-person-details__* label / value pairs
  */
 
-export type RosterPlayer = { name: string; classYear: string; position: string; hometownRaw: string; hometown: Hometown };
+export type RosterPlayer = {
+  name: string;
+  classYear: string;
+  position: string;
+  /** The hometown cell as published, cut before any "/" (the high school or previous school after it is never kept). */
+  hometownRaw: string;
+  /** True when the cell had something after a "/" that was dropped. */
+  hadExtra: boolean;
+  hometown: Hometown;
+};
 export type ParseResult = { format: "list" | "table" | "card" | "none"; players: RosterPlayer[]; failures: string[] };
 
 const first = (re: RegExp, s: string): string => {
@@ -18,17 +27,38 @@ const first = (re: RegExp, s: string): string => {
   return m ? cleanText(m[1] ?? "") : "";
 };
 
+const SLASH = /\s*\/\s*/;
+
 function finish(name: string, cls: string, pos: string, home: string): RosterPlayer | null {
   const nm = cleanText(name).replace(/^\d+\s+/, "").replace(/\s+/g, " ").trim();
   if (!nm) return null;
-  return { name: nm, classYear: normalizeClass(cls), position: cleanText(pos).replace(/\.$/, ""), hometownRaw: cleanText(home).split(/\s\/\s|\/(?=\s*[A-Z])/)[0]!.trim(), hometown: parseHometown(home) };
+  const parts = cleanText(home).split(SLASH);
+  return {
+    name: nm,
+    classYear: normalizeClass(cls),
+    position: cleanText(pos).replace(/\.$/, ""),
+    hometownRaw: parts[0]!.trim(),
+    hadExtra: parts.slice(1).some((x) => x.trim() !== ""),
+    hometown: parseHometown(home),
+  };
+}
+
+/**
+ * The text of each <li> whose class attribute has `token` as a whole class (so "sidearm-roster-player-container" or
+ * "s-person-card__header" do NOT count as a player). Each block runs to the next <li> of that kind or the end of the page.
+ */
+function liBlocks(html: string, token: string): string[] {
+  const openers = [...html.matchAll(/<li\b[^>]*\bclass="([^"]*)"[^>]*>/gi)].filter((m) => m[1]!.split(/\s+/).includes(token));
+  return openers.map((m, i) => html.slice(m.index! + m[0].length, openers[i + 1]?.index ?? html.length));
 }
 
 function parseList(html: string): ParseResult {
-  const blocks = html.split(/<li[^>]*class="[^"]*\bsidearm-roster-player\b[^"]*"[^>]*>/i).slice(1);
+  const blocks = liBlocks(html, "sidearm-roster-player");
   const players: RosterPlayer[] = [];
   const failures: string[] = [];
   for (const b of blocks) {
+    // A wrapper, filter or placeholder item is not a player row: only a block that carries player fields can fail to parse.
+    if (!/sidearm-roster-player-(?:name|position|hometown|academic-year|class)/i.test(b)) continue;
     const name = first(/sidearm-roster-player-name[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i, b) || first(/sidearm-roster-player-name[\s\S]*?<h3[^>]*>([\s\S]*?)<\/h3>/i, b);
     const pos = first(/sidearm-roster-player-position[\s\S]*?<span[^>]*class="[^"]*text-bold[^"]*"[^>]*>([\s\S]*?)<\/span>/i, b) || first(/sidearm-roster-player-position[^>]*>([\s\S]*?)<\/(?:div|span)>/i, b);
     const cls = first(/sidearm-roster-player-(?:academic-year|class)[^>]*>([\s\S]*?)<\/span>/i, b);
@@ -69,7 +99,7 @@ function parseTable(html: string): ParseResult {
       if (cells.length < 3) continue;
       const p = finish(cells[idx.name!]?.text ?? "", cells[idx.cls ?? -1]?.text ?? "", cells[idx.pos ?? -1]?.text ?? "", cells[idx.home!]?.text ?? "");
       if (p) players.push(p);
-      else failures.push(`table row without a name: ${cells.map((c) => c.text).join(" | ").slice(0, 80)}`);
+      else if ((cells[idx.home!]?.text ?? "") !== "") failures.push(`table row with a hometown but no name: ${cells.map((c) => c.text).join(" | ").slice(0, 80)}`);
     }
     if (players.length) break;
   }
@@ -77,10 +107,11 @@ function parseTable(html: string): ParseResult {
 }
 
 function parseCards(html: string): ParseResult {
-  const blocks = html.split(/<li[^>]*class="[^"]*\bs-person-card\b[^"]*"[^>]*>/i).slice(1);
+  const blocks = liBlocks(html, "s-person-card");
   const players: RosterPlayer[] = [];
   const failures: string[] = [];
   for (const b of blocks) {
+    if (!/s-person-details|s-person-card__header/i.test(b)) continue;
     const name = first(/s-person-details__personal-single-item--name[^>]*>([\s\S]*?)<\/(?:a|span|div|h3)>/i, b) || first(/s-person-card__header__person-details-name[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i, b) || first(/<h3[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i, b);
     const pair = (label: RegExp): string => {
       const m = new RegExp(`s-person-details__bio-stats-label[^>]*>\\s*(?:${label.source})\\s*:?\\s*<\\/[^>]+>\\s*<[^>]*class="[^"]*s-person-details__bio-stats-value[^"]*"[^>]*>([\\s\\S]*?)<\\/`, "i").exec(b);
@@ -103,16 +134,4 @@ export function parseRosterHtml(html: string): ParseResult {
     if (r.players.length > 0) return r;
   }
   return { format: "none", players: [], failures: ["no roster layout recognised"] };
-}
-
-/** How odd a row looks, for the "messiest rows" list: higher is messier. */
-export function messiness(p: RosterPlayer): number {
-  let score = 0;
-  if (p.hometown.messy) score += 2;
-  if (p.hometown.kind === "unreadable") score += 3;
-  if (!p.classYear) score += 1;
-  if (!p.position) score += 1;
-  if (p.name.length > 40 || /\d/.test(p.name)) score += 2;
-  if (/[<>{}]/.test(p.hometownRaw + p.name)) score += 3;
-  return score;
 }

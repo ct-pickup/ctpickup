@@ -18,7 +18,7 @@ const AP: Record<string, string> = {
   "ala": "AL", "ariz": "AZ", "ark": "AR", "calif": "CA", "colo": "CO", "conn": "CT", "del": "DE", "fla": "FL", "ill": "IL", "ind": "IN", "kan": "KS", "kans": "KS",
   "ky": "KY", "la": "LA", "mass": "MA", "md": "MD", "mich": "MI", "minn": "MN", "miss": "MS", "mo": "MO", "mont": "MT", "neb": "NE", "nev": "NV", "n h": "NH",
   "n j": "NJ", "n m": "NM", "n y": "NY", "n c": "NC", "n d": "ND", "okla": "OK", "ore": "OR", "pa": "PA", "penn": "PA", "r i": "RI", "s c": "SC", "s d": "SD",
-  "tenn": "TN", "tex": "TX", "vt": "VT", "va": "VA", "wash": "WA", "w va": "WV", "wis": "WI", "wisc": "WI", "wyo": "WY", "d c": "DC",
+  "tenn": "TN", "tex": "TX", "vt": "VT", "va": "VA", "wash": "WA", "w va": "WV", "nyc": "NY", "n y c": "NY", "wis": "WI", "wisc": "WI", "wyo": "WY", "d c": "DC",
 };
 const BY_NAME = new Map(Object.entries(NAMES).map(([code, n]) => [n, code]));
 

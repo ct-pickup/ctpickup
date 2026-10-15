@@ -10,6 +10,10 @@
  *          --retry-failed      try again the pages that failed on the network last time
  *          --limit N           stop after N pages this run (to test)
  *          --report-only       rebuild the CSVs and the coverage log from what is already collected, fetch nothing
+ *          --show-skipped      print, from the local work file only (no fetching), every hometown text skipped as foreign or
+ *                              unreadable (grouped, with school and season, no names) and the 10 most unusual kept strings
+ *          --reparse           re-read every already-fetched page from the cache (never the network) with the current parser and
+ *                              refresh the work file. Use it after a parser fix, or to add raw hometown text to older work files
  *
  * Resumable: every finished page is appended to <out>/.work/outcomes.jsonl. A new run skips pages already there (ok or missing);
  * failed ones are retried only with --retry-failed. Every fetched page is cached in <out>/.cache, so nothing is fetched twice.
@@ -19,7 +23,7 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-import { buildCsvs, collectTask, coverageCsv, messiestRows, pendingTasks, PHASES, planTasks, summarize, taskKey, type Division, type Outcome, type School } from "./core.ts";
+import { buildCsvs, collectTask, coverageCsv, pendingTasks, skippedReport, PHASES, planTasks, summarize, taskKey, type Division, type Outcome, type School } from "./core.ts";
 import { buildUserAgent, PoliteFetcher } from "./fetcher.ts";
 
 const arg = (n: string): string | null => {
@@ -72,7 +76,21 @@ async function main() {
   if (tasks.length === 0) fail(`No schools match. Add school lists to ${arg("--schools") ?? "scripts/roster-research/schools"}.`);
 
   const done = loadOutcomes(outcomesFile);
-  if (!flag("--report-only")) {
+  const offlineOnly = flag("--report-only") || flag("--show-skipped");
+  if (flag("--reparse")) {
+    // Only pages already in the cache are read; nothing goes to the network. A better result replaces the old one; a page that
+    // is not in the cache leaves the old result alone.
+    const cache = new PoliteFetcher({ cacheDir: join(out, ".cache"), userAgent: "offline", offline: true });
+    let refreshed = 0;
+    for (const t of tasks) {
+      const o = await collectTask(t, cache, new Date().toISOString());
+      if (o.status !== "ok") continue;
+      appendFileSync(outcomesFile, JSON.stringify(o) + "\n");
+      done.set(o.key, o);
+      refreshed++;
+    }
+    console.log(`Re-parsed ${refreshed} of ${tasks.length} pages from the cache (no network).`);
+  } else if (!offlineOnly) {
     const fetcher = new PoliteFetcher({ cacheDir: join(out, ".cache"), userAgent: buildUserAgent(process.env.ROSTER_CONTACT_EMAIL) });
     const limit = Number(arg("--limit") ?? Infinity);
     const started = Date.now();
@@ -99,8 +117,8 @@ async function main() {
   console.log(`Pending: ${tasks.length - mine.length}`);
   const bad = mine.filter((o) => o.status !== "ok");
   for (const o of bad.slice(0, 40)) console.log(`  ${o.status}: ${o.school} ${o.team} ${o.season}${o.error ? ` (${o.error})` : ""}`);
-  console.log("\n=== 10 messiest rows (local only; names are not committed) ===");
-  for (const m of messiestRows(mine)) console.log(`  [${m.score}] ${m.school} ${m.team} ${m.season}: "${m.name}" / "${m.hometown_raw}"`);
+  console.log("");
+  for (const line of skippedReport(mine)) console.log(line);
 }
 
 void main().catch((e) => fail(e instanceof Error ? e.message : "unknown error"));
