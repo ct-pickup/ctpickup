@@ -7,7 +7,56 @@ import { normalizeState } from "./states.ts";
  * builder reports how many schools each source gave; a source that gives none is skipped and the next one in line is used.
  */
 
-export type ParsedSchool = { name: string; state: string; conference: string; base: string; ncaaId?: string };
+export type ParsedSchool = {
+  name: string; state: string; conference: string; base: string; ncaaId?: string;
+  /** The row's OWN division as published: "D1" | "D2" | "D3", or "" when the row does not say (or says something unreadable). */
+  division?: string;
+  /** The value as published, for the diagnostic. */
+  rawDivision?: string;
+  /** Soccer programs this row says the school has. undefined = the row has no sport information at all. */
+  teams?: ("men" | "women")[];
+  /** Sport values as published, for the diagnostic. */
+  rawSports?: string[];
+};
+
+/**
+ * "III", "Division III", "NCAA Division III", 3, "D3", "DIII" -> "D3"; I / II likewise ("Division I FBS" -> "D1"). Anything else, "".
+ * Never guesses from a conference name.
+ */
+export function normalizeDivision(v: unknown): string {
+  if (v && typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    for (const k of ["name", "code", "value", "description", "abbr"]) {
+      const r = normalizeDivision(o[k]);
+      if (r) return r;
+    }
+    return "";
+  }
+  const tokens = String(v ?? "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  if (tokens.some((t) => ["iii", "3", "d3", "diii", "d-iii"].includes(t))) return "D3";
+  if (tokens.some((t) => ["ii", "2", "d2", "dii"].includes(t))) return "D2";
+  if (tokens.some((t) => ["i", "1", "d1", "di", "fbs", "fcs"].includes(t))) return "D1";
+  return "";
+}
+
+/** Which soccer programs a list of sport values (codes like MSO / WSO, or names like "Women's Soccer") shows. */
+export function soccerTeams(values: string[]): ("men" | "women")[] {
+  const out = new Set<"men" | "women">();
+  for (const raw of values) {
+    const t = raw.toLowerCase().trim();
+    if (t === "mso" || /\bmen'?s?\s+soccer\b/.test(t) && !/\bwomen/.test(t)) out.add("men");
+    if (t === "wso" || /\bwomen'?s?\s+soccer\b/.test(t)) out.add("women");
+  }
+  return [...out];
+}
+
+const stringsIn = (v: unknown): string[] => {
+  if (typeof v === "string") return [v];
+  if (typeof v === "number") return [String(v)];
+  if (Array.isArray(v)) return v.flatMap(stringsIn);
+  if (v && typeof v === "object") return Object.values(v as Record<string, unknown>).flatMap(stringsIn);
+  return [];
+};
 
 /** "https://www.example.edu/athletics/home" -> "https://www.example.edu". Null for anything that is not a web address. */
 export function siteOrigin(raw: unknown): string {
@@ -50,7 +99,14 @@ export function parseNcaaDirectory(json: unknown): ParsedSchool[] {
     const stateRaw = str(pick(addr, ["state", "stateCode", "stateAbbr"]) ?? pick(o, ["state", "stateCode"]));
     const conf = pick(o, ["conferenceName", "conference", "primaryConference", "conferenceNameShort"]);
     const confName = typeof conf === "object" && conf ? str(pick(conf as Record<string, unknown>, ["name", "conferenceName"])) : str(conf);
+    const divRaw = pick(o, ["division", "divisionName", "divisionCode", "divisionNumber", "divisionDesc", "divisionDescription", "ncaaDivision", "athleticsDivision", "memberDivision"]);
+    const sportKeys = Object.keys(o).filter((k) => /sport/i.test(k));
+    const rawSports = sportKeys.flatMap((k) => stringsIn(o[k]));
     out.push({
+      division: normalizeDivision(divRaw),
+      rawDivision: divRaw === undefined ? undefined : typeof divRaw === "object" ? JSON.stringify(divRaw) : String(divRaw),
+      teams: sportKeys.length > 0 ? soccerTeams(rawSports) : undefined,
+      rawSports: sportKeys.length > 0 ? rawSports : undefined,
       name,
       state: normalizeState(stateRaw) ?? "",
       conference: confName,

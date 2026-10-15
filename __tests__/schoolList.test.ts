@@ -114,8 +114,8 @@ describe("collecting a division, with the Wikipedia fallback", () => {
     expect(r.source).toBe("njcaa:https://njcaa.test/m");
   });
   it("combines men's and women's lists; a team a source could not supply is unknown, not false", () => {
-    const men = { schools: [{ name: "A College", state: "CT", conference: "C", base: "https://a.edu" }, { name: "B College", state: "NY", conference: "C", base: "" }], source: "ncaa-directory" };
-    const women = { schools: [{ name: "A College", state: "CT", conference: "C", base: "" }], source: "wikipedia:W" };
+    const men = { schools: [{ name: "A College", state: "CT", conference: "C", base: "https://a.edu", division: "D3" }, { name: "B College", state: "NY", conference: "C", base: "", division: "D3" }], source: "ncaa-directory" };
+    const women = { schools: [{ name: "A College", state: "CT", conference: "C", base: "", division: "D3" }], source: "wikipedia:W" };
     const both = combineTeams("D3", men, women);
     const a = both.find((s) => s.school === "A College")!;
     const b = both.find((s) => s.school === "B College")!;
@@ -127,7 +127,7 @@ describe("collecting a division, with the Wikipedia fallback", () => {
     expect(new Set(both.map((s) => s.id)).size).toBe(both.length);
   });
   it("gives two schools with the same name different ids", () => {
-    const two = combineTeams("D3", { schools: [{ name: "Trinity College", state: "CT", conference: "", base: "" }, { name: "Trinity College", state: "TX", conference: "", base: "" }], source: "s" }, { schools: [], source: "" });
+    const two = combineTeams("D3", { schools: [{ name: "Trinity College", state: "CT", conference: "", base: "", division: "D3" }, { name: "Trinity College", state: "TX", conference: "", base: "", division: "D3" }], source: "s" }, { schools: [], source: "" });
     expect(two.map((s) => s.id).sort()).toEqual(["trinity-college", "trinity-college-tx"].sort());
   });
 });
@@ -135,7 +135,7 @@ describe("collecting a division, with the Wikipedia fallback", () => {
 describe("merging with existing lists and overrides", () => {
   const nescac: SchoolRecord = { id: "amherst", school: "Amherst College", division: "D3", conference: "NESCAC", base: "https://athletics.amherst.edu" };
   it("keeps existing entries exactly as they are and only fills in what they lack", () => {
-    const incoming = combineTeams("D3", { schools: [{ name: "Amherst College", state: "MA", conference: "Other Conf", base: "https://other.example" }, { name: "New School", state: "NY", conference: "Z", base: "https://new.edu" }], source: "ncaa-directory" }, { schools: [], source: "" });
+    const incoming = combineTeams("D3", { schools: [{ name: "Amherst College", state: "MA", conference: "Other Conf", base: "https://other.example", division: "D3" }, { name: "New School", state: "NY", conference: "Z", base: "https://new.edu", division: "D3" }], source: "ncaa-directory" }, { schools: [], source: "" });
     const merged = mergeSchools([nescac], incoming);
     const am = merged.find((s) => s.school === "Amherst College")!;
     expect(am).toMatchObject({ id: "amherst", conference: "NESCAC", base: "https://athletics.amherst.edu", state: "MA", men: true });
@@ -225,7 +225,7 @@ describe("enriching and building (fake network)", () => {
     const nescacText = JSON.stringify({ schools: [{ id: "example", school: "Example College", division: "D3", conference: "NESCAC", base: "https://ex.edu" }] }, null, 1);
     writeFileSync(join(dir, "d3-nescac.json"), nescacText);
     const cfg: SourcesConfig = { ncaa: { url: "https://ncaa.test/{sportCode}/{divisionCode}", sportCodes: { men: "MSO", women: "WSO" }, divisionCodes: { D1: 1, D2: 2, D3: 3 } }, wikipedia: { D3: { men: "M", women: "W" } }, njcaa: { men: ["https://njcaa.test/m"], women: [] } };
-    const dirJson = JSON.stringify({ data: [{ orgId: 1, nameOfficial: "Example College", memberOrgAddress: { state: "CT" }, conferenceName: "NESCAC", athleticWebUrl: "https://ex.edu/x" }, { orgId: 2, nameOfficial: "Presto College", memberOrgAddress: { state: "NY" }, conferenceName: "Z", athleticWebUrl: "https://presto.edu" }] });
+    const dirJson = JSON.stringify({ data: [{ orgId: 1, division: 3, nameOfficial: "Example College", memberOrgAddress: { state: "CT" }, conferenceName: "NESCAC", athleticWebUrl: "https://ex.edu/x" }, { orgId: 2, division: 3, nameOfficial: "Presto College", memberOrgAddress: { state: "NY" }, conferenceName: "Z", athleticWebUrl: "https://presto.edu" }] });
     const net = fake({
       ...site(),
       "https://ncaa.test/MSO/3": { body: dirJson }, "https://ncaa.test/WSO/3": { body: dirJson },
@@ -235,7 +235,7 @@ describe("enriching and building (fake network)", () => {
     });
     const logs: string[] = [];
     const opts = { dir, sources: cfg, overrides: {}, fetcher: net.getter, divisions: ["D1", "D3", "JUCO"] as const, season: 2025, nowIso: "now", log: (l: string) => logs.push(l) };
-    const all = await buildSchoolLists({ ...opts, divisions: [...opts.divisions] });
+    const { schools: all } = await buildSchoolLists({ ...opts, divisions: [...opts.divisions] });
 
     expect(readFileSync(join(dir, "d3-nescac.json"), "utf8")).toBe(nescacText); // hand-written file untouched
     const d3 = JSON.parse(readFileSync(join(dir, "d3.json"), "utf8")).schools as SchoolRecord[];
@@ -252,7 +252,7 @@ describe("enriching and building (fake network)", () => {
 
     // A second run costs nothing and changes nothing.
     const before = net.requests.length;
-    const again = await buildSchoolLists({ ...opts, divisions: [...opts.divisions] });
+    const { schools: again } = await buildSchoolLists({ ...opts, divisions: [...opts.divisions] });
     expect(again.map((s) => [s.id, s.roster?.status])).toEqual(all.map((s) => [s.id, s.roster?.status]));
     const newRequests = net.requests.slice(before).filter((u) => !u.startsWith("https://ncaa.test") && !u.startsWith("https://njcaa.test"));
     expect(newRequests).toEqual([]);

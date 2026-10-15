@@ -8,7 +8,9 @@ import type { Platform, RosterInfo } from "./platform.ts";
 export type Division = "D1" | "D2" | "D3" | "JUCO";
 export type Team = "men" | "women";
 export type School = {
-  id: string; school: string; division: Division; conference: string; base: string;
+  id: string; school: string;
+  /** The same text as `school`, kept so either property name reads the display name. */
+  name?: string; division: Division; conference: string; base: string;
   /** From the school list builder; hand-written entries may lack them. */
   state?: string;
   men?: boolean;

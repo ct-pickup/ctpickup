@@ -55,7 +55,8 @@ export async function collectTeam(division: Division, team: "men" | "women", cfg
       const r = await fetcher.get(url);
       const found = r.status === 200 ? parseSchoolTables(r.body) : [];
       log(`  njcaa ${team}: ${url} -> ${r.status === 200 ? `${found.length} schools` : (r.error ?? `HTTP ${r.status}`)}`);
-      if (found.length > 0) return { schools: found, source: `njcaa:${url}` };
+      // An NJCAA list is the JUCO list by construction.
+      if (found.length > 0) return { schools: found.map((f) => ({ ...f, division })), source: `njcaa:${url}` };
     }
     return { schools: [], source: "" };
   }
@@ -79,53 +80,101 @@ export async function collectTeam(division: Division, team: "men" | "women", cfg
     const r = await fetcher.get(wikiUrl(title));
     const found = r.status === 200 ? parseSchoolTables(r.body) : [];
     log(`  wikipedia ${division} ${team}: ${r.status === 200 ? `${found.length} schools` : (r.error ?? `HTTP ${r.status}`)}`);
-    if (found.length > 0) return { schools: found, source: `wikipedia:${title}` };
+    // A Wikipedia "NCAA Division III programs" article is that division's list by construction (the page itself says the division).
+    if (found.length > 0) return { schools: found.map((f) => ({ ...f, division })), source: `wikipedia:${title}` };
   }
   return { schools: [], source: "" };
 }
 
-/** Men's and women's lists for one division into one record per school. A team a source could not supply is left unknown, not false. */
-export function combineTeams(division: Division, men: TeamResult, women: TeamResult): SchoolRecord[] {
+export type FilterStats = { otherDivisionSchools: number; otherDivisionRows: number; divisionUnknownSchools: number; divisionUnknownRows: number; notSoccerRows: number; staleRemoved: number };
+export const emptyStats = (): FilterStats => ({ otherDivisionSchools: 0, otherDivisionRows: 0, divisionUnknownSchools: 0, divisionUnknownRows: 0, notSoccerRows: 0, staleRemoved: 0 });
+export const addStats = (a: FilterStats, b: FilterStats): FilterStats => ({
+  otherDivisionSchools: a.otherDivisionSchools + b.otherDivisionSchools, otherDivisionRows: a.otherDivisionRows + b.otherDivisionRows,
+  divisionUnknownSchools: a.divisionUnknownSchools + b.divisionUnknownSchools, divisionUnknownRows: a.divisionUnknownRows + b.divisionUnknownRows,
+  notSoccerRows: a.notSoccerRows + b.notSoccerRows, staleRemoved: a.staleRemoved + b.staleRemoved,
+});
+
+/** The identity of a school across rows: its athletics website host, else its name and state. */
+export const schoolKeys = (p: { name: string; state?: string; base?: string; ncaaId?: string }): string[] => {
+  const keys: string[] = [];
+  const h = hostOf(p.base ?? "");
+  if (h) keys.push(`host:${h}`);
+  if (p.ncaaId) keys.push(`id:${p.ncaaId}`);
+  keys.push(`name:${nameKey(p.name)}|${normalizeState(p.state) ?? ""}`);
+  return keys;
+};
+
+/**
+ * Men's and women's lists for one division into one record per school.
+ *   - A row is kept only if ITS OWN division value is the division being built. The division of the request is never trusted: a
+ *     directory that ignores the division parameter returns every school, and those rows are dropped (and counted) here.
+ *   - A row with no readable division is dropped and counted as "division unknown". Division-specific sources (a Wikipedia list
+ *     for one division, the NJCAA list) were tagged with their division when they were read.
+ *   - A row that lists sports but no soccer is dropped; a row's own sports decide men/women, otherwise the list it came from does.
+ *   - One school in several rows is merged (by website host, else name and state), men and women together.
+ *   - A team a source could not supply is left unknown, not false.
+ */
+export function combineTeamsWithStats(division: Division, men: TeamResult, women: TeamResult): { records: SchoolRecord[]; stats: FilterStats } {
+  const stats = emptyStats();
   const byKey = new Map<string, SchoolRecord>();
-  const used = new Set<string>();
+  const otherDiv = new Set<string>();
+  const unknownDiv = new Set<string>();
+  const find = (keys: string[]): SchoolRecord | undefined => keys.map((k) => byKey.get(k)).find(Boolean);
   const add = (p: ParsedSchool, team: "men" | "women", source: string) => {
-    const nm = nameKey(p.name);
-    const st = normalizeState(p.state) ?? "";
-    const key = p.ncaaId ? `id:${p.ncaaId}` : `n:${nm}|${st}`;
-    const nk = `n:${nm}|${st}`;
-    // Same name in a different state is a different school. A list with no state for a school may match the one with that name.
-    const plain = byKey.get(`n:${nm}|`) ?? [...byKey.entries()].find(([k, v]) => k.startsWith(`n:${nm}|`) && (!st || !v.state))?.[1];
-    const cur = byKey.get(key) ?? byKey.get(nk) ?? plain ?? ({ id: "", school: p.name, division, conference: p.conference, base: p.base, state: p.state || undefined, platform: "unknown", source: "", roster: { status: "unchecked", reason: "" } } as SchoolRecord);
+    const keys = schoolKeys(p);
+    const cur = find(keys) ?? ({ id: "", name: p.name, school: p.name, division, conference: p.conference, base: p.base, state: normalizeState(p.state) ?? (p.state || undefined), platform: "unknown", source: "", roster: { status: "unchecked", reason: "" } } as SchoolRecord);
     if (!cur.base && p.base) cur.base = p.base;
     if (!cur.conference && p.conference) cur.conference = p.conference;
-    if (!cur.state && p.state) cur.state = p.state;
+    if (!cur.state && p.state) cur.state = normalizeState(p.state) ?? p.state;
     if (p.ncaaId) cur.ncaa_id = p.ncaaId;
     cur[team] = true;
-    const srcs = new Set((cur.source ? cur.source.split(" + ") : []).concat(`${team}:${source}`));
-    cur.source = [...srcs].join(" + ");
-    byKey.set(key, cur);
-    byKey.set(`n:${nm}|${cur.state ?? ""}`, cur);
-    used.add(key);
+    cur.source = [...new Set((cur.source ? cur.source.split(" + ") : []).concat(`${team}:${source}`))].join(" + ");
+    for (const k of [...keys, ...schoolKeys({ name: cur.school, state: cur.state, base: cur.base, ncaaId: cur.ncaa_id })]) byKey.set(k, cur);
   };
-  for (const p of men.schools) add(p, "men", men.source);
-  for (const p of women.schools) add(p, "women", women.source);
+  const feed = (r: TeamResult, requestTeam: "men" | "women") => {
+    for (const p of r.schools) {
+      const d = p.division ?? "";
+      if (d === "") {
+        stats.divisionUnknownRows++;
+        unknownDiv.add(schoolKeys(p)[0]!);
+        continue;
+      }
+      if (d !== division) {
+        stats.otherDivisionRows++;
+        otherDiv.add(schoolKeys(p)[0]!);
+        continue;
+      }
+      const teams = p.teams !== undefined ? p.teams : [requestTeam];
+      if (teams.length === 0) {
+        stats.notSoccerRows++;
+        continue;
+      }
+      for (const t of teams) add(p, t, r.source);
+    }
+  };
+  feed(men, "men");
+  feed(women, "women");
+  stats.otherDivisionSchools = otherDiv.size;
+  stats.divisionUnknownSchools = unknownDiv.size;
+
   const list = [...new Set(byKey.values())];
-  for (const s of list) {
-    if (s.men === undefined && men.schools.length > 0) s.men = false;
-    if (s.women === undefined && women.schools.length > 0) s.women = false;
-    s.state = normalizeState(s.state) ?? s.state;
+  for (const sch of list) {
+    if (sch.men === undefined && men.schools.length > 0) sch.men = false;
+    if (sch.women === undefined && women.schools.length > 0) sch.women = false;
   }
   // Unique, readable ids.
   const seen = new Set<string>();
-  for (const s of list.sort((a, b) => a.school.localeCompare(b.school))) {
-    let id = slug(s.school) || "school";
-    if (seen.has(id) && s.state) id = `${id}-${s.state.toLowerCase()}`;
+  for (const sch of list.sort((a, b) => a.school.localeCompare(b.school))) {
+    let id = slug(sch.school) || "school";
+    if (seen.has(id) && sch.state) id = `${id}-${sch.state.toLowerCase()}`;
     while (seen.has(id)) id += "-2";
     seen.add(id);
-    s.id = id;
+    sch.id = id;
   }
-  return list;
+  return { records: list, stats };
 }
+
+export const combineTeams = (division: Division, men: TeamResult, women: TeamResult): SchoolRecord[] => combineTeamsWithStats(division, men, women).records;
 
 // ---------------------------------------------------------------------------------------------------------------------------
 // Merging with what is already on disk
@@ -241,13 +290,20 @@ const readJson = <T>(file: string): T | null => {
   }
 };
 
-/** Every school in every list file, merged by id (the first file wins; later files only fill in fields it lacks). */
+const GENERATED_FILES = new Set(DIVISIONS.map(divisionFile));
+const withName = (r: SchoolRecord): SchoolRecord => {
+  const name = r.name ?? r.school;
+  return name === r.name && r.school ? r : { ...r, name, school: r.school ?? name };
+};
+
+/** Every school in every list file, merged by id (the first file wins; later files only fill in fields it lacks). `name` and `school` both hold the display name. */
 export function loadSchoolFiles(dir: string): SchoolRecord[] {
   if (!existsSync(dir)) return [];
   const byId = new Map<string, SchoolRecord>();
   for (const f of readdirSync(dir).filter((f) => f.endsWith(".json") && !["sources.json", "overrides.json"].includes(f)).sort()) {
     const j = readJson<{ schools?: SchoolRecord[] }>(join(dir, f));
-    for (const s of j?.schools ?? []) {
+    for (const raw of j?.schools ?? []) {
+      const s = withName(raw);
       const cur = byId.get(s.id);
       if (!cur) byId.set(s.id, { ...s });
       else for (const [k, v] of Object.entries(s)) if ((cur as Record<string, unknown>)[k] === undefined || (cur as Record<string, unknown>)[k] === "") (cur as Record<string, unknown>)[k] = v;
@@ -256,29 +312,54 @@ export function loadSchoolFiles(dir: string): SchoolRecord[] {
   return [...byId.values()];
 }
 
+/** Ids of schools in hand-written list files (anything other than d1/d2/d3/juco.json, like d3-nescac.json). The builder never removes these. */
+export function curatedIds(dir: string): Set<string> {
+  const ids = new Set<string>();
+  if (!existsSync(dir)) return ids;
+  for (const f of readdirSync(dir).filter((f) => f.endsWith(".json") && !GENERATED_FILES.has(f) && !["sources.json", "overrides.json"].includes(f)))
+    for (const s of readJson<{ schools?: SchoolRecord[] }>(join(dir, f))?.schools ?? []) ids.add(s.id);
+  return ids;
+}
+
 export function writeDivisionFile(dir: string, division: Division, schools: SchoolRecord[]): void {
   mkdirSync(dir, { recursive: true });
-  const body = { _note: `Built by run.ts --build-schools. Public school names and website addresses only. Edit schools/overrides.json for hand fixes.`, schools: schools.filter((s) => s.division === division) };
+  const body = { _note: `Built by run.ts --build-schools. Public school names and website addresses only. Edit schools/overrides.json for hand fixes.`, schools: schools.filter((s) => s.division === division).map(withName) };
   writeFileSync(join(dir, divisionFile(division)), JSON.stringify(body, null, 1) + "\n");
 }
 
-export type BuildOptions = { dir: string; sources: SourcesConfig; overrides: Overrides; fetcher: Getter; divisions: Division[]; season: number; nowIso: string; refresh?: boolean; verify?: boolean; limit?: number; log: (s: string) => void };
+export type BuildOptions = { dir: string; sources: SourcesConfig; overrides: Overrides; fetcher: Getter; divisions: Division[]; season: number; nowIso: string; refresh?: boolean; verify?: boolean; listsOnly?: boolean; limit?: number; log: (s: string) => void };
+export type BuildResult = { schools: SchoolRecord[]; stats: FilterStats };
 
-/** The whole build: collect each division, merge with existing files, apply overrides, detect platforms, check roster addresses, save. */
-export async function buildSchoolLists(o: BuildOptions): Promise<SchoolRecord[]> {
-  const all = loadSchoolFiles(o.dir);
-  let result = all;
+/**
+ * The whole build: collect each division, keep only schools of that division, merge with existing files, apply overrides, detect
+ * platforms, check roster addresses, save. When a source gave schools for a division, builder-made entries it no longer lists (for
+ * example D1 and D2 schools that an earlier build put in the D3 file) are removed; hand-written entries (d3-nescac.json) never are.
+ */
+export async function buildSchoolLists(o: BuildOptions): Promise<BuildResult> {
+  const curated = curatedIds(o.dir);
+  let result = loadSchoolFiles(o.dir);
+  let stats = emptyStats();
   for (const division of o.divisions) {
     o.log(`${division}:`);
     const men = await collectTeam(division, "men", o.sources, o.fetcher, o.log);
     const women = await collectTeam(division, "women", o.sources, o.fetcher, o.log);
-    const incoming = combineTeams(division, men, women);
+    const { records: incoming, stats: st } = combineTeamsWithStats(division, men, women);
+    o.log(`  kept ${incoming.length} ${division} schools; dropped ${st.otherDivisionSchools} that belong to another division (${st.otherDivisionRows} rows), ${st.divisionUnknownSchools} with division unknown (${st.divisionUnknownRows} rows), ${st.notSoccerRows} rows with no soccer program`);
     if (incoming.length === 0) o.log(`  no source gave any ${division} schools. Existing ${divisionFile(division)} entries are kept; add schools by hand or fix schools/sources.json.`);
     const mine = result.filter((s) => s.division === division);
-    const merged = applyOverrides(mergeSchools(mine, incoming), o.overrides);
+    let base = mine;
+    if (incoming.length > 0) {
+      const keep = new Set(incoming.flatMap((r) => schoolKeys({ name: r.school, state: r.state, base: r.base, ncaaId: r.ncaa_id })));
+      base = mine.filter((m) => curated.has(m.id) || !m.source || schoolKeys({ name: m.school, state: m.state, base: m.base, ncaaId: m.ncaa_id }).some((k) => keep.has(k)));
+      st.staleRemoved = mine.length - base.length;
+      if (st.staleRemoved) o.log(`  removed ${st.staleRemoved} entries from an earlier build that this source does not list as ${division}`);
+    }
+    stats = addStats(stats, st);
+    const merged = applyOverrides(mergeSchools(base, incoming), o.overrides);
     result = [...result.filter((s) => s.division !== division), ...merged];
     writeDivisionFile(o.dir, division, result);
-    o.log(`  ${merged.length} ${division} schools (${incoming.length} from sources)`);
+    o.log(`  ${merged.length} ${division} schools in ${divisionFile(division)}`);
+    if (o.listsOnly) continue;
     const enriched = await enrichAll(result.filter((s) => s.division === division), o.fetcher, {
       season: o.season, nowIso: o.nowIso, refresh: o.refresh, verify: o.verify, limit: o.limit, log: o.log,
       save: (part) => writeDivisionFile(o.dir, division, [...result.filter((s) => s.division !== division), ...part]),
@@ -286,7 +367,7 @@ export async function buildSchoolLists(o: BuildOptions): Promise<SchoolRecord[]>
     result = [...result.filter((s) => s.division !== division), ...enriched];
     writeDivisionFile(o.dir, division, result);
   }
-  return result;
+  return { schools: result, stats };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------

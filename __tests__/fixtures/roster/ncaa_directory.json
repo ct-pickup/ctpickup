@@ -1,8 +1,8 @@
 { "_comment": "HAND-WRITTEN approximation of the NCAA directory response. The real shape could not be checked.",
   "data": [
-    { "orgId": 101, "nameOfficial": "Example College", "memberOrgAddress": { "city": "Newtown", "state": "CT" }, "conferenceName": "NESCAC", "athleticWebUrl": "https://www.examplecollege.edu/athletics/home" },
-    { "orgId": 102, "nameOfficial": "Sample University", "memberOrgAddress": { "city": "Albany", "state": "NY" }, "conferenceName": "Empire 8", "athleticWebUrl": "samplebobcats.com" },
-    { "orgId": 103, "nameOfficial": "Presto State", "memberOrgAddress": { "city": "Dover", "state": "Delaware" }, "conferenceName": "Atlantic", "athleticWebUrl": "" },
+    { "orgId": 101, "division": "Division III", "nameOfficial": "Example College", "memberOrgAddress": { "city": "Newtown", "state": "CT" }, "conferenceName": "NESCAC", "athleticWebUrl": "https://www.examplecollege.edu/athletics/home" },
+    { "orgId": 102, "division": 3, "nameOfficial": "Sample University", "memberOrgAddress": { "city": "Albany", "state": "NY" }, "conferenceName": "Empire 8", "athleticWebUrl": "samplebobcats.com" },
+    { "orgId": 103, "division": { "name": "Division III", "code": 3 }, "nameOfficial": "Presto State", "memberOrgAddress": { "city": "Dover", "state": "Delaware" }, "conferenceName": "Atlantic", "athleticWebUrl": "" },
     { "orgId": 104, "memberOrgAddress": { "state": "NJ" } },
     "not an object"
   ] }

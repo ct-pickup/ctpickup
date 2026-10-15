@@ -9,6 +9,9 @@
  *                              platform, and a check of each Sidearm roster address (one request per program, cached). Needs the contact
  *                              email. Options: --division D3 (one division), --limit N (check only N schools), --skip-verify (lists only),
  *                              --refresh (check everything again). Reads schools/sources.json and schools/overrides.json.
+ *          --debug-source ncaa  offline: describe the cached NCAA directory responses (field names, division and sport values with
+ *                              counts, distinct schools, 5 sample records). Reads cached pages only; no player data, no network.
+ *          --lists-only        with --build-schools: write the lists only (no home-page or roster checks), fast and offline when cached
  *          --list-needs-review print every school whose roster address could not be used: name, division and reason (no network)
  *          --state CT          only schools in this state (the school's state, not the players')
  *          --out DIR           default data/outreach/rosters   (gitignored; never commit the rows)
@@ -34,6 +37,7 @@ import { join, resolve } from "node:path";
 
 import { buildCsvs, collectTask, coverageCsvWithSkips, pendingTasks, skippedReport, PHASES, planWithSkips, summarize, taskKey, type Division, type Outcome } from "./core.ts";
 import { buildUserAgent, PoliteFetcher } from "./fetcher.ts";
+import { debugNcaaCache } from "./debugSource.ts";
 import { buildSchoolLists, loadSchoolFiles, needsReviewLines, schoolReport, type Overrides, type SourcesConfig } from "./schoolList.ts";
 import { buildOutreach, outreachCsv, outreachSummary, unsplitCsv } from "./outreach.ts";
 import { parseCsv } from "../lib/researchImport.ts";
@@ -95,6 +99,18 @@ async function main() {
 
   const schoolsDir = resolve(arg("--schools") ?? "scripts/roster-research/schools");
 
+  if (arg("--debug-source")) {
+    if (arg("--debug-source") !== "ncaa") fail("--debug-source takes: ncaa");
+    let host = "web3.ncaa.org";
+    try {
+      const url = (JSON.parse(readFileSync(join(schoolsDir, "sources.json"), "utf8")) as SourcesConfig).ncaa?.url;
+      if (url) host = new URL(url.replace(/\{\w+\}/g, "x")).hostname;
+    } catch {
+      /* keep the default host */
+    }
+    for (const l of debugNcaaCache(join(out, ".cache"), host)) console.log(l);
+    return;
+  }
   if (flag("--list-needs-review")) {
     const lines = needsReviewLines(loadSchoolFiles(schoolsDir), arg("--division") ?? undefined);
     for (const l of lines) console.log(l);
@@ -114,10 +130,12 @@ async function main() {
     const all = await buildSchoolLists({
       dir: schoolsDir, sources: readJson<SourcesConfig>("sources.json", {}), overrides: readJson<Overrides>("overrides.json", {}), fetcher,
       divisions: only ? [only] : ["D1", "D2", "D3", "JUCO"], season: Number(arg("--season") ?? 2025), nowIso: new Date().toISOString(),
-      refresh: flag("--refresh"), verify: !flag("--skip-verify"), limit: arg("--limit") ? Number(arg("--limit")) : undefined, log: (l) => console.log(l),
+      refresh: flag("--refresh"), verify: !flag("--skip-verify"), listsOnly: flag("--lists-only"), limit: arg("--limit") ? Number(arg("--limit")) : undefined, log: (l) => console.log(l),
     });
     console.log("");
-    for (const l of schoolReport(all)) console.log(l);
+    for (const l of schoolReport(all.schools)) console.log(l);
+    const st = all.stats;
+    console.log(`Dropped while building: ${st.otherDivisionSchools} schools in another division (${st.otherDivisionRows} rows), division unknown: ${st.divisionUnknownSchools} schools (${st.divisionUnknownRows} rows), rows with no soccer program: ${st.notSoccerRows}, stale entries from an earlier build removed: ${st.staleRemoved}`);
     console.log(`\nNetwork requests this run: ${fetcher.requests.length}. Pages already cached were not fetched again. See the schools that need review with --list-needs-review.`);
     return;
   }
