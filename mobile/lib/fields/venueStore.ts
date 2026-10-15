@@ -67,6 +67,8 @@ export async function loadFieldListing(supabase: SupabaseClient, key: string): P
   if (hit) return hit;
   const { data, error } = await supabase.from("venues").select("*").eq("venue_key", key).maybeSingle();
   if (error || !data) return null;
+  // A removed field, or one hidden for review, has no page.
+  if ((data as Venue).status && (data as Venue).status !== "active") return null;
   const connected = await connectedKeys(supabase);
   const listing = toListing(data as Venue, { connected: connected.has(key) });
   cache.set(key, listing);

@@ -5,7 +5,18 @@
 
 export type SuggestionKind = "new_venue" | "correction";
 export type VenueSettingValue = "indoor" | "outdoor" | "both";
-export type SuggestionProblem = "wrong_price" | "wrong_permit" | "wrong_location" | "wrong_setting" | "closed" | "other";
+export type SuggestionProblem =
+  | "wrong_price"
+  | "wrong_permit"
+  | "wrong_location"
+  | "wrong_setting"
+  | "closed"
+  | "other"
+  | "doesnt_exist"
+  | "private"
+  | "not_soccer"
+  | "duplicate"
+  | "wrong_info";
 
 export const PROBLEMS: { key: SuggestionProblem; label: string }[] = [
   { key: "wrong_price", label: "Wrong price" },
@@ -14,7 +25,27 @@ export const PROBLEMS: { key: SuggestionProblem; label: string }[] = [
   { key: "wrong_location", label: "Wrong location" },
   { key: "closed", label: "Closed or gone" },
   { key: "other", label: "Something else" },
+  { key: "doesnt_exist", label: "Doesn’t exist / removed" },
+  { key: "private", label: "Private or not open to the public" },
+  { key: "not_soccer", label: "Not a soccer field" },
+  { key: "duplicate", label: "Duplicate of another field" },
+  { key: "wrong_info", label: "Wrong price / permit / contact info" },
 ];
+
+/** What a player can pick in "Report a problem", in the order shown. */
+export const REPORT_REASONS: { key: SuggestionProblem; label: string }[] = [
+  { key: "doesnt_exist", label: "Doesn’t exist / removed" },
+  { key: "closed", label: "Closed (permanently, or for the season / construction)" },
+  { key: "wrong_location", label: "Wrong location" },
+  { key: "private", label: "Private or not open to the public" },
+  { key: "not_soccer", label: "Not a soccer field" },
+  { key: "duplicate", label: "Duplicate of another field" },
+  { key: "wrong_info", label: "Wrong price / permit / contact info" },
+];
+
+/** Three different players saying one of these hides the field until an admin looks. */
+export const AUTO_HIDE_REASONS: SuggestionProblem[] = ["doesnt_exist", "not_soccer"];
+export const AUTO_HIDE_PLAYERS = 3;
 
 export function problemLabel(p: string | null | undefined): string {
   return PROBLEMS.find((x) => x.key === p)?.label ?? "Correction";
@@ -36,6 +67,10 @@ export type SuggestionRow = {
   permit_note: string | null;
   website: string | null;
   note: string | null;
+  /** The short text for "Wrong price / permit / contact info". */
+  detail?: string | null;
+  /** The other field, for "Duplicate of another field". */
+  duplicate_of?: string | null;
   status: "pending" | "approved" | "rejected";
 };
 
@@ -148,7 +183,7 @@ export function parsePermitNote(note: string | null | undefined): Record<string,
 }
 
 function noteLines(s: SuggestionRow, when: string): string {
-  const parts = [s.note, s.price_note ? `Price: ${s.price_note}` : null, s.permit_note ? `Permit: ${s.permit_note}` : null].map(clean).filter(Boolean);
+  const parts = [s.note, s.detail ? `Detail: ${s.detail}` : null, s.price_note ? `Price: ${s.price_note}` : null, s.permit_note ? `Permit: ${s.permit_note}` : null].map(clean).filter(Boolean);
   return parts.length ? `[${when}] ${parts.join(" | ")}` : "";
 }
 

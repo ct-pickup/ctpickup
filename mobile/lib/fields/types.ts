@@ -54,6 +54,11 @@ export type Venue = {
   residency_rule?: string | null;
   /** Dated availability notes (a denial, no field on a day). Admin only in the app. */
   availability_notes?: string | null;
+  /** active | hidden_pending_review | removed. Rows from before the column have none: treat as active. */
+  status?: "active" | "hidden_pending_review" | "removed" | null;
+  /** A closed banner shows on the field page until this date (YYYY-MM-DD). */
+  closed_until?: string | null;
+  closed_reason?: string | null;
   verified: boolean;
   last_verified_at: string | null;
   updated_at: string | null;

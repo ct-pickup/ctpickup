@@ -1,35 +1,55 @@
 import { Stack, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { useAuth } from "@/context/AuthContext";
 import { useFieldListing } from "@/hooks/useFieldListings";
-import { submitSuggestion } from "@/lib/fields/suggestionsApi";
+import { PinPicker } from "@/components/fields/PinPicker";
+import { siteOrigin } from "@/lib/env";
+import { searchVenues } from "@/lib/fields/placeSearchApi";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
-import { PROBLEMS, type SuggestionProblem, type VenueSettingValue } from "@shared/fields/suggestions";
+import { MIN_QUERY, type PlaceHit } from "@shared/fields/placeSearch";
+import { REPORT_REASONS, type SuggestionProblem } from "@shared/fields/suggestions";
 
-const SETTINGS: { value: VenueSettingValue; label: string }[] = [
-  { value: "outdoor", label: "Outdoor" },
-  { value: "indoor", label: "Indoor" },
-  { value: "both", label: "Both" },
-];
-
-/** Report a problem with a field: pick what's wrong, say what it should be, and an admin reviews it. */
+/**
+ * Report a problem with a field: pick what's wrong (with a pin, a search for the other field, or a short text where it helps),
+ * add an optional note, and an admin reviews it. Sent through the server so repeated reports can protect the map.
+ */
 export default function ReportProblemScreen() {
   useThemedStyles(publish_styles);
   const { supabase, session } = useAuth();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { listing: item, loading } = useFieldListing(id);
   const [problem, setProblem] = useState<SuggestionProblem | null>(null);
-  const [price, setPrice] = useState("");
-  const [permit, setPermit] = useState("");
-  const [setting, setSetting] = useState<VenueSettingValue | null>(null);
+  const [detail, setDetail] = useState("");
   const [note, setNote] = useState("");
+  const [pinOpen, setPinOpen] = useState(false);
+  const pin = useRef<{ lat: number; lon: number } | null>(null);
+  const [dupQuery, setDupQuery] = useState("");
+  const [dupHits, setDupHits] = useState<PlaceHit[]>([]);
+  const [dup, setDup] = useState<{ key: string; label: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const back = { pathname: "/field/[id]", params: { id: id ?? "" } } as const;
+  const thisKey = item?.venue.venue_key ?? null;
+
+  // Search our own venues for the other field (a short pause after typing).
+  useEffect(() => {
+    const q = dupQuery.trim();
+    if (problem !== "duplicate" || q.length < MIN_QUERY || !supabase) return;
+    let cancelled = false;
+    const t = setTimeout(() => {
+      void searchVenues(supabase, q).then((hits) => {
+        if (!cancelled) setDupHits(hits.filter((h) => h.key !== `v:${thisKey}`));
+      });
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [dupQuery, problem, supabase, thisKey]);
 
   if (loading) {
     return (
@@ -51,34 +71,43 @@ export default function ReportProblemScreen() {
 
   function detailMissing(): string | null {
     if (!problem) return "Choose what’s wrong.";
-    if (problem === "wrong_price" && !price.trim()) return "Tell us the right price.";
-    if (problem === "wrong_permit" && !permit.trim()) return "Tell us the right permit info.";
-    if (problem === "wrong_setting" && !setting) return "Choose indoor, outdoor or both.";
-    if ((problem === "wrong_location" || problem === "closed" || problem === "other") && note.trim().length < 3) return "Add a short note so we can check it.";
+    if (problem === "wrong_info" && detail.trim().length < 3) return "Tell us what’s wrong in a few words.";
+    if (problem === "duplicate" && !dup) return "Search for the other field and pick it.";
     return null;
   }
 
   async function send() {
     const missing = detailMissing();
-    const uid = session?.user?.id;
-    if (missing || !supabase || !uid) {
+    const origin = siteOrigin();
+    const token = session?.access_token;
+    if (missing || !origin || !token) {
       setError(missing ?? "Sign in again to send this.");
       return;
     }
     setBusy(true);
     setError(null);
-    const res = await submitSuggestion(supabase, uid, {
-      kind: "correction",
-      venue_key: v.venue_key,
-      problem,
-      price_note: problem === "wrong_price" ? price : null,
-      permit_note: problem === "wrong_permit" ? permit : null,
-      setting: problem === "wrong_setting" ? setting : null,
-      note,
-    });
-    setBusy(false);
-    if (!res.ok) setError(res.message);
-    else setDone(true);
+    try {
+      const r = await fetch(`${origin}/api/fields/report`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          venue_key: v.venue_key,
+          problem,
+          note,
+          detail: problem === "wrong_info" ? detail : null,
+          duplicate_of: problem === "duplicate" ? dup?.key : null,
+          lat: problem === "wrong_location" && pinOpen ? pin.current?.lat : null,
+          lon: problem === "wrong_location" && pinOpen ? pin.current?.lon : null,
+        }),
+      });
+      const j = (await r.json().catch(() => null)) as { error?: string } | null;
+      if (!r.ok) setError(j?.error ?? "We couldn’t send that. Please try again.");
+      else setDone(true);
+    } catch {
+      setError("We couldn’t send that. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (done) {
@@ -110,40 +139,62 @@ export default function ReportProblemScreen() {
       </View>
 
       <Text style={styles.label}>What’s wrong?</Text>
-      <View style={styles.wrap}>
-        {PROBLEMS.map((p) => (
-          <Pressable key={p.key} onPress={() => setProblem(p.key)} style={[styles.chip, problem === p.key && styles.on]} accessibilityRole="button" accessibilityState={{ selected: problem === p.key }}>
+      <View style={styles.list}>
+        {REPORT_REASONS.map((p) => (
+          <Pressable key={p.key} onPress={() => setProblem(p.key)} style={[styles.reason, problem === p.key && styles.on]} accessibilityRole="button" accessibilityState={{ selected: problem === p.key }}>
             <Text style={[styles.chipText, problem === p.key && styles.onText]}>{p.label}</Text>
           </Pressable>
         ))}
       </View>
 
-      {problem === "wrong_price" ? (
+      {problem === "wrong_location" ? (
         <>
-          <Text style={styles.label}>What’s the right price?</Text>
-          <TextInput value={price} onChangeText={setPrice} placeholder="Free, or $40/hr" placeholderTextColor={themeColor().muted} style={styles.input} accessibilityLabel="Right price" />
-        </>
-      ) : null}
-      {problem === "wrong_permit" ? (
-        <>
-          <Text style={styles.label}>What’s the right permit info?</Text>
-          <TextInput value={permit} onChangeText={setPermit} placeholder="No permit, or town permit needed" placeholderTextColor={themeColor().muted} style={styles.input} accessibilityLabel="Right permit info" />
-        </>
-      ) : null}
-      {problem === "wrong_setting" ? (
-        <>
-          <Text style={styles.label}>It is actually</Text>
-          <View style={styles.wrap}>
-            {SETTINGS.map((s) => (
-              <Pressable key={s.value} onPress={() => setSetting(s.value)} style={[styles.chip, setting === s.value && styles.on]} accessibilityRole="button" accessibilityState={{ selected: setting === s.value }}>
-                <Text style={[styles.chipText, setting === s.value && styles.onText]}>{s.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <Pressable onPress={() => setPinOpen((o) => !o)} accessibilityRole="button" hitSlop={8}>
+            <Text style={styles.link}>{pinOpen ? "Don’t send a pin" : "Drop a pin where it really is (optional)"}</Text>
+          </Pressable>
+          {pinOpen && v.lat != null && v.lon != null ? (
+            <PinPicker
+              start={{ latitude: v.lat, longitude: v.lon, latitudeDelta: 0.003, longitudeDelta: 0.003 }}
+              onCenter={(lat, lon) => {
+                pin.current = { lat, lon };
+              }}
+            />
+          ) : null}
         </>
       ) : null}
 
-      <Text style={styles.label}>Note{problem === "wrong_location" || problem === "closed" || problem === "other" ? "" : " (optional)"}</Text>
+      {problem === "duplicate" ? (
+        <>
+          <Text style={styles.label}>Which field is it a duplicate of?</Text>
+          {dup ? (
+            <Pressable onPress={() => setDup(null)} style={styles.picked} accessibilityRole="button" accessibilityLabel={`${dup.label}. Tap to change.`}>
+              <Text style={styles.chipText}>{dup.label}</Text>
+              <Text style={styles.link}>Change</Text>
+            </Pressable>
+          ) : (
+            <>
+              <TextInput value={dupQuery} onChangeText={setDupQuery} placeholder="Search by field or school name" placeholderTextColor={themeColor().muted} autoCorrect={false} style={styles.input} accessibilityLabel="Search for the other field" />
+              {dupQuery.trim().length >= MIN_QUERY
+                ? dupHits.map((h) => (
+                    <Pressable key={h.key} onPress={() => setDup({ key: h.key.slice(2), label: h.label })} style={styles.reason} accessibilityRole="button">
+                      <Text style={styles.chipText}>{h.label}</Text>
+                      {h.sub ? <Text style={styles.muted}>{h.sub}</Text> : null}
+                    </Pressable>
+                  ))
+                : null}
+            </>
+          )}
+        </>
+      ) : null}
+
+      {problem === "wrong_info" ? (
+        <>
+          <Text style={styles.label}>What’s wrong, and what should it say?</Text>
+          <TextInput value={detail} onChangeText={setDetail} placeholder="e.g. Price is $60/hr, call 203-555-0100 to book" placeholderTextColor={themeColor().muted} multiline style={[styles.input, styles.multi]} accessibilityLabel="What is wrong" />
+        </>
+      ) : null}
+
+      <Text style={styles.label}>Note (optional)</Text>
       <TextInput value={note} onChangeText={setNote} placeholder="Anything that helps us check it" placeholderTextColor={themeColor().muted} multiline style={[styles.input, styles.multi]} accessibilityLabel="Note" />
     </FieldScreenShell>
   );
@@ -159,6 +210,10 @@ function make_styles() {
     input: { height: 44, paddingHorizontal: 12, borderRadius: radius.button, borderWidth: 1, borderColor: c.line, backgroundColor: c.card, color: c.text, fontSize: 15, fontFamily: "Inter_400Regular" },
     multi: { height: 90, paddingTop: 10, textAlignVertical: "top" },
     wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    list: { gap: 8 },
+    reason: { paddingHorizontal: 14, paddingVertical: 12, borderRadius: radius.card, backgroundColor: themeColor().card, borderWidth: 1, borderColor: themeColor().line, gap: 2 },
+    picked: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 12, borderRadius: radius.card, backgroundColor: themeColor().card, borderWidth: 1, borderColor: themeColor().pitch },
+    link: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().pitchText },
     chip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.card, backgroundColor: c.card, borderWidth: 1, borderColor: c.line },
     chipText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: c.text },
     on: { backgroundColor: c.pitch, borderColor: c.pitch },

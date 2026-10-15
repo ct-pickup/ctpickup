@@ -182,3 +182,15 @@ export function detailLine(v: Pick<Venue, "setting" | "surface" | "turf_count" |
   const surface = isTurf(v) ? "Turf" : v.surface ? v.surface.charAt(0).toUpperCase() + v.surface.slice(1) : null;
   return [setting, surface, priceLabel(v)].filter(Boolean).join(" · ");
 }
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "Closed until Mar 1, 2027" (plus the reason) while closed_until is today or later, else null. today is YYYY-MM-DD. */
+export function closedBanner(v: Pick<Venue, "closed_until" | "closed_reason" | "status">, today: string): string | null {
+  const until = v.closed_until?.trim();
+  if (!until || !/^\d{4}-\d{2}-\d{2}$/.test(until) || until < today) return null;
+  const [y, m, d] = until.split("-").map(Number);
+  const when = `${MONTHS[(m ?? 1) - 1]} ${d}, ${y}`;
+  const why = v.closed_reason?.trim();
+  return why ? `Closed until ${when}: ${why}` : `Closed until ${when}`;
+}

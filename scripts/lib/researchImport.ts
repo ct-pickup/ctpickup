@@ -771,7 +771,12 @@ export type Plan = {
   /** Held-back duplicates merged into the nearest existing venue as attach-only (booking, website, notes). */
   attached: { item: Item; near: Near; why: string }[];
   repeats: { item: Item; of: string }[];
+  /** Rows that match or sit on a field an admin removed or hid. Never updated, never re-created. */
+  blocked: { item: Item; near: Near; why: string }[];
 };
+
+/** A removed field, or one hidden for review, stays out of every import. */
+export const isBlockedVenue = (v: Venue): boolean => v.status === "removed" || v.status === "hidden_pending_review";
 
 export const nameCtx = (c: Clean): NameCtx => ({ town: c.raw.town, county: c.raw.county, state: c.state });
 
@@ -804,8 +809,9 @@ export function attachReason(c: Clean, v: Venue): string | null {
  */
 export function planImport(items: Item[], venues: Venue[], opts: { includeDuplicates?: boolean } = {}): Plan {
   const index = new VenueIndex();
-  for (const v of venues) index.add(v);
-  const plan: Plan = { noGeo: [], updates: [], inserts: [], duplicates: [], attached: [], repeats: [] };
+  const blockedIndex = new VenueIndex();
+  for (const v of venues) (isBlockedVenue(v) ? blockedIndex : index).add(v);
+  const plan: Plan = { noGeo: [], updates: [], inserts: [], duplicates: [], attached: [], repeats: [], blocked: [] };
   const groups = new Map<string, { venue: Venue; items: Item[]; attached: Item[]; matches: Match[] }>();
   const group = (v: Venue) => {
     const g = groups.get(v.venue_key) ?? { venue: v, items: [], attached: [], matches: [] };
@@ -826,6 +832,13 @@ export function planImport(items: Item[], venues: Venue[], opts: { includeDuplic
       const g = group(m.venue);
       g.items.push(item);
       g.matches.push(m);
+      continue;
+    }
+    // Nothing active matches. If it is the same place as a removed or hidden field, it stays gone.
+    const gone = findMatch(c.name, geo.lat, geo.lon, blockedIndex, nameCtx(c));
+    const goneNear = gone ? { venue: gone.venue, meters: gone.meters } : (possibleDuplicate(c, geo.lat, geo.lon, blockedIndex)?.near ?? null);
+    if (goneNear) {
+      plan.blocked.push({ item, near: goneNear, why: `${goneNear.venue.status === "removed" ? "removed" : "hidden"} field ${goneNear.venue.name}` });
       continue;
     }
     const row = newVenue(c, Number(geo.lat.toFixed(6)), Number(geo.lon.toFixed(6)), geo.matched);

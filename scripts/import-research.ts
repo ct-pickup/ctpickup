@@ -280,6 +280,7 @@ async function main() {
   console.log(`  by rule: similar name nearby ${byRule("near + similar name")}, same venue name within 1.5 km ${byRule("same venue name")}, very near (40 m) ${byRule("very near")}`);
   console.log(`Attached to existing (booking, website, notes only): ${plan.attached.length} rows -> ${new Set(plan.attached.map((a) => a.near.venue.venue_key)).size} venues`);
   console.log(`New venues:                      ${plan.inserts.length}${plan.repeats.length ? `  (+${plan.repeats.length} repeated rows ignored)` : ""}`);
+  console.log(`Skipped, field was removed or hidden: ${plan.blocked.length}`);
   console.log(`Possible duplicates held back:   ${plan.duplicates.length}${flag("--include-possible-duplicates") ? "  (--include-possible-duplicates: inserted anyway)" : ""}`);
   console.log(`Unmatched / geocode failed:      ${failedRows.length}`);
   console.log(`Skipped (no name):               ${skipped}`);
@@ -317,6 +318,7 @@ async function main() {
   const out: Out[] = [
     ...failedRows.map((item) => ({ reason: item.c.query ? "geocode_failed" : "no_address", item, note: "" })),
     ...plan.attached.map((a) => ({ reason: "attached_to_existing", item: a.item, nearest: a.near, note: a.why })),
+    ...plan.blocked.map((b) => ({ reason: "removed_or_hidden_field", item: b.item, nearest: b.near, note: b.why })),
     ...plan.duplicates.map((d) => ({ reason: "possible_duplicate", item: d.item, nearest: d.near, note: d.why })),
     ...plan.repeats.map((r) => ({ reason: "repeat_of_new_row", item: r.item, note: r.of })),
     ...plan.inserts.map((i) => ({ reason: i.flaggedDuplicate ? "new_venue_flagged_duplicate" : "no_match_new_venue", item: i.item, nearest: i.nearest, note: i.item.geo?.matched ?? "" })),

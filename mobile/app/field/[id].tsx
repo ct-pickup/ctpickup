@@ -7,10 +7,15 @@ import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { useAuth } from "@/context/AuthContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { useFieldListing } from "@/hooks/useFieldListings";
-import { fieldCountLabel, hasLights, isTurf, permitConfirmation, permitDetail, priceConfirmation, priceLabel, settingTag } from "@/lib/fields/presentation";
+import { closedBanner, fieldCountLabel, hasLights, isTurf, permitConfirmation, permitDetail, priceConfirmation, priceLabel, settingTag } from "@/lib/fields/presentation";
 import { confirmVenue, fetchConfirmation } from "@/lib/fields/suggestionsApi";
 import { FIELDS_SAMPLE_DATA } from "@/lib/fields/config";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
+
+const localToday = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 export default function FieldDetailScreen() {
   useThemedStyles(publish_styles);
@@ -106,6 +111,12 @@ export default function FieldDetailScreen() {
         ) : null}
         <SourceBadges playerReported={v.source === "player"} confirmations={confirm.count} />
       </View>
+
+      {closedBanner(v, localToday()) ? (
+        <View style={styles.closedBanner} accessibilityRole="alert">
+          <Text style={styles.closedText}>{closedBanner(v, localToday())}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.stats}>
         <Stat label="Fields" value={fieldCountLabel(v)?.split(" ")[0] ?? "?"} />
@@ -207,6 +218,8 @@ function make_styles() {
     linkRowText: { fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().text },
     linkRowChevron: { fontSize: 20, color: themeColor().muted },
     linkRowDone: { opacity: 0.6 },
+    closedBanner: { padding: 14, borderRadius: radius.card, backgroundColor: themeColor().overlaySubtle, borderWidth: 1, borderColor: themeColor().coralText },
+    closedText: { fontSize: 15, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().coralText },
     adminNotes: { padding: 14, borderRadius: radius.card, backgroundColor: themeColor().card, borderWidth: 1, borderColor: themeColor().line, gap: 6 },
     adminNotesTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().muted },
     adminNotesText: { fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().text, lineHeight: 20 },

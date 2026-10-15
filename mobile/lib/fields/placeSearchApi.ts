@@ -12,6 +12,7 @@ export async function searchVenues(supabase: SupabaseClient, query: string): Pro
       .from("venues")
       .select("venue_key,name,school_name,address,state,lat,lon")
       .or(`name.ilike.%${t}%,school_name.ilike.%${t}%`)
+      .eq("status", "active")
       .not("lat", "is", null)
       .not("lon", "is", null)
       .limit(5);
