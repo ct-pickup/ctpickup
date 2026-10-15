@@ -15,7 +15,7 @@ export type AccountDeletionPreview = {
   message: string | null;
 };
 
-export type AccountDeletionErrorCode = "confirmation_required" | "settlement_failed" | "schema_not_ready" | "anonymize_failed";
+export type AccountDeletionErrorCode = "confirmation_required" | "settlement_failed" | "schema_not_ready" | "anonymize_failed" | "billing_cancel_failed";
 
 /** A deletion that was stopped on purpose; nothing past the failing step ran, so the request can be retried. */
 export class AccountDeletionError extends Error {
