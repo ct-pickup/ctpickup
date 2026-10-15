@@ -7,7 +7,7 @@ import type { Venue } from "./types";
  */
 
 export type PrefillVenue = Pick<Venue, "venue_key" | "name" | "address" | "lat" | "lon" | "status" | "closed_until" | "closed_reason" | "permit_required" | "permit_type">;
-export type PrefillRequest = { id: string; user_id?: string | null; venue_key: string; requested_date: string; start_time: string; status: string };
+export type PrefillRequest = { id: string; user_id?: string | null; venue_key: string; requested_date: string; start_time: string; duration_hours?: number | null; status: string };
 
 export type GamePrefill = {
   venue_key: string;

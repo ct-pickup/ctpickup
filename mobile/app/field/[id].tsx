@@ -9,6 +9,9 @@ import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { useFieldListing } from "@/hooks/useFieldListings";
 import { closedBanner, fieldCountLabel, lastConfirmedLabel, hasLights, isTurf, permitConfirmation, permitDetail, priceConfirmation, priceLabel, settingTag } from "@/lib/fields/presentation";
 import { directionsUrl } from "@/lib/fields/directions";
+import { fetchApprovedRequest } from "@/lib/fields/gameLink";
+import { formatRequestWhen } from "@shared/fields/requestEmail";
+import { needsPermit, type PrefillRequest } from "@/lib/fields/gamePrefill";
 import { confirmVenue, fetchConfirmation } from "@/lib/fields/suggestionsApi";
 import { FIELDS_SAMPLE_DATA } from "@/lib/fields/config";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
@@ -27,6 +30,9 @@ export default function FieldDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { listing: item, loading } = useFieldListing(id);
   const [confirm, setConfirm] = useState({ count: 0, mine: false });
+  // The player's own approved request for this field (no game yet), and the gentle permit prompt.
+  const [approved, setApproved] = useState<PrefillRequest | null>(null);
+  const [permitPrompt, setPermitPrompt] = useState(false);
   const uid = session?.user?.id ?? null;
   const venueKey = item?.venue.venue_key ?? null;
 
@@ -36,6 +42,17 @@ export default function FieldDetailScreen() {
     let cancelled = false;
     void fetchConfirmation(supabase, venueKey, uid).then((c) => {
       if (!cancelled) setConfirm(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, uid, venueKey]);
+
+  useEffect(() => {
+    if (!supabase || !uid || !venueKey) return;
+    let cancelled = false;
+    void fetchApprovedRequest(supabase, uid, venueKey, localToday()).then((r) => {
+      if (!cancelled) setApproved(r);
     });
     return () => {
       cancelled = true;
@@ -62,6 +79,15 @@ export default function FieldDetailScreen() {
   }
 
   const v = item.venue;
+
+  function createGame(skipPermitPrompt = false) {
+    if (!approved && !skipPermitPrompt && needsPermit(v)) {
+      setPermitPrompt(true);
+      return;
+    }
+    setPermitPrompt(false);
+    router.push({ pathname: "/session-create", params: { venue_key: v.venue_key, ...(approved ? { request_id: approved.id } : {}) } });
+  }
 
   async function looksRight() {
     if (!supabase || !uid || confirm.mine) return;
@@ -166,6 +192,28 @@ export default function FieldDetailScreen() {
         </View>
       ) : null}
 
+      {approved ? (
+        <View style={styles.approvedBox} accessibilityRole="alert">
+          <Text style={styles.approvedTitle}>Your request for this field was approved.</Text>
+          <Text style={styles.approvedText}>{formatRequestWhen(approved.requested_date, approved.start_time, Number(approved.duration_hours ?? 2))}</Text>
+        </View>
+      ) : null}
+      <Pressable onPress={() => createGame()} style={styles.createGame} accessibilityRole="button" accessibilityLabel="Create a game here">
+        <Text style={styles.createGameText}>Create a game here</Text>
+      </Pressable>
+      {permitPrompt ? (
+        <View style={styles.permitBox}>
+          <Text style={styles.permitText}>This field usually needs a permit. Request it first.</Text>
+          <View style={styles.permitActions}>
+            <Pressable onPress={() => router.push({ pathname: "/field-request", params: { id: v.venue_key } })} style={styles.permitPrimary} accessibilityRole="button">
+              <Text style={styles.permitPrimaryText}>Request this field</Text>
+            </Pressable>
+            <Pressable onPress={() => createGame(true)} style={styles.permitSecondary} accessibilityRole="button">
+              <Text style={styles.permitSecondaryText}>Continue without one</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
       {mapsUrl ? (
         <Pressable onPress={() => void Linking.openURL(mapsUrl).catch(() => Alert.alert("Couldn\u2019t open maps", "Open your maps app and search for the address instead."))} style={styles.linkRow} accessibilityRole="link" accessibilityLabel={`Get directions to ${v.name}`}>
           <Text style={styles.linkRowText}>Get directions</Text>
@@ -232,6 +280,18 @@ function make_styles() {
     linkRowText: { fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().text },
     linkRowChevron: { fontSize: 20, color: themeColor().muted },
     linkRowDone: { opacity: 0.6 },
+    approvedBox: { padding: 14, borderRadius: radius.card, backgroundColor: themeColor().pitchPanel, borderWidth: 1, borderColor: themeColor().pitchText, gap: 2 },
+    approvedTitle: { fontSize: 15, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().onPitchPanel },
+    approvedText: { fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().onPitchPanel },
+    createGame: { backgroundColor: themeColor().pitch, borderRadius: radius.button, paddingVertical: 14, alignItems: "center" },
+    createGameText: { color: themeColor().onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
+    permitBox: { padding: 14, borderRadius: radius.card, backgroundColor: themeColor().card, borderWidth: 1, borderColor: themeColor().line, gap: 10 },
+    permitText: { fontSize: 14, fontFamily: "Inter_500Medium", color: themeColor().text },
+    permitActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    permitPrimary: { backgroundColor: themeColor().pitch, borderRadius: radius.button, paddingVertical: 11, paddingHorizontal: 14 },
+    permitPrimaryText: { color: themeColor().onPitch, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
+    permitSecondary: { borderRadius: radius.button, paddingVertical: 11, paddingHorizontal: 14, borderWidth: 1, borderColor: themeColor().line },
+    permitSecondaryText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     confirmed: { fontSize: 12, fontFamily: "Inter_400Regular", color: themeColor().muted },
     closedBanner: { padding: 14, borderRadius: radius.card, backgroundColor: themeColor().overlaySubtle, borderWidth: 1, borderColor: themeColor().coralText },
     closedText: { fontSize: 15, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().coralText },
