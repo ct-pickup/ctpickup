@@ -1,0 +1,16 @@
+{
+  "_note": "Hand-written starting list. Domains are from memory and NOT yet verified: the first real run will show which ones are wrong (they appear in the coverage log as page_not_found). Edit freely.",
+  "schools": [
+    { "id": "amherst", "school": "Amherst College", "division": "D3", "conference": "NESCAC", "base": "https://athletics.amherst.edu" },
+    { "id": "bates", "school": "Bates College", "division": "D3", "conference": "NESCAC", "base": "https://gobatesbobcats.com" },
+    { "id": "bowdoin", "school": "Bowdoin College", "division": "D3", "conference": "NESCAC", "base": "https://athletics.bowdoin.edu" },
+    { "id": "colby", "school": "Colby College", "division": "D3", "conference": "NESCAC", "base": "https://colbyathletics.com" },
+    { "id": "conncoll", "school": "Connecticut College", "division": "D3", "conference": "NESCAC", "base": "https://camelathletics.com" },
+    { "id": "hamilton", "school": "Hamilton College", "division": "D3", "conference": "NESCAC", "base": "https://athletics.hamilton.edu" },
+    { "id": "middlebury", "school": "Middlebury College", "division": "D3", "conference": "NESCAC", "base": "https://athletics.middlebury.edu" },
+    { "id": "trinity", "school": "Trinity College (CT)", "division": "D3", "conference": "NESCAC", "base": "https://bantamsports.com" },
+    { "id": "tufts", "school": "Tufts University", "division": "D3", "conference": "NESCAC", "base": "https://gotuftsjumbos.com" },
+    { "id": "wesleyan", "school": "Wesleyan University", "division": "D3", "conference": "NESCAC", "base": "https://athletics.wesleyan.edu" },
+    { "id": "williams", "school": "Williams College", "division": "D3", "conference": "NESCAC", "base": "https://ephsports.williams.edu" }
+  ]
+}
