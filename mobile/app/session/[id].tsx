@@ -3,6 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useProfilePhoto } from "@/context/ProfilePhotoContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { siteOrigin } from "@/lib/env";
+import { LinkedField } from "@/components/fields/LinkedField";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
 import {
@@ -1386,6 +1387,7 @@ export default function SessionDetailScreen() {
             <Text style={s.when}>{fmtPickupSlotChipEt(run.start_at, runTimeTbd(run))}</Text>
             <Text style={s.fieldName}>{fieldName}</Text>
             {placeLine ? <Text style={s.place}>{placeLine}</Text> : null}
+            <LinkedField runId={run.id} />
 
             <View style={s.chipRow}>
               {formatLabel ? (

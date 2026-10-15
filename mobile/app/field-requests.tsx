@@ -1,10 +1,11 @@
-import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { RequestTracker } from "@/components/fields/RequestTracker";
 import { useAuth } from "@/context/AuthContext";
+import { requestIdsWithGames } from "@/lib/fields/gameLink";
 import { statusLabel } from "@/lib/fields/requestTracker";
 import { timeAgo } from "@/lib/timeAgo";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
@@ -33,6 +34,9 @@ export default function MyFieldRequestsScreen() {
   const { supabase, session } = useAuth();
   const uid = session?.user?.id ?? null;
   const { request } = useLocalSearchParams<{ request?: string }>();
+  const router = useRouter();
+  // request id -> the game created from it
+  const [games, setGames] = useState<Map<string, string>>(new Map());
 
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +60,7 @@ export default function MyFieldRequestsScreen() {
       const list = (data ?? []) as unknown as Row[];
       setRows(list);
       setError(null);
+      setGames(await requestIdsWithGames(supabase, list.filter((r) => r.status === "approved").map((r) => r.id)));
       // Open the one the player came for (a push tap), otherwise the newest.
       setOpenId((cur) => cur ?? request ?? list[0]?.id ?? null);
     }
@@ -95,6 +100,20 @@ export default function MyFieldRequestsScreen() {
                   <Text style={[styles.pillText, r.status === "approved" && styles.pillTextOk]}>{statusLabel(r.status)}</Text>
                 </View>
               </Pressable>
+              {r.status === "approved" ? (
+                games.has(r.id) ? (
+                  <View style={styles.gameRow}>
+                    <Text style={styles.gameDone}>Game created</Text>
+                    <Pressable onPress={() => router.push({ pathname: "/session/[id]", params: { id: games.get(r.id)! } })} style={styles.gameBtn} accessibilityRole="button" accessibilityLabel="View game">
+                      <Text style={styles.gameBtnText}>View game</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable onPress={() => router.push({ pathname: "/session-create", params: { venue_key: r.venue_key, request_id: r.id } })} style={styles.gamePrimary} accessibilityRole="button" accessibilityLabel="Create the game">
+                    <Text style={styles.gamePrimaryText}>Create the game</Text>
+                  </Pressable>
+                )
+              ) : null}
               {open ? <RequestTracker status={r.status} /> : null}
             </View>
           );
@@ -109,6 +128,12 @@ function make_styles() {
   return StyleSheet.create({
     title: { fontSize: 28, lineHeight: 32, ...headline, color: c.text },
     error: { color: c.coralText, fontSize: 14, fontFamily: "Inter_500Medium" },
+    gamePrimary: { backgroundColor: c.pitch, borderRadius: radius.button, paddingVertical: 13, alignItems: "center" },
+    gamePrimaryText: { color: c.onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
+    gameRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+    gameDone: { fontSize: 15, fontFamily: "Inter_700Bold", fontWeight: "700", color: c.pitchText },
+    gameBtn: { borderRadius: radius.button, paddingVertical: 10, paddingHorizontal: 16, borderWidth: 1, borderColor: c.pitch, backgroundColor: c.card },
+    gameBtnText: { color: c.pitchText, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
     empty: { color: c.muted, fontSize: 15, fontFamily: "Inter_400Regular", marginTop: 12 },
     card: { gap: 12 },
     head: { flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 14, backgroundColor: c.card, borderRadius: radius.card, borderWidth: 1, borderColor: c.line },
