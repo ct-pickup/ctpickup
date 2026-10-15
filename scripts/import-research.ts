@@ -308,8 +308,8 @@ async function main() {
   console.log(`Possible duplicates held back: ${plan.duplicates.length}${plan.duplicates.length ? " (see the review file)" : ""}`);
   if (plan.attached.length) {
     console.log("");
-    console.log(`=== Attached to existing (first 10) ===`);
-    for (const a of plan.attached.slice(0, 10)) console.log(`  ${a.item.c.name}  ->  ${a.near.venue.name} [${a.near.venue.venue_key}], ${Math.round(a.near.meters)} m (${a.why})`);
+    console.log(`=== Attached to existing (first 25) ===`);
+    for (const a of plan.attached.slice(0, 25)) console.log(`  ${a.item.c.name}  ->  ${a.near.venue.name} [${a.near.venue.venue_key}], ${Math.round(a.near.meters)} m (${a.why})`);
   }
   for (const d of plan.duplicates.slice(0, 10)) console.log(`  ${d.item.c.name}  ~  ${d.near.venue.name} [${d.near.venue.venue_key}], ${Math.round(d.near.meters)} m (${d.why})`);
 

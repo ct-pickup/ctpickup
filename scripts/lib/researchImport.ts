@@ -346,9 +346,48 @@ export function rawTokens(name: string): string[] {
     .filter(Boolean);
 }
 
-/** The words that identify a place: no school / field(s) / park / soccer / athletic / complex / center and the like. */
-export function meaningfulTokens(name: string): string[] {
-  return rawTokens(name).filter((w) => !STOP.has(w));
+/** Extra words that never identify a place on their own (on top of STOP): common to many fields and campuses. */
+const MATCH_STOP = new Set(["new", "town", "hall", "park", "field", "fields", "school", "high", "middle", "elementary", "academy", "athletic", "soccer", "complex", "center", "memorial", "veterans", "main", "north", "south", "east", "west", "upper", "lower", "stadium", "turf", "grass"]);
+
+/** A word that can be evidence of the same place: letters only, 4 or more of them, and not a common word. Never a numeral. */
+export function isMatchWord(w: string): boolean {
+  return /^[a-z]{4,}$/.test(w) && !STOP.has(w) && !MATCH_STOP.has(w);
+}
+
+/** "Chelsea Piers · Noroton" -> "Chelsea Piers"; "Jennings School (1)" -> "Jennings School". */
+export function cleanVenueName(name: string): string {
+  return name.replace(/\s*[·•|]\s*.*$/, "").replace(/\s*\(\s*\d+\s*\)\s*$/, "").trim();
+}
+
+/** Where the research row is: its own town, county and state words are not evidence that two names are the same place. */
+export type NameCtx = { town?: string | null; county?: string | null; state?: string | null };
+
+const STATE_NAMES: Record<string, string> = {
+  AL: "alabama", AK: "alaska", AZ: "arizona", AR: "arkansas", CA: "california", CO: "colorado", CT: "connecticut", DE: "delaware", DC: "district of columbia",
+  FL: "florida", GA: "georgia", HI: "hawaii", ID: "idaho", IL: "illinois", IN: "indiana", IA: "iowa", KS: "kansas", KY: "kentucky", LA: "louisiana", ME: "maine",
+  MD: "maryland", MA: "massachusetts", MI: "michigan", MN: "minnesota", MS: "mississippi", MO: "missouri", MT: "montana", NE: "nebraska", NV: "nevada",
+  NH: "new hampshire", NJ: "new jersey", NM: "new mexico", NY: "new york", NC: "north carolina", ND: "north dakota", OH: "ohio", OK: "oklahoma", OR: "oregon",
+  PA: "pennsylvania", RI: "rhode island", SC: "south carolina", SD: "south dakota", TN: "tennessee", TX: "texas", UT: "utah", VT: "vermont", VA: "virginia",
+  WA: "washington", WV: "west virginia", WI: "wisconsin", WY: "wyoming",
+};
+
+function placeWords(ctx: NameCtx | undefined): Set<string> {
+  const out = new Set<string>();
+  if (!ctx) return out;
+  for (const w of rawTokens(ctx.town ?? "")) out.add(w);
+  for (const w of rawTokens(ctx.county ?? "")) if (w !== "county") out.add(w);
+  const st = (ctx.state ?? "").trim().toUpperCase();
+  if (st) {
+    out.add(st.toLowerCase());
+    for (const w of rawTokens(STATE_NAMES[st] ?? "")) out.add(w);
+  }
+  return out;
+}
+
+/** The words of a name that count as evidence: suffixes cleaned, the row's own place words removed, then isMatchWord. */
+export function meaningfulTokens(name: string, ctx?: NameCtx): string[] {
+  const place = placeWords(ctx);
+  return [...new Set(rawTokens(cleanVenueName(name)).filter((w) => !place.has(w)).filter(isMatchWord))];
 }
 
 export function nameTokens(name: string): string[] {
@@ -357,10 +396,27 @@ export function nameTokens(name: string): string[] {
   return kept.length > 0 ? kept : t;
 }
 
-/** Same place by name: identical words once filler like "field" and "park" is dropped, or one name's words all appear in the other, or half the words overlap. */
+const LEVEL_OF: Record<string, string> = { elementary: "elementary", middle: "middle", junior: "middle", high: "high", academy: "academy", college: "college", university: "college" };
+
+/** The school levels a name mentions (junior high counts as middle). Empty when it names none. */
+export function schoolLevels(name: string): Set<string> {
+  const t = rawTokens(cleanVenueName(name)).join(" ").replace(/\bjunior high\b/g, "middle");
+  return new Set(t.split(" ").map((w) => LEVEL_OF[w]).filter((x): x is string => !!x));
+}
+
+/** Both names say what kind of school they are, and it is not the same kind: different places, whatever else they share. */
+export function levelsConflict(a: string, b: string): boolean {
+  const la = schoolLevels(a);
+  const lb = schoolLevels(b);
+  if (la.size === 0 || lb.size === 0) return false;
+  return la.size !== lb.size || [...la].some((x) => !lb.has(x));
+}
+
+/** Names that are close enough to be one place when the two are within a few hundred meters. */
 export function namesSimilar(a: string, b: string): boolean {
-  const ta = new Set(nameTokens(a));
-  const tb = new Set(nameTokens(b));
+  if (levelsConflict(a, b)) return false;
+  const ta = new Set(meaningfulTokens(a));
+  const tb = new Set(meaningfulTokens(b));
   if (ta.size === 0 || tb.size === 0) return false;
   const shared = [...ta].filter((w) => tb.has(w)).length;
   if (shared === 0) return false;
@@ -368,18 +424,23 @@ export function namesSimilar(a: string, b: string): boolean {
   return shared / (ta.size + tb.size - shared) >= 0.5;
 }
 
-/**
- * The same place by normalized name: identical once filler words are dropped, or one name's meaningful words are all in the other
- * (the shorter one needs at least 2 meaningful words, so "Memorial" alone never absorbs "Memorial Field Complex North").
- * "Danbury Sports Dome" and "Danbury Dome" are the same venue.
- */
-export function namesSameVenue(a: string, b: string): boolean {
-  const ta = [...new Set(meaningfulTokens(a))];
-  const tb = [...new Set(meaningfulTokens(b))];
+function sameWords(ta: string[], tb: string[]): boolean {
   if (ta.length === 0 || tb.length === 0) return false;
   if (ta.length === tb.length && ta.every((w) => tb.includes(w))) return true;
   const [small, big] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
   return small.length >= 2 && small.every((w) => big.includes(w));
+}
+
+/**
+ * The same place by normalized name: identical meaningful words, or one name's meaningful words are all in the other (the shorter
+ * one needs at least 2). Meaningful = letters only, 4+ letters, not a common word. If both names say what kind of school they are
+ * and the kinds differ, never. The row's own town, county and state words are also tried with removed ("Chelsea Piers Connecticut"
+ * = "Chelsea Piers · Noroton"), which can only add matches.
+ */
+export function namesSameVenue(a: string, b: string, ctx?: NameCtx): boolean {
+  if (levelsConflict(a, b)) return false;
+  if (sameWords(meaningfulTokens(a), meaningfulTokens(b))) return true;
+  return ctx ? sameWords(meaningfulTokens(a, ctx), meaningfulTokens(b, ctx)) : false;
 }
 
 export const SAME_NAME_M = 1500;
@@ -426,12 +487,13 @@ export class VenueIndex {
  *   - the same venue name (normalized, min 2 meaningful words unless identical) within 1.5 km
  *   - any name within 40 m
  */
-export function findMatch(name: string, lat: number, lon: number, index: VenueIndex): Match | null {
+export function findMatch(name: string, lat: number, lon: number, index: VenueIndex, ctx?: NameCtx): Match | null {
   const similarM = isSchoolName(name) ? SCHOOL_NAME_M : NEAR_WITH_NAME_M;
-  const near = index.near(lat, lon, SAME_NAME_M);
+  // A different kind of school is a different place, whatever else matches.
+  const near = index.near(lat, lon, SAME_NAME_M).filter((n) => !levelsConflict(name, n.venue.name));
   const similar = near.find((n) => n.meters <= similarM && namesSimilar(name, n.venue.name));
   if (similar) return { ...similar, reason: "near + similar name" };
-  const same = near.find((n) => namesSameVenue(name, n.venue.name));
+  const same = near.find((n) => namesSameVenue(name, n.venue.name, ctx));
   if (same) return { ...same, reason: "same venue name" };
   const close = near.find((n) => n.meters <= NEAR_ANY_NAME_M);
   return close ? { ...close, reason: "very near" } : null;
@@ -711,12 +773,23 @@ export type Plan = {
   repeats: { item: Item; of: string }[];
 };
 
+export const nameCtx = (c: Clean): NameCtx => ({ town: c.raw.town, county: c.raw.county, state: c.state });
+
+/** The words (letters, 4+, not common, not the row's own town / county / state) a row's name shares with an existing venue. */
+export function attachShared(c: Clean, v: Venue): string[] {
+  if (levelsConflict(c.name, v.name)) return [];
+  if (typeof v.school_name === "string" && v.school_name.trim() && levelsConflict(c.name, v.school_name)) return [];
+  const ctx = nameCtx(c);
+  const mine = meaningfulTokens(c.name, ctx);
+  const theirs = new Set([...meaningfulTokens(v.name, ctx), ...meaningfulTokens(typeof v.school_name === "string" ? v.school_name : "", ctx)]);
+  return mine.filter((w) => theirs.has(w));
+}
+
 /** Does the existing venue plausibly be this row's place? A shared meaningful name word, or the same town and venue type. */
 export function attachReason(c: Clean, v: Venue): string | null {
-  const mine = new Set(meaningfulTokens(c.name));
-  const theirs = new Set([...meaningfulTokens(v.name), ...meaningfulTokens(typeof v.school_name === "string" ? v.school_name : "")]);
-  const shared = [...mine].filter((w) => theirs.has(w));
-  if (shared.length > 0) return `shares "${shared[0]}" in the name`;
+  if (levelsConflict(c.name, v.name)) return null;
+  const shared = attachShared(c, v);
+  if (shared.length > 0) return `shares ${shared.map((w) => `"${w}"`).join(", ")} in the name`;
   const town = c.raw.town.trim().toLowerCase();
   const address = typeof v.address === "string" ? v.address.toLowerCase() : "";
   if (town && address.includes(town) && v.venue_type && v.venue_type === inferVenueType(c)) return `same town (${c.raw.town.trim()}) and venue type`;
@@ -748,7 +821,7 @@ export function planImport(items: Item[], venues: Venue[], opts: { includeDuplic
       plan.noGeo.push(item);
       continue;
     }
-    const m = findMatch(c.name, geo.lat, geo.lon, index);
+    const m = findMatch(c.name, geo.lat, geo.lon, index, nameCtx(c));
     if (m) {
       const g = group(m.venue);
       g.items.push(item);
@@ -756,7 +829,7 @@ export function planImport(items: Item[], venues: Venue[], opts: { includeDuplic
       continue;
     }
     const row = newVenue(c, Number(geo.lat.toFixed(6)), Number(geo.lon.toFixed(6)), geo.matched);
-    const again = newKeys.has(row.venue_key) ? row.venue_key : findMatch(c.name, geo.lat, geo.lon, newIndex)?.venue.venue_key;
+    const again = newKeys.has(row.venue_key) ? row.venue_key : findMatch(c.name, geo.lat, geo.lon, newIndex, nameCtx(c))?.venue.venue_key;
     if (again) {
       plan.repeats.push({ item, of: again });
       continue;

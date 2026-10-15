@@ -2,6 +2,15 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
+  attachPatch,
+  attachReason,
+  meaningfulTokens,
+  namesSameVenue,
+  attachShared,
+  cleanVenueName,
+  isMatchWord,
+  levelsConflict,
+  nameCtx,
   fillPatchGroup,
   guardPrice,
   notesBlockGroup,
@@ -112,7 +121,7 @@ describe("matching", () => {
     expect(m?.reason).toBe("near + similar name");
   });
   it("does not match a similar (not identical) name beyond 150 m", () => {
-    expect(findMatch("Riverside Park Soccer Complex North", at(200), -73.27, index())).toBeNull();
+    expect(findMatch("Riverside Annex North", at(200), -73.27, index())).toBeNull();
   });
   it("does not match a different name between 40 and 150 m", () => {
     expect(findMatch("Totally Different Complex", at(-80), -73.27, index())).toBeNull();
@@ -379,12 +388,10 @@ describe("duplicate prevention for new venues", () => {
   });
 });
 
-import { attachPatch, attachReason, meaningfulTokens, namesSameVenue } from "../scripts/lib/researchImport";
-
 describe("name normalization", () => {
   it("strips diacritics, punctuation, & / and, and filler words", () => {
-    expect(meaningfulTokens("Muñoz Memorial Park")).toEqual(["munoz", "memorial"]);
-    expect(meaningfulTokens("Munoz Memorial Athletic Complex")).toEqual(["munoz", "memorial"]);
+    expect(meaningfulTokens("Muñoz Memorial Park")).toEqual(["munoz"]);
+    expect(meaningfulTokens("Munoz Memorial Athletic Complex")).toEqual(["munoz"]);
     expect(namesSimilar("Muñoz Field", "Munoz Park")).toBe(true);
     expect(namesSameVenue("Smith & Jones Soccer Center", "Smith and Jones")).toBe(true);
     expect(namesSameVenue("St. Mary's School Field", "St Marys")).toBe(true);
@@ -409,7 +416,8 @@ describe("same venue name within 1.5 km", () => {
   });
   it("needs at least 2 meaningful words unless the names are identical", () => {
     expect(namesSameVenue("Memorial Field Complex North", "Memorial Park")).toBe(false);
-    expect(namesSameVenue("Memorial Park", "Memorial Field")).toBe(true);
+    expect(namesSameVenue("Danbury Park", "Danbury Field")).toBe(true);
+    expect(namesSameVenue("Memorial Park", "Memorial Field")).toBe(false);
     expect(namesSameVenue("Danbury Dome", "Danbury Sports Dome")).toBe(true);
   });
   it("stops at 1.5 km", () => {
@@ -419,8 +427,8 @@ describe("same venue name within 1.5 km", () => {
   it("uses 400 m for school-named rows", () => {
     const i = new VenueIndex();
     i.add(venue({ venue_key: "s", name: "Lincoln High School Stadium", lat: 41.15, lon: -73.27 }));
-    expect(findMatch("Lincoln High Turf Complex North", at(350), -73.27, i)?.reason).toBe("near + similar name");
-    expect(findMatch("Lincoln Turf Complex North", at(350), -73.27, i)).toBeNull();
+    expect(findMatch("Lincoln High Annex", at(350), -73.27, i)?.reason).toBe("near + similar name");
+    expect(findMatch("Lincoln Annex", at(350), -73.27, i)).toBeNull();
   });
 });
 
@@ -507,5 +515,81 @@ describe("program-fee guard", () => {
     const skip = (JSON.parse(readFileSync(new URL("../data/research/skip.json", import.meta.url), "utf8")) as { names: string[] }).names;
     for (const n of ["Highland School Gym", "Madison Town Campus Gym", "Meriden YMCA Gymnasium", "Danbury PAL Center"]) expect(isSkipped(n, skip), n).toBe(true);
     expect(isSkipped("Madison Town Campus", skip)).toBe(false);
+  });
+});
+
+describe("tighter shared-word rules", () => {
+  const rowAt = (name: string, over: Partial<ResearchRaw> = {}) => cleanRow(raw({ name, town: "Fairfield", venue_type: "park", ...over }), "CT");
+
+  it("only letters, 4+ of them, and not a common word, count", () => {
+    for (const w of ["riverside", "chelsea", "dome", "munoz"]) expect(isMatchWord(w), w).toBe(true);
+    for (const w of ["1", "12", "abc", "u12", "3rd", "town", "hall", "park", "field", "fields", "school", "high", "middle", "elementary", "academy", "athletic", "soccer", "complex", "center", "memorial", "veterans", "main", "north", "south", "east", "west", "upper", "lower", "stadium", "turf", "grass", "new"]) expect(isMatchWord(w), w).toBe(false);
+  });
+
+  it("never matches or attaches on numerals alone: Town Hall Soccer 1 vs Roger Sherman Elementary School (1)", () => {
+    const v = venue({ venue_key: "rs", name: "Roger Sherman Elementary School (1)", lat: 41.15, lon: -73.27, venue_type: "school_public", address: "1 School St, Fairfield, CT" });
+    const c = rowAt("Town Hall Soccer 1");
+    const i = new VenueIndex();
+    i.add(v);
+    expect(findMatch(c.name, at(100), -73.27, i, nameCtx(c))).toBeNull();
+    expect(attachShared(c, v)).toEqual([]);
+    expect(attachReason(c, v)).toBeNull();
+  });
+
+  it("Burroughs Park Soccer 1 vs Jennings School (1): no match, no attach", () => {
+    const v = venue({ venue_key: "j", name: "Jennings School (1)", lat: 41.15, lon: -73.27, venue_type: "school_public", address: "2 Elm St, Fairfield, CT" });
+    const c = rowAt("Burroughs Park Soccer 1");
+    const i = new VenueIndex();
+    i.add(v);
+    expect(findMatch(c.name, at(60), -73.27, i, nameCtx(c))).toBeNull();
+    expect(attachReason(c, v)).toBeNull();
+    const plan = planImport([item(c, at(250), -73.27)], [v]);
+    expect(plan.attached).toHaveLength(0);
+  });
+
+  it("different school levels never match or attach: Bethel High School Turf Field vs Bethel Middle School", () => {
+    const v = venue({ venue_key: "bm", name: "Bethel Middle School", lat: 41.15, lon: -73.27, venue_type: "school_public", address: "5 Main St, Bethel, CT" });
+    const c = rowAt("Bethel High School Turf Field", { town: "Bethel", venue_type: "school" });
+    expect(levelsConflict(c.name, v.name)).toBe(true);
+    const i = new VenueIndex();
+    i.add(v);
+    // even 20 m away (inside the any-name rule) it is a different school
+    expect(findMatch(c.name, at(20), -73.27, i, nameCtx(c))).toBeNull();
+    expect(namesSameVenue(c.name, v.name, nameCtx(c))).toBe(false);
+    expect(namesSimilar(c.name, v.name)).toBe(false);
+    expect(attachReason(c, v)).toBeNull();
+    expect(planImport([item(c, at(250), -73.27)], [v]).attached).toHaveLength(0);
+  });
+
+  it("the same school level still matches", () => {
+    expect(levelsConflict("Bethel High School Turf Field", "Bethel High School")).toBe(false);
+    expect(levelsConflict("Bethel Junior High", "Bethel Middle School")).toBe(false);
+    expect(levelsConflict("Bethel Elementary", "Bethel Soccer Field")).toBe(false);
+    expect(namesSameVenue("Bethel High School Turf Field", "Bethel High School")).toBe(true);
+  });
+
+  it("strips the row's town, county and state and name suffixes: Chelsea Piers Connecticut vs Chelsea Piers · Noroton", () => {
+    expect(cleanVenueName("Chelsea Piers · Noroton")).toBe("Chelsea Piers");
+    expect(cleanVenueName("Jennings School (1)")).toBe("Jennings School");
+    const c = rowAt("Chelsea Piers Connecticut", { town: "Stamford", county: "Fairfield County", venue_type: "club" });
+    const v = venue({ venue_key: "cp", name: "Chelsea Piers · Noroton", lat: 41.15, lon: -73.27 });
+    const i = new VenueIndex();
+    i.add(v);
+    expect(meaningfulTokens("Chelsea Piers Connecticut", nameCtx(c))).toEqual(["chelsea", "piers"]);
+    expect(findMatch(c.name, at(700), -73.27, i, nameCtx(c))).toMatchObject({ reason: "same venue name" });
+    expect(namesSameVenue(c.name, v.name, nameCtx(c))).toBe(true);
+  });
+
+  it("the row's own town is not evidence of attachment", () => {
+    const v = venue({ venue_key: "x", name: "Stamford Ice Rink", lat: 41.15, lon: -73.27, venue_type: "club", address: "1 Ice Way, Stamford, CT" });
+    const c = rowAt("Stamford Soccer Dome", { town: "Stamford", venue_type: "park" });
+    expect(attachShared(c, v)).toEqual([]);
+  });
+
+  it("lists every shared word for the report", () => {
+    const v = venue({ venue_key: "x", name: "Danbury Sports Dome", lat: 41.15, lon: -73.27 });
+    const c = rowAt("Sports Dome Indoor Arena", { town: "Danbury" });
+    expect(attachShared(c, v)).toEqual(["sports", "dome"]);
+    expect(attachReason(c, v)).toBe('shares "sports", "dome" in the name');
   });
 });
