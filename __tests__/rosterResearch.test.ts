@@ -368,3 +368,129 @@ describe("offline fetcher", () => {
     expect(calls).toBe(before);
   });
 });
+
+import { buildOutreach, OUTREACH_COLUMNS, outreachCsv, outreachSummary, sortOutreach, splitName, STATE_ORDER, type OutreachRow } from "../scripts/roster-research/outreach";
+import type { Row } from "../scripts/roster-research/core";
+
+describe("outreach: splitting names", () => {
+  it.each([
+    ["Jordan Smith", "Jordan", "Smith", ""],
+    ["Jordan Smith Jr.", "Jordan", "Smith", "Jr"],
+    ["Jordan Smith, Jr.", "Jordan", "Smith", "Jr"],
+    ["Jordan Smith III", "Jordan", "Smith", "III"],
+    ["Jordan Smith IV", "Jordan", "Smith", "IV"],
+    ["Ana Garcia-Lopez", "Ana", "Garcia-Lopez", ""],
+    ["Jordan De La Cruz", "Jordan", "De La Cruz", ""],
+    ["Jordan De La Cruz Jr.", "Jordan", "De La Cruz", "Jr"],
+    ["Ethan Van Dyke", "Ethan", "Van Dyke", ""],
+    ["Mia St. Pierre", "Mia", "St. Pierre", ""],
+    ["Sean O'Neil", "Sean", "O'Neil", ""],
+    ["John A. Smith", "John", "Smith", ""],
+    ["Mary Beth Smith", "Mary Beth", "Smith", ""],
+    ['Jonathan "JT" Smith', "Jonathan", "Smith", ""],
+    ["Jonathan (JT) Smith", "Jonathan", "Smith", ""],
+    ["  Zoë   Núñez ", "Zoë", "Núñez", ""],
+  ])("%s", (full, first, last, suffix) => {
+    expect(splitName(full)).toEqual({ first, last, suffix });
+  });
+  it("won't split a single name or an ambiguous comma, and never guesses", () => {
+    for (const n of ["Pelé", "Madonna Jr.", "", "  ", "Smith, John", "Smith, John Jr."]) expect(splitName(n), n).toBeNull();
+  });
+});
+
+describe("outreach: sorting", () => {
+  const r = (state: string, season: number, school: string, last: string, first = "A"): OutreachRow => ({ first_name: first, last_name: last, school, hometown_city: "X", hometown_state: state, season, team: "men", status: "" });
+  it("orders states CT, NY, NJ, MA, MD, PA, DC, DE, RI, then newest season, school, last name", () => {
+    expect([...STATE_ORDER]).toEqual(["CT", "NY", "NJ", "MA", "MD", "PA", "DC", "DE", "RI"]);
+    const rows = [
+      r("RI", 2026, "A", "Z"), r("DE", 2026, "A", "Z"), r("DC", 2026, "A", "Z"), r("PA", 2026, "A", "Z"), r("MD", 2026, "A", "Z"), r("MA", 2026, "A", "Z"), r("NJ", 2026, "A", "Z"), r("NY", 2026, "A", "Z"),
+      r("CT", 2014, "A", "Z"), r("CT", 2026, "B", "Y"), r("CT", 2018, "A", "Z"), r("CT", 2026, "A", "Z"), r("CT", 2022, "A", "Z"), r("CT", 2026, "A", "Adams"), r("CT", 2026, "B", "Adams"),
+    ];
+    const sorted = sortOutreach(rows).map((x) => `${x.hometown_state} ${x.season} ${x.school} ${x.last_name}`);
+    expect(sorted).toEqual([
+      "CT 2026 A Adams", "CT 2026 A Z", "CT 2026 B Adams", "CT 2026 B Y", "CT 2022 A Z", "CT 2018 A Z", "CT 2014 A Z",
+      "NY 2026 A Z", "NJ 2026 A Z", "MA 2026 A Z", "MD 2026 A Z", "PA 2026 A Z", "DC 2026 A Z", "DE 2026 A Z", "RI 2026 A Z",
+    ]);
+  });
+});
+
+describe("outreach: building the list", () => {
+  const row = (over: Partial<Row> = {}): Row => ({ school: "Trinity College (CT)", division: "D3", conference: "NESCAC", team: "men", season: 2026, name: "Alex Example", class_year: "SR", position: "MF", hometown_city: "Westport", hometown_state: "CT", source_url: "u", collected_at: "t", duplicate_of_existing: "", ...over });
+
+  it("has the requested columns, hometown_city for every state, and a blank status", () => {
+    const b = buildOutreach([row(), row({ name: "Sam Sample", hometown_city: "Albany", hometown_state: "NY" })]);
+    expect([...OUTREACH_COLUMNS]).toEqual(["first_name", "last_name", "school", "hometown_city", "hometown_state", "season", "team", "status"]);
+    expect(b.rows.map((x) => [x.first_name, x.last_name, x.hometown_city, x.hometown_state, x.status])).toEqual([["Alex", "Example", "Westport", "CT", ""], ["Sam", "Sample", "Albany", "NY", ""]]);
+    const csv = outreachCsv(b.rows).trim().split("\n");
+    expect(csv[0]).toBe("first_name,last_name,school,hometown_city,hometown_state,season,team,status");
+    expect(csv[0]).not.toMatch(/email|phone|instagram|twitter|handle|contact|high_school|photo/i);
+  });
+  it("merges the same player across seasons only when name, school, team and hometown all match, keeping the newest season", () => {
+    const b = buildOutreach([row({ season: 2018 }), row({ season: 2026 }), row({ season: 2022, class_year: "SO" })]);
+    expect(b.rows).toHaveLength(1);
+    expect(b.rows[0]!.season).toBe(2026);
+    expect(b.merged).toBe(2);
+  });
+  it("keeps both rows when it is unsure: another hometown, another school, another team, or a different suffix", () => {
+    const b = buildOutreach([
+      row({ name: "Pat Same", hometown_city: "Westport" }), row({ name: "Pat Same", hometown_city: "Stamford", season: 2022 }), // same name and school, different town
+      row({ name: "Lee Move", school: "Tufts University" }), row({ name: "Lee Move", school: "Trinity College (CT)", season: 2022 }), // a transfer
+      row({ name: "Kim Both", team: "men" }), row({ name: "Kim Both", team: "women", season: 2022 }),
+      row({ name: "Joe Line" }), row({ name: "Joe Line Jr.", season: 2022 }), row({ name: "Joe Line III", season: 2018 }),
+    ]);
+    expect(b.merged).toBe(0);
+    expect(b.rows).toHaveLength(9);
+    expect(b.keptSeparate).toBe(1); // Pat Same
+  });
+  it("ignores case, accents and punctuation when matching names and towns", () => {
+    const b = buildOutreach([row({ name: "José O'Neil", hometown_city: "St. Louis", season: 2022 }), row({ name: "JOSE ONEIL", hometown_city: "st louis", season: 2026 })]);
+    expect(b.rows).toHaveLength(1);
+    expect(b.merged).toBe(1);
+  });
+  it("logs single names and ambiguous commas instead of guessing, and leaves them out of the list", () => {
+    const b = buildOutreach([row({ name: "Pelé" }), row({ name: "Smith, John" }), row({ name: "Real Person" })]);
+    expect(b.rows.map((x) => x.last_name)).toEqual(["Person"]);
+    expect(b.unsplit.map((u) => [u.name, u.reason])).toEqual([["Pelé", "single name"], ["Smith, John", "ambiguous comma"]]);
+  });
+  it("leaves out D1 rows flagged as already held, unless asked", () => {
+    const rows = [row({ division: "D1", duplicate_of_existing: "true", name: "Held Player" }), row({ name: "New Player" })];
+    expect(buildOutreach(rows).rows.map((x) => x.first_name)).toEqual(["New"]);
+    expect(buildOutreach(rows).excludedExisting).toBe(1);
+    expect(buildOutreach(rows, { includeDuplicateOfExisting: true }).rows).toHaveLength(2);
+  });
+  it("prints a short summary: total, per state, merged, unsplit", () => {
+    const b = buildOutreach([row(), row({ season: 2022 }), row({ name: "Cher", hometown_state: "NY", hometown_city: "Troy" }), row({ name: "Dee Eff", hometown_state: "NY", hometown_city: "Troy" })]);
+    const text = outreachSummary(b).join("\n");
+    expect(text).toMatch(/Outreach list: 2 rows/);
+    expect(text).toMatch(/CT: 1/);
+    expect(text).toMatch(/NY: 1/);
+    expect(text).toMatch(/NJ: 0/);
+    expect(text).toMatch(/Duplicates merged.*: 1/);
+    expect(text).toMatch(/could not be split.*: 1/);
+  });
+  it("--export-outreach writes the file from the collected CSVs, offline, and nothing else", () => {
+    const out = mkdtempSync(join(tmpdir(), "roster-out-"));
+    const header = "school,division,conference,team,season,name,class_year,position,hometown_city,hometown_state,source_url,collected_at,duplicate_of_existing";
+    writeFileSync(join(out, "D3_2026.csv"), `${header}\nTufts University,D3,NESCAC,men,2026,"Dan Fairfield Jr.",SR,MF,Fairfield,CT,u,t,\nTufts University,D3,NESCAC,women,2026,Pelé,FR,F,Newark,NJ,u,t,\n`);
+    writeFileSync(join(out, "D3_2022.csv"), `${header}\nTufts University,D3,NESCAC,men,2022,Dan Fairfield Jr.,JR,MF,Fairfield,CT,u,t,\n`);
+    const res = spawnSync(process.execPath, ["--experimental-strip-types", "--no-warnings", "scripts/roster-research/run.ts", "--export-outreach", "--out", out], { encoding: "utf8", env: { ...process.env, ROSTER_CONTACT_EMAIL: "" } });
+    expect(res.status, res.stderr).toBe(0);
+    expect(res.stdout).toMatch(/Outreach list: 1 rows/);
+    expect(res.stdout).toMatch(/Duplicates merged.*: 1/);
+    expect(res.stdout).toMatch(/not split \(single name\): "Pelé"/);
+    const list = readFileSync(join(out, "outreach_list.csv"), "utf8").trim().split("\n");
+    expect(list).toEqual(["first_name,last_name,school,hometown_city,hometown_state,season,team,status", "Dan,Fairfield,Tufts University,Fairfield,CT,2026,men,"]);
+    expect(readFileSync(join(out, "outreach_unsplit.csv"), "utf8")).toMatch(/Pelé/);
+  });
+});
+
+describe("outreach stays a by-hand list", () => {
+  it("has no network calls, no social sites and no contact fields anywhere in the roster tooling", () => {
+    for (const f of ["outreach.ts", "core.ts", "sidearm.ts", "hometown.ts", "states.ts"]) {
+      const src = readFileSync(new URL(`../scripts/roster-research/${f}`, import.meta.url), "utf8");
+      expect(src, f).not.toMatch(/instagram|twitter|facebook|tiktok|linkedin|snapchat|\bx\.com\b|mailto:|sendMessage|\bsms\b/i);
+    }
+    expect(readFileSync(new URL("../scripts/roster-research/outreach.ts", import.meta.url), "utf8")).not.toMatch(/\bfetch\s*\(|https?:\/\//);
+    expect(readFileSync(new URL("../.gitignore", import.meta.url), "utf8")).toMatch(/^\/data\/outreach\/rosters\/$/m);
+  });
+});

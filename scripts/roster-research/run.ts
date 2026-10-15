@@ -12,6 +12,9 @@
  *          --report-only       rebuild the CSVs and the coverage log from what is already collected, fetch nothing
  *          --show-skipped      print, from the local work file only (no fetching), every hometown text skipped as foreign or
  *                              unreadable (grouped, with school and season, no names) and the 10 most unusual kept strings
+ *          --export-outreach   write <out>/outreach_list.csv (one row per player, sorted CT, NY, NJ, MA, MD, PA, DC, DE, RI; newest
+ *                              season first) and <out>/outreach_unsplit.csv from the CSVs already collected. Offline. Add
+ *                              --include-duplicate-of-existing to keep D1 rows flagged as already held. Local file for use by hand.
  *          --reparse           re-read every already-fetched page from the cache (never the network) with the current parser and
  *                              refresh the work file. Use it after a parser fix, or to add raw hometown text to older work files
  *
@@ -25,6 +28,9 @@ import { join, resolve } from "node:path";
 
 import { buildCsvs, collectTask, coverageCsv, pendingTasks, skippedReport, PHASES, planTasks, summarize, taskKey, type Division, type Outcome, type School } from "./core.ts";
 import { buildUserAgent, PoliteFetcher } from "./fetcher.ts";
+import { buildOutreach, outreachCsv, outreachSummary, unsplitCsv } from "./outreach.ts";
+import { parseCsv } from "../lib/researchImport.ts";
+import type { Row } from "./core.ts";
 
 const arg = (n: string): string | null => {
   const i = process.argv.indexOf(n);
@@ -58,11 +64,34 @@ function loadOutcomes(file: string): Map<string, Outcome> {
   return m;
 }
 
+/** Reads the collected division-season CSVs in the output folder and writes the outreach list. Touches no network. */
+function exportOutreach(out: string): void {
+  const files = readdirSync(out).filter((f) => /^(D1|D2|D3|JUCO)_\d{4}\.csv$/.test(f));
+  if (files.length === 0) fail(`No collected CSVs (D3_2026.csv and so on) in ${out}. Run a phase first.`);
+  const rows: Row[] = [];
+  for (const f of files) {
+    const [head, ...body] = parseCsv(readFileSync(join(out, f), "utf8"));
+    for (const cells of body) rows.push(Object.fromEntries(head!.map((h, i) => [h, cells[i] ?? ""])) as unknown as Row);
+  }
+  const built = buildOutreach(rows, { includeDuplicateOfExisting: flag("--include-duplicate-of-existing") });
+  writeFileSync(join(out, "outreach_list.csv"), outreachCsv(built.rows));
+  writeFileSync(join(out, "outreach_unsplit.csv"), unsplitCsv(built.unsplit));
+  console.log(`Read ${rows.length} rows from ${files.length} files: ${files.join(", ")}`);
+  for (const line of outreachSummary(built)) console.log(line);
+  for (const u of built.unsplit.slice(0, 20)) console.log(`  not split (${u.reason}): "${u.name}" at ${u.school} ${u.season}, hometown ${u.hometown_city}, ${u.hometown_state}`);
+  console.log(`Wrote ${join(out, "outreach_list.csv")} and outreach_unsplit.csv (local files, gitignored).`);
+}
+
 async function main() {
   const out = resolve(arg("--out") ?? "data/outreach/rosters");
   const work = join(out, ".work");
   mkdirSync(work, { recursive: true });
   const outcomesFile = join(work, "outcomes.jsonl");
+
+  if (flag("--export-outreach")) {
+    exportOutreach(out);
+    return;
+  }
 
   const phase = Number(arg("--phase") ?? 0);
   const preset = PHASES[phase];
