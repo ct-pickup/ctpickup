@@ -122,6 +122,14 @@ export default function FieldDetailScreen() {
           <Text style={styles.value}>{permit.title}</Text>
           {permit.sub ? <Text style={styles.muted}>{permit.sub}</Text> : null}
         </Row>
+        {v.residency_rule ? (
+          <>
+            <View style={styles.sep} />
+            <Row label="Who can book">
+              <Text style={styles.value}>{v.residency_rule}</Text>
+            </Row>
+          </>
+        ) : null}
         {v.address ? (
           <>
             <View style={styles.sep} />
@@ -132,11 +140,11 @@ export default function FieldDetailScreen() {
         ) : null}
       </View>
 
-      {isAdmin && v.player_notes?.trim() ? (
+      {isAdmin && (v.player_notes?.trim() || v.availability_notes?.trim()) ? (
         <View style={styles.adminNotes}>
           <Text style={styles.adminNotesTitle}>Notes (admins only)</Text>
           <Text style={styles.adminNotesText} selectable>
-            {v.player_notes.replace(/\[\/?research\]\n?/g, "").trim()}
+            {[v.availability_notes?.trim() ? `Availability:\n${v.availability_notes.trim()}` : "", (v.player_notes ?? "").replace(/\[\/?research\]\n?/g, "").trim()].filter(Boolean).join("\n\n")}
           </Text>
         </View>
       ) : null}

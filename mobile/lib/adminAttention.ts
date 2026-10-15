@@ -12,6 +12,8 @@ export type AttentionCounts = {
   signups: number;
   /** Field requests from players that no admin has picked up yet. */
   fieldRequests: number;
+  /** Player-suggested fields and corrections waiting for an admin. */
+  fieldSuggestions: number;
   /** Rating sessions that have started but are not settled (last 30 days). */
   settlements: number;
   // No payouts count: it needs a "paid out" marker (a migration) before it can be a real queue.
@@ -74,8 +76,12 @@ export function useAdminAttention() {
       const { count, error } = await supabase.from("venue_requests").select("id", { count: "exact", head: true }).eq("status", "new");
       return error ? 0 : (count ?? 0);
     };
-    const [doc, ig, s, st, fr] = await Promise.all([documentPending(), instagramPending(), signups(), settlements(), fieldRequests()]);
-    setCounts({ verifications: doc + ig, signups: s, settlements: st, fieldRequests: fr });
+    const fieldSuggestions = async (): Promise<number> => {
+      const { count, error } = await supabase.from("venue_suggestions").select("id", { count: "exact", head: true }).eq("status", "pending");
+      return error ? 0 : (count ?? 0);
+    };
+    const [doc, ig, s, st, fr, fs] = await Promise.all([documentPending(), instagramPending(), signups(), settlements(), fieldRequests(), fieldSuggestions()]);
+    setCounts({ verifications: doc + ig, signups: s, settlements: st, fieldRequests: fr, fieldSuggestions: fs });
   }, [token, supabase]);
 
   useFocusEffect(

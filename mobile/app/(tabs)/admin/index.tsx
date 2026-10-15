@@ -44,6 +44,7 @@ export default function AdminMenuScreen() {
     ? [
         { key: "verify", label: "Verification requests", count: counts.verifications, href: "/admin/verification" as Href },
         { key: "fields", label: "Field requests", count: counts.fieldRequests, href: "/admin/field-requests" as Href },
+        { key: "suggestions", label: "Field suggestions", count: counts.fieldSuggestions, href: "/admin/venue-suggestions" as Href },
         { key: "signups", label: "New signups to approve", count: counts.signups, href: "/admin/members" as Href },
         { key: "settle", label: "Sessions to settle", count: counts.settlements, href: "/admin/pickup" as Href },
       ].filter((r) => r.count > 0)

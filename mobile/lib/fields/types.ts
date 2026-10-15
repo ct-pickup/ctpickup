@@ -50,6 +50,10 @@ export type Venue = {
   source?: "osm" | "player" | "manual" | null;
   locked_fields?: string[] | null;
   player_notes?: string | null;
+  /** Who may book (from a venue reply): "Residents only", "Non-resident fee", "Open to all". */
+  residency_rule?: string | null;
+  /** Dated availability notes (a denial, no field on a day). Admin only in the app. */
+  availability_notes?: string | null;
   verified: boolean;
   last_verified_at: string | null;
   updated_at: string | null;

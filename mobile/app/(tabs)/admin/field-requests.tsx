@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { RecordReply } from "@/components/fields/RecordReply";
 import { useAuth } from "@/context/AuthContext";
 import { siteOrigin } from "@/lib/env";
 import { tabBarContentPadding } from "@/lib/tabBar";
@@ -255,6 +256,8 @@ export default function AdminFieldRequestsScreen() {
                       ) : null}
                     </View>
                     <Text style={styles.note}>Nothing is sent for you. You send the email yourself.</Text>
+
+                    <RecordReply requestId={it.id} token={token} onSaved={() => void load(tab)} />
 
                     {busy ? <ActivityIndicator color={themeColor().muted} /> : (
                       <View style={styles.actions}>

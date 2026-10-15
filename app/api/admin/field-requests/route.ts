@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
-import { sendPushToUsers } from "@/lib/push/sendExpoPush";
+import { pushRequestStatus } from "@/lib/fields/requestPush";
 import { supabaseService } from "@/lib/supabase/service";
-import { formatRequestWhen, isAdminSettableStatus, playerStatusPush, type RequestStatus } from "@/shared/fields/requestEmail";
+import { isAdminSettableStatus, type RequestStatus } from "@/shared/fields/requestEmail";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -118,23 +118,7 @@ export async function PATCH(req: Request) {
   const { error: updErr } = await admin.from("venue_requests").update(patch).eq("id", id);
   if (updErr) return NextResponse.json({ error: "Could not update the request." }, { status: 500 });
 
-  const changed = typeof patch.status === "string" && patch.status !== prev.status;
-  if (changed) {
-    try {
-      const { data: venue } = await admin.from("venues").select("name").eq("venue_key", prev.venue_key).maybeSingle();
-      const msg = playerStatusPush(
-        patch.status as RequestStatus,
-        (venue as { name?: string } | null)?.name ?? "the venue",
-        formatRequestWhen(prev.requested_date, prev.start_time, Number(prev.duration_hours)),
-      );
-      // Respect a player who turned request updates off (no row means on).
-      const { data: pref } = await admin.from("alert_subscriptions").select("enabled").eq("user_id", prev.user_id).eq("alert_type", "request_updates").maybeSingle();
-      const muted = (pref as { enabled?: boolean } | null)?.enabled === false;
-      if (msg && !muted) await sendPushToUsers(admin, [prev.user_id], { ...msg, data: { screen: "field-requests", request_id: id } });
-    } catch (e) {
-      console.error("[api/admin/field-requests] player push failed", e);
-    }
-  }
+  if (typeof patch.status === "string" && patch.status !== prev.status) await pushRequestStatus(admin, id, prev, patch.status as RequestStatus);
 
   return NextResponse.json({ ok: true });
 }
