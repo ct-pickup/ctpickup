@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  fillPatchGroup,
+  guardPrice,
+  notesBlockGroup,
+  planImport,
+  possibleDuplicate,
+  withNotesGroup,
+  type Item,
   cleanFacilityRow,
   isFacilityFile,
   isOutdoorFile,
@@ -264,5 +271,109 @@ describe("facility column mapping", () => {
   it("uses phone booking when there is no link, and never marks anything verified", () => {
     const v = newVenue(cleanFacilityRow(fac({ booking_url: "" }), "CT"), 1, 2, null);
     expect(v).toMatchObject({ booking_method: "phone", verified: false, source: "manual", price_source: "unknown", setting: "indoor", operator: "Kicks LLC", website: "https://kicks.example" });
+  });
+});
+
+const item = (c: ReturnType<typeof cleanRow>, lat: number, lon: number, line = 1): Item => ({ file: "ct_outdoor_soccer_fields.csv", line, c, geo: { lat, lon, matched: "X" } });
+const campus = (over: Partial<ResearchRaw>) => cleanRow(raw({ free_or_paid: "unknown", price_text: "", permit_required: "unknown", booking_url: "", contact_phone: "", how_to_book: "", surface: "unknown", lit: "unknown", ...over }), "CT");
+
+describe("many rows, one venue", () => {
+  it("fills a value when every matching row agrees", () => {
+    const a = campus({ name: "Hillcrest Field 1", surface: "Turf", lit: "yes" });
+    const b = campus({ name: "Hillcrest Field 2", surface: "turf", lit: "yes" });
+    const { patch, disagreements } = fillPatchGroup(venue(), [a, b]);
+    expect(patch).toMatchObject({ surface: "turf", lit: "yes" });
+    expect(disagreements).toEqual([]);
+  });
+  it("leaves a value empty when the rows disagree, and says so", () => {
+    const a = campus({ name: "Hillcrest Field 1", surface: "turf", lit: "yes", free_or_paid: "paid", price_text: "$40/hr", permit_required: "yes" });
+    const b = campus({ name: "Hillcrest Field 2", surface: "grass", lit: "yes", free_or_paid: "paid", price_text: "$60/hr", permit_required: "no" });
+    const { patch, disagreements } = fillPatchGroup(venue(), [a, b]);
+    expect(patch).toMatchObject({ lit: "yes" });
+    for (const k of ["surface", "price_status", "price_min", "permit_required"]) expect(patch).not.toHaveProperty(k);
+    expect(disagreements).toEqual(expect.arrayContaining(["surface", "price", "permit"]));
+    expect(disagreements).not.toContain("lit");
+    expect(notesBlockGroup([a, b], disagreements)).toMatch(/multiple fields on this campus/);
+  });
+  it("a row with no opinion does not block the others", () => {
+    const a = campus({ name: "A", surface: "turf" });
+    const b = campus({ name: "B", surface: "unknown" });
+    expect(fillPatchGroup(venue(), [a, b]).patch).toMatchObject({ surface: "turf" });
+  });
+  it("combines every row in the notes, not just the last", () => {
+    const a = campus({ name: "Hillcrest Field 1", residency_rule: "Residents only", source_url: "https://a.example" });
+    const b = campus({ name: "Hillcrest Field 2", availability_notes: "Weekends only", source_url: "https://b.example" });
+    const block = notesBlockGroup([a, b], []);
+    for (const t of ["2 research rows matched", "-- Hillcrest Field 1 --", "-- Hillcrest Field 2 --", "https://a.example", "https://b.example", "Residents only", "Weekends only"]) expect(block).toContain(t);
+    expect(block.match(/\[research\]/g)).toHaveLength(1);
+    const notes = withNotesGroup(venue(), {}, [a, b]).player_notes as string;
+    expect(notes).toContain("Hillcrest Field 2");
+  });
+  it("plans several rows matching one venue as one update", () => {
+    const plan = planImport([item(campus({ name: "Riverside Park", surface: "turf" }), 41.15, -73.27, 2), item(campus({ name: "Riverside Field 2", surface: "grass" }), at(20), -73.27, 3)], [venue()]);
+    expect(plan.updates).toHaveLength(1);
+    expect(plan.updates[0]!.items).toHaveLength(2);
+    expect(plan.updates[0]!.patch).not.toHaveProperty("surface");
+    expect(String(plan.updates[0]!.patch.player_notes)).toMatch(/multiple fields on this campus/);
+    expect(plan.inserts).toHaveLength(0);
+  });
+});
+
+describe("group, organization and non-resident prices", () => {
+  it.each(["Group 3: $25/hr", "For-profit $120/hr", "Commercial rate $200", "Organization rate $90/hr", "Non-resident $80/hr", "Outside group $75"])("%s is kept in the notes only", (text) => {
+    const c = cleanRow(raw({ free_or_paid: "paid", price_text: text }), "CT");
+    expect(c.priceGuarded).toBe(true);
+    expect(c.price).toEqual({ status: "unknown", text: null, min: null, max: null, unit: null });
+    const patch = fillPatch(venue(), c);
+    for (const k of ["price_status", "price_min", "price_max", "price_text"]) expect(patch).not.toHaveProperty(k);
+    expect(notesBlock(c)).toContain(text);
+    expect(newVenue(c, 1, 2, null)).toMatchObject({ price_status: "unknown", price_min: null, price_max: null });
+  });
+  it("applies to facility rows too, and leaves an ordinary price alone", () => {
+    expect(cleanFacilityRow(fac({ price_text: "Non-resident $90/hr" }), "CT").priceGuarded).toBe(true);
+    expect(guardPrice(cleanRow(raw({ price_text: "$40/hr" }), "CT")).priceGuarded).toBe(false);
+  });
+});
+
+describe("duplicate prevention for new venues", () => {
+  const c = (name: string, extra: Partial<ResearchRaw> = {}) => cleanRow(raw({ name, ...extra }), "CT");
+  const existing = [venue({ venue_key: "osm-9", name: "Something Else", lat: 41.15, lon: -73.27 })];
+  it("holds back a new venue within 300 m of an existing one", () => {
+    const plan = planImport([item(c("Brand New Complex"), at(250), -73.27)], existing);
+    expect(plan.inserts).toHaveLength(0);
+    expect(plan.duplicates).toHaveLength(1);
+    expect(plan.duplicates[0]!.near.venue.venue_key).toBe("osm-9");
+    expect(Math.round(plan.duplicates[0]!.near.meters)).toBeGreaterThan(200);
+  });
+  it("inserts a new venue that is more than 300 m from everything", () => {
+    const plan = planImport([item(c("Brand New Complex"), at(400), -73.27)], existing);
+    expect(plan.duplicates).toHaveLength(0);
+    expect(plan.inserts).toHaveLength(1);
+    expect(plan.inserts[0]!.nearest?.venue.venue_key).toBe("osm-9");
+  });
+  it("holds back a school whose school_name matches within 800 m", () => {
+    const sch = [venue({ venue_key: "osm-s", name: "Stadium Turf", school_name: "Lincoln High School", lat: 41.15, lon: -73.27 })];
+    const row = c("Lincoln High School", { venue_type: "school" });
+    const dup = possibleDuplicate(row, at(600), -73.27, (() => { const i = new VenueIndex(); sch.forEach((v) => i.add(v)); return i; })());
+    expect(dup?.why).toMatch(/same school within 800/);
+    const plan = planImport([item(row, at(600), -73.27)], sch);
+    expect(plan.duplicates).toHaveLength(1);
+    // a different school at the same distance is not a duplicate
+    expect(planImport([item(c("Washington High School", { venue_type: "school" }), at(600), -73.27)], sch).inserts).toHaveLength(1);
+  });
+  it("inserts them anyway with --include-possible-duplicates, flagged", () => {
+    const plan = planImport([item(c("Brand New Complex"), at(250), -73.27)], existing, { includeDuplicates: true });
+    expect(plan.duplicates).toHaveLength(0);
+    expect(plan.inserts).toHaveLength(1);
+    expect(plan.inserts[0]).toMatchObject({ flaggedDuplicate: true });
+  });
+  it("ignores a repeated new row instead of inserting twice", () => {
+    const plan = planImport([item(c("Brand New Complex"), at(900), -73.27, 2), item(c("Brand New Complex"), at(900), -73.27, 3)], existing);
+    expect(plan.inserts).toHaveLength(1);
+    expect(plan.repeats).toHaveLength(1);
+  });
+  it("lists geocode failures separately", () => {
+    const plan = planImport([{ file: "f", line: 2, c: c("Nowhere"), geo: null }], existing);
+    expect(plan.noGeo).toHaveLength(1);
   });
 });

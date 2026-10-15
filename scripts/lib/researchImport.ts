@@ -164,13 +164,38 @@ export type Clean = {
   raw: ResearchRaw;
 };
 
+/** Party or package pricing is not what a team pays to rent a field. */
+export const PACKAGE_PRICE = /\b(birthday|b-?day|party|parties|package|packages)\b/i;
+/** Group, for-profit, commercial, organization and non-resident / outside-group tiers are not "the" price of the field. */
+export const TIER_PRICE = /\b(group\s*[1-9]|for[- ]?profit|commercial|organi[sz]ations?|non[- ]?residents?|outside\s+groups?|outside\s+organi[sz]ations?)\b/i;
+
+const oneLine = (s: string): string => s.replace(/\s*[\r\n]+\s*/g, "; ").trim();
+
+/**
+ * When the price text is party / package pricing, or a group / commercial / non-resident tier table, it is kept in the notes and
+ * the price stays unset: no status, no min / max, so the app shows "We're confirming" with no number.
+ */
+export function guardPrice(c: Clean): Clean {
+  const text = c.raw.price_text.trim();
+  if (!text) return c;
+  const reason = PACKAGE_PRICE.test(text) ? "party or package pricing, not used as a rental price" : TIER_PRICE.test(text) ? "group / commercial / non-resident tiers, not used as the field's price" : null;
+  if (!reason) return c;
+  return {
+    ...c,
+    price: { status: "unknown", text: null, min: null, max: null, unit: null },
+    priceGuarded: true,
+    extraNotes: [`Price text (${reason}): ${oneLine(text)}`, ...c.extraNotes],
+    raw: { ...c.raw, price_text: "" },
+  };
+}
+
 export function cleanRow(raw: ResearchRaw, fileState: string | null): Clean {
   const addrState = /,\s*([A-Z]{2})(?:\s+\d{5}(?:-\d{4})?)?\s*$/.exec(raw.address)?.[1] ?? null;
   const state = fileState ?? addrState;
   const setting = /^indoor/i.test(raw.setting) ? "indoor" : /^(both|mixed|indoor\s*\+|indoor and outdoor)/i.test(raw.setting) ? "both" : "outdoor";
   const lit = triState(raw.lit);
   const fc = Number.parseInt(raw.field_count, 10);
-  return {
+  const base: Clean = {
     name: raw.name.trim(),
     state,
     query: geocodeQuery(raw, state),
@@ -189,6 +214,7 @@ export function cleanRow(raw: ResearchRaw, fileState: string | null): Clean {
     priceGuarded: false,
     raw,
   };
+  return guardPrice(base);
 }
 
 // ---------------------------------------------------------------------------
@@ -222,17 +248,11 @@ export function readFacilityCsv(text: string): { rows: FacilityRaw[]; missing: s
   return { rows, missing };
 }
 
-/** Birthday party, party room or package pricing is not what a team pays to rent a field. */
-export const PACKAGE_PRICE = /\b(birthday|b-?day|party|parties|package|packages)\b/i;
-
-const oneLine = (s: string): string => s.replace(/\s*[\r\n]+\s*/g, "; ").trim();
-
 /** A facility row as a Clean row, so matching, filling, locking and notes work exactly as for the outdoor schema. */
 export function cleanFacilityRow(f: FacilityRaw, fileState: string | null): Clean {
-  const guarded = f.price_text.trim() !== "" && PACKAGE_PRICE.test(f.price_text);
   const asOutdoor = {
     name: f.name, venue_type: "", operator: f.operator_or_chain, town: f.town, county: f.county, address: f.address, setting: f.setting,
-    surface: f.surface, field_count: f.field_count, lit: "", free_or_paid: "", price_text: guarded ? "" : f.price_text, price_unit: f.price_unit,
+    surface: f.surface, field_count: f.field_count, lit: "", free_or_paid: "", price_text: f.price_text, price_unit: f.price_unit,
     permit_required: "", permit_issuer: "", how_to_book: "", booking_url: f.booking_url, contact_email: f.email, contact_phone: f.phone,
     residency_rule: "", availability_notes: "", source_url: f.source_url, source_date: f.source_date, confidence: f.confidence,
   } as ResearchRaw;
@@ -240,8 +260,7 @@ export function cleanFacilityRow(f: FacilityRaw, fileState: string | null): Clea
   const members = triState(f.membership_required) === "yes";
   const url = /^https?:\/\//i.test(f.booking_url.trim()) ? f.booking_url.trim() : null;
   const phone = f.phone.trim() || null;
-  const extra: string[] = [];
-  if (guarded) extra.push(`Price text (party or package pricing, not used as a rental price): ${oneLine(f.price_text)}`);
+  const extra: string[] = [...c.extraNotes];
   if (f.field_sizes.trim()) extra.push(`Field sizes: ${oneLine(f.field_sizes)}`);
   if (f.min_booking.trim() && !isUnknown(f.min_booking)) extra.push(`Minimum booking: ${oneLine(f.min_booking)}`);
   if (f.hours.trim() && !isUnknown(f.hours)) extra.push(`Hours: ${oneLine(f.hours)}`);
@@ -256,10 +275,10 @@ export function cleanFacilityRow(f: FacilityRaw, fileState: string | null): Clea
     permit: members ? { required: "yes", issuer: null } : c.permit,
     permitType: members ? "membership" : "permit",
     booking: { method: url ? "online" : phone ? "phone" : "unknown", url, phone, basis: url || phone ? "research: facility listing" : null },
-    price: guarded ? { status: "unknown", text: null, min: null, max: null, unit: null } : c.price,
-    priceGuarded: guarded,
+    price: c.price,
+    priceGuarded: c.priceGuarded,
     extraNotes: extra,
-    raw: { ...asOutdoor, price_text: oneLine(guarded ? "" : f.price_text) },
+    raw: { ...asOutdoor, price_text: c.priceGuarded ? "" : oneLine(f.price_text) },
   };
 }
 
@@ -339,9 +358,14 @@ export class VenueIndex {
   }
   near(lat: number, lon: number, meters: number): { venue: Venue; meters: number }[] {
     const out: { venue: Venue; meters: number }[] = [];
-    for (let dy = -1; dy <= 1; dy++)
-      for (let dx = -1; dx <= 1; dx++) {
-        for (const v of this.cells.get(`${Math.floor(lat * 100) + dy}:${Math.floor(lon * 100) + dx}`) ?? []) {
+    // A cell is 0.01 degrees: about 1113 m tall and 1113 * cos(lat) m wide. Look far enough out to cover the radius.
+    const ringsLat = Math.max(1, Math.ceil(meters / 1113));
+    const ringsLon = Math.max(1, Math.ceil(meters / (1113 * Math.max(Math.cos((lat * Math.PI) / 180), 0.05))));
+    const cy = Math.floor(lat * 100);
+    const cx = Math.floor(lon * 100);
+    for (let dy = -ringsLat; dy <= ringsLat; dy++)
+      for (let dx = -ringsLon; dx <= ringsLon; dx++) {
+        for (const v of this.cells.get(`${cy + dy}:${cx + dx}`) ?? []) {
           const m = metersBetween(lat, lon, v.lat!, v.lon!);
           if (m <= meters) out.push({ venue: v, meters: m });
         }
@@ -373,10 +397,9 @@ export function venueKeyFor(name: string, address: string): string {
 const START = "[research]";
 const END = "[/research]";
 
-/** The admin-only notes block: where the numbers came from and the things the app has no column for. */
-export function notesBlock(c: Clean): string {
+function rowLines(c: Clean): string[] {
   const r = c.raw;
-  const lines = [START];
+  const lines: string[] = [];
   const src = [r.source_url.trim(), r.source_date.trim() ? `(${r.source_date.trim()})` : ""].filter(Boolean).join(" ");
   lines.push(`Source: ${src || "not given"}`);
   lines.push(c.lowConfidence ? "LOW CONFIDENCE: check before relying on this." : `Confidence: ${r.confidence.trim() || "not given"}`);
@@ -388,6 +411,22 @@ export function notesBlock(c: Clean): string {
   if (r.how_to_book.trim()) lines.push(`How to book: ${r.how_to_book.trim()}`);
   const contact = [r.contact_email.trim(), r.contact_phone.trim()].filter(Boolean).join(" · ");
   if (contact) lines.push(`Contact: ${contact}`);
+  return lines;
+}
+
+/** The admin-only notes block for one row: where the numbers came from and the things the app has no column for. */
+export function notesBlock(c: Clean): string {
+  return [START, ...rowLines(c), END].join("\n");
+}
+
+export const CAMPUS_NOTE = "multiple fields on this campus";
+
+/** One block for every research row that matched a venue (names, sources, residency, availability), not just the last. */
+export function notesBlockGroup(cs: Clean[], disagreements: string[] = []): string {
+  if (cs.length === 1 && disagreements.length === 0) return notesBlock(cs[0]!);
+  const lines = [START, `${cs.length} research rows matched this venue.`];
+  if (disagreements.length) lines.push(`${CAMPUS_NOTE} (rows differ on: ${disagreements.join(", ")}; those were left empty)`);
+  for (const c of cs) lines.push(`-- ${c.name} --`, ...rowLines(c));
   lines.push(END);
   return lines.join("\n");
 }
@@ -405,58 +444,94 @@ export function mergeLocks(existing: unknown, add: string[]): string[] {
   return [...new Set([...cur, ...add])];
 }
 
+/** The one value all candidates share. conflict = they disagree (then nothing should be filled). */
+function agreed<T>(cands: { key: string; value: T }[]): { value: T | null; conflict: boolean } {
+  if (cands.length === 0) return { value: null, conflict: false };
+  const first = cands[0]!;
+  return cands.every((c) => c.key === first.key) ? { value: first.value, conflict: false } : { value: null, conflict: true };
+}
+
 /**
- * The columns to change on an existing venue: only ones that are empty or unknown today, and only when the research has a real
- * value. Never the name, never price_source, never verified. Returns {} when there is nothing new.
+ * The columns to change on an existing venue from every research row that matched it. A column is filled only when it is empty
+ * or unknown today, the research has a real value, and every matching row that has an opinion agrees. If they disagree the column
+ * stays empty and the attribute is returned in `disagreements` (the notes then say "multiple fields on this campus"). Never the
+ * name, never price_source, never verified. patch is {} when there is nothing new.
  */
-export function fillPatch(venue: Venue, c: Clean): Record<string, unknown> {
+export function fillPatchGroup(venue: Venue, cs: Clean[]): { patch: Record<string, unknown>; disagreements: string[] } {
   const patch: Record<string, unknown> = {};
   const locks: string[] = [];
+  const disagreements: string[] = [];
+  const note = (name: string, conflict: boolean) => {
+    if (conflict) disagreements.push(name);
+  };
 
-  if (empty(venue.price_status) && c.price.status !== "unknown") {
-    patch.price_status = c.price.status;
-    if (c.price.text) patch.price_text = c.price.text;
-    if (c.price.min != null) patch.price_min = c.price.min;
-    if (c.price.max != null) patch.price_max = c.price.max;
-    if (c.price.unit) patch.price_unit = c.price.unit;
-    locks.push("price");
+  if (empty(venue.price_status)) {
+    const g = agreed(cs.filter((c) => c.price.status !== "unknown").map((c) => ({ key: `${c.price.status}|${c.price.min}|${c.price.max}|${c.price.unit}`, value: c.price })));
+    note("price", g.conflict);
+    if (g.value) {
+      patch.price_status = g.value.status;
+      if (g.value.text) patch.price_text = g.value.text;
+      if (g.value.min != null) patch.price_min = g.value.min;
+      if (g.value.max != null) patch.price_max = g.value.max;
+      if (g.value.unit) patch.price_unit = g.value.unit;
+      locks.push("price");
+    }
   }
-  if (empty(venue.permit_required) && c.permit.required !== "unknown") {
-    patch.permit_required = c.permit.required;
-    if (c.permit.required === "yes" && empty(venue.permit_type)) patch.permit_type = c.permitType;
-    if (empty(venue.permit_basis)) patch.permit_basis = `research: ${c.raw.source_url.trim() || "csv"}`;
-    locks.push("permit");
+  if (empty(venue.permit_required)) {
+    const g = agreed(cs.filter((c) => c.permit.required !== "unknown").map((c) => ({ key: `${c.permit.required}|${c.permitType}`, value: c })));
+    note("permit", g.conflict);
+    if (g.value) {
+      patch.permit_required = g.value.permit.required;
+      if (g.value.permit.required === "yes" && empty(venue.permit_type)) patch.permit_type = g.value.permitType;
+      if (empty(venue.permit_basis)) patch.permit_basis = `research: ${g.value.raw.source_url.trim() || "csv"}`;
+      locks.push("permit");
+    }
   }
-  const b = c.booking;
-  const bookingBefore = Object.keys(patch).length;
-  if (empty(venue.booking_method) && b.method !== "unknown") patch.booking_method = b.method;
-  if (empty(venue.booking_url) && b.url) patch.booking_url = b.url;
-  if (empty(venue.booking_phone) && b.phone) patch.booking_phone = b.phone;
-  if (empty(venue.booking_basis) && b.basis && (b.url || b.phone || b.method !== "unknown")) patch.booking_basis = b.basis;
-  if (Object.keys(patch).length > bookingBefore) locks.push("booking");
-
-  if (empty(venue.website) && c.website) {
-    patch.website = c.website;
-    locks.push("website");
+  {
+    const wantsBooking = empty(venue.booking_method) || empty(venue.booking_url) || empty(venue.booking_phone) || empty(venue.booking_basis);
+    const g = agreed(cs.filter((c) => c.booking.method !== "unknown" || c.booking.url || c.booking.phone).map((c) => ({ key: `${c.booking.method}|${c.booking.url}|${c.booking.phone}`, value: c.booking })));
+    if (wantsBooking) note("booking", g.conflict);
+    const b = g.value;
+    if (b && wantsBooking) {
+      const before = Object.keys(patch).length;
+      if (empty(venue.booking_method) && b.method !== "unknown") patch.booking_method = b.method;
+      if (empty(venue.booking_url) && b.url) patch.booking_url = b.url;
+      if (empty(venue.booking_phone) && b.phone) patch.booking_phone = b.phone;
+      if (empty(venue.booking_basis) && b.basis && (b.url || b.phone || b.method !== "unknown")) patch.booking_basis = b.basis;
+      if (Object.keys(patch).length > before) locks.push("booking");
+    }
   }
-  if (empty(venue.surface) && c.surface) {
-    patch.surface = c.surface;
-    locks.push("surface");
-  }
-  if (empty(venue.lit) && c.lit) {
-    patch.lit = c.lit;
-    locks.push("lit");
-  }
+  const simple = (attr: "website" | "surface" | "lit", get: (c: Clean) => string | null) => {
+    if (!empty(venue[attr])) return;
+    const g = agreed(cs.map((c) => get(c)).filter((v): v is string => !!v).map((v) => ({ key: v, value: v })));
+    note(attr, g.conflict);
+    if (g.value) {
+      patch[attr] = g.value;
+      locks.push(attr);
+    }
+  };
+  simple("website", (c) => c.website);
+  simple("surface", (c) => c.surface);
+  simple("lit", (c) => c.lit);
 
   if (locks.length > 0) patch.locked_fields = mergeLocks(venue.locked_fields, locks);
-  return patch;
+  return { patch, disagreements };
+}
+
+/** One row: the same rules as a group of one. */
+export function fillPatch(venue: Venue, c: Clean): Record<string, unknown> {
+  return fillPatchGroup(venue, [c]).patch;
 }
 
 /** Adds the notes block to a patch (or reports no change when the notes are already identical). */
-export function withNotes(venue: Venue, patch: Record<string, unknown>, c: Clean): Record<string, unknown> {
-  const next = mergeNotes(venue.player_notes as string | null, notesBlock(c));
+export function withNotesGroup(venue: Venue, patch: Record<string, unknown>, cs: Clean[], disagreements: string[] = []): Record<string, unknown> {
+  const next = mergeNotes(venue.player_notes as string | null, notesBlockGroup(cs, disagreements));
   if (next === ((venue.player_notes as string | null) ?? "")) return patch;
   return { ...patch, player_notes: next };
+}
+
+export function withNotes(venue: Venue, patch: Record<string, unknown>, c: Clean): Record<string, unknown> {
+  return withNotesGroup(venue, patch, [c]);
 }
 
 /** A new, unverified, hand-added venue for a researched field no existing venue matches. */
@@ -511,4 +586,100 @@ export function describeChange(venue: Venue, patch: Record<string, unknown>): st
       const show = (v: unknown) => (v == null || v === "" ? "(empty)" : String(v).replace(/\s+/g, " ").slice(0, 70));
       return `${k}: ${show(venue[k])} -> ${show(patch[k])}`;
     });
+}
+
+// ---------------------------------------------------------------------------
+// Duplicate prevention for new venues, and the whole plan
+// ---------------------------------------------------------------------------
+
+export const DUPLICATE_NEAR_M = 300;
+export const DUPLICATE_SCHOOL_M = 800;
+
+export type Near = { venue: Venue; meters: number };
+
+/** The closest existing venue within maxM, or null. */
+export function nearestVenue(index: VenueIndex, lat: number, lon: number, maxM = 2000): Near | null {
+  // The grid looks one 0.01-degree cell around (about 1 km), so wider searches use more rings.
+  return index.near(lat, lon, maxM)[0] ?? null;
+}
+
+export function isSchoolRow(c: Clean): boolean {
+  return /\b(school|college|university|academy|high|middle|elementary)\b/i.test(`${c.raw.venue_type} ${c.name}`);
+}
+
+/**
+ * A new venue is a possible duplicate when an existing venue is within 300 m of its point, or (for a school) an existing venue's
+ * school_name matches the research school name within 800 m. Returns the nearest such venue.
+ */
+export function possibleDuplicate(c: Clean, lat: number, lon: number, index: VenueIndex): { near: Near; why: string } | null {
+  const close = index.near(lat, lon, DUPLICATE_NEAR_M)[0];
+  if (close) return { near: close, why: `existing venue within ${DUPLICATE_NEAR_M} m` };
+  if (isSchoolRow(c)) {
+    const sameSchool = index.near(lat, lon, DUPLICATE_SCHOOL_M).find((n) => typeof n.venue.school_name === "string" && n.venue.school_name.trim() !== "" && namesSimilar(c.name, n.venue.school_name as string));
+    if (sameSchool) return { near: sameSchool, why: `same school within ${DUPLICATE_SCHOOL_M} m` };
+  }
+  return null;
+}
+
+export type Geo = { lat: number; lon: number; matched: string };
+export type Item = { file: string; line: number; c: Clean; geo: Geo | null };
+export type Update = { venue: Venue; items: Item[]; matches: Match[]; patch: Record<string, unknown>; disagreements: string[] };
+export type Insert = { item: Item; venue: Venue; nearest: Near | null; /** Looked like a duplicate but was inserted because --include-possible-duplicates was set. */ flaggedDuplicate: boolean };
+export type Plan = {
+  noGeo: Item[];
+  updates: Update[];
+  inserts: Insert[];
+  duplicates: { item: Item; near: Near; why: string }[];
+  repeats: { item: Item; of: string }[];
+};
+
+/**
+ * Decides what to do with every row. Matching is against the venues that exist today; rows that match the same venue are handled
+ * together (see fillPatchGroup). Rows that match nothing become new venues unless they look like a duplicate of an existing one
+ * (held back unless includeDuplicates), or repeat another new row.
+ */
+export function planImport(items: Item[], venues: Venue[], opts: { includeDuplicates?: boolean } = {}): Plan {
+  const index = new VenueIndex();
+  for (const v of venues) index.add(v);
+  const plan: Plan = { noGeo: [], updates: [], inserts: [], duplicates: [], repeats: [] };
+  const groups = new Map<string, { venue: Venue; items: Item[]; matches: Match[] }>();
+  const newIndex = new VenueIndex();
+  const newKeys = new Set<string>();
+
+  for (const item of items) {
+    const { c, geo } = item;
+    if (!geo) {
+      plan.noGeo.push(item);
+      continue;
+    }
+    const m = findMatch(c.name, geo.lat, geo.lon, index);
+    if (m) {
+      const g = groups.get(m.venue.venue_key) ?? { venue: m.venue, items: [], matches: [] };
+      g.items.push(item);
+      g.matches.push(m);
+      groups.set(m.venue.venue_key, g);
+      continue;
+    }
+    const row = newVenue(c, Number(geo.lat.toFixed(6)), Number(geo.lon.toFixed(6)), geo.matched);
+    const again = newKeys.has(row.venue_key) ? row.venue_key : findMatch(c.name, geo.lat, geo.lon, newIndex)?.venue.venue_key;
+    if (again) {
+      plan.repeats.push({ item, of: again });
+      continue;
+    }
+    const dup = possibleDuplicate(c, geo.lat, geo.lon, index);
+    if (dup && !opts.includeDuplicates) {
+      plan.duplicates.push({ item, near: dup.near, why: dup.why });
+      continue;
+    }
+    newKeys.add(row.venue_key);
+    newIndex.add(row);
+    plan.inserts.push({ item, venue: row, nearest: dup?.near ?? nearestVenue(index, geo.lat, geo.lon), flaggedDuplicate: !!dup });
+  }
+
+  for (const g of groups.values()) {
+    const cs = g.items.map((i) => i.c);
+    const { patch, disagreements } = fillPatchGroup(g.venue, cs);
+    plan.updates.push({ ...g, patch: withNotesGroup(g.venue, patch, cs, disagreements), disagreements });
+  }
+  return plan;
 }

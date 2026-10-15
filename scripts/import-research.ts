@@ -25,6 +25,8 @@
  *   --skip PATH          the skip list (default data/research/skip.json; a missing file skips nothing)
  *   --cache PATH         geocode cache (default data/research/.geocode-cache.json)
  *   --retry-failed       look up addresses the cache remembers as "no match" again
+ *   --include-possible-duplicates   insert new venues even when an existing venue is within 300 m of them (or, for a school, a venue
+ *                        with the same school name within 800 m). By default those are held back and listed in the review CSV.
  *   --no-db              do not read the database at all: geocode and report everything as new (no key needed)
  *   --sample N           matches to show old vs new (default 10)
  *   --out PATH           where to write the unmatched CSV (default data/research/research-unmatched.csv)
@@ -46,21 +48,19 @@ import {
   cleanRow,
   csvEscape,
   describeChange,
-  fillPatch,
-  findMatch,
   isFacilityFile,
   isOutdoorFile,
   isSkipped,
-  newVenue,
   parseSkipList,
+  planImport,
   readFacilityCsv,
   readResearchCsv,
   RESEARCH_COLUMNS,
   stateFromFilename,
-  VenueIndex,
-  withNotes,
   type Clean,
   type FacilityRaw,
+  type Item,
+  type Near,
   type ResearchRaw,
   type Venue,
 } from "./lib/researchImport.ts";
@@ -159,7 +159,6 @@ function restFns(url: string, key: string) {
 
 // ---------------------------------------------------------------------------
 
-type Unmatched = { reason: string; file: string; line: number; clean: Clean; note: string };
 
 async function main() {
   const apply = flag("--apply");
@@ -259,87 +258,71 @@ async function main() {
   const states = [...new Set(clean.map((x) => x.c.state).filter((s): s is string => !!s))];
   const venues: Venue[] = db && states.length ? await db.loadVenues(states) : [];
   console.log(`Loaded ${venues.length.toLocaleString()} existing venues for ${states.join(", ") || "no state"}.`);
-  const index = new VenueIndex();
-  const byKey = new Map<string, { before: Venue | null; after: Venue }>();
-  for (const v of venues) {
-    index.add(v);
-    byKey.set(v.venue_key, { before: v, after: { ...v } });
-  }
+  const items: Item[] = clean.map((x) => ({ file: x.file, line: x.line, c: x.c, geo: x.c.query ? (cache.entries[x.c.query] ?? null) : null }));
+  const plan = planImport(items, venues, { includeDuplicates: flag("--include-possible-duplicates") });
+  const lowConf = clean.filter((x) => x.c.lowConfidence).length;
 
-  // Match.
-  const unmatched: Unmatched[] = [];
-  const samples: { name: string; venue: string; meters: number; reason: string; changes: string[] }[] = [];
-  let matchedChanged = 0;
-  let matchedNoChange = 0;
-  let created = 0;
-  let duplicateRows = 0;
-  let lowConf = 0;
-  let notesOnly = 0;
-
-  for (const { file, line, c } of clean) {
-    if (c.lowConfidence) lowConf++;
-    const geo = c.query ? (cache.entries[c.query] ?? null) : null;
-    if (!geo) {
-      unmatched.push({ reason: c.query ? "geocode_failed" : "no_address", file, line, clean: c, note: "" });
-      continue;
-    }
-    const m = findMatch(c.name, geo.lat, geo.lon, index);
-    if (m) {
-      const slot = byKey.get(m.venue.venue_key)!;
-      const patch = withNotes(slot.after, fillPatch(slot.after, c), c);
-      if (Object.keys(patch).length === 0) {
-        matchedNoChange++;
-        continue;
-      }
-      if (Object.keys(patch).every((k) => k === "player_notes")) notesOnly++;
-      if (samples.length < sampleN) samples.push({ name: c.name, venue: String(slot.after.name), meters: m.meters, reason: m.reason, changes: describeChange(slot.after, patch) });
-      Object.assign(slot.after, patch);
-      matchedChanged++;
-      continue;
-    }
-    const row = newVenue(c, Number(geo.lat.toFixed(6)), Number(geo.lon.toFixed(6)), geo.matched);
-    if (byKey.has(row.venue_key)) {
-      duplicateRows++;
-      continue;
-    }
-    byKey.set(row.venue_key, { before: null, after: row });
-    index.add(row);
-    created++;
-    unmatched.push({ reason: "no_match_new_venue", file, line, clean: c, note: `${geo.matched}` });
-  }
+  const changed = plan.updates.filter((u) => Object.keys(u.patch).length > 0);
+  const matchedRows = plan.updates.reduce((n, u) => n + u.items.length, 0);
+  const notesOnly = changed.filter((u) => Object.keys(u.patch).every((k) => k === "player_notes")).length;
+  const campus = plan.updates.filter((u) => u.disagreements.length > 0).length;
+  const failedRows = plan.noGeo;
 
   // Report.
-  const failed = unmatched.filter((u) => u.reason !== "no_match_new_venue");
   console.log("");
   console.log("=== Report ===");
   console.log(`Rows read:                       ${clean.length + skipped + skippedList}`);
-  console.log(`Matched an existing venue:       ${matchedChanged + matchedNoChange}  (${matchedChanged} with new info, ${matchedNoChange} nothing new; ${notesOnly} of those only add notes)`);
-  console.log(`New venues:                      ${created}${duplicateRows ? `  (+${duplicateRows} repeated rows ignored)` : ""}`);
-  console.log(`Unmatched / geocode failed:      ${failed.length}`);
+  console.log(`Matched an existing venue:       ${matchedRows} rows -> ${plan.updates.length} venues  (${changed.length} with new info, ${plan.updates.length - changed.length} nothing new; ${notesOnly} only add notes)`);
+  if (campus) console.log(`  rows disagreed on a value (left empty, "multiple fields on this campus" noted): ${campus} venues`);
+  console.log(`New venues:                      ${plan.inserts.length}${plan.repeats.length ? `  (+${plan.repeats.length} repeated rows ignored)` : ""}`);
+  console.log(`Possible duplicates held back:   ${plan.duplicates.length}${flag("--include-possible-duplicates") ? "  (--include-possible-duplicates: inserted anyway)" : ""}`);
+  console.log(`Unmatched / geocode failed:      ${failedRows.length}`);
   console.log(`Skipped (no name):               ${skipped}`);
   console.log(`Skipped (skip list):             ${skippedList}`);
-  if (guarded) console.log(`Party / package price text kept in notes only (price left unknown): ${guarded}`);
+  if (guarded) console.log(`Price text kept in notes only (party / package / group tier; price left unknown): ${guarded}`);
   console.log(`Low confidence (imported, flagged): ${lowConf}`);
   if (geoErrors) console.log(`Geocoder errors (will retry next run): ${geoErrors}`);
   for (const s of skipNotes.slice(0, 10)) console.log(`  skipped: ${s}`);
-  if (samples.length) {
+
+  if (changed.length) {
     console.log("");
-    console.log(`=== ${samples.length} matches, old -> new ===`);
-    for (const s of samples) {
-      console.log(`${s.name}  =  ${s.venue}  (${Math.round(s.meters)} m, ${s.reason})`);
-      for (const ch of s.changes) console.log(`    ${ch}`);
+    console.log(`=== ${Math.min(sampleN, changed.length)} matches, old -> new ===`);
+    for (const u of changed.slice(0, sampleN)) {
+      console.log(`${u.items.map((i) => i.c.name).join(" + ")}  =  ${u.venue.name}  (${u.matches.map((m) => `${Math.round(m.meters)} m, ${m.reason}`).join("; ")})`);
+      for (const ch of describeChange(u.venue, u.patch)) console.log(`    ${ch}`);
+      if (u.disagreements.length) console.log(`    (rows disagree on ${u.disagreements.join(", ")}: left empty)`);
     }
   }
+  console.log("");
+  console.log(`=== Sample of ${Math.min(10, plan.inserts.length)} new venues ===`);
+  for (const ins of plan.inserts.slice(0, 10)) {
+    const n = ins.nearest;
+    console.log(`${ins.venue.name}  (${ins.venue.address ?? "no address"})  nearest existing: ${n ? `${n.venue.name} [${n.venue.venue_key}], ${Math.round(n.meters)} m` : "none within 2 km"}${ins.flaggedDuplicate ? "  <- possible duplicate, inserted anyway" : ""}`);
+  }
+  if (plan.inserts.length === 0) console.log("(none)");
+  console.log(`Possible duplicates held back: ${plan.duplicates.length}${plan.duplicates.length ? " (see the review file)" : ""}`);
+  for (const d of plan.duplicates.slice(0, 10)) console.log(`  ${d.item.c.name}  ~  ${d.near.venue.name} [${d.near.venue.venue_key}], ${Math.round(d.near.meters)} m (${d.why})`);
 
-  const header = ["reason", "file", "line", "matched_address", ...RESEARCH_COLUMNS];
+  type Out = { reason: string; item: Item; nearest?: Near | null; note: string };
+  const out: Out[] = [
+    ...failedRows.map((item) => ({ reason: item.c.query ? "geocode_failed" : "no_address", item, note: "" })),
+    ...plan.duplicates.map((d) => ({ reason: "possible_duplicate", item: d.item, nearest: d.near, note: d.why })),
+    ...plan.repeats.map((r) => ({ reason: "repeat_of_new_row", item: r.item, note: r.of })),
+    ...plan.inserts.map((i) => ({ reason: i.flaggedDuplicate ? "new_venue_flagged_duplicate" : "no_match_new_venue", item: i.item, nearest: i.nearest, note: i.item.geo?.matched ?? "" })),
+  ];
+  const header = ["reason", "file", "line", "matched_address_or_note", "nearest_existing_name", "nearest_existing_meters", "nearest_existing_id", ...RESEARCH_COLUMNS];
   // Facility rows are written in the same columns (their own columns are mapped onto them) so one review file covers both.
   const csv = [header.join(",")]
-    .concat(unmatched.map((u) => [u.reason, u.file, u.line, u.note, ...RESEARCH_COLUMNS.map((k) => u.clean.raw[k])].map(csvEscape).join(",")))
+    .concat(
+      out.map((u) =>
+        [u.reason, u.item.file, u.item.line, u.note, u.nearest?.venue.name ?? "", u.nearest ? Math.round(u.nearest.meters) : "", u.nearest?.venue.venue_key ?? "", ...RESEARCH_COLUMNS.map((k) => u.item.c.raw[k])].map(csvEscape).join(","),
+      ),
+    )
     .join("\n");
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, csv + "\n");
   console.log("");
-  console.log(`Review file: ${outPath} (${unmatched.length} rows: geocode_failed / no_address need a better address; no_match_new_venue are the ones that will be added).`);
+  console.log(`Review file: ${outPath} (${out.length} rows). geocode_failed / no_address need a better address; possible_duplicate were held back (nearest existing venue listed); no_match_new_venue will be added.`);
 
   if (!apply) {
     console.log("Dry run: nothing was written. Add --apply to write.");
@@ -347,18 +330,11 @@ async function main() {
   }
   if (!db) return;
   let patched = 0;
-  const inserts: Venue[] = [];
-  for (const { before, after } of byKey.values()) {
-    if (!before) {
-      inserts.push(after);
-      continue;
-    }
-    const diff: Record<string, unknown> = {};
-    for (const k of Object.keys(after)) if (JSON.stringify(after[k]) !== JSON.stringify(before[k]) && k !== "updated_at") diff[k] = after[k];
-    if (Object.keys(diff).length === 0) continue;
-    await db.patch(before.venue_key, diff);
+  for (const u of changed) {
+    await db.patch(u.venue.venue_key, u.patch);
     patched++;
   }
+  const inserts = plan.inserts.map((i) => i.venue);
   for (const part of chunk(inserts, 200)) await db.insert(part);
   console.log(`Applied: ${patched} venues updated, ${inserts.length} new venues sent (rows that already existed are left alone).`);
   if (geoErrors) process.exit(1);
