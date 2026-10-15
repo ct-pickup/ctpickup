@@ -169,6 +169,12 @@ export const PACKAGE_PRICE = /\b(birthday|b-?day|party|parties|package|packages)
 /** Group, for-profit, commercial, organization and non-resident / outside-group tiers are not "the" price of the field. */
 export const TIER_PRICE = /\b(group\s*[1-9]|for[- ]?profit|commercial|organi[sz]ations?|non[- ]?residents?|outside\s+groups?|outside\s+organi[sz]ations?)\b/i;
 
+/**
+ * Program and registration fees: per player / child / team, league, program, camp, clinic, class, registration, and "Res / Non-Res"
+ * pricing. Those are what a person pays to join something, not what a team pays to rent the field.
+ */
+export const PROGRAM_PRICE = /\bper\s+(player|child|children|kid|kids|team|season)\b|\bregistration\b|\bleagues?\b|\bprograms?\b|\bcamps?\b|\bclinics?\b|\bclass(es)?\b|\bres\b.{0,25}\bnon[- ]?res\b/i;
+
 const oneLine = (s: string): string => s.replace(/\s*[\r\n]+\s*/g, "; ").trim();
 
 /**
@@ -177,14 +183,23 @@ const oneLine = (s: string): string => s.replace(/\s*[\r\n]+\s*/g, "; ").trim();
  */
 export function guardPrice(c: Clean): Clean {
   const text = c.raw.price_text.trim();
-  if (!text) return c;
-  const reason = PACKAGE_PRICE.test(text) ? "party or package pricing, not used as a rental price" : TIER_PRICE.test(text) ? "group / commercial / non-resident tiers, not used as the field's price" : null;
+  const unit = c.raw.price_unit.trim();
+  const both = `${text} ${unit}`;
+  if (!text && !unit) return c;
+  const reason = PACKAGE_PRICE.test(both)
+    ? "party or package pricing, not used as a rental price"
+    : PROGRAM_PRICE.test(both)
+      ? "program, league or registration fees, not used as a rental price"
+      : TIER_PRICE.test(both)
+        ? "group / commercial / non-resident tiers, not used as the field's price"
+        : null;
   if (!reason) return c;
+  const shown = [oneLine(text), unit && !text.toLowerCase().includes(unit.toLowerCase()) ? `(unit: ${unit})` : ""].filter(Boolean).join(" ");
   return {
     ...c,
     price: { status: "unknown", text: null, min: null, max: null, unit: null },
     priceGuarded: true,
-    extraNotes: [`Price text (${reason}): ${oneLine(text)}`, ...c.extraNotes],
+    extraNotes: [`Price text (${reason}): ${shown}`, ...c.extraNotes],
     raw: { ...c.raw, price_text: "" },
   };
 }
@@ -317,8 +332,11 @@ export function metersBetween(aLat: number, aLon: number, bLat: number, bLon: nu
 
 const STOP = new Set(["field", "fields", "park", "parks", "school", "schools", "the", "of", "and", "a", "at", "complex", "recreation", "recreational", "rec", "area", "athletic", "athletics", "soccer", "turf", "playground", "playgrounds", "center", "centre"]);
 
-export function nameTokens(name: string): string[] {
-  const t = name
+/** Lower-case words with diacritics, punctuation and "&" / "and" removed (Muñoz = Munoz). Filler words are still in. */
+export function rawTokens(name: string): string[] {
+  return name
+    .normalize("NFD")
+    .replace(/\p{M}+/gu, "")
     .toLowerCase()
     .replace(/&/g, " and ")
     .replace(/['’.]/g, "")
@@ -326,6 +344,15 @@ export function nameTokens(name: string): string[] {
     .trim()
     .split(/\s+/)
     .filter(Boolean);
+}
+
+/** The words that identify a place: no school / field(s) / park / soccer / athletic / complex / center and the like. */
+export function meaningfulTokens(name: string): string[] {
+  return rawTokens(name).filter((w) => !STOP.has(w));
+}
+
+export function nameTokens(name: string): string[] {
+  const t = rawTokens(name);
   const kept = t.filter((w) => !STOP.has(w));
   return kept.length > 0 ? kept : t;
 }
@@ -341,7 +368,26 @@ export function namesSimilar(a: string, b: string): boolean {
   return shared / (ta.size + tb.size - shared) >= 0.5;
 }
 
-export type Match = { venue: Venue; meters: number; reason: "near + similar name" | "very near" };
+/**
+ * The same place by normalized name: identical once filler words are dropped, or one name's meaningful words are all in the other
+ * (the shorter one needs at least 2 meaningful words, so "Memorial" alone never absorbs "Memorial Field Complex North").
+ * "Danbury Sports Dome" and "Danbury Dome" are the same venue.
+ */
+export function namesSameVenue(a: string, b: string): boolean {
+  const ta = [...new Set(meaningfulTokens(a))];
+  const tb = [...new Set(meaningfulTokens(b))];
+  if (ta.length === 0 || tb.length === 0) return false;
+  if (ta.length === tb.length && ta.every((w) => tb.includes(w))) return true;
+  const [small, big] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  return small.length >= 2 && small.every((w) => big.includes(w));
+}
+
+export const SAME_NAME_M = 1500;
+export const SCHOOL_NAME_M = 400;
+/** A name that says it is a school (the plain-word filter drops "school", so check the raw name). */
+export const isSchoolName = (name: string): boolean => /\b(school|high|middle|elementary|academy|college|university)\b/i.test(name);
+
+export type Match = { venue: Venue; meters: number; reason: "near + similar name" | "same venue name" | "very near" };
 
 /** Grid index so a state's worth of venues is searched quickly. Cells are 0.01 degrees. */
 export class VenueIndex {
@@ -374,11 +420,19 @@ export class VenueIndex {
   }
 }
 
-/** The venue this researched field is, or null. Nearest wins; a similar name within 150 m beats a different name within 40 m. */
+/**
+ * The venue this researched field is, or null. A name match beats a mere closeness match:
+ *   - similar name within 150 m (400 m for a school-named row)
+ *   - the same venue name (normalized, min 2 meaningful words unless identical) within 1.5 km
+ *   - any name within 40 m
+ */
 export function findMatch(name: string, lat: number, lon: number, index: VenueIndex): Match | null {
-  const near = index.near(lat, lon, NEAR_WITH_NAME_M);
-  const named = near.find((n) => namesSimilar(name, n.venue.name));
-  if (named) return { ...named, reason: "near + similar name" };
+  const similarM = isSchoolName(name) ? SCHOOL_NAME_M : NEAR_WITH_NAME_M;
+  const near = index.near(lat, lon, SAME_NAME_M);
+  const similar = near.find((n) => n.meters <= similarM && namesSimilar(name, n.venue.name));
+  if (similar) return { ...similar, reason: "near + similar name" };
+  const same = near.find((n) => namesSameVenue(name, n.venue.name));
+  if (same) return { ...same, reason: "same venue name" };
   const close = near.find((n) => n.meters <= NEAR_ANY_NAME_M);
   return close ? { ...close, reason: "very near" } : null;
 }
@@ -422,11 +476,11 @@ export function notesBlock(c: Clean): string {
 export const CAMPUS_NOTE = "multiple fields on this campus";
 
 /** One block for every research row that matched a venue (names, sources, residency, availability), not just the last. */
-export function notesBlockGroup(cs: Clean[], disagreements: string[] = []): string {
-  if (cs.length === 1 && disagreements.length === 0) return notesBlock(cs[0]!);
-  const lines = [START, `${cs.length} research rows matched this venue.`];
+export function notesBlockGroup(cs: Clean[], disagreements: string[] = [], attached: Clean[] = []): string {
+  if (cs.length === 1 && disagreements.length === 0 && attached.length === 0) return notesBlock(cs[0]!);
+  const lines = [START, `${cs.length} research rows matched this venue${attached.length ? `, ${attached.length} of them nearby rows attached for contact and booking only` : ""}.`];
   if (disagreements.length) lines.push(`${CAMPUS_NOTE} (rows differ on: ${disagreements.join(", ")}; those were left empty)`);
-  for (const c of cs) lines.push(`-- ${c.name} --`, ...rowLines(c));
+  for (const c of cs) lines.push(`-- ${c.name}${attached.includes(c) ? " (nearby, attached; not an exact match)" : ""} --`, ...rowLines(c));
   lines.push(END);
   return lines.join("\n");
 }
@@ -518,14 +572,30 @@ export function fillPatchGroup(venue: Venue, cs: Clean[]): { patch: Record<strin
   return { patch, disagreements };
 }
 
+/**
+ * Attach-only: what a nearby row may add to an existing venue it is not an exact match for. Booking (method, link, phone, basis)
+ * and website only, and only where empty. Never price, permit, surface, lit, or anything else.
+ */
+export function attachPatch(venue: Venue, cs: Clean[]): { patch: Record<string, unknown>; disagreements: string[] } {
+  const full = fillPatchGroup(venue, cs);
+  const allowed = new Set(["booking_method", "booking_url", "booking_phone", "booking_basis", "website"]);
+  const patch: Record<string, unknown> = {};
+  const locks: string[] = [];
+  for (const [k, v] of Object.entries(full.patch)) if (allowed.has(k)) patch[k] = v;
+  if (Object.keys(patch).some((k) => k.startsWith("booking_"))) locks.push("booking");
+  if ("website" in patch) locks.push("website");
+  if (locks.length) patch.locked_fields = mergeLocks(venue.locked_fields, locks);
+  return { patch, disagreements: full.disagreements.filter((d) => d === "booking" || d === "website") };
+}
+
 /** One row: the same rules as a group of one. */
 export function fillPatch(venue: Venue, c: Clean): Record<string, unknown> {
   return fillPatchGroup(venue, [c]).patch;
 }
 
 /** Adds the notes block to a patch (or reports no change when the notes are already identical). */
-export function withNotesGroup(venue: Venue, patch: Record<string, unknown>, cs: Clean[], disagreements: string[] = []): Record<string, unknown> {
-  const next = mergeNotes(venue.player_notes as string | null, notesBlockGroup(cs, disagreements));
+export function withNotesGroup(venue: Venue, patch: Record<string, unknown>, cs: Clean[], disagreements: string[] = [], attached: Clean[] = []): Record<string, unknown> {
+  const next = mergeNotes(venue.player_notes as string | null, notesBlockGroup(cs, disagreements, attached));
   if (next === ((venue.player_notes as string | null) ?? "")) return patch;
   return { ...patch, player_notes: next };
 }
@@ -534,10 +604,14 @@ export function withNotes(venue: Venue, patch: Record<string, unknown>, c: Clean
   return withNotesGroup(venue, patch, [c]);
 }
 
+export function inferVenueType(c: Clean): string {
+  const t = `${c.raw.venue_type} ${c.name}`.toLowerCase();
+  return /\b(school|college|university|academy)\b/.test(t) ? "school_unknown" : /\bclub\b|\bfc\b|\bprivate\b/.test(t) ? "club" : /\bpark\b/.test(t) ? "park" : "other";
+}
+
 /** A new, unverified, hand-added venue for a researched field no existing venue matches. */
 export function newVenue(c: Clean, lat: number, lon: number, matchedAddress: string | null): Venue {
-  const t = `${c.raw.venue_type} ${c.name}`.toLowerCase();
-  const venue_type = /\b(school|college|university|academy)\b/.test(t) ? "school_unknown" : /\bclub\b|\bfc\b|\bprivate\b/.test(t) ? "club" : /\bpark\b/.test(t) ? "park" : "other";
+  const venue_type = inferVenueType(c);
   const locks = ["name", "lat", "lon", "setting", "address", "price", "permit", "booking", ...(c.surface ? ["surface"] : []), ...(c.lit ? ["lit"] : []), ...(c.website ? ["website"] : [])];
   const row: Venue = {
     venue_key: venueKeyFor(c.name, c.raw.address),
@@ -621,28 +695,50 @@ export function possibleDuplicate(c: Clean, lat: number, lon: number, index: Ven
   return null;
 }
 
+export const ATTACH_NEAR_M = 400;
+
 export type Geo = { lat: number; lon: number; matched: string };
 export type Item = { file: string; line: number; c: Clean; geo: Geo | null };
-export type Update = { venue: Venue; items: Item[]; matches: Match[]; patch: Record<string, unknown>; disagreements: string[] };
+export type Update = { venue: Venue; items: Item[]; attached: Item[]; matches: Match[]; patch: Record<string, unknown>; disagreements: string[] };
 export type Insert = { item: Item; venue: Venue; nearest: Near | null; /** Looked like a duplicate but was inserted because --include-possible-duplicates was set. */ flaggedDuplicate: boolean };
 export type Plan = {
   noGeo: Item[];
   updates: Update[];
   inserts: Insert[];
   duplicates: { item: Item; near: Near; why: string }[];
+  /** Held-back duplicates merged into the nearest existing venue as attach-only (booking, website, notes). */
+  attached: { item: Item; near: Near; why: string }[];
   repeats: { item: Item; of: string }[];
 };
 
+/** Does the existing venue plausibly be this row's place? A shared meaningful name word, or the same town and venue type. */
+export function attachReason(c: Clean, v: Venue): string | null {
+  const mine = new Set(meaningfulTokens(c.name));
+  const theirs = new Set([...meaningfulTokens(v.name), ...meaningfulTokens(typeof v.school_name === "string" ? v.school_name : "")]);
+  const shared = [...mine].filter((w) => theirs.has(w));
+  if (shared.length > 0) return `shares "${shared[0]}" in the name`;
+  const town = c.raw.town.trim().toLowerCase();
+  const address = typeof v.address === "string" ? v.address.toLowerCase() : "";
+  if (town && address.includes(town) && v.venue_type && v.venue_type === inferVenueType(c)) return `same town (${c.raw.town.trim()}) and venue type`;
+  return null;
+}
+
 /**
  * Decides what to do with every row. Matching is against the venues that exist today; rows that match the same venue are handled
- * together (see fillPatchGroup). Rows that match nothing become new venues unless they look like a duplicate of an existing one
- * (held back unless includeDuplicates), or repeat another new row.
+ * together (see fillPatchGroup). Rows that match nothing become new venues unless they look like a duplicate of an existing one:
+ * those within 400 m that share a name word (or town and type) with it are attached to it (booking, website and notes only), the
+ * rest are held back unless includeDuplicates. A row that repeats another new row is ignored.
  */
 export function planImport(items: Item[], venues: Venue[], opts: { includeDuplicates?: boolean } = {}): Plan {
   const index = new VenueIndex();
   for (const v of venues) index.add(v);
-  const plan: Plan = { noGeo: [], updates: [], inserts: [], duplicates: [], repeats: [] };
-  const groups = new Map<string, { venue: Venue; items: Item[]; matches: Match[] }>();
+  const plan: Plan = { noGeo: [], updates: [], inserts: [], duplicates: [], attached: [], repeats: [] };
+  const groups = new Map<string, { venue: Venue; items: Item[]; attached: Item[]; matches: Match[] }>();
+  const group = (v: Venue) => {
+    const g = groups.get(v.venue_key) ?? { venue: v, items: [], attached: [], matches: [] };
+    groups.set(v.venue_key, g);
+    return g;
+  };
   const newIndex = new VenueIndex();
   const newKeys = new Set<string>();
 
@@ -654,10 +750,9 @@ export function planImport(items: Item[], venues: Venue[], opts: { includeDuplic
     }
     const m = findMatch(c.name, geo.lat, geo.lon, index);
     if (m) {
-      const g = groups.get(m.venue.venue_key) ?? { venue: m.venue, items: [], matches: [] };
+      const g = group(m.venue);
       g.items.push(item);
       g.matches.push(m);
-      groups.set(m.venue.venue_key, g);
       continue;
     }
     const row = newVenue(c, Number(geo.lat.toFixed(6)), Number(geo.lon.toFixed(6)), geo.matched);
@@ -668,7 +763,11 @@ export function planImport(items: Item[], venues: Venue[], opts: { includeDuplic
     }
     const dup = possibleDuplicate(c, geo.lat, geo.lon, index);
     if (dup && !opts.includeDuplicates) {
-      plan.duplicates.push({ item, near: dup.near, why: dup.why });
+      const target = index.near(geo.lat, geo.lon, ATTACH_NEAR_M).map((n) => ({ n, why: attachReason(c, n.venue) })).find((x) => x.why);
+      if (target) {
+        group(target.n.venue).attached.push(item);
+        plan.attached.push({ item, near: target.n, why: target.why! });
+      } else plan.duplicates.push({ item, near: dup.near, why: dup.why });
       continue;
     }
     newKeys.add(row.venue_key);
@@ -677,9 +776,14 @@ export function planImport(items: Item[], venues: Venue[], opts: { includeDuplic
   }
 
   for (const g of groups.values()) {
-    const cs = g.items.map((i) => i.c);
-    const { patch, disagreements } = fillPatchGroup(g.venue, cs);
-    plan.updates.push({ ...g, patch: withNotesGroup(g.venue, patch, cs, disagreements), disagreements });
+    const matched = g.items.map((i) => i.c);
+    const attachedC = g.attached.map((i) => i.c);
+    const main = fillPatchGroup(g.venue, matched);
+    const view: Venue = { ...g.venue, ...main.patch };
+    const extra = attachedC.length ? attachPatch(view, attachedC) : { patch: {}, disagreements: [] as string[] };
+    const patch: Record<string, unknown> = { ...main.patch, ...extra.patch };
+    const disagreements = [...new Set([...main.disagreements, ...extra.disagreements])];
+    plan.updates.push({ ...g, patch: withNotesGroup(g.venue, patch, [...matched, ...attachedC], disagreements, attachedC), disagreements });
   }
   return plan;
 }

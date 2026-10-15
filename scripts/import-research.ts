@@ -25,6 +25,8 @@
  *   --skip PATH          the skip list (default data/research/skip.json; a missing file skips nothing)
  *   --cache PATH         geocode cache (default data/research/.geocode-cache.json)
  *   --retry-failed       look up addresses the cache remembers as "no match" again
+ *   (Rows held back as possible duplicates that are within 400 m of an existing venue and share a name word with it, or its town and venue
+ *    type, are attached to that venue instead: booking, website and notes only, never price, permit, surface or lit.)
  *   --include-possible-duplicates   insert new venues even when an existing venue is within 300 m of them (or, for a school, a venue
  *                        with the same school name within 800 m). By default those are held back and listed in the review CSV.
  *   --no-db              do not read the database at all: geocode and report everything as new (no key needed)
@@ -274,6 +276,9 @@ async function main() {
   console.log(`Rows read:                       ${clean.length + skipped + skippedList}`);
   console.log(`Matched an existing venue:       ${matchedRows} rows -> ${plan.updates.length} venues  (${changed.length} with new info, ${plan.updates.length - changed.length} nothing new; ${notesOnly} only add notes)`);
   if (campus) console.log(`  rows disagreed on a value (left empty, "multiple fields on this campus" noted): ${campus} venues`);
+  const byRule = (r: string) => plan.updates.reduce((n, u) => n + u.matches.filter((m) => m.reason === r).length, 0);
+  console.log(`  by rule: similar name nearby ${byRule("near + similar name")}, same venue name within 1.5 km ${byRule("same venue name")}, very near (40 m) ${byRule("very near")}`);
+  console.log(`Attached to existing (booking, website, notes only): ${plan.attached.length} rows -> ${new Set(plan.attached.map((a) => a.near.venue.venue_key)).size} venues`);
   console.log(`New venues:                      ${plan.inserts.length}${plan.repeats.length ? `  (+${plan.repeats.length} repeated rows ignored)` : ""}`);
   console.log(`Possible duplicates held back:   ${plan.duplicates.length}${flag("--include-possible-duplicates") ? "  (--include-possible-duplicates: inserted anyway)" : ""}`);
   console.log(`Unmatched / geocode failed:      ${failedRows.length}`);
@@ -301,11 +306,17 @@ async function main() {
   }
   if (plan.inserts.length === 0) console.log("(none)");
   console.log(`Possible duplicates held back: ${plan.duplicates.length}${plan.duplicates.length ? " (see the review file)" : ""}`);
+  if (plan.attached.length) {
+    console.log("");
+    console.log(`=== Attached to existing (first 10) ===`);
+    for (const a of plan.attached.slice(0, 10)) console.log(`  ${a.item.c.name}  ->  ${a.near.venue.name} [${a.near.venue.venue_key}], ${Math.round(a.near.meters)} m (${a.why})`);
+  }
   for (const d of plan.duplicates.slice(0, 10)) console.log(`  ${d.item.c.name}  ~  ${d.near.venue.name} [${d.near.venue.venue_key}], ${Math.round(d.near.meters)} m (${d.why})`);
 
   type Out = { reason: string; item: Item; nearest?: Near | null; note: string };
   const out: Out[] = [
     ...failedRows.map((item) => ({ reason: item.c.query ? "geocode_failed" : "no_address", item, note: "" })),
+    ...plan.attached.map((a) => ({ reason: "attached_to_existing", item: a.item, nearest: a.near, note: a.why })),
     ...plan.duplicates.map((d) => ({ reason: "possible_duplicate", item: d.item, nearest: d.near, note: d.why })),
     ...plan.repeats.map((r) => ({ reason: "repeat_of_new_row", item: r.item, note: r.of })),
     ...plan.inserts.map((i) => ({ reason: i.flaggedDuplicate ? "new_venue_flagged_duplicate" : "no_match_new_venue", item: i.item, nearest: i.nearest, note: i.item.geo?.matched ?? "" })),
@@ -322,7 +333,7 @@ async function main() {
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, csv + "\n");
   console.log("");
-  console.log(`Review file: ${outPath} (${out.length} rows). geocode_failed / no_address need a better address; possible_duplicate were held back (nearest existing venue listed); no_match_new_venue will be added.`);
+  console.log(`Review file: ${outPath} (${out.length} rows). geocode_failed / no_address need a better address; possible_duplicate were held back (nearest existing venue listed); attached_to_existing were merged into that venue (booking, website, notes only); no_match_new_venue will be added.`);
 
   if (!apply) {
     console.log("Dry run: nothing was written. Add --apply to write.");

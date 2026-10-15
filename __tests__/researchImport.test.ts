@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -110,8 +111,8 @@ describe("matching", () => {
     expect(m?.venue.venue_key).toBe("osm-1");
     expect(m?.reason).toBe("near + similar name");
   });
-  it("does not match a similar name beyond 150 m", () => {
-    expect(findMatch("Riverside Park", at(200), -73.27, index())).toBeNull();
+  it("does not match a similar (not identical) name beyond 150 m", () => {
+    expect(findMatch("Riverside Park Soccer Complex North", at(200), -73.27, index())).toBeNull();
   });
   it("does not match a different name between 40 and 150 m", () => {
     expect(findMatch("Totally Different Complex", at(-80), -73.27, index())).toBeNull();
@@ -375,5 +376,136 @@ describe("duplicate prevention for new venues", () => {
   it("lists geocode failures separately", () => {
     const plan = planImport([{ file: "f", line: 2, c: c("Nowhere"), geo: null }], existing);
     expect(plan.noGeo).toHaveLength(1);
+  });
+});
+
+import { attachPatch, attachReason, meaningfulTokens, namesSameVenue } from "../scripts/lib/researchImport";
+
+describe("name normalization", () => {
+  it("strips diacritics, punctuation, & / and, and filler words", () => {
+    expect(meaningfulTokens("Muñoz Memorial Park")).toEqual(["munoz", "memorial"]);
+    expect(meaningfulTokens("Munoz Memorial Athletic Complex")).toEqual(["munoz", "memorial"]);
+    expect(namesSimilar("Muñoz Field", "Munoz Park")).toBe(true);
+    expect(namesSameVenue("Smith & Jones Soccer Center", "Smith and Jones")).toBe(true);
+    expect(namesSameVenue("St. Mary's School Field", "St Marys")).toBe(true);
+  });
+  it("matches a diacritic name against a plain one within 150 m", () => {
+    const i = new VenueIndex();
+    i.add(venue({ venue_key: "m", name: "Munoz Park", lat: 41.15, lon: -73.27 }));
+    expect(findMatch("Muñoz Field", at(100), -73.27, i)?.reason).toBe("near + similar name");
+  });
+});
+
+describe("same venue name within 1.5 km", () => {
+  const dome = () => {
+    const i = new VenueIndex();
+    i.add(venue({ venue_key: "dome", name: "Danbury Sports Dome", lat: 41.15, lon: -73.27 }));
+    return i;
+  };
+  it("catches Danbury Sports Dome at 315 m, which the 150 m rule would miss", () => {
+    const m = findMatch("Danbury Dome Soccer Center", at(315), -73.27, dome());
+    expect(m).toMatchObject({ reason: "same venue name" });
+    expect(m?.venue.venue_key).toBe("dome");
+  });
+  it("needs at least 2 meaningful words unless the names are identical", () => {
+    expect(namesSameVenue("Memorial Field Complex North", "Memorial Park")).toBe(false);
+    expect(namesSameVenue("Memorial Park", "Memorial Field")).toBe(true);
+    expect(namesSameVenue("Danbury Dome", "Danbury Sports Dome")).toBe(true);
+  });
+  it("stops at 1.5 km", () => {
+    expect(findMatch("Danbury Dome", at(1600), -73.27, dome())).toBeNull();
+    expect(findMatch("Danbury Dome", at(1400), -73.27, dome())?.reason).toBe("same venue name");
+  });
+  it("uses 400 m for school-named rows", () => {
+    const i = new VenueIndex();
+    i.add(venue({ venue_key: "s", name: "Lincoln High School Stadium", lat: 41.15, lon: -73.27 }));
+    expect(findMatch("Lincoln High Turf Complex North", at(350), -73.27, i)?.reason).toBe("near + similar name");
+    expect(findMatch("Lincoln Turf Complex North", at(350), -73.27, i)).toBeNull();
+  });
+});
+
+describe("attach-only", () => {
+  const ex = () => [venue({ venue_key: "dome", name: "Danbury Sports Dome", lat: 41.15, lon: -73.27, venue_type: "club", address: "5 Dome Rd, Danbury, CT", price_status: "unknown", surface: null, lit: null, booking_url: null })];
+  const row = (name: string, extra: Partial<ResearchRaw> = {}) => cleanRow(raw({ name, town: "Danbury", venue_type: "club", free_or_paid: "paid", price_text: "$200/hr", permit_required: "yes", surface: "turf", lit: "yes", booking_url: "https://dome.example/book", contact_phone: "203-555-0100", contact_email: "d@dome.example", availability_notes: "Open 9-9", ...extra }), "CT");
+
+  it("attaches a held-back duplicate within 400 m that shares a name word", () => {
+    const plan = planImport([item(row("Dome Indoor Arena"), at(250), -73.27)], ex());
+    expect(plan.duplicates).toHaveLength(0);
+    expect(plan.inserts).toHaveLength(0);
+    expect(plan.attached).toHaveLength(1);
+    expect(plan.attached[0]!.near.venue.venue_key).toBe("dome");
+    const u = plan.updates[0]!;
+    expect(u.patch).toMatchObject({ booking_url: "https://dome.example/book", booking_phone: "203-555-0100", booking_method: "online" });
+    for (const k of ["price_status", "price_min", "price_text", "permit_required", "permit_type", "surface", "lit"]) expect(u.patch).not.toHaveProperty(k);
+    expect(u.patch.locked_fields).toEqual(["booking"]);
+    expect(String(u.patch.player_notes)).toMatch(/Dome Indoor Arena \(nearby, attached/);
+    expect(String(u.patch.player_notes)).toMatch(/d@dome.example/);
+    expect(String(u.patch.player_notes)).toMatch(/Open 9-9/);
+  });
+  it("attaches by same town and venue type when no name word is shared", () => {
+    expect(attachReason(row("Totally Different"), ex()[0]!)).toMatch(/same town/);
+    const plan = planImport([item(row("Totally Different"), at(250), -73.27)], ex());
+    expect(plan.attached).toHaveLength(1);
+  });
+  it("holds the rest back: beyond 400 m, or nothing in common", () => {
+    expect(planImport([item(row("Dome Indoor Arena"), at(1000), -73.27)], ex()).attached).toHaveLength(0);
+    const other = [venue({ venue_key: "x", name: "Other Place", lat: 41.15, lon: -73.27, venue_type: "park", address: "1 Elm, Newtown, CT" })];
+    const plan = planImport([item(row("Totally Different", { town: "Danbury" }), at(250), -73.27)], other);
+    expect(plan.attached).toHaveLength(0);
+    expect(plan.duplicates).toHaveLength(1);
+  });
+  it("only ever adds booking and website, even for a single call", () => {
+    const { patch } = attachPatch(ex()[0]!, [row("Dome Indoor Arena")]);
+    expect(Object.keys(patch).sort()).toEqual(["booking_basis", "booking_method", "booking_phone", "booking_url", "locked_fields"]);
+  });
+  it("merges with exact matches on the same venue without touching price from the attached row", () => {
+    const exact = row("Danbury Sports Dome", { free_or_paid: "paid", price_text: "$150/hr", surface: "turf" });
+    const nearby = row("Dome Indoor Arena", { price_text: "$999/hr" });
+    const plan = planImport([item(exact, at(5), -73.27, 2), item(nearby, at(350), -73.27, 3)], ex());
+    expect(plan.updates).toHaveLength(1);
+    expect(plan.updates[0]!.patch).toMatchObject({ price_min: 150, surface: "turf" });
+    expect(plan.updates[0]!.patch.price_min).not.toBe(999);
+    expect(plan.updates[0]!.patch.locked_fields).toEqual(expect.arrayContaining(["price", "surface", "booking"]));
+  });
+});
+
+describe("program-fee guard", () => {
+  const cases: [string, string, string][] = [
+    ["$120 per player", "", "per player"],
+    ["$85", "per child", "per child"],
+    ["$900 per team", "", "per team"],
+    ["Spring league $60", "", "league"],
+    ["Summer camp $200/week", "", "camp"],
+    ["Youth clinic $40", "", "clinic"],
+    ["Class fee $15", "", "class"],
+    ["Adult program $25", "", "program"],
+    ["Season registration $75", "", "registration"],
+    ["Res $20 / Non-Res $30", "", "Res / Non-Res"],
+    ["$50", "per season registration", "unit says registration"],
+  ];
+  it.each(cases)("%s [%s] stays in the notes with the price unset (%s)", (text, unit) => {
+    for (const c of [cleanRow(raw({ free_or_paid: "paid", price_text: text, price_unit: unit }), "CT"), cleanFacilityRow(fac({ price_text: text, price_unit: unit }), "CT")]) {
+      expect(c.priceGuarded).toBe(true);
+      expect(c.price).toEqual({ status: "unknown", text: null, min: null, max: null, unit: null });
+      expect(fillPatch(venue(), c)).not.toHaveProperty("price_status");
+      expect(newVenue(c, 1, 2, null)).toMatchObject({ price_status: "unknown", price_min: null, price_max: null, price_unit: null, price_source: "unknown" });
+      expect(notesBlock(c)).toContain("not used as a rental price");
+      expect(notesBlock(c)).toContain(text.replace(/\s+/g, " "));
+    }
+  });
+  it("keeps the unit in the notes when only the unit triggers it", () => {
+    expect(notesBlock(cleanRow(raw({ price_text: "$85", price_unit: "per child" }), "CT"))).toContain("$85 (unit: per child)");
+  });
+  it("leaves real rental prices and look-alike words alone", () => {
+    for (const [text, unit] of [["$150/hr", "hour"], ["$40 per hour", ""], ["Campus field, $60/hr", ""], ["$200/day", "day"], ["Classic turf $90/hr", ""]]) {
+      const c = cleanRow(raw({ free_or_paid: "paid", price_text: text!, price_unit: unit! }), "CT");
+      expect(c.priceGuarded, text).toBe(false);
+      expect(c.price.status, text).toBe("paid");
+    }
+  });
+  it("skips the gym programs on the skip list", () => {
+    const skip = (JSON.parse(readFileSync(new URL("../data/research/skip.json", import.meta.url), "utf8")) as { names: string[] }).names;
+    for (const n of ["Highland School Gym", "Madison Town Campus Gym", "Meriden YMCA Gymnasium", "Danbury PAL Center"]) expect(isSkipped(n, skip), n).toBe(true);
+    expect(isSkipped("Madison Town Campus", skip)).toBe(false);
   });
 });
