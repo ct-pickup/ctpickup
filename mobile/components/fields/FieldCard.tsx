@@ -1,24 +1,20 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Tag } from "@/components/fields/FieldBits";
-import { fieldCountLabel, isTurf, permitChip, priceLabel, settingTag } from "@/lib/fields/presentation";
+import { detailLine, townLine } from "@/lib/fields/presentation";
 import type { FieldListing } from "@/lib/fields/types";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
 export function FieldCard({ item, onPress }: { item: FieldListing; onPress: () => void }) {
   useThemedStyles(publish_styles);
   const v = item.venue;
-  const meta = [item.kind_label, fieldCountLabel(v), item.distance_mi != null ? `${item.distance_mi.toFixed(1)} mi` : null]
-    .filter(Boolean)
-    .join(" · ");
-  const permit = permitChip(v);
+  const town = [townLine(v), item.distance_mi != null ? `${item.distance_mi.toFixed(1)} mi` : null].filter(Boolean).join(" · ");
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       accessibilityRole="button"
-      accessibilityLabel={`${v.name}, ${priceLabel(v)}`}
+      accessibilityLabel={`${v.name}, ${town}. ${detailLine(v)}`}
     >
       <View style={styles.icon}>
         <FontAwesome name="futbol-o" size={20} color={themeColor().pitchText} />
@@ -27,16 +23,14 @@ export function FieldCard({ item, onPress }: { item: FieldListing; onPress: () =
         <Text style={styles.name} numberOfLines={1}>
           {v.name}
         </Text>
-        <Text style={styles.meta} numberOfLines={1}>
-          {meta}
+        {town ? (
+          <Text style={styles.meta} numberOfLines={1}>
+            {town}
+          </Text>
+        ) : null}
+        <Text style={[styles.detail, v.price_status === "free" && styles.detailFree]} numberOfLines={1}>
+          {detailLine(v)}
         </Text>
-        <View style={styles.tags}>
-          <Tag label={priceLabel(v)} tone={v.price_status === "free" ? "good" : "neutral"} />
-          {v.source === "player" ? <Tag label="Player-reported" /> : null}
-          {settingTag(v) ? <Tag label={settingTag(v)!} /> : null}
-          {isTurf(v) ? <Tag label="Turf" /> : null}
-          {permit ? <Tag label={permit.label} tone={permit.tone} /> : null}
-        </View>
       </View>
     </Pressable>
   );
@@ -56,10 +50,11 @@ function make_styles() {
     },
     pressed: { opacity: 0.88 },
     icon: { width: 44, height: 44, borderRadius: 10, backgroundColor: c.pitchPanel, alignItems: "center", justifyContent: "center" },
-    body: { flex: 1, gap: 4 },
+    body: { flex: 1, gap: 2 },
     name: { fontSize: 16, ...headline, color: c.text },
     meta: { fontSize: 13, fontFamily: "Inter_400Regular", color: c.muted },
-    tags: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
+    detail: { fontSize: 13, fontFamily: "Inter_500Medium", color: c.text },
+    detailFree: { color: c.pitchText },
   });
 }
 let styles = make_styles();

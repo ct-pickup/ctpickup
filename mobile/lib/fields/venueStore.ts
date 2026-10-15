@@ -49,6 +49,18 @@ export async function quietUserLocation(): Promise<{ lat: number; lon: number } 
   }
 }
 
+/** Asks for location permission (call only from a tap on "Use my location"). Null when it is refused or unavailable. */
+export async function requestUserLocation(): Promise<{ lat: number; lon: number } | null> {
+  try {
+    const perm = await Location.requestForegroundPermissionsAsync();
+    if (!perm.granted) return null;
+    const p = (await Location.getLastKnownPositionAsync()) ?? (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
+    return p ? { lat: p.coords.latitude, lon: p.coords.longitude } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** One venue, for a screen opened without the list (a push or a link). */
 export async function loadFieldListing(supabase: SupabaseClient, key: string): Promise<FieldListing | null> {
   const hit = getCachedListing(key);

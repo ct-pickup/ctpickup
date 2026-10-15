@@ -126,6 +126,9 @@ export default function GamesTabScreen() {
   const playedWith: Record<string, PlayedWithSummary> = fixture ? fixture.playedWith : livePlayedWith.byRun;
 
   const form = season.form;
+  const hasPlayed = season.games > 0 || season.past.length > 0;
+  // Only a request that really failed is an error. A player with no games yet gets the empty state, not a message.
+  const showSeasonError = live.error || (Boolean(live.data.recordFailed) && !loading && upcoming.length > 0);
   const months = useMemo(() => groupByMonthEt<PastGame>(season.past), [season.past]);
 
   const reload = live.reload;
@@ -143,9 +146,16 @@ export default function GamesTabScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      <Text style={styles.header} onLongPress={__DEV__ ? toggleDevPreview : undefined}>
-        {view === "fields" ? "Fields" : view === "events" ? "Games" : "Your season"}
-      </Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.header} onLongPress={__DEV__ ? toggleDevPreview : undefined}>
+          {view === "fields" ? "Fields" : view === "events" ? "Games" : "Your season"}
+        </Text>
+        {view === "fields" ? (
+          <Pressable onPress={() => push("/field-requests")} hitSlop={10} accessibilityRole="link" accessibilityLabel="My requests" style={styles.headerLink}>
+            <Text style={styles.headerLinkText}>My requests</Text>
+          </Pressable>
+        ) : null}
+      </View>
 
       {isAdmin ? (
       <View style={styles.toggle} accessibilityRole="tablist">
@@ -168,9 +178,13 @@ export default function GamesTabScreen() {
           <EventsPanel />
         </ScrollView>
       ) : view === "fields" ? (
-        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]} keyboardShouldPersistTaps="handled">
-          <FieldsPanel onOpen={(key) => push(`/field/${encodeURIComponent(key)}`)} onMyRequests={() => push("/field-requests")} onPlans={() => push("/plans")} onSuggest={(a) => push(`/suggest-field?lat=${a.lat}&lon=${a.lon}&dlat=${a.dlat}&dlon=${a.dlon}`)} />
-        </ScrollView>
+        <View style={{ flex: 1 }}>
+          <FieldsPanel
+            onOpen={(key) => push(`/field/${encodeURIComponent(key)}`)}
+            onPlans={() => push("/plans")}
+            onSuggest={(a) => push(`/suggest-field?lat=${a.lat}&lon=${a.lon}&dlat=${a.dlat}&dlon=${a.dlon}`)}
+          />
+        </View>
       ) : (
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]}
@@ -185,7 +199,7 @@ export default function GamesTabScreen() {
             </Text>
           </Pressable>
         ) : null}
-        {!fixture && (live.error || live.data.recordFailed) ? (
+        {!fixture && showSeasonError ? (
           <Text style={styles.errorLine}>Your games did not load. Pull down to try again.</Text>
         ) : null}
 
@@ -195,17 +209,28 @@ export default function GamesTabScreen() {
           </View>
         ) : (
           <>
-            <SeasonHeaderCard
-              wins={season.wins}
-              losses={season.losses}
-              draws={season.draws}
-              games={season.games}
-              potdCount={season.potdCount}
-              points={season.points}
-              card={season.card}
-              form={form}
-            />
+            {hasPlayed ? (
+              <SeasonHeaderCard
+                wins={season.wins}
+                losses={season.losses}
+                draws={season.draws}
+                games={season.games}
+                potdCount={season.potdCount}
+                points={season.points}
+                card={season.card}
+                form={form}
+              />
+            ) : upcoming.length === 0 ? (
+              <View style={styles.firstGame}>
+                <Text style={styles.firstGameTitle}>Your season starts with your first game</Text>
+                <Text style={styles.firstGameText}>Join a pickup game and your record, points and results will show up here.</Text>
+                <Pressable accessibilityRole="button" onPress={() => push("/session-map")} style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}>
+                  <Text style={styles.primaryBtnText}>Get a game</Text>
+                </Pressable>
+              </View>
+            ) : null}
 
+            {upcoming.length > 0 || hasPlayed ? (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Upcoming</Text>
               {upcoming.length > 0 ? (
@@ -220,7 +245,7 @@ export default function GamesTabScreen() {
                     style={styles.fullWidth}
                   />
                 ))
-              ) : (
+              ) : hasPlayed ? (
                 <View style={styles.noGamesRow}>
                   <Text style={styles.noGamesText} numberOfLines={1}>
                     No games booked
@@ -233,8 +258,9 @@ export default function GamesTabScreen() {
                     <Text style={styles.accentBtnText}>Get a game</Text>
                   </Pressable>
                 </View>
-              )}
+              ) : null}
             </View>
+            ) : null}
 
             {upcoming.length === 0 && bestGames.length > 0 ? (
               <View style={styles.section}>
@@ -293,14 +319,21 @@ function make_styles() {
     toggleBtnOn: { backgroundColor: themeColor().pitch },
     toggleText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: themeColor().text },
     toggleTextOn: { color: themeColor().onPitch },
-    header: {
-      color: themeColor().text,
-      fontSize: 32,
-      ...headline,
+    headerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
       paddingHorizontal: PAGE_PADDING,
       paddingTop: 12,
       paddingBottom: 12,
     },
+    header: {
+      color: themeColor().text,
+      fontSize: 32,
+      ...headline,
+    },
+    headerLink: { paddingVertical: 6 },
+    headerLinkText: { fontSize: 15, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().pitchText },
     content: { paddingHorizontal: PAGE_PADDING, gap: 24 },
     devLine: { fontSize: 13, fontFamily: "Inter_500Medium", color: themeColor().muted },
     errorLine: { fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().coralText },
@@ -322,13 +355,18 @@ function make_styles() {
       borderRadius: radius.card,
     },
     noGamesText: { flexShrink: 1, fontSize: 15, fontFamily: "Inter_600SemiBold", color: themeColor().text },
+    firstGame: { gap: 10, padding: 20, backgroundColor: themeColor().card, borderWidth: 1, borderColor: themeColor().line, borderRadius: radius.card },
+    firstGameTitle: { fontSize: 20, ...headline, color: themeColor().text },
+    firstGameText: { fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
+    primaryBtn: { marginTop: 6, backgroundColor: themeColor().pitch, borderRadius: radius.button, paddingVertical: 14, alignItems: "center" },
+    primaryBtnText: { color: themeColor().onPitch, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
     accentBtn: {
-      backgroundColor: themeColor().accent,
+      backgroundColor: themeColor().pitch,
       borderRadius: radius.button,
-      paddingVertical: 8,
-      paddingHorizontal: 16,
+      paddingVertical: 10,
+      paddingHorizontal: 18,
     },
-    accentBtnText: { color: themeColor().onAccent, fontSize: 14, fontFamily: "Inter_600SemiBold" },
+    accentBtnText: { color: themeColor().onPitch, fontSize: 15, fontFamily: "Inter_700Bold", fontWeight: "700" },
     emptyLine: { fontSize: 14, fontFamily: "Inter_400Regular", color: themeColor().muted },
     monthGroup: { gap: 8 },
     monthLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: themeColor().muted },

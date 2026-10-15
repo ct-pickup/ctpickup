@@ -92,7 +92,7 @@ export function FieldsMap({ shown, start, onRegionChange, fit, onOpen }: Props) 
 function make_styles() {
   const c = themeColor();
   return StyleSheet.create({
-    wrap: { height: 240, borderRadius: radius.card, overflow: "hidden", borderWidth: 1, borderColor: c.line },
+    wrap: { flex: 1, overflow: "hidden" },
     pin: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: c.inkSurface },
     pinFree: { backgroundColor: c.pitch },
     pinText: { fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", color: c.onInk },

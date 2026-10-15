@@ -154,3 +154,31 @@ export function requestEstimate(v: Pick<Venue, "price_status" | "price_min" | "p
   }
   return { label: "Price to be confirmed", cents: null };
 }
+
+const STATE_PART = /^[A-Z]{2}(\s+\d{5}(-\d{4})?)?$/;
+
+/** "Fairfield, CT" from an address like "45 River Rd, Fairfield, CT 06824" plus the state column. Falls back to whatever is known. */
+export function townLine(v: Pick<Venue, "address" | "state">): string | null {
+  const parts = (v.address ?? "")
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  let state = v.state?.trim() || null;
+  let town: string | null = null;
+  const last = parts[parts.length - 1];
+  if (last && STATE_PART.test(last)) {
+    state = state ?? last.slice(0, 2);
+    town = parts.length >= 2 ? parts[parts.length - 2]! : null;
+  } else if (parts.length >= 2) {
+    town = parts[parts.length - 1]!;
+  }
+  if (town && /^\d/.test(town)) town = null; // a street line, not a town
+  return [town, state].filter(Boolean).join(", ") || null;
+}
+
+/** "Outdoor · Turf · $120/hr": setting, surface and price on one line. */
+export function detailLine(v: Pick<Venue, "setting" | "surface" | "turf_count" | "price_status" | "price_min" | "price_max" | "price_unit" | "price_text">): string {
+  const setting = v.setting === "indoor" ? "Indoor" : v.setting === "both" ? "Indoor + outdoor" : "Outdoor";
+  const surface = isTurf(v) ? "Turf" : v.surface ? v.surface.charAt(0).toUpperCase() + v.surface.slice(1) : null;
+  return [setting, surface, priceLabel(v)].filter(Boolean).join(" · ");
+}
