@@ -43,6 +43,7 @@
   "exclude": [
     "node_modules",
     "mobile",
+    "__tests__",
     "ctpickup-mobile-*",
     "scripts/emit-theme-css.ts",
     "scripts/import-ct-venues.ts",
