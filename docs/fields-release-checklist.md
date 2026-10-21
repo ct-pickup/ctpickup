@@ -16,7 +16,7 @@ parse-checked (pglast) and applied by you on dev. They have never touched produc
 | # | File | What it does | Rollback |
 |---|------|--------------|----------|
 | 1 | `20261012000000_fields_venues_schools.sql` | `schools`, `venues` (+ RLS: signed-in read, admin write), first `upsert_schools` / `upsert_venues` | drop tables (data loss) |
-| 2 | `20261012000100_fields_requests_events_slots.sql` | `venue_requests`, `events`, `schedule_slots`, `venue_calendars`, `connected_venue_keys()`, `venue_calendar_connected()`, `fields_touch_updated_at()` | drop tables |
+| 2 | `20261012000100_fields_requests_events_slots.sql` | `venue_requests`, `field_events`, `schedule_slots`, `venue_calendars`, `connected_venue_keys()`, `venue_calendar_connected()`, `fields_touch_updated_at()` | drop tables |
 | 3 | `20261012000200_fields_alerts_saved.sql` | `alert_subscriptions`, `saved_venues` | drop tables |
 | 4 | `20261013000000_fields_upsert_preserve_manual.sql` | `upsert_venues` keeps price/permit/booking on verified or manual rows | re-run #1's function |
 | 5 | `20261013000100_venue_requests_guards.sql` | one open request per slot, rate limits on requests | drop the trigger / index |
@@ -71,7 +71,7 @@ select column_name from information_schema.columns
 --    (create table if not exists would silently skip it)
 select table_name from information_schema.tables
  where table_schema = 'public'
-   and table_name in ('venues','schools','venue_requests','events','schedule_slots','venue_calendars','alert_subscriptions','saved_venues',
+   and table_name in ('venues','schools','venue_requests','field_events','schedule_slots','venue_calendars','alert_subscriptions','saved_venues',
                       'plan_subscriptions','plan_catalog','season_purchases','venue_suggestions','venue_confirmations','venue_replies','venue_data_events');
 -- expect: no rows
 

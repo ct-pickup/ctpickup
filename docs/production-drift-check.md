@@ -11,7 +11,7 @@ Not against production. I ran it only on throwaway PostgreSQL 16 clusters inside
 1. On a stand-in for your production facts (those 4 tables + 2 functions + `auth.users`): section A all `false`/`partial`, section B all
    `absent (good)`, section C `ok` except the app rows listed below.
 2. After applying every Fields migration (`20261012`..`20261024`) to that stand-in with `ON_ERROR_STOP`: all 16 applied cleanly (so they
-   need nothing from production beyond the stand-in's objects), and section B reported all 63 Fields objects as present, which proves
+   need nothing from production beyond the stand-in's objects), and section B reported every Fields object as present (146 rows, read from the migration files themselves), which proves
    each name in the check is spelled the way the migration creates it.
 3. After applying each non-Fields migration to the same base with errors tolerated: all 26 that ran cleanly and make changes came out
    `true`; the one exception, `20260626130000`, is a guarded no-op when the type `pickup_run_status` does not exist, and the check
@@ -38,6 +38,8 @@ policy `own_verification`) are checked in their latest form only.
 `pickup_credits`, `platform_payments`, `chat_*` and others are assumed to exist; replaying `supabase/migrations` on an empty database fails
 at the first of them. Production got them some other way. Column "base objects missing" in the result shows which of those a given
 migration needs and production lacks.
+
+> Update: Fields table `events` was renamed `field_events` because production already has an unrelated `events` table; see `docs/production-rollout-runbook.md`.
 
 ## Fields migrations and what they depend on (section C)
 SQL-level, from the migration text (confirmed by applying them to the stand-in):

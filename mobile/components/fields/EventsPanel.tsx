@@ -19,7 +19,7 @@ import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
 const WEEK_MS = 7 * 86_400_000;
 
-/** Games, leagues and tournaments at venues over the next seven days. Reads published rows from the events table. */
+/** Games, leagues and tournaments at venues over the next seven days. Reads published rows from the field_events table. */
 export function EventsPanel() {
   useThemedStyles(publish_styles);
   const { supabase, session } = useAuth();
@@ -38,7 +38,7 @@ export function EventsPanel() {
     const from = new Date(Date.now() - 3 * 3_600_000).toISOString();
     const to = new Date(Date.now() + WEEK_MS).toISOString();
     const { data, error: err } = await supabase
-      .from("events")
+      .from("field_events")
       .select("id,title,event_type,starts_at,capacity,joined_count,price_cents,price_unit,source,source_note,venue_key,venues(name)")
       .gte("starts_at", from)
       .lt("starts_at", to)

@@ -1,4 +1,4 @@
--- Fields, step 2 of 3: venue requests, venue calendars, schedule slots and events.
+-- Fields, step 2 of 3: venue requests, venue calendars, schedule slots and field events (table field_events).
 -- Additive. Depends on 20261012000000_fields_venues_schools.sql.
 --
 --   * venue_requests: a player can create and read only their own; admins can read and update all.
@@ -6,7 +6,8 @@
 --   * venue_calendars: admin only (the feed URL can be a private link). Signed-in users learn whether a venue's calendar
 --     is connected through public.venue_calendar_connected(), which exposes nothing else.
 --   * schedule_slots: signed-in users read; only admins write.
---   * events: signed-in users read published events; only admins write.
+--   * field_events: signed-in users read published events; only admins write. Named field_events (not events) because
+--     production already has an unrelated public.events table (pickup time options) that this migration must never touch.
 
 begin;
 
@@ -184,9 +185,9 @@ create policy schedule_slots_admin_write on public.schedule_slots
   with check (public.is_admin_uid(auth.uid()));
 
 -- ---------------------------------------------------------------------------
--- events
+-- field_events (NOT public.events: production has an unrelated table by that name)
 -- ---------------------------------------------------------------------------
-create table if not exists public.events (
+create table if not exists public.field_events (
   id            uuid primary key default gen_random_uuid(),
   venue_key     text references public.venues (venue_key) on delete set null,
   title         text not null,
@@ -205,28 +206,28 @@ create table if not exists public.events (
   updated_at    timestamptz not null default now()
 );
 
-comment on table public.events is 'Games, leagues and tournaments at venues. price_cents null or 0 means free. source = imported for town-calendar events.';
+comment on table public.field_events is 'Games, leagues and tournaments at venues. price_cents null or 0 means free. source = imported for town-calendar events.';
 
-create index if not exists events_starts_idx on public.events (starts_at);
-create index if not exists events_venue_idx on public.events (venue_key, starts_at);
-create index if not exists events_type_idx on public.events (event_type, starts_at);
+create index if not exists field_events_starts_idx on public.field_events (starts_at);
+create index if not exists field_events_venue_idx on public.field_events (venue_key, starts_at);
+create index if not exists field_events_type_idx on public.field_events (event_type, starts_at);
 
-drop trigger if exists events_touch_updated_at on public.events;
-create trigger events_touch_updated_at
-  before update on public.events
+drop trigger if exists field_events_touch_updated_at on public.field_events;
+create trigger field_events_touch_updated_at
+  before update on public.field_events
   for each row execute function public.fields_touch_updated_at();
 
-alter table public.events enable row level security;
-revoke all on public.events from anon, authenticated;
-grant select, insert, update, delete on public.events to authenticated;
+alter table public.field_events enable row level security;
+revoke all on public.field_events from anon, authenticated;
+grant select, insert, update, delete on public.field_events to authenticated;
 
-drop policy if exists events_select_signed_in on public.events;
-create policy events_select_signed_in on public.events
+drop policy if exists field_events_select_signed_in on public.field_events;
+create policy field_events_select_signed_in on public.field_events
   for select to authenticated
   using (is_published or public.is_admin_uid(auth.uid()));
 
-drop policy if exists events_admin_write on public.events;
-create policy events_admin_write on public.events
+drop policy if exists field_events_admin_write on public.field_events;
+create policy field_events_admin_write on public.field_events
   for all to authenticated
   using (public.is_admin_uid(auth.uid()))
   with check (public.is_admin_uid(auth.uid()));
@@ -237,7 +238,7 @@ commit;
 -- Rollback (run manually if needed):
 --
 -- begin;
--- drop table if exists public.events;
+-- drop table if exists public.field_events;
 -- drop table if exists public.schedule_slots;
 -- drop function if exists public.connected_venue_keys();
 -- drop table if exists public.venue_calendars;

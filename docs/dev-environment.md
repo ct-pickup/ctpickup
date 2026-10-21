@@ -30,3 +30,10 @@ Needs migrations `20261015000000_plans.sql` then `20261016000000_plans_v2_season
 3. Webhook: run `stripe listen --forward-to localhost:3000/api/stripe/plans-webhook` (Stripe CLI) and use the `whsec_...` it prints as `STRIPE_PLANS_WEBHOOK_SECRET`. Restart `npm run dev`.
 4. In the app (admin): Games > Fields > Plans. Season: pick field, day, time, length, weeks, then pay. Concierge: Choose Concierge. Test card 4242 4242 4242 4242, any future date, any CVC, any ZIP.
 Prices shown in the app are in `shared/fields/plans.ts` (one file). The plans routes refuse a live key (`sk_live_`) and non-admin users. Never use live keys here.
+
+## Dev database created before the `events` rename
+The Fields events table is now `public.field_events` (production has an unrelated `public.events`). A dev database that already ran the old
+`20261012000100` migration has the table under the old name: run `scripts/dev/rename_fields_events.sql` once (SQL Editor or
+`psql "$DEV_DATABASE_URL" -f scripts/dev/rename_fields_events.sql`). It is idempotent, refuses to rename a table that lacks the Fields
+columns, and finishes with a read-only listing of the renamed objects. Then re-run `scripts/dev/fields_sample_schedule.sql` if you want the
+sample events (it now writes `field_events`). A fresh dev database just runs the migration as it is now.

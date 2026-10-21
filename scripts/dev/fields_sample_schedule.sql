@@ -14,7 +14,7 @@
 
 begin;
 
-delete from public.events where venue_key like 'sample-%';
+delete from public.field_events where venue_key like 'sample-%';
 delete from public.schedule_slots where venue_key like 'sample-%';
 delete from public.venue_calendars where venue_key like 'sample-%';
 
@@ -44,7 +44,7 @@ from d;
 
 -- Events this week
 with d as (select (date_trunc('day', now() at time zone 'America/New_York')) as day0)
-insert into public.events (venue_key, title, event_type, starts_at, capacity, joined_count, price_cents, price_unit, source, source_note)
+insert into public.field_events (venue_key, title, event_type, starts_at, capacity, joined_count, price_cents, price_unit, source, source_note)
 select e.venue_key, e.title, e.event_type, ((day0 + e.at) at time zone 'America/New_York'), e.capacity, e.joined, e.price_cents, e.price_unit, e.source, e.note
 from d, (values
   ('sample-hillcrest-hs',   'Saturday pickup 7v7',        'pickup',     interval '3 days 11 hours', 14, 8,  1000, 'player', 'manual',   null::text),

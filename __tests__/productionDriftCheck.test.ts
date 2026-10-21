@@ -51,3 +51,53 @@ describe("scripts/dev/production_drift_check.sql", () => {
     expect(n).toBeGreaterThan(250);
   });
 });
+
+describe("Fields events table name", () => {
+  const read = (p: string) => readFileSync(p, "utf8");
+  const fieldsMigrations = migrations.filter((f) => ts(f) >= FIRST_FIELDS);
+
+  it("no Fields migration touches public.events (production has an unrelated table by that name)", () => {
+    for (const f of fieldsMigrations) {
+      const code = read(`supabase/migrations/${f}`).split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
+      expect(code, f).not.toMatch(/\bpublic\.events\b/);
+      expect(code, f).not.toMatch(/\b(?:index|trigger|policy)\s+(?:if (?:not )?exists\s+)?"?events_/i);
+    }
+  });
+  it("the Fields table is public.field_events, with field_events_* indexes, trigger and policies", () => {
+    const sqlText = read("supabase/migrations/20261012000100_fields_requests_events_slots.sql");
+    expect(sqlText).toMatch(/create table if not exists public\.field_events \(/);
+    for (const n of ["field_events_starts_idx", "field_events_venue_idx", "field_events_type_idx", "field_events_touch_updated_at", "field_events_select_signed_in", "field_events_admin_write"]) expect(sqlText, n).toContain(n);
+  });
+  it("the app reads field_events, never events, for Fields", () => {
+    expect(read("mobile/components/fields/EventsPanel.tsx")).toContain('.from("field_events")');
+    expect(read("mobile/components/fields/EventsPanel.tsx")).not.toContain('.from("events")');
+    expect(read("scripts/dev/fields_sample_schedule.sql")).not.toMatch(/public\.events\b/);
+  });
+  it("the drift check lists field_events as absent and never mentions public.events as a Fields object", () => {
+    expect(sql).toContain("'no_table','field_events'");
+    expect(sql).not.toMatch(/'no_table','events'/);
+  });
+  it("the dev rename script is idempotent, dev-only, and refuses a table without the Fields columns", () => {
+    const r = read("scripts/dev/rename_fields_events.sql");
+    expect(r.split("\n").slice(0, 3).join("\n")).toMatch(/DEV ONLY/);
+    expect(r).toMatch(/to_regclass\('public\.field_events'\) is null/);
+    expect(r).toMatch(/column_name in \('event_type', 'is_published', 'venue_key', 'starts_at'\)[\s\S]*= 4/);
+    expect(r).toMatch(/alter table public\.events rename to field_events/);
+    expect(r).not.toMatch(/drop table|truncate|delete from/i);
+    expect(r.startsWith("--")).toBe(true);
+  });
+  it("no Fields object name is also created by an older migration (no collisions inside the repo)", () => {
+    const names = (files: string[]) => {
+      const out = new Map<string, string>();
+      for (const f of files) {
+        const text = read(`supabase/migrations/${f}`).split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
+        for (const m of text.matchAll(/create (?:unique )?(?:table|index|view)(?: if not exists)?\s+(?:public\.)?"?(\w+)"?/gi)) out.set(m[1]!.toLowerCase(), f);
+      }
+      return out;
+    };
+    const older = names(migrations.filter((f) => ts(f) < FIRST_FIELDS));
+    const mine = names(fieldsMigrations);
+    const clash = [...mine.keys()].filter((n) => older.has(n));
+    expect(clash).toEqual([]);
+  });
+});
