@@ -10,7 +10,7 @@ cannot change anything.** Nothing in this task was run against production or any
 Not against production. I ran it only on throwaway PostgreSQL 16 clusters inside this sandbox (deleted afterwards):
 1. On a stand-in for your production facts (those 4 tables + 2 functions + `auth.users`): section A all `false`/`partial`, section B all
    `absent (good)`, section C `ok` except the app rows listed below.
-2. After applying every Fields migration (`20261012`..`20261023`) to that stand-in with `ON_ERROR_STOP`: all 15 applied cleanly (so they
+2. After applying every Fields migration (`20261012`..`20261024`) to that stand-in with `ON_ERROR_STOP`: all 16 applied cleanly (so they
    need nothing from production beyond the stand-in's objects), and section B reported all 63 Fields objects as present, which proves
    each name in the check is spelled the way the migration creates it.
 3. After applying each non-Fields migration to the same base with errors tolerated: all 26 that ran cleanly and make changes came out
@@ -94,7 +94,7 @@ so the check also verifies argument count (3) rather than only the name.
 3. Read the result grid (about 70 rows; "Download CSV" works):
    - **Section A** column `applied?`: `true` = already in production (applied by hand); `false` = not there; `partial` = half there,
      the `missing` column says which part. `base objects missing` non-empty = that migration cannot run until the older object exists.
-   - **Section B** must read `absent (good)` on all 15 rows. `PRESENT: n` means part of the Fields work is already in production; stop
+   - **Section B** must read `absent (good)` on all 16 rows. `PRESENT: n` means part of the Fields work is already in production; stop
      and send me that row.
    - **Section C** `ok` or `MISSING: n` with the list. Each `MISSING` is something to resolve before the Fields migrations or the app.
 4. Paste the three sections back to me; I will turn them into the ordered list of migrations to apply (and which to skip).

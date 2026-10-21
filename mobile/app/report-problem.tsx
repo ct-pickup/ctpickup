@@ -101,7 +101,7 @@ export default function ReportProblemScreen() {
         }),
       });
       const j = (await r.json().catch(() => null)) as { error?: string } | null;
-      if (!r.ok) setError(j?.error ?? "We couldn’t send that. Please try again.");
+      if (!r.ok) setError(j?.error === "feature_off" ? "Fields isn’t available yet." : (j?.error ?? "We couldn’t send that. Please try again."));
       else setDone(true);
     } catch {
       setError("We couldn’t send that. Check your connection and try again.");

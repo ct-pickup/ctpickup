@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { requireFlag } from "@/lib/flags";
 import { fetchAdminUserIds } from "@/lib/push/adminUserIds";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { requireAuthedUser } from "@/lib/referral/auth";
@@ -30,6 +31,8 @@ function estimateCents(v: { price_status: string | null; price_min: number | nul
 export async function POST(req: Request) {
   const auth = await requireAuthedUser(req);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  const off = await requireFlag(auth.admin, "fields", auth.user.id);
+  if (off) return off;
 
   const limited = await checkPersistentRateLimit({ route: ROUTE, ip: auth.user.id, limit: REQUESTS_PER_HOUR, windowSeconds: 3600 });
   if (!limited.ok) return rateLimitResponse(limited.retryAfterSeconds);

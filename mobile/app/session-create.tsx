@@ -310,7 +310,7 @@ export default function SessionCreateScreen() {
 
       if (handlePhotoRequired(r.status, j)) return;
       if (!r.ok || !j?.ok) {
-        Alert.alert("Error", j?.error ?? "Failed to create session.");
+        Alert.alert("Error", j?.error === "feature_off" ? "Creating a game at a field isn’t available yet." : (j?.error ?? "Failed to create session."));
         return;
       }
 

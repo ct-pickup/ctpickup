@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { ChalkEmptyState } from "@/components/chalk";
 import { AlertSettings } from "@/components/fields/AlertSettings";
 import { useAuth } from "@/context/AuthContext";
-import { useProfileAdmin } from "@/context/ProfileAdminContext";
+import { useFeatureFlag } from "@/context/FeatureFlagsContext";
 import { hapticTap } from "@/lib/haptics";
 import { fetchNotifications, markNotificationsRead, NotificationsRequestError } from "@/lib/notificationsApi";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
@@ -23,8 +23,8 @@ export default function NotificationsScreen() {
 
   const router = useRouter();
   const { session } = useAuth();
-  // Field alerts run on the Fields feature, which is admin-only until it launches.
-  const { isAdmin } = useProfileAdmin();
+  // Field alerts run on the Fields feature, behind the remote 'fields' switch.
+  const fieldsOn = useFeatureFlag("fields");
   const token = session?.access_token ?? null;
 
   const [items, setItems] = useState<NotificationItem[]>([]);
@@ -133,7 +133,7 @@ export default function NotificationsScreen() {
           </>
         )}
 
-        {isAdmin ? <AlertSettings /> : null}
+        {fieldsOn ? <AlertSettings /> : null}
       </ScrollView>
     </>
   );

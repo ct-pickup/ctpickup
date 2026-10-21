@@ -26,6 +26,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { CtPlusProvider } from "@/context/CtPlusContext";
 import { ProfileCompletionProvider } from "@/context/ProfileCompletionContext";
 import { ProfilePhotoProvider } from "@/context/ProfilePhotoContext";
+import { FeatureFlagsProvider } from "@/context/FeatureFlagsContext";
 import { ProfileAdminProvider } from "@/context/ProfileAdminContext";
 import { ReviewModeProvider } from "@/context/ReviewModeContext";
 import { WaiverProvider } from "@/context/WaiverContext";
@@ -165,6 +166,7 @@ function RootLayoutNav() {
         <WaiverProvider>
           <ProfileCompletionProvider>
             <ProfileAdminProvider>
+              <FeatureFlagsProvider>
               <ReviewModeProvider>
               <AdminModeProvider>
                 <SelectedRegionProvider>
@@ -550,6 +552,7 @@ function RootLayoutNav() {
                 </SelectedRegionProvider>
               </AdminModeProvider>
               </ReviewModeProvider>
+              </FeatureFlagsProvider>
             </ProfileAdminProvider>
           </ProfileCompletionProvider>
         </WaiverProvider>

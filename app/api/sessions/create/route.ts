@@ -13,6 +13,7 @@ import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { profilePhotoGate } from "@/lib/profilePhoto/requirement";
 import { resolveGameLink } from "@/lib/fields/gameAtField";
+import { requireFlag } from "@/lib/flags";
 
 const ALLOWED_FORMATS = ["5v5", "6v6", "7v7", "Open"];
 
@@ -93,7 +94,12 @@ export async function POST(req: Request) {
   let latitude = body.latitude != null ? Number(body.latitude) : null;
   let longitude = body.longitude != null ? Number(body.longitude) : null;
 
-  // A game created from a field (and maybe an approved request): check the field and the request before anything is written.
+  // A game created from a field (and maybe an approved request) needs the 'fields' flag. Games without a field are not affected.
+  if (body.venue_key || body.venue_request_id) {
+    const off = await requireFlag(admin, "fields", user.id);
+    if (off) return off;
+  }
+  // Check the field and the request before anything is written.
   const link = await resolveGameLink(admin, user.id, { venue_key: body.venue_key as string | null, venue_request_id: body.venue_request_id as string | null }, etDateKey(start_at)!);
   if (!link.ok) return NextResponse.json({ error: link.error, code: link.code }, { status: link.status });
   if (link.venue) {

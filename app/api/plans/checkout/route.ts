@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import { assertPlansTestKey, planPriceId, PLAN_PRODUCT_TAG, SEASON_PRODUCT_TAG } from "@/lib/plans/stripePlans";
+import { requireFlag } from "@/lib/flags";
 import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
 import { requireAuthedUser } from "@/lib/referral/auth";
 import { checkPersistentRateLimit, rateLimitResponse } from "@/lib/server/persistentRateLimit";
@@ -20,20 +21,18 @@ const PER_HOUR = 10;
  *   { plan: "concierge" }                                                      subscription, $/month
  *   { plan: "season", venue_key, weekday, start_time, duration_hours?, weeks, players? }   one-time payment
  * Creates a Stripe Checkout Session (mode=subscription for Concierge, mode=payment for a season) and returns its URL.
- * TEST mode only, and admin only for now.
+ * TEST mode only. Gated by the 'paid_plans' and 'fields' flags (lib/flags.ts); admins are always on.
  */
 export async function POST(req: Request) {
   const auth = await requireAuthedUser(req);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
+  // Paid plans need both switches (admins are always on). Old app builds cannot get past this.
+  const off = await requireFlag(auth.admin, ["paid_plans", "fields"], auth.user.id);
+  if (off) return off;
+
   const limited = await checkPersistentRateLimit({ route: ROUTE, ip: auth.user.id, limit: PER_HOUR, windowSeconds: 3600 });
   if (!limited.ok) return rateLimitResponse(limited.retryAfterSeconds);
-
-  // Plans are admin-only until launch.
-  const { data: prof } = await auth.admin.from("profiles").select("is_admin").eq("id", auth.user.id).maybeSingle();
-  if ((prof as { is_admin?: boolean } | null)?.is_admin !== true) {
-    return NextResponse.json({ error: "Plans aren’t available yet." }, { status: 403 });
-  }
 
   let body: Record<string, unknown>;
   try {

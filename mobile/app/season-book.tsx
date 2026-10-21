@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View 
 import { FieldCard } from "@/components/fields/FieldCard";
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { useAuth } from "@/context/AuthContext";
-import { useProfileAdmin } from "@/context/ProfileAdminContext";
+import { useFeatureFlag } from "@/context/FeatureFlagsContext";
 import { fetchNearby } from "@/lib/fields/nearbyApi";
 import { startPlanCheckout } from "@/lib/fields/plansApi";
 import { DEFAULT_START, DURATIONS, START_TIMES, timeLabel } from "@/lib/fields/requestOptions";
@@ -27,7 +27,8 @@ export default function SeasonBookScreen() {
   useThemedStyles(publish_styles);
   const router = useRouter();
   const { session, supabase } = useAuth();
-  const { isAdmin } = useProfileAdmin();
+  const plansOn = useFeatureFlag("paid_plans");
+  const fieldsOn = useFeatureFlag("fields");
   const [query, setQuery] = useState("");
   const [weekday, setWeekday] = useState(6);
   const [time, setTime] = useState<string>(DEFAULT_START);
@@ -79,7 +80,7 @@ export default function SeasonBookScreen() {
     }
   }
 
-  if (!isAdmin) {
+  if (!plansOn || !fieldsOn) {
     return (
       <FieldScreenShell fallback="/plans">
         <Stack.Screen options={{ headerShown: false }} />

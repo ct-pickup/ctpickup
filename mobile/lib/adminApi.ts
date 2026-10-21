@@ -1061,3 +1061,19 @@ export function fetchAdminPlayerRatings(accessToken: string, opts: { userIds?: s
     method: "GET",
   });
 }
+
+export type AdminFlagView = { key: "fields" | "paid_plans"; enabled: boolean; note: string | null; updated_at: string | null; allowlist: { id: string; email: string | null }[] };
+export type AdminFlagEvent = { id: number; flag_key: string; actor_email: string | null; change: Record<string, unknown>; created_at: string };
+
+export function fetchAdminFlags(accessToken: string) {
+  return adminFetch<{ ok: boolean; flags: AdminFlagView[]; events: AdminFlagEvent[] }>("/api/admin/flags", accessToken, { method: "GET" });
+}
+
+/** Switch a flag on/off for everyone, or add (by email) / remove a player from its allowlist. */
+export function changeAdminFlag(accessToken: string, body: { key: string; enabled?: boolean; add_email?: string; remove_id?: string }) {
+  return adminFetch<{ ok: boolean; flag: AdminFlagView }>("/api/admin/flags", accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}

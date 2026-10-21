@@ -5,7 +5,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "rea
 
 import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { useAuth } from "@/context/AuthContext";
-import { useProfileAdmin } from "@/context/ProfileAdminContext";
+import { useFeatureFlag } from "@/context/FeatureFlagsContext";
 import { usePlanStatus } from "@/hooks/usePlanStatus";
 import { startPlanCheckout } from "@/lib/fields/plansApi";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
@@ -30,7 +30,8 @@ export default function PlansScreen() {
   useThemedStyles(publish_styles);
   const router = useRouter();
   const { session } = useAuth();
-  const { isAdmin } = useProfileAdmin();
+  const plansOn = useFeatureFlag("paid_plans");
+  const fieldsOn = useFeatureFlag("fields");
   const { status, seasons, refresh } = usePlanStatus();
   const [busy, setBusy] = useState(false);
   const isConcierge = status?.plan === "concierge";
@@ -55,7 +56,7 @@ export default function PlansScreen() {
     }
   }
 
-  if (!isAdmin) {
+  if (!plansOn || !fieldsOn) {
     return (
       <FieldScreenShell fallback="/(tabs)/sessions?view=fields">
         <Stack.Screen options={{ headerShown: false }} />

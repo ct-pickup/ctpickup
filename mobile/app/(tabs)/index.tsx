@@ -1,5 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
-import { useProfileAdmin } from "@/context/ProfileAdminContext";
+import { useFeatureFlag } from "@/context/FeatureFlagsContext";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -380,7 +380,7 @@ export default function HomeScreen() {
   const preview = useDevPreview();
   const fixture = useMemo(() => (preview && devFixtures ? devFixtures.home() : null), [preview]);
   const { session, supabase } = useAuth();
-  const { isAdmin } = useProfileAdmin();
+  const fieldsOn = useFeatureFlag("fields");
   const calendarRefresh = useRef<(() => void) | null>(null);
   const registerCalendarRefresh = useCallback((fn: () => void) => {
     calendarRefresh.current = fn;
@@ -498,7 +498,7 @@ export default function HomeScreen() {
         </Pressable>
       ) : null}
 
-      {isAdmin ? (
+      {fieldsOn ? (
       <Pressable
         onPress={() => push("/(tabs)/sessions?view=fields")}
         style={({ pressed }) => [styles.fieldsRow, pressed && styles.pressed]}

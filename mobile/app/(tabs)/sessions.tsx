@@ -1,5 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
-import { useProfileAdmin } from "@/context/ProfileAdminContext";
+import { useFeatureFlag } from "@/context/FeatureFlagsContext";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -91,13 +91,14 @@ export default function GamesTabScreen() {
   const push = router.push as (href: string) => void;
   const preview = useDevPreview();
   const params = useLocalSearchParams<{ view?: string }>();
-  // Fields runs on sample data until the venues table is live, so only admins see it.
-  const { isAdmin } = useProfileAdmin();
+  // Fields is behind the remote 'fields' switch (admins and the allowlist see it first; unreadable means off).
+  const fieldsOn = useFeatureFlag("fields");
+  const plansOn = useFeatureFlag("paid_plans");
   const [chosenView, setView] = useState<"season" | "fields" | "events">(params.view === "fields" ? "fields" : params.view === "events" ? "events" : "season");
   useEffect(() => {
     if (params.view === "fields" || params.view === "events") setView(params.view);
   }, [params.view]);
-  const view = isAdmin ? chosenView : "season";
+  const view = fieldsOn ? chosenView : "season";
   const [variantIndex, setVariantIndex] = useState(0);
   const variant = FIXTURE_VARIANTS[variantIndex % FIXTURE_VARIANTS.length]!;
   const fixture = useMemo(
@@ -157,7 +158,7 @@ export default function GamesTabScreen() {
         ) : null}
       </View>
 
-      {isAdmin ? (
+      {fieldsOn ? (
       <View style={styles.toggle} accessibilityRole="tablist">
         {(["season", "fields", "events"] as const).map((v) => (
           <Pressable
@@ -181,7 +182,7 @@ export default function GamesTabScreen() {
         <View style={{ flex: 1 }}>
           <FieldsPanel
             onOpen={(key) => push(`/field/${encodeURIComponent(key)}`)}
-            onPlans={() => push("/plans")}
+            onPlans={plansOn ? () => push("/plans") : undefined}
             onSuggest={(a) => push(`/suggest-field?lat=${a.lat}&lon=${a.lon}&dlat=${a.dlat}&dlon=${a.dlon}`)}
           />
         </View>

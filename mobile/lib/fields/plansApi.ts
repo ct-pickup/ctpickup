@@ -18,6 +18,7 @@ export async function startPlanCheckout(token: string, body: CheckoutBody): Prom
     });
     const j = (await r.json().catch(() => null)) as { ok?: boolean; url?: string; error?: string; code?: string } | null;
     if (r.ok && j?.ok && j.url) return { ok: true, url: j.url };
+    if (r.status === 403 && j?.error === "feature_off") return { ok: false, code: "not_available", message: "Plans aren’t available yet." };
     const message = j?.error ?? "We couldn’t start checkout. Please try again.";
     if (r.status === 409) return { ok: false, code: "already_subscribed", message };
     if (r.status === 403) return { ok: false, code: "not_available", message };

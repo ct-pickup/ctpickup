@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { requireFlag } from "@/lib/flags";
 import { submitReport } from "@/lib/fields/venueReports";
 import { requireAuthedUser } from "@/lib/referral/auth";
 import { checkPersistentRateLimit, rateLimitResponse } from "@/lib/server/persistentRateLimit";
@@ -18,6 +19,8 @@ const PER_HOUR = 20;
 export async function POST(req: Request) {
   const auth = await requireAuthedUser(req);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  const off = await requireFlag(auth.admin, "fields", auth.user.id);
+  if (off) return off;
   const limited = await checkPersistentRateLimit({ route: ROUTE, ip: auth.user.id, limit: PER_HOUR, windowSeconds: 3600 });
   if (!limited.ok) return rateLimitResponse(limited.retryAfterSeconds);
 
