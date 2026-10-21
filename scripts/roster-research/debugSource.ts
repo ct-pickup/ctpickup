@@ -1,6 +1,7 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
+import { readCacheFile } from "./cache.ts";
 import { normalizeDivision, parseNcaaDirectory } from "./sources.ts";
 
 /**
@@ -97,8 +98,9 @@ export function debugNcaaCache(cacheDir: string, host: string): string[] {
   if (!existsSync(dir)) return [`No cached pages for ${host} in ${cacheDir}. Run --build-schools once first.`];
   const out: string[] = [];
   let shown = 0;
-  for (const f of readdirSync(dir).filter((x) => x.endsWith(".json")).sort()) {
-    const c = JSON.parse(readFileSync(join(dir, f), "utf8")) as { url: string; status: number; body: string };
+  for (const f of readdirSync(dir).filter((x) => x.endsWith(".json") || x.endsWith(".json.gz")).sort()) {
+    const c = readCacheFile(join(dir, f));
+    if (!c) continue;
     if (c.url.endsWith("/robots.txt")) continue;
     if (c.status !== 200) {
       out.push(`--- ${c.url}: HTTP ${c.status} (no data) ---`, "");

@@ -1,8 +1,9 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { Division, Getter, School } from "./core.ts";
 import { detectSchoolPlatform, verifyRoster, type Platform } from "./platform.ts";
+import { atomicWriteFileSync, LowDiskError } from "./disk.ts";
 import { parseNcaaDirectory, parseSchoolTables, siteOrigin, type ParsedSchool } from "./sources.ts";
 import { normalizeState } from "./states.ts";
 
@@ -34,7 +35,7 @@ const hostOf = (base: string): string => {
   }
 };
 
-export type SchoolRecord = School & { ncaa_id?: string; provisional?: boolean };
+export type SchoolRecord = School & { ncaa_id?: string; provisional?: boolean; /** HTTP status of the home page when the platform was detected. The page itself is not kept. */ home_status?: number };
 
 // ---------------------------------------------------------------------------------------------------------------------------
 // Collecting a division from its sources
@@ -251,8 +252,9 @@ export const needsCheck = (s: SchoolRecord, refresh: boolean): boolean => {
 };
 
 export async function enrichSchool(s: SchoolRecord, fetcher: Getter, season: number, nowIso: string, opts: { verify?: boolean } = {}): Promise<SchoolRecord> {
-  const det = s.platform && s.platform !== "unknown" ? { platform: s.platform as Platform, problem: "" } : await detectSchoolPlatform(s, fetcher);
+  const det: { platform: Platform; problem: string; status?: number } = s.platform && s.platform !== "unknown" ? { platform: s.platform as Platform, problem: "", status: s.home_status } : await detectSchoolPlatform(s, fetcher);
   const next: SchoolRecord = { ...s, platform: det.platform };
+  if (det.status !== undefined) next.home_status = det.status;
   if (det.problem) {
     next.roster = { status: "needs_review", reason: det.problem, season, checked_at: nowIso };
     return next;
@@ -274,10 +276,18 @@ export async function enrichAll(
   const todo = out.map((s, i) => ({ s, i })).filter(({ s }) => needsCheck(s, !!o.refresh)).slice(0, o.limit ?? Infinity);
   let next = 0;
   let done = 0;
+  const stop: { err: LowDiskError | null } = { err: null };
   const worker = async () => {
     while (next < todo.length) {
       const { s, i } = todo[next++]!;
-      out[i] = await enrichSchool(s, fetcher, o.season, o.nowIso, { verify: o.verify });
+      try {
+        out[i] = await enrichSchool(s, fetcher, o.season, o.nowIso, { verify: o.verify });
+      } catch (e) {
+        if (!(e instanceof LowDiskError)) throw e;
+        stop.err = e; // stop every worker, keep the schools already checked, and report once below
+        next = todo.length;
+        return;
+      }
       done++;
       if (done % 25 === 0) {
         o.save?.(out);
@@ -287,6 +297,7 @@ export async function enrichAll(
   };
   await Promise.all(Array.from({ length: Math.max(1, o.concurrency ?? 6) }, worker));
   o.save?.(out);
+  if (stop.err) throw stop.err;
   return out;
 }
 
@@ -336,7 +347,7 @@ export function curatedIds(dir: string): Set<string> {
 export function writeDivisionFile(dir: string, division: Division, schools: SchoolRecord[]): void {
   mkdirSync(dir, { recursive: true });
   const body = { _note: `Built by run.ts --build-schools. Public school names and website addresses only. Edit schools/overrides.json for hand fixes.`, schools: schools.filter((s) => s.division === division).map(withName) };
-  writeFileSync(join(dir, divisionFile(division)), JSON.stringify(body, null, 1) + "\n");
+  atomicWriteFileSync(join(dir, divisionFile(division)), JSON.stringify(body, null, 1) + "\n");
 }
 
 export type BuildOptions = { dir: string; sources: SourcesConfig; overrides: Overrides; fetcher: Getter; divisions: Division[]; season: number; nowIso: string; refresh?: boolean; verify?: boolean; listsOnly?: boolean; limit?: number; log: (s: string) => void };

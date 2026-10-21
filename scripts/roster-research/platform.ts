@@ -43,13 +43,14 @@ export const prestoRosterPattern = (base: string): string => `${base.replace(/\/
 export type PlatformSchool = { base: string; men?: boolean; women?: boolean; platform?: Platform };
 
 /** Fetches the home page and says which platform it is. Never guesses: an unreachable home page is reported as such. */
-export async function detectSchoolPlatform(school: PlatformSchool, fetcher: Getter): Promise<{ platform: Platform; problem: string }> {
+export async function detectSchoolPlatform(school: PlatformSchool, fetcher: Getter): Promise<{ platform: Platform; problem: string; status?: number }> {
   if (!school.base) return { platform: "unknown", problem: "no athletics website address (add it in schools/overrides.json)" };
-  const res = await fetcher.get(`${school.base.replace(/\/+$/, "")}/`);
+  // The home page is read once and thrown away: only the platform and the HTTP status are kept (in the school list), not the HTML.
+  const res = await fetcher.get(`${school.base.replace(/\/+$/, "")}/`, { cache: false });
   if (res.blockedByRobots) return { platform: "unknown", problem: "home page blocked by robots.txt" };
   if (res.error || res.status === 0 || res.status >= 500) return { platform: "unknown", problem: `home page unreachable (${res.error ?? `HTTP ${res.status}`})` };
-  if (res.status !== 200) return { platform: "unknown", problem: `home page answered HTTP ${res.status}` };
-  return { platform: detectPlatform(res.body).platform, problem: "" };
+  if (res.status !== 200) return { platform: "unknown", problem: `home page answered HTTP ${res.status}`, status: res.status };
+  return { platform: detectPlatform(res.body).platform, problem: "", status: 200 };
 }
 
 async function checkProgram(base: string, team: "men" | "women", season: number, fetcher: Getter): Promise<ProgramCheck> {

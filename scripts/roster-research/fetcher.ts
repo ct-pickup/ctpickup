@@ -1,6 +1,7 @@
-import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync } from "node:fs";
+
+import { readCacheEntry, writeCacheEntry } from "./cache.ts";
+import { checkDisk, freeBytes, LowDiskError, MIN_FREE_BYTES } from "./disk.ts";
 
 /**
  * A polite fetcher for public web pages: identifies itself, honours robots.txt, waits at least a second between requests to the
@@ -65,6 +66,15 @@ export type FetcherOptions = {
   now?: () => number;
   /** Cache only: never touch the network. A page that is not cached comes back as an error. For re-parsing what is already collected. */
   offline?: boolean;
+  /** A network fetch is refused (LowDiskError) when less than this many bytes are free where the cache lives. Default 1 GiB. */
+  minFreeBytes?: number;
+  /** Free-space probe, injectable for tests. */
+  freeBytes?: (dir: string) => number;
+};
+
+export type GetOptions = {
+  /** false: use a cached copy if there is one, but never save the page (school home pages: only the detected platform is kept). */
+  cache?: boolean;
 };
 
 export class PoliteFetcher {
@@ -81,18 +91,13 @@ export class PoliteFetcher {
       hostIntervalMs: { "web.archive.org": 2000 },
       timeoutMs: 30_000,
       offline: false,
+      minFreeBytes: MIN_FREE_BYTES,
+      freeBytes,
       fetchImpl: ((url, init) => fetch(url, init)) as FetchLike,
       sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
       now: () => Date.now(),
       ...o,
     };
-  }
-
-  private cachePath(url: string): string {
-    const host = new URL(url).hostname;
-    const dir = join(this.o.cacheDir, host);
-    mkdirSync(dir, { recursive: true });
-    return join(dir, `${createHash("sha1").update(url).digest("hex")}.json`);
   }
 
   private async throttle(host: string): Promise<void> {
@@ -102,20 +107,18 @@ export class PoliteFetcher {
     this.last.set(host, this.o.now());
   }
 
-  private async raw(url: string): Promise<FetchResult> {
-    const file = this.cachePath(url);
-    if (existsSync(file)) {
-      const c = JSON.parse(readFileSync(file, "utf8")) as { status: number; body: string };
-      return { url, status: c.status, body: c.body, fromCache: true };
-    }
+  private async raw(url: string, opts: GetOptions = {}): Promise<FetchResult> {
+    const hit = readCacheEntry(this.o.cacheDir, url);
+    if (hit) return { url, status: hit.status, body: hit.body, fromCache: true };
     if (this.o.offline) return { url, status: 0, body: "", fromCache: false, error: "offline: not in the cache" };
     const host = new URL(url).hostname;
     const run = async (): Promise<FetchResult> => {
       // Another worker may have fetched this exact page while this one waited its turn.
-      if (existsSync(file)) {
-        const c = JSON.parse(readFileSync(file, "utf8")) as { status: number; body: string };
-        return { url, status: c.status, body: c.body, fromCache: true };
-      }
+      const again = readCacheEntry(this.o.cacheDir, url);
+      if (again) return { url, status: again.status, body: again.body, fromCache: true };
+      // Stop cleanly before filling the disk (throws LowDiskError; the caller keeps its progress and exits).
+      mkdirSync(this.o.cacheDir, { recursive: true });
+      checkDisk(this.o.cacheDir, this.o.minFreeBytes, this.o.freeBytes);
       await this.throttle(host);
       this.requests.push(url);
       try {
@@ -126,9 +129,10 @@ export class PoliteFetcher {
         });
         const body = await res.text();
         // Cache what the site answered, even a 404, so it is not asked twice. Server errors and rate limits are retried later.
-        if (res.status < 500 && res.status !== 429) writeFileSync(file, JSON.stringify({ url, status: res.status, body, fetchedAt: new Date(this.o.now()).toISOString() }));
+        if (opts.cache !== false && res.status < 500 && res.status !== 429) writeCacheEntry(this.o.cacheDir, { url, status: res.status, body, fetchedAt: new Date(this.o.now()).toISOString() });
         return { url, status: res.status, body, fromCache: false };
       } catch (e) {
+        if (e instanceof LowDiskError) throw e; // not a network problem: stop the run cleanly
         const name = (e as { name?: string })?.name;
         return { url, status: 0, body: "", fromCache: false, error: name === "TimeoutError" || name === "AbortError" ? `timeout after ${this.o.timeoutMs / 1000}s` : e instanceof Error ? e.message : "network error" };
       }
@@ -152,14 +156,14 @@ export class PoliteFetcher {
     return this.robots.get(key) ?? null;
   }
 
-  async get(url: string): Promise<FetchResult> {
+  async get(url: string, opts: GetOptions = {}): Promise<FetchResult> {
     // Offline re-parsing only reads pages that were already fetched under robots.txt, so it needs no robots check.
-    if (this.o.offline) return this.raw(url);
+    if (this.o.offline) return this.raw(url, opts);
     const robots = await this.robotsFor(url);
     if (robots === null) return { url, status: 0, body: "", fromCache: false, error: "could not read robots.txt" };
     const u = new URL(url);
     if (!robotsAllows(robots, u.pathname + u.search)) return { url, status: 0, body: "", fromCache: false, blockedByRobots: true, error: "disallowed by robots.txt" };
-    return this.raw(url);
+    return this.raw(url, opts);
   }
 }
 

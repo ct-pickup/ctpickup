@@ -1,6 +1,6 @@
 import { parseRosterHtml } from "./sidearm.ts";
 import { isTargetState } from "./states.ts";
-import { waybackUrl, type FetchResult } from "./fetcher.ts";
+import { waybackUrl, type FetchResult, type GetOptions } from "./fetcher.ts";
 import type { Platform, RosterInfo } from "./platform.ts";
 
 /** The collection plan, one page at a time, and how a page becomes rows. No network here: the fetcher is passed in. */
@@ -116,7 +116,7 @@ export type Outcome = {
   kept_raw?: { raw: string; had_extra: boolean }[];
 };
 
-export type Getter = { get(url: string): Promise<FetchResult> };
+export type Getter = { get(url: string, opts?: GetOptions): Promise<FetchResult> };
 
 /** Looks for the roster page, parses it and keeps only players whose hometown is in a target state. Never guesses a hometown. */
 export async function collectTask(t: Task, fetcher: Getter, nowIso: string): Promise<Outcome> {

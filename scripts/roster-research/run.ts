@@ -11,6 +11,7 @@
  *                              --refresh (check everything again). Reads schools/sources.json and schools/overrides.json.
  *          --debug-source ncaa  offline: describe the cached NCAA directory responses (field names, division and sport values with
  *                              counts, distinct schools, 5 sample records). Reads cached pages only; no player data, no network.
+ *          --prune-cache       delete cached pages the progress file says are parsed (and school home pages), compact the rest, print MB freed
  *          --lists-only        with --build-schools: write the lists only (no home-page or roster checks), fast and offline when cached
  *          --list-needs-review print every school whose roster address could not be used: name, division and reason (no network)
  *          --state CT          only schools in this state (the school's state, not the players')
@@ -32,10 +33,12 @@
  * Rules: public roster pages only, robots.txt honoured, 1 request per second per host, a User-Agent with your contact email.
  * Keeps only: school, division, conference, team, season, name, class year, position, hometown city and state, source URL, date.
  */
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import { buildCsvs, collectTask, coverageCsvWithSkips, pendingTasks, skippedReport, PHASES, planWithSkips, summarize, taskKey, type Division, type Outcome } from "./core.ts";
+import { cacheSize, formatMb, pruneCache } from "./cache.ts";
+import { appendLineSync, atomicWriteFileSync, checkDisk, freeBytes, LowDiskError, repairTrailingLine } from "./disk.ts";
 import { buildUserAgent, PoliteFetcher } from "./fetcher.ts";
 import { debugNcaaCache } from "./debugSource.ts";
 import { buildSchoolLists, loadSchoolFiles, needsReviewLines, schoolReport, type Overrides, type SourcesConfig } from "./schoolList.ts";
@@ -78,13 +81,16 @@ function exportOutreach(out: string): void {
     for (const cells of body) rows.push(Object.fromEntries(head!.map((h, i) => [h, cells[i] ?? ""])) as unknown as Row);
   }
   const built = buildOutreach(rows, { includeDuplicateOfExisting: flag("--include-duplicate-of-existing") });
-  writeFileSync(join(out, "outreach_list.csv"), outreachCsv(built.rows));
-  writeFileSync(join(out, "outreach_unsplit.csv"), unsplitCsv(built.unsplit));
+  atomicWriteFileSync(join(out, "outreach_list.csv"), outreachCsv(built.rows));
+  atomicWriteFileSync(join(out, "outreach_unsplit.csv"), unsplitCsv(built.unsplit));
   console.log(`Read ${rows.length} rows from ${files.length} files: ${files.join(", ")}`);
   for (const line of outreachSummary(built)) console.log(line);
   for (const u of built.unsplit.slice(0, 20)) console.log(`  not split (${u.reason}): "${u.name}" at ${u.school} ${u.season}, hometown ${u.hometown_city}, ${u.hometown_state}`);
   console.log(`Wrote ${join(out, "outreach_list.csv")} and outreach_unsplit.csv (local files, gitignored).`);
 }
+
+/** Set by the branches that read or write the page cache, so the run ends by printing its size. */
+const used = { cacheDir: "" };
 
 async function main() {
   const out = resolve(arg("--out") ?? "data/outreach/rosters");
@@ -99,6 +105,21 @@ async function main() {
 
   const schoolsDir = resolve(arg("--schools") ?? "scripts/roster-research/schools");
 
+  if (flag("--prune-cache")) {
+    // Deletes cached pages that the progress file says are parsed, and school home pages whose platform is already stored.
+    // Then compacts what is left of an older uncompressed cache. Reads no network, needs no contact email.
+    const cacheDir = join(out, ".cache");
+    used.cacheDir = cacheDir;
+    const before = cacheSize(cacheDir);
+    const outcomes = [...loadOutcomes(outcomesFile).values()].filter((o) => o.status === "ok" || o.status === "missing");
+    const homeUrls = loadSchoolFiles(schoolsDir)
+      .filter((sc) => sc.base && sc.platform && sc.platform !== "unknown")
+      .map((sc) => `${sc.base.replace(/\/+$/, "")}/`);
+    const r = pruneCache({ cacheDir, parsedUrls: outcomes.flatMap((o) => o.urls_tried), homeUrls });
+    console.log(`Pruned the cache: deleted ${r.deletedPages} parsed pages and ${r.deletedHomePages} school home pages, compacted ${r.compacted} older entries.`);
+    console.log(`Freed ${formatMb(r.freedBytes)} (was ${formatMb(before.bytes)} in ${before.files} files).`);
+    return;
+  }
   if (arg("--debug-source")) {
     if (arg("--debug-source") !== "ncaa") fail("--debug-source takes: ncaa");
     let host = "web3.ncaa.org";
@@ -127,6 +148,8 @@ async function main() {
     };
     // --lists-only reads the cache and makes no network request, so it needs no contact email.
     const listsOnly = flag("--lists-only");
+    used.cacheDir = join(out, ".cache");
+    if (!listsOnly) checkDisk(out); // refuse to start on a nearly full disk (throws LowDiskError, handled below)
     const fetcher = listsOnly
       ? new PoliteFetcher({ cacheDir: join(out, ".cache"), userAgent: "CTPickupRosterResearch/1.0 (offline, cache only)", offline: true })
       : new PoliteFetcher({ cacheDir: join(out, ".cache"), userAgent: buildUserAgent(process.env.ROSTER_CONTACT_EMAIL) });
@@ -160,17 +183,21 @@ async function main() {
   if (flag("--reparse")) {
     // Only pages already in the cache are read; nothing goes to the network. A better result replaces the old one; a page that
     // is not in the cache leaves the old result alone.
+    used.cacheDir = join(out, ".cache");
     const cache = new PoliteFetcher({ cacheDir: join(out, ".cache"), userAgent: "offline", offline: true });
     let refreshed = 0;
     for (const t of tasks) {
       const o = await collectTask(t, cache, new Date().toISOString());
       if (o.status !== "ok") continue;
-      appendFileSync(outcomesFile, JSON.stringify(o) + "\n");
+      appendLineSync(outcomesFile, JSON.stringify(o));
       done.set(o.key, o);
       refreshed++;
     }
     console.log(`Re-parsed ${refreshed} of ${tasks.length} pages from the cache (no network).`);
   } else if (!offlineOnly) {
+    used.cacheDir = join(out, ".cache");
+    checkDisk(out);
+    repairTrailingLine(outcomesFile);
     const fetcher = new PoliteFetcher({ cacheDir: join(out, ".cache"), userAgent: buildUserAgent(process.env.ROSTER_CONTACT_EMAIL) });
     const limit = Number(arg("--limit") ?? Infinity);
     const started = Date.now();
@@ -178,7 +205,7 @@ async function main() {
     for (const t of pendingTasks(tasks, done, flag("--retry-failed"))) {
       if (n >= limit) break;
       const o = await collectTask(t, fetcher, new Date().toISOString());
-      appendFileSync(outcomesFile, JSON.stringify(o) + "\n");
+      appendLineSync(outcomesFile, JSON.stringify(o));
       done.set(o.key, o);
       n++;
       console.log(`${o.status.padEnd(7)} ${o.school} ${o.team} ${o.season}  kept ${o.rows_kept}  (${o.players_on_page} on page)${o.error ? `  ${o.error}` : ""}`);
@@ -188,8 +215,8 @@ async function main() {
 
   // Build the CSVs and the coverage log from everything collected for the planned pages.
   const mine = tasks.map((t) => done.get(taskKey(t))).filter((o): o is Outcome => !!o);
-  for (const [name, csv] of buildCsvs(mine)) writeFileSync(join(out, name), csv);
-  writeFileSync(join(out, `coverage_${divisions.join("-")}_${seasons.join("-")}.csv`), coverageCsvWithSkips(mine, skipped));
+  for (const [name, csv] of buildCsvs(mine)) atomicWriteFileSync(join(out, name), csv);
+  atomicWriteFileSync(join(out, `coverage_${divisions.join("-")}_${seasons.join("-")}.csv`), coverageCsvWithSkips(mine, skipped));
   const s = summarize(mine);
   console.log("\n=== Coverage ===");
   console.log(`Schools attempted: ${s.schools}   pages planned: ${tasks.length}   pages found: ${s.pagesFound}   not found: ${s.missing}   network failures: ${s.failed}`);
@@ -207,4 +234,20 @@ async function main() {
   for (const line of skippedReport(mine)) console.log(line);
 }
 
-void main().catch((e) => fail(e instanceof Error ? e.message : "unknown error"));
+void main()
+  .catch((e) => {
+    if (e instanceof LowDiskError) {
+      // Not a crash: everything finished so far is saved. Exit code 75 (temporary failure) so a chained command stops here.
+      console.error(`\nSTOPPED: ${e.message}`);
+      console.error(`Free space on this disk now: ${formatMb(freeBytes(resolve(arg("--out") ?? "data/outreach/rosters")))}.`);
+      process.exitCode = 75;
+      return;
+    }
+    fail(e instanceof Error ? e.message : "unknown error");
+  })
+  .finally(() => {
+    if (used.cacheDir && existsSync(used.cacheDir)) {
+      const c = cacheSize(used.cacheDir);
+      console.log(`Cache size: ${formatMb(c.bytes)} in ${c.files} files (${used.cacheDir}). Free it with --prune-cache.`);
+    }
+  });

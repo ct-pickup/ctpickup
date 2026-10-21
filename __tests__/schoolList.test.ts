@@ -44,7 +44,7 @@ describe("platform detection (fixtures are hand-written approximations)", () => 
     expect((await detectSchoolPlatform({ base: "https://a.edu" }, fake({ "https://a.edu/": { robots: true } }).getter)).problem).toMatch(/robots/);
     expect((await detectSchoolPlatform({ base: "https://a.edu" }, fake({ "https://a.edu/": { error: "ECONNRESET" } }).getter)).problem).toMatch(/unreachable/);
     expect((await detectSchoolPlatform({ base: "https://a.edu" }, fake().getter)).problem).toMatch(/HTTP 404/);
-    expect(await detectSchoolPlatform({ base: "https://a.edu" }, fake({ "https://a.edu/": { body: fx("home_sidearm.html") } }).getter)).toEqual({ platform: "sidearm", problem: "" });
+    expect(await detectSchoolPlatform({ base: "https://a.edu" }, fake({ "https://a.edu/": { body: fx("home_sidearm.html") } }).getter)).toEqual({ platform: "sidearm", problem: "", status: 200 });
   });
 });
 
