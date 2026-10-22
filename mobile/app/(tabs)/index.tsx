@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { useFeatureFlag } from "@/context/FeatureFlagsContext";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -379,6 +380,7 @@ export default function HomeScreen() {
   const preview = useDevPreview();
   const fixture = useMemo(() => (preview && devFixtures ? devFixtures.home() : null), [preview]);
   const { session, supabase } = useAuth();
+  const fieldsOn = useFeatureFlag("fields");
   const calendarRefresh = useRef<(() => void) | null>(null);
   const registerCalendarRefresh = useCallback((fn: () => void) => {
     calendarRefresh.current = fn;
@@ -496,6 +498,19 @@ export default function HomeScreen() {
         </Pressable>
       ) : null}
 
+      {fieldsOn ? (
+      <Pressable
+        onPress={() => push("/(tabs)/sessions?view=fields")}
+        style={({ pressed }) => [styles.fieldsRow, pressed && styles.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel="Find a field"
+      >
+        <FontAwesome name="map-marker" size={18} color={themeColor().pitchText} />
+        <Text style={styles.fieldsRowText}>Find a field</Text>
+        <FontAwesome name="angle-right" size={18} color={themeColor().muted} />
+      </Pressable>
+      ) : null}
+
       <HomeCalendar
         supabase={supabase}
         myUserId={live.myUserId}
@@ -579,6 +594,19 @@ function make_styles() {
 
     /* header */
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+    fieldsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      marginTop: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      backgroundColor: themeColor().card,
+      borderWidth: 1,
+      borderColor: themeColor().line,
+      borderRadius: radius.card,
+    },
+    fieldsRowText: { flex: 1, fontSize: 16, fontFamily: "Inter_600SemiBold", color: themeColor().text },
     headerRight: { flexDirection: "row", alignItems: "center", gap: 16 },
     headerBadge: {
       position: "absolute",

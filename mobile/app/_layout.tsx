@@ -3,6 +3,8 @@ import "@/lib/appVersionHeader";
 
 Sentry.init({
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  // "dev-testflight" for the testflight-dev build, so its errors never mix with production in Sentry.
+  environment: process.env.EXPO_PUBLIC_APP_ENV?.trim() || "production",
   enabled: !__DEV__,
   debug: false,
   tracesSampleRate: 0.1,
@@ -14,6 +16,7 @@ import { AppOpeningTheme, clearAppOpeningThemeFlag } from "@/components/AppOpeni
 import { AppLockOverlay } from "@/components/AppLockOverlay";
 import { CancellationPolicyNotice } from "@/components/CancellationPolicyNotice";
 import { PushRegistrar } from "@/components/PushRegistrar";
+import { PushTapRouter } from "@/components/PushTapRouter";
 import { ReviewModeBanner } from "@/components/ReviewModeBanner";
 import { AppLockProvider } from "@/context/AppLockContext";
 import { AccountIntroReplayProvider } from "@/context/AccountIntroReplayContext";
@@ -23,6 +26,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { CtPlusProvider } from "@/context/CtPlusContext";
 import { ProfileCompletionProvider } from "@/context/ProfileCompletionContext";
 import { ProfilePhotoProvider } from "@/context/ProfilePhotoContext";
+import { FeatureFlagsProvider } from "@/context/FeatureFlagsContext";
 import { ProfileAdminProvider } from "@/context/ProfileAdminContext";
 import { ReviewModeProvider } from "@/context/ReviewModeContext";
 import { WaiverProvider } from "@/context/WaiverContext";
@@ -162,6 +166,7 @@ function RootLayoutNav() {
         <WaiverProvider>
           <ProfileCompletionProvider>
             <ProfileAdminProvider>
+              <FeatureFlagsProvider>
               <ReviewModeProvider>
               <AdminModeProvider>
                 <SelectedRegionProvider>
@@ -173,6 +178,7 @@ function RootLayoutNav() {
                         {minVersionBlocked ? <UpdateRequiredGate /> : null}
                         <ReviewModeBanner />
                         <PushRegistrar />
+                        <PushTapRouter />
                         <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
                         <ThemeProvider
                           value={{
@@ -546,6 +552,7 @@ function RootLayoutNav() {
                 </SelectedRegionProvider>
               </AdminModeProvider>
               </ReviewModeProvider>
+              </FeatureFlagsProvider>
             </ProfileAdminProvider>
           </ProfileCompletionProvider>
         </WaiverProvider>

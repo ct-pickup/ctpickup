@@ -12,6 +12,8 @@ import { pickupStartFromHostBody } from "@/lib/datetime/easternWallTime";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { profilePhotoGate } from "@/lib/profilePhoto/requirement";
+import { resolveGameLink } from "@/lib/fields/gameAtField";
+import { requireFlag } from "@/lib/flags";
 
 const ALLOWED_FORMATS = ["5v5", "6v6", "7v7", "Open"];
 
@@ -89,8 +91,21 @@ export async function POST(req: Request) {
   if (fee_cents > 50000) return NextResponse.json({ error: "fee_cents cannot exceed $500." }, { status: 400 });
 
   const invite_only = body.invite_only === true;
-  const latitude = body.latitude != null ? Number(body.latitude) : null;
-  const longitude = body.longitude != null ? Number(body.longitude) : null;
+  let latitude = body.latitude != null ? Number(body.latitude) : null;
+  let longitude = body.longitude != null ? Number(body.longitude) : null;
+
+  // A game created from a field (and maybe an approved request) needs the 'fields' flag. Games without a field are not affected.
+  if (body.venue_key || body.venue_request_id) {
+    const off = await requireFlag(admin, "fields", user.id);
+    if (off) return off;
+  }
+  // Check the field and the request before anything is written.
+  const link = await resolveGameLink(admin, user.id, { venue_key: body.venue_key as string | null, venue_request_id: body.venue_request_id as string | null }, etDateKey(start_at)!);
+  if (!link.ok) return NextResponse.json({ error: link.error, code: link.code }, { status: link.status });
+  if (link.venue) {
+    if (latitude == null && typeof link.venue.lat === "number") latitude = link.venue.lat;
+    if (longitude == null && typeof link.venue.lon === "number") longitude = link.venue.lon;
+  }
 
   const service_region = serviceRegionForVenueName(profile.nearest_venue ?? "") ?? "CT";
   const host_name = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Host";
@@ -118,6 +133,8 @@ export async function POST(req: Request) {
       tiered_pricing: body.tiered_pricing === true,
       service_region,
       created_by: user.id,
+      // Only sent for games created from a field, so every other game is written exactly as before.
+      ...(link.venue_key ? { venue_key: link.venue_key, ...(link.request ? { venue_request_id: link.request.id as string } : {}) } : {}),
       is_current: false,
       auto_managed: false,
       created_at: now,
@@ -126,6 +143,9 @@ export async function POST(req: Request) {
     .select("id")
     .maybeSingle()));
 
+  if (insertErr?.code === "23505" && link.request) {
+    return NextResponse.json({ error: "A game was already created from this request.", code: "already_used" }, { status: 409 });
+  }
   if (insertErr || !run) {
     console.error("[sessions/create] insert error", insertErr);
     return NextResponse.json({ error: insertErr?.message ?? "Failed to create session." }, { status: 500 });

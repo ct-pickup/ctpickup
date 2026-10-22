@@ -9,6 +9,7 @@ import {
 } from "@/lib/account/accountDeletionPlan";
 import { anonymizePickupRsvps, anonymizePlatformPayments } from "@/lib/account/anonymizeUserRecords";
 import { invalidateUserSessions } from "@/lib/auth/invalidateUserSessions";
+import { cancelPlansForUser } from "@/lib/plans/cancelUserPlans";
 import { getStripePickup, getStripeTournament } from "@/lib/server/runtimeClients";
 
 export { AccountDeletionError, previewAccountDeletion } from "@/lib/account/accountDeletionPlan";
@@ -264,6 +265,10 @@ export async function deleteUserAccount(
   }
 
   await assertAnonymizationSchemaReady(svc);
+
+  // Fields billing first, before anything is changed: a Concierge subscription must not keep billing a deleted user, and an unpaid
+  // season checkout must not be payable. If Stripe fails this throws and the account is left exactly as it was.
+  await cancelPlansForUser(svc, userId);
 
   let stripe: Stripe | null = null;
   const getStripe = () => (stripe ??= getStripePickup());

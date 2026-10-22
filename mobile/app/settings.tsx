@@ -1429,6 +1429,7 @@ export default function SettingsScreen() {
             <View style={s.group}>
               <Row icon="file-o" label="Terms of Service" onPress={() => push("/terms")} />
               <Row icon="shield" label="Privacy Policy" onPress={() => push("/privacy-policy")} />
+              <Row icon="map-o" label="Map data © OpenStreetMap contributors" onPress={() => void Linking.openURL("https://www.openstreetmap.org/copyright")} />
               <Row
                 icon="file-text-o"
                 label="Waiver"

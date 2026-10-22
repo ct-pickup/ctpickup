@@ -49,3 +49,7 @@ ctpickup-mobile-*/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# research importer geocode cache and review output
+/data/research/.geocode-cache.json
+/data/research/research-unmatched.csv

@@ -22,6 +22,18 @@
         "buildType": "apk"
       }
     },
+    "testflight-dev": {
+      "distribution": "store",
+      "environment": "development",
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "testflight-dev",
+        "EXPO_PUBLIC_APP_ENV": "dev-testflight"
+      },
+      "ios": {
+        "resourceClass": "m-medium"
+      }
+    },
     "production": {
       "distribution": "store",
       "environment": "production",
@@ -35,6 +47,11 @@
     }
   },
   "submit": {
+    "testflight-dev": {
+      "ios": {
+        "ascAppId": "6766061001"
+      }
+    },
     "production": {
       "ios": {
         "ascAppId": "6766061001"

@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAdminAttention } from "@/lib/adminAttention";
+import { supabaseHost } from "@/lib/env";
 import { tabBarContentPadding } from "@/lib/tabBar";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 
@@ -23,6 +24,10 @@ const MORE: Array<{ label: string; href: Href }> = [
   { label: "Player levels", href: "/admin/tier-management" as Href },
   { label: "Standing", href: "/admin/standing" as Href },
   { label: "Chat moderation", href: "/admin/chat" as Href },
+  { label: "Field requests", href: "/admin/field-requests" as Href },
+  { label: "Field suggestions", href: "/admin/venue-suggestions" as Href },
+  { label: "Venue calendars", href: "/admin/venue-calendars" as Href },
+  { label: "Feature flags", href: "/admin/feature-flags" as Href },
   { label: "Tournaments", href: "/admin/tournament" as Href },
   { label: "Tools", href: "/admin/tools" as Href },
 ];
@@ -39,6 +44,8 @@ export default function AdminMenuScreen() {
   const rows = counts
     ? [
         { key: "verify", label: "Verification requests", count: counts.verifications, href: "/admin/verification" as Href },
+        { key: "fields", label: "Field requests", count: counts.fieldRequests, href: "/admin/field-requests" as Href },
+        { key: "suggestions", label: "Field suggestions", count: counts.fieldSuggestions, href: "/admin/venue-suggestions" as Href },
         { key: "signups", label: "New signups to approve", count: counts.signups, href: "/admin/members" as Href },
         { key: "settle", label: "Sessions to settle", count: counts.settlements, href: "/admin/pickup" as Href },
       ].filter((r) => r.count > 0)
@@ -107,6 +114,7 @@ export default function AdminMenuScreen() {
             </Pressable>
           ))}
         </View>
+        <Text style={styles.dbLine}>Database: {supabaseHost() ?? "unknown"}</Text>
       </ScrollView>
     </View>
   );
@@ -115,6 +123,7 @@ export default function AdminMenuScreen() {
 function make_styles() {
   const c = themeColor();
   return StyleSheet.create({
+    dbLine: { marginTop: 8, fontSize: 12, fontFamily: "Inter_400Regular", color: themeColor().muted },
     screen: { flex: 1, backgroundColor: c.bg },
     scroll: { flex: 1, backgroundColor: c.bg },
     content: { padding: 20 },

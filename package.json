@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "typecheck:all": "tsc -p tsconfig.test.json --noEmit",
     "test:watch": "vitest",
     "download-coach-photos": "bash scripts/download-coach-photos.sh",
     "sync:mobile-lib-pickup": "node scripts/sync-mobile-lib-pickup.mjs",

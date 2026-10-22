@@ -3,8 +3,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useProfilePhoto } from "@/context/ProfilePhotoContext";
 import { siteOrigin } from "@/lib/env";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -22,6 +22,8 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 import { PhotoUploadField } from "@/components/photo";
 import { hapticTap } from "@/lib/haptics";
+import { buildGamePrefill, dateBlockedByClosure, type GamePrefill } from "@/lib/fields/gamePrefill";
+import { loadFieldListing } from "@/lib/fields/venueStore";
 import { setRunFieldPhoto } from "@/lib/photoUpload";
 import { reportPhotoUploadError } from "@/lib/reportPhotoUploadError";
 import { SKILL_STAR_RANGE } from "@/lib/starRatings";
@@ -81,6 +83,11 @@ export default function SessionCreateScreen() {
   const { ensurePhotoForGame, handlePhotoRequired } = useProfilePhoto();
   const [step, setStep] = useState<Step>(1);
 
+  // Opened from a field (and maybe an approved request): the field is pre-filled and the game is linked to it.
+  const params = useLocalSearchParams<{ venue_key?: string; request_id?: string }>();
+  const [link, setLink] = useState<(GamePrefill & { closed_until: string | null; fieldName: string }) | null>(null);
+  const [linkLoading, setLinkLoading] = useState(Boolean(params.venue_key));
+
   // Location
   const [locationQuery, setLocationQuery] = useState("");
   const [locationSuggestions, setLocationSuggestions] = useState<NominatimResult[]>([]);
@@ -115,6 +122,48 @@ export default function SessionCreateScreen() {
   const [publishing, setPublishing] = useState(false);
   const [fieldPhotoUrl, setFieldPhotoUrl] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
+
+  useEffect(() => {
+    const key = params.venue_key;
+    if (!key || !supabase) {
+      setLinkLoading(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const listing = await loadFieldListing(supabase, key);
+      let req: Parameters<typeof buildGamePrefill>[1] = null;
+      if (params.request_id) {
+        const { data } = await supabase.from("venue_requests").select("id,user_id,venue_key,requested_date,start_time,status").eq("id", params.request_id).maybeSingle();
+        req = (data as typeof req) ?? null;
+      }
+      if (cancelled) return;
+      setLinkLoading(false);
+      if (!listing) {
+        Alert.alert("Field not available", "This field isn\u2019t available for new games. You can still pick another place.");
+        return;
+      }
+      const today = ymd(new Date());
+      const p = buildGamePrefill(listing.venue, req, session?.user?.id ?? null, today);
+      if (p.blocked) {
+        Alert.alert("Can\u2019t use this", p.blocked);
+        if (p.blocked.startsWith("This field")) return;
+      }
+      setLink({ ...p, closed_until: listing.venue.closed_until ?? null, fieldName: listing.venue.name });
+      setLocationSelected({ place_id: 0, display_name: p.location_text, lat: String(p.latitude ?? ""), lon: String(p.longitude ?? "") });
+      if (p.date) {
+        const [y, m, d] = p.date.split("-").map(Number);
+        const [hh, mm] = (p.time ?? "18:00").split(":").map(Number);
+        const dt = new Date(y!, (m ?? 1) - 1, d, hh ?? 18, mm ?? 0, 0, 0);
+        setSessionDate(dt);
+        setSessionTime(dt);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once for the field the screen was opened with
+  }, [params.venue_key, params.request_id, supabase]);
 
   async function searchLocation(q: string) {
     setLocationQuery(q);
@@ -171,6 +220,10 @@ export default function SessionCreateScreen() {
 
   function validateStep1(): string | null {
     if (!locationSelected && !locationQuery.trim()) return "Please enter a location.";
+    if (link) {
+      const closed = dateBlockedByClosure({ closed_until: link.closed_until }, ymd(sessionDate));
+      if (closed) return closed;
+    }
     return null;
   }
 
@@ -244,6 +297,7 @@ export default function SessionCreateScreen() {
         fee_cents: buyInCents(),
         invite_only: isInviteOnly,
         tiered_pricing: tieredPricing,
+        ...(link ? { venue_key: link.venue_key, ...(link.venue_request_id ? { venue_request_id: link.venue_request_id } : {}) } : {}),
       };
 
       const r = await fetch(`${origin}/api/sessions/create`, {
@@ -256,7 +310,7 @@ export default function SessionCreateScreen() {
 
       if (handlePhotoRequired(r.status, j)) return;
       if (!r.ok || !j?.ok) {
-        Alert.alert("Error", j?.error ?? "Failed to create session.");
+        Alert.alert("Error", j?.error === "feature_off" ? "Creating a game at a field isn’t available yet." : (j?.error ?? "Failed to create session."));
         return;
       }
 
@@ -306,6 +360,20 @@ export default function SessionCreateScreen() {
         {/* ── STEP 1 ── */}
         {step === 1 && (
           <View style={s.card}>
+            {link ? (
+              <View style={s.fieldCard}>
+                {link.banner ? <Text style={s.approvedBanner}>{link.banner}</Text> : null}
+                <Text style={s.fieldName}>{link.fieldName}</Text>
+                <Text style={s.fieldAddr} numberOfLines={2}>{link.location_text}</Text>
+                {link.closedWarning ? <Text style={s.closedWarning}>{link.closedWarning}. Dates before then can\u2019t be used.</Text> : null}
+                <Pressable onPress={() => { setLink(null); setLocationSelected(null); setLocationQuery(""); }} hitSlop={8} accessibilityRole="button">
+                  <Text style={s.changeLink}>Use a different place</Text>
+                </Pressable>
+              </View>
+            ) : linkLoading ? (
+              <ActivityIndicator color={themeColor().pitchText} />
+            ) : (
+              <>
             <Text style={s.fieldLabel}>LOCATION</Text>
             <TextInput
               style={s.input}
@@ -334,6 +402,9 @@ export default function SessionCreateScreen() {
               </View>
             )}
 
+              </>
+            )}
+
             <Text style={[s.fieldLabel, { marginTop: 20 }]}>DATE</Text>
             <Pressable onPress={() => { setShowDatePicker(true); setShowTimePicker(false); }} style={s.pickerBtn}>
               <FontAwesome name="calendar" size={15} color={themeColor().pitchText} />
@@ -343,7 +414,7 @@ export default function SessionCreateScreen() {
               <DateTimePicker
                 value={sessionDate}
                 mode="date"
-                minimumDate={new Date()}
+                minimumDate={link?.minDate ? new Date(`${link.minDate}T12:00:00`) : new Date()}
                 display="inline"
                 themeVariant="dark"
                 onChange={(_, d) => { if (d) setSessionDate(d); setShowDatePicker(false); }}
@@ -618,6 +689,12 @@ function make_s() {
   suggestBox: { marginTop: 4, backgroundColor: themeColor().card, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, overflow: "hidden" },
   suggestRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderBottomWidth: 1, borderBottomColor: themeColor().line },
   suggestText: { flex: 1, color: themeColor().text, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  fieldCard: { padding: 12, backgroundColor: themeColor().pitchPanel, borderRadius: 12, borderWidth: 1, borderColor: themeColor().pitchText, gap: 4 },
+  approvedBanner: { fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().onPitchPanel, marginBottom: 4 },
+  fieldName: { fontSize: 17, fontFamily: "Inter_700Bold", fontWeight: "700", color: themeColor().onPitchPanel },
+  fieldAddr: { fontSize: 13, fontFamily: "Inter_400Regular", color: themeColor().onPitchPanel },
+  closedWarning: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().coralText, marginTop: 4 },
+  changeLink: { fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().onPitchPanel, textDecorationLine: "underline", marginTop: 6 },
   selectedBadge: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, padding: 8, backgroundColor: themeColor().pitchPanel, borderRadius: 10, borderWidth: 1, borderColor: themeColor().pitchText },
   selectedText: { flex: 1, color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_400Regular" },
   pickerBtn: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: themeColor().overlay, borderRadius: 10, borderWidth: 1, borderColor: themeColor().line, paddingHorizontal: 12, paddingVertical: 12 },
