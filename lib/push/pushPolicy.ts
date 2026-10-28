@@ -33,6 +33,8 @@ const KIND_CATEGORY: Record<string, PushCategory> = {
   player_follow: "games",
   player_followed_joined: "games",
   host_new_run: "games",
+  play_again: "games",
+  play_again_ask: "games",
   roster_invite: "games",
   tournament_live: "games",
   tournament_canceled: "games",

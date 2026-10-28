@@ -15,6 +15,7 @@ import { profilePhotoGate } from "@/lib/profilePhoto/requirement";
 import { resolveGameLink } from "@/lib/fields/gameAtField";
 import { requireFlag } from "@/lib/flags";
 import { notifyNewGame } from "@/lib/alerts/fieldAlerts";
+import { inviteFromPreviousGame, playAgainInfo } from "@/lib/pickup/playAgain";
 import { resolveDriveTimeDestination } from "@/lib/venueDistance";
 
 const ALLOWED_FORMATS = ["5v5", "6v6", "7v7", "Open"];
@@ -109,6 +110,17 @@ export async function POST(req: Request) {
     if (longitude == null && typeof link.venue.lon === "number") longitude = link.venue.lon;
   }
 
+  // A repeat of an earlier game: host only, behind the 'play_again' flag, checked before anything is written.
+  const repeatOf = typeof body.repeat_of === "string" && /^[0-9a-f-]{36}$/i.test(body.repeat_of) ? body.repeat_of : null;
+  if (repeatOf) {
+    const off = await requireFlag(admin, "play_again", user.id);
+    if (off) return off;
+    const info = await playAgainInfo(admin, repeatOf, user.id);
+    if (!info || info.role !== "host") {
+      return NextResponse.json({ error: "Only the host of that game can run it again.", code: "not_host" }, { status: 403 });
+    }
+  }
+
   const service_region = serviceRegionForVenueName(profile.nearest_venue ?? "") ?? "CT";
   const host_name = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Host";
   const title = `${host_name}'s ${format} Session`;
@@ -163,6 +175,11 @@ export async function POST(req: Request) {
     console.error("[sessions/create] lifecycle hooks failed:", msg);
   }
 
+  // Players from the game being repeated hear first, personally. They are then left out of the general pushes below.
+  const firstLook = repeatOf
+    ? new Set(await inviteFromPreviousGame(admin, { sourceRunId: repeatOf, hostId: user.id, hostName: host_name, newRun: { id: run.id, start_at, time_tbd }, inviteOnly: invite_only }))
+    : new Set<string>();
+
   // Public sessions: notify nearby approved players (exclude host).
   // Invite-only sessions stay quiet — invitees get push from /api/sessions/invite.
   if (!invite_only) {
@@ -173,7 +190,7 @@ export async function POST(req: Request) {
           serviceRegion: service_region,
           locationPrivate: location_text,
         })
-      ).filter((id) => id !== user.id);
+      ).filter((id) => id !== user.id && !firstLook.has(id));
       regionRecipients = recipientIds;
 
       if (recipientIds.length > 0) {
@@ -199,7 +216,7 @@ export async function POST(req: Request) {
     await notifyNewGame(
       admin,
       { id: run.id, hostId: user.id, startAt: start_at, timeTbd: time_tbd, place: location_text, lat: dest?.lat ?? null, lng: dest?.lng ?? null },
-      regionRecipients,
+      [...regionRecipients, ...firstLook],
     );
   }
 

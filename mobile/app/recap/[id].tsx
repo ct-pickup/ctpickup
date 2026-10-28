@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PhotoHeader, useFieldPhotos } from "@/components/photo";
+import PlayAgainCard from "@/components/pickup/PlayAgainCard";
 import { ResultPill } from "@/components/season/SeasonPieces";
 import ShareStoryCard, { type ShareStoryData } from "@/components/season/ShareStoryCard";
 import { StarRating } from "@/components/StarRating";
@@ -215,6 +216,8 @@ export default function MatchRecapScreen() {
             </View>
           </View>
         ) : null}
+
+        {fixture ? null : <PlayAgainCard runId={runId} />}
 
         {canShare && shareData ? (
           <Pressable
