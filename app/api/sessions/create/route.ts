@@ -15,6 +15,7 @@ import { profilePhotoGate } from "@/lib/profilePhoto/requirement";
 import { resolveGameLink } from "@/lib/fields/gameAtField";
 import { requireFlag } from "@/lib/flags";
 import { notifyNewGame } from "@/lib/alerts/fieldAlerts";
+import { notifyFollowersOfHostRun } from "@/lib/pickup/notifyFollowersOfHostRun";
 import { inviteFromPreviousGame, playAgainInfo } from "@/lib/pickup/playAgain";
 import { resolveDriveTimeDestination } from "@/lib/venueDistance";
 
@@ -180,6 +181,11 @@ export async function POST(req: Request) {
     ? new Set(await inviteFromPreviousGame(admin, { sourceRunId: repeatOf, hostId: user.id, hostName: host_name, newRun: { id: run.id, start_at, time_tbd }, inviteOnly: invite_only }))
     : new Set<string>();
 
+  // Followers of this host (behind the 'host_follow_alerts' flag, 1 per follower per host per day). They are left out of the general pushes.
+  const followed = new Set(
+    await notifyFollowersOfHostRun(admin, { hostId: user.id, hostName: host_name, run: { id: run.id, start_at, time_tbd, inviteOnly: invite_only, region: service_region }, skip: firstLook }),
+  );
+
   // Public sessions: notify nearby approved players (exclude host).
   // Invite-only sessions stay quiet — invitees get push from /api/sessions/invite.
   if (!invite_only) {
@@ -190,7 +196,7 @@ export async function POST(req: Request) {
           serviceRegion: service_region,
           locationPrivate: location_text,
         })
-      ).filter((id) => id !== user.id && !firstLook.has(id));
+      ).filter((id) => id !== user.id && !firstLook.has(id) && !followed.has(id));
       regionRecipients = recipientIds;
 
       if (recipientIds.length > 0) {
@@ -216,7 +222,7 @@ export async function POST(req: Request) {
     await notifyNewGame(
       admin,
       { id: run.id, hostId: user.id, startAt: start_at, timeTbd: time_tbd, place: location_text, lat: dest?.lat ?? null, lng: dest?.lng ?? null },
-      [...regionRecipients, ...firstLook],
+      [...regionRecipients, ...firstLook, ...followed],
     );
   }
 
