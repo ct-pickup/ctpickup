@@ -3,7 +3,7 @@ import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 
 import { useAuth } from "@/context/AuthContext";
-import { ALERT_OPTIONS, alertEnabled, type AlertType } from "@/lib/fields/alerts";
+import { VISIBLE_ALERT_OPTIONS, alertEnabled, type AlertType } from "@/lib/fields/alerts";
 import { radius, themeColor, useThemedStyles } from "@/theme";
 
 type Row = { alert_type: string; enabled: boolean };
@@ -56,7 +56,7 @@ export function AlertSettings() {
       <Text style={styles.title}>Field alerts</Text>
       <Text style={styles.sub}>Get told the moment something changes.</Text>
       <View style={styles.group}>
-        {ALERT_OPTIONS.map((o, i) => (
+        {VISIBLE_ALERT_OPTIONS.map((o, i) => (
           <View key={o.type} style={[styles.row, i > 0 && styles.divider]}>
             <View style={{ flex: 1 }}>
               <Text style={styles.rowTitle}>{o.title}</Text>

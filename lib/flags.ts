@@ -7,8 +7,8 @@ import { NextResponse } from "next/server";
  * Anything else is OFF, and so is any doubt: no row, no user, a failed read. SQL twin: public.flag_on().
  */
 
-export type FlagKey = "fields" | "paid_plans";
-export const FLAG_KEYS: readonly FlagKey[] = ["fields", "paid_plans"];
+export type FlagKey = "fields" | "paid_plans" | "notification_settings" | "analytics_client" | "play_again" | "host_follow_alerts";
+export const FLAG_KEYS: readonly FlagKey[] = ["fields", "paid_plans", "notification_settings", "analytics_client", "play_again", "host_follow_alerts"];
 export const isFlagKey = (v: unknown): v is FlagKey => typeof v === "string" && (FLAG_KEYS as readonly string[]).includes(v);
 
 export type FlagRow = { enabled?: boolean | null; allowlist?: string[] | null } | null | undefined;
@@ -33,6 +33,31 @@ export async function isFlagOn(admin: SupabaseClient, key: FlagKey, userId: stri
     return evaluateFlag(flag.data as FlagRow, userId, isAdmin);
   } catch {
     return false;
+  }
+}
+
+/**
+ * Which of `userIds` have the flag ON (everyone, allowlist or admin). Used to send an alert only to people who can see the feature.
+ * Any read error means nobody: a push for a feature the player cannot see is worse than a missed one.
+ */
+export async function usersWithFlagOn(admin: SupabaseClient, key: FlagKey, userIds: string[]): Promise<string[]> {
+  const unique = Array.from(new Set(userIds.filter((id) => typeof id === "string" && id.length > 0)));
+  if (!unique.length) return [];
+  try {
+    const flag = await admin.from("app_flags").select("enabled,allowlist").eq("key", key).maybeSingle();
+    if (flag.error) return [];
+    const row = flag.data as FlagRow;
+    if (row?.enabled === true) return unique;
+    const listed = new Set(Array.isArray(row?.allowlist) ? row!.allowlist! : []);
+    const admins = new Set<string>();
+    for (let i = 0; i < unique.length; i += 200) {
+      const prof = await admin.from("profiles").select("id").in("id", unique.slice(i, i + 200)).eq("is_admin", true);
+      if (prof.error) return unique.filter((id) => listed.has(id));
+      for (const r of (prof.data ?? []) as { id: string }[]) admins.add(r.id);
+    }
+    return unique.filter((id) => listed.has(id) || admins.has(id));
+  } catch {
+    return [];
   }
 }
 

@@ -14,6 +14,8 @@ import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { profilePhotoGate } from "@/lib/profilePhoto/requirement";
 import { resolveGameLink } from "@/lib/fields/gameAtField";
 import { requireFlag } from "@/lib/flags";
+import { notifyNewGame } from "@/lib/alerts/fieldAlerts";
+import { resolveDriveTimeDestination } from "@/lib/venueDistance";
 
 const ALLOWED_FORMATS = ["5v5", "6v6", "7v7", "Open"];
 
@@ -164,6 +166,7 @@ export async function POST(req: Request) {
   // Public sessions: notify nearby approved players (exclude host).
   // Invite-only sessions stay quiet — invitees get push from /api/sessions/invite.
   if (!invite_only) {
+    let regionRecipients: string[] = [];
     try {
       const recipientIds = (
         await approvedUserIdsInRunServiceRegion(admin, service_region, {
@@ -171,6 +174,7 @@ export async function POST(req: Request) {
           locationPrivate: location_text,
         })
       ).filter((id) => id !== user.id);
+      regionRecipients = recipientIds;
 
       if (recipientIds.length > 0) {
         await sendPushToUsers(admin, recipientIds, {
@@ -187,6 +191,15 @@ export async function POST(req: Request) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error("[sessions/create] region push failed:", msg);
     }
+
+    // "New games near me" Fields alert: players inside their own radius who the region push did not already reach.
+    // Rate limited, de-duplicated and gated by the 'fields' flag inside notifyNewGame; it never throws.
+    const dest = latitude != null && longitude != null ? { lat: latitude, lng: longitude } : resolveDriveTimeDestination({ locationPrivate: location_text, serviceRegion: service_region });
+    await notifyNewGame(
+      admin,
+      { id: run.id, hostId: user.id, startAt: start_at, timeTbd: time_tbd, place: location_text, lat: dest?.lat ?? null, lng: dest?.lng ?? null },
+      regionRecipients,
+    );
   }
 
   return NextResponse.json({ ok: true, run_id: run.id });

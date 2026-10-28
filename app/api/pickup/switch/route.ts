@@ -1,3 +1,4 @@
+import { notifyGameMoved } from "@/lib/alerts/fieldAlerts";
 import * as Sentry from "@sentry/nextjs";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
@@ -811,6 +812,9 @@ export async function POST(req: Request) {
       }
     }
 
+    // What the game looked like before, so players who joined can be told if it moved.
+    const { data: beforeRun } = await admin.from("pickup_runs").select("title,start_at,location_private").eq("id", run_id).maybeSingle();
+
     const patchWithoutTimeTbd = { ...patch };
     delete patchWithoutTimeTbd.time_tbd;
     const up = await writeWithOptionalTimeTbd((withTimeTbd) =>
@@ -826,6 +830,14 @@ export async function POST(req: Request) {
       },
     });
     if (up.error) return NextResponse.json({ error: up.error.message }, { status: 500 });
+
+    // "Changes and cancellations" Fields alert: a joined game's time or place moved. Never throws.
+    const prev = beforeRun as { title?: string | null; start_at?: string | null; location_private?: string | null } | null;
+    if (prev) {
+      const movedTime = typeof patch.start_at === "string" && Date.parse(patch.start_at) !== Date.parse(prev.start_at ?? "");
+      const movedPlace = "location_private" in patch && (patch.location_private ?? null) !== (prev.location_private ?? null);
+      await notifyGameMoved(admin, { id: run_id, title: (patch.title as string | undefined) ?? prev.title ?? null, startAt: (patch.start_at as string | undefined) ?? prev.start_at ?? null }, { time: movedTime, place: movedPlace });
+    }
 
     revalidatePath("/pickup");
     revalidatePath("/status/pickup");
