@@ -12,6 +12,7 @@ import { useFieldPhotos } from "@/components/photo";
 import { usePlayedWith } from "@/components/pickup/PlayedWithRow";
 import { MatchLogRow, SeasonHeaderCard } from "@/components/season/SeasonPieces";
 import { toggleDevPreview, useDevPreview } from "@/lib/devPreview";
+import { useTrackOnce } from "@/lib/analytics/helpers";
 import { fetchBestGames, type BestGame, type PlayedWithSummary } from "@/lib/matchApi";
 import { groupByMonthEt } from "@/lib/season";
 import { fetchSeason, type PastGame, type SeasonData } from "@/lib/seasonData";
@@ -85,6 +86,7 @@ function useSeasonData(skip: boolean) {
 
 export default function GamesTabScreen() {
   useThemedStyles(publish_styles);
+  useTrackOnce("run_list_viewed", "tab", { list_kind: "games_tab" });
 
   const insets = useSafeAreaInsets();
   const router = useRouter();

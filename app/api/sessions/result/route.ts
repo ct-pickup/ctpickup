@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordEvents } from "@/lib/analytics/events";
 import { applyPickupResultWinLossDeltas } from "@/lib/pickup/applyPickupResultWinLoss";
 import { resolvePotdFromVotes } from "@/lib/pickup/resolvePotdFromVotes";
 import { canEditResult, parseResultSubmission, resultSummary } from "@/lib/pickup/resultOutcome";
@@ -398,6 +399,17 @@ export async function POST(req: Request) {
       assigned: assignments.length,
     });
     await bumpAttendedAndEnsureRating(admin, attendeeIds, now);
+    // The result marks everyone who joined as having played. Same key as nothing else, so a later admin mark is its own event.
+    await recordEvents(
+      admin,
+      attendeeIds.map((uid) => ({
+        key: `attended:result:${run_id}:${uid}`,
+        name: "attended" as const,
+        userId: uid,
+        source: "server" as const,
+        properties: { run_id, trigger: "result" },
+      })),
+    );
   }
 
   // Push: all attendees get the result summary once, not on every edit.

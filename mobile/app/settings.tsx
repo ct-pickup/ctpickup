@@ -33,6 +33,7 @@ import {
   type PositionValue,
   type SpecificPositionValue,
 } from "@/components/account/accountStyles";
+import { UsageDataSetting } from "@/components/account/UsageDataSetting";
 import { NotificationSettings } from "@/components/account/NotificationSettings";
 import { PreferencesSection } from "@/components/account/PreferencesSection";
 import { ProfileSection } from "@/components/account/ProfileSection";
@@ -1362,6 +1363,7 @@ export default function SettingsScreen() {
             {notificationSettingsOn ? (
               <NotificationSettings token={accessToken} pushEnabled={pushEnabled} onMarketingChanged={setMarketingPushEnabled} />
             ) : null}
+            <UsageDataSetting />
             <View style={s.group}>
               <Row
                 icon="map-marker"

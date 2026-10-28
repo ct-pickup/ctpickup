@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { postgameVoteEvent, recordEvent } from "@/lib/analytics/events";
 import { realKickoffMs } from "@/lib/pickup/runScheduling";
 import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
@@ -110,5 +111,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: insErr.message }, { status: 500 });
   }
 
+  await recordEvent(admin, postgameVoteEvent(run_id, user.id, "potd"));
   return NextResponse.json({ ok: true, nominee_id });
 }

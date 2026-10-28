@@ -1,6 +1,8 @@
 import * as Sentry from "@sentry/nextjs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PRODUCTION_PUSH_INSTALLATION_CONTEXTS } from "@/lib/push/registerUserPushDevice";
+import { randomUUID } from "node:crypto";
+import { recordEvents, type NewEvent } from "@/lib/analytics/events";
 import { applyPushPolicy, pushCategoryFor, type PushCategory } from "@/lib/push/pushPolicy";
 
 export type ExpoPushPayload = {
@@ -298,6 +300,7 @@ export async function sendPushToUsers(
 
   const tokens: string[] = [];
   let legacyNullContextRows = 0;
+  const reached = new Set<string>();
   let productionContextRows = 0;
 
   for (let i = 0; i < unique.length; i += USER_ID_IN_CHUNK) {
@@ -315,7 +318,11 @@ export async function sendPushToUsers(
       if (ctx === null || ctx === undefined) legacyNullContextRows += 1;
       else productionContextRows += 1;
       const t = (row as { expo_push_token?: unknown }).expo_push_token;
-      if (typeof t === "string" && t.length > 10) tokens.push(t);
+      if (typeof t === "string" && t.length > 10) {
+        tokens.push(t);
+        const uid = (row as { user_id?: unknown }).user_id;
+        if (typeof uid === "string") reached.add(uid);
+      }
     }
   }
 
@@ -328,7 +335,13 @@ export async function sendPushToUsers(
     installationContexts: PRODUCTION_PUSH_INSTALLATION_CONTEXTS,
   });
 
-  const sent = await sendTokensToExpo(admin, tokens, payload);
+  // push_id lets the app say which push was opened (push_opened) without any other identifier.
+  const pushId = randomUUID();
+  const tagged: ExpoPushPayload = { ...payload, data: { ...(payload.data ?? {}), push_id: pushId } };
+  const sent = await sendTokensToExpo(admin, tokens, tagged);
+  if (sent.batches.some((b) => b.ok || (b.ticketsOk ?? 0) > 0)) {
+    await recordPushSent(admin, [...reached], payload, pushId);
+  }
   return policy.suppressed ? { ...sent, suppressed: policy.suppressed } : sent;
 }
 
@@ -399,4 +412,19 @@ export async function sendMarketingPushToAll(
     .filter((t): t is string => typeof t === "string" && t.length > 10);
   const sent = await sendTokensToExpo(admin, tokens, payload);
   return policy.suppressed ? { ...sent, suppressed: policy.suppressed } : sent;
+}
+
+/** push_sent per player reached. Analytics only: never throws. */
+async function recordPushSent(admin: SupabaseClient, userIds: string[], payload: ExpoPushPayload, pushId: string): Promise<void> {
+  const k = payload.data?.kind;
+  const kind = typeof k === "string" && /^[A-Za-z0-9_.:-]{1,64}$/.test(k) ? k : "other";
+  const category = pushCategoryFor(payload.data);
+  const events: NewEvent[] = userIds.map((userId) => ({
+    key: `push_sent:${pushId}:${userId}`,
+    name: "push_sent",
+    userId,
+    source: "server",
+    properties: { push_id: pushId, kind, category },
+  }));
+  await recordEvents(admin, events);
 }

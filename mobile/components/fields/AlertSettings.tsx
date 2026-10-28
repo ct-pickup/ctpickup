@@ -1,3 +1,4 @@
+import { track } from "@/lib/analytics/analytics";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
@@ -42,7 +43,10 @@ export function AlertSettings() {
     if (err) {
       setRows(before);
       setError("We couldn’t save that. Please try again.");
-    } else setError(null);
+    } else {
+      setError(null);
+      track("alert_subscribed", { alert_type: type, enabled: next });
+    }
   }
 
   async function removeSaved(venueKey: string) {

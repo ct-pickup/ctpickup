@@ -1,6 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { profileDisplayName } from "@/lib/profileFields";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useTrackOnce } from "@/lib/analytics/helpers";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -45,6 +46,7 @@ export default function RunDetailScreen() {
 
   const { id: raw } = useLocalSearchParams<{ id: string | string[] }>();
   const runId = typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : "";
+  useTrackOnce("run_viewed", runId || null, { run_id: runId });
   const navigation = useNavigation();
   const router = useRouter();
   const { session, supabase, isReady } = useAuth();

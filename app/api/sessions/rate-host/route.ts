@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { postgameVoteEvent, recordEvent } from "@/lib/analytics/events";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 
 export const runtime = "nodejs";
@@ -130,6 +131,7 @@ export async function POST(req: Request) {
         .select("overall")
         .maybeSingle();
       if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
+      await recordEvent(admin, postgameVoteEvent(run_id, user.id, "host_rating"));
       return NextResponse.json({
         ok: true,
         overall:
@@ -154,6 +156,7 @@ export async function POST(req: Request) {
       .select("overall")
       .maybeSingle();
     if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
+    await recordEvent(admin, postgameVoteEvent(run_id, user.id, "host_rating"));
     return NextResponse.json({
       ok: true,
       overall:
@@ -163,6 +166,7 @@ export async function POST(req: Request) {
     });
   }
 
+  await recordEvent(admin, postgameVoteEvent(run_id, user.id, "host_rating"));
   return NextResponse.json({
     ok: true,
     overall:

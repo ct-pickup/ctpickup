@@ -1,3 +1,4 @@
+import { useTrackOnce } from "@/lib/analytics/helpers";
 import { AnimatedPressScale } from "@/components/AnimatedPressScale";
 import { AvailabilityPoll, type PickupPlanningAvailability } from "@/components/pickup/AvailabilityPoll";
 import { PayForFriendButton } from "@/components/pickup/PayForFriendButton";
@@ -559,6 +560,7 @@ function InlinePlanningPoll({
 
 export default function RunsScreen() {
   useThemedStyles(publish_styles);
+  useTrackOnce("run_list_viewed", "tab", { list_kind: "runs_tab" });
 
   const router = useRouter();
   const navigation = useNavigation();

@@ -1,3 +1,4 @@
+import { RetentionDashboard } from "@/components/admin/RetentionDashboard";
 import { PlayerLocationBreakdown } from "@/components/admin/PlayerLocationBreakdown";
 import { useAuth } from "@/context/AuthContext";
 import { fetchAdminAnalyticsDashboard, type AdminAnalyticsDashboardResponse } from "@/lib/adminApi";
@@ -332,6 +333,8 @@ export default function AdminAnalyticsScreen() {
             })
           )}
         </View>
+
+        <RetentionDashboard token={token} />
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Best Times to Run</Text>

@@ -1,9 +1,11 @@
+import { useEffect } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { type AvatarPerson } from "@/components/PlayerAvatar";
 import { PhotoHeader } from "@/components/photo";
 import PlayedWithRow from "@/components/pickup/PlayedWithRow";
 import SpotsBadge from "@/components/pickup/SpotsBadge";
+import { trackRecommendationsShown, trackRecommendationTapped } from "@/lib/analytics/helpers";
 import type { BestGame, PlayedWithSummary } from "@/lib/matchApi";
 import { fmtPickupSlotChipEt, runTimeTbd } from "@/lib/pickup/runStartAtDisplay";
 import { formatStars } from "@/lib/starRatings";
@@ -167,6 +169,12 @@ export function BestGamesCarousel({
   bleed: number;
 }) {
   useThemedStyles(publish_styles);
+  const ids = games.map((g) => g.id).join("|");
+  useEffect(() => {
+    trackRecommendationsShown(games, "best_games");
+    // only when the set of games changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ids]);
 
   return (
     <FlatList
@@ -176,7 +184,16 @@ export function BestGamesCarousel({
       showsHorizontalScrollIndicator={false}
       style={{ marginHorizontal: -bleed }}
       contentContainerStyle={[styles.stripContent, { paddingHorizontal: bleed }]}
-      renderItem={({ item }) => <BestGameCard game={item} photo={photos[item.id]} onPress={() => onOpen(item.id)} />}
+      renderItem={({ item, index }) => (
+        <BestGameCard
+          game={item}
+          photo={photos[item.id]}
+          onPress={() => {
+            trackRecommendationTapped(item, index + 1, "best_games");
+            onOpen(item.id);
+          }}
+        />
+      )}
     />
   );
 }

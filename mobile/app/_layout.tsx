@@ -18,6 +18,7 @@ import { CancellationPolicyNotice } from "@/components/CancellationPolicyNotice"
 import { PushRegistrar } from "@/components/PushRegistrar";
 import { PushTapRouter } from "@/components/PushTapRouter";
 import { ReviewModeBanner } from "@/components/ReviewModeBanner";
+import { AnalyticsProvider } from "@/context/AnalyticsContext";
 import { AppLockProvider } from "@/context/AppLockContext";
 import { AccountIntroReplayProvider } from "@/context/AccountIntroReplayContext";
 import { AdminModeProvider } from "@/context/AdminModeContext";
@@ -167,6 +168,7 @@ function RootLayoutNav() {
           <ProfileCompletionProvider>
             <ProfileAdminProvider>
               <FeatureFlagsProvider>
+              <AnalyticsProvider>
               <ReviewModeProvider>
               <AdminModeProvider>
                 <SelectedRegionProvider>
@@ -552,6 +554,7 @@ function RootLayoutNav() {
                 </SelectedRegionProvider>
               </AdminModeProvider>
               </ReviewModeProvider>
+              </AnalyticsProvider>
               </FeatureFlagsProvider>
             </ProfileAdminProvider>
           </ProfileCompletionProvider>

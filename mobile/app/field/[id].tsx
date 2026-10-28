@@ -1,3 +1,4 @@
+import { useTrackOnce } from "@/lib/analytics/helpers";
 import { Link, Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
@@ -35,6 +36,7 @@ export default function FieldDetailScreen() {
   const [permitPrompt, setPermitPrompt] = useState(false);
   const uid = session?.user?.id ?? null;
   const venueKey = item?.venue.venue_key ?? null;
+  useTrackOnce("field_viewed", venueKey, { venue_key: venueKey ?? "" });
 
   // How many players said "Looks right", and whether you did.
   useEffect(() => {

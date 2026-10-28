@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { recordEvents, type NewEvent } from "@/lib/analytics/events";
 import { requireFlag } from "@/lib/flags";
 import { parsePushSettingsUpdate, readPushSettings, savePushSettings } from "@/lib/push/pushSettings";
 import { requireAuthedUser } from "@/lib/referral/auth";
@@ -35,5 +36,23 @@ export async function POST(req: Request) {
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
   const saved = await savePushSettings(auth.admin, auth.user.id, parsed.update);
   if (!saved.ok) return NextResponse.json({ error: saved.error }, { status: 500 });
+  const at = Date.now();
+  const changes: NewEvent[] = Object.entries(parsed.update.categories ?? {}).map(([category, enabled]) => ({
+    key: `push_pref_changed:${auth.user.id}:${category}:${at}`,
+    name: "push_pref_changed",
+    userId: auth.user.id,
+    source: "server",
+    properties: { category, enabled: enabled === true },
+  }));
+  if (parsed.update.quiet?.enabled !== undefined) {
+    changes.push({
+      key: `push_pref_changed:${auth.user.id}:quiet_hours:${at}`,
+      name: "push_pref_changed",
+      userId: auth.user.id,
+      source: "server",
+      properties: { category: "quiet_hours", enabled: parsed.update.quiet.enabled },
+    });
+  }
+  if (changes.length) await recordEvents(auth.admin, changes);
   return NextResponse.json({ ok: true, settings: await readPushSettings(auth.admin, auth.user.id) });
 }

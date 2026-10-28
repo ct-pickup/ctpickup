@@ -8,7 +8,7 @@ import {
   TopNav,
 } from "@/components/layout";
 import { SupportEmailLink } from "@/components/SupportEmailLink";
-import { LEGAL_POLICY_LAST_UPDATED } from "@/lib/fees/refundPolicyCopy";
+import { PRIVACY_POLICY_LAST_UPDATED } from "@/lib/fees/refundPolicyCopy";
 
 export const metadata: Metadata = {
   title: "Privacy | Competitive Together",
@@ -61,7 +61,7 @@ export default function PrivacyPage() {
       <h1 className="mt-6 text-h1 font-serif font-semibold text-ink md:text-display">
         Privacy Policy
       </h1>
-      <p className="mt-2 text-small text-muted">{LEGAL_POLICY_LAST_UPDATED}</p>
+      <p className="mt-2 text-small text-muted">{PRIVACY_POLICY_LAST_UPDATED}</p>
       <Panel className="mt-6 p-6 md:p-8">
         <div className="space-y-6 text-small leading-relaxed text-muted md:text-body">
           <section>
@@ -80,6 +80,13 @@ export default function PrivacyPage() {
               We use your information to operate the app, match you with nearby pickup runs
               and tournaments, process payments, send essential notifications, calculate
               reliability scores, provide customer support, and improve the platform.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">Usage data</h2>
+            <p className="mt-2">
+              We keep a first-party record of how the app is used so we can make it better. We run it ourselves: no third-party analytics tools, no advertising identifiers, and we do not track you across other companies’ apps or websites. Game activity is recorded because the game needs it: when you join, cancel, join a waitlist, are marked present or absent, vote after a game, ask for a field, or change a notification setting, and when we send you a notification. If “Share usage data” is on in Settings, the app also records which screens you open, which suggested games you see and tap, and whether you open a notification. We never record what you type, your contacts, your exact location, or any device or Wi-Fi fingerprint. These records name a game and a general area such as CT, not a place. Only admins can see them. Turn off Share usage data in Settings at any time to stop the app-side records. Usage records are kept up to 24 months and are deleted when you delete your account.
             </p>
           </section>
 
@@ -126,7 +133,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">Data retention</h2>
             <p className="mt-2">
-              Account data is kept until you delete your account. Payment and transaction
+              Account data is kept until you delete your account. Usage records are kept up to 24 months. Payment and transaction
               records are retained for up to 7 years for legal and tax compliance.
             </p>
           </section>
@@ -135,7 +142,7 @@ export default function PrivacyPage() {
             <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">Account deletion</h2>
             <p className="mt-2">
               You can delete your account at any time. Go to Profile → scroll to bottom →
-              Delete Account. This permanently removes all your data from Competitive Together.
+              Delete Account. This permanently removes all your data from Competitive Together, including your usage records.
             </p>
           </section>
 

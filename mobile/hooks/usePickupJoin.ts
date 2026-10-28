@@ -1,3 +1,4 @@
+import { track } from "@/lib/analytics/analytics";
 import { useProfilePhoto } from "@/context/ProfilePhotoContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { hapticError } from "@/lib/haptics";
@@ -173,6 +174,7 @@ export function usePickupJoin() {
       options?: { friendUserId?: string; friendDisplayName?: string; venueName?: string; runName?: string; feeCents?: number },
     ) => {
       const id = typeof runId === "string" ? runId : null;
+      if (id) track("rsvp_started", { run_id: id, trigger: "tap" });
       if (!accessToken) {
         void hapticError();
         Alert.alert("Session required", "Sign in on this device, then try again.");
