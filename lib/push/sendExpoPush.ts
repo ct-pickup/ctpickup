@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PRODUCTION_PUSH_INSTALLATION_CONTEXTS } from "@/lib/push/registerUserPushDevice";
+import { applyPushPolicy, pushCategoryFor, type PushCategory } from "@/lib/push/pushPolicy";
 
 export type ExpoPushPayload = {
   title: string;
@@ -17,8 +18,18 @@ export type PushBatchResult = {
   ticketErrorTypes?: string[];
 };
 
+/** How a send relates to the player's notification settings. */
+export type PushSendOpts = {
+  /** A waitlist spot within 2 hours of kickoff, or a cancellation for a game today: skips quiet hours (never a switched-off category). */
+  urgent?: boolean;
+  /** Overrides the category worked out from payload.data.kind. */
+  category?: PushCategory;
+};
+
 export type SendPushResult = {
   tokens: number;
+  /** Players left out because of their category switches or quiet hours. */
+  suppressed?: number;
   batches: PushBatchResult[];
   /** Token lookup failed before calling Expo (caller may want to HTTP 500). */
   lookupError?: string;
@@ -243,18 +254,47 @@ export async function filterMarketingOptInUserIds(
 }
 
 /**
+ * Applies the players' notification settings (category switches, quiet hours) and returns who may be pushed now.
+ * Used by every send path below, so no caller can skip the settings.
+ */
+async function allowedByPolicy(admin: SupabaseClient, userIds: string[], payload: ExpoPushPayload, opts?: PushSendOpts): Promise<{ allowed: string[]; suppressed: number }> {
+  try {
+    const category = opts?.category ?? pushCategoryFor(payload.data);
+    const res = await applyPushPolicy(admin, userIds, category, { urgent: opts?.urgent === true });
+    if (res.suppressed.length) {
+      logExpoPush("info", "push suppressed by player settings", {
+        category,
+        suppressed: res.suppressed.length,
+        categoryOff: res.suppressed.filter((s) => s.reason === "category_off").length,
+        quietHours: res.suppressed.filter((s) => s.reason === "quiet_hours").length,
+      });
+    }
+    return { allowed: res.allowed, suppressed: res.suppressed.length };
+  } catch (e) {
+    // A settings lookup failure must not silence every push.
+    logExpoPush("warn", "push policy lookup failed; sending without it", { error: e instanceof Error ? e.message : String(e) });
+    return { allowed: userIds, suppressed: 0 };
+  }
+}
+
+/**
  * Looks up Expo tokens for the given users and sends notifications in batches of 100.
+ * Players who switched the push's category off, or are in their quiet hours, are skipped (see lib/push/pushPolicy.ts).
  */
 export async function sendPushToUsers(
   admin: SupabaseClient,
   userIds: string[],
   payload: ExpoPushPayload,
+  opts?: PushSendOpts,
 ): Promise<SendPushResult> {
-  const unique = Array.from(new Set(userIds.filter((id): id is string => typeof id === "string" && id.length > 0)));
-  if (!unique.length) {
+  const requested = Array.from(new Set(userIds.filter((id): id is string => typeof id === "string" && id.length > 0)));
+  if (!requested.length) {
     logExpoPush("warn", "sendPushToUsers called with no user ids", {});
     return { tokens: 0, batches: [] };
   }
+  const policy = await allowedByPolicy(admin, requested, payload, opts);
+  const unique = policy.allowed;
+  if (!unique.length) return { tokens: 0, batches: [], suppressed: policy.suppressed };
 
   const tokens: string[] = [];
   let legacyNullContextRows = 0;
@@ -288,7 +328,8 @@ export async function sendPushToUsers(
     installationContexts: PRODUCTION_PUSH_INSTALLATION_CONTEXTS,
   });
 
-  return sendTokensToExpo(admin, tokens, payload);
+  const sent = await sendTokensToExpo(admin, tokens, payload);
+  return policy.suppressed ? { ...sent, suppressed: policy.suppressed } : sent;
 }
 
 /**
@@ -298,12 +339,13 @@ export async function sendMarketingPushToUsers(
   admin: SupabaseClient,
   userIds: string[],
   payload: ExpoPushPayload,
+  opts?: PushSendOpts,
 ): Promise<SendPushResult> {
   const filtered = await filterMarketingOptInUserIds(admin, userIds);
   if (filtered.lookupError) {
     return { tokens: 0, batches: [], lookupError: filtered.lookupError };
   }
-  return sendPushToUsers(admin, filtered.userIds, payload);
+  return sendPushToUsers(admin, filtered.userIds, payload, { ...opts, category: "marketing" });
 }
 
 /**
@@ -312,16 +354,22 @@ export async function sendMarketingPushToUsers(
 export async function sendPushToAll(
   admin: SupabaseClient,
   payload: ExpoPushPayload,
+  opts?: PushSendOpts,
 ): Promise<SendPushResult> {
   const res = await productionPushDeviceQuery(admin).limit(MAX_TOKEN_QUERY);
   if (res.error) {
     logExpoPush("error", "push token lookup failed (sendPushToAll)", { lookupError: res.error.message });
     return { tokens: 0, batches: [], lookupError: res.error.message };
   }
-  const tokens = (res.data ?? [])
-    .map((r) => (r as { expo_push_token?: unknown }).expo_push_token)
+  const rows = (res.data ?? []) as { user_id?: unknown; expo_push_token?: unknown }[];
+  const policy = await allowedByPolicy(admin, Array.from(new Set(rows.map((r) => String(r.user_id ?? "")).filter(Boolean))), payload, opts);
+  const ok = new Set(policy.allowed);
+  const tokens = rows
+    .filter((r) => ok.has(String(r.user_id ?? "")))
+    .map((r) => r.expo_push_token)
     .filter((t): t is string => typeof t === "string" && t.length > 10);
-  return sendTokensToExpo(admin, tokens, payload);
+  const sent = await sendTokensToExpo(admin, tokens, payload);
+  return policy.suppressed ? { ...sent, suppressed: policy.suppressed } : sent;
 }
 
 /**
@@ -330,7 +378,7 @@ export async function sendPushToAll(
 export async function sendMarketingPushToAll(
   admin: SupabaseClient,
   payload: ExpoPushPayload,
-  opts?: { excludeUserIds?: ReadonlySet<string> },
+  opts?: { excludeUserIds?: ReadonlySet<string> } & PushSendOpts,
 ): Promise<SendPushResult> {
   const res = await productionPushDeviceQuery(admin, { marketingOnly: true }).limit(MAX_TOKEN_QUERY);
   if (res.error) {
@@ -340,9 +388,15 @@ export async function sendMarketingPushToAll(
     return { tokens: 0, batches: [], lookupError: res.error.message };
   }
   const excluded = opts?.excludeUserIds;
-  const tokens = (res.data ?? [])
-    .filter((r) => !excluded?.size || !excluded.has(String((r as { user_id?: unknown }).user_id ?? "")))
-    .map((r) => (r as { expo_push_token?: unknown }).expo_push_token)
+  const rows = ((res.data ?? []) as { user_id?: unknown; expo_push_token?: unknown }[]).filter(
+    (r) => !excluded?.size || !excluded.has(String(r.user_id ?? "")),
+  );
+  const policy = await allowedByPolicy(admin, Array.from(new Set(rows.map((r) => String(r.user_id ?? "")).filter(Boolean))), payload, { ...opts, category: "marketing" });
+  const ok = new Set(policy.allowed);
+  const tokens = rows
+    .filter((r) => ok.has(String(r.user_id ?? "")))
+    .map((r) => r.expo_push_token)
     .filter((t): t is string => typeof t === "string" && t.length > 10);
-  return sendTokensToExpo(admin, tokens, payload);
+  const sent = await sendTokensToExpo(admin, tokens, payload);
+  return policy.suppressed ? { ...sent, suppressed: policy.suppressed } : sent;
 }

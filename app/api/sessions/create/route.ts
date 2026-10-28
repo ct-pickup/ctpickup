@@ -181,6 +181,7 @@ export async function POST(req: Request) {
           title: "New session posted 🏃",
           body: `${host_name} posted a ${format} session on ${fmtPickupSlotChipEt(start_at, time_tbd)} in ${service_region}`,
           data: {
+            kind: "session_new",
             screen: `session/${run.id}`,
             run_id: run.id,
             url: `ctpickup://session/${run.id}`,

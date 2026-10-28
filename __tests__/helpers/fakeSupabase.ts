@@ -80,6 +80,10 @@ class Query implements PromiseLike<{ data: unknown; error: Err; count?: number |
     else this.filters.push((r) => r[c] !== v);
     return this;
   }
+  /** Accepted and ignored: the tests that use it pre-filter their rows. */
+  or() {
+    return this;
+  }
   gt(c: string, v: unknown) {
     this.filters.push((r) => String(r[c]) > String(v));
     return this;
