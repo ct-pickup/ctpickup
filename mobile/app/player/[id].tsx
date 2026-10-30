@@ -17,6 +17,7 @@ import PlayerGameStats from "@/components/profile/PlayerGameStats";
 import { StarRating } from "@/components/StarRating";
 import { fetchActionPhotoUrl } from "@/lib/photoUpload";
 import { fetchPlayerCard, hostScore, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
+import { useFeatureFlag } from "@/context/FeatureFlagsContext";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
@@ -104,6 +105,7 @@ export default function PlayerProfileScreen() {
   const token = session?.access_token ?? null;
   const viewerId = session?.user?.id ?? null;
   const isOwnProfile = viewerId !== null && viewerId === userId;
+  const hostFollowOn = useFeatureFlag("host_follow_alerts");
   const [actionPhotoUrl, setActionPhotoUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -769,6 +771,11 @@ export default function PlayerProfileScreen() {
               {isFollowingThem ? "Unfollow" : "Follow"}
             </Text>
           </Pressable>
+        ) : null}
+        {!isOwnProfile && token && hostFollowOn ? (
+          <Text style={{ marginTop: 8, textAlign: "center", color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" }}>
+            {isFollowingThem ? "You hear when they post a game." : "Follow to hear when they post a game."}
+          </Text>
         ) : null}
         {!isOwnProfile && token ? (
           <View style={{ marginTop: 10, alignItems: "center" }}>

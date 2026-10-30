@@ -5,15 +5,24 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * Fail closed: when the answer cannot be read, every flag is OFF. Failures are not cached, so the next foreground tries again.
  */
 
-export type FlagKey = "fields" | "paid_plans" | "rating_v2" | "rating_results";
+export type FlagKey = "fields" | "paid_plans" | "notification_settings" | "analytics_client" | "play_again" | "host_follow_alerts" | "rating_v2" | "rating_results";
 export type Flags = Record<FlagKey, boolean>;
-export const FLAGS_OFF: Flags = { fields: false, paid_plans: false, rating_v2: false, rating_results: false };
+export const FLAGS_OFF: Flags = { fields: false, paid_plans: false, notification_settings: false, analytics_client: false, play_again: false, host_follow_alerts: false, rating_v2: false, rating_results: false };
 
 /** Only a literal true turns a flag on. Anything else (missing, "true", 1, null, a bad payload) is OFF. */
 export function parseFlags(raw: unknown): Flags {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...FLAGS_OFF };
   const o = raw as Record<string, unknown>;
-  return { fields: o.fields === true, paid_plans: o.paid_plans === true, rating_v2: o.rating_v2 === true, rating_results: o.rating_results === true };
+  return {
+    fields: o.fields === true,
+    paid_plans: o.paid_plans === true,
+    notification_settings: o.notification_settings === true,
+    analytics_client: o.analytics_client === true,
+    play_again: o.play_again === true,
+    host_follow_alerts: o.host_follow_alerts === true,
+    rating_v2: o.rating_v2 === true,
+    rating_results: o.rating_results === true,
+  };
 }
 
 /** Admins are ON for everything (the server says the same); everyone else follows the flag. */

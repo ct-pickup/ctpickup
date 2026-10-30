@@ -11,3 +11,6 @@ export const PICKUP_CANCELLATION_POLICY_POINTS = [
 ] as const;
 
 export const LEGAL_POLICY_LAST_UPDATED = "Last updated: October 2, 2026";
+
+/** The privacy policy has its own date: the terms and waiver were not changed by the usage data section. */
+export const PRIVACY_POLICY_LAST_UPDATED = "Last updated: October 28, 2026";

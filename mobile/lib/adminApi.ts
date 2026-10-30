@@ -1062,7 +1062,7 @@ export function fetchAdminPlayerRatings(accessToken: string, opts: { userIds?: s
   });
 }
 
-export type AdminFlagView = { key: "fields" | "paid_plans" | "rating_v2" | "rating_results"; enabled: boolean; note: string | null; updated_at: string | null; allowlist: { id: string; email: string | null }[] };
+export type AdminFlagView = { key: "fields" | "paid_plans" | "notification_settings" | "analytics_client" | "play_again" | "host_follow_alerts" | "rating_v2" | "rating_results"; enabled: boolean; note: string | null; updated_at: string | null; allowlist: { id: string; email: string | null }[] };
 export type AdminFlagEvent = { id: number; flag_key: string; actor_email: string | null; change: Record<string, unknown>; created_at: string };
 
 export function fetchAdminFlags(accessToken: string) {
@@ -1076,4 +1076,30 @@ export function changeAdminFlag(accessToken: string, body: { key: string; enable
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+export type AdminRetentionReport = {
+  generated_at: string;
+  funnel: { step_order: number; step: string; label: string; players: number }[];
+  biggest_drop: { from_label: string; to_label: string; from_players: number; to_players: number; lost: number; drop_pct: number } | null;
+  has_app_steps: boolean;
+  second_game: { cohort_week: string; players: number; returned: number; rate_pct: number | null; mature: boolean }[];
+  second_game_headline: { rate_pct: number; players: number; returned: number; weeks: number } | null;
+  cohorts: { cohort_week: string; week_offset: number; cohort_size: number; active: number; rate_pct: number | null }[];
+  run_health: {
+    region: string;
+    games: number;
+    avg_fill_pct: number | null;
+    games_with_waitlist_pct: number | null;
+    no_show_pct: number | null;
+    cancel_pct: number | null;
+  }[];
+  notifications: { kind: string; sent: number; opened: number; open_pct: number | null; joined_within_day: number; joined_within_day_pct: number | null }[];
+};
+
+export type AdminRetentionResponse = { ok: boolean; ready?: boolean; report?: AdminRetentionReport; error?: string };
+
+/** Funnel, second-game rate, cohorts, run health and notifications. Admin only. `ready: false` means the analytics migrations are not applied yet. */
+export function fetchAdminRetention(accessToken: string) {
+  return adminFetch<AdminRetentionResponse>("/api/admin/analytics/retention", accessToken, { method: "GET" });
 }

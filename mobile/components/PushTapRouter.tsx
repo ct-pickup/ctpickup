@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 
 import { useAuth } from "@/context/AuthContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
+import { track } from "@/lib/analytics/analytics";
 import { routeForPushData } from "@/lib/pushRouting";
 
 /**
@@ -23,6 +24,7 @@ export function PushTapRouter() {
     const id = last.notification.request.identifier;
     if (handled.current === id) return;
     handled.current = id;
+    trackPushOpened(last.notification.request.content.data);
     const href = routeForPushData(last.notification.request.content.data, { isAdmin });
     try {
       Notifications.clearLastNotificationResponse();
@@ -33,4 +35,14 @@ export function PushTapRouter() {
   }, [last, authReady, session, adminReady, isAdmin, router]);
 
   return null;
+}
+
+/** Which push was opened, by the id the server put in it. The id and kind are short tokens: nothing from the message text. */
+function trackPushOpened(data: unknown): void {
+  if (!data || typeof data !== "object") return;
+  const d = data as { push_id?: unknown; kind?: unknown };
+  const props: Record<string, string> = {};
+  if (typeof d.push_id === "string" && /^[A-Za-z0-9_.:-]{1,64}$/.test(d.push_id)) props.push_id = d.push_id;
+  if (typeof d.kind === "string" && /^[A-Za-z0-9_.:-]{1,64}$/.test(d.kind)) props.kind = d.kind;
+  track("push_opened", props);
 }

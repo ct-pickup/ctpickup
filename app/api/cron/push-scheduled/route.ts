@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { PICKUP_WAITLIST_EXPIRING_KIND } from "@/lib/pickup/waitlist";
+import { isUrgentWaitlistOffer } from "@/lib/push/pushPolicy";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 
 export const runtime = "nodejs";
@@ -78,7 +80,14 @@ export async function GET(req: Request) {
 
     if (!id || !userId || !kind) continue;
 
-    const res = await sendPushToUsers(admin, [userId], { title, body, data: pushData });
+    // A "spot expiring" reminder is urgent when the game starts within 2 hours, like the offer it follows.
+    let urgent = false;
+    if (kind === PICKUP_WAITLIST_EXPIRING_KIND) {
+      const runId = String((row as { run_id?: unknown }).run_id || "");
+      const { data: runRow } = runId ? await admin.from("pickup_runs").select("start_at").eq("id", runId).maybeSingle() : { data: null };
+      urgent = isUrgentWaitlistOffer((runRow as { start_at?: string | null } | null)?.start_at, new Date());
+    }
+    const res = await sendPushToUsers(admin, [userId], { title, body, data: pushData }, { urgent });
     if (res.lookupError) {
       console.error("[cron/push-scheduled] lookup error:", res.lookupError, { id });
       continue;

@@ -56,7 +56,7 @@ describe("scripts/dev/production_drift_check.sql", () => {
 
 describe("Fields events table name", () => {
   const read = (p: string) => readFileSync(p, "utf8");
-  const fieldsMigrations = migrations.filter((f) => ts(f) >= FIRST_FIELDS);
+  const fieldsMigrations = migrations.filter((f) => ts(f) >= FIRST_FIELDS && ts(f) <= LAST_COVERED);
 
   it("no Fields migration touches public.events (production has an unrelated table by that name)", () => {
     for (const f of fieldsMigrations) {

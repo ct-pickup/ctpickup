@@ -22,6 +22,9 @@ export const PICKUP_CANCELLATION_POLICY_POINTS = [
 
 export const LEGAL_POLICY_LAST_UPDATED = "Last updated: October 2, 2026";
 
+/** The privacy policy has its own date: the terms and waiver were not changed by the usage data section. */
+export const PRIVACY_POLICY_LAST_UPDATED = "Last updated: October 28, 2026";
+
 /** Pickup page / how-it-works — full plain-English pickup refund summary */
 export const PICKUP_REFUND_UI_NOTICE =
   "If you cancel more than 24 hours before the start time, what you paid becomes a credit. If you cancel within 24 hours of the start time or no-show, your fee is not refunded. Full refund to your card if the host or Competitive Together cancels the run. Verified duplicate or erroneous charges will be corrected.";

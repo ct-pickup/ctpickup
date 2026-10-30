@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getStripePickup } from "@/lib/server/runtimeClients";
+import { isUrgentWaitlistOffer } from "@/lib/push/pushPolicy";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 
 export const WAITLIST_OFFER_MINUTES = 30;
@@ -121,7 +122,7 @@ export async function promoteNextWaitlistPlayer(
 ): Promise<{ ok: true; promoted_user_id: string | null } | { ok: false; error: string }> {
   const runRes = await admin
     .from("pickup_runs")
-    .select("id,capacity,fee_cents,status")
+    .select("id,capacity,fee_cents,status,start_at")
     .eq("id", run_id)
     .maybeSingle();
 
@@ -174,7 +175,7 @@ export async function promoteNextWaitlistPlayer(
     title: "A spot opened!",
     body: "You have 30 minutes to confirm.",
     data: { kind: "pickup_waitlist_offer", run_id },
-  });
+  }, { urgent: isUrgentWaitlistOffer((run as { start_at?: string | null }).start_at, now) });
 
   const promotedUserId = String(next.user_id);
   await deletePendingWaitlistExpiringReminders(admin, promotedUserId, run_id);

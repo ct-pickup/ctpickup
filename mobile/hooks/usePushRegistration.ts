@@ -64,6 +64,12 @@ const ROUTABLE_NOTIFICATION_KINDS = new Set([
   "tier_suggestions_ready",
   "player_follow",
   "player_followed_joined",
+  "fields_new_game",
+  "fields_slot_open",
+  "fields_change",
+  "host_new_run",
+  "play_again",
+  "play_again_ask",
 ]);
 
 const PICKUP_RUN_DEEP_LINK_KINDS = new Set([
@@ -179,6 +185,29 @@ export function usePushRegistration(accessToken: string | null) {
             : "";
 
       const navigate = () => {
+        if (kind === "fields_new_game" || kind === "host_new_run" || kind === "fields_slot_open" || kind === "fields_change") {
+          const venueKey = typeof data?.venue_key === "string" ? data.venue_key.trim() : "";
+          const runId = pickupRunIdFromNotificationData(data);
+          if (venueKey && kind !== "fields_new_game" && kind !== "host_new_run") {
+            router.push({ pathname: "/field/[id]", params: { id: venueKey } } as const);
+          } else if (runId) {
+            router.push({ pathname: "/session/[id]", params: { id: runId } } as const);
+          } else {
+            router.push("/(tabs)/sessions" as const);
+          }
+          void hapticForNotificationTap(kind);
+          return;
+        }
+        if (kind === "play_again" || kind === "play_again_ask") {
+          const runId = pickupRunIdFromNotificationData(data);
+          if (runId) {
+            router.push(kind === "play_again" ? ({ pathname: "/session/[id]", params: { id: runId } } as const) : ({ pathname: "/recap/[id]", params: { id: runId } } as const));
+          } else {
+            router.push("/(tabs)/sessions" as const);
+          }
+          void hapticForNotificationTap(kind);
+          return;
+        }
         if (kind === "player_follow") {
           const raw = data?.follower_id;
           const fid =

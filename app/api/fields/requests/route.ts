@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { recordEvent } from "@/lib/analytics/events";
 import { requireFlag } from "@/lib/flags";
 import { fetchAdminUserIds } from "@/lib/push/adminUserIds";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
@@ -109,6 +110,14 @@ export async function POST(req: Request) {
     console.error(`[api/${ROUTE}] insert failed`, insErr.message);
     return NextResponse.json({ error: "We couldn't send your request. Please try again." }, { status: 500 });
   }
+
+  await recordEvent(auth.admin, {
+    key: `field_request_sent:${(row as { id: string }).id}`,
+    name: "field_request_sent",
+    userId: auth.user.id,
+    source: "server",
+    properties: { venue_key: venueKey, hours, count: players },
+  });
 
   // Record the usage against the player's plan: their free first request, then included, then "extra". This never blocks the
   // request. If it fails (for example the plans migration is not applied yet) the request still stands and is just unflagged.

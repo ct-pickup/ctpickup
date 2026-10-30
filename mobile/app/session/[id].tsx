@@ -4,6 +4,7 @@ import { useProfilePhoto } from "@/context/ProfilePhotoContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { siteOrigin } from "@/lib/env";
 import { LinkedField } from "@/components/fields/LinkedField";
+import { useTrackOnce } from "@/lib/analytics/helpers";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
 import {
@@ -170,6 +171,7 @@ const HOST_RATING_CATEGORIES: Array<{ key: string; label: string; hint: string }
 export default function SessionDetailScreen() {
   useThemedStyles(publish_s);
   const { id } = useLocalSearchParams<{ id: string }>();
+  useTrackOnce("run_viewed", id ?? null, { run_id: id ?? "" });
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { session, supabase } = useAuth();
