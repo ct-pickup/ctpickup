@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 import { createFlagsLoader, FLAGS_OFF, flagOn, parseFlags } from "../mobile/lib/flags";
+import { FLAG_KEYS } from "../lib/flags";
 
 type Rpc = (name: string) => Promise<{ data: unknown; error: { message: string } | null }>;
 const client = (rpc: Rpc) => ({ rpc: (n: string) => rpc(n) }) as never;
@@ -86,3 +87,18 @@ describe("migration 20261024000000_app_flags.sql", () => {
     expect(sql).toMatch(/-- Rollback/);
   });
 });
+
+describe("every flag is present on both the server and the app, and all are OFF by default", () => {
+  const ALL = ["fields", "paid_plans", "notification_settings", "analytics_client", "play_again", "host_follow_alerts", "rating_v2", "rating_results"];
+  it("lists the same flags in the server list and the app list", () => {
+    expect([...FLAG_KEYS].sort()).toEqual([...ALL].sort());
+    expect(Object.keys(FLAGS_OFF).sort()).toEqual([...ALL].sort());
+  });
+  it("starts with every flag OFF and reads each one from the answer", () => {
+    for (const k of ALL) expect(FLAGS_OFF[k as keyof typeof FLAGS_OFF], k).toBe(false);
+    const allOn = Object.fromEntries(ALL.map((k) => [k, true]));
+    expect(parseFlags(allOn)).toEqual(allOn);
+    for (const k of ALL) expect(parseFlags({ [k]: true })[k as keyof typeof FLAGS_OFF], k).toBe(true);
+  });
+});
+

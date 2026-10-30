@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PhotoHeader, useFieldPhotos } from "@/components/photo";
 import PlayAgainCard from "@/components/pickup/PlayAgainCard";
+import ResultConfirmCard from "@/components/pickup/ResultConfirmCard";
 import { ResultPill } from "@/components/season/SeasonPieces";
 import ShareStoryCard, { type ShareStoryData } from "@/components/season/ShareStoryCard";
 import { StarRating } from "@/components/StarRating";
@@ -171,6 +172,8 @@ export default function MatchRecapScreen() {
             <StarRating value={recap.card.star} provisional={recap.card.provisional} size="sm" style={styles.scoreStars} />
           ) : null}
         </View>
+
+        {fixture ? null : <ResultConfirmCard runId={runId} score={recap.score} />}
 
         {recap.potd ? (
           <View style={styles.section}>
