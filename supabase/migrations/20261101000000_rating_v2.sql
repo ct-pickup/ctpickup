@@ -13,7 +13,7 @@
 -- The formulas are documented in lib/rating/ratingMath.ts (the TypeScript twin) and tested against this SQL.
 --
 -- Verify after running:
---   select key, value from public.rating_config order by key;                       -- 32 rows
+--   select key, value from public.rating_config order by key;                       -- 31 rows
 --   select key, enabled from public.app_flags where key in ('rating_v2', 'rating_results');   -- both false
 --   select proname from pg_proc where proname in ('settle_session', 'settle_session_v2', 'rating_config_all');
 --   -- with the flag off, settle_session behaves as before.
@@ -98,8 +98,7 @@ insert into public.rating_config (key, value, note) values
   -- Profile.
   ('profile_include_unverified', 0, '0 = profile performance counts verified results only. 1 = also counts results nobody has confirmed yet (display only; never affects ratings).'),
   ('profile_perf_games', 20, 'How many of the most recent verified games the performance number sums.'),
-  ('profile_min_games',  3,  'Fewer games than this show "not enough games yet" instead of a number.'),
-  ('result_confirm_hours', 72, 'Hours a captain has to confirm a posted result before the host may re-post it.')
+  ('profile_min_games',  3,  'Fewer games than this show "not enough games yet" instead of a number.')
 on conflict (key) do nothing;
 
 alter table public.rating_config enable row level security;
