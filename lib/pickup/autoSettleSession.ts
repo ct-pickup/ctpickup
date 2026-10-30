@@ -68,7 +68,7 @@ export async function autoSettleTierSession(
     await sendPushToUsers(admin, recipientIds, {
       title: "Your rating has been updated",
       body: "Check your tier progress in Rankings",
-      data: { screen: "leaderboards" },
+      data: { kind: "season_standings", screen: "leaderboards" },
     });
   }
 

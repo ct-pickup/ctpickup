@@ -14,6 +14,10 @@ import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { profilePhotoGate } from "@/lib/profilePhoto/requirement";
 import { resolveGameLink } from "@/lib/fields/gameAtField";
 import { requireFlag } from "@/lib/flags";
+import { notifyNewGame } from "@/lib/alerts/fieldAlerts";
+import { notifyFollowersOfHostRun } from "@/lib/pickup/notifyFollowersOfHostRun";
+import { inviteFromPreviousGame, playAgainInfo } from "@/lib/pickup/playAgain";
+import { resolveDriveTimeDestination } from "@/lib/venueDistance";
 
 const ALLOWED_FORMATS = ["5v5", "6v6", "7v7", "Open"];
 
@@ -107,6 +111,17 @@ export async function POST(req: Request) {
     if (longitude == null && typeof link.venue.lon === "number") longitude = link.venue.lon;
   }
 
+  // A repeat of an earlier game: host only, behind the 'play_again' flag, checked before anything is written.
+  const repeatOf = typeof body.repeat_of === "string" && /^[0-9a-f-]{36}$/i.test(body.repeat_of) ? body.repeat_of : null;
+  if (repeatOf) {
+    const off = await requireFlag(admin, "play_again", user.id);
+    if (off) return off;
+    const info = await playAgainInfo(admin, repeatOf, user.id);
+    if (!info || info.role !== "host") {
+      return NextResponse.json({ error: "Only the host of that game can run it again.", code: "not_host" }, { status: 403 });
+    }
+  }
+
   const service_region = serviceRegionForVenueName(profile.nearest_venue ?? "") ?? "CT";
   const host_name = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Host";
   const title = `${host_name}'s ${format} Session`;
@@ -161,22 +176,35 @@ export async function POST(req: Request) {
     console.error("[sessions/create] lifecycle hooks failed:", msg);
   }
 
+  // Players from the game being repeated hear first, personally. They are then left out of the general pushes below.
+  const firstLook = repeatOf
+    ? new Set(await inviteFromPreviousGame(admin, { sourceRunId: repeatOf, hostId: user.id, hostName: host_name, newRun: { id: run.id, start_at, time_tbd }, inviteOnly: invite_only }))
+    : new Set<string>();
+
+  // Followers of this host (behind the 'host_follow_alerts' flag, 1 per follower per host per day). They are left out of the general pushes.
+  const followed = new Set(
+    await notifyFollowersOfHostRun(admin, { hostId: user.id, hostName: host_name, run: { id: run.id, start_at, time_tbd, inviteOnly: invite_only, region: service_region }, skip: firstLook }),
+  );
+
   // Public sessions: notify nearby approved players (exclude host).
   // Invite-only sessions stay quiet — invitees get push from /api/sessions/invite.
   if (!invite_only) {
+    let regionRecipients: string[] = [];
     try {
       const recipientIds = (
         await approvedUserIdsInRunServiceRegion(admin, service_region, {
           serviceRegion: service_region,
           locationPrivate: location_text,
         })
-      ).filter((id) => id !== user.id);
+      ).filter((id) => id !== user.id && !firstLook.has(id) && !followed.has(id));
+      regionRecipients = recipientIds;
 
       if (recipientIds.length > 0) {
         await sendPushToUsers(admin, recipientIds, {
           title: "New session posted 🏃",
           body: `${host_name} posted a ${format} session on ${fmtPickupSlotChipEt(start_at, time_tbd)} in ${service_region}`,
           data: {
+            kind: "session_new",
             screen: `session/${run.id}`,
             run_id: run.id,
             url: `ctpickup://session/${run.id}`,
@@ -187,6 +215,15 @@ export async function POST(req: Request) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error("[sessions/create] region push failed:", msg);
     }
+
+    // "New games near me" Fields alert: players inside their own radius who the region push did not already reach.
+    // Rate limited, de-duplicated and gated by the 'fields' flag inside notifyNewGame; it never throws.
+    const dest = latitude != null && longitude != null ? { lat: latitude, lng: longitude } : resolveDriveTimeDestination({ locationPrivate: location_text, serviceRegion: service_region });
+    await notifyNewGame(
+      admin,
+      { id: run.id, hostId: user.id, startAt: start_at, timeTbd: time_tbd, place: location_text, lat: dest?.lat ?? null, lng: dest?.lng ?? null },
+      [...regionRecipients, ...firstLook, ...followed],
+    );
   }
 
   return NextResponse.json({ ok: true, run_id: run.id });

@@ -227,6 +227,13 @@ export async function cleanupUserData(svc: SupabaseClient, userId: string): Prom
     "chat_room_members delete",
     (await svc.from("chat_room_members").delete().eq("user_id", userId)).error,
   );
+
+  // First-party analytics and the push ledger are deleted with the account. A database that has not run those migrations has no
+  // such table, which is fine; any other error stops the deletion like the rows above.
+  for (const table of ["analytics_events", "push_ledger"]) {
+    const { error } = await svc.from(table).delete().eq("user_id", userId);
+    if (error && !/does not exist|could not find the table|schema cache|42P01|PGRST205/i.test(`${error.code ?? ""} ${error.message ?? ""}`)) throwIfDbError(`${table} delete`, error);
+  }
 }
 
 /** Fails until the migration that lets payment and RSVP rows outlive their user has run. */

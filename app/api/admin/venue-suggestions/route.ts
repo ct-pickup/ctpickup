@@ -2,8 +2,18 @@ import { NextResponse } from "next/server";
 
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { approveSuggestion, rejectSuggestion } from "@/lib/fields/suggestionApprove";
+import { notifyVenueChange } from "@/lib/alerts/fieldAlerts";
 import { markClosedUntil, mergeInto, movePin, removeField, resolveReport, restoreField, distinctReporters, type ActionResult } from "@/lib/fields/venueReports";
 import { supabaseService } from "@/lib/supabase/service";
+
+/** Tells players who saved this field that it was removed or closed (their "Changes and cancellations" alert). Never throws. */
+async function tellSavers(a: ReturnType<typeof supabaseService>, venueKey: string, res: ActionResult, change: "removed" | "closed", until?: string | null): Promise<void> {
+  if (!res.ok || res.fields.length === 0) return;
+  if (change === "removed" && !res.fields.includes("status")) return;
+  if (change === "closed" && !res.fields.includes("closed_until")) return;
+  const { data } = await a.from("venues").select("name").eq("venue_key", venueKey).maybeSingle();
+  await notifyVenueChange(a, venueKey, (data as { name?: string } | null)?.name ?? "A saved field", change, until);
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -86,6 +96,7 @@ export async function POST(req: Request) {
     const a = supabaseService();
     try {
       const res = action === "restore" ? await restoreField(a, venueKeyBody, guard.userId) : await removeField(a, venueKeyBody, guard.userId);
+      if (action === "remove") await tellSavers(a, venueKeyBody, res, "removed");
       return actionResponse(res);
     } catch (e) {
       console.error("[api/admin/venue-suggestions] failed", e instanceof Error ? e.message : "unknown");
@@ -106,6 +117,8 @@ export async function POST(req: Request) {
       else if (action === "move_pin") res = await movePin(a, s0.venue_key, s0.lat, s0.lon, guard.userId);
       else res = await markClosedUntil(a, s0.venue_key, typeof body.until === "string" ? body.until : "", typeof body.reason === "string" ? body.reason : null, guard.userId);
       if (res.ok && s0.status === "pending") await resolveReport(a, id, guard.userId);
+      if (action === "remove_field") await tellSavers(a, s0.venue_key, res, "removed");
+      if (action === "close_until") await tellSavers(a, s0.venue_key, res, "closed", typeof body.until === "string" ? body.until : null);
       return actionResponse(res);
     } catch (e) {
       console.error("[api/admin/venue-suggestions] failed", e instanceof Error ? e.message : "unknown");

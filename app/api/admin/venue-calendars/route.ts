@@ -4,6 +4,7 @@ import { isIP } from "node:net";
 import { NextResponse } from "next/server";
 
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
+import { notifySlotOpened } from "@/lib/alerts/fieldAlerts";
 import { supabaseService } from "@/lib/supabase/service";
 import { normalizeCalendarUrl, parseIcs } from "@/shared/fields/ics";
 
@@ -99,6 +100,9 @@ export async function POST(req: Request) {
     .slice(0, MAX_EVENTS)
     .map((e) => ({ venue_key: venueKey, starts_at: e.start.toISOString(), ends_at: e.end.toISOString(), status: "booked", title: e.summary, source: "calendar" }));
 
+  // What the calendar said before this sync, so a time that just came free can be told to players who saved this field.
+  const { data: beforeRows } = await admin.from("schedule_slots").select("starts_at,ends_at").eq("venue_key", venueKey).eq("source", "calendar").eq("status", "booked").gt("starts_at", nowIso);
+
   const del = await admin.from("schedule_slots").delete().eq("venue_key", venueKey).eq("source", "calendar").gte("ends_at", new Date(from).toISOString());
   if (del.error) return fail("We couldn't save this calendar's bookings.");
   if (rows.length > 0) {
@@ -110,5 +114,7 @@ export async function POST(req: Request) {
     .from("venue_calendars")
     .update({ sync_status: "live", last_synced_at: nowIso, last_error: null, last_error_at: null, connected_at: nowIso })
     .eq("venue_key", venueKey);
+  const { data: venueRow } = await admin.from("venues").select("name").eq("venue_key", venueKey).maybeSingle();
+  await notifySlotOpened(admin, venueKey, (venueRow as { name?: string } | null)?.name ?? "A saved field", (beforeRows ?? []) as { starts_at: string; ends_at: string }[], rows.map((r) => ({ starts_at: r.starts_at, ends_at: r.ends_at })));
   return NextResponse.json({ ok: true, status: "live", events: rows.length });
 }

@@ -1,3 +1,4 @@
+import { isCancellationToday } from "@/lib/push/pushPolicy";
 import * as Sentry from "@sentry/nextjs";
 import type Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -292,7 +293,7 @@ export async function cancelPickupRunAndSettle(
       title: s.refundedCents > 0 ? "Session cancelled, refund issued" : "Session cancelled",
       body: parts.join(" "),
       data: { kind: "session_canceled", run_id },
-    }));
+    }, { urgent: isCancellationToday(run.start_at, new Date()) }));
   }
   const pushResults = await Promise.allSettled(pushJobs);
   for (const r of pushResults) {

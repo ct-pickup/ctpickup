@@ -21,7 +21,9 @@ import {
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 import { PhotoUploadField } from "@/components/photo";
+import { useFeatureFlag } from "@/context/FeatureFlagsContext";
 import { hapticTap } from "@/lib/haptics";
+import { fetchPlayAgain, type PlayAgainPrefill } from "@/lib/playAgain";
 import { buildGamePrefill, dateBlockedByClosure, type GamePrefill } from "@/lib/fields/gamePrefill";
 import { loadFieldListing } from "@/lib/fields/venueStore";
 import { setRunFieldPhoto } from "@/lib/photoUpload";
@@ -84,9 +86,15 @@ export default function SessionCreateScreen() {
   const [step, setStep] = useState<Step>(1);
 
   // Opened from a field (and maybe an approved request): the field is pre-filled and the game is linked to it.
-  const params = useLocalSearchParams<{ venue_key?: string; request_id?: string }>();
+  const params = useLocalSearchParams<{ venue_key?: string; request_id?: string; repeat_from?: string }>();
   const [link, setLink] = useState<(GamePrefill & { closed_until: string | null; fieldName: string }) | null>(null);
   const [linkLoading, setLinkLoading] = useState(Boolean(params.venue_key));
+
+  // Repeat a game: starts from an earlier game of yours (same field, size, price and level, a week later). Behind the 'play_again' flag.
+  const playAgainOn = useFeatureFlag("play_again");
+  const repeatFrom = playAgainOn && typeof params.repeat_from === "string" && /^[0-9a-f-]{36}$/i.test(params.repeat_from) ? params.repeat_from : null;
+  const [repeatNote, setRepeatNote] = useState<string | null>(null);
+  const [pastGames, setPastGames] = useState<{ id: string; title: string | null; start_at: string | null; location_text: string | null }[]>([]);
 
   // Location
   const [locationQuery, setLocationQuery] = useState("");
@@ -164,6 +172,68 @@ export default function SessionCreateScreen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once for the field the screen was opened with
   }, [params.venue_key, params.request_id, supabase]);
+
+  // Past games of yours to repeat (the last three that have started).
+  useEffect(() => {
+    const uid = session?.user?.id;
+    if (!playAgainOn || !supabase || !uid || repeatFrom) return;
+    let cancelled = false;
+    void supabase
+      .from("pickup_runs")
+      .select("id,title,start_at,location_text")
+      .eq("created_by", uid)
+      .lt("start_at", new Date().toISOString())
+      .neq("status", "cancelled")
+      .order("start_at", { ascending: false })
+      .limit(3)
+      .then(({ data }) => {
+        if (!cancelled) setPastGames((data ?? []) as typeof pastGames);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [playAgainOn, supabase, session?.user?.id, repeatFrom]);
+
+  // Fill the form from the game being repeated.
+  useEffect(() => {
+    const token = session?.access_token;
+    if (!repeatFrom || !token) return;
+    let cancelled = false;
+    void fetchPlayAgain(token, repeatFrom).then(async (r) => {
+      if (cancelled) return;
+      if (!r.ok || r.data.role !== "host" || !r.data.prefill) {
+        Alert.alert("Can\u2019t repeat this game", "Only the host can set up the next game, and only after it has been played.");
+        return;
+      }
+      const p: PlayAgainPrefill = r.data.prefill;
+      setRepeatNote(r.data.previous_players > 0 ? `Players from the last game hear first (${r.data.previous_players}).` : "Same game, one week later.");
+      setLocationSelected({ place_id: 0, display_name: p.location_text, lat: String(p.latitude ?? ""), lon: String(p.longitude ?? "") });
+      setLocationQuery(p.location_text);
+      const [y, m, d] = p.date.split("-").map(Number);
+      const [hh, mm] = (p.time ?? "18:00").split(":").map(Number);
+      const dt = new Date(y!, (m ?? 1) - 1, d, hh ?? 18, mm ?? 0, 0, 0);
+      setSessionDate(dt);
+      setSessionTime(dt);
+      setTimeTbd(p.time_tbd);
+      setPlayerLimitText(String(p.capacity));
+      setFormat(p.format);
+      setSkillLevel(p.min_star != null ? String(p.min_star) : "all");
+      setIsPaid(p.fee_cents > 0);
+      setBuyIn(p.fee_cents > 0 ? (p.fee_cents / 100).toFixed(2).replace(/\.00$/, "") : "");
+      setTieredPricing(p.tiered_pricing);
+      setIsInviteOnly(p.invite_only);
+      if (p.venue_key && supabase) {
+        const listing = await loadFieldListing(supabase, p.venue_key);
+        if (cancelled || !listing) return;
+        const built = buildGamePrefill(listing.venue, null, session?.user?.id ?? null, ymd(new Date()));
+        if (!built.blocked) setLink({ ...built, closed_until: listing.venue.closed_until ?? null, fieldName: listing.venue.name });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once for the game the screen was opened with
+  }, [repeatFrom, session?.access_token]);
 
   async function searchLocation(q: string) {
     setLocationQuery(q);
@@ -297,6 +367,7 @@ export default function SessionCreateScreen() {
         fee_cents: buyInCents(),
         invite_only: isInviteOnly,
         tiered_pricing: tieredPricing,
+        ...(repeatFrom ? { repeat_of: repeatFrom } : {}),
         ...(link ? { venue_key: link.venue_key, ...(link.venue_request_id ? { venue_request_id: link.venue_request_id } : {}) } : {}),
       };
 
@@ -321,6 +392,13 @@ export default function SessionCreateScreen() {
           const message = reportPhotoUploadError(e, { stage: "save", bucket: "field-photos" });
           Alert.alert("Field photo not saved", `Your session is live. ${message}`);
         }
+      }
+
+      if (repeatFrom && j.run_id) {
+        Alert.alert("Game posted", "Players from your last game hear first. Invite more players from the game page.", [
+          { text: "Open game", onPress: () => router.replace({ pathname: "/session/[id]", params: { id: j.run_id! } }) },
+        ]);
+        return;
       }
 
       Alert.alert("Session created!", "Your session is now live on the map.", [
@@ -360,6 +438,21 @@ export default function SessionCreateScreen() {
         {/* ── STEP 1 ── */}
         {step === 1 && (
           <View style={s.card}>
+            {repeatNote ? <Text style={s.approvedBanner}>{repeatNote}</Text> : null}
+            {!repeatFrom && pastGames.length > 0 ? (
+              <View style={{ marginBottom: 16 }}>
+                <Text style={s.fieldLabel}>REPEAT A PAST GAME</Text>
+                <View style={s.chipRow}>
+                  {pastGames.map((g) => (
+                    <Pressable key={g.id} onPress={() => router.setParams({ repeat_from: g.id })} style={s.chip} accessibilityRole="button">
+                      <Text style={s.chipText} numberOfLines={1}>
+                        {(g.title ?? g.location_text ?? "Game").slice(0, 28)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
             {link ? (
               <View style={s.fieldCard}>
                 {link.banner ? <Text style={s.approvedBanner}>{link.banner}</Text> : null}

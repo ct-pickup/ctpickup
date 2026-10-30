@@ -33,6 +33,8 @@ import {
   type PositionValue,
   type SpecificPositionValue,
 } from "@/components/account/accountStyles";
+import { UsageDataSetting } from "@/components/account/UsageDataSetting";
+import { NotificationSettings } from "@/components/account/NotificationSettings";
 import { PreferencesSection } from "@/components/account/PreferencesSection";
 import { ProfileSection } from "@/components/account/ProfileSection";
 import { ReferralSection } from "@/components/account/ReferralSection";
@@ -44,6 +46,7 @@ import { useAdminMode } from "@/context/AdminModeContext";
 import { useAppearance } from "@/context/AppearanceContext";
 import { useAppLock } from "@/context/AppLockContext";
 import { useAuth } from "@/context/AuthContext";
+import { useFeatureFlag } from "@/context/FeatureFlagsContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { useReplayOpeningTheme } from "@/context/ReplayOpeningThemeContext";
 import { useReviewMode } from "@/context/ReviewModeContext";
@@ -151,6 +154,7 @@ export default function SettingsScreen() {
   const { enabled: adminModeEnabled, isReady: adminModeReady, setEnabled: setAdminModeEnabled } = useAdminMode();
   const { enabled: reviewModeEnabled, setEnabled: setReviewModeEnabled } = useReviewMode();
   const { isAdmin } = useProfileAdmin();
+  const notificationSettingsOn = useFeatureFlag("notification_settings");
   const { preference: appearance, setPreference: setAppearance } = useAppearance();
   const {
     hasPin,
@@ -1356,6 +1360,10 @@ export default function SettingsScreen() {
               onMaxDriveCommit={(v) => void onSaveMaxDriveMinutes(v)}
               maxDriveDisabled={!accessToken}
             />
+            {notificationSettingsOn ? (
+              <NotificationSettings token={accessToken} pushEnabled={pushEnabled} onMarketingChanged={setMarketingPushEnabled} />
+            ) : null}
+            <UsageDataSetting />
             <View style={s.group}>
               <Row
                 icon="map-marker"

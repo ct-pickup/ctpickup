@@ -85,7 +85,7 @@ export async function POST(req: Request) {
           await sendPushToUsers(admin, recipientIds, {
             title: "How was the session? ⚽",
             body: "Rate your teammates and the host from today's session",
-            data: { screen: `session/${run_id}`, run_id },
+            data: { kind: "session_voting_open", screen: `session/${run_id}`, run_id },
           });
         }
         votingSent = true;

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { postgameVoteEvent, recordEvent } from "@/lib/analytics/events";
 import { ensureTierSessionForRun } from "@/lib/pickup/ensureTierSessionForRun";
 import { realKickoffMs } from "@/lib/pickup/runScheduling";
 import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
@@ -110,5 +111,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: insErr.message }, { status: 500 });
   }
 
+  await recordEvent(admin, postgameVoteEvent(run_id, user.id, "peer_vote"));
   return NextResponse.json({ ok: true, tier_session_id });
 }
