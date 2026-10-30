@@ -39,9 +39,9 @@ describe.skipIf(!SQL_TESTS_ENABLED)("settle_session_v2 (real Postgres)", () => {
   });
   it("a constant changed in rating_config changes the result at once, no deploy", () => {
     const base = run("update public.app_flags set enabled = true where key = 'rating_v2';");
-    const tuned = run("update public.app_flags set enabled = true where key = 'rating_v2'; update public.rating_config set value = 1000 where key = 'field_gain_scale';");
+    const tuned = run("update public.app_flags set enabled = true where key = 'rating_v2'; update public.rating_config set value = 0 where key = 'host_span';");
     expect(tuned).not.toEqual(base);
-    const want = new Map(expectedV2({ field_gain_scale: 1000 }).map((o) => [o.id, o]));
+    const want = new Map(expectedV2({ host_span: 0 }).map((o) => [o.id, o]));
     for (const line of tuned) {
       const [id, after] = line.split("|");
       expect(Number(after), id).toBeCloseTo(want.get(id!)!.scoreAfter, 1);
@@ -54,7 +54,7 @@ describe.skipIf(!SQL_TESTS_ENABLED)("settle_session_v2 (real Postgres)", () => {
   it("writes the audit columns and updates the player ratings", () => {
     const out = sql(`${fixtureSql()} update public.app_flags set enabled = true where key = 'rating_v2';
       select public.settle_session('${SESSION}');
-      select count(*) from public.rating_events where session_id = '${SESSION}' and engine = 'v2' and field_avg is not null and field_factor is not null and detail is not null;
+      select count(*) from public.rating_events where session_id = '${SESSION}' and engine = 'v2' and field_avg is not null and field_factor is null and detail ? 'exp_host' and detail ? 'exp_votes';
       select state from public.tier_sessions where id = '${SESSION}';
       select count(*) from public.player_ratings pr join public.rating_events re on re.user_id = pr.user_id and re.session_id = '${SESSION}' where pr.score = re.score_after;
       select public.settle_session('${SESSION}');`);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  DEFAULT_CONFIG, applyResults, expectedResult, fieldFactor, resultSignals, settleV1, settleV2, settleV2Base, voterWeight,
+  DEFAULT_CONFIG, applyResults, expectedResult, resultSignals, settleV1, settleV2, settleV2Base, voterWeight,
   type Attendee, type Session, type Vote,
 } from "../lib/rating/ratingMath";
 
@@ -28,30 +28,59 @@ describe("v1 (today)", () => {
   });
 });
 
-describe("field strength", () => {
-  it("a gain shrinks as the player rises above the field, toward 0", () => {
-    const f = (gap: number) => fieldFactor(1, gap, DEFAULT_CONFIG);
-    expect(f(-20)).toBe(1);
-    expect(f(0)).toBe(1);
-    expect(f(10)).toBeCloseTo(Math.exp(-10 / 15), 6);
-    expect(f(10)).toBeGreaterThan(f(30));
-    expect(f(90)).toBeLessThan(0.01);
+describe("expectation-based signals", () => {
+  /** Eight players: `star` and seven others at `field`. Everyone votes for the same three, the host scores everyone `os`, star gets `starOs`. */
+  const room = (starScore: number, field: number, o: { starOs: number; othersOs?: number; picks?: string[]; cfg?: Partial<typeof DEFAULT_CONFIG> }) => {
+    const att = [mk("star", starScore, { organizerScore: o.starOs, sessions: 0 }), ...ids(7).map((i) => mk(i, field, { organizerScore: o.othersOs ?? 5, sessions: 0 }))];
+    return by(settleV2Base(session(att, ballot(ids(7), o.picks ?? ["p0", "p1", "p2"])), { ...DEFAULT_CONFIG, ...o.cfg }), "star");
+  };
+  it("expected votes add up to the votes cast, and a stronger player is expected to draw more", () => {
+    const att = [mk("star", 80), mk("mid", 50), mk("low", 20), ...ids(5).map((i) => mk(i, 50))];
+    const out = settleV2Base(session(att, ballot(ids(5), ["p0", "p1", "p2"])));
+    const totalExpected = out.reduce((t, o) => t + o.expected, 0);
+    const totalReceived = out.reduce((t, o) => t + o.weightedVotes, 0);
+    expect(totalExpected).toBeCloseTo(totalReceived, 6);
+    expect(by(out, "star").expected).toBeGreaterThan(by(out, "mid").expected);
+    expect(by(out, "mid").expected).toBeGreaterThan(by(out, "low").expected);
   });
-  it("a loss grows by up to 50% when a stronger player does badly against a weaker field", () => {
-    expect(fieldFactor(-1, 0, DEFAULT_CONFIG)).toBe(1);
-    expect(fieldFactor(-1, 15, DEFAULT_CONFIG)).toBeCloseTo(1 + 0.5 * (1 - Math.exp(-1)), 6);
-    expect(fieldFactor(-1, 500, DEFAULT_CONFIG)).toBeCloseTo(1.5, 3);
-    expect(fieldFactor(-1, -30, DEFAULT_CONFIG)).toBe(1); // a weaker player's losses are not amplified
+  it("a player far above the field who does what is expected gains nothing", () => {
+    // Draws exactly the votes the formula expects and is scored exactly as expected: the change is about zero.
+    const att = [mk("star", 80, { organizerScore: 7.5 }), ...ids(7).map((i) => mk(i, 40, { organizerScore: 5 }))];
+    const probe = settleV2Base(session(att, []));
+    const expectedHost = by(probe, "star").expectedHost!;
+    const exact = [mk("star", 80, { organizerScore: expectedHost }), ...ids(7).map((i) => mk(i, 40, { organizerScore: 5 }))];
+    const out = by(settleV2Base(session(exact, [])), "star"); // nobody voted: thin turnout, host part only
+    expect(Math.abs(out.delta)).toBeLessThan(0.05);
   });
-  it("the same game moves a strong player less in a weak field than in an even one", () => {
-    const run = (field: number) => {
-      const att = [mk("star", 80, { organizerScore: 9 }), ...ids(7).map((i) => mk(i, field))];
-      return by(settleV2Base(session(att, ballot(ids(7), ["star", "p0", "p1"]))), "star");
-    };
-    const weak = run(30), even = run(80);
-    expect(weak.fieldFactor).toBeLessThan(even.fieldFactor);
-    expect(weak.delta).toBeLessThan(even.delta);
-    expect(even.fieldFactor).toBe(1);
+  it("the same player gains when the weak field is beaten by more than expected, and loses when they fall short", () => {
+    const better = room(80, 40, { starOs: 10 });
+    const worse = room(80, 40, { starOs: 3 });
+    expect(better.delta).toBeGreaterThan(0);
+    expect(worse.delta).toBeLessThan(0);
+    // and a strong player drawing the same raw host score gains less than an average player would
+    const atField = room(40, 40, { starOs: 7 });
+    const aboveField = room(80, 40, { starOs: 7 });
+    expect(aboveField.delta).toBeLessThan(atField.delta);
+  });
+  it("a weak player who beats expectation gains, one who does what is expected does not", () => {
+    expect(room(20, 60, { starOs: 7 }).delta).toBeGreaterThan(0);
+    const probe = room(20, 60, { starOs: 5, picks: [] }); // nobody voted: the host score alone decides
+    expect(room(20, 60, { starOs: probe.expectedHost!, picks: [] }).delta).toBeCloseTo(0, 1);
+  });
+  it("a host who gives everyone the same high score moves nobody much", () => {
+    const att = ids(8).map((i) => mk(i, 50, { organizerScore: 10, sessions: 0 }));
+    for (const o of settleV2Base(session(att, []))) expect(Math.abs(o.delta)).toBeLessThan(0.05);
+  });
+  it("host_abs_weight 1 reads the host score against the player's own rating instead", () => {
+    const att = ids(8).map((i) => mk(i, 70, { organizerScore: 6.6, sessions: 0 })); // 1 + 9 * 0.7 = 7.3 expected from the rating alone
+    const rel = settleV2Base(session(att, []))[0]!;
+    const abs = settleV2Base(session(att, []), { ...DEFAULT_CONFIG, host_abs_weight: 1 })[0]!;
+    expect(abs.expectedHost).toBeCloseTo(7.3, 6);
+    expect(abs.delta).toBeLessThan(rel.delta);
+  });
+  it("there is no separate field strength factor any more", () => {
+    expect(room(80, 30, { starOs: 9 }).fieldFactor).toBe(1);
+    expect("field_gain_scale" in DEFAULT_CONFIG).toBe(false);
   });
 });
 

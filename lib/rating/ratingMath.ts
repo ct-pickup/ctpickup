@@ -7,10 +7,6 @@
  */
 
 export type RatingConfig = {
-  // Field strength (compare a player with the average of the others in the game)
-  field_gain_scale: number; // points above the field average over which gains shrink by a factor of e
-  field_loss_amp: number; // most extra weight a loss gets when a stronger player does badly against a weaker field (0.5 = up to 1.5x)
-  field_loss_scale: number; // points above the field average over which that extra weight builds up
   // Weight of one peer vote
   vote_score_ref: number; // a voter at this score weighs 1 before the other factors
   vote_w_min: number; // lowest score factor
@@ -28,7 +24,12 @@ export type RatingConfig = {
   host_pair_days: number; // look-back for the same host and the same player
   host_pair_decay: number; // each earlier game with this host multiplies the host weight by this
   host_pair_floor: number;
-  org_anchor: number; // 0 = host score read against the middle of the scale (today). 1 = read against the player's own score.
+  // Expectation (Phase F): each player's expected votes and expected host score come from their rating relative to the other attendees.
+  vote_scale: number; // logistic scale, in rating points, of the expected share of votes
+  host_scale: number; // scale, in rating points, of the expected host score
+  host_span: number; // host score points above or below the other players' average that a very large rating gap is worth
+  host_norm: number; // host score points that count as a full signal of +1 or -1
+  host_abs_weight: number; // 0 = expected host score is relative to the other players only; 1 = read from the player's own rating alone
   // Distinct evidence for the top bands
   evidence_min_hosts: number;
   evidence_min_voters: number;
@@ -44,9 +45,6 @@ export type RatingConfig = {
 };
 
 export const DEFAULT_CONFIG: RatingConfig = {
-  field_gain_scale: 15,
-  field_loss_amp: 0.5,
-  field_loss_scale: 15,
   vote_score_ref: 50,
   vote_w_min: 0.5,
   vote_w_max: 1.5,
@@ -61,7 +59,11 @@ export const DEFAULT_CONFIG: RatingConfig = {
   host_pair_days: 60,
   host_pair_decay: 0.75,
   host_pair_floor: 0.25,
-  org_anchor: 0,
+  vote_scale: 25,
+  host_scale: 20,
+  host_span: 5,
+  host_norm: 4.5,
+  host_abs_weight: 0,
   evidence_min_hosts: 3,
   evidence_min_voters: 6,
   evidence_min_games: 8,
@@ -129,7 +131,10 @@ export type Outcome = {
   k: number;
   votes: number;
   weightedVotes: number;
+  /** Expected weighted votes for this player (v1: the same for everyone). */
   expected: number;
+  /** v2: the host score expected from this player's rating against the rest of the game. */
+  expectedHost?: number;
   fieldAvg: number;
   fieldFactor: number;
   hostWeight: number;
@@ -174,11 +179,6 @@ export function voterWeight(v: { score: number; sessions: number; reliability: n
   return scoreF * relF * newF * pairF;
 }
 
-export function fieldFactor(delta: number, gap: number, c: RatingConfig): number {
-  const above = Math.max(gap, 0);
-  return delta >= 0 ? Math.exp(-above / c.field_gain_scale) : 1 + c.field_loss_amp * (1 - Math.exp(-above / c.field_loss_scale));
-}
-
 /** Expected result of team X against team Y, in [0,1], from the difference of their average scores. */
 export function expectedResult(avgX: number, avgY: number, scale: number): number {
   return 1 / (1 + Math.exp(-(avgX - avgY) / scale));
@@ -207,7 +207,15 @@ export function resultSignals(s: Session, c: RatingConfig): Record<string, numbe
   return out;
 }
 
-/** settle_session_v2 without results: field strength, weighted votes, host limits, collusion damping, evidence cap. */
+/**
+ * settle_session_v2 without results.
+ *   votes:  expected weighted votes = (total weighted votes) x share, share = exp(gap / vote_scale) normalised over the attendees (logistic odds),
+ *           gap = score minus the average score of the others. vote_signal = (weighted votes received - expected) / average votes per player.
+ *   host:   expected host score = what the host gave the other players on average + host_span x tanh(gap / (2 x host_scale)),
+ *           blended with the player's own rating by host_abs_weight. org_signal = (host score - expected) / host_norm.
+ *   Both are held to +-1, weighted and capped as before, then the evidence ceiling. There is no separate field strength factor: a
+ *   player far above the field is expected to do well, so doing so earns nothing (the simulator showed the extra factor only slowed honest players).
+ */
 export function settleV2Base(s: Session, c: RatingConfig = DEFAULT_CONFIG, kBase = K_BASE, orgFloor = ORG_FLOOR): Outcome[] {
   const n = s.attendees.length;
   if (n < 4) throw new Error("Not enough attendees to rate");
@@ -215,15 +223,27 @@ export function settleV2Base(s: Session, c: RatingConfig = DEFAULT_CONFIG, kBase
   const w = s.votes.map((v) => voterWeight(s.voters?.[v.voter] ?? { score: 50, sessions: 0, reliability: 92 }, v.priorPairGames ?? 0, c));
   const totalW = w.reduce((t, x) => t + x, 0);
   const meanW = s.votes.length ? totalW / s.votes.length : 1;
-  const expected = Math.max(totalW / n, 0.5 * meanW);
+  const avgVotes = Math.max(totalW / n, 0.5 * meanW);
   const totalScore = s.attendees.reduce((t, a) => t + a.score, 0);
-  return s.attendees.map((a) => {
+  const gapOf = (a: Attendee) => a.score - (totalScore - a.score) / (n - 1);
+  // Bradley-Terry odds of the rating gap: a player who is `vote_scale` points above the field is expected to draw e times the votes of an average one.
+  const share = s.attendees.map((a) => Math.exp(clamp(gapOf(a) / c.vote_scale, -20, 20)));
+  const sumShare = share.reduce((t, x) => t + x, 0);
+  const judged = s.attendees.filter((a) => a.id !== s.organizerId);
+  const hostTotal = judged.reduce((t, a) => t + a.organizerScore, 0);
+  return s.attendees.map((a, idx) => {
     const received = s.votes.reduce((t, v, i) => (v.votee === a.id ? t + w[i]! : t), 0);
     const count = s.votes.filter((v) => v.votee === a.id).length;
-    const voteSignal = clamp((received - expected) / expected, -1, 1);
+    const gap = gapOf(a);
+    const expVotes = (totalW * share[idx]!) / sumShare;
+    const voteSignal = clamp((received - expVotes) / avgVotes, -1, 1);
     const isHost = a.id === s.organizerId;
-    const mid = (1 - c.org_anchor) * 5.5 + c.org_anchor * (1 + (9 * a.score) / 100);
-    const orgSignal = isHost ? 0 : clamp((a.organizerScore - mid) / 4.5, -1, 1);
+    const others = judged.length - (isHost ? 0 : 1);
+    const othersAvg = others > 0 ? (hostTotal - (isHost ? 0 : a.organizerScore)) / others : 5.5;
+    const rel = othersAvg + c.host_span * Math.tanh(gap / (2 * c.host_scale));
+    const abs = 1 + (9 * a.score) / 100;
+    const expHost = clamp((1 - c.host_abs_weight) * rel + c.host_abs_weight * abs, 1, 10);
+    const orgSignal = isHost ? 0 : clamp((a.organizerScore - expHost) / c.host_norm, -1, 1);
     const hostF = Math.max(c.host_pair_floor, Math.pow(c.host_pair_decay, a.hostPriorGames ?? 0));
     const wEff = (thin ? 1.0 : wOrgFor(a.sessions, orgFloor)) * hostF;
     const hostPart = clamp(wEff * orgSignal, -c.host_max_share, c.host_max_share);
@@ -231,8 +251,7 @@ export function settleV2Base(s: Session, c: RatingConfig = DEFAULT_CONFIG, kBase
     const raw = hostPart + votePart;
     const k = kFor(a.sessions, kBase);
     const fieldAvg = (totalScore - a.score) / (n - 1);
-    const ff = fieldFactor(raw, a.score - fieldAvg, c);
-    const delta = k * raw * ff;
+    const delta = k * raw;
     let after = clamp(a.score + delta, 0, 100);
     let capped = false;
     let evidenceOk = true;
@@ -250,8 +269,8 @@ export function settleV2Base(s: Session, c: RatingConfig = DEFAULT_CONFIG, kBase
       }
     }
     return {
-      id: a.id, scoreBefore: a.score, scoreAfter: round2(after), delta: round2(after - a.score), k, votes: count, weightedVotes: received, expected,
-      fieldAvg, fieldFactor: ff, hostWeight: wEff, resultSignal: null, deltaResult: 0, capped, evidenceOk,
+      id: a.id, scoreBefore: a.score, scoreAfter: round2(after), delta: round2(after - a.score), k, votes: count, weightedVotes: received, expected: expVotes,
+      expectedHost: expHost, fieldAvg, fieldFactor: 1, hostWeight: wEff, resultSignal: null, deltaResult: 0, capped, evidenceOk,
     };
   });
 }

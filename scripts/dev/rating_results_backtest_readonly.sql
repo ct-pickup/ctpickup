@@ -18,7 +18,7 @@
 --                the players were (average number of rated games they had before this one), and by month
 --   calibration  Brier score of the logistic prediction at scale 12 against always saying 50 percent (lower is better)
 --   eligible     results that pass the structural Phase C rules (settled game, two teams, at least 8 attendees, teams within 1 player)
---                and how many players a host's 30 day entry limit (more than 6 results involving one player) would set aside
+--                and how many players the 30 day posting limit (more than 6 results one account posted involving one player) would set aside
 --   ratings      where today's ratings sit: share at either end, mean, spread. A pile-up at 0 or 100 means the current formula saturates.
 -- Nothing here can be verified yet: two-sided confirmation does not exist until Phase C ships, so "eligible" ignores confirmation.
 -- Change the numbers in `params` to look at other rules. Small n means a noisy number.
@@ -27,7 +27,9 @@ with params as (
   select 8 as min_attendance, 1 as max_team_diff, 6 as host_max_30d, 12.0::numeric as scale, 0.0::numeric as tie_eps
 ),
 res as (
-  select r.run_id, r.winning_team, r.total_teams, r.created_at, r.created_by,
+  -- the original poster: posted_by once the Phase F migration is applied, otherwise created_by (the last editor)
+  select r.run_id, r.winning_team, r.total_teams, r.created_at,
+         coalesce(to_jsonb(r) ->> 'posted_by', to_jsonb(r) ->> 'created_by') as poster,
          (to_jsonb(p) ->> 'tier_session_id')::uuid as sid, p.start_at
     from public.pickup_run_results r
     join public.pickup_runs p on p.id = r.run_id
@@ -41,7 +43,7 @@ players as (
    where s.sid is not null
 ),
 game as (
-  select s.run_id, s.winning_team, s.total_teams, s.created_at, s.created_by, s.start_at, s.sid,
+  select s.run_id, s.winning_team, s.total_teams, s.created_at, s.poster, s.start_at, s.sid,
          count(pl.user_id) as n_players,
          count(*) filter (where pl.team = 'A') as n_a, count(*) filter (where pl.team = 'B') as n_b, count(*) filter (where pl.team = 'C') as n_c,
          avg(pl.score_before) filter (where pl.team = 'A') as avg_a, avg(pl.score_before) filter (where pl.team = 'B') as avg_b,
@@ -49,7 +51,7 @@ game as (
          (select count(*) from public.rating_events e where e.session_id = s.sid) as n_attendees
     from res s
     left join players pl on pl.run_id = s.run_id
-   group by s.run_id, s.winning_team, s.total_teams, s.created_at, s.created_by, s.start_at, s.sid
+   group by s.run_id, s.winning_team, s.total_teams, s.created_at, s.poster, s.start_at, s.sid
 ),
 decided as (
   select g.*, (g.avg_a - g.avg_b) as diff,
@@ -78,7 +80,7 @@ host_counts as (
   select g.run_id, pl.user_id,
          (select count(*) from public.pickup_run_results r3
             join public.pickup_run_team_assignments a3 on a3.run_id = r3.run_id and a3.user_id = pl.user_id
-           where r3.created_by is not distinct from g.created_by
+           where coalesce(to_jsonb(r3) ->> 'posted_by', to_jsonb(r3) ->> 'created_by') is not distinct from g.poster
              and r3.created_at between g.created_at - interval '30 days' and g.created_at) as host_results
     from game g join players pl on pl.run_id = g.run_id
 ),

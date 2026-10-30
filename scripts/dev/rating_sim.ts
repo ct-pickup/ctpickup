@@ -5,19 +5,29 @@
  * 1 + 9*T/100 plus noise, voters pick the three best others by T plus noise, teams are random splits and the result follows the
  * true team averages. The engines are the exact formulas in lib/rating/ratingMath.ts, which mirror settle_session (v1) and
  * settle_session_v2:
- *   v1   today's formula
- *   v2   field strength, weighted votes, host limits, collusion damping, distinct evidence
- *   v2r  v2 plus the result signal (rating_results)
- *   v2a  v2 with org_anchor 1 (host score read against the player's own score, so ratings settle where the host sees the player)
+ *   v1   today's formula (settle_session)
+ *   b    Phase B: field strength factor, weighted votes, host limits, collusion damping, evidence ceiling. Votes and host score read against fixed references.
+ *   f    Phase F (settle_session_v2 now): votes and host score read against what each player is EXPECTED to get from their rating relative to the field
+ *   ff   Phase F with the Phase B field strength factor added back (gain scale 30, no extra loss weight): the best setting found, kept to show it does not help
+ *   fr   Phase F plus the result signal (rating_results)
  * Everything is seeded: the same command gives the same numbers.
  */
 import { writeFileSync } from "node:fs";
 import {
-  DEFAULT_CONFIG, settleV1, settleV2, type Attendee, type RatingConfig, type Session, type Vote,
+  DEFAULT_CONFIG, K_BASE, ORG_FLOOR, applyResults, round2, settleV1, settleV2Base, voterWeight,
+  type Attendee, type Outcome, type RatingConfig, type Session, type Vote,
 } from "../../lib/rating/ratingMath.ts";
 
-type Engine = "v1" | "v2" | "v2r" | "v2a";
-const ENGINES: Engine[] = ["v1", "v2", "v2r", "v2a"];
+type Engine = "v1" | "b" | "f" | "ff" | "fr";
+const ENGINES: Engine[] = ["v1", "b", "f", "ff", "fr"];
+const LABEL: Record<Engine, string> = { v1: "v1 today", b: "v2 Phase B", f: "v2 Phase F (now)", ff: "F + field factor (dropped)", fr: "F + results" };
+
+/** The field strength factor of Phase B: gains shrink above the field, losses grow. Kept here only to show why Phase F dropped it. */
+const FIELD = { gain_scale: 15, loss_amp: 0.5, loss_scale: 15 };
+function fieldFactor(delta: number, gap: number, gainScale = FIELD.gain_scale, lossAmp = FIELD.loss_amp): number {
+  const above = Math.max(gap, 0);
+  return delta >= 0 ? Math.exp(-above / gainScale) : 1 + lossAmp * (1 - Math.exp(-above / FIELD.loss_scale));
+}
 const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
 
 class Rng {
@@ -35,6 +45,47 @@ class Rng {
   sample<X>(xs: X[], n: number): X[] { return this.shuffle(xs).slice(0, n); }
 }
 
+/** The Phase B formula, kept here only so the table can show what Phase F changed. Fixed references: host score against 5.5, votes against the game average. */
+function settleV2PhaseB(s: Session, c: RatingConfig, kBase = K_BASE, orgFloor = ORG_FLOOR): Outcome[] {
+  const n = s.attendees.length;
+  const thin = new Set(s.votes.map((v) => v.voter)).size / n < 0.6;
+  const w = s.votes.map((v) => voterWeight(s.voters?.[v.voter] ?? { score: 50, sessions: 0, reliability: 92 }, v.priorPairGames ?? 0, c));
+  const totalW = w.reduce((t, x) => t + x, 0);
+  const meanW = s.votes.length ? totalW / s.votes.length : 1;
+  const expected = Math.max(totalW / n, 0.5 * meanW);
+  const totalScore = s.attendees.reduce((t, a) => t + a.score, 0);
+  return s.attendees.map((a) => {
+    const received = s.votes.reduce((t, v, i) => (v.votee === a.id ? t + w[i]! : t), 0);
+    const voteSignal = clampN((received - expected) / expected, -1, 1);
+    const orgSignal = a.id === s.organizerId ? 0 : clampN((a.organizerScore - 5.5) / 4.5, -1, 1);
+    const hostF = Math.max(c.host_pair_floor, Math.pow(c.host_pair_decay, a.hostPriorGames ?? 0));
+    const wEff = (thin ? 1.0 : orgFloor + (0.95 - orgFloor) * Math.exp(-a.sessions / 5)) * hostF;
+    const raw = clampN(wEff * orgSignal, -c.host_max_share, c.host_max_share) + (thin ? 0 : (1 - wEff) * voteSignal);
+    const k = kBase * (0.35 + 0.65 * Math.exp(-a.sessions / 6));
+    const fieldAvg = (totalScore - a.score) / (n - 1);
+    let after = clampN(a.score + k * raw * fieldFactor(raw, a.score - fieldAvg), 0, 100);
+    if (a.prior) {
+      const hosts = new Set(a.prior.hosts); if (s.organizerId !== a.id) hosts.add(s.organizerId);
+      const voters = new Set(a.prior.voters); for (const v of s.votes) if (v.votee === a.id) voters.add(v.voter);
+      const enough = hosts.size >= c.evidence_min_hosts && voters.size >= c.evidence_min_voters && a.prior.games + 1 >= c.evidence_min_games;
+      if (!enough) after = Math.min(after, Math.max(a.score, c.evidence_cap_score));
+    }
+    return { id: a.id, scoreBefore: a.score, scoreAfter: round2(after), delta: round2(after - a.score), k, votes: 0, weightedVotes: received, expected, fieldAvg, fieldFactor: 1, hostWeight: wEff, resultSignal: null, deltaResult: 0, capped: false, evidenceOk: true };
+  });
+}
+
+/** Phase F outcomes with the field factor applied afterwards to each player's unconstrained change (evidence ceiling not re-applied). */
+function withFieldFactor(s: Session, base: Outcome[]): Outcome[] {
+  const n = s.attendees.length;
+  const total = s.attendees.reduce((t, a) => t + a.score, 0);
+  return base.map((o) => {
+    const gap = o.scoreBefore - (total - o.scoreBefore) / (n - 1);
+    const ff = fieldFactor(o.delta, gap, 30, 0);
+    const after = clampN(o.scoreBefore + o.delta * ff, 0, 100);
+    return { ...o, scoreAfter: round2(after), delta: round2(after - o.scoreBefore), fieldFactor: ff };
+  });
+}
+
 type P = { id: string; T: number; score: number; sessions: number; reliability: number; games: number };
 type Prior = { hosts: Set<string>; voters: Set<string>; games: number };
 
@@ -45,12 +96,14 @@ type World = {
   hosts: string[];
 };
 
-const cfgFor = (e: Engine): RatingConfig => (e === "v2a" ? { ...DEFAULT_CONFIG, org_anchor: 1 } : DEFAULT_CONFIG);
+const cfgFor = (): RatingConfig => DEFAULT_CONFIG;
+
+const clampN = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
 
 function newWorld(seed: number, opts: Opts, n = 120): World {
   const rng = new Rng(seed);
   const players: P[] = Array.from({ length: n }, (_, i) => ({ id: `p${i}`, T: clamp(50 + 15 * rng.normal(), 5, 95), score: 50, sessions: 0, reliability: 92, games: 0 }));
-  const w: World = { rng, opts, cfg: opts.cfg ?? cfgFor(opts.engine), players, byId: new Map(players.map((p) => [p.id, p])), day: 0, voteHist: new Map(), hostHist: new Map(), resHist: new Map(), prior: new Map(), hosts: Array.from({ length: 10 }, (_, i) => `h${i}`) };
+  const w: World = { rng, opts, cfg: opts.cfg ?? cfgFor(), players, byId: new Map(players.map((p) => [p.id, p])), day: 0, voteHist: new Map(), hostHist: new Map(), resHist: new Map(), prior: new Map(), hosts: Array.from({ length: 10 }, (_, i) => `h${i}`) };
   return w;
 }
 function addPlayer(w: World, id: string, T: number): P {
@@ -106,7 +159,12 @@ function playGame(w: World, roster: P[], hostId: string, col: Collusion = {}): {
     voters: Object.fromEntries(showed.map((p) => [p.id, { score: p.score, sessions: p.sessions, reliability: p.reliability }])),
     result: { teams, winningTeam: winner, verified: true, hostResultCount },
   };
-  const out = opts.engine === "v1" ? settleV1(session) : settleV2(session, w.cfg, opts.engine === "v2r");
+  const out: Outcome[] =
+    opts.engine === "v1" ? settleV1(session)
+    : opts.engine === "b" ? settleV2PhaseB(session, w.cfg)
+    : opts.engine === "fr" ? applyResults(session, settleV2Base(session, w.cfg), w.cfg)
+    : opts.engine === "ff" ? withFieldFactor(session, settleV2Base(session, w.cfg))
+    : settleV2Base(session, w.cfg);
   for (const o of out) {
     const p = w.byId.get(o.id)!;
     p.score = o.scoreAfter; p.sessions += 1; p.games += 1; p.reliability = clamp(p.reliability + 1, 0, 100);
@@ -152,13 +210,13 @@ function spearman(w: World, ids?: Set<string>) {
 }
 
 type Series = number[]; // subject score after each of their games
-const firstReach = (s: Series, x: number) => { const i = s.findIndex((v) => v >= x); return i < 0 ? null : i + 1; };
-const at = (s: Series, n: number) => (s.length >= n ? s[n - 1]! : s[s.length - 1] ?? NaN);
+export const firstReach = (s: Series, x: number) => { const i = s.findIndex((v) => v >= x); return i < 0 ? null : i + 1; };
+export const at = (s: Series, n: number) => (s.length >= n ? s[n - 1]! : s[s.length - 1] ?? NaN);
 
 type Subject = "smurf_friendly_host" | "smurf_host_and_voters" | "honest_strong_mixed" | "friend_host_only" | "friend_voters_only" | "friend_host_and_voters" | "honest_weak_control";
 
 /** A subject joins a league that has already played 40 weeks. Returns the subject's score after each of their games. */
-function runSubject(seed: number, engine: Engine, subject: Subject, weeks = 52, noShow = 0.08, cfg?: RatingConfig): Series {
+export function runSubject(seed: number, engine: Engine, subject: Subject, weeks = 52, noShow = 0.08, cfg?: RatingConfig): Series {
   const w = newWorld(seed, { engine, noShow, turnout: 0.85, cfg });
   for (let wk = 0; wk < 40; wk++) { w.day = wk * 7; leagueWeek(w, new Set()); }
   const strong = subject.startsWith("smurf") || subject === "honest_strong_mixed";
@@ -191,12 +249,12 @@ function runSubject(seed: number, engine: Engine, subject: Subject, weeks = 52, 
   return series;
 }
 
-function runLeague(seed: number, engine: Engine, weeks: number, noShow: number) {
-  const w = newWorld(seed, { engine, noShow, turnout: 0.85 });
+export function runLeague(seed: number, engine: Engine, weeks: number, noShow: number, cfg?: RatingConfig) {
+  const w = newWorld(seed, { engine, noShow, turnout: 0.85, cfg });
   const snap: Record<number, { rmse: number; rho: number }> = {};
   for (let wk = 1; wk <= weeks; wk++) {
     w.day = wk * 7; leagueWeek(w, new Set());
-    if ([26, 52, 104].includes(wk)) snap[wk] = { rmse: rmse(w), rho: spearman(w) };
+    if ([10, 26, 52, 104].includes(wk)) snap[wk] = { rmse: rmse(w), rho: spearman(w) };
   }
   const strong = w.players.filter((p) => p.T >= 75);
   return { snap, rel: mean(w.players.map((p) => p.reliability)), games: mean(w.players.map((p) => p.games)), strongMean: mean(strong.map((p) => p.score)), strongT: mean(strong.map((p) => p.T)), maxScore: Math.max(...w.players.map((p) => p.score)) };
@@ -212,13 +270,15 @@ export function main(argv: string[]) {
   const seeds = Array.from({ length: quick ? 3 : 10 }, (_, i) => 1000 + i * 7);
   const lines: string[] = [];
   const log = (s = "") => { lines.push(s); console.log(s); };
+  const engines = ENGINES;
 
   log(`# Rating simulator results\n`);
-  log(`${seeds.length} seeds per cell, league of 120 honest players, 40 weeks of burn-in, then 52 weeks with the subject. Hidden true skill T is on the rating scale. Smurf T=85, friend T=30. Everyone starts at 50.\n`);
+  log(`${seeds.length} seeds per cell, league of 120 honest players, 40 weeks of burn-in, then 52 weeks with the subject. Hidden true skill T is on the rating scale. Smurf T=85, friend T=30. Everyone starts at 50. Hosts judge a player as 1 + 9*T/100 plus noise, so a host score is an absolute opinion; voters pick the best three others by T plus noise.\n`);
+  log(`Engines: **v1 today**; **v2 Phase B** (fixed references); **v2 Phase F** (expected votes and expected host score from the rating gap; the current settle_session_v2, no field strength factor); **F + field factor (dropped)**: Phase F with the Phase B field strength factor added back at its best setting, to show why it was removed; **F + results**.\n`);
 
-  log(`## 1. Smurf and collusion: what a subject's rating does (mean over seeds)\n`);
-  log(`Games to reach a score of 70, 78 (3.5 stars) and 90 (4.5 stars). A run that never gets there counts as 52 in the mean; the "never reach 78" column says how many of the runs that was. Score after 10, 26 and 52 games. Last column: score after 52 games minus true skill T.\n`);
-  log(`| Subject | Engine | to 70 | to 78 | to 90 | never reach 78 | @10 | @26 | @52 | final - T |`);
+  log(`## 1. Subjects: what one player's rating does (mean over seeds)\n`);
+  log(`Games to reach a score of 70, 78 (3.5 stars) and 90 (4.5 stars). A run that never gets there counts as 52 in the mean; "never 78" says how many runs that was. Score after 10, 26 and 52 games. Last column: score after 52 games minus true skill T.\n`);
+  log(`| Subject | Engine | to 70 | to 78 | to 90 | never 78 | @10 | @26 | @52 | @52 - T |`);
   log(`|---|---|---|---|---|---|---|---|---|---|`);
   const subjects: [Subject, string, number][] = [
     ["honest_strong_mixed", "Honest strong (T=85), mixed games, honest hosts and voters", 85],
@@ -230,22 +290,22 @@ export function main(argv: string[]) {
     ["friend_host_and_voters", "Weak friend (T=30), colluding host + 3 voters", 30],
   ];
   for (const [subject, label, T] of subjects) {
-    for (const engine of ENGINES) {
+    engines.forEach((engine, i) => {
       const runs = seeds.map((s) => runSubject(s, engine, subject));
       const r70 = avgN(runs.map((r) => firstReach(r, 70)), 52), r78 = avgN(runs.map((r) => firstReach(r, 78)), 52), r90 = avgN(runs.map((r) => firstReach(r, 90)), 52);
       const col = (n: number) => mean(runs.map((r) => at(r, n)));
-      log(`| ${engine === "v1" ? label : ""} | ${engine} | ${f1(r70.mean)} | ${f1(r78.mean)} | ${f1(r90.mean)} | ${r78.never}/${seeds.length} | ${f1(col(10))} | ${f1(col(26))} | ${f1(col(52))} | ${f1(col(52) - T)} |`);
-    }
+      log(`| ${i === 0 ? label : ""} | ${LABEL[engine]} | ${f1(r70.mean)} | ${f1(r78.mean)} | ${f1(r90.mean)} | ${r78.never}/${seeds.length} | ${f1(col(10))} | ${f1(col(26))} | ${f1(col(52))} | ${f1(col(52) - T)} |`);
+    });
   }
 
-  log(`\n## 2. Honest league: rating error against true skill\n`);
-  log(`Everyone honest, 8% no-shows. RMSE of (score - T) and rank correlation (Spearman) with true skill. Top = players with T >= 75: their mean score and mean T.\n`);
-  log(`| Engine | RMSE @26w | RMSE @52w | RMSE @104w | rank corr @52w | top mean score | top mean T | highest score |`);
-  log(`|---|---|---|---|---|---|---|---|`);
-  for (const engine of ENGINES) {
+  log(`\n## 2. Honest league: rating error against true skill over time\n`);
+  log(`Everyone honest, 8% no-shows, 120 players starting at 50. RMSE of (score - T) after 10, 26, 52 and 104 weeks, and rank correlation (Spearman) with true skill. Top = players with T >= 75: mean score and mean T.\n`);
+  log(`| Engine | RMSE @10w | @26w | @52w | @104w | rank corr @52w | top mean score | top mean T | highest score |`);
+  log(`|---|---|---|---|---|---|---|---|---|`);
+  for (const engine of engines) {
     const rs = seeds.map((s) => runLeague(s, engine, 104, 0.08));
-    const m = (k: 26 | 52 | 104, f: "rmse" | "rho") => mean(rs.map((r) => r.snap[k]![f]));
-    log(`| ${engine} | ${f1(m(26, "rmse"))} | ${f1(m(52, "rmse"))} | ${f1(m(104, "rmse"))} | ${m(52, "rho").toFixed(2)} | ${f1(mean(rs.map((r) => r.strongMean)))} | ${f1(mean(rs.map((r) => r.strongT)))} | ${f1(mean(rs.map((r) => r.maxScore)))} |`);
+    const m = (k: 10 | 26 | 52 | 104, f: "rmse" | "rho") => mean(rs.map((r) => r.snap[k]![f]));
+    log(`| ${LABEL[engine]} | ${f1(m(10, "rmse"))} | ${f1(m(26, "rmse"))} | ${f1(m(52, "rmse"))} | ${f1(m(104, "rmse"))} | ${m(52, "rho").toFixed(2)} | ${f1(mean(rs.map((r) => r.strongMean)))} | ${f1(mean(rs.map((r) => r.strongT)))} | ${f1(mean(rs.map((r) => r.maxScore)))} |`);
   }
 
   log(`\n## 3. No-shows\n`);
@@ -253,21 +313,32 @@ export function main(argv: string[]) {
   log(`| No-show rate | Engine | RMSE @52w | rank corr | mean reliability | mean games played |`);
   log(`|---|---|---|---|---|---|`);
   for (const ns of [0, 0.1, 0.25]) {
-    for (const engine of ENGINES) {
+    engines.forEach((engine, i) => {
       const rs = seeds.map((s) => runLeague(s, engine, 52, ns));
-      log(`| ${engine === "v1" ? `${ns * 100}%` : ""} | ${engine} | ${f1(mean(rs.map((r) => r.snap[52]!.rmse)))} | ${mean(rs.map((r) => r.snap[52]!.rho)).toFixed(2)} | ${f1(mean(rs.map((r) => r.rel)))} | ${f1(mean(rs.map((r) => r.games)))} |`);
-    }
+      log(`| ${i === 0 ? `${ns * 100}%` : ""} | ${LABEL[engine]} | ${f1(mean(rs.map((r) => r.snap[52]!.rmse)))} | ${mean(rs.map((r) => r.snap[52]!.rho)).toFixed(2)} | ${f1(mean(rs.map((r) => r.rel)))} | ${f1(mean(rs.map((r) => r.games)))} |`);
+    });
   }
-  log(`\n## 4. Sensitivity: how fast the field factor bites (v2, field_gain_scale)\n`);
-  log(`Larger scale = gains shrink more slowly as a player rises above the field. Honest strong player (T=85) in mixed games against the smurf in weak games with a friendly host. Score after 26 and 52 games, mean over seeds.\n`);
-  log(`| field_gain_scale | honest strong @26 | honest strong @52 | smurf @26 | smurf @52 | gap @52 |`);
+
+  log(`\n## 4. Sensitivity of the Phase F constants\n`);
+  const sseeds = seeds.slice(0, quick ? 2 : 6);
+  log(`${sseeds.length} seeds. One constant changed at a time from the defaults (vote_scale ${DEFAULT_CONFIG.vote_scale}, host_scale ${DEFAULT_CONFIG.host_scale}, host_span ${DEFAULT_CONFIG.host_span}, host_abs_weight ${DEFAULT_CONFIG.host_abs_weight}, host_max_share ${DEFAULT_CONFIG.host_max_share}). RMSE after 52 weeks in the honest league; games for an honest strong player (T=85) to reach 78 (52 = never); the honest strong and the smurf (friendly host) score after 52 games; the weak friend (T=30) with a colluding host and 3 voters after 26 games.\n`);
+  log(`| Setting | RMSE @52w | honest 85 to 78 | honest 85 @52 | smurf @52 | colluding weak friend @26 |`);
   log(`|---|---|---|---|---|---|`);
-  for (const scale of [10, 15, 25, 40, 80]) {
-    const cfg = { ...DEFAULT_CONFIG, field_gain_scale: scale };
-    const h = seeds.map((sd) => runSubject(sd, "v2", "honest_strong_mixed", 52, 0.08, cfg));
-    const m = seeds.map((sd) => runSubject(sd, "v2", "smurf_friendly_host", 52, 0.08, cfg));
-    const hm = (n: number) => mean(h.map((r) => at(r, n))), mm = (n: number) => mean(m.map((r) => at(r, n)));
-    log(`| ${scale}${scale === 15 ? " (default)" : ""} | ${f1(hm(26))} | ${f1(hm(52))} | ${f1(mm(26))} | ${f1(mm(52))} | ${f1(hm(52) - mm(52))} |`);
+  const settings: [string, Partial<RatingConfig>][] = [
+    ["defaults", {}],
+    ["vote_scale 15", { vote_scale: 15 }], ["vote_scale 20", { vote_scale: 20 }], ["vote_scale 30", { vote_scale: 30 }], ["vote_scale 40", { vote_scale: 40 }],
+    ["host_scale 10", { host_scale: 10 }], ["host_scale 15", { host_scale: 15 }], ["host_scale 30", { host_scale: 30 }], ["host_scale 45", { host_scale: 45 }],
+    ["host_span 3", { host_span: 3 }], ["host_span 4", { host_span: 4 }], ["host_span 6", { host_span: 6 }], ["host_span 7", { host_span: 7 }],
+    ["host_abs_weight 0.3", { host_abs_weight: 0.3 }], ["host_abs_weight 0.6", { host_abs_weight: 0.6 }], ["host_abs_weight 1", { host_abs_weight: 1 }],
+    ["host_max_share 0.5", { host_max_share: 0.5 }],
+  ];
+  for (const [name, over] of settings) {
+    const cfg = { ...DEFAULT_CONFIG, ...over };
+    const lg = sseeds.map((sd) => runLeague(sd, "f", 52, 0.08, cfg));
+    const h = sseeds.map((sd) => runSubject(sd, "f", "honest_strong_mixed", 52, 0.08, cfg));
+    const m = sseeds.map((sd) => runSubject(sd, "f", "smurf_friendly_host", 52, 0.08, cfg));
+    const c = sseeds.map((sd) => runSubject(sd, "f", "friend_host_and_voters", 52, 0.08, cfg));
+    log(`| ${name} | ${f1(mean(lg.map((r) => r.snap[52]!.rmse)))} | ${f1(avgN(h.map((r) => firstReach(r, 78)), 52).mean)} | ${f1(mean(h.map((r) => at(r, 52))))} | ${f1(mean(m.map((r) => at(r, 52))))} | ${f1(mean(c.map((r) => at(r, 26))))} |`);
   }
   if (out) writeFileSync(out, lines.join("\n") + "\n");
 }

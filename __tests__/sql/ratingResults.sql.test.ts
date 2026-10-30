@@ -156,6 +156,32 @@ describe.skipIf(!SQL_TESTS_ENABLED)("results as a protected input (real Postgres
     expect(adj.get(A[1]!.id) ?? 0).toBe(0); // 8 results by this host involve them, the limit is 6
     expect(adj.get(A[2]!.id)!).not.toBe(0);
   });
+  it("posted_by is the first poster and survives edits that change created_by", () => {
+    const other = uuid(951);
+    const out = sql(`${game()} insert into auth.users (id) values ('${other}'); insert into public.profiles (id, approved) values ('${other}', true);
+      select 'first|' || (posted_by = '${HOST}') from public.pickup_run_results where run_id = '${RUN}';
+      update public.pickup_run_results set created_by = '${other}', winning_team = 'B' where run_id = '${RUN}';
+      select 'after|' || (posted_by = '${HOST}') || '|' || (created_by = '${other}') from public.pickup_run_results where run_id = '${RUN}';`);
+    expect(lines(out)).toEqual(["first|true", "after|true|true"]);
+  });
+  it("the host entry limit counts by who posted, not by who edited last", () => {
+    const other = uuid(951);
+    const old = (i: number, postedBy: string, createdBy: string) => {
+      const r = uuid(2100 + i);
+      return `insert into public.pickup_runs (id, title, start_at, capacity, status, created_by) values ('${r}', 'old', now() - interval '${i + 3} days', 14, 'completed', '${HOST}');
+        insert into public.pickup_run_team_assignments (run_id, user_id, team) values ('${r}', '${A[1]!.id}', 'A');
+        insert into public.pickup_run_results (run_id, total_teams, winning_team, created_by, posted_by, created_at) values ('${r}', 2, 'A', '${createdBy}', '${postedBy}', now() - interval '${i + 3} days');`;
+    };
+    const setup = `insert into auth.users (id) values ('${other}'); insert into public.profiles (id, approved) values ('${other}', true);`;
+    // seven results HOST posted but an admin edited last: they still count against HOST
+    const posted = Array.from({ length: 7 }, (_, i) => old(i, HOST, other)).join("\n");
+    const a1 = parse(sql(`${game()} ${setup} ${posted} ${settle} ${confirm("A")} ${confirm("B")} ${adjustments}`));
+    expect(a1.get(A[1]!.id) ?? 0).toBe(0);
+    // seven results someone else posted that HOST edited last: they do not count against HOST
+    const edited = Array.from({ length: 7 }, (_, i) => old(i, other, HOST)).join("\n");
+    const a2 = parse(sql(`${game()} ${setup} ${edited} ${settle} ${confirm("A")} ${confirm("B")} ${adjustments}`));
+    expect(a2.get(A[1]!.id)!).not.toBe(0);
+  });
   it("is closed to players", () => {
     expect(sqlError(`${game()} set local role authenticated; select public.apply_result_rating('${RUN}');`)).toMatch(/permission denied/);
     expect(sqlError(`${game()} set local role authenticated; select * from public.pickup_run_result_confirmations;`)).toMatch(/permission denied/);
