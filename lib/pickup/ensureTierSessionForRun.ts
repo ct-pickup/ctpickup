@@ -57,7 +57,7 @@ export async function ensureTierSessionForRun(
       .maybeSingle();
 
     if (tsErr || !ts?.id) {
-      return { tier_session_id: null, error: tsErr?.message ?? "Failed to create tier session" };
+      return { tier_session_id: null, error: tsErr?.message ?? "Could not set up ratings for this game" };
     }
 
     tier_session_id = ts.id as string;

@@ -151,7 +151,7 @@ export default function RunClient({ event, counts: initialCounts }: { event: Eve
           <div className="text-caption opacity-80 mt-1">
             field {counts.a.field_yes}/{event.field_max} • goalie {counts.a.goalie_yes}/{event.goalie_max} • waitlist {counts.a.waitlist}
           </div>
-          <div className="text-caption opacity-80">Tier YES: 1A {counts.a.yes_1a} • 1B {counts.a.yes_1b}</div>
+          <div className="text-caption opacity-80">Yes votes: {counts.a.yes_1a + counts.a.yes_1b}</div>
         </button>
 
         <button className={`w-full rounded-button border p-3 text-left ${choice === "B" ? "bg-canvas text-ink" : ""}`} onClick={() => setChoice("B")}>
@@ -159,7 +159,7 @@ export default function RunClient({ event, counts: initialCounts }: { event: Eve
           <div className="text-caption opacity-80 mt-1">
             field {counts.b.field_yes}/{event.field_max} • goalie {counts.b.goalie_yes}/{event.goalie_max} • waitlist {counts.b.waitlist}
           </div>
-          <div className="text-caption opacity-80">Tier YES: 1A {counts.b.yes_1a} • 1B {counts.b.yes_1b}</div>
+          <div className="text-caption opacity-80">Yes votes: {counts.b.yes_1a + counts.b.yes_1b}</div>
         </button>
 
         {!confirming ? (
