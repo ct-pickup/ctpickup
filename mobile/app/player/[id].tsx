@@ -13,6 +13,7 @@ import { Stack, useLocalSearchParams, useNavigation, useRouter, type Href } from
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { PhotoHeader } from "@/components/photo";
+import PlayerGameStats from "@/components/profile/PlayerGameStats";
 import { StarRating } from "@/components/StarRating";
 import { fetchActionPhotoUrl } from "@/lib/photoUpload";
 import { fetchPlayerCard, hostScore, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
@@ -777,6 +778,8 @@ export default function PlayerProfileScreen() {
       </View>
 
 
+
+      <PlayerGameStats userId={userId} />
 
       {/* Soccer Background */}
       {(soccerChips.length > 0 || card) && (
