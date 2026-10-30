@@ -1062,7 +1062,7 @@ export function fetchAdminPlayerRatings(accessToken: string, opts: { userIds?: s
   });
 }
 
-export type AdminFlagView = { key: "fields" | "paid_plans"; enabled: boolean; note: string | null; updated_at: string | null; allowlist: { id: string; email: string | null }[] };
+export type AdminFlagView = { key: "fields" | "paid_plans" | "rating_v2" | "rating_results"; enabled: boolean; note: string | null; updated_at: string | null; allowlist: { id: string; email: string | null }[] };
 export type AdminFlagEvent = { id: number; flag_key: string; actor_email: string | null; change: Record<string, unknown>; created_at: string };
 
 export function fetchAdminFlags(accessToken: string) {

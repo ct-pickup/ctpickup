@@ -13,6 +13,8 @@ import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 const COPY: Record<AdminFlagView["key"], { title: string; detail: string }> = {
   fields: { title: "Fields", detail: "Browse, request, suggest and report fields, games at fields, field alerts." },
   paid_plans: { title: "Paid plans", detail: "Concierge and Book my season checkout. Needs Fields on too." },
+  rating_v2: { title: "Rating v2", detail: "New rating formula. Switch is global: it applies to every game settled while on. Tune numbers in rating_config." },
+  rating_results: { title: "Rating results", detail: "Confirmed team results move ratings a little, and captains confirm scores. Needs Rating v2 on." },
 };
 
 function describe(e: AdminFlagEvent): string {

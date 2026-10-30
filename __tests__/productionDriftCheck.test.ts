@@ -11,6 +11,8 @@ const bare = code.replace(/'(?:[^']|'')*'/g, "''");
 const migrations = readdirSync("supabase/migrations").filter((f) => f.endsWith(".sql")).sort();
 const CUTOFF = "20260523120000";
 const FIRST_FIELDS = "20261012000000";
+/** The last migration the production drift check covers (the Fields work and the flags table). Later migrations are other projects. */
+const LAST_COVERED = "20261024000000";
 const ts = (f: string) => f.split("_")[0]!;
 
 describe("scripts/dev/production_drift_check.sql", () => {
@@ -30,7 +32,7 @@ describe("scripts/dev/production_drift_check.sql", () => {
     for (const f of wanted) expect(sql, f).toContain(`('A','${f}'`);
   });
   it("covers every Fields migration (20261012 onward) as absent (section B)", () => {
-    const fields = migrations.filter((f) => ts(f) >= FIRST_FIELDS);
+    const fields = migrations.filter((f) => ts(f) >= FIRST_FIELDS && ts(f) <= LAST_COVERED);
     expect(fields.length).toBeGreaterThanOrEqual(15);
     for (const f of fields) expect(sql, f).toContain(`('B','${f}'`);
   });

@@ -9,14 +9,14 @@ const good = (data: unknown): Rpc => async () => ({ data, error: null });
 
 describe("app flag helper (mobile)", () => {
   it("only a literal true turns a flag on", () => {
-    expect(parseFlags({ fields: true, paid_plans: false })).toEqual({ fields: true, paid_plans: false });
+    expect(parseFlags({ fields: true, paid_plans: false })).toEqual({ ...FLAGS_OFF, fields: true });
     for (const bad of [null, undefined, "true", 1, [], {}, { fields: "true", paid_plans: 1 }, { fields: null }, { Fields: true }]) expect(parseFlags(bad), JSON.stringify(bad)).toEqual(FLAGS_OFF);
   });
   it("admins are on for everything, everyone else follows the flag", () => {
-    expect(flagOn({ fields: false, paid_plans: false }, "fields", true)).toBe(true);
-    expect(flagOn({ fields: false, paid_plans: false }, "fields", false)).toBe(false);
-    expect(flagOn({ fields: true, paid_plans: false }, "fields", false)).toBe(true);
-    expect(flagOn({ fields: true, paid_plans: false }, "paid_plans", false)).toBe(false);
+    expect(flagOn({ ...FLAGS_OFF }, "fields", true)).toBe(true);
+    expect(flagOn({ ...FLAGS_OFF }, "fields", false)).toBe(false);
+    expect(flagOn({ ...FLAGS_OFF, fields: true }, "fields", false)).toBe(true);
+    expect(flagOn({ ...FLAGS_OFF, fields: true }, "paid_plans", false)).toBe(false);
   });
   it("treats every read failure as OFF: rpc error, thrown error, timeout, missing function, no client, no user", async () => {
     const l = createFlagsLoader({ timeoutMs: 20 });
@@ -32,7 +32,7 @@ describe("app flag helper (mobile)", () => {
     const rpc = vi.fn(good({ fields: true, paid_plans: false }));
     const l = createFlagsLoader({ ttlMs: 60_000, now: () => t });
     const c = client(rpc);
-    expect(await l.load(c, "u")).toEqual({ flags: { fields: true, paid_plans: false }, ok: true });
+    expect(await l.load(c, "u")).toEqual({ flags: { ...FLAGS_OFF, fields: true }, ok: true });
     t += 30_000;
     await l.load(c, "u");
     expect(rpc).toHaveBeenCalledTimes(1);

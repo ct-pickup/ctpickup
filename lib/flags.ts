@@ -7,8 +7,8 @@ import { NextResponse } from "next/server";
  * Anything else is OFF, and so is any doubt: no row, no user, a failed read. SQL twin: public.flag_on().
  */
 
-export type FlagKey = "fields" | "paid_plans";
-export const FLAG_KEYS: readonly FlagKey[] = ["fields", "paid_plans"];
+export type FlagKey = "fields" | "paid_plans" | "rating_v2" | "rating_results";
+export const FLAG_KEYS: readonly FlagKey[] = ["fields", "paid_plans", "rating_v2", "rating_results"];
 export const isFlagKey = (v: unknown): v is FlagKey => typeof v === "string" && (FLAG_KEYS as readonly string[]).includes(v);
 
 export type FlagRow = { enabled?: boolean | null; allowlist?: string[] | null } | null | undefined;
