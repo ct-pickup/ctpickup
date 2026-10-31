@@ -36,6 +36,16 @@ export function displayNumeral(size: number) {
   } as const;
 }
 
+/** The exact rating on profiles: Archivo 900, tight tracking, sized to a phone (68px on a 390px wide screen). */
+export function ratingNumeral(size: number) {
+  return {
+    fontFamily: "Archivo_900Black",
+    fontSize: size,
+    lineHeight: Math.round(size * 0.98),
+    letterSpacing: -Math.round(size * 0.03 * 10) / 10,
+  } as const;
+}
+
 /** Small tracked label for the share card (sentence case, never uppercased). */
 export function trackedLabel(size: number) {
   return { fontFamily: "Inter_700Bold", fontSize: size, letterSpacing: Math.round(size * 0.06 * 10) / 10 } as const;

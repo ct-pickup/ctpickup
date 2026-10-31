@@ -5,6 +5,8 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import PlayerAvatar from "@/components/PlayerAvatar";
 import { StarRating } from "@/components/StarRating";
 import type { PlayerCardData } from "@/components/profile/PlayerCard";
+import { RatingBlock } from "@/components/profile/RatingBlock";
+import { ratingDisplay } from "@/lib/ratingDisplayCore";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import { starLevelName } from "@shared/starLevels";
 
@@ -21,6 +23,10 @@ type Props = {
   onShare?: () => void;
   shareBusy?: boolean;
   shareDisabled?: boolean;
+  /** Exact rating and games from player_cards. Without it (migration not applied) the card shows the one decimal star as before. */
+  exactRating?: { exact?: number | null; ratedGames?: number | null; settledGames?: number | null } | null;
+  /** Whose card this is; only changes the one line note. Defaults to the signed-in player's own. */
+  isOwn?: boolean;
 };
 
 /**
@@ -36,6 +42,8 @@ export default function ProfileCard({
   onShare,
   shareBusy,
   shareDisabled,
+  exactRating,
+  isOwn = true,
 }: Props) {
   useThemedStyles(publish_styles);
   const c = themeColor();
@@ -56,29 +64,48 @@ export default function ProfileCard({
     </>
   );
 
+  const disp =
+    data.star != null
+      ? ratingDisplay({
+          star: data.star,
+          exact: exactRating?.exact ?? null,
+          ratedGames: exactRating?.ratedGames ?? null,
+          settledGames: exactRating?.settledGames ?? null,
+          provisional: data.provisional,
+        })
+      : null;
+  // The new block needs the games behind the rating. Without them keep today's compact row.
+  const full = disp != null && disp.reliability != null && disp.gamesLabel != null;
+
+  const verifiedChip = data.verified ? (
+    <View style={styles.verified}>
+      <FontAwesome name="check" size={10} color={c.onInk} />
+      <Text allowFontScaling={false} style={styles.chip}>Verified</Text>
+    </View>
+  ) : null;
+
   const rating =
-    data.star != null ? (
-      <View style={styles.ratingRow}>
-        <Text allowFontScaling={false} style={styles.bigNumber}>
-          {data.star.toFixed(1)}
-        </Text>
-        <View style={styles.ratingSide}>
-          <StarRating value={data.star} provisional={data.provisional} px={20} showValue={false} showLevel={false} tone="onPhoto" />
-          <View style={styles.levelRow}>
-            {level ? (
-              <Text allowFontScaling={false} style={styles.level} numberOfLines={1}>
-                {level}
-              </Text>
-            ) : null}
-            {data.verified ? (
-              <View style={styles.verified}>
-                <FontAwesome name="check" size={10} color={c.onInk} />
-                <Text allowFontScaling={false} style={styles.chip}>Verified</Text>
-              </View>
-            ) : null}
+    data.star != null && disp ? (
+      full ? (
+        <RatingBlock star={data.star} provisional={data.provisional} verified={data.verified} level={level} display={disp} isOwn={isOwn} />
+      ) : (
+        <View style={styles.ratingRow}>
+          <Text allowFontScaling={false} style={styles.bigNumber}>
+            {disp.number}
+          </Text>
+          <View style={styles.ratingSide}>
+            <StarRating value={data.star} provisional={data.provisional} px={20} showValue={false} showLevel={false} tone="onPhoto" />
+            <View style={styles.levelRow}>
+              {level ? (
+                <Text allowFontScaling={false} style={styles.level} numberOfLines={1}>
+                  {level}
+                </Text>
+              ) : null}
+              {verifiedChip}
+            </View>
           </View>
         </View>
-      </View>
+      )
     ) : null;
 
   return (
@@ -187,7 +214,7 @@ function make_styles() {
       backgroundColor: c.overlay,
     },
     pressed: { opacity: 0.6 },
-    ratingWrap: { marginTop: 10, alignSelf: "flex-start" },
+    ratingWrap: { marginTop: 10, alignSelf: "stretch" },
     ratingRow: { flexDirection: "row", alignItems: "center", gap: 12 },
     bigNumber: { fontFamily: headline.fontFamily, fontSize: 44, lineHeight: 48, color: c.pitch },
     ratingSide: { gap: 3 },

@@ -301,6 +301,7 @@ export default function ProfileScreen() {
         <View style={s.cardWrap}>
           <ProfileCard
             data={cardData}
+            exactRating={card}
             onPressAvatar={editing ? pickAndUploadAvatar : undefined}
             onPressRating={() => setLevelsOpen(true)}
             avatarBusy={avatarUploading}
