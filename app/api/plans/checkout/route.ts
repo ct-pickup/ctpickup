@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-import { assertPlansTestKey, planPriceId, PLAN_PRODUCT_TAG, SEASON_PRODUCT_TAG } from "@/lib/plans/stripePlans";
+import { assertPlansTestKey, planPriceId, PLANS_UNAVAILABLE_MESSAGE, PLAN_PRODUCT_TAG, SEASON_PRODUCT_TAG } from "@/lib/plans/stripePlans";
 import { requireFlag } from "@/lib/flags";
 import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
 import { requireAuthedUser } from "@/lib/referral/auth";
@@ -21,7 +21,7 @@ const PER_HOUR = 10;
  *   { plan: "concierge" }                                                      subscription, $/month
  *   { plan: "season", venue_key, weekday, start_time, duration_hours?, weeks, players? }   one-time payment
  * Creates a Stripe Checkout Session (mode=subscription for Concierge, mode=payment for a season) and returns its URL.
- * TEST mode only. Gated by the 'paid_plans' and 'fields' flags (lib/flags.ts); admins are always on.
+ * Stripe test mode unless STRIPE_PLANS_ALLOW_LIVE is "1" (see assertPlansTestKey). Gated by the 'paid_plans' and 'fields' flags (lib/flags.ts); admins are always on.
  */
 export async function POST(req: Request) {
   const auth = await requireAuthedUser(req);
@@ -47,10 +47,14 @@ export async function POST(req: Request) {
   try {
     secret = assertPlansTestKey();
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Stripe is not set up." }, { status: 503 });
+    console.error(`[api/${ROUTE}] plans not available:`, e instanceof Error ? e.message : "unknown");
+    return NextResponse.json({ error: PLANS_UNAVAILABLE_MESSAGE }, { status: 503 });
   }
   const priceId = planPriceId(plan);
-  if (!priceId) return NextResponse.json({ error: `Missing the Stripe price for ${plan}.` }, { status: 503 });
+  if (!priceId) {
+    console.error(`[api/${ROUTE}] plans not available: missing the Stripe price for ${plan}`);
+    return NextResponse.json({ error: PLANS_UNAVAILABLE_MESSAGE }, { status: 503 });
+  }
 
   const stripe = new Stripe(secret);
   const origin = requestSiteUrlFromRequest(req);
