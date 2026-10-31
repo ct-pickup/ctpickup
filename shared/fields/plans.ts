@@ -72,7 +72,8 @@ export const SEASON_DEFAULT_WEEKS = 10;
 export const SEASON_MAX_WEEKS = 20;
 
 export const FIRST_REQUEST_FREE_COPY = "Your first request is free.";
-export const CREDIT_COPY = "If a venue doesn’t reply in 7 days, you get the request back as credit.";
+/** Promises only what the code does: a declined paid season is refunded in full to the card (lib/plans/seasonRefund.ts). */
+export const SEASON_REFUND_COPY = "If the venue can’t offer your season, we refund you in full.";
 export const FIELD_FEES_COPY = "Field fees are not included.";
 export const SEASON_COUNTS_COPY = "A season counts as one request, however many weeks.";
 
