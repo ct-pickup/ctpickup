@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "@/context/AuthContext";
 import { fetchMyRecord } from "@/lib/playerRecord";
 import { seasonWindowFor, SEASON_PRIZE_MIN_GAMES, SEASON_PRIZE_USD } from "@/lib/pickup/seasonPrize";
+import { POINTS_LOAD_FAILED_TEXT, type StandingState } from "@/lib/pointsCopy";
 import { fetchSeasonStanding, seasonDaysLeft, seasonGamesFromLog, type SeasonStanding } from "@/lib/seasonCard";
 import { fetchSeasonEntered, SEASON_PRIZE_ENABLED } from "@/lib/seasonPrize";
 import { radius, themeColor, useThemedStyles } from "@/theme";
@@ -34,6 +35,7 @@ function SeasonCardInner({ standing: given }: Props) {
   const daysLeft = seasonDaysLeft();
 
   const [fetched, setFetched] = useState<SeasonStanding | null>(null);
+  const [standingState, setStandingState] = useState<StandingState>("loading");
   const [games, setGames] = useState<number | null>(null);
   const [entered, setEntered] = useState<boolean | null>(null);
 
@@ -44,7 +46,13 @@ function SeasonCardInner({ standing: given }: Props) {
       if (!token) return;
       void fetchSeasonEntered(token).then((v) => live && setEntered(v));
       void fetchMyRecord(token).then((rec) => live && setGames(seasonGamesFromLog(rec?.log, season.label)));
-      if (given === undefined) void fetchSeasonStanding(token, userId).then((v) => live && setFetched(v));
+      if (given === undefined) {
+        void fetchSeasonStanding(token, userId).then((v) => {
+          if (!live) return;
+          setFetched(v);
+          setStandingState(v ? "ok" : "failed");
+        });
+      }
       return () => {
         live = false;
       };
@@ -52,6 +60,17 @@ function SeasonCardInner({ standing: given }: Props) {
   );
 
   const standing = given === undefined ? fetched : given;
+  // A failed call is not a zero: say so and let the player retry. A real 0 with no ranking stays "0" and "Unranked".
+  const standingFailed = given === undefined && standingState === "failed" && !standing;
+
+  function retryStanding() {
+    if (!token) return;
+    setStandingState("loading");
+    void fetchSeasonStanding(token, userId).then((v) => {
+      setFetched(v);
+      setStandingState(v ? "ok" : "failed");
+    });
+  }
   const rankText = standing?.rank != null ? `#${standing.rank}${standing.total != null ? ` of ${standing.total}` : ""}` : "Unranked";
 
   return (
@@ -78,8 +97,17 @@ function SeasonCardInner({ standing: given }: Props) {
         ) : null}
       </View>
       <View style={styles.stats}>
-        <Stat value={standing ? standing.points.toLocaleString() : "–"} label="Points" />
-        <Stat value={standing ? rankText : "–"} label="Rank" />
+        {standingFailed ? (
+          <Pressable onPress={retryStanding} style={styles.statWide} accessibilityRole="button" accessibilityLabel={POINTS_LOAD_FAILED_TEXT}>
+            <Text style={styles.retry}>{POINTS_LOAD_FAILED_TEXT}</Text>
+            <Text style={styles.statLabel}>Points and rank</Text>
+          </Pressable>
+        ) : (
+          <>
+            <Stat value={standing ? standing.points.toLocaleString() : "–"} label="Points" />
+            <Stat value={standing ? rankText : "–"} label="Rank" />
+          </>
+        )}
         <Stat value={games == null ? "–" : `${games} of ${SEASON_PRIZE_MIN_GAMES}`} label="Games toward prize" />
       </View>
       <Pressable onPress={() => (router.push as (href: string) => void)("/season-rules")} hitSlop={6} accessibilityRole="link">
@@ -116,6 +144,8 @@ function make_styles() {
     rules: { color: c.muted, fontSize: 11, fontFamily: "Inter_500Medium" },
     stats: { flexDirection: "row", gap: 8 },
     stat: { flex: 1, minWidth: 0 },
+    statWide: { flex: 2, minWidth: 0 },
+    retry: { color: c.pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
     statValue: { color: c.text, fontSize: 16, fontFamily: "Inter_700Bold", fontWeight: "700" },
     statLabel: { color: c.muted, fontSize: 11, fontFamily: "Inter_500Medium", marginTop: 1 },
   });
