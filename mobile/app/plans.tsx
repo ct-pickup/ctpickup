@@ -7,10 +7,9 @@ import { FieldScreenShell } from "@/components/fields/FieldScreenShell";
 import { useAuth } from "@/context/AuthContext";
 import { useFeatureFlag } from "@/context/FeatureFlagsContext";
 import { usePlanStatus } from "@/hooks/usePlanStatus";
-import { startPlanCheckout } from "@/lib/fields/plansApi";
+import { openPlanPortal, startPlanCheckout } from "@/lib/fields/plansApi";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import {
-  CREDIT_COPY,
   extraRequestLine,
   FIELD_FEES_COPY,
   FIRST_REQUEST_FREE_COPY,
@@ -18,6 +17,7 @@ import {
   PLAN_IDS,
   planPriceSuffix,
   PLANS,
+  SEASON_REFUND_COPY,
   yourPlanLine,
 } from "@shared/fields/plans";
 
@@ -34,6 +34,7 @@ export default function PlansScreen() {
   const fieldsOn = useFeatureFlag("fields");
   const { status, seasons, refresh } = usePlanStatus();
   const [busy, setBusy] = useState(false);
+  const [managing, setManaging] = useState(false);
   const isConcierge = status?.plan === "concierge";
   const line = yourPlanLine(status, seasons);
 
@@ -53,6 +54,25 @@ export default function PlansScreen() {
       setTimeout(() => void refresh(), 3000);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function managePlan() {
+    const token = session?.access_token;
+    if (!token) return;
+    setManaging(true);
+    try {
+      const res = await openPlanPortal(token);
+      if (!res.ok) {
+        Alert.alert("Couldn’t open plan settings", res.message);
+        return;
+      }
+      await WebBrowser.openBrowserAsync(res.url);
+      // They may have cancelled or changed the plan. The webhook can lag a moment, so check now and once more shortly after.
+      await refresh();
+      setTimeout(() => void refresh(), 3000);
+    } finally {
+      setManaging(false);
     }
   }
 
@@ -80,6 +100,11 @@ export default function PlansScreen() {
         <Text style={styles.yoursLabel}>Your plan</Text>
         <Text style={styles.yoursTitle}>{line.title}</Text>
         <Text style={styles.muted}>{line.detail}</Text>
+        {isConcierge ? (
+          <Pressable onPress={() => void managePlan()} disabled={managing} style={[styles.cta, managing && styles.ctaOff]} accessibilityRole="button" accessibilityLabel="Manage plan">
+            {managing ? <ActivityIndicator color={themeColor().onPitch} /> : <Text style={styles.ctaText}>Manage plan</Text>}
+          </Pressable>
+        ) : null}
       </View>
 
       {PLAN_IDS.map((id) => {
@@ -125,9 +150,8 @@ export default function PlansScreen() {
         );
       })}
 
-      <Text style={styles.foot}>{CREDIT_COPY}</Text>
+      <Text style={styles.foot}>{SEASON_REFUND_COPY}</Text>
       <Text style={styles.foot}>{FIELD_FEES_COPY}</Text>
-      <Text style={styles.foot}>Test mode: use Stripe’s test card 4242 4242 4242 4242. No real charges.</Text>
     </FieldScreenShell>
   );
 }

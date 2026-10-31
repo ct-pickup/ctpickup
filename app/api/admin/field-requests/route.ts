@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { pushRequestStatus } from "@/lib/fields/requestPush";
+import { pushSeasonRefund, refundSeasonForRequest, type SeasonRefundResult } from "@/lib/plans/seasonRefund";
 import { supabaseService } from "@/lib/supabase/service";
 import { isAdminSettableStatus, type RequestStatus } from "@/shared/fields/requestEmail";
 
@@ -115,10 +116,18 @@ export async function PATCH(req: Request) {
   if (!before) return NextResponse.json({ error: "Request not found." }, { status: 404 });
   const prev = before as { status: RequestStatus; user_id: string; venue_key: string; requested_date: string; start_time: string; duration_hours: number };
 
-  const { error: updErr } = await admin.from("venue_requests").update(patch).eq("id", id);
-  if (updErr) return NextResponse.json({ error: "Could not update the request." }, { status: 500 });
+  // Declining a paid season refunds it first. If the refund fails, nothing changes and the admin sees why.
+  let refund: SeasonRefundResult = { kind: "none" };
+  if (patch.status === "declined") {
+    refund = await refundSeasonForRequest(admin, id);
+    if (refund.kind === "failed") return NextResponse.json({ error: refund.message }, { status: 502 });
+  }
 
-  if (typeof patch.status === "string" && patch.status !== prev.status) await pushRequestStatus(admin, id, prev, patch.status as RequestStatus);
+  const { error: updErr } = await admin.from("venue_requests").update(patch).eq("id", id);
+  if (updErr) return NextResponse.json({ error: refund.kind === "refunded" ? "The season was refunded, but the request could not be updated. Try Decline again." : "Could not update the request." }, { status: 500 });
+
+  if (refund.kind === "refunded") await pushSeasonRefund(admin, id, prev);
+  else if (typeof patch.status === "string" && patch.status !== prev.status) await pushRequestStatus(admin, id, prev, patch.status as RequestStatus);
 
   return NextResponse.json({ ok: true });
 }
