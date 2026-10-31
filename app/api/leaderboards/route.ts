@@ -8,6 +8,7 @@ import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 import { currentSeason } from "@/lib/pickup/points";
 import { isLegacyMobileClient, LEGACY_TIER_RATING_COLUMNS, legacyTierRowFields } from "@/lib/api/appVersion";
 import { capRanked, LEADERBOARD_TOP_N } from "@/lib/leaderboards/cap";
+import { sortStarRows } from "@/lib/leaderboards/starOrder";
 import { loadExactRatings } from "@/lib/ratings/exactRatings";
 import { loadPlayHistory } from "@/lib/match/compatibilityData";
 import { loadRecordSummaries, summaryFor, type PlayerRecordSummary } from "@/lib/records/playerRecord";
@@ -453,7 +454,7 @@ async function fetchTierLeaderboard(
 
 /**
  * Stars ranking for the new app: every rated approved player, best first, ordered the way the app has always
- * sorted it (half-star rating, then current-season points; unrated players last). Only the cap decides who is
+ * sorted it (exact rating, then half star, then rated games, then id; players with no rated games last). Only the cap decides who is
  * returned; this returns the whole ordered list so a player's true rank is known.
  */
 async function fetchStarRanking(
@@ -504,8 +505,16 @@ async function fetchStarRanking(
       provisional: r.star_provisional === true,
     });
   }
-  out.sort((a, b) => (b.star ?? -1) - (a.star ?? -1) || (b.points ?? 0) - (a.points ?? 0));
-  return out;
+  // Exact rating and rated games for EVERY ranked player, before sorting: the order inside a half-star band is by the exact rating,
+  // and capRanked assigns ranks from the sorted list. (The raw score is never read; the view only returns the display decimal.)
+  const exact = await loadExactRatings(admin, out.map((r) => r.user_id));
+  for (const r of out) {
+    const e = exact.get(r.user_id);
+    if (!e || r.star == null) continue;
+    r.rating_exact = e.exact;
+    if (e.ratedGames != null) r.rated_games = e.ratedGames;
+  }
+  return sortStarRows(out);
 }
 
 /** Fills avatar_url for the few rows that are actually returned. */
@@ -519,17 +528,6 @@ async function fillAvatars(admin: SupabaseClient, rows: TierLeaderboardRow[]): P
   }
   const byId = new Map(((data ?? []) as Array<{ id: string; avatar_url: string | null }>).map((p) => [p.id, p.avatar_url?.trim() || null] as const));
   for (const r of rows) r.avatar_url = byId.get(r.user_id) ?? null;
-}
-
-/** Adds the exact rating and rated games to the few rows that are actually returned. Display only; the order and rank never use it. */
-async function fillExact(admin: SupabaseClient, rows: TierLeaderboardRow[]): Promise<void> {
-  const exact = await loadExactRatings(admin, rows.map((r) => r.user_id));
-  for (const r of rows) {
-    const e = exact.get(r.user_id);
-    if (!e || r.star == null) continue;
-    r.rating_exact = e.exact;
-    if (e.ratedGames != null) r.rated_games = e.ratedGames;
-  }
 }
 
 function bearer(req: Request): string | null {
@@ -818,10 +816,7 @@ export async function GET(req: Request) {
     const cPoints = cap(points);
     const cPointsAll = cap(points_all_time);
     const cTiers = capRanked(tiers, (r) => r.user_id, viewerId, playedWith);
-    if (records) {
-      await fillAvatars(admin, cTiers.rows);
-      await fillExact(admin, cTiers.rows);
-    }
+    if (records) await fillAvatars(admin, cTiers.rows);
 
     return NextResponse.json({
       ok: true as const,
