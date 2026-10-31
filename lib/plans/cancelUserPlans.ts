@@ -9,7 +9,7 @@ import { assertPlansTestKey } from "@/lib/plans/stripePlans";
  *   - every live Concierge subscription (plan_subscriptions) is cancelled in Stripe, then marked canceled here
  *   - every season purchase still waiting for payment has its Checkout Session expired (so it can no longer be paid) and is marked canceled
  * If Stripe fails, this throws and the caller must stop: nothing has been deleted yet, so the request can be retried.
- * Stripe TEST mode only (assertPlansTestKey). A user with no plans never touches Stripe, so a missing key does not block them.
+ * Stripe test mode unless STRIPE_PLANS_ALLOW_LIVE is "1" (assertPlansTestKey). A user with no plans never touches Stripe, so a missing key does not block them.
  */
 
 const LIVE_STATUSES = ["incomplete", "trialing", "active", "past_due", "unpaid", "paused"];

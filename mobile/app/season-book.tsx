@@ -168,7 +168,7 @@ export default function SeasonBookScreen() {
       <View style={styles.summary}>
         <Text style={styles.summaryTitle}>{PLANS.season.name}</Text>
         <Text style={styles.muted}>
-          Every {weekdayName(weekday)}, {timeLabel(time)} for {durationLabel(hours)}, {weeks} weeks. We contact the venue, handle any permit and confirm it. If the venue doesn’t reply in 7 days you get it back as credit.
+          Every {weekdayName(weekday)}, {timeLabel(time)} for {durationLabel(hours)}, {weeks} weeks. We contact the venue, handle any permit and confirm it. If the venue can’t offer it, we refund you in full.
         </Text>
       </View>
     </FieldScreenShell>

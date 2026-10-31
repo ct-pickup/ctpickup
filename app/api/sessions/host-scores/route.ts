@@ -68,7 +68,7 @@ export async function POST(req: Request) {
     const ensured = await ensureTierSessionForRun(admin, run, user.id);
     tier_session_id = ensured.tier_session_id;
     if (!tier_session_id) {
-      return NextResponse.json({ error: ensured.error ?? "Could not create tier session." }, { status: 500 });
+      return NextResponse.json({ error: ensured.error ?? "Could not set up ratings for this game." }, { status: 500 });
     }
   }
 

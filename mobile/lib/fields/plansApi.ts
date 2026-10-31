@@ -1,4 +1,5 @@
 import { siteOrigin } from "@/lib/env";
+import { requestPortalUrl, type PortalResult } from "@/lib/fields/plansPortalCore";
 
 export type CheckoutBody =
   | { plan: "concierge" }
@@ -26,4 +27,9 @@ export async function startPlanCheckout(token: string, body: CheckoutBody): Prom
   } catch {
     return { ok: false, code: "network", message: "We couldn’t reach the server." };
   }
+}
+
+/** Asks the server for the Stripe billing portal link (cancel, update card, invoices). Opens in the browser sheet. */
+export function openPlanPortal(token: string): Promise<PortalResult> {
+  return requestPortalUrl(fetch as never, siteOrigin(), token);
 }

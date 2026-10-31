@@ -23,7 +23,7 @@ export async function autoSettleTierSession(
     .maybeSingle();
 
   if (tsErr) return { settled: false, error: tsErr.message };
-  if (!ts) return { settled: false, error: "Tier session not found" };
+  if (!ts) return { settled: false, error: "Rating session not found" };
   if (ts.state === "settled") return { settled: false, already_settled: true };
 
   // Neutral default so settle_session can include every attended player.
@@ -67,7 +67,7 @@ export async function autoSettleTierSession(
   if (recipientIds.length > 0) {
     await sendPushToUsers(admin, recipientIds, {
       title: "Your rating has been updated",
-      body: "Check your tier progress in Rankings",
+      body: "See your new rating in Rankings",
       data: { kind: "season_standings", screen: "leaderboards" },
     });
   }

@@ -65,7 +65,7 @@ export default function RulesPage() {
                 <div>
                   <p className="font-semibold text-ink">3. High Intensity Is Required</p>
                   <p className="mt-2">
-                    This is not a casual or low-intensity environment. Every player is expected to bring effort, urgency, and energy. Players who consistently fail to meet the intensity standard may be moved down a tier. We play with three teams, so rest is always built in. When you are on, compete.
+                    This is not a casual or low-intensity environment. Every player is expected to bring effort, urgency, and energy. Players who consistently fail to meet the intensity standard may be placed in lower-level games. We play with three teams, so rest is always built in. When you are on, compete.
                   </p>
                 </div>
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { pushRequestStatus } from "@/lib/fields/requestPush";
+import { pushSeasonRefund, refundSeasonForRequest } from "@/lib/plans/seasonRefund";
 import { applyReply, parseReplyInput } from "@/lib/fields/venueReply";
 import { supabaseService } from "@/lib/supabase/service";
 import type { RequestStatus } from "@/shared/fields/requestEmail";
@@ -53,6 +54,16 @@ export async function POST(req: Request) {
   try {
     const res = await applyReply(admin, { requestId, adminId: guard.userId, input: parsed.input, applyToVenue: body.apply_to_venue !== false });
     if (!res.ok) return NextResponse.json({ error: res.error === "request_missing" ? "Request not found." : "The field for this request no longer exists." }, { status: 404 });
+    // A reply that declines a paid season refunds it too. The reply is already saved, so a failed refund is reported
+    // and the admin can press Decline on the request to retry (it never refunds twice).
+    if (res.newStatus === "declined") {
+      const refund = await refundSeasonForRequest(admin, requestId);
+      if (refund.kind === "failed") return NextResponse.json({ error: `Reply saved, but ${refund.message.charAt(0).toLowerCase()}${refund.message.slice(1)}` }, { status: 502 });
+      if (refund.kind === "refunded") {
+        await pushSeasonRefund(admin, requestId, res.request);
+        return NextResponse.json({ ok: true, reply_id: res.replyId, mode: res.mode, fields: res.fields, status: res.newStatus });
+      }
+    }
     if (res.newStatus !== res.previousStatus) await pushRequestStatus(admin, requestId, res.request, res.newStatus as RequestStatus);
     return NextResponse.json({ ok: true, reply_id: res.replyId, mode: res.mode, fields: res.fields, status: res.newStatus });
   } catch (e) {

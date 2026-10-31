@@ -302,7 +302,7 @@ export default function PickupPage() {
             <EmptyStateMessage>No active pickup games</EmptyStateMessage>
           ) : !data?.me?.approved ? (
             <div className="text-ink">
-              Your account is pending approval. If you’re already known to Competitive Together, we’ll approve your account and tier.
+              Your account is pending approval. If you’re already known to Competitive Together, we’ll approve your account.
             </div>
           ) : (
             <>
@@ -411,11 +411,11 @@ export default function PickupPage() {
 
                     {data.run.status === "likely_on" ? (
                       <div className="text-small text-muted flex items-center">
-                        Likely On triggered (Tier-1 ≥ 5 on a slot). Admin will finalize the time.
+                        Likely On: enough players picked the same slot. The time will be confirmed soon.
                       </div>
                     ) : (
                       <div className="text-small text-muted flex items-center">
-                        Likely On triggers when 5 Tier-1 players pick the same slot.
+                        Likely On happens when 5 players pick the same slot.
                       </div>
                     )}
                   </div>
@@ -520,7 +520,7 @@ export default function PickupPage() {
                   {data.visibility?.attendanceVisible ? (
                     <div className="rounded-card border border-line bg-card p-5 space-y-2">
                       <div className="text-small font-semibold text-ink">
-                        Attendance (visible to invited tiers)
+                        Attendance (visible to invited players)
                       </div>
                       {data.attendees?.length ? (
                         <div className="space-y-1 text-small text-muted">

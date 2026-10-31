@@ -12,7 +12,7 @@ const upcomingCards = [
     body: "Every game shows a live status so players know exactly where it stands.",
     bullets: [
       "Planning means the run is still being built and invited players are choosing from available time slots.",
-      "Likely On means one time slot has reached enough top-tier commitment on the same slot for the run to move forward, but the final time has not yet been locked.",
+      "Likely On means one time slot has reached enough commitment from invited players on the same slot for the run to move forward, but the final time has not yet been locked.",
       "Confirmed / Active means the exact slot has been finalized and eligible players can move into the final RSVP stage.",
       "Completed means the run has already taken place and is no longer open for responses or joining.",
     ],
@@ -86,7 +86,7 @@ const joinCards = [
     step: "02",
     eyebrow: "During Likely On",
     title: "The run is close, but not fully locked",
-    body: "When a run is marked Likely On, one slot has received enough top-tier commitment on the same exact slot to move forward.",
+    body: "When a run is marked Likely On, one slot has received enough commitment from invited players on the same exact slot to move forward.",
     bullets: [
       "Likely On does not mean the final kickoff time is locked yet.",
       "Players remain in the planning phase until admin finalizes the exact time.",
@@ -132,8 +132,8 @@ const joinCards = [
 
 const accessRules = [
   "Account approval",
-  "Tier placement",
-  "Whether that tier has been opened",
+  "When invites reach you",
+  "Whether invites have opened for you",
   "Whether the player was invited for that run",
   "Whether the player selected the finalized time during planning",
   "Whether space is still available",

@@ -164,7 +164,7 @@ class Query implements PromiseLike<{ data: unknown; error: Err; count?: number |
   maybeSingle() {
     const r = this.run();
     const list = (r.data as Row[] | null) ?? [];
-    return Promise.resolve({ data: list[0] ?? null, error: r.error });
+    return Promise.resolve({ data: list[0] ? { ...list[0] } : null, error: r.error });
   }
   single() {
     return this.maybeSingle();
