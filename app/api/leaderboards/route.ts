@@ -8,6 +8,7 @@ import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 import { currentSeason } from "@/lib/pickup/points";
 import { isLegacyMobileClient, LEGACY_TIER_RATING_COLUMNS, legacyTierRowFields } from "@/lib/api/appVersion";
 import { capRanked, LEADERBOARD_TOP_N } from "@/lib/leaderboards/cap";
+import { loadExactRatings } from "@/lib/ratings/exactRatings";
 import { loadPlayHistory } from "@/lib/match/compatibilityData";
 import { loadRecordSummaries, summaryFor, type PlayerRecordSummary } from "@/lib/records/playerRecord";
 
@@ -334,6 +335,9 @@ type TierLeaderboardRow = {
   /** New app: half-star rating from player_ratings (null when unrated or the column is missing). */
   star?: number | null;
   provisional?: boolean;
+  /** New app: exact two decimal rating and rated games from player_cards, for the rows returned (absent before the migration). Display only. */
+  rating_exact?: number;
+  rated_games?: number;
   /** True position in the full Stars ranking (set by the cap). */
   rank?: number;
 };
@@ -515,6 +519,17 @@ async function fillAvatars(admin: SupabaseClient, rows: TierLeaderboardRow[]): P
   }
   const byId = new Map(((data ?? []) as Array<{ id: string; avatar_url: string | null }>).map((p) => [p.id, p.avatar_url?.trim() || null] as const));
   for (const r of rows) r.avatar_url = byId.get(r.user_id) ?? null;
+}
+
+/** Adds the exact rating and rated games to the few rows that are actually returned. Display only; the order and rank never use it. */
+async function fillExact(admin: SupabaseClient, rows: TierLeaderboardRow[]): Promise<void> {
+  const exact = await loadExactRatings(admin, rows.map((r) => r.user_id));
+  for (const r of rows) {
+    const e = exact.get(r.user_id);
+    if (!e || r.star == null) continue;
+    r.rating_exact = e.exact;
+    if (e.ratedGames != null) r.rated_games = e.ratedGames;
+  }
 }
 
 function bearer(req: Request): string | null {
@@ -803,7 +818,10 @@ export async function GET(req: Request) {
     const cPoints = cap(points);
     const cPointsAll = cap(points_all_time);
     const cTiers = capRanked(tiers, (r) => r.user_id, viewerId, playedWith);
-    if (records) await fillAvatars(admin, cTiers.rows);
+    if (records) {
+      await fillAvatars(admin, cTiers.rows);
+      await fillExact(admin, cTiers.rows);
+    }
 
     return NextResponse.json({
       ok: true as const,

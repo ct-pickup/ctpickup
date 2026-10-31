@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { gamesSoFar, RATING_NOTE_OTHER, RATING_NOTE_OWN, ratingDisplay, ratingNote, ratingNumber, reliabilityPercent, starsText } from "../mobile/lib/ratingDisplayCore";
+import { gamesSoFar, ratingDisplay, ratingNumber, reliabilityPercent, starsText } from "../mobile/lib/ratingDisplayCore";
+import { STAR_LEVELS_SUBTITLE } from "../shared/starLevels";
 import { fetchPlayerCard, fetchPlayerCards } from "../mobile/lib/starRatings";
 
 describe("ratingNumber", () => {
@@ -75,12 +76,13 @@ describe("ratingDisplay", () => {
 });
 
 describe("copy", () => {
-  it("has the note for own and other profiles, with no em dash and no tier or wave words", () => {
-    expect(ratingNote(true)).toBe("Stars round to the nearest half star. The decimal is your exact rating.");
-    expect(ratingNote(false)).toBe(RATING_NOTE_OTHER);
-    for (const t of [RATING_NOTE_OWN, RATING_NOTE_OTHER, starsText(3.5), gamesSoFar(3)]) {
+  it("has no em dash and no tier or wave words", () => {
+    for (const t of [starsText(3.5), gamesSoFar(3), STAR_LEVELS_SUBTITLE]) {
       expect(t).not.toMatch(/—|–|\btier\b|\bwave\b|bronze|silver|gold|platinum|diamond/i);
     }
+  });
+  it("no longer carries the rounding note", () => {
+    expect(STAR_LEVELS_SUBTITLE).not.toMatch(/round to the nearest/i);
   });
 });
 

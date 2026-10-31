@@ -128,7 +128,7 @@ export default function SeasonStatsScreen() {
         {card ? (
           <View style={styles.nowRow}>
             <Text style={styles.cardLabel}>Rating now</Text>
-            <StarRating value={card.star} provisional={card.provisional} size="sm" />
+            <StarRating value={card.star} exact={card.exact} provisional={card.provisional} size="sm" />
           </View>
         ) : null}
       </View>

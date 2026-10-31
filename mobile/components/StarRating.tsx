@@ -2,6 +2,7 @@ import { useId } from "react";
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { ClipPath, Defs, Path, Rect } from "react-native-svg";
 
+import { starFills, starNumberText } from "@/lib/starFillCore";
 import { shareCardColor, themeColor, useThemedStyles } from "@/theme";
 import { starLevelName } from "@shared/starLevels";
 
@@ -9,6 +10,11 @@ export type StarRatingSize = "sm" | "md" | "lg";
 
 type Props = {
   value: number | null | undefined;
+  /**
+   * Exact rating (player_cards.rating_exact). When it rounds to `value`, the stars fill continuously and the number beside
+   * them shows two decimals. Leave it out (share images, rows without it) and the stars are half stars as before.
+   */
+  exact?: number | null;
   provisional?: boolean;
   size?: StarRatingSize;
   showValue?: boolean;
@@ -57,6 +63,9 @@ function roundedStarPath(): string {
 }
 
 const STAR_PATH = roundedStarPath();
+/** Left edge and width of the drawn star inside its 24 box, so a fill of 0.35 covers 35 percent of the star itself, not of the box. */
+const STAR_LEFT = 1.16;
+const STAR_SPAN = 21.68;
 
 export function StarGlyph({
   fill,
@@ -66,7 +75,8 @@ export function StarGlyph({
   color,
   offColor,
 }: {
-  fill: 0 | 0.5 | 1;
+  /** 0 to 1 of the star's width, filled from the left. */
+  fill: number;
   px: number;
   clipId: string;
   tone: "theme" | "onPhoto";
@@ -75,23 +85,25 @@ export function StarGlyph({
 }) {
   const on = color ?? (tone === "onPhoto" ? shareCardColor.accent : themeColor().accent);
   const off = offColor ?? (tone === "onPhoto" ? shareCardColor.starOff : themeColor().line);
+  const partial = fill > 0 && fill < 1;
   return (
     <Svg width={px} height={px} viewBox="0 0 24 24">
-      {fill === 0.5 ? (
+      {partial ? (
         <Defs>
           <ClipPath id={clipId}>
-            <Rect x="0" y="0" width="12" height="24" />
+            <Rect x="0" y="0" width={STAR_LEFT + STAR_SPAN * fill} height="24" />
           </ClipPath>
         </Defs>
       ) : null}
-      <Path d={STAR_PATH} fill={fill === 1 ? on : off} />
-      {fill === 0.5 ? <Path d={STAR_PATH} fill={on} clipPath={`url(#${clipId})`} /> : null}
+      <Path d={STAR_PATH} fill={fill >= 1 ? on : off} />
+      {partial ? <Path d={STAR_PATH} fill={on} clipPath={`url(#${clipId})`} /> : null}
     </Svg>
   );
 }
 
 export function StarRating({
   value,
+  exact,
   provisional = false,
   size = "md",
   showValue = true,
@@ -107,7 +119,8 @@ export function StarRating({
   if (value == null || !Number.isFinite(value)) return null;
 
   const clamped = Math.min(5, Math.max(0, value));
-  const halves = Math.round(clamped * 2);
+  const fills = starFills(clamped, exact);
+  const numberText = starNumberText(clamped, exact);
   const px = pxOverride ?? STAR_PX[size];
   const gap = pxOverride ? Math.max(1, Math.round(pxOverride * 0.12)) : GAP_PX[size];
   const onPhoto = tone === "onPhoto";
@@ -115,18 +128,17 @@ export function StarRating({
     ? { fontSize: Math.round(pxOverride * 0.78), marginLeft: Math.round(pxOverride * 0.35) }
     : null;
   const levelName = (showLevel ?? (pxOverride == null && size !== "sm")) ? starLevelName(clamped) : null;
-  const label = `${clamped.toFixed(1)} stars${levelName ? `, ${levelName}` : ""}${provisional ? ", new player" : ""}`;
+  const label = `${numberText} stars${levelName ? `, ${levelName}` : ""}${provisional ? ", new player" : ""}`;
 
   return (
     <View style={[styles.row, style]} accessible accessibilityRole="text" accessibilityLabel={label}>
       <View style={[styles.row, { gap }, provisional && styles.provisional]}>
         {[0, 1, 2, 3, 4].map((i) => {
-          const fill: 0 | 0.5 | 1 = halves >= (i + 1) * 2 ? 1 : halves === i * 2 + 1 ? 0.5 : 0;
-          return <StarGlyph key={i} fill={fill} px={px} clipId={`star-half-${baseId}-${i}`} tone={tone} color={color} offColor={offColor} />;
+          return <StarGlyph key={i} fill={fills[i] ?? 0} px={px} clipId={`star-half-${baseId}-${i}`} tone={tone} color={color} offColor={offColor} />;
         })}
         {showValue ? (
           <Text style={[styles.value, styles[`value_${size}`], customText, onPhoto && styles.valueOnPhoto]}>
-            {clamped.toFixed(1)}
+            {numberText}
           </Text>
         ) : null}
         {levelName ? (

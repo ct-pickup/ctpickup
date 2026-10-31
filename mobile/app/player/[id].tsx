@@ -798,7 +798,7 @@ export default function PlayerProfileScreen() {
 
       {card && ratingBlock ? (
         <View style={styles.ratingCard}>
-          <RatingBlock star={card.star} provisional={card.provisional} verified={verified} level={starLevelName(card.star)} display={ratingBlock} isOwn={isOwnProfile} />
+          <RatingBlock star={card.star} provisional={card.provisional} verified={verified} level={starLevelName(card.star)} display={ratingBlock} exact={card.exact ?? null} />
         </View>
       ) : null}
 
@@ -811,7 +811,7 @@ export default function PlayerProfileScreen() {
             <View style={{ paddingHorizontal: 16, paddingVertical: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: themeColor().line }}>
               <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", }}>Rating</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <StarRating value={card.star} provisional={card.provisional} size="md" />
+                <StarRating value={card.star} exact={card.exact} provisional={card.provisional} size="md" />
                 {topPercent ? (
                   <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600" }}>
                     · {topPercent}

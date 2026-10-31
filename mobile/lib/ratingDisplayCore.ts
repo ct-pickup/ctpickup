@@ -60,7 +60,3 @@ export function ratingDisplay(r: RatingInput): RatingDisplay {
     gamesLabel: known ? gamesSoFar(r.ratedGames as number) : null,
   };
 }
-
-export const RATING_NOTE_OWN = "Stars round to the nearest half star. The decimal is your exact rating.";
-export const RATING_NOTE_OTHER = "Stars round to the nearest half star. The decimal is their exact rating.";
-export const ratingNote = (own: boolean): string => (own ? RATING_NOTE_OWN : RATING_NOTE_OTHER);

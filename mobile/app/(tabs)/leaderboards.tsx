@@ -287,7 +287,7 @@ export default function LeaderboardsScreen() {
     async (rowsRaw: unknown[], cap: number) => {
       setStarsLoading(true);
       try {
-        type Row = Omit<RankedPlayer, "card"> & { star: number | null };
+        type Row = Omit<RankedPlayer, "card"> & { star: number | null; exact: number | null; ratedGames: number | null };
         const rows: Row[] = [];
         let serverRanked = true;
         for (const item of rowsRaw) {
@@ -303,6 +303,8 @@ export default function LeaderboardsScreen() {
             user_id: userId,
             rank: typeof item.rank === "number" ? item.rank : rows.length + 1,
             star: starNum,
+            exact: typeof item.rating_exact === "number" && Number.isFinite(item.rating_exact) ? item.rating_exact : null,
+            ratedGames: typeof item.rated_games === "number" && Number.isFinite(item.rated_games) ? item.rated_games : null,
             games: typeof item.games === "number" && Number.isFinite(item.games) ? item.games : 0,
             points: typeof item.points === "number" && Number.isFinite(item.points) ? item.points : 0,
             name: [first, last].filter(Boolean).join(" ").trim() || username || "Player",
@@ -340,11 +342,17 @@ export default function LeaderboardsScreen() {
 
         setRankedPlayers(
           shown
-            .map(({ star, ...p }) => ({ ...p, card: cards.get(p.user_id) ?? (star != null ? { star, provisional: false, percentile: null } : null) }))
+            .map(({ star, exact, ratedGames, ...p }) => {
+              const base = cards.get(p.user_id) ?? (star != null ? { star, provisional: false, percentile: null } : null);
+              // The server sends the exact rating for the rows it returns; the stars themselves stay the stored half stars.
+              return { ...p, card: base ? { ...base, exact: exact ?? base.exact ?? null, ratedGames: ratedGames ?? base.ratedGames ?? null } : null };
+            })
             .sort((a, b) => a.rank - b.rank),
         );
 
-        const mine = myUserId ? (cards.get(myUserId) ?? null) : null;
+        const mineBase = myUserId ? (cards.get(myUserId) ?? null) : null;
+        const mineRow = myUserId ? shown.find((r) => r.user_id === myUserId) : undefined;
+        const mine = mineBase ? { ...mineBase, exact: mineRow?.exact ?? mineBase.exact ?? null } : null;
         _cachedMyCard = mine;
         setMyCard(mine);
       } catch (e) {
@@ -531,7 +539,7 @@ export default function LeaderboardsScreen() {
         <View style={styles.heroLeft}>
           <Text style={styles.heroLabel}>Your rating</Text>
           {myCard ? (
-            <StarRating value={myCard.star} provisional={myCard.provisional} size="lg" style={styles.heroStars} />
+            <StarRating value={myCard.star} exact={myCard.exact} provisional={myCard.provisional} size="lg" style={styles.heroStars} />
           ) : (
             <Text style={styles.heroSub}>Your rating shows here after your first rated games.</Text>
           )}
@@ -603,7 +611,7 @@ export default function LeaderboardsScreen() {
             ) : null}
           </View>
           {item.card ? (
-            <StarRating value={item.card.star} provisional={item.card.provisional} size="sm" style={styles.playerStars} />
+            <StarRating value={item.card.star} exact={item.card.exact} provisional={item.card.provisional} size="sm" style={styles.playerStars} />
           ) : null}
           <Text style={[styles.playerStats, mine && styles.onPanelText]} numberOfLines={1}>
             {item.games} game{item.games === 1 ? "" : "s"}

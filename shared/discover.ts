@@ -41,13 +41,15 @@ export const DISCOVER_REASON_THRESHOLDS: Record<DiscoverComponent, number> = {
   mutuals: 1 / 3,
 };
 
-/** The only player fields Discover ever returns. No location, contact, score, tier or reliability. */
+/** The only player fields Discover ever returns. No location, contact, raw score, tier or reliability. The exact rating is the display decimal of the stars, not the score. */
 export type DiscoverPlayer = {
   id: string;
   /** "Sam R." */
   name: string;
   avatarUrl: string;
   star: number | null;
+  /** Exact two decimal rating for the same player (display only). Absent before the player_cards migration is applied. */
+  ratingExact?: number;
   /** "Confident" */
   levelName: string | null;
   /** "CB" */

@@ -1096,6 +1096,7 @@ function CountyPopupModal({
               const next = await fetchPlayerCards(
                 supabase,
                 json.topRatedPlayers.map((p) => p.id),
+                { withExact: true },
               );
               if (!cancelled) setCards(next);
             }
@@ -1188,7 +1189,7 @@ function CountyPopupModal({
                         {card || pos ? (
                           <View style={s.topRatedMetaRow}>
                             {card ? (
-                              <StarRating value={card.star} provisional={card.provisional} size="sm" />
+                              <StarRating value={card.star} exact={card.exact} provisional={card.provisional} size="sm" />
                             ) : null}
                             {pos ? <Text style={s.topRatedPos}>{pos}</Text> : null}
                           </View>

@@ -186,7 +186,7 @@ export async function fetchSeason(supabase: SupabaseClient, uid: string, accessT
     crowdIds.length
       ? supabase.from("profiles").select("id,first_name,last_name,avatar_url").in("id", crowdIds)
       : Promise.resolve({ data: [], error: null }),
-    fetchPlayerCards(supabase, [...crowdIds, uid]),
+    fetchPlayerCards(supabase, [...crowdIds, uid], { withExact: true }),
   ]);
   const personById = new Map<string, AvatarPerson>();
   for (const p of (crowdProfilesRes.data ?? []) as Array<{
@@ -268,7 +268,7 @@ export async function fetchMatchRecap(
     supabase.from("pickup_run_team_assignments").select("user_id,team").eq("run_id", runId),
     supabase.from("profiles").select("playing_position").eq("id", uid).maybeSingle(),
     fetchRunScores(supabase, [runId]),
-    fetchPlayerCards(supabase, [uid]),
+    fetchPlayerCards(supabase, [uid], { withExact: true }),
     accessToken ? fetchMyRecord(accessToken) : Promise.resolve<PlayerRecord | null>(null),
   ]);
   if (runRes.error) console.warn("[recap] run:", runRes.error.message);

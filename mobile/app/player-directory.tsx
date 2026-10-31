@@ -157,7 +157,7 @@ export default function PlayerDirectoryScreen() {
                 {item.name}
               </Text>
               <View style={styles.metaRow}>
-                <StarRating value={item.star} size="sm" />
+                <StarRating value={item.star} exact={item.ratingExact} size="sm" />
                 {item.levelName ? <Text style={styles.meta}>{item.levelName}</Text> : null}
               </View>
               <Text style={styles.meta} numberOfLines={1}>
