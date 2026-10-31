@@ -41,7 +41,7 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
-import { Archivo_700Bold } from "@expo-google-fonts/archivo";
+import { Archivo_700Bold, Archivo_900Black } from "@expo-google-fonts/archivo";
 import { InstrumentSerif_400Regular } from "@expo-google-fonts/instrument-serif";
 import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -88,6 +88,7 @@ function RootLayout() {
     Inter_700Bold,
     InstrumentSerif_400Regular,
     Archivo_700Bold,
+    Archivo_900Black,
     ...FontAwesome.font,
   });
 

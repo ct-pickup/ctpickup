@@ -1,25 +1,39 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type PlayerCard = { star: number; provisional: boolean; percentile: number | null };
+export type PlayerCard = {
+  star: number;
+  provisional: boolean;
+  percentile: number | null;
+  /** Exact two decimal rating, rated games and games to settle. Null until the player_cards migration is applied or when not asked for. */
+  exact?: number | null;
+  ratedGames?: number | null;
+  settledGames?: number | null;
+};
 
 /**
  * Player stars come only from `player_cards` (half-star steps, provisional flag, Top X% percentile).
  * Until those columns ship, the query fails and every caller hides stars.
  * Never derive stars from tier or score.
+ * `withExact` also reads the exact rating and game counts (profiles only). If those columns do not exist yet, it falls back to the
+ * star columns alone, so profiles keep today's display.
  */
 export async function fetchPlayerCards(
   supabase: SupabaseClient,
   userIds: string[],
+  options: { withExact?: boolean } = {},
 ): Promise<Map<string, PlayerCard>> {
   const ids = Array.from(new Set(userIds.filter(Boolean)));
   const cards = new Map<string, PlayerCard>();
   if (ids.length === 0) return cards;
   const CHUNK = 200;
   for (let i = 0; i < ids.length; i += CHUNK) {
-    const { data, error } = await supabase
-      .from("player_cards")
-      .select("user_id,star_rating,star_provisional,percentile")
-      .in("user_id", ids.slice(i, i + CHUNK));
+    const base = "user_id,star_rating,star_provisional,percentile";
+    const chunk = ids.slice(i, i + CHUNK);
+    type Res = { data: unknown; error: { message: string } | null };
+    const read = (cols: string) => supabase.from("player_cards").select(cols).in("user_id", chunk) as unknown as PromiseLike<Res>;
+    let res = await read(options.withExact ? `${base},rating_exact,rated_games,settled_games` : base);
+    if (res.error && options.withExact) res = await read(base);
+    const { data, error } = res;
     if (error) {
       console.warn("[stars] player_cards stars unavailable:", error.message);
       return new Map();
@@ -29,6 +43,9 @@ export async function fetchPlayerCards(
       star_rating: number | string | null;
       star_provisional: boolean | null;
       percentile: number | string | null;
+      rating_exact?: number | string | null;
+      rated_games?: number | string | null;
+      settled_games?: number | string | null;
     }>) {
       const star = row.star_rating == null ? NaN : Number(row.star_rating);
       if (!row.user_id || !Number.isFinite(star)) continue;
@@ -37,14 +54,24 @@ export async function fetchPlayerCards(
         star,
         provisional: row.star_provisional === true,
         percentile: Number.isFinite(pct) ? Math.min(100, Math.max(1, Math.round(pct))) : null,
+        exact: numOrNull(row.rating_exact),
+        ratedGames: numOrNull(row.rated_games),
+        settledGames: numOrNull(row.settled_games),
       });
     }
   }
   return cards;
 }
 
+function numOrNull(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** One player's card with the exact rating and game counts, for profile screens. */
 export async function fetchPlayerCard(supabase: SupabaseClient, userId: string): Promise<PlayerCard | null> {
-  return (await fetchPlayerCards(supabase, [userId])).get(userId) ?? null;
+  return (await fetchPlayerCards(supabase, [userId], { withExact: true })).get(userId) ?? null;
 }
 
 export async function fetchPlayerStars(

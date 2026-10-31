@@ -18,7 +18,10 @@ import { StarRating } from "@/components/StarRating";
 import { fetchActionPhotoUrl } from "@/lib/photoUpload";
 import { fetchPlayerCard, hostScore, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
 import { useFeatureFlag } from "@/context/FeatureFlagsContext";
+import { RatingBlock } from "@/components/profile/RatingBlock";
+import { ratingDisplay } from "@/lib/ratingDisplayCore";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
+import { starLevelName } from "@shared/starLevels";
 import {
   ActivityIndicator,
   Alert,
@@ -654,6 +657,13 @@ export default function PlayerProfileScreen() {
   }
 
   const topPercent = topPercentLabel(card);
+  // The full block needs the games behind the rating; without them (migration not applied) the plain Rating row below stays.
+  const ratingBlock = card
+    ? (() => {
+        const d = ratingDisplay({ star: card.star, exact: card.exact ?? null, ratedGames: card.ratedGames ?? null, settledGames: card.settledGames ?? null, provisional: card.provisional });
+        return d.reliability != null && d.gamesLabel ? d : null;
+      })()
+    : null;
   const experienceChip = profile.experience_level
     ? profile.experience_level === "hs_varsity"
       ? "HS Varsity"
@@ -786,12 +796,18 @@ export default function PlayerProfileScreen() {
 
 
 
+      {card && ratingBlock ? (
+        <View style={styles.ratingCard}>
+          <RatingBlock star={card.star} provisional={card.provisional} verified={verified} level={starLevelName(card.star)} display={ratingBlock} isOwn={isOwnProfile} />
+        </View>
+      ) : null}
+
       <PlayerGameStats userId={userId} />
 
       {/* Soccer Background */}
-      {(soccerChips.length > 0 || card) && (
+      {(soccerChips.length > 0 || (card && !ratingBlock)) && (
         <View style={{ marginHorizontal: 16, marginBottom: 16, backgroundColor: themeColor().overlaySubtle, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, overflow: "hidden" }}>
-          {card && (
+          {card && !ratingBlock && (
             <View style={{ paddingHorizontal: 16, paddingVertical: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: themeColor().line }}>
               <Text style={{ color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", }}>Rating</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -1196,6 +1212,7 @@ function make_styles() {
   },
   value: { fontSize: 16, fontFamily: "Inter_400Regular", color: themeColor().text },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, padding: 12 },
+  ratingCard: { marginHorizontal: 16, marginBottom: 16, padding: 14, borderRadius: radius.playerCard, backgroundColor: themeColor().inkSurface, borderWidth: StyleSheet.hairlineWidth, borderColor: themeColor().line },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 4,
