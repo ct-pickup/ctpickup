@@ -181,10 +181,9 @@ export async function sendPickupPriorWaveReinvitePush(
 ): Promise<void> {
   if (!opts.userIds.length) return;
   const title = pickupRunTitleForPush(opts.runTitle);
-  const tierLabel = opts.priorWave === 1 ? "Tier 1" : `Tier ${opts.priorWave}`;
   await sendPushToUsers(admin, opts.userIds, {
     title: "Still spots available 👋",
-    body: `${tierLabel} players — your spot for ${title} is still open. Tap to join.`,
+    body: `Your spot for ${title} is still open. Tap to join.`,
     data: { kind: "pickup_invite", run_id: opts.runId },
   });
 }

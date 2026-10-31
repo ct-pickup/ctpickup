@@ -75,7 +75,7 @@ export const GUIDANCE_PLAN_DEFINITIONS: GuidancePlanDefinition[] = [
       "Advanced mental and psychological approach — pressure, confidence, and consistency under load",
       "Personalized roadmap — milestones, checkpoints, and what “next level” means for you",
       "Ongoing feedback and adjustments as you evolve",
-      "15% off when working with partnered player coaches — stacked on the Development-tier coach benefit where applicable",
+      "15% off when working with partnered player coaches — stacked on the Development plan coach benefit where applicable",
     ],
   },
 ];
