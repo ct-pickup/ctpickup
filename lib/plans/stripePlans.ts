@@ -22,12 +22,26 @@ export function planFromPriceId(priceId: string | null | undefined, env: NodeJS.
   return CHECKOUT_PLAN_IDS.find((p) => planPriceId(p, env) === priceId) ?? null;
 }
 
-/** Step 1 is Stripe TEST mode only. A live key is refused here, whatever the environment. */
+/** What a player sees when checkout or the billing portal cannot start. The reason is logged on the server, never shown. */
+export const PLANS_UNAVAILABLE_MESSAGE = "Checkout isn't available right now. Please try again later.";
+
+/** A live Stripe key is used for plans only when this is exactly "1". Anything else (unset, "0", "true") keeps plans in test mode. */
+export const PLANS_ALLOW_LIVE_ENV = "STRIPE_PLANS_ALLOW_LIVE";
+
+/**
+ * The Stripe secret key for plans. A test key (sk_test_) always works. A live key (sk_live_) is refused unless
+ * STRIPE_PLANS_ALLOW_LIVE is "1", so turning plans on can never start charging real cards by accident. The name is kept because
+ * checkout, the plans webhook and account deletion all call it.
+ */
 export function assertPlansTestKey(env: NodeJS.ProcessEnv = process.env): string {
   const key = env.STRIPE_SECRET_KEY?.trim();
   if (!key) throw new Error("Missing STRIPE_SECRET_KEY");
-  if (!key.startsWith("sk_test_")) throw new Error("Fields plans run in Stripe test mode only: STRIPE_SECRET_KEY must be an sk_test_ key");
-  return key;
+  if (key.startsWith("sk_test_")) return key;
+  if (key.startsWith("sk_live_")) {
+    if (env[PLANS_ALLOW_LIVE_ENV]?.trim() === "1") return key;
+    throw new Error(`Fields plans run in Stripe test mode only: STRIPE_SECRET_KEY is a live key and ${PLANS_ALLOW_LIVE_ENV} is not set to 1`);
+  }
+  throw new Error("STRIPE_SECRET_KEY must be an sk_test_ or sk_live_ key");
 }
 
 export function plansWebhookSecret(env: NodeJS.ProcessEnv = process.env): string {
